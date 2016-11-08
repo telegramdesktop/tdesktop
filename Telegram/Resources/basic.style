@@ -1061,9 +1061,12 @@ infoButton: PeerAvatarButton {
 profileTopBarBackIconFg: #0290d7;
 profileTopBarBackIcon: icon {{ "title_back", profileTopBarBackIconFg }};
 
-historyReplyCancelIcon: icon {{ "box_button_close-invert", historyReplyBg }};
-boxSearchCancelIcon: icon {{ "box_button_close-invert", boxSearchBg }};
-settingsFixedBarCloseIcon: icon {{ "box_button_close-invert", settingsFixedBarBg }};
+historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
+historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
+boxSearchCancelIcon: icon {{ "box_button_close", boxSearchCancelIconFg }};
+boxSearchCancelIconOver: icon {{ "box_button_close", boxSearchCancelIconFgOver }};
+boxBlockTitleCloseIcon: icon {{ "box_button_close", boxBlockTitleCloseFg }};
+boxBlockTitleCloseIconOver: icon {{ "box_button_close", boxBlockTitleCloseFgOver }};
 
 notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 

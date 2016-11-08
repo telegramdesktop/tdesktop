@@ -128,14 +128,12 @@ Widget::Widget(QWidget *parent) : LayerWidget(parent)
 , _scroll(this, st::setScroll)
 , _inner(this)
 , _fixedBar(this)
-, _fixedBarShadow1(this, st::settingsFixedBarShadowBg1)
-, _fixedBarShadow2(this, st::settingsFixedBarShadowBg2) {
+, _fixedBarShadow(this, st::boxBlockTitleShadow) {
 	_scroll->setOwnedWidget(_inner);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	_fixedBar->move(0, 0);
-	_fixedBarShadow1->move(0, _fixedBar->y() + st::settingsFixedBarHeight);
-	_fixedBarShadow2->move(0, _fixedBarShadow1->y() + st::lineWidth);
+	_fixedBarShadow->move(0, _fixedBar->y() + st::settingsFixedBarHeight);
 	_scroll->move(0, st::settingsFixedBarHeight);
 
 	connect(_inner, SIGNAL(heightUpdated()), this, SLOT(onInnerHeightUpdated()));
@@ -211,8 +209,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	_fixedBar->resizeToWidth(width());
-	_fixedBarShadow1->resize(width(), st::lineWidth);
-	_fixedBarShadow2->resize(width(), st::lineWidth);
+	_fixedBarShadow->resize(width(), st::boxBlockTitleShadow.height());
 
 	QSize scrollSize(width(), height() - _fixedBar->height());
 	if (_scroll->size() != scrollSize) {

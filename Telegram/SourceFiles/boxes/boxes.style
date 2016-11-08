@@ -23,22 +23,19 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
-boxBlueTitleBg: #6393b5;
-boxBlueTitleFg: #ffffff;
-boxBlueTitleAdditionalFg: #dae9f5;
-boxBlueTitleAdditionalSkip: 12px;
-boxBlueTitlePosition: point(23px, 18px);
-boxBlueTitleShadow: icon {{ "box_title_shadow", windowShadowFg }};
+boxBlockTitleHeight: 48px;
+boxBlockTitlePosition: point(18px, 14px);
+boxBlockTitleFont: font(boxFontSize semibold);
+boxBlockTitleAdditionalSkip: 6px;
+boxBlockTitleAdditionalFont: normalFont;
+boxBlockTitleShadow: icon {{ "box_title_shadow", windowShadowFg }};
 
-boxBlueClose: MaskButton(defaultMaskButton) {
-	width: boxTitleHeight;
-	height: boxTitleHeight;
+boxBlockTitleClose: IconButton(defaultIconButton) {
+	width: boxBlockTitleHeight;
+	height: boxBlockTitleHeight;
 
-	bg: boxBlueTitleBg;
-	iconBg: #c8e1f0;
-	iconBgOver: #ffffff;
-
-	icon: icon {{ "box_button_close-invert", boxBlueTitleBg }};
+	icon: boxBlockTitleCloseIcon;
+	iconOver: boxBlockTitleCloseIconOver;
 }
 
 confirmInviteTitle: flatLabel(labelDefFlat) {
@@ -147,15 +144,12 @@ contactsMultiSelect: MultiSelect {
 	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: MaskButton(defaultMaskButton) {
+	fieldCancel: IconButton {
 		width: 41px;
 		height: 48px;
 
-		bg: boxSearchBg;
 		icon: boxSearchCancelIcon;
-
-		iconBg: boxSearchCancelIconFg;
-		iconBgOver: boxSearchCancelIconFgOver;
+		iconOver: boxSearchCancelIconOver;
 
 		iconPosition: point(8px, 18px);
 		iconPositionDown: point(8px, 18px);

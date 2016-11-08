@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/emojibox.h"
 
-#include "emojibox.h"
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -72,13 +72,13 @@ namespace {
 }
 
 EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
-	setBlueTitle(true);
+	setBlockTitle(true);
 
 	fillBlocks();
 
 	_blockHeight = st::emojiReplaceInnerHeight;
 
-	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, st::boxTitleHeight + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
+	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, titleHeight() + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
 
 	prepare();
 }
@@ -129,7 +129,7 @@ void EmojiBox::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::emojiTextFont);
 	p.setPen(st::boxTextFg);
-	int32 top = st::boxTitleHeight + st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
+	int32 top = titleHeight() + st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
 	for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {

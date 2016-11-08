@@ -21,26 +21,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "boxes/abstractbox.h"
 
+#include "styles/style_boxes.h"
 #include "localstorage.h"
 #include "lang.h"
 #include "ui/buttons/icon_button.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "styles/style_boxes.h"
-
-void BlueTitleShadow::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	QRect r(e->rect());
-	st::boxBlueTitleShadow.fill(p, QRect(r.left(), 0, r.width(), height()));
-}
 
 AbstractBox::AbstractBox(int w) : LayerWidget(App::wnd()->bodyWidget()) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
-	resize(w, 0);
+	resize((w > 0) ? w : st::boxWideWidth, 0);
 }
 
 void AbstractBox::prepare() {
+	raiseShadow();
 	showAll();
 }
 
@@ -53,12 +47,11 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void AbstractBox::resizeEvent(QResizeEvent *e) {
-	if (_blueClose) {
-		_blueClose->moveToRight(0, 0);
+	if (_blockClose) {
+		_blockClose->moveToRight(0, 0);
 	}
-	if (_blueShadow) {
-		_blueShadow->moveToLeft(0, st::boxTitleHeight);
-		_blueShadow->resize(width(), st::boxBlueTitleShadow.height());
+	if (_blockShadow) {
+		_blockShadow->setGeometry(0, st::boxBlockTitleHeight, width(), st::boxBlockTitleShadow.height());
 	}
 	LayerWidget::resizeEvent(e);
 }
@@ -75,21 +68,27 @@ bool AbstractBox::paint(QPainter &p) {
 	return false;
 }
 
-void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
-	p.setFont(st::boxTitleFont);
-	if (_blueTitle) {
-		p.fillRect(0, 0, width(), st::boxTitleHeight, st::boxBlueTitleBg);
-		p.setPen(st::boxBlueTitleFg);
+int AbstractBox::titleHeight() const {
+	return _blockTitle ? st::boxBlockTitleHeight : st::boxTitleHeight;
+}
 
-		int32 titleWidth = st::boxTitleFont->width(title);
-		p.drawTextLeft(st::boxBlueTitlePosition.x(), st::boxBlueTitlePosition.y(), width(), title, titleWidth);
+void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
+	if (_blockTitle) {
+		p.fillRect(0, 0, width(), titleHeight(), st::boxBlockTitleBg);
+
+		p.setFont(st::boxBlockTitleFont);
+		p.setPen(st::boxBlockTitleFg);
+
+		auto titleWidth = st::boxBlockTitleFont->width(title);
+		p.drawTextLeft(st::boxBlockTitlePosition.x(), st::boxBlockTitlePosition.y(), width(), title, titleWidth);
 
 		if (!additional.isEmpty()) {
-			p.setFont(st::boxTextFont);
-			p.setPen(st::boxBlueTitleAdditionalFg);
-			p.drawTextLeft(st::boxBlueTitlePosition.x() + titleWidth + st::boxBlueTitleAdditionalSkip, st::boxBlueTitlePosition.y(), width(), additional);
+			p.setFont(st::boxBlockTitleAdditionalFont);
+			p.setPen(st::boxBlockTitleAdditionalFg);
+			p.drawTextLeft(st::boxBlockTitlePosition.x() + titleWidth + st::boxBlockTitleAdditionalSkip, st::boxBlockTitlePosition.y(), width(), additional);
 		}
 	} else {
+		p.setFont(st::boxTitleFont);
 		p.setPen(st::boxTitleFg);
 		p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), title);
 	}
@@ -135,24 +134,27 @@ void AbstractBox::onClose() {
 	emit closed(this);
 }
 
-void AbstractBox::setBlueTitle(bool blue) {
-	_blueTitle = blue;
-	_blueShadow.create(this);
-	_blueClose.create(this, st::boxBlueClose);
-	_blueClose->setClickedCallback([this] { onClose(); });
+void AbstractBox::setBlockTitle(bool block) {
+	_blockTitle = block;
+	_blockShadow.create(this, st::boxBlockTitleShadow);
+	_blockClose.create(this, st::boxBlockTitleClose);
+	_blockClose->setClickedCallback([this] { onClose(); });
 }
 
 void AbstractBox::raiseShadow() {
-	if (_blueShadow) {
-		_blueShadow->raise();
+	if (_blockShadow) {
+		_blockShadow->raise();
 	}
+}
+
+ScrollableBoxShadow::ScrollableBoxShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxScrollShadowBg) {
 }
 
 ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : AbstractBox(w)
 , _scroll(this, scroll)
-, _topSkip(st::boxTitleHeight)
+, _topSkip(st::boxBlockTitleHeight)
 , _bottomSkip(st::boxScrollSkip) {
-	setBlueTitle(true);
+	setBlockTitle(true);
 }
 
 void ScrollableBox::resizeEvent(QResizeEvent *e) {
@@ -161,6 +163,8 @@ void ScrollableBox::resizeEvent(QResizeEvent *e) {
 }
 
 void ScrollableBox::init(TWidget *inner, int bottomSkip, int topSkip) {
+	if (bottomSkip < 0) bottomSkip = st::boxScrollSkip;
+	if (topSkip < 0) topSkip = st::boxBlockTitleHeight;
 	_bottomSkip = bottomSkip;
 	_topSkip = topSkip;
 	_scroll->setOwnedWidget(inner);
@@ -168,6 +172,8 @@ void ScrollableBox::init(TWidget *inner, int bottomSkip, int topSkip) {
 }
 
 void ScrollableBox::setScrollSkips(int bottomSkip, int topSkip) {
+	if (bottomSkip < 0) bottomSkip = st::boxScrollSkip;
+	if (topSkip < 0) topSkip = st::boxBlockTitleHeight;
 	if (_topSkip != topSkip || _bottomSkip != bottomSkip) {
 		_topSkip = topSkip;
 		_bottomSkip = bottomSkip;

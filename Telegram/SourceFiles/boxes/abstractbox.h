@@ -24,27 +24,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 
 namespace Ui {
-class MaskButton;
+class IconButton;
+class GradientShadow;
 } // namespace Ui
-
-class BlueTitleShadow : public TWidget {
-public:
-	BlueTitleShadow(QWidget *parent) : TWidget(parent) {
-	}
-	void paintEvent(QPaintEvent *e);
-};
 
 class AbstractBox : public LayerWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
-	AbstractBox(int w = st::boxWideWidth);
+	AbstractBox(int w = 0);
 	void parentResized() override;
 	void showDone() override {
 		showAll();
 	}
 
-	void setBlueTitle(bool blue);
+	void setBlockTitle(bool block);
 	void raiseShadow();
 
 public slots:
@@ -57,6 +51,7 @@ protected:
 
 	void prepare();
 	bool paint(QPainter &p);
+	int titleHeight() const;
 	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
 	void setMaxHeight(int32 maxHeight);
 	void resizeMaxHeight(int32 newWidth, int32 maxHeight);
@@ -72,25 +67,25 @@ private:
 
 	bool _closed = false;
 
-	bool _blueTitle = false;
-	ChildWidget<Ui::MaskButton> _blueClose = { nullptr };
-	ChildWidget<BlueTitleShadow> _blueShadow = { nullptr };
+	bool _blockTitle = false;
+	ChildWidget<Ui::IconButton> _blockClose = { nullptr };
+	ChildWidget<Ui::GradientShadow> _blockShadow = { nullptr };
 
 };
 
 class ScrollableBoxShadow : public Ui::PlainShadow {
 public:
-	ScrollableBoxShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxScrollShadowBg) {
-	}
+	ScrollableBoxShadow(QWidget *parent);
+
 };
 
 class ScrollableBox : public AbstractBox {
 public:
-	ScrollableBox(const style::flatScroll &scroll, int w = st::boxWideWidth);
+	ScrollableBox(const style::flatScroll &scroll, int w = 0);
 
 protected:
-	void init(TWidget *inner, int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
-	void setScrollSkips(int bottomSkip = st::boxScrollSkip, int topSkip = st::boxTitleHeight);
+	void init(TWidget *inner, int bottomSkip = -1, int topSkip = -1);
+	void setScrollSkips(int bottomSkip = -1, int topSkip = -1);
 
 	void resizeEvent(QResizeEvent *e) override;
 
@@ -108,7 +103,7 @@ private:
 
 class ItemListBox : public ScrollableBox {
 public:
-	ItemListBox(const style::flatScroll &scroll, int32 w = st::boxWideWidth);
+	ItemListBox(const style::flatScroll &scroll, int32 w = 0);
 
 };
 

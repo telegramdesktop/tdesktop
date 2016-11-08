@@ -75,7 +75,7 @@ PasscodeBox::PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, b
 }
 
 void PasscodeBox::init() {
-	setBlueTitle(true);
+	setBlockTitle(true);
 
 	textstyleSet(&st::usernameTextStyle);
 	_about.setRichText(st::normalFont, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
@@ -84,17 +84,17 @@ void PasscodeBox::init() {
 	if (_turningOff) {
 		_oldPasscode.show();
 		_boxTitle = lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove);
-		setMaxHeight(st::boxTitleHeight + st::passcodePadding.top() + _oldPasscode.height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
+		setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode.height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
 	} else {
 		bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 		if (has) {
 			_oldPasscode.show();
 			_boxTitle = lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change);
-			setMaxHeight(st::boxTitleHeight + st::passcodePadding.top() + _oldPasscode.height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _newPasscode.height() + st::contactSkip + _reenterPasscode.height() + st::passcodeSkip + (_cloudPwd ? _passwordHint.height() + st::contactSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
+			setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode.height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _newPasscode.height() + st::contactSkip + _reenterPasscode.height() + st::passcodeSkip + (_cloudPwd ? _passwordHint.height() + st::contactSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
 		} else {
 			_oldPasscode.hide();
 			_boxTitle = lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create);
-			setMaxHeight(st::boxTitleHeight + st::passcodePadding.top() + _newPasscode.height() + st::contactSkip + _reenterPasscode.height() + st::passcodeSkip + (_cloudPwd ? _passwordHint.height() + st::contactSkip : 0) + _aboutHeight + (_cloudPwd ? st::contactSkip + _recoverEmail.height() + st::passcodeSkip : st::passcodePadding.bottom()) + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
+			setMaxHeight(titleHeight() + st::passcodePadding.top() + _newPasscode.height() + st::contactSkip + _reenterPasscode.height() + st::passcodeSkip + (_cloudPwd ? _passwordHint.height() + st::contactSkip : 0) + _aboutHeight + (_cloudPwd ? st::contactSkip + _recoverEmail.height() + st::passcodeSkip : st::passcodePadding.bottom()) + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
 		}
 	}
 
@@ -233,7 +233,7 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 	int32 w = st::boxWidth - st::boxPadding.left() - st::boxPadding.right();
 	_oldPasscode.resize(w, _oldPasscode.height());
-	_oldPasscode.moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::passcodePadding.top());
+	_oldPasscode.moveToLeft(st::boxPadding.left(), titleHeight() + st::passcodePadding.top());
 	_newPasscode.resize(w, _newPasscode.height());
 	_newPasscode.moveToLeft(st::boxPadding.left(), _oldPasscode.y() + ((_turningOff || has) ? (_oldPasscode.height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0)) : 0));
 	_reenterPasscode.resize(w, _reenterPasscode.height());
@@ -496,9 +496,9 @@ RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth)
 , _saveButton(this, lang(lng_passcode_submit), st::defaultBoxButton)
 , _cancelButton(this, lang(lng_cancel), st::cancelBoxButton)
 , _recoverCode(this, st::defaultInputField, lang(lng_signin_code)) {
-	setBlueTitle(true);
+	setBlockTitle(true);
 
-	setMaxHeight(st::boxTitleHeight + st::passcodePadding.top() + st::passcodeSkip + _recoverCode.height() + st::passcodeSkip + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + st::passcodePadding.top() + st::passcodeSkip + _recoverCode.height() + st::passcodeSkip + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton.height() + st::boxButtonPadding.bottom());
 
 	connect(&_saveButton, SIGNAL(clicked()), this, SLOT(onSubmit()));
 	connect(&_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -535,7 +535,7 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 
 void RecoverBox::resizeEvent(QResizeEvent *e) {
 	_recoverCode.resize(st::boxWidth - st::boxPadding.left() - st::boxPadding.right(), _recoverCode.height());
-	_recoverCode.moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::passcodePadding.top() + st::passcodeSkip);
+	_recoverCode.moveToLeft(st::boxPadding.left(), titleHeight() + st::passcodePadding.top() + st::passcodeSkip);
 
 	_saveButton.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _saveButton.height());
 	_cancelButton.moveToRight(st::boxButtonPadding.right() + _saveButton.width() + st::boxButtonPadding.left(), _saveButton.y());

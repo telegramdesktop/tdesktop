@@ -34,7 +34,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 
 	bool haveTestLang = (cLang() == languageTest);
 
-	int32 y = st::boxTitleHeight + st::boxOptionListPadding.top();
+	int32 y = titleHeight() + st::boxOptionListPadding.top();
 	_langs.reserve(languageCount + (haveTestLang ? 1 : 0));
 	if (haveTestLang) {
 		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langsButton));
@@ -56,7 +56,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	resizeMaxHeight(st::langsWidth, st::boxTitleHeight + (languageCount + (haveTestLang ? 1 : 0)) * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::langsWidth, titleHeight() + (languageCount + (haveTestLang ? 1 : 0)) * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
 
 	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
 

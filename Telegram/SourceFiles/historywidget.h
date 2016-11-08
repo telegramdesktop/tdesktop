@@ -42,7 +42,6 @@ class DropdownMenu;
 class PlainShadow;
 class PopupMenu;
 class IconButton;
-class MaskButton;
 class HistoryDownButton;
 class EmojiButton;
 } // namespace Ui
@@ -897,7 +896,7 @@ private:
 	Text _replyEditMsgText;
 	mutable SingleTimer _updateEditTimeLeftDisplay;
 
-	ChildWidget<Ui::MaskButton> _fieldBarCancel;
+	ChildWidget<Ui::IconButton> _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);
 
 	struct PinnedBar {
@@ -907,7 +906,7 @@ private:
 		MsgId msgId = 0;
 		HistoryItem *msg = nullptr;
 		Text text;
-		ChildWidget<Ui::MaskButton> cancel;
+		ChildWidget<Ui::IconButton> cancel;
 		ChildWidget<Ui::PlainShadow> shadow;
 	};
 	std_::unique_ptr<PinnedBar> _pinnedBar;
@@ -1087,7 +1086,7 @@ private:
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId = 0;
-	std_::unique_ptr<Ui::MaskButton> _inlineBotCancel;
+	std_::unique_ptr<Ui::IconButton> _inlineBotCancel;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 

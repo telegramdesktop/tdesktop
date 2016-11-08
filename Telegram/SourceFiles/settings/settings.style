@@ -31,21 +31,12 @@ settingsMargin: 48px;
 
 settingsFixedBarHeight: 52px;
 settingsFixedBarFont: font(14px semibold);
-settingsFixedBarFg: windowTextFg;
 settingsFixedBarTextLeft: 20px;
 settingsFixedBarTextTop: 16px;
-settingsFixedBarClose: MaskButton(defaultMaskButton) {
+settingsFixedBarClose: IconButton(boxBlockTitleClose) {
 	width: settingsFixedBarHeight;
 	height: settingsFixedBarHeight;
-
-	bg: settingsFixedBarBg;
-	icon: settingsFixedBarCloseIcon;
-
-	iconBg: settingsCloseFg;
-	iconBgOver: settingsCloseFgOver;
 }
-settingsFixedBarShadowBg1: #00000021;
-settingsFixedBarShadowBg2: #0000000b;
 
 settingsMarginTop: 34px;
 settingsPhotoSize: 112px;

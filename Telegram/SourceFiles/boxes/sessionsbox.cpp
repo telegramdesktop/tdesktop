@@ -45,7 +45,7 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 	connect(App::wnd(), SIGNAL(newAuthorization()), this, SLOT(onNewAuthorization()));
 	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
-	init(_inner, st::boxButtonPadding.bottom() + _done.height() + st::boxButtonPadding.top(), st::boxTitleHeight);
+	init(_inner, st::boxButtonPadding.bottom() + _done.height() + st::boxButtonPadding.top(), titleHeight());
 	_inner->resize(width(), st::noContactsHeight);
 
 	prepare();
@@ -76,7 +76,7 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	if (paint(p)) return;
 
 	paintTitle(p, lang(lng_sessions_other_header));
-	p.translate(0, st::boxTitleHeight);
+	p.translate(0, titleHeight());
 
 	if (_loading) {
 		p.setFont(st::noContactsFont->f);

@@ -188,7 +188,7 @@ void StickersBox::setup() {
 		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
 		_topShadow.create(this, st::contactsAboutShadow);
 	}
-	ItemListBox::init(_inner, bottomSkip, st::boxTitleHeight + _aboutHeight);
+	ItemListBox::init(_inner, bottomSkip, titleHeight() + _aboutHeight);
 	setMaxHeight(snap(countHeight(), int32(st::sessionsHeight), int32(st::boxMaxListHeight)));
 
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
@@ -244,7 +244,7 @@ int32 StickersBox::countHeight() const {
 	if (_section == Section::Installed) {
 		bottomSkip = st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	}
-	return st::boxTitleHeight + _aboutHeight + _inner->height() + bottomSkip;
+	return titleHeight() + _aboutHeight + _inner->height() + bottomSkip;
 }
 
 void StickersBox::disenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req) {
@@ -306,7 +306,7 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 		return lang(lng_stickers_archived);
 	})();
 	paintTitle(p, title);
-	p.translate(0, st::boxTitleHeight);
+	p.translate(0, titleHeight());
 
 	if (_aboutHeight > 0) {
 		p.fillRect(0, 0, width(), _aboutHeight, st::contactsAboutBg);
@@ -343,7 +343,7 @@ void StickersBox::resizeEvent(QResizeEvent *e) {
 	_inner->setVisibleScrollbar((scrollArea()->scrollTopMax() > 0) ? (st::boxScroll.width - st::boxScroll.deltax) : 0);
 	updateVisibleTopBottom();
 	if (_topShadow) {
-		_topShadow->setGeometry(0, st::boxTitleHeight + _aboutHeight, width(), st::lineWidth);
+		_topShadow->setGeometry(0, titleHeight() + _aboutHeight, width(), st::lineWidth);
 	}
 	if (_save) {
 		_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());

@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "layerwidget.h"
 
 namespace Ui {
-class PlainShadow;
+class GradientShadow;
 } // namespace Ui
 
 namespace Settings {
@@ -54,7 +54,7 @@ private:
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
 	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<Ui::PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
+	ChildWidget<Ui::GradientShadow> _fixedBarShadow;
 
 	int _contentLeft = 0;
 

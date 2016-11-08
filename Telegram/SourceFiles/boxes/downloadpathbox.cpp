@@ -65,7 +65,7 @@ void DownloadPathBox::showAll() {
 	_save->show();
 	_cancel->show();
 
-	int32 h = st::boxTitleHeight + st::boxOptionListPadding.top() + _default->height() + st::boxOptionListPadding.top() + _temp->height() + st::boxOptionListPadding.top() + _dir->height();
+	int32 h = titleHeight() + st::boxOptionListPadding.top() + _default->height() + st::boxOptionListPadding.top() + _temp->height() + st::boxOptionListPadding.top() + _dir->height();
 	if (_dir->checked()) h += st::downloadPathSkip + _pathLink->height();
 	h += st::boxOptionListPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 
@@ -80,7 +80,7 @@ void DownloadPathBox::paintEvent(QPaintEvent *e) {
 }
 
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
-	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
+	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
 	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->y() + _default->height() + st::boxOptionListPadding.top());
 	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->y() + _temp->height() + st::boxOptionListPadding.top());
 	int32 inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x();

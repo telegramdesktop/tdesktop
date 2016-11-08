@@ -19,15 +19,13 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/aboutbox.h"
 
-#include "aboutbox.h"
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
 #include "autoupdater.h"
 #include "boxes/confirmbox.h"
-
 #include "application.h"
 
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
@@ -38,7 +36,7 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 , _done(this, lang(lng_close), st::defaultBoxButton) {
 	_text3.setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
 
-	setMaxHeight(st::boxTitleHeight + st::aboutTextTop + _text1.height() + st::aboutSkip + _text2.height() + st::aboutSkip + _text3.height() + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + st::aboutTextTop + _text1.height() + st::aboutSkip + _text2.height() + st::aboutSkip + _text3.height() + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
 
 	connect(&_version, SIGNAL(clicked()), this, SLOT(onVersion()));
 	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -57,8 +55,8 @@ void AboutBox::showAll() {
 }
 
 void AboutBox::resizeEvent(QResizeEvent *e) {
-	_version.moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::aboutVersionTop);
-	_text1.moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::aboutTextTop);
+	_version.moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutVersionTop);
+	_text1.moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutTextTop);
 	_text2.moveToLeft(st::boxPadding.left(), _text1.y() + _text1.height() + st::aboutSkip);
 	_text3.moveToLeft(st::boxPadding.left(), _text2.y() + _text2.height() + st::aboutSkip);
 	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());

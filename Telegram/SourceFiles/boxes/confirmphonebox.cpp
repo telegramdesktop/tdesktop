@@ -93,7 +93,7 @@ void ConfirmPhoneBox::setCallStatus(const CallStatus &status) {
 }
 
 void ConfirmPhoneBox::launch() {
-	setBlueTitle(true);
+	setBlockTitle(true);
 
 	_about = new FlatLabel(this, st::confirmPhoneAboutLabel);
 	TextWithEntities aboutText;
@@ -110,7 +110,7 @@ void ConfirmPhoneBox::launch() {
 	_send = new BoxButton(this, lang(lng_confirm_phone_send), st::defaultBoxButton);
 	_cancel = new BoxButton(this, lang(lng_cancel), st::cancelBoxButton);
 
-	setMaxHeight(st::boxTitleHeight + st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip + _send->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip + _send->height() + st::boxButtonPadding.bottom());
 
 	connect(_send, SIGNAL(clicked()), this, SLOT(onSendCode()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -289,7 +289,7 @@ QString ConfirmPhoneBox::getCallText() const {
 
 void ConfirmPhoneBox::resizeEvent(QResizeEvent *e) {
 	_code->resize(width() - st::usernamePadding.left() - st::usernamePadding.right(), _code->height());
-	_code->moveToLeft(st::usernamePadding.left(), st::boxTitleHeight + st::usernamePadding.top());
+	_code->moveToLeft(st::usernamePadding.left(), titleHeight() + st::usernamePadding.top());
 
 	_about->moveToLeft(st::usernamePadding.left(), _code->y() + _code->height() + st::usernameSkip);
 

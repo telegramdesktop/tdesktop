@@ -559,6 +559,7 @@ void MainWindow::showConnecting(const QString &text, const QString &reconnect) {
 		_connecting->set(text, reconnect);
 	} else {
 		_connecting.create(bodyWidget(), text, reconnect);
+		_connecting->show();
 		updateControlsGeometry();
 		fixOrder();
 	}

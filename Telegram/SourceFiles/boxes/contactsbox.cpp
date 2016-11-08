@@ -22,9 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 
 #include "dialogs/dialogs_indexed_list.h"
+#include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
-#include "styles/style_boxes.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "mainwidget.h"
@@ -307,7 +307,7 @@ void ContactsBox::paintEvent(QPaintEvent *e) {
 }
 
 int ContactsBox::getTopScrollSkip() const {
-	auto result = st::boxTitleHeight;
+	auto result = titleHeight();
 	if (!_select->isHidden()) {
 		result += _select->height();
 	}
@@ -332,7 +332,7 @@ void ContactsBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, st::boxTitleHeight);
+	_select->moveToLeft(0, titleHeight());
 
 	updateScrollSkips();
 

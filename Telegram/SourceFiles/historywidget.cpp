@@ -2996,10 +2996,10 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldAutocomplete(this)
 , _reportSpamPanel(this)
 , _send(this, st::historySend)
-, _unblock(this, lang(lng_unblock_button), st::historyUnblock)
-, _botStart(this, lang(lng_bot_start), st::historyComposeButton)
-, _joinChannel(this, lang(lng_channel_join), st::historyComposeButton)
-, _muteUnmute(this, lang(lng_channel_mute), st::historyComposeButton)
+, _unblock(this, lang(lng_unblock_button).toUpper(), st::historyUnblock)
+, _botStart(this, lang(lng_bot_start).toUpper(), st::historyComposeButton)
+, _joinChannel(this, lang(lng_channel_join).toUpper(), st::historyComposeButton)
+, _muteUnmute(this, lang(lng_channel_mute).toUpper(), st::historyComposeButton)
 , _attachToggle(this, st::historyAttach)
 , _attachEmoji(this, st::historyAttachEmoji)
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
@@ -6473,7 +6473,7 @@ void HistoryWidget::clearInlineBot() {
 void HistoryWidget::inlineBotChanged() {
 	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
 	if (isInlineBot && !_inlineBotCancel) {
-		_inlineBotCancel = std_::make_unique<Ui::MaskButton>(this, st::historyInlineBotCancel);
+		_inlineBotCancel = std_::make_unique<Ui::IconButton>(this, st::historyInlineBotCancel);
 		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
 		_inlineBotCancel->setGeometry(_send->geometry());
 		_attachEmoji->raise();
@@ -6514,14 +6514,14 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 void HistoryWidget::updateFieldPlaceholder() {
 	if (_editMsgId) {
 		_field->setPlaceholder(lang(lng_edit_message_text));
-//		_send->setText(lang(lng_settings_save));
+		_send->setIcon(&st::historyEditSaveIcon, &st::historyEditSaveIconOver);
 	} else {
 		if (_inlineBot && _inlineBot != LookingUpInlineBot) {
 			_field->setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
 		} else {
 			_field->setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent->checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
 		}
-//		_send->setText(lang(lng_send_button));
+		_send->setIcon(nullptr);
 	}
 }
 

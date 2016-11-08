@@ -215,7 +215,7 @@ mediaPlayerScroll: flatScroll(solidScroll) {
 }
 mediaPlayerListHeightMax: 280px;
 mediaPlayerListMarginBottom: 10px;
-mediaPlayerScrollShadow: icon {{ "playlist_shadow", #000000 }};
+mediaPlayerScrollShadow: icon {{ "playlist_shadow", windowShadowFg }};
 
 mediaPlayerListMarginTop: 8px;
 mediaPlayerListIconFg: #ffffff;

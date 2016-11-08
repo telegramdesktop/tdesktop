@@ -60,6 +60,9 @@ void IconButton::paintEvent(QPaintEvent *e) {
 	if (position.x() < 0) {
 		position.setX((width() - icon->width()) / 2);
 	}
+	if (position.y() < 0) {
+		position.setY((height() - icon->height()) / 2);
+	}
 	icon->paint(p, position, width());
 	if (over > 0. && over < 1.) {
 		auto iconOver = overIcon();

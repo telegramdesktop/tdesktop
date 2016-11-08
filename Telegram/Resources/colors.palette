@@ -81,6 +81,12 @@ boxSearchBg: boxBg;
 boxSearchCancelIconFg: cancelIconFg;
 boxSearchCancelIconFgOver: cancelIconFgOver;
 
+boxBlockTitleBg: boxBg;
+boxBlockTitleFg: boxTitleFg;
+boxBlockTitleAdditionalFg: #808080;
+boxBlockTitleCloseFg: cancelIconFg;
+boxBlockTitleCloseFgOver: cancelIconFgOver;
+
 membersAboutLimitFg: windowSubTextFg;
 
 contactsBg: windowBg;
@@ -91,10 +97,6 @@ photoCropFadeBg: #0000007f;
 photoCropPointFg: #ffffff7f;
 
 // settings
-settingsFixedBarBg: boxBg;
-settingsCloseFg: cancelIconFg;
-settingsCloseFgOver: cancelIconFgOver;
-
 notificationsBoxMonitorFg: windowTextFg;
 
 notificationSampleUserpicFg: windowActiveBg;
@@ -173,8 +175,8 @@ historySendIconFg: windowActiveBg;
 historySendIconFgOver: windowActiveBg;
 historyPinnedBg: historyComposeAreaBg;
 historyReplyBg: historyComposeAreaBg;
-historyReplyCancelIconFg: cancelIconFg;
-historyReplyCancelIconFgOver: cancelIconFgOver;
+historyReplyCancelFg: cancelIconFg;
+historyReplyCancelFgOver: cancelIconFgOver;
 
 historyComposeButtonBg: historyComposeAreaBg;
 historyComposeButtonBgOver: #f5f5f5;

@@ -48,7 +48,7 @@ void FixedBar::resizeEvent(QResizeEvent *e) {
 void FixedBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(e->rect(), st::settingsFixedBarBg);
+	p.fillRect(e->rect(), st::boxBlockTitleBg);
 
 	p.setFont(st::settingsFixedBarFont);
 	p.setPen(st::windowTextFg);

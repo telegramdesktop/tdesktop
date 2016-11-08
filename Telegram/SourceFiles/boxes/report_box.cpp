@@ -57,7 +57,7 @@ void ReportBox::paintEvent(QPaintEvent *e) {
 }
 
 void ReportBox::resizeEvent(QResizeEvent *e) {
-	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
+	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
 	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->y() + _reasonSpam->height() + st::boxOptionListPadding.top());
 	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->y() + _reasonViolence->height() + st::boxOptionListPadding.top());
 	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->y() + _reasonPornography->height() + st::boxOptionListPadding.top());
@@ -143,7 +143,7 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	int32 h = st::boxTitleHeight + 4 * (st::boxOptionListPadding.top() + _reasonSpam->height()) + st::boxButtonPadding.top() + _report->height() + st::boxButtonPadding.bottom();
+	int32 h = titleHeight() + 4 * (st::boxOptionListPadding.top() + _reasonSpam->height()) + st::boxButtonPadding.top() + _report->height() + st::boxButtonPadding.bottom();
 	if (_reasonOtherText) {
 		h += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}

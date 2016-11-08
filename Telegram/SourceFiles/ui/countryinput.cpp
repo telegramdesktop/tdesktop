@@ -201,7 +201,7 @@ CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxW
 , _topShadow(this) {
 	_select->resizeToWidth(st::boxWidth);
 
-	ItemListBox::init(_inner, st::boxScrollSkip, st::boxTitleHeight + _select->height());
+	ItemListBox::init(_inner, st::boxScrollSkip, titleHeight() + _select->height());
 
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->setSubmittedCallback([this](bool) { onSubmit(); });
@@ -240,10 +240,10 @@ void CountrySelectBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, st::boxTitleHeight);
+	_select->moveToLeft(0, titleHeight());
 
 	_inner->resizeToWidth(width());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _select->height(), width(), st::lineWidth);
+	_topShadow.setGeometry(0, titleHeight() + _select->height(), width(), st::lineWidth);
 }
 
 void CountrySelectBox::showAll() {

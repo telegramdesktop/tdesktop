@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 namespace Ui {
-class MaskButton;
+class IconButton;
 } // namespace Ui
 
 namespace Settings {
@@ -37,7 +37,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	ChildWidget<Ui::MaskButton> _close;
+	ChildWidget<Ui::IconButton> _close;
 
 };
 

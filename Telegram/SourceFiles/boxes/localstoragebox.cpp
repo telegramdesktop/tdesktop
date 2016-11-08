@@ -21,10 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "boxes/localstoragebox.h"
 
+#include "styles/style_boxes.h"
 #include "localstorage.h"
 #include "ui/flatbutton.h"
 #include "lang.h"
-#include "styles/style_boxes.h"
 #include "mainwindow.h"
 
 LocalStorageBox::LocalStorageBox() : AbstractBox()
@@ -50,8 +50,8 @@ void LocalStorageBox::updateControls() {
 		rowsHeight = st::linkFont->height + st::localStorageBoxSkip;
 	}
 	_clear->setVisible(_imagesCount > 0 || _audiosCount > 0);
-	setMaxHeight(st::boxTitleHeight + st::localStorageBoxSkip + rowsHeight + _clear->height() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
-	_clear->moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::localStorageBoxSkip + rowsHeight);
+	setMaxHeight(titleHeight() + st::localStorageBoxSkip + rowsHeight + _clear->height() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
+	_clear->moveToLeft(st::boxPadding.left(), titleHeight() + st::localStorageBoxSkip + rowsHeight);
 	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
 	update();
 }
@@ -83,7 +83,7 @@ void LocalStorageBox::paintEvent(QPaintEvent *e) {
 	p.setFont(st::boxTextFont);
 	p.setPen(st::windowTextFg);
 	checkLocalStoredCounts();
-	int top = st::boxTitleHeight + st::localStorageBoxSkip;
+	int top = titleHeight() + st::localStorageBoxSkip;
 	if (_imagesCount > 0) {
 		auto text = lng_settings_images_cached(lt_count, _imagesCount, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize() + Local::storageWebFilesSize()));
 		p.drawTextLeft(st::boxPadding.left(), top, width(), text);

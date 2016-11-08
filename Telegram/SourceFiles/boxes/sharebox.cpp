@@ -83,7 +83,7 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 }
 
 int ShareBox::getTopScrollSkip() const {
-	auto result = st::boxTitleHeight;
+	auto result = titleHeight();
 	if (!_select->isHidden()) {
 		result += _select->height();
 	}
@@ -186,7 +186,7 @@ void ShareBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, st::boxTitleHeight);
+	_select->moveToLeft(0, titleHeight());
 
 	updateScrollSkips();
 

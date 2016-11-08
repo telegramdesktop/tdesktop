@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "boxes/confirmbox.h"
 
+#include "styles/style_boxes.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -28,7 +29,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/buttons/checkbox.h"
 #include "core/click_handler_types.h"
-#include "styles/style_boxes.h"
 #include "localstorage.h"
 
 TextParseOptions _confirmBoxTextOptions = {
@@ -316,7 +316,7 @@ ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st:
 	_note.setText(st::boxTextFont, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
 	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
-	setMaxHeight(st::boxTitleHeight + _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth) + st::boxButtonPadding.top() + _convert->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth) + st::boxButtonPadding.top() + _convert->height() + st::boxButtonPadding.bottom());
 	textstyleRestore();
 
 	connect(_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
@@ -382,8 +382,8 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 	// draw box title / text
 	p.setPen(st::boxTextFg);
 	textstyleSet(&st::boxTextStyle);
-	_text.drawLeft(p, st::boxPadding.left(), st::boxTitleHeight, _textWidth, width());
-	_note.drawLeft(p, st::boxPadding.left(), st::boxTitleHeight + _textHeight + st::boxPadding.bottom(), _textWidth, width());
+	_text.drawLeft(p, st::boxPadding.left(), titleHeight(), _textWidth, width());
+	_note.drawLeft(p, st::boxPadding.left(), titleHeight() + _textHeight + st::boxPadding.bottom(), _textWidth, width());
 	textstyleRestore();
 }
 

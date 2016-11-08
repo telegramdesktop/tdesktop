@@ -200,9 +200,9 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			}
 		}
 		if (d.vset.type() == mtpc_stickerSet) {
-			auto &s(d.vset.c_stickerSet());
+			auto &s = d.vset.c_stickerSet();
 			_setTitle = stickerSetTitle(s);
-			_title = st::boxTitleFont->elided(_setTitle, width() - st::boxTitlePosition.x() - st::boxTitleHeight);
+			_title = st::boxBlockTitleFont->elided(_setTitle, width() - st::boxBlockTitlePosition.x() - st::boxBlockTitleHeight);
 			_setShortName = qs(s.vshort_name);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;

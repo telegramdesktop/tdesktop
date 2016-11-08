@@ -195,6 +195,9 @@ historySend: IconButton {
 	iconPosition: point(11px, 11px);
 	iconPositionDown: point(11px, 11px);
 }
+historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
+historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
+
 historyAttach: IconButton(historySend) {
 	icon: icon {{ "send_control_attach", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
@@ -276,17 +279,17 @@ historyReplyIconPosition: point(13px, 13px);
 historyReplyIcon: icon {{ "history_action_reply", #6fa1d2 }};
 historyForwardIcon: icon {{ "history_action_forward", #6fa1d2 }};
 historyEditIcon: icon {{ "history_action_edit", #6fa1d2 }};
-historyReplyCancel: MaskButton(defaultMaskButton) {
+historyReplyCancel: IconButton {
 	width: 49px;
 	height: 49px;
 
-	bg: historyReplyBg;
 	icon: historyReplyCancelIcon;
+	iconOver: historyReplyCancelIconOver;
 
-	iconBg: historyReplyCancelIconFg;
-	iconBgOver: historyReplyCancelIconFgOver;
+	iconPosition: point(-1px, -1px);
+	iconPositionDown: point(-1px, -1px);
 }
-historyInlineBotCancel: MaskButton(historyReplyCancel) {
+historyInlineBotCancel: IconButton(historyReplyCancel) {
 	height: 46px;
 }
 

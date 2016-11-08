@@ -26,7 +26,7 @@ class InputField;
 
 namespace Ui {
 
-class MaskButton;
+class IconButton;
 
 class MultiSelect : public TWidget {
 public:
@@ -154,7 +154,7 @@ private:
 	int _fieldTop = 0;
 	int _fieldWidth = 0;
 	ChildWidget<InputField> _field;
-	ChildWidget<Ui::MaskButton> _cancel;
+	ChildWidget<Ui::IconButton> _cancel;
 
 	int _newHeight = 0;
 	IntAnimation _height;

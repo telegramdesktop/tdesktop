@@ -19,12 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/autolockbox.h"
+
 #include "lang.h"
-
 #include "localstorage.h"
-
-#include "autolockbox.h"
-#include "confirmbox.h"
+#include "boxes/confirmbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "ui/buttons/checkbox.h"
@@ -36,9 +35,9 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 
 	int32 opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
 
-	resizeMaxHeight(st::langsWidth, st::boxTitleHeight + cnt * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::langsWidth, titleHeight() + cnt * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
 
-	int32 y = st::boxTitleHeight + st::boxOptionListPadding.top();
+	int32 y = titleHeight() + st::boxOptionListPadding.top();
 	_options.reserve(cnt);
 	for (int32 i = 0; i < cnt; ++i) {
 		int32 v = opts[i];

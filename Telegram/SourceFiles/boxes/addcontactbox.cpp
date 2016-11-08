@@ -19,21 +19,21 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/addcontactbox.h"
 
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
+#include "lang.h"
 #include "application.h"
-#include "addcontactbox.h"
-#include "contactsbox.h"
-#include "confirmbox.h"
-#include "photocropbox.h"
+#include "boxes/contactsbox.h"
+#include "boxes/confirmbox.h"
+#include "boxes/photocropbox.h"
 #include "ui/filedialog.h"
 #include "ui/buttons/checkbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
-#include "styles/style_boxes.h"
-#include "styles/style_dialogs.h"
 
 AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
@@ -73,7 +73,7 @@ void AddContactBox::initBox() {
 		bool readyToAdd = !_phone->getLastText().isEmpty() && (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
 		_boxTitle = lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data);
 	}
-	setMaxHeight(st::boxTitleHeight + st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
 	_retry->hide();
 
 	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
@@ -115,8 +115,8 @@ void AddContactBox::paintEvent(QPaintEvent *e) {
 	} else {
 		p.setPen(st::boxTextFg);
 		p.setFont(st::boxTextFont);
-		int32 h = height() - st::boxTitleHeight - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom() - st::boxButtonPadding.top() - _retry->height() - st::boxButtonPadding.bottom();
-		p.drawText(QRect(st::boxPadding.left(), st::boxTitleHeight + st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
+		int32 h = height() - titleHeight() - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom() - st::boxButtonPadding.top() - _retry->height() - st::boxButtonPadding.bottom();
+		p.drawText(QRect(st::boxPadding.left(), titleHeight() + st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
 	}
 }
 
@@ -125,11 +125,11 @@ void AddContactBox::resizeEvent(QResizeEvent *e) {
 	_last->resize(_first->width(), _last->height());
 	_phone->resize(_first->width(), _last->height());
 	if (_invertOrder) {
-		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), titleHeight() + st::contactPadding.top());
 		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last->y() + _last->height() + st::contactSkip);
 		_phone->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first->y() + _first->height() + st::contactPhoneSkip);
 	} else {
-		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), titleHeight() + st::contactPadding.top());
 		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first->y() + _first->height() + st::contactSkip);
 		_phone->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last->y() + _last->height() + st::contactPhoneSkip);
 	}
@@ -919,7 +919,7 @@ _invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
 	_first->setMaxLength(MaxGroupChannelTitle);
 	_last->setMaxLength(MaxGroupChannelTitle);
 
-	int32 h = st::boxTitleHeight + st::contactPadding.top() + _first->height();
+	int32 h = titleHeight() + st::contactPadding.top() + _first->height();
 	if (_peer->isUser()) {
 		_boxTitle = lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title);
 		h += st::contactSkip + _last->height();
@@ -989,10 +989,10 @@ void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
 	_first->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _first->height());
 	_last->resize(_first->size());
 	if (_invertOrder) {
-		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), titleHeight() + st::contactPadding.top());
 		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _last->y() + _last->height() + st::contactSkip);
 	} else {
-		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::contactPadding.top());
+		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), titleHeight() + st::contactPadding.top());
 		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _first->y() + _first->height() + st::contactSkip);
 	}
 
@@ -1161,7 +1161,7 @@ void EditChannelBox::onDescriptionResized() {
 }
 
 void EditChannelBox::updateMaxHeight() {
-	int32 h = st::boxTitleHeight + st::newGroupInfoPadding.top() + _title->height();
+	int32 h = titleHeight() + st::newGroupInfoPadding.top() + _title->height();
 	h += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	if (!_channel->isMegagroup()) {
 		h += st::newGroupPublicLinkPadding.top() + _sign->height() + st::newGroupPublicLinkPadding.bottom();
@@ -1175,7 +1175,7 @@ void EditChannelBox::updateMaxHeight() {
 
 void EditChannelBox::resizeEvent(QResizeEvent *e) {
 	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _title->height());
-	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxTitleHeight + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
+	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), titleHeight() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
 
 	_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _title->y() + _title->height() + st::newGroupDescriptionPadding.top());
 

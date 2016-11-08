@@ -19,11 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/connectionbox.h"
+
 #include "lang.h"
-
 #include "localstorage.h"
-
-#include "connectionbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "ui/buttons/checkbox.h"
@@ -62,7 +61,7 @@ void ConnectionBox::showAll() {
 	_tcpProxyRadio->show();
 	_tryIPv6->show();
 
-	int32 h = st::boxTitleHeight + st::boxOptionListPadding.top() + _autoRadio->height() + st::boxOptionListPadding.top() + _httpProxyRadio->height() + st::boxOptionListPadding.top() + _tcpProxyRadio->height() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6->height() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
+	int32 h = titleHeight() + st::boxOptionListPadding.top() + _autoRadio->height() + st::boxOptionListPadding.top() + _httpProxyRadio->height() + st::boxOptionListPadding.top() + _tcpProxyRadio->height() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6->height() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
 		h += 2 * st::boxOptionListPadding.top() + 2 * _hostInput->height();
 		_hostInput->show();
@@ -97,7 +96,7 @@ void ConnectionBox::paintEvent(QPaintEvent *e) {
 }
 
 void ConnectionBox::resizeEvent(QResizeEvent *e) {
-	_autoRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
+	_autoRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
 	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->y() + _autoRadio->height() + st::boxOptionListPadding.top());
 
 	int32 inputy = 0;
@@ -221,7 +220,7 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 , _gifPrivate(this, lang(lng_media_auto_private_chats), !(cAutoDownloadGif() & dbiadNoPrivate), st::defaultBoxCheckbox)
 , _gifGroups(this, lang(lng_media_auto_groups), !(cAutoDownloadGif() & dbiadNoGroups), st::defaultBoxCheckbox)
 , _gifPlay(this, lang(lng_media_auto_play), cAutoPlayGif(), st::defaultBoxCheckbox)
-, _sectionHeight(st::boxTitleHeight + 2 * (st::defaultBoxCheckbox.height + st::setLittleSkip))
+, _sectionHeight(titleHeight() + 2 * (st::defaultBoxCheckbox.height + st::setLittleSkip))
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
@@ -258,13 +257,13 @@ void AutoDownloadBox::paintEvent(QPaintEvent *e) {
 }
 
 void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
-	_photoPrivate->moveToLeft(st::boxTitlePosition.x(), st::boxTitleHeight + st::setLittleSkip);
+	_photoPrivate->moveToLeft(st::boxTitlePosition.x(), titleHeight() + st::setLittleSkip);
 	_photoGroups->moveToLeft(st::boxTitlePosition.x(), _photoPrivate->y() + _photoPrivate->height() + st::setLittleSkip);
 
-	_audioPrivate->moveToLeft(st::boxTitlePosition.x(), _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
+	_audioPrivate->moveToLeft(st::boxTitlePosition.x(), _sectionHeight + titleHeight() + st::setLittleSkip);
 	_audioGroups->moveToLeft(st::boxTitlePosition.x(), _audioPrivate->y() + _audioPrivate->height() + st::setLittleSkip);
 
-	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
+	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + titleHeight() + st::setLittleSkip);
 	_gifGroups->moveToLeft(st::boxTitlePosition.x(), _gifPrivate->y() + _gifPrivate->height() + st::setLittleSkip);
 	_gifPlay->moveToLeft(st::boxTitlePosition.x(), _gifGroups->y() + _gifGroups->height() + st::setLittleSkip);
 

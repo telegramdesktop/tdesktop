@@ -119,7 +119,7 @@ MultiSelect {
 	fieldMinWidth: pixels;
 	fieldIcon: icon;
 	fieldIconSkip: pixels;
-	fieldCancel: MaskButton;
+	fieldCancel: IconButton;
 	fieldCancelSkip: pixels;
 }
 
@@ -179,6 +179,11 @@ defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
 	textFg: windowTextFg;
+}
+
+defaultIconButton: IconButton {
+	iconPosition: point(-1px, -1px);
+	iconPositionDown: point(-1px, -1px);
 }
 
 defaultMaskButton: MaskButton {
