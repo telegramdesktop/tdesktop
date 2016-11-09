@@ -103,7 +103,6 @@ MainWindow::MainWindow() {
 			Notify::unreadCounterUpdated();
 		}
 	});
-	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
 
 	resize(st::windowDefaultWidth, st::windowDefaultHeight);
 
@@ -386,12 +385,6 @@ void MainWindow::setupMain(const MTPUser *self) {
 	fixOrder();
 
 	updateConnectingStatus();
-}
-
-void MainWindow::updateUnreadCounter() {
-	if (!Global::started() || App::quitting()) return;
-
-	psUpdateCounter();
 }
 
 void MainWindow::showSettings() {

@@ -43,8 +43,6 @@ public:
 	void psRefreshTaskbarIcon() {
 	}
 
-	void psUpdateCounter();
-
 	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) = 0;
@@ -61,6 +59,7 @@ public slots:
 
 protected:
 	void initHook() override;
+	void unreadCounterChangedHook() override;
 
 	bool psHasTrayIcon() const;
 

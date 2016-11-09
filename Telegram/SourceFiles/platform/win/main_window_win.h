@@ -50,8 +50,6 @@ public:
 
 	void psRefreshTaskbarIcon();
 
-	void psUpdateCounter();
-
 	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) = 0;
@@ -93,6 +91,7 @@ public slots:
 protected:
 	void initHook() override;
 	int32 screenNameChecksum(const QString &name) const override;
+	void unreadCounterChangedHook() override;
 
 	bool psHasTrayIcon() const {
 		return trayIcon;
@@ -110,6 +109,8 @@ protected:
 	QTimer psUpdatedPositionTimer;
 
 private:
+	void updateIconCounters();
+	
 	void psDestroyIcons();
 
 	static UINT _taskbarCreatedMsgId;

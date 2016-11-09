@@ -216,7 +216,6 @@ private slots:
 	void onWindowActiveChanged();
 
 private:
-	void updateUnreadCounter();
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 

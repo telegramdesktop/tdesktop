@@ -683,7 +683,7 @@ void MainWindow::psSetupTrayIcon() {
 		connect(trayIcon, SIGNAL(messageClicked()), this, SLOT(showFromTray()));
 		App::wnd()->updateTrayMenu();
 	}
-	psUpdateCounter();
+	updateIconCounters();
 
 	trayIcon->show();
 }
@@ -723,7 +723,12 @@ void MainWindow::psUpdateWorkmode() {
 	}
 }
 
-void MainWindow::psUpdateCounter() {
+void MainWindow::unreadCounterChangedHook() {
+	setWindowTitle(titleText());
+	updateIconCounters();
+}
+
+void MainWindow::updateIconCounters() {
 	auto counter = App::histories().unreadBadge();
 	auto muted = App::histories().unreadOnlyMuted();
 
@@ -746,7 +751,6 @@ void MainWindow::psUpdateCounter() {
 		trayIcon->setIcon(forTrayIcon);
 	}
 
-	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 	psDestroyIcons();
 	ps_iconSmall = createHIconFromQIcon(iconSmall, iconSizeSmall.width(), iconSizeSmall.height());
 	ps_iconBig = createHIconFromQIcon(iconBig, iconSizeBig.width(), iconSizeBig.height());

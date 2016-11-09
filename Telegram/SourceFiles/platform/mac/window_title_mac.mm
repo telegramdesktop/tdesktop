@@ -27,26 +27,62 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Platform {
 
-TitleWidget::TitleWidget(QWidget *parent, int height) : Window::TitleWidget(parent)
+TitleWidget::TitleWidget(MainWindow *parent, int height) : Window::TitleWidget(parent)
 , _shadow(this, st::titleShadow) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), height);
+
+#ifndef OS_MAC_OLD
+	QStringList families = { qsl(".SF NS Text"), qsl("Helvetica Neue") };
+	for (auto family : families) {
+		_font.setFamily(family);
+		if (QFontInfo(_font).family() == _font.family()) {
+			break;
+		}
+	}
+#endif // OS_MAC_OLD
+
+	if (QFontInfo(_font).family() == _font.family()) {
+		_font.setPixelSize((height * 15) / 24);
+	} else {
+		_font = st::normalFont;
+	}
+
+	subscribe(Global::RefUnreadCounterUpdate(), [this] { update(); });
 }
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
-	Painter(this).fillRect(rect(), st::titleBg);
+	Painter p(this);
+
+	p.fillRect(rect(), st::titleBg);
+
+	p.setPen(isActiveWindow() ? st::titleFgActive : st::titleFg);
+	p.setFont(_font);
+
+	p.drawText(rect(), static_cast<MainWindow*>(parentWidget())->titleText(), style::al_center);
 }
 
 void TitleWidget::resizeEvent(QResizeEvent *e) {
 	_shadow->setGeometry(0, height() - st::lineWidth, width(), st::lineWidth);
 }
 
+void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
+	auto window = parentWidget();
+	if (window->windowState() == Qt::WindowMaximized) {
+		window->setWindowState(Qt::WindowNoState);
+	} else {
+		window->setWindowState(Qt::WindowMaximized);
+	}
+}
+
 Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
+#ifndef OS_MAC_OLD
 	if (auto window = qobject_cast<Platform::MainWindow*>(parent)) {
 		if (auto height = window->getCustomTitleHeight()) {
-			return new TitleWidget(parent, height);
+			return new TitleWidget(window, height);
 		}
 	}
+#endif // !OS_MAC_OLD
 	return nullptr;
 }
 

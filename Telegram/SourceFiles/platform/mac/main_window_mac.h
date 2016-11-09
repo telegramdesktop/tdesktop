@@ -45,10 +45,6 @@ public:
 
 	bool psFilterNativeEvent(void *event);
 
-	bool eventFilter(QObject *obj, QEvent *evt) override;
-
-	void psUpdateCounter();
-
 	bool psHasNativeNotifications() {
 		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
 	}
@@ -80,8 +76,12 @@ private slots:
 	void onHideAfterFullScreen();
 
 protected:
+	bool eventFilter(QObject *obj, QEvent *evt) override;
+
 	void stateChangedHook(Qt::WindowState state) override;
 	void initHook() override;
+	void titleVisibilityChangedHook() override;
+	void unreadCounterChangedHook() override;
 
 	QImage psTrayIcon(bool selected = false) const;
 	bool psHasTrayIcon() const {
@@ -105,6 +105,8 @@ protected:
 
 private:
 	void createGlobalMenu();
+	void updateTitleCounter();
+	void updateIconCounters();
 
 	friend class Private;
 	std_::unique_ptr<Private> _private;

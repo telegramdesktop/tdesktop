@@ -169,11 +169,11 @@ void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
 }
 
 void MainWindow::Private::willEnterFullScreen() {
-	_public->setTitleVisibility(false);
+	_public->setTitleVisible(false);
 }
 
 void MainWindow::Private::willExitFullScreen() {
-	_public->setTitleVisibility(true);
+	_public->setTitleVisible(true);
 }
 
 void MainWindow::Private::enableShadow(WId winId) {
@@ -243,6 +243,10 @@ void MainWindow::initHook() {
 	}
 }
 
+void MainWindow::titleVisibilityChangedHook() {
+	updateTitleCounter();
+}
+
 void MainWindow::onHideAfterFullScreen() {
 	hide();
 }
@@ -269,7 +273,7 @@ void MainWindow::psSetupTrayIcon() {
 		connect(trayIcon, SIGNAL(activated(QSystemTrayIcon::ActivationReason)), this, SLOT(toggleTray(QSystemTrayIcon::ActivationReason)), Qt::UniqueConnection);
 		App::wnd()->updateTrayMenu();
 	}
-	psUpdateCounter();
+	updateIconCounters();
 
 	trayIcon->show();
 }
@@ -323,10 +327,17 @@ void _placeCounter(QImage &img, int size, int count, const style::color &bg, con
 	p.drawText(size - w - d - skip, size - f->height + f->ascent - skip, cnt);
 }
 
-void MainWindow::psUpdateCounter() {
-	int32 counter = App::histories().unreadBadge();
+void MainWindow::updateTitleCounter() {
+	setWindowTitle(titleVisible() ? QString() : titleText());
+}
 
-	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
+void MainWindow::unreadCounterChangedHook() {
+	updateTitleCounter();
+	updateIconCounters();
+}
+
+void MainWindow::updateIconCounters() {
+	auto counter = App::histories().unreadBadge();
 
 	QString cnt = (counter < 1000) ? QString("%1").arg(counter) : QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
 	_private->setWindowBadge(counter ? cnt : QString());

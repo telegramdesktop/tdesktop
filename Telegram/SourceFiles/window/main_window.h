@@ -40,7 +40,11 @@ public:
 	}
 	void positionUpdated();
 
-	void setTitleVisibility(bool visible);
+	bool titleVisible() const;
+	void setTitleVisible(bool visible);
+	QString titleText() const {
+		return _titleText;
+	}
 
 	virtual void closeWithoutDestroy();
 
@@ -61,6 +65,12 @@ protected:
 	virtual void stateChangedHook(Qt::WindowState state) {
 	}
 
+	virtual void titleVisibilityChangedHook() {
+	}
+
+	virtual void unreadCounterChangedHook() {
+	}
+
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;
 
@@ -73,6 +83,7 @@ private slots:
 
 private:
 	void updateControlsGeometry();
+	void updateUnreadCounter();
 	void initSize();
 
 	ChildObject<QTimer> _positionUpdatedTimer;
@@ -80,6 +91,8 @@ private:
 
 	ChildWidget<TitleWidget> _title = { nullptr };
 	ChildWidget<QWidget> _body;
+
+	QString _titleText;
 
 };
 

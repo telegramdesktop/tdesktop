@@ -51,6 +51,8 @@ titleButtonBgOver: #e5e5e5;
 titleButtonFgOver: #9a9a9a;
 titleButtonCloseBgOver: #e81123;
 titleButtonCloseFgOver: #ffffff;
+titleFgActive: #3e3c3e;
+titleFg: #acacac;
 trayCounterBg: #f23c34;
 trayCounterBgMute: #888888;
 trayCounterFg: #ffffff;

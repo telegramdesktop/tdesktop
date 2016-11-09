@@ -28,16 +28,20 @@ class PlainShadow;
 
 namespace Platform {
 
-class TitleWidget : public Window::TitleWidget {
+class MainWindow;
+
+class TitleWidget : public Window::TitleWidget, private base::Subscriber {
 public:
-	TitleWidget(QWidget *parent, int height);
+	TitleWidget(MainWindow *parent, int height);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 private:
 	ChildWidget<Ui::PlainShadow> _shadow;
+	QFont _font;
 
 };
 

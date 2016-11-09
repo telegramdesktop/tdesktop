@@ -30,7 +30,8 @@ namespace Window {
 
 MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
-, _body(this) {
+, _body(this)
+, _titleText(qsl("Telegram")) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		using Type = Theme::BackgroundUpdate::Type;
 		if (data.type == Type::TestingTheme || data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
@@ -39,6 +40,7 @@ MainWindow::MainWindow() : QWidget()
 			}
 		}
 	});
+	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
 }
 
 void MainWindow::init() {
@@ -105,11 +107,16 @@ void MainWindow::positionUpdated() {
 	_positionUpdatedTimer->start(SaveWindowPositionTimeout);
 }
 
-void MainWindow::setTitleVisibility(bool visible) {
+bool MainWindow::titleVisible() const {
+	return _title && !_title->isHidden();
+}
+
+void MainWindow::setTitleVisible(bool visible) {
 	if (_title && (_title->isHidden() == visible)) {
 		_title->setVisible(visible);
 		updateControlsGeometry();
 	}
+	titleVisibilityChangedHook();
 }
 
 int32 MainWindow::screenNameChecksum(const QString &name) const {
@@ -132,6 +139,15 @@ void MainWindow::updateControlsGeometry() {
 		bodyTop += _title->height();
 	}
 	_body->setGeometry(0, bodyTop, width(), height() - bodyTop);
+}
+
+void MainWindow::updateUnreadCounter() {
+	if (!Global::started() || App::quitting()) return;
+
+	auto counter = App::histories().unreadBadge();
+	_titleText = (counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram");
+
+	unreadCounterChangedHook();
 }
 
 void MainWindow::savePosition(Qt::WindowState state) {
