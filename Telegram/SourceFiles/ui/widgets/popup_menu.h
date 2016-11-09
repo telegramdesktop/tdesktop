@@ -18,8 +18,8 @@
 #pragma once
 
 #include "styles/style_widgets.h"
-#include "ui/effects/rect_shadow.h"
 #include "ui/widgets/menu.h"
+#include "ui/effects/panel_animation.h"
 
 namespace Ui {
 
@@ -58,14 +58,28 @@ protected:
 	}
 
 private:
+	void paintBg(Painter &p);
+	void hideFast();
+	void setOrigin(PanelAnimation::Origin origin);
+	void showAnimated(PanelAnimation::Origin origin);
+	void hideAnimated();
+
+	QImage grabForPanelAnimation();
+	void startShowAnimation();
+	void startOpacityAnimation(bool hiding);
+	void prepareCache();
 	void childHiding(PopupMenu *child);
 
-	void step_hide(float64 ms, bool timer);
+	void showAnimationCallback();
+	void opacityAnimationCallback();
 
 	void init();
-	void hideFinish();
+
+	void hideFinished();
+	void showStarted();
 
 	using TriggeredSource = Ui::Menu::TriggeredSource;
+	void handleCompositingUpdate();
 	void handleMenuResize();
 	void handleActivated(QAction *action, int actionTop, TriggeredSource source);
 	void handleTriggered(QAction *action, int actionTop, TriggeredSource source);
@@ -97,12 +111,16 @@ private:
 	QRect _inner;
 	style::margins _padding;
 
-	Ui::RectShadow _shadow;
 	SubmenuPointer _activeSubmenu;
 
+	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
+	std_::unique_ptr<PanelAnimation> _showAnimation;
+	FloatAnimation _a_show;
+
+	bool _compositing = true;
+	bool _hiding = false;
 	QPixmap _cache;
-	anim::fvalue a_opacity;
-	Animation _a_hide;
+	FloatAnimation _a_opacity;
 
 	bool _deleteOnHide = true;
 	bool _triggering = false;

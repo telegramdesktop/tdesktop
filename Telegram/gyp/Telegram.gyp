@@ -461,6 +461,8 @@
       '<(src_loc)/ui/buttons/peer_avatar_button.h',
       '<(src_loc)/ui/buttons/round_button.cpp',
       '<(src_loc)/ui/buttons/round_button.h',
+      '<(src_loc)/ui/effects/panel_animation.cpp',
+      '<(src_loc)/ui/effects/panel_animation.h',
       '<(src_loc)/ui/effects/radial_animation.cpp',
       '<(src_loc)/ui/effects/radial_animation.h',
       '<(src_loc)/ui/effects/rect_shadow.cpp',

@@ -72,7 +72,7 @@ QPixmap myGrab(TWidget *target, QRect rect) {
     result.fill(Qt::transparent);
 
 	target->grabStart();
-    target->render(&result, QPoint(), QRegion(rect), QWidget::DrawChildren | QWidget::IgnoreMask);
+    target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();
 
 	return result;

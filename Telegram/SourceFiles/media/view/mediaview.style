@@ -137,10 +137,24 @@ mediaviewMenu: Menu(defaultMenu) {
 
 	separatorFg: mediaviewMenuFg;
 }
+mediaviewMenuShadow: Shadow(defaultEmptyShadow) {
+	fallback: mediaviewMenuBg;
+}
+mediaviewPanelAnimation: PanelAnimation(defaultPanelAnimation) {
+	fadeBg: mediaviewMenuBg;
+	shadow: mediaviewMenuShadow;
+}
 mediaviewPopupMenu: PopupMenu(defaultPopupMenu) {
-	shadow: icon {};
+	shadow: mediaviewMenuShadow;
 	menu: mediaviewMenu;
+	animation: mediaviewPanelAnimation;
 }
 mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 	menu: mediaviewMenu;
+	wrap: InnerDropdown(defaultInnerDropdown) {
+		bg: mediaviewMenuBg;
+		animation: mediaviewPanelAnimation;
+		scrollPadding: margins(0px, 8px, 0px, 8px);
+		shadow: mediaviewMenuShadow;
+	}
 }

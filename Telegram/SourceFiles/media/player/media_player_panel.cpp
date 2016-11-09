@@ -172,7 +172,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	if (_layout != Layout::Full) {
 		shadowedSides |= (rtl() ? Side::Left : Side::Right) | Side::Top;
 	}
-	_shadow.paint(p, shadowedRect, st::defaultInnerDropdown.shadowShift, shadowedSides);
+	_shadow.paint(p, shadowedRect, st::defaultDropdownShadowShift, shadowedSides);
 	p.fillRect(shadowedRect, st::windowBg);
 }
 

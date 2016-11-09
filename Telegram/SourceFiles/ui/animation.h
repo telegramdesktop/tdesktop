@@ -213,6 +213,25 @@ void startManager();
 void stopManager();
 void registerClipManager(Media::Clip::Manager *manager);
 
+inline uint64 shifted(uint32 components) {
+	auto wide = static_cast<uint64>(components);
+	return (wide & 0x00000000000000FFULL)
+		| ((wide & 0x000000000000FF00ULL) << 8)
+		| ((wide & 0x0000000000FF0000ULL) << 16)
+		| ((wide & 0x00000000FF000000ULL) << 24);
+}
+
+inline uint32 unshifted(uint64 components) {
+	return static_cast<uint32>((components & 0x000000000000FF00ULL) >> 8)
+		| static_cast<uint32>((components & 0x00000000FF000000ULL) >> 16)
+		| static_cast<uint32>((components & 0x0000FF0000000000ULL) >> 24)
+		| static_cast<uint32>((components & 0xFF00000000000000ULL) >> 32);
+}
+
+inline uint64 reshifted(uint64 components) {
+	return (components >> 8) & 0x00FF00FF00FF00FFULL;
+}
+
 inline int interpolate(int a, int b, float64 b_ratio) {
 	return qRound(a + float64(b - a) * b_ratio);
 }
@@ -220,11 +239,20 @@ inline int interpolate(int a, int b, float64 b_ratio) {
 inline QColor color(QColor a, QColor b, float64 b_ratio) {
 	auto bOpacity = snap(interpolate(0, 255, b_ratio), 0, 255) + 1;
 	auto aOpacity = (256 - bOpacity);
+	auto bBits = static_cast<uint64>(b.alpha() & 0xFF)
+		| (static_cast<uint64>(b.red() & 0xFF) << 16)
+		| (static_cast<uint64>(b.green() & 0xFF) << 32)
+		| (static_cast<uint64>(b.blue() & 0xFF) << 48);
+	auto aBits = static_cast<uint64>(a.alpha() & 0xFF)
+		| (static_cast<uint64>(a.red() & 0xFF) << 16)
+		| (static_cast<uint64>(a.green() & 0xFF) << 32)
+		| (static_cast<uint64>(a.blue() & 0xFF) << 48);
+	auto resultBits = (aBits * aOpacity + bBits * bOpacity) >> 8;
 	return {
-		(a.red() * aOpacity + b.red() * bOpacity) >> 8,
-		(a.green() * aOpacity + b.green() * bOpacity) >> 8,
-		(a.blue() * aOpacity + b.blue() * bOpacity) >> 8,
-		(a.alpha() * aOpacity + b.alpha() * bOpacity) >> 8
+		static_cast<int>((resultBits >> 16) & 0xFF),
+		static_cast<int>((resultBits >> 32) & 0xFF),
+		static_cast<int>((resultBits >> 48) & 0xFF),
+		static_cast<int>(resultBits & 0xFF),
 	};
 }
 

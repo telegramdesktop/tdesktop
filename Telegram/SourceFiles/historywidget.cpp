@@ -3128,6 +3128,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_silent->hide();
 	_botCommandStart->hide();
 
+	_attachType->setOrigin(Ui::PanelAnimation::Origin::BottomLeft);
 	_attachToggle->installEventFilter(_attachType);
 	_attachEmoji->installEventFilter(_emojiPan);
 

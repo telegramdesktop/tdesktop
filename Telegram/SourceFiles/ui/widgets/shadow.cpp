@@ -53,4 +53,59 @@ void ToggleableShadow::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), _color);
 }
 
+void Shadow::paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, Sides sides) {
+	auto left = (sides & Side::Left);
+	auto top = (sides & Side::Top);
+	auto right = (sides & Side::Right);
+	auto bottom = (sides & Side::Bottom);
+	if (left) {
+		auto from = box.y();
+		auto to = from + box.height();
+		if (top && !st.topLeft.empty()) {
+			st.topLeft.paint(p, box.x() - st.extend.left(), box.y() - st.extend.top(), outerWidth);
+			from += st.topLeft.height() - st.extend.top();
+		}
+		if (bottom && !st.bottomLeft.empty()) {
+			st.bottomLeft.paint(p, box.x() - st.extend.left(), box.y() + box.height() + st.extend.bottom() - st.bottomLeft.height(), outerWidth);
+			to -= st.bottomLeft.height() - st.extend.bottom();
+		}
+		if (to > from && !st.left.empty()) {
+			st.left.fill(p, rtlrect(box.x() - st.extend.left(), from, st.left.width(), to - from, outerWidth));
+		}
+	}
+	if (right) {
+		auto from = box.y();
+		auto to = from + box.height();
+		if (top && !st.topRight.empty()) {
+			st.topRight.paint(p, box.x() + box.width() + st.extend.right() - st.topRight.width(), box.y() - st.extend.top(), outerWidth);
+			from += st.topRight.height() - st.extend.top();
+		}
+		if (bottom && !st.bottomRight.empty()) {
+			st.bottomRight.paint(p, box.x() + box.width() + st.extend.right() - st.bottomRight.width(), box.y() + box.height() + st.extend.bottom() - st.bottomRight.height(), outerWidth);
+			to -= st.bottomRight.height() - st.extend.bottom();
+		}
+		if (to > from && !st.right.empty()) {
+			st.right.fill(p, rtlrect(box.x() + box.width() + st.extend.right() - st.right.width(), from, st.right.width(), to - from, outerWidth));
+		}
+	}
+	if (top && !st.top.empty()) {
+		auto from = box.x();
+		auto to = from + box.width();
+		if (left && !st.topLeft.empty()) from += st.topLeft.width() - st.extend.left();
+		if (right && !st.topRight.empty()) to -= st.topRight.width() - st.extend.right();
+		if (to > from) {
+			st.top.fill(p, rtlrect(from, box.y() - st.extend.top(), to - from, st.top.height(), outerWidth));
+		}
+	}
+	if (bottom && !st.bottom.empty()) {
+		auto from = box.x();
+		auto to = from + box.width();
+		if (left && !st.bottomLeft.empty()) from += st.bottomLeft.width() - st.extend.left();
+		if (right && !st.bottomRight.empty()) to -= st.bottomRight.width() - st.extend.right();
+		if (to > from) {
+			st.bottom.fill(p, rtlrect(from, box.y() + box.height() + st.extend.bottom() - st.bottom.height(), to - from, st.bottom.height(), outerWidth));
+		}
+	}
+}
+
 } // namespace Ui

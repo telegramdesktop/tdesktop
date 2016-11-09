@@ -20,8 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
 #include "styles/style_widgets.h"
+#include "ui/effects/panel_animation.h"
 
 class ScrollArea;
 
@@ -36,7 +36,7 @@ public:
 	void setOwnedWidget(TWidget *widget);
 
 	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || _a_appearance.animating()) return false;
+		if (isHidden() || _a_show.animating() || _a_opacity.animating()) return false;
 
 		return rect().marginsRemoved(_st.padding).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
@@ -46,7 +46,6 @@ public:
 
 	void otherEnter();
 	void otherLeave();
-	void showFast();
 	void hideFast();
 
 	void setHiddenCallback(base::lambda_unique<void()> callback) {
@@ -54,10 +53,11 @@ public:
 	}
 
 	bool isHiding() const {
-		return _hiding && _a_appearance.animating();
+		return _hiding && _a_opacity.animating();
 	}
 
-	void showAnimated();
+	void setOrigin(PanelAnimation::Origin origin);
+	void showAnimated(PanelAnimation::Origin origin);
 	enum class HideOption {
 		Default,
 		IgnoreShow,
@@ -84,28 +84,34 @@ private slots:
 	}
 
 private:
+	QImage grabForPanelAnimation();
+	void startShowAnimation();
+	void startOpacityAnimation(bool hiding);
+	void prepareCache();
+
 	class Container;
-	void repaintCallback();
+	void showAnimationCallback();
+	void opacityAnimationCallback();
 
 	void hideFinished();
 	void showStarted();
-
-	void startAnimation();
 
 	void updateHeight();
 
 	const style::InnerDropdown &_st;
 
-	bool _hiding = false;
+	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
+	std_::unique_ptr<PanelAnimation> _showAnimation;
+	FloatAnimation _a_show;
 
+	bool _hiding = false;
 	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	FloatAnimation _a_opacity;
 
 	QTimer _hideTimer;
 	bool _ignoreShowEvents = false;
 	base::lambda_unique<void()> _hiddenCallback;
 
-	RectShadow _shadow;
 	ChildWidget<ScrollArea> _scroll;
 
 	int _maxHeight = 0;

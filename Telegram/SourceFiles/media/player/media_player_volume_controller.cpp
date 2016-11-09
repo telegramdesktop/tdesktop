@@ -81,7 +81,7 @@ void VolumeController::applyVolumeChange(float64 volume) {
 }
 
 VolumeWidget::VolumeWidget(QWidget *parent) : TWidget(parent)
-, _shadow(st::defaultInnerDropdown.shadow)
+, _shadow(st::defaultDropdownShadow)
 , _controller(this) {
 	hide();
 	_controller->setIsVertical(true);
@@ -145,7 +145,7 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 	auto shadowedRect = rect().marginsRemoved(getMargin());
 	using ShadowSide = Ui::RectShadow::Side;
 	auto shadowedSides = ShadowSide::Left | ShadowSide::Right | ShadowSide::Bottom;
-	_shadow.paint(p, shadowedRect, st::defaultInnerDropdown.shadowShift, shadowedSides);
+	_shadow.paint(p, shadowedRect, st::defaultDropdownShadowShift, shadowedSides);
 	p.fillRect(shadowedRect.x(), 0, shadowedRect.width(), shadowedRect.y() + shadowedRect.height(), st::windowBg);
 }
 

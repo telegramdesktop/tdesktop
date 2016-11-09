@@ -160,6 +160,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	MTP::setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 
 	_mediaType->hide();
+	_mediaType->setOrigin(Ui::PanelAnimation::Origin::TopRight);
 	_topBar->mediaTypeButton()->installEventFilter(_mediaType);
 
 	show();

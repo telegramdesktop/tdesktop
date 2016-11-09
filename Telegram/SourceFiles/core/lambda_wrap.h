@@ -147,8 +147,9 @@ struct lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...> :
 	static void construct_move_lambda_method(void *lambda, void *source) {
 		static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
 		auto space = sizeof(JustLambda);
-		auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
-		t_assert(aligned == lambda);
+		// We want to be able to pass lambda by value in 32bit Windows version.
+		//auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
+		//t_assert(aligned == lambda);
 		auto source_lambda = static_cast<JustLambda*>(source);
 		new (lambda) JustLambda(static_cast<JustLambda&&>(*source_lambda));
 	}
@@ -222,8 +223,9 @@ struct lambda_wrap_helper_copy_impl<Lambda, std_::false_type, Return, Args...> :
 	static void construct_copy_lambda_method(void *lambda, const void *source) {
 		static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
 		auto space = sizeof(JustLambda);
-		auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
-		t_assert(aligned == lambda);
+		// We want to be able to pass lambda by value in 32bit Windows version.
+		//auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
+		//t_assert(aligned == lambda);
 		auto source_lambda = static_cast<const JustLambda*>(source);
 		new (lambda) JustLambda(static_cast<const JustLambda &>(*source_lambda));
 	}
@@ -319,11 +321,9 @@ protected:
 	lambda_unique(const BaseHelper *helper, const Private &) : helper_(helper) {
 	}
 
-	static_assert(BaseHelper::kStorageSize % sizeof(void*) == 0, "Bad pointer size.");
-	union {
-		void *(storage_[BaseHelper::kStorageSize / sizeof(void*)]);
-		typename BaseHelper::alignment alignment_;
-	};
+	using alignment = typename BaseHelper::alignment;
+	static_assert(BaseHelper::kStorageSize % sizeof(alignment) == 0, "Bad storage size.");
+	alignment storage_[BaseHelper::kStorageSize / sizeof(alignment)];
 	const BaseHelper *helper_;
 
 };

@@ -18,6 +18,7 @@
 #include "stdafx.h"
 #include "ui/widgets/popup_menu.h"
 
+#include "ui/widgets/shadow.h"
 #include "pspecific.h"
 #include "application.h"
 #include "lang.h"
@@ -26,19 +27,13 @@ namespace Ui {
 
 PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(nullptr)
 , _st(st)
-, _menu(this, _st.menu)
-, _shadow(_st.shadow)
-, a_opacity(1)
-, _a_hide(animation(this, &PopupMenu::step_hide)) {
+, _menu(this, _st.menu) {
 	init();
 }
 
 PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(nullptr)
 , _st(st)
-, _menu(this, menu, _st.menu)
-, _shadow(_st.shadow)
-, a_opacity(1)
-, _a_hide(animation(this, &PopupMenu::step_hide)) {
+, _menu(this, menu, _st.menu) {
 	init();
 
 	for (auto action : actions()) {
@@ -50,8 +45,6 @@ PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(nullptr)
 }
 
 void PopupMenu::init() {
-	_padding = _shadow.getDimensions(_st.shadowShift);
-
 	_menu->setResizedCallback([this] { handleMenuResize(); });
 	_menu->setActivatedCallback([this](QAction *action, int actionTop, TriggeredSource source) {
 		handleActivated(action, actionTop, source);
@@ -63,8 +56,7 @@ void PopupMenu::init() {
 	_menu->setMouseMoveDelegate([this](QPoint globalPosition) { handleMouseMove(globalPosition); });
 	_menu->setMousePressDelegate([this](QPoint globalPosition) { handleMousePress(globalPosition); });
 
-	_menu->moveToLeft(_padding.left(), _padding.top());
-	handleMenuResize();
+	handleCompositingUpdate();
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::BypassWindowManagerHint | Qt::Popup | Qt::NoDropShadowWindowHint);
 	setMouseTracking(true);
@@ -75,9 +67,17 @@ void PopupMenu::init() {
 	setAttribute(Qt::WA_TranslucentBackground, true);
 }
 
+void PopupMenu::handleCompositingUpdate() {
+	_padding = _compositing ? _st.shadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
+	_menu->moveToLeft(_padding.left() + _st.scrollPadding.left(), _padding.top() + _st.scrollPadding.top());
+	handleMenuResize();
+}
+
 void PopupMenu::handleMenuResize() {
-	resize(_padding.left() + _menu->width() + _padding.right(), _padding.top() + _menu->height() + _padding.bottom());
-	_inner = QRect(_padding.left(), _padding.top(), width() - _padding.left() - _padding.right(), height() - _padding.top() - _padding.bottom());
+	auto newWidth = _padding.left() + _st.scrollPadding.left() + _menu->width() + _st.scrollPadding.right() + _padding.right();
+	auto newHeight = _padding.top() + _st.scrollPadding.top() + _menu->height() + _st.scrollPadding.bottom() + _padding.bottom();
+	resize(newWidth, newHeight);
+	_inner = rect().marginsRemoved(_padding);
 }
 
 QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon, const style::icon *iconOver) {
@@ -106,21 +106,36 @@ PopupMenu::Actions &PopupMenu::actions() {
 void PopupMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto clip = e->rect();
-	p.setClipRect(clip);
-	auto compositionMode = p.compositionMode();
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	if (_a_hide.animating()) {
-		p.setOpacity(a_opacity.current());
+	auto ms = getms();
+	if (_a_show.animating(ms)) {
+		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
+			p.drawImage(0, 0, _showAnimation->getFrame(_a_show.current(1.), opacity));
+		}
+	} else if (_a_opacity.animating(ms)) {
+		p.setOpacity(_a_opacity.current(0.));
 		p.drawPixmap(0, 0, _cache);
-		return;
+	} else if (_hiding || isHidden()) {
+		hideFinished();
+	} else if (_showAnimation) {
+		p.drawImage(0, 0, _showAnimation->getFrame(1., 1.));
+		_showAnimation.reset();
+		showChildren();
+	} else {
+		paintBg(p);
 	}
+}
 
-	// This is the minimal alpha value that allowed mouse tracking in OS X.
-	p.fillRect(clip, QColor(255, 255, 255, 13));
-	p.setCompositionMode(compositionMode);
-
-	_shadow.paint(p, _inner, _st.shadowShift);
+void PopupMenu::paintBg(Painter &p) {
+	if (_compositing) {
+		Shadow::paint(p, _inner, width(), _st.shadow);
+		App::roundRect(p, _inner, _st.menu.itemBg, ImageRoundRadius::Small);
+	} else {
+		p.fillRect(0, 0, width() - _padding.right(), _padding.top(), _st.shadow.fallback);
+		p.fillRect(width() - _padding.right(), 0, _padding.right(), height() - _padding.bottom(), _st.shadow.fallback);
+		p.fillRect(_padding.left(), height() - _padding.bottom(), width() - _padding.left(), _padding.bottom(), _st.shadow.fallback);
+		p.fillRect(0, _padding.top(), _padding.left(), height() - _padding.top(), _st.shadow.fallback);
+		p.fillRect(_inner, _st.menu.itemBg);
+	}
 }
 
 void PopupMenu::handleActivated(QAction *action, int actionTop, TriggeredSource source) {
@@ -225,21 +240,13 @@ void PopupMenu::hideEvent(QHideEvent *e) {
 
 void PopupMenu::hideMenu(bool fast) {
 	if (isHidden()) return;
-	if (_parent && !_a_hide.animating()) {
+	if (_parent && !_a_opacity.animating()) {
 		_parent->childHiding(this);
 	}
 	if (fast) {
-		if (_a_hide.animating()) {
-			_a_hide.stop();
-		}
-		a_opacity = anim::fvalue(0, 0);
-		hideFinish();
+		hideFast();
 	} else {
-		if (!_a_hide.animating()) {
-			_cache = myGrab(this);
-			a_opacity.start(0);
-			_a_hide.start();
-		}
+		hideAnimated();
 		if (_parent) {
 			_parent->hideMenu();
 		}
@@ -255,20 +262,134 @@ void PopupMenu::childHiding(PopupMenu *child) {
 	}
 }
 
-void PopupMenu::hideFinish() {
-	hide();
+void PopupMenu::setOrigin(PanelAnimation::Origin origin) {
+	_origin = origin;
 }
 
-void PopupMenu::step_hide(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_hide.stop();
-		a_opacity.finish();
-		hideFinish();
-	} else {
-		a_opacity.update(dt, anim::linear);
+void PopupMenu::showAnimated(PanelAnimation::Origin origin) {
+	setOrigin(origin);
+	showStarted();
+}
+
+void PopupMenu::hideAnimated() {
+	if (isHidden()) return;
+	if (_hiding) return;
+
+	startOpacityAnimation(true);
+}
+
+void PopupMenu::hideFast() {
+	if (isHidden()) return;
+
+	_hiding = false;
+	_a_opacity.finish();
+	hideFinished();
+}
+
+void PopupMenu::hideFinished() {
+	_a_show.finish();
+	_cache = QPixmap();
+	if (!isHidden()) {
+		hide();
 	}
-	if (timer) update();
+}
+
+void PopupMenu::prepareCache() {
+	if (_a_opacity.animating()) return;
+
+	auto showAnimation = base::take(_a_show);
+	auto showAnimationData = base::take(_showAnimation);
+	showChildren();
+	_cache = myGrab(this);
+	_showAnimation = base::take(showAnimationData);
+	_a_show = base::take(showAnimation);
+}
+
+void PopupMenu::startOpacityAnimation(bool hiding) {
+	_hiding = false;
+	if (!_compositing) {
+		_a_opacity.finish();
+		if (hiding) {
+			hideFinished();
+		} else {
+			update();
+		}
+		return;
+	}
+	prepareCache();
+	_hiding = hiding;
+	hideChildren();
+	_a_opacity.start([this] { opacityAnimationCallback(); }, _hiding ? 1. : 0., _hiding ? 0. : 1., _st.duration);
+}
+
+void PopupMenu::showStarted() {
+	if (isHidden()) {
+		show();
+		startShowAnimation();
+		return;
+	} else if (!_hiding) {
+		return;
+	}
+	startOpacityAnimation(false);
+}
+
+void PopupMenu::startShowAnimation() {
+	if (!_compositing) {
+		_a_show.finish();
+		update();
+		return;
+	}
+	if (!_a_show.animating()) {
+		auto opacityAnimation = base::take(_a_opacity);
+		showChildren();
+		auto cache = grabForPanelAnimation();
+		_a_opacity = base::take(opacityAnimation);
+
+		_showAnimation = std_::make_unique<PanelAnimation>(_st.animation, _origin);
+		_showAnimation->setFinalImage(std_::move(cache), _inner);
+		if (_compositing) {
+			auto corners = App::cornersMask(ImageRoundRadius::Small);
+			_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
+		} else {
+			_showAnimation->setSkipShadow(true);
+		}
+		_showAnimation->start();
+	}
+	hideChildren();
+	_a_show.start([this] { showAnimationCallback(); }, 0., 1., _st.showDuration);
+}
+
+void PopupMenu::opacityAnimationCallback() {
+	update();
+	if (_hiding && !_a_opacity.animating()) {
+		_hiding = false;
+		hideFinished();
+	}
+}
+
+void PopupMenu::showAnimationCallback() {
+	update();
+}
+
+QImage PopupMenu::grabForPanelAnimation() {
+	myEnsureResized(this);
+	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	{
+		Painter p(&result);
+		if (_compositing) {
+			App::roundRect(p, _inner, _st.menu.itemBg, ImageRoundRadius::Small);
+		} else {
+			p.fillRect(_inner, _st.menu.itemBg);
+		}
+		for (auto child : children()) {
+			if (auto widget = qobject_cast<QWidget*>(child)) {
+				widget->render(&p, widget->pos(), widget->rect(), QWidget::DrawChildren | QWidget::IgnoreMask);
+			}
+		}
+	}
+	return std_::move(result);
 }
 
 void PopupMenu::deleteOnHide(bool del) {
@@ -282,8 +403,15 @@ void PopupMenu::popup(const QPoint &p) {
 void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource source) {
 	_parent = parent;
 
-	QPoint w = p - QPoint(0, _padding.top());
-	QRect r = Sandbox::screenGeometry(p);
+	auto origin = PanelAnimation::Origin::TopLeft;
+	auto w = p - QPoint(0, _padding.top());
+	auto r = Sandbox::screenGeometry(p);
+#ifdef Q_OS_LINUX
+	_compositing = QX11Info::isCompositingManagerRunning(QApplication::desktop()->screenNumber(p));
+#else // Q_OS_LINUX
+	_compositing = true;
+#endif // Q_OS_LINUX
+	handleCompositingUpdate();
 	if (rtl()) {
 		if (w.x() - width() < r.x() - _padding.left()) {
 			if (_parent && w.x() + _parent->width() - _padding.left() - _padding.right() + width() - _padding.right() <= r.x() + r.width()) {
@@ -299,8 +427,9 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 			if (_parent && w.x() - _parent->width() + _padding.left() + _padding.right() - width() + _padding.right() >= r.x() - _padding.left()) {
 				w.setX(w.x() + _padding.left() + _padding.right() - _parent->width() - width() + _padding.left() + _padding.right());
 			} else {
-				w.setX(r.x() + r.width() - width() + _padding.right());
+				w.setX(p.x() - width() + _padding.right());
 			}
+			origin = PanelAnimation::Origin::TopRight;
 		}
 	}
 	if (w.y() + height() - _padding.bottom() > r.y() + r.height()) {
@@ -308,13 +437,18 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 			w.setY(r.y() + r.height() - height() + _padding.bottom());
 		} else {
 			w.setY(p.y() - height() + _padding.bottom());
+			origin = (origin == PanelAnimation::Origin::TopRight) ? PanelAnimation::Origin::BottomRight : PanelAnimation::Origin::BottomLeft;
 		}
+	}
+	if (w.x() < r.x()) {
+		w.setX(r.x());
 	}
 	if (w.y() < r.y()) {
 		w.setY(r.y());
 	}
 	move(w);
 
+	setOrigin(origin);
 	_menu->setShowSource(source);
 
 	psUpdateOverlayed(this);
@@ -323,11 +457,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 	windowHandle()->requestActivate();
 	activateWindow();
 
-	if (_a_hide.animating()) {
-		_a_hide.stop();
-		_cache = QPixmap();
-	}
-	a_opacity = anim::fvalue(1, 1);
+	startShowAnimation();
 }
 
 PopupMenu::~PopupMenu() {

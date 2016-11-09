@@ -2031,7 +2031,7 @@ void DialogsWidget::showMainMenu() {
 		}, &st::dialogsMenuHelp, &st::dialogsMenuHelpOver);
 	}
 	updateMainMenuGeometry();
-	_mainMenu->showAnimated();
+	_mainMenu->showAnimated(Ui::PanelAnimation::Origin::TopLeft);
 }
 
 void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {

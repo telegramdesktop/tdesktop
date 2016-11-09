@@ -105,7 +105,7 @@ void TopBarWidget::showMenu() {
 				_menu.destroyDelayed();
 			});
 			_menu->moveToRight(0, 0);
-			_menu->showAnimated();
+			_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 		}
 	}
 }

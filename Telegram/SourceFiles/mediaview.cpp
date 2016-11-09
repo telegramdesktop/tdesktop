@@ -2542,7 +2542,7 @@ void MediaView::onDropdown() {
 		_dropdown->addAction(action.text, this, action.member);
 	}
 	_dropdown->moveToRight(0, height() - _dropdown->height());
-	_dropdown->showAnimated();
+	_dropdown->showAnimated(Ui::PanelAnimation::Origin::BottomRight);
 	_dropdown->setFocus();
 }
 

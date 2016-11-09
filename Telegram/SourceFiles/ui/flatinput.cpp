@@ -240,11 +240,16 @@ void FlatInput::updatePlaceholderText() {
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		menu->addSeparator();
-		auto action = menu->addAction(QString("test"));
-		action->setMenu(new QMenu(this));
-		action->menu()->addAction(QString("test123"));
-		action->menu()->addAction(QString("test456"));
+		//menu->addSeparator();
+		//auto action = menu->addAction(QString("test"));
+		//action->setMenu(new QMenu(this));
+		//action->menu()->addAction(QString("test123"));
+		//action->menu()->addAction(QString("test456"));
+		//action->menu()->addAction(QString("test678"));
+		//auto second = action->menu()->addAction(QString("test90"));
+		//second->setMenu(new QMenu(this));
+		//second->menu()->addAction(QString("testing111"));
+		//second->menu()->addAction(QString("testing222"));
 		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }

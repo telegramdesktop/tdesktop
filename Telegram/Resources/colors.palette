@@ -29,6 +29,7 @@ windowOverBg: #f0f0f0; // light gray: fallback for over background
 windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over color
 windowActiveTextFg: #2687bf; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
+windowShadowFgFallback: #cdcdcd; // gray: fallback for shadow without
 
 imageBg: #000000;
 imageBgTransparent: #ffffff;
@@ -46,6 +47,8 @@ lightButtonBgOver: #edf7ff;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
+menuBg: windowBg;
+menuBgOver: windowOverBg;
 menuIconFg: #a8a8a8;
 menuIconFgOver: #999999;
 

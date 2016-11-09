@@ -90,10 +90,10 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 	auto green = (c.green() * initialAlpha) >> 8;
 	auto blue = (c.blue() * initialAlpha) >> 8;
 	auto alpha = (255 * initialAlpha) >> 8;
-	auto pattern = static_cast<uint64>(alpha)
-		| (static_cast<uint64>(red) << 16)
-		| (static_cast<uint64>(green) << 32)
-		| (static_cast<uint64>(blue) << 48);
+	auto pattern = static_cast<uint64>(blue)
+		| (static_cast<uint64>(green) << 16)
+		| (static_cast<uint64>(red) << 32)
+		| (static_cast<uint64>(alpha) << 48);
 
 	auto resultBytesPerPixel = (src.depth() >> 3);
 	auto resultIntsPerPixel = 1;
@@ -113,12 +113,7 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 	for (int y = 0; y != height; ++y) {
 		for (int x = 0; x != width; ++x) {
 			auto maskOpacity = static_cast<uint64>(*maskBytes) + 1;
-			auto masked = (pattern * maskOpacity) >> 8;
-			auto alpha = static_cast<uint32>(masked & 0xFF);
-			auto red = static_cast<uint32>((masked >> 16) & 0xFF);
-			auto green = static_cast<uint32>((masked >> 32) & 0xFF);
-			auto blue = static_cast<uint32>((masked >> 48) & 0xFF);
-			*resultInts = blue | (green << 8) | (red << 16) | (alpha << 24);
+			*resultInts = anim::unshifted(pattern * maskOpacity);
 			maskBytes += maskBytesPerPixel;
 			resultInts += resultIntsPerPixel;
 		}

@@ -34,7 +34,7 @@ MediaPlayerButton {
 	cancelStroke: pixels;
 }
 
-mediaPlayerActiveFg: #54b5ed;
+mediaPlayerActiveFg: windowActiveBg;
 mediaPlayerInactiveFg: #dfebf2;
 
 mediaPlayerButton: MediaPlayerButton {
