@@ -20,6 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
 using "history/history.style";
+using "ui/widgets/widgets.style";
 using "media/view/mediaview.style";
 
 OverviewFileLayout {
@@ -116,3 +117,15 @@ overviewLinksChecked: icon {
 	{ "overview_links_check_bg", overviewCheckedBg },
 	{ "overview_links_check", #ffffff, point(4px, 5px) },
 };
+
+overviewFilter: flatInput(inpDefGray) {
+	font: font(fsize);
+	bgColor: #f2f2f2;
+	phColor: #949494;
+	phFocusColor: #a4a4a4;
+	icon: fieldSearchIcon;
+
+	width: 240px;
+	height: 32px;
+	textMrg: margins(32px, 3px, 32px, 3px);
+}

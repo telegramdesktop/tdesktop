@@ -54,7 +54,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 , _history(App::history(_peer->id))
 , _channel(peerToChannel(_peer->id))
 , _rowWidth(st::msgMinWidth)
-, _search(this, st::dialogsFilter, lang(lng_dlg_filter))
+, _search(this, st::overviewFilter, lang(lng_dlg_filter))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::windowMinWidth) {

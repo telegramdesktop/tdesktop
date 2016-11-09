@@ -97,11 +97,10 @@ dialogsFilter: flatInput(inpDefGray) {
 	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
-	icon: fieldSearchIcon;
 
 	width: 240px;
 	height: 32px;
-	textMrg: margins(32px, 3px, 32px, 3px);
+	textMrg: margins(12px, 3px, 12px, 3px);
 }
 dialogsCancelSearch: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg, point(0px, 1px) }};

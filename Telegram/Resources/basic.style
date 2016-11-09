@@ -279,7 +279,7 @@ shadowToggleDuration: 200;
 slideDuration: 240;
 slideShift: 100px;
 slideFadeOutBg: #0000003c;
-slideShadow: icon {{ "slide_shadow", #000000 }};
+slideShadow: icon {{ "slide_shadow", windowShadowFg }};
 
 btnYesColor: #0080c0;
 btnYesHover: #0073ad;
