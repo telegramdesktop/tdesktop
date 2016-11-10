@@ -455,13 +455,13 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 	setOrigin(origin);
 	_menu->setShowSource(source);
 
+	startShowAnimation();
+
 	psUpdateOverlayed(this);
 	show();
 	psShowOverAll(this);
 	windowHandle()->requestActivate();
 	activateWindow();
-
-	startShowAnimation();
 }
 
 PopupMenu::~PopupMenu() {
