@@ -97,6 +97,9 @@ membersAboutLimitFg: windowSubTextFg;
 contactsBg: windowBg;
 contactsBgOver: windowOverBg;
 contactsNameFg: boxTextFg;
+contactsStatusFg: windowSubTextFg;
+contactsStatusFgOver: contactsStatusFg;
+contactsStatusFgOnline: #3b8dcc;
 
 photoCropFadeBg: #0000007f;
 photoCropPointFg: #ffffff7f;
@@ -170,7 +173,7 @@ topBarBg: windowBg;
 
 emojiPanBg: windowBg;
 emojiPanCategories: #f7f7f7 | windowBg;
-emojiPanHeaderFg: #999999 | windowSubTextFg;
+emojiPanHeaderFg: windowSubTextFg;
 emojiPanHeaderBg: #fffffff2 | emojiPanBg;
 
 historyComposeAreaBg: windowBg;

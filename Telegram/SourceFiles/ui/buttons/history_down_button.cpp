@@ -114,7 +114,7 @@ void HistoryDownButton::hideAnimated() {
 void HistoryDownButton::toggleAnimated() {
 	_shown = !_shown;
 	float64 from = _shown ? 0. : 1., to = _shown ? 1. : 0.;
-	_a_show.start([this] { update(); }, from, to, st::historyAttachEmoji.duration);
+	_a_show.start([this] { update(); }, from, to, st::historyToDownDuration);
 }
 
 void HistoryDownButton::finishAnimation() {

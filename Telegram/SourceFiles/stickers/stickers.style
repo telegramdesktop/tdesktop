@@ -51,7 +51,7 @@ stickersFeaturedFont: contactsNameFont;
 stickersFeaturedPosition: point(16px, 6px);
 stickersFeaturedBadgeFont: semiboldFont;
 stickersFeaturedBadgeSize: 21px;
-stickersFeaturedPen: contactsNewItemFg;
+stickersFeaturedPen: lightButtonFg;
 stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;

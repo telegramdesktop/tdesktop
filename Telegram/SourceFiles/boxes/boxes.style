@@ -89,10 +89,40 @@ contactUserIcon: icon {{ "add_contact_user", #999999 }};
 contactPhoneIcon: icon {{ "add_contact_phone", #999999 }};
 contactIconTop: 10px;
 
-contactsNewItemHeight: 53px;
-contactsNewItemIcon: icon {{ "contacts_add", #749fc2, point(29px, 19px) }};
-contactsNewItemTop: 18px;
-contactsNewItemFg: #4b82af;
+contactsAdd: IconButton {
+	width: 52px;
+	height: 52px;
+
+	icon: contactsAddIcon;
+	iconOver: contactsAddIconOver;
+}
+contactsAddPosition: point(14px, 8px);
+
+contactPadding: margins(49px, 22px, 0px, 6px);
+contactSkip: 13px;
+contactPhoneSkip: 30px;
+
+contactsPhotoSize: 42px;
+contactsPadding: margins(16px, 7px, 16px, 7px);
+contactsNameTop: 2px;
+contactsNameFont: semiboldFont;
+contactsStatusTop: 23px;
+contactsStatusFont: font(fsize);
+contactsCheckPosition: point(8px, 16px);
+contactsAllAdminsTop: 18px;
+contactsAboutBg: #f7f7f7;
+contactsAboutShadow: #0000001F;
+contactsAdminCheckbox: Checkbox(defaultBoxCheckbox) {
+	font: semiboldFont;
+	textBg: #f7f7f7;
+	textPosition: point(34px, 1px);
+}
+contactsAboutSkip: 53px;
+contactsAboutHeight: 42px;
+contactsAboutTop: 9px;
+contactsScroll: flatScroll(boxScroll) {
+	deltab: 0px;
+}
 
 contactsMultiSelect: MultiSelect {
 	bg: boxSearchBg;

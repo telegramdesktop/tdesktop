@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/buttons/checkbox.h"
+#include "ui/buttons/icon_button.h"
 #include "ui/filedialog.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/widget_slide_wrap.h"
@@ -108,7 +109,13 @@ void ContactsBox::init() {
 	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next->height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
 	ItemListBox::init(_inner, bottomSkip, topSkip);
 
-	connect(_inner, SIGNAL(addRequested()), App::wnd(), SLOT(onShowAddContact()));
+	if (_inner->creating() == CreatingGroupNone && !_inner->chat() && !_inner->channel() && !_inner->bot()) {
+		_add.create(this, st::contactsAdd);
+		_add->setClickedCallback([] {
+			App::wnd()->onShowAddContact();
+		});
+	}
+
 	_inner->setPeerSelectedChangedCallback([this](PeerData *peer, bool checked) {
 		onPeerSelectedChanged(peer, checked);
 	});
@@ -336,6 +343,10 @@ void ContactsBox::resizeEvent(QResizeEvent *e) {
 
 	updateScrollSkips();
 
+	if (_add) {
+		_add->moveToRight(st::contactsAddPosition.x(), height() - st::contactsAddPosition.y() - _add->height());
+	}
+
 	_inner->resize(width(), _inner->height());
 	_next->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next->height());
 	_cancel->moveToRight(st::boxButtonPadding.right() + _next->width() + st::boxButtonPadding.left(), _next->y());
@@ -558,7 +569,6 @@ ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda_wrap<v
 
 ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight(creating == CreatingGroupNone ? st::contactsNewItemHeight : 0)
 , _creating(creating)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
 , _contacts(App::main()->contactsList())
@@ -597,7 +607,7 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();
 	if (membersFilter == MembersFilter::Admins) {
-		_newItemHeight = st::contactsNewItemHeight + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutHeight;
+		_aboutHeight = st::contactsAboutSkip + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutHeight;
 		if (_contacts->isEmpty()) {
 			App::api()->requestFullPeer(_chat);
 		}
@@ -836,7 +846,7 @@ void ContactsBox::Inner::peerUpdated(PeerData *peer) {
 			for_const (auto row, _contacts->all()) {
 				if (row->attached == i.value()) {
 					row->attached = nullptr;
-					update(0, _newItemHeight + _rowHeight * row->pos(), width(), _rowHeight);
+					update(0, _aboutHeight + _rowHeight * row->pos(), width(), _rowHeight);
 				}
 			}
 			if (!_filter.isEmpty()) {
@@ -863,9 +873,9 @@ void ContactsBox::Inner::loadProfilePhotos(int32 yFrom) {
 
 	if (_filter.isEmpty()) {
 		if (!_contacts->isEmpty()) {
-			auto i = _contacts->cfind(yFrom - _newItemHeight, _rowHeight);
+			auto i = _contacts->cfind(yFrom - _aboutHeight, _rowHeight);
 			for (auto end = _contacts->cend(); i != end; ++i) {
-				if ((_newItemHeight + (*i)->pos() * _rowHeight) >= yTo) {
+				if ((_aboutHeight + (*i)->pos() * _rowHeight) >= yTo) {
 					break;
 				}
 				(*i)->history()->peer->loadUserpic();
@@ -1046,24 +1056,17 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 	int32 yFrom = r.y(), yTo = r.y() + r.height();
 	if (_filter.isEmpty()) {
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {
-			if (_newItemHeight) {
-				if (_chat) {
-					p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
-					p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-					p.setPen(st::boxTextFg);
-					p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
-					int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
-					(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
-				} else {
-					p.fillRect(0, 0, width(), st::contactsNewItemHeight, _newItemSel ? st::contactsBgOver : st::contactsBg);
-					p.setFont(st::contactsNameFont);
-					st::contactsNewItemIcon.paint(p, 0, 0, width());
-					p.setPen(st::contactsNewItemFg);
-					p.drawTextLeft(st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_add_contact_button));
-				}
-				yFrom -= _newItemHeight;
-				yTo -= _newItemHeight;
-				p.translate(0, _newItemHeight);
+			if (_aboutHeight) {
+				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
+				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
+				p.setPen(st::boxTextFg);
+				p.drawTextLeft(st::contactsPadding.left(), st::contactsAllAdminsTop, width(), lang(lng_chat_all_members_admins));
+				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
+				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutSkip + st::contactsAboutTop, aboutw);
+
+				yFrom -= _aboutHeight;
+				yTo -= _aboutHeight;
+				p.translate(0, _aboutHeight);
 			}
 			if (!_contacts->isEmpty()) {
 				auto i = _contacts->cfind(yFrom, _rowHeight);
@@ -1103,13 +1106,13 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(lng_contacts_loading);
-				p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
-				p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
+				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
+				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
 				p.setPen(st::boxTextFg);
-				p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
+				p.drawTextLeft(st::contactsPadding.left(), st::contactsAllAdminsTop, width(), lang(lng_chat_all_members_admins));
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
-				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
-				p.translate(0, _newItemHeight);
+				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutSkip + st::contactsAboutTop, aboutw);
+				p.translate(0, _aboutHeight);
 			} else if (cContactsReceived() && !_searching) {
 				text = lang(lng_no_contacts);
 				skip = st::noContactsFont->height;
@@ -1171,9 +1174,9 @@ void ContactsBox::Inner::enterEvent(QEvent *e) {
 int ContactsBox::Inner::getSelectedRowTop() const {
 	if (_filter.isEmpty()) {
 		if (_sel) {
-			return _newItemHeight + (_sel->pos() * _rowHeight);
+			return _aboutHeight + (_sel->pos() * _rowHeight);
 		} else if (_byUsernameSel >= 0) {
-			return _newItemHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_byUsernameSel * _rowHeight);
+			return _aboutHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_byUsernameSel * _rowHeight);
 		}
 	} else {
 		if (_filteredSel >= 0) {
@@ -1186,13 +1189,9 @@ int ContactsBox::Inner::getSelectedRowTop() const {
 }
 
 void ContactsBox::Inner::updateSelectedRow() {
-	if (_filter.isEmpty() && _newItemSel) {
-		update(0, 0, width(), st::contactsNewItemHeight);
-	} else {
-		auto rowTop = getSelectedRowTop();
-		if (rowTop >= 0) {
-			updateRowWithTop(rowTop);
-		}
+	auto rowTop = getSelectedRowTop();
+	if (rowTop >= 0) {
+		updateRowWithTop(rowTop);
 	}
 }
 
@@ -1204,12 +1203,12 @@ int ContactsBox::Inner::getRowTopWithPeer(PeerData *peer) const {
 	if (_filter.isEmpty()) {
 		for (auto i = _contacts->cbegin(), end = _contacts->cend(); i != end; ++i) {
 			if ((*i)->history()->peer == peer) {
-				return _newItemHeight + ((*i)->pos() * _rowHeight);
+				return _aboutHeight + ((*i)->pos() * _rowHeight);
 			}
 		}
 		for (auto i = 0, count = _byUsername.size(); i != count; ++i) {
 			if (_byUsername[i] == peer) {
-				return _newItemHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
+				return _aboutHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
 			}
 		}
 	} else {
@@ -1237,10 +1236,9 @@ void ContactsBox::Inner::updateRowWithPeer(PeerData *peer) {
 void ContactsBox::Inner::leaveEvent(QEvent *e) {
 	_mouseSel = false;
 	setMouseTracking(false);
-	if (_newItemSel || _sel || _filteredSel >= 0 || _byUsernameSel >= 0) {
+	if (_sel || _filteredSel >= 0 || _byUsernameSel >= 0) {
 		updateSelectedRow();
 		_sel = 0;
-		_newItemSel = false;
 		_filteredSel = _byUsernameSel = -1;
 	}
 }
@@ -1316,10 +1314,6 @@ void ContactsBox::Inner::chooseParticipant() {
 	} else {
 		PeerData *peer = 0;
 		if (_filter.isEmpty()) {
-			if (_newItemSel) {
-				emit addRequested();
-				return;
-			}
 			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
 				peer = _byUsername[_byUsernameSel];
 			} else if (_sel) {
@@ -1431,19 +1425,14 @@ void ContactsBox::Inner::updateSelection() {
 	QPoint p(mapFromGlobal(_lastMousePos));
 	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
 	if (_filter.isEmpty()) {
-		bool newItemSel = false;
-		if (_newItemHeight) {
-			if (in && (p.y() >= 0) && (p.y() < _newItemHeight) && !(_chat && _membersFilter == MembersFilter::Admins)) {
-				newItemSel = true;
-			}
-			p.setY(p.y() - _newItemHeight);
+		if (_aboutHeight) {
+			p.setY(p.y() - _aboutHeight);
 		}
-		Dialogs::Row *newSel = (in && !newItemSel && (p.y() >= 0) && (p.y() < _contacts->size() * _rowHeight)) ? _contacts->rowAtY(p.y(), _rowHeight) : nullptr;
-		int32 byUsernameSel = (in && !newItemSel && p.y() >= _contacts->size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _contacts->size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
+		Dialogs::Row *newSel = (in && (p.y() >= 0) && (p.y() < _contacts->size() * _rowHeight)) ? _contacts->rowAtY(p.y(), _rowHeight) : nullptr;
+		int32 byUsernameSel = (in && p.y() >= _contacts->size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _contacts->size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
 		if (byUsernameSel >= _byUsername.size()) byUsernameSel = -1;
-		if (newSel != _sel || byUsernameSel != _byUsernameSel || newItemSel != _newItemSel) {
+		if (newSel != _sel || byUsernameSel != _byUsernameSel) {
 			updateSelectedRow();
-			_newItemSel = newItemSel;
 			_sel = newSel;
 			_byUsernameSel = byUsernameSel;
 			updateSelectedRow();
@@ -1678,10 +1667,10 @@ void ContactsBox::Inner::refresh() {
 		}
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
-			resize(width(), _newItemHeight + (_contacts->size() * _rowHeight) + (_byUsername.isEmpty() ? 0 : (st::searchedBarHeight + _byUsername.size() * _rowHeight)));
+			resize(width(), _aboutHeight + (_contacts->size() * _rowHeight) + (_byUsername.isEmpty() ? 0 : (st::searchedBarHeight + _byUsername.size() * _rowHeight)));
 		} else if (_chat && _membersFilter == MembersFilter::Admins) {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
-			resize(width(), _newItemHeight + st::noContactsHeight);
+			resize(width(), _aboutHeight + st::noContactsHeight);
 		} else {
 			if (cContactsReceived() && !bot()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
@@ -1740,7 +1729,7 @@ ContactsBox::Inner::~Inner() {
 
 void ContactsBox::Inner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_allAdmins->moveToLeft(st::contactsPadding.left(), st::contactsNewItemTop);
+	_allAdmins->moveToLeft(st::contactsPadding.left(), st::contactsAllAdminsTop);
 }
 
 void ContactsBox::Inner::selectSkip(int32 dir) {
@@ -1752,20 +1741,16 @@ void ContactsBox::Inner::selectSkip(int32 dir) {
 			for (auto i = _contacts->cbegin(); *i != _sel; ++i) {
 				++cur;
 			}
-			if (_newItemHeight) ++cur;
 		} else if (_byUsernameSel >= 0) {
 			cur = (_contacts->size() + _byUsernameSel);
-			if (_newItemHeight) ++cur;
-		} else if (!_newItemSel) {
+		} else {
 			cur = -1;
 		}
 		cur += dir;
 		if (cur <= 0) {
-			_newItemSel = (_chat && _membersFilter == MembersFilter::Admins) ? false : (_newItemHeight ? true : false);
-			_sel = (!_newItemHeight && !_contacts->isEmpty()) ? *_contacts->cbegin() : nullptr;
-			_byUsernameSel = (!_newItemHeight && _contacts->isEmpty() && !_byUsername.isEmpty()) ? 0 : -1;
-		} else if (cur >= _contacts->size() + (_newItemHeight ? 1 : 0)) {
-			_newItemSel = false;
+			_sel = (!_contacts->isEmpty()) ? *_contacts->cbegin() : nullptr;
+			_byUsernameSel = (_contacts->isEmpty() && !_byUsername.isEmpty()) ? 0 : -1;
+		} else if (cur >= _contacts->size()) {
 			if (_byUsername.isEmpty()) {
 				_sel = _contacts->isEmpty() ? nullptr : *(_contacts->cend() - 1);
 				_byUsernameSel = -1;
@@ -1775,8 +1760,6 @@ void ContactsBox::Inner::selectSkip(int32 dir) {
 				if (_byUsernameSel >= _byUsername.size()) _byUsernameSel = _byUsername.size() - 1;
 			}
 		} else {
-			_newItemSel = false;
-			if (_newItemHeight) --cur;
 			for (auto i = _contacts->cbegin(); ; ++i) {
 				_sel = *i;
 				if (!cur) {
@@ -1809,7 +1792,7 @@ void ContactsBox::Inner::selectSkip(int32 dir) {
 			}
 			if (_byUsernameSel < 0) {
 				if (!_contacts->isEmpty()) {
-					if (!_newItemSel && !_sel) _sel = *(_contacts->cend() - 1);
+					if (!_sel) _sel = *(_contacts->cend() - 1);
 					if (_sel) {
 						for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->disabledChecked; --i) {
 							_sel = *i;
@@ -1821,12 +1804,10 @@ void ContactsBox::Inner::selectSkip(int32 dir) {
 				}
 			}
 		}
-		if (_newItemSel) {
-			emit mustScrollTo(0, _newItemHeight);
-		} else if (_sel) {
-			emit mustScrollTo(_newItemHeight + _sel->pos() * _rowHeight, _newItemHeight + (_sel->pos() + 1) * _rowHeight);
+		if (_sel) {
+			emit mustScrollTo(_aboutHeight + _sel->pos() * _rowHeight, _aboutHeight + (_sel->pos() + 1) * _rowHeight);
 		} else if (_byUsernameSel >= 0) {
-			emit mustScrollTo(_newItemHeight + (_contacts->size() + _byUsernameSel) * _rowHeight + st::searchedBarHeight, _newItemHeight + (_contacts->size() + _byUsernameSel + 1) * _rowHeight + st::searchedBarHeight);
+			emit mustScrollTo(_aboutHeight + (_contacts->size() + _byUsernameSel) * _rowHeight + st::searchedBarHeight, _aboutHeight + (_contacts->size() + _byUsernameSel + 1) * _rowHeight + st::searchedBarHeight);
 		}
 	} else {
 		int cur = (_filteredSel >= 0) ? _filteredSel : ((_byUsernameSel >= 0) ? (_filtered.size() + _byUsernameSel) : -1);

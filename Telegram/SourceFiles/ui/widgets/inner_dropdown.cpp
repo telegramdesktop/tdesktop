@@ -112,24 +112,20 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
 			p.drawImage(0, 0, _showAnimation->getFrame(_a_show.current(1.), opacity));
 		}
-		return;
 	} else if (_a_opacity.animating(ms)) {
 		p.setOpacity(_a_opacity.current(0.));
 		p.drawPixmap(0, 0, _cache);
-		return;
 	} else if (_hiding || isHidden()) {
 		hideFinished();
-		return;
 	} else if (_showAnimation) {
 		p.drawImage(0, 0, _showAnimation->getFrame(1., 1.));
 		_showAnimation.reset();
 		showChildren();
-		return;
+	} else {
+		auto inner = rect().marginsRemoved(_st.padding);
+		Shadow::paint(p, inner, width(), _st.shadow);
+		App::roundRect(p, inner, _st.bg, ImageRoundRadius::Small);
 	}
-
-	auto inner = rect().marginsRemoved(_st.padding);
-	Shadow::paint(p, inner, width(), _st.shadow);
-	App::roundRect(p, inner, _st.bg, ImageRoundRadius::Small);
 }
 
 void InnerDropdown::enterEvent(QEvent *e) {
@@ -269,9 +265,13 @@ QImage InnerDropdown::grabForPanelAnimation() {
 
 void InnerDropdown::opacityAnimationCallback() {
 	update();
-	if (_hiding && !_a_opacity.animating()) {
-		_hiding = false;
-		hideFinished();
+	if (!_a_opacity.animating()) {
+		if (_hiding) {
+			_hiding = false;
+			hideFinished();
+		} else {
+			showChildren();
+		}
 	}
 }
 

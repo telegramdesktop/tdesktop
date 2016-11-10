@@ -28,13 +28,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
+#include "ui/buttons/icon_button.h"
 #include "observer_peer.h"
 
 MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox(st::boxScroll)
 , _inner(this, channel, filter) {
 	ItemListBox::init(_inner);
 
-	connect(_inner, SIGNAL(addRequested()), this, SLOT(onAdd()));
+	if (channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilter::Admins)) {
+		_add.create(this, st::contactsAdd);
+		_add->setClickedCallback([this] { onAdd(); });
+	}
 
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
@@ -69,6 +73,10 @@ void MembersBox::paintEvent(QPaintEvent *e) {
 void MembersBox::resizeEvent(QResizeEvent *e) {
 	ItemListBox::resizeEvent(e);
 	_inner->resize(width(), _inner->height());
+
+	if (_add) {
+		_add->moveToRight(st::contactsAddPosition.x(), height() - st::contactsAddPosition.y() - _add->height());
+	}
 }
 
 void MembersBox::onScroll() {
@@ -99,8 +107,6 @@ void MembersBox::onAdminAdded() {
 
 MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight((channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilter::Admins)) ? st::contactsNewItemHeight : 0)
-, _newItemSel(false)
 , _channel(channel)
 , _filter(filter)
 , _kickText(lang(lng_profile_kick))
@@ -148,17 +154,6 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	} else {
-		if (_newItemHeight) {
-			p.fillRect(0, 0, width(), _newItemHeight, _newItemSel ? st::contactsBgOver : st::contactsBg);
-			st::contactsNewItemIcon.paint(p, 0, 0, width());
-			p.setFont(st::contactsNameFont);
-			p.setPen(st::contactsNewItemFg);
-			p.drawTextLeft(st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(_filter == MembersFilter::Admins ? lng_channel_add_admins : lng_channel_add_members));
-
-			yFrom -= _newItemHeight;
-			yTo -= _newItemHeight;
-			p.translate(0, _newItemHeight);
-		}
 		int32 from = floorclamp(yFrom, _rowHeight, 0, _rows.size());
 		int32 to = ceilclamp(yTo, _rowHeight, 0, _rows.size());
 		p.translate(0, from * _rowHeight);
@@ -271,19 +266,16 @@ void MembersBox::Inner::selectSkip(int32 dir) {
 	_mouseSel = false;
 
 	int cur = -1;
-	if (_newItemHeight && _newItemSel) {
-		cur = 0;
-	} else if (_sel >= 0) {
-		cur = _sel + (_newItemHeight ? 1 : 0);
+	if (_sel >= 0) {
+		cur = _sel;
 	}
 	cur += dir;
 	if (cur <= 0) {
-		_newItemSel = _newItemHeight ? true : false;
-		_sel = (_newItemSel || _rows.isEmpty()) ? -1 : 0;
-	} else if (cur >= _rows.size() + (_newItemHeight ? 1 : 0)) {
+		_sel = _rows.isEmpty() ? -1 : 0;
+	} else if (cur >= _rows.size()) {
 		_sel = -1;
 	} else {
-		_sel = cur - (_newItemHeight ? 1 : 0);
+		_sel = cur;
 	}
 	if (dir > 0) {
 		if (_sel < 0 || _sel >= _rows.size()) {
@@ -291,13 +283,11 @@ void MembersBox::Inner::selectSkip(int32 dir) {
 		}
 	} else {
 		if (!_rows.isEmpty()) {
-			if (_sel < 0 && !_newItemSel) _sel = _rows.size() - 1;
+			if (_sel < 0) _sel = _rows.size() - 1;
 		}
 	}
-	if (_newItemSel) {
-		emit mustScrollTo(0, _newItemHeight);
-	} else if (_sel >= 0) {
-		emit mustScrollTo(_newItemHeight + _sel * _rowHeight, _newItemHeight + (_sel + 1) * _rowHeight);
+	if (_sel >= 0) {
+		emit mustScrollTo(_sel * _rowHeight, (_sel + 1) * _rowHeight);
 	}
 
 	update();
@@ -318,10 +308,10 @@ void MembersBox::Inner::loadProfilePhotos(int32 yFrom) {
 	if (yFrom < 0) yFrom = 0;
 
 	if (!_rows.isEmpty()) {
-		int32 from = (yFrom - _newItemHeight) / _rowHeight;
+		int32 from = yFrom / _rowHeight;
 		if (from < 0) from = 0;
 		if (from < _rows.size()) {
-			int32 to = ((yTo - _newItemHeight) / _rowHeight) + 1;
+			int32 to = (yTo / _rowHeight) + 1;
 			if (to > _rows.size()) to = _rows.size();
 
 			for (; from < to; ++from) {
@@ -332,10 +322,6 @@ void MembersBox::Inner::loadProfilePhotos(int32 yFrom) {
 }
 
 void MembersBox::Inner::chooseParticipant() {
-	if (_newItemSel) {
-		emit addRequested();
-		return;
-	}
 	if (_sel < 0 || _sel >= _rows.size()) return;
 	if (PeerData *peer = _rows[_sel]) {
 		Ui::hideLayer();
@@ -353,7 +339,7 @@ void MembersBox::Inner::refresh() {
 		if (_filter != MembersFilter::Recent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
 		}
-		resize(width(), st::membersPadding.top() + _newItemHeight + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
+		resize(width(), st::membersPadding.top() + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
 	}
 	update();
 }
@@ -378,7 +364,6 @@ MembersAlreadyIn MembersBox::Inner::already() const {
 
 void MembersBox::Inner::clearSel() {
 	updateSelectedRow();
-	_newItemSel = false;
 	_sel = _kickSel = _kickDown = -1;
 	_lastMousePos = QCursor::pos();
 	updateSel();
@@ -425,15 +410,13 @@ void MembersBox::Inner::updateSel() {
 	QPoint p(mapFromGlobal(_lastMousePos));
 	p.setY(p.y() - st::membersPadding.top());
 	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
-	bool newItemSel = (in && p.y() >= 0 && p.y() < _newItemHeight);
-	int32 newSel = (in && !newItemSel && p.y() >= _newItemHeight && p.y() < _newItemHeight + _rows.size() * _rowHeight) ? ((p.y() - _newItemHeight) / _rowHeight) : -1;
+	int32 newSel = (in && p.y() >= 0 && p.y() < _rows.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
 	int32 newKickSel = newSel;
-	if (newSel >= 0 && (!data(newSel)->canKick || !QRect(width() - _kickWidth - st::contactsPadding.right() - st::contactsCheckPosition.x(), _newItemHeight + newSel * _rowHeight + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _kickWidth, st::normalFont->height).contains(p))) {
+	if (newSel >= 0 && (!data(newSel)->canKick || !QRect(width() - _kickWidth - st::contactsPadding.right() - st::contactsCheckPosition.x(), newSel * _rowHeight + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _kickWidth, st::normalFont->height).contains(p))) {
 		newKickSel = -1;
 	}
-	if (newSel != _sel || newKickSel != _kickSel || newItemSel != _newItemSel) {
+	if (newSel != _sel || newKickSel != _kickSel) {
 		updateSelectedRow();
-		_newItemSel = newItemSel;
 		_sel = newSel;
 		_kickSel = newKickSel;
 		updateSelectedRow();
@@ -446,11 +429,8 @@ void MembersBox::Inner::peerUpdated(PeerData *peer) {
 }
 
 void MembersBox::Inner::updateSelectedRow() {
-	if (_newItemSel) {
-		update(0, st::membersPadding.top(), width(), _newItemHeight);
-	}
 	if (_sel >= 0) {
-		update(0, st::membersPadding.top() + _newItemHeight + _sel * _rowHeight, width(), _rowHeight);
+		update(0, st::membersPadding.top() + _sel * _rowHeight, width(), _rowHeight);
 	}
 }
 

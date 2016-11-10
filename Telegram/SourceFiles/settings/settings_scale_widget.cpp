@@ -86,14 +86,13 @@ void ScaleWidget::setScale(DBIScale newScale) {
 	} else if (newScale != dbisAuto && _auto->checked()) {
 		_auto->setChecked(false);
 	}
+	_newScale = newScale;
 	if (newScale == dbisAuto) newScale = cScreenScale();
 	if (_scale->activeSection() != newScale - 1) {
 		_scale->setActiveSection(newScale - 1);
 	}
 
 	if (cEvalScale(newScale) != cEvalScale(cRealScale())) {
-		_newScale = newScale;
-
 		auto box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_cancel));
 		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
 		connect(box, SIGNAL(cancelled()), this, SLOT(onCancel()));

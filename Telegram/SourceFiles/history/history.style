@@ -24,19 +24,16 @@ using "ui/widgets/widgets.style";
 
 historyPaddingBottom: 10px;
 
-historyToDown: icon {
-	{ "history_down_shadow", #00000040 },
-	{ "history_down_circle", #ffffff, point(2px, 1px) },
-};
 historyToDownPosition: point(12px, 10px);
 historyToDownArrow: icon {
-	{ "history_down_arrow", #b9b9b9, point(14px, 19px) },
+	{ "history_down_arrow", #b9b9b9, point(17px, 23px) },
 };
 historyToDownPaddingTop: 10px;
 historyToDownBadgeFont: semiboldFont;
 historyToDownBadgeSize: 22px;
 
 historyToDownShownAfter: 480px;
+historyToDownDuration: 150;
 
 historyEmptyDog: icon {{ "history_empty_dog", #ffffff }};
 historyEmptySize: 128px;
@@ -177,8 +174,8 @@ historyComposeButton: flatButton {
 	overTextTop: 12px;
 	downTextTop: 13px;
 
-	font: font(16px);
-	overFont: font(16px);
+	font: semiboldFont;
+	overFont: semiboldFont;
 }
 historyUnblock: flatButton(historyComposeButton) {
 	color: #d15948;

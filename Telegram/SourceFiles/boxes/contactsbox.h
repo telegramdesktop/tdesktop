@@ -91,6 +91,7 @@ private:
 	class Inner;
 	ChildWidget<Inner> _inner;
 	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
+	ChildWidget<Ui::IconButton> _add = { nullptr };
 
 	ChildWidget<BoxButton> _next;
 	ChildWidget<BoxButton> _cancel;
@@ -187,7 +188,6 @@ signals:
 	void mustScrollTo(int ymin, int ymax);
 	void searchByUsername();
 	void adminAdded();
-	void addRequested();
 
 private slots:
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
@@ -252,9 +252,8 @@ private:
 
 	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
-	int32 _rowHeight;
-	int _newItemHeight = 0;
-	bool _newItemSel = false;
+	int _rowHeight;
+	int _aboutHeight = 0;
 
 	ChatData *_chat = nullptr;
 	ChannelData *_channel = nullptr;

@@ -323,3 +323,19 @@ defaultDropdownMenu: DropdownMenu {
 	}
 	menu: defaultMenu;
 }
+
+historyToDown: icon {
+	{ "history_down_shadow", #00000040 },
+	{ "history_down_circle", #ffffff, point(4px, 4px) },
+};
+
+contactsAddIcon: icon {
+	{ "history_down_shadow", #00000020 },
+	{ "history_down_circle", activeButtonBg, point(4px, 4px) },
+	{ "contacts_add", activeButtonFg, point(18px, 18px) },
+};
+contactsAddIconOver: icon {
+	{ "history_down_shadow", #00000020 },
+	{ "history_down_circle", activeButtonBgOver, point(4px, 4px) },
+	{ "contacts_add", activeButtonFg, point(18px, 18px) },
+};

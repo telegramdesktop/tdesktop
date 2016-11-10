@@ -42,7 +42,6 @@ public:
 public slots:
 	void onScroll();
 
-	void onAdd();
 	void onAdminAdded();
 
 protected:
@@ -51,8 +50,11 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void onAdd();
+
 	class Inner;
 	ChildWidget<Inner> _inner;
+	ChildWidget<Ui::IconButton> _add = { nullptr };
 
 	ContactsBox *_addBox = nullptr;
 
@@ -89,7 +91,6 @@ public:
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
-	void addRequested();
 	void loaded();
 
 public slots:
@@ -132,8 +133,7 @@ private:
 
 	void clear();
 
-	int32 _rowHeight, _newItemHeight;
-	bool _newItemSel;
+	int _rowHeight;
 
 	ChannelData *_channel;
 	MembersFilter _filter;

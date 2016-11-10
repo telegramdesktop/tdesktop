@@ -361,9 +361,13 @@ void PopupMenu::startShowAnimation() {
 
 void PopupMenu::opacityAnimationCallback() {
 	update();
-	if (_hiding && !_a_opacity.animating()) {
-		_hiding = false;
-		hideFinished();
+	if (!_a_opacity.animating()) {
+		if (_hiding) {
+			_hiding = false;
+			hideFinished();
+		} else {
+			showChildren();
+		}
 	}
 }
 

@@ -173,6 +173,7 @@ defaultInputField: InputField {
 
 	height: 32px;
 }
+defaultCheckboxIcon: icon {{ "default_checkbox_check", windowActiveFg, point(4px, 7px) }};
 defaultCheckbox: Checkbox {
 	textFg: windowTextFg;
 	textBg: windowBg;
@@ -188,7 +189,7 @@ defaultCheckbox: Checkbox {
 	textPosition: point(32px, 2px);
 	diameter: 22px;
 	thickness: 2px;
-	checkIcon: icon {{ "default_checkbox_check", windowActiveFg, point(4px, 7px) }};
+	checkIcon: defaultCheckboxIcon;
 
 	font: normalFont;
 	duration: 120;
@@ -751,33 +752,6 @@ searchedBarColor: #a2aeb7;
 layerSlideDuration: 200;
 layerHideDuration: 200;
 layerPadding: margins(10px, 10px, 10px, 10px);
-
-contactPadding: margins(49px, 22px, 0px, 6px);
-contactSkip: 13px;
-contactPhoneSkip: 30px;
-
-contactsPhotoSize: 42px;
-contactsPadding: margins(16px, 7px, 16px, 7px);
-contactsNameTop: 2px;
-contactsNameFont: semiboldFont;
-contactsStatusTop: 23px;
-contactsStatusFont: font(fsize);
-contactsStatusFg: #999999;
-contactsStatusFgOver: #7c99b2;
-contactsStatusFgOnline: #3b8dcc;
-contactsCheckPosition: point(8px, 16px);
-contactsAboutBg: #f7f7f7;
-contactsAboutShadow: #0000001F;
-contactsAdminCheckbox: Checkbox(defaultBoxCheckbox) {
-	font: semiboldFont;
-	textBg: #f7f7f7;
-	textPosition: point(34px, 1px);
-}
-contactsAboutHeight: 42px;
-contactsAboutTop: 9px;
-contactsScroll: flatScroll(boxScroll) {
-	deltab: 0px;
-}
 
 simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};

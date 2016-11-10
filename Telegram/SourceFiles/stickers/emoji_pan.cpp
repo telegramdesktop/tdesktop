@@ -1191,13 +1191,13 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 
 	ClickHandlerPtr activated = ClickHandler::unpressed();
 
-	_lastMousePos = e->globalPos();
-	updateSelected();
-
 	if (_previewShown) {
 		_previewShown = false;
 		return;
 	}
+
+	_lastMousePos = e->globalPos();
+	updateSelected();
 
 	if (showingInlineItems()) {
 		if (_selected < 0 || _selected != pressed || !activated) {
