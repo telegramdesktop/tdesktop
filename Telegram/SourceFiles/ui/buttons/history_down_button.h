@@ -20,12 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+#include "ui/abstract_button.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
 
-class HistoryDownButton : public Button {
+class HistoryDownButton : public AbstractButton {
 public:
 	HistoryDownButton(QWidget *parent);
 
@@ -44,7 +44,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
 	void toggleAnimated();
@@ -62,7 +62,7 @@ private:
 
 };
 
-class EmojiButton : public Button {
+class EmojiButton : public AbstractButton {
 public:
 	EmojiButton(QWidget *parent, const style::IconButton &st);
 
@@ -70,7 +70,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
 	const style::IconButton &_st;

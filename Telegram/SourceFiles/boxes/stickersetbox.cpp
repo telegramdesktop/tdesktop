@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
+#include "ui/widgets/buttons.h"
 
 StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::stickersScroll)
 , _inner(this, set)
@@ -42,12 +43,12 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 	setMaxHeight(st::stickersMaxHeight);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 
-	init(_inner, st::boxButtonPadding.bottom() + _cancel.height() + st::boxButtonPadding.top());
+	init(_inner, st::boxButtonPadding.bottom() + _cancel->height() + st::boxButtonPadding.top());
 
-	connect(&_add, SIGNAL(clicked()), this, SLOT(onAddStickers()));
-	connect(&_share, SIGNAL(clicked()), this, SLOT(onShareStickers()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_add, SIGNAL(clicked()), this, SLOT(onAddStickers()));
+	connect(_share, SIGNAL(clicked()), this, SLOT(onShareStickers()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
 	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
@@ -81,7 +82,7 @@ void StickerSetBox::onShareStickers() {
 }
 
 void StickerSetBox::onUpdateButtons() {
-	if (!_cancel.isHidden() || !_done.isHidden()) {
+	if (!_cancel->isHidden() || !_done->isHidden()) {
 		showAll();
 	}
 }
@@ -98,27 +99,27 @@ void StickerSetBox::showAll() {
 	if (_inner->loaded()) {
 		_shadow.show();
 		if (_inner->notInstalled()) {
-			_add.show();
-			_cancel.show();
-			_share.hide();
-			_done.hide();
+			_add->show();
+			_cancel->show();
+			_share->hide();
+			_done->hide();
 		} else if (_inner->official()) {
-			_add.hide();
-			_share.hide();
-			_cancel.hide();
-			_done.show();
+			_add->hide();
+			_share->hide();
+			_cancel->hide();
+			_done->show();
 		} else {
-			_share.show();
-			_cancel.show();
-			_add.hide();
-			_done.hide();
+			_share->show();
+			_cancel->show();
+			_add->hide();
+			_done->hide();
 		}
 	} else {
 		_shadow.hide();
-		_add.hide();
-		_share.hide();
-		_cancel.show();
-		_done.hide();
+		_add->hide();
+		_share->hide();
+		_cancel->show();
+		_done->hide();
 	}
 	resizeEvent(0);
 	update();
@@ -134,16 +135,16 @@ void StickerSetBox::paintEvent(QPaintEvent *e) {
 void StickerSetBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
 	_inner->resize(width(), _inner->height());
-	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _cancel.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
-	_add.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _add.height());
-	_share.moveToRight(st::boxButtonPadding.right(), _add.y());
-	_done.moveToRight(st::boxButtonPadding.right(), _add.y());
-	if (_add.isHidden() && _share.isHidden()) {
-		_cancel.moveToRight(st::boxButtonPadding.right(), _add.y());
-	} else if (_add.isHidden()) {
-		_cancel.moveToRight(st::boxButtonPadding.right() + _share.width() + st::boxButtonPadding.left(), _add.y());
+	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _cancel->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
+	_add->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _add->height());
+	_share->moveToRight(st::boxButtonPadding.right(), _add->y());
+	_done->moveToRight(st::boxButtonPadding.right(), _add->y());
+	if (_add->isHidden() && _share->isHidden()) {
+		_cancel->moveToRight(st::boxButtonPadding.right(), _add->y());
+	} else if (_add->isHidden()) {
+		_cancel->moveToRight(st::boxButtonPadding.right() + _share->width() + st::boxButtonPadding.left(), _add->y());
 	} else {
-		_cancel.moveToRight(st::boxButtonPadding.right() + _add.width() + st::boxButtonPadding.left(), _add.y());
+		_cancel->moveToRight(st::boxButtonPadding.right() + _add->width() + st::boxButtonPadding.left(), _add->y());
 	}
 }
 

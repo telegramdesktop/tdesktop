@@ -19,30 +19,29 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "button.h"
+#include "ui/abstract_button.h"
 
-Button::Button(QWidget *parent) : TWidget(parent), _state(StateNone), _acceptBoth(false) {
-}
+namespace Ui {
 
-void Button::leaveEvent(QEvent *e) {
+void AbstractButton::leaveEvent(QEvent *e) {
 	if (_state & StateDown) return;
 
-	setOver(false, ButtonByHover);
+	setOver(false, StateChangeSource::ByHover);
 	setMouseTracking(false);
 	return TWidget::leaveEvent(e);
 }
 
-void Button::enterEvent(QEvent *e) {
-	setOver(true, ButtonByHover);
+void AbstractButton::enterEvent(QEvent *e) {
+	setOver(true, StateChangeSource::ByHover);
 	setMouseTracking(true);
 	return TWidget::enterEvent(e);
 }
 
-void Button::setAcceptBoth(bool acceptBoth) {
+void AbstractButton::setAcceptBoth(bool acceptBoth) {
 	_acceptBoth = acceptBoth;
 }
 
-void Button::mousePressEvent(QMouseEvent *e) {
+void AbstractButton::mousePressEvent(QMouseEvent *e) {
 	if (_acceptBoth || e->buttons() & Qt::LeftButton) {
 		if (!(_state & StateOver)) {
 			enterEvent(0);
@@ -50,28 +49,26 @@ void Button::mousePressEvent(QMouseEvent *e) {
 		if (!(_state & StateDown)) {
 			int oldState = _state;
 			_state |= StateDown;
-			emit stateChanged(oldState, ButtonByPress);
-			onStateChanged(oldState, ButtonByPress);
+			onStateChanged(oldState, StateChangeSource::ByPress);
 
 			e->accept();
 		}
 	}
 }
 
-void Button::mouseMoveEvent(QMouseEvent *e) {
+void AbstractButton::mouseMoveEvent(QMouseEvent *e) {
 	if (rect().contains(e->pos())) {
-		setOver(true, ButtonByHover);
+		setOver(true, StateChangeSource::ByHover);
 	} else {
-		setOver(false, ButtonByHover);
+		setOver(false, StateChangeSource::ByHover);
 	}
 }
 
-void Button::mouseReleaseEvent(QMouseEvent *e) {
+void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 	if (_state & StateDown) {
 		int oldState = _state;
 		_state &= ~StateDown;
-		emit stateChanged(oldState, ButtonByPress);
-		onStateChanged(oldState, ButtonByPress);
+		onStateChanged(oldState, StateChangeSource::ByPress);
 		if (oldState & StateOver) {
 			_modifiers = e->modifiers();
 			if (_clickedCallback) {
@@ -84,40 +81,37 @@ void Button::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void Button::setOver(bool over, ButtonStateChangeSource source) {
+void AbstractButton::setOver(bool over, StateChangeSource source) {
 	if (over && !(_state & StateOver)) {
 		int oldState = _state;
 		_state |= StateOver;
-		emit stateChanged(oldState, source);
 		onStateChanged(oldState, source);
 	} else if (!over && (_state & StateOver)) {
 		int oldState = _state;
 		_state &= ~StateOver;
-		emit stateChanged(oldState, source);
 		onStateChanged(oldState, source);
 	}
 }
 
-void Button::setDisabled(bool disabled) {
+void AbstractButton::setDisabled(bool disabled) {
 	int oldState = _state;
 	if (disabled && !(_state & StateDisabled)) {
 		_state |= StateDisabled;
-		emit stateChanged(oldState, ButtonByUser);
-		onStateChanged(oldState, ButtonByUser);
+		onStateChanged(oldState, StateChangeSource::ByUser);
 	} else if (!disabled && (_state & StateDisabled)) {
 		_state &= ~StateDisabled;
-		emit stateChanged(oldState, ButtonByUser);
-		onStateChanged(oldState, ButtonByUser);
+		onStateChanged(oldState, StateChangeSource::ByUser);
 	}
 }
 
-void Button::clearState() {
+void AbstractButton::clearState() {
 	int oldState = _state;
 	_state = StateNone;
-	emit stateChanged(oldState, ButtonByUser);
-	onStateChanged(oldState, ButtonByUser);
+	onStateChanged(oldState, StateChangeSource::ByUser);
 }
 
-int Button::getState() const {
+int AbstractButton::getState() const {
 	return _state;
 }
+
+} // namespace Ui

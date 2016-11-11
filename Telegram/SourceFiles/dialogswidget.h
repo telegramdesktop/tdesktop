@@ -32,6 +32,8 @@ namespace Ui {
 class IconButton;
 class PopupMenu;
 class DropdownMenu;
+class FlatButton;
+class LinkButton;
 } // namespace Ui
 
 enum DialogsSearchRequestType {
@@ -206,7 +208,7 @@ private:
 
 	void paintDialog(QPainter &p, Dialogs::Row *dialog);
 
-	LinkButton _addContactLnk;
+	ChildWidget<Ui::LinkButton> _addContactLnk;
 	ChildWidget<Ui::IconButton> _cancelSearchInPeer;
 
 	bool _overDelete = false;
@@ -335,7 +337,7 @@ private:
 	ChildWidget<Ui::IconButton> _lockUnlock;
 	ChildWidget<ScrollArea> _scroll;
 	ChildWidget<DialogsInner> _inner;
-	ChildWidget<FlatButton> _updateTelegram = { nullptr };
+	ChildWidget<Ui::FlatButton> _updateTelegram = { nullptr };
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;

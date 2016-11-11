@@ -20,11 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+#include "ui/abstract_button.h"
 
 namespace Ui {
 
-class LeftOutlineButton : public Button {
+class LeftOutlineButton : public AbstractButton {
 public:
 	LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st = st::defaultLeftOutlineButton);
 
@@ -33,7 +33,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	void onStateChanged(int oldState, StateChangeSource source) override;
 
 	int resizeGetHeight(int newWidth) override;
 

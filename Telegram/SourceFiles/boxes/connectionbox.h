@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class Checkbox;
 class Radiobutton;
+class RoundButton;
 } // namespace Ui
 
 class ConnectionBox : public AbstractBox {
@@ -55,8 +56,8 @@ private:
 	ChildWidget<Ui::Radiobutton> _tcpProxyRadio;
 	ChildWidget<Ui::Checkbox> _tryIPv6;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 };
 
@@ -86,7 +87,7 @@ private:
 
 	int _sectionHeight;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 };

@@ -38,6 +38,14 @@ boxBlockTitleClose: IconButton(defaultIconButton) {
 	iconOver: boxBlockTitleCloseIconOver;
 }
 
+boxLinkButton: LinkButton {
+	color: #0080c0;
+	overColor: #0080c0;
+	downColor: #0073ad;
+	font: boxTextFont;
+	overFont: font(boxFontSize underline);
+}
+
 confirmInviteTitle: flatLabel(labelDefFlat) {
 	font: font(16px semibold);
 	align: align(center);
@@ -265,6 +273,11 @@ sessionTerminate: IconButton {
 	iconPosition: point(3px, 3px);
 	iconPositionDown: point(3px, 4px);
 }
+sessionTerminateAllButton: LinkButton(boxLinkButton) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
@@ -309,3 +322,21 @@ themeWarningHeight: 150px;
 themeWarningShadow: boxShadow;
 themeWarningShadowShift: boxShadowShift;
 themeWarningTextTop: 60px;
+
+aboutWidth: 390px;
+aboutVersionTop: -3px;
+aboutVersionLink: LinkButton(defaultLinkButton) {
+	color: #999999;
+	overColor: #999999;
+	downColor: #999999;
+}
+aboutTextTop: 34px;
+aboutSkip: 14px;
+aboutLabel: flatLabel(labelDefFlat) {
+	font: normalFont;
+	width: 330px;
+	align: align(topleft);
+}
+aboutTextStyle: textStyle(defaultTextStyle) {
+	lineHeight: 22px;
+}

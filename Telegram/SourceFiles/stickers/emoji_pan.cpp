@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_stickers.h"
 #include "styles/style_intro.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "boxes/stickers_box.h"
@@ -804,7 +804,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	connect(&_settings, SIGNAL(clicked()), this, SLOT(onSettings()));
+	connect(_settings, SIGNAL(clicked()), this, SLOT(onSettings()));
 
 	_previewTimer.setSingleShot(true);
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreview()));
@@ -821,7 +821,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 void StickerPanInner::setMaxHeight(int32 h) {
 	_maxHeight = h;
 	resize(st::emojiPanWidth - st::emojiScroll.width, countHeight());
-	_settings.moveToLeft((st::emojiPanWidth - _settings.width()) / 2, height() / 3);
+	_settings->moveToLeft((st::emojiPanWidth - _settings->width()) / 2, height() / 3);
 }
 
 void StickerPanInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -1425,9 +1425,9 @@ void StickerPanInner::refreshStickers() {
 		int h = countHeight();
 		if (h != height()) resize(width(), h);
 
-		_settings.setVisible(_section == Section::Stickers && _mySets.isEmpty());
+		_settings->setVisible(_section == Section::Stickers && _mySets.isEmpty());
 	} else {
-		_settings.hide();
+		_settings->hide();
 	}
 
 	emit refreshIcons(kRefreshIconsNoAnimation);
@@ -1499,7 +1499,7 @@ bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool fo
 
 void StickerPanInner::refreshSavedGifs() {
 	if (_section == Section::Gifs) {
-		_settings.hide();
+		_settings->hide();
 		clearInlineRows(false);
 
 		auto &saved = cSavedGifs();
@@ -1728,7 +1728,7 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton = std_::make_unique<BoxButton>(this, QString(), st::switchPmButton);
+			_switchPmButton = std_::make_unique<Ui::RoundButton>(this, QString(), st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->move(st::inlineResultsLeft, st::emojiPanHeader);
 			connect(_switchPmButton.get(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
@@ -1768,7 +1768,7 @@ int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *en
 	_inlineBotTitle = lng_inline_bot_results(lt_inline_bot, _inlineBot->username.isEmpty() ? _inlineBot->name : ('@' + _inlineBot->username));
 
 	_section = Section::Inlines;
-	_settings.hide();
+	_settings->hide();
 
 	int32 count = entry->results.size(), from = validateExistingInlineRows(entry->results), added = 0;
 
@@ -2492,7 +2492,7 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(st::emojiPanHeaderLeft, st::emojiPanHeaderTop, width(), _text);
 }
 
-EmojiSwitchButton::EmojiSwitchButton(QWidget *parent, bool toStickers) : Button(parent)
+EmojiSwitchButton::EmojiSwitchButton(QWidget *parent, bool toStickers) : AbstractButton(parent)
 , _toStickers(toStickers) {
 	setCursor(style::cur_pointer);
 	updateText();

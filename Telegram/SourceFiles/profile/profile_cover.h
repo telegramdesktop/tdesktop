@@ -24,10 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 
 class FlatLabel;
-class LinkButton;
 
 namespace Ui {
 class RoundButton;
+class LinkButton;
 } // namespace Ui
 
 namespace Notify {
@@ -118,7 +118,7 @@ private:
 	ChildWidget<CoverDropArea> _dropArea = { nullptr };
 
 	ChildWidget<FlatLabel> _name;
-	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
+	ChildWidget<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
 	QString _statusText;

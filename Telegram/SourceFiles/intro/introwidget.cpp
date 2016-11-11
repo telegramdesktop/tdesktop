@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/text/text.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "styles/style_intro.h"
 #include "autoupdater.h"

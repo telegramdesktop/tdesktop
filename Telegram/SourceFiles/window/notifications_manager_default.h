@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class IconButton;
+class RoundButton;
 } // namespace Ui
 
 namespace Window {
@@ -245,7 +246,7 @@ private:
 	HistoryItem *_item;
 	int _forwardedCount;
 	ChildWidget<Ui::IconButton> _close;
-	ChildWidget<BoxButton> _reply;
+	ChildWidget<Ui::RoundButton> _reply;
 	ChildWidget<Background> _background = { nullptr };
 	ChildWidget<InputArea> _replyArea = { nullptr };
 	ChildWidget<Ui::IconButton> _replySend = { nullptr };

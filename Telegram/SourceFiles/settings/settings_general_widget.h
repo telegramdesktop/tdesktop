@@ -23,14 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 #include "ui/filedialog.h"
 
-class LinkButton;
-
-namespace Ui {
-class Checkbox;
-template <typename Widget>
-class WidgetSlideWrap;
-} // namespace Ui
-
 namespace Settings {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -73,8 +65,8 @@ private:
 	void setState(State state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
 
-	ChildWidget<LinkButton> _check;
-	ChildWidget<LinkButton> _restart;
+	ChildWidget<Ui::LinkButton> _check;
+	ChildWidget<Ui::LinkButton> _restart;
 
 	State _state = State::None;
 	QString _downloadText;
@@ -114,7 +106,7 @@ private:
 	void chooseCustomLang();
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	ChildWidget<LinkButton> _changeLanguage;
+	ChildWidget<Ui::LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	ChildWidget<Ui::Checkbox> _updateAutomatically = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };

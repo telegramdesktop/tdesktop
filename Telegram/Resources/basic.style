@@ -83,18 +83,6 @@ attentionBoxButton: RoundButton(defaultBoxButton) {
 	textBgOver: #fff0ed;
 }
 boxButtonPadding: margins(12px, 16px, 22px, 16px);
-defaultBoxLinkButton: linkButton {
-	color: #0080c0;
-	overColor: #0080c0;
-	downColor: #0073ad;
-	font: boxTextFont;
-	overFont: font(boxFontSize underline);
-}
-redBoxLinkButton: linkButton(defaultBoxLinkButton) {
-	color: #d15948;
-	overColor: #d15948;
-	downColor: #db6352;
-}
 boxLabel: flatLabel(labelDefFlat) {
 	font: font(boxFontSize);
 	align: align(topleft);
@@ -290,13 +278,6 @@ btnNoHover: #777777;
 linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);
-btnDefLink: linkButton {
-	color: btnYesColor;
-	overColor: btnYesColor;
-	downColor: btnYesHover;
-	font: linkFont;
-	overFont: linkOverFont;
-}
 
 inpDefFont: font(17px);
 inpDefFlat: flatInput {
@@ -368,11 +349,6 @@ boxShadow: icon {{ "box_shadow", windowShadowFg }};
 boxShadowShift: 2px;
 
 btnSelectSep: #e0e0e0;
-btnRedLink: linkButton(btnDefLink) {
-	color: #d15948;
-	overColor: #d15948;
-	downColor: #db6352;
-}
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
@@ -699,41 +675,6 @@ historyScroll: flatScroll(scrollDef) {
 }
 textRectMargins: margins(-2px, -1px, -2px, -1px);
 
-reportSpamHide: flatButton {
-	duration: 200;
-	cursor: cursor(pointer);
-
-	color: btnYesColor;
-	overColor: btnYesHover;
-
-	bgColor: transparent;
-	overBgColor: transparent;
-
-	width: -40px;
-	height: 46px;
-
-	textTop: 15px;
-	overTextTop: 15px;
-	downTextTop: 16px;
-
-	font: font(fsize);
-	overFont: font(fsize underline);
-}
-reportSpamButton: flatButton(reportSpamHide) {
-	textTop: 6px;
-	overTextTop: 6px;
-	downTextTop: 7px;
-
-	width: -50px;
-	height: 30px;
-
-	bgColor: #888888;
-	overBgColor: #7b7b7b;
-}
-reportSpamSeparator: 30px;
-reportSpamBg: #fffffff0;
-reportSpamFg: #000000;
-
 newMsgSound: ":/gui/art/newmsg.wav";
 
 unreadBarHeight: 32px;
@@ -797,25 +738,6 @@ connectionPasswordInputField: InputField(defaultInputField) {
 	width: 120px;
 }
 connectionIPv6Skip: 11px;
-
-aboutIcon: icon {{ "intro_logo", #008ed5 }};
-aboutWidth: 390px;
-aboutVersionTop: -3px;
-aboutVersionLink: linkButton(btnDefLink) {
-	color: #999999;
-	overColor: #999999;
-	downColor: #999999;
-}
-aboutTextTop: 34px;
-aboutSkip: 14px;
-aboutLabel: flatLabel(labelDefFlat) {
-	font: normalFont;
-	width: 330px;
-	align: align(topleft);
-}
-aboutTextStyle: textStyle(defaultTextStyle) {
-	lineHeight: 22px;
-}
 
 emojiTextFont: font(15px);
 emojiReplaceWidth: 52px;

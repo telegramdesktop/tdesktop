@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/multi_select.h"
 
 #include "styles/style_widgets.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "lang.h"
 
 namespace Ui {

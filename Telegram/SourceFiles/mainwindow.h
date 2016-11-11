@@ -47,6 +47,10 @@ class WarningWidget;
 } // namespace Theme
 } // namespace Window
 
+namespace Ui {
+class LinkButton;
+} // namespace Ui
+
 class ConnectingWidget : public TWidget {
 	Q_OBJECT
 
@@ -64,7 +68,7 @@ private:
 	Ui::RectShadow _shadow;
 	QString _text;
 	int32 _textWidth;
-	LinkButton _reconnect;
+	ChildWidget<Ui::LinkButton> _reconnect;
 
 };
 

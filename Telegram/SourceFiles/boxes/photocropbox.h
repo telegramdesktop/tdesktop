@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 class PhotoCropBox : public AbstractBox {
 	Q_OBJECT
 
@@ -56,7 +60,8 @@ private:
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	int32 _cropx, _cropy, _cropw;
 	int32 _fromposx, _fromposy, _fromcropx, _fromcropy, _fromcropw;
-	BoxButton _done, _cancel;
+	ChildWidget<Ui::RoundButton> _done;
+	ChildWidget<Ui::RoundButton> _cancel;
 	QImage _img;
 	QPixmap _thumb;
 	PeerId _peerId;

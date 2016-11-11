@@ -27,7 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "application.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "core/click_handler_types.h"
 #include "localstorage.h"
 
@@ -282,7 +283,7 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	QTextOption option(style::al_left);
 	option.setWrapMode(QTextOption::WrapAnywhere);
 	p.setFont(_linkOver ? st::defaultInputField.font->underline() : st::defaultInputField.font);
-	p.setPen(st::btnDefLink.color);
+	p.setPen(st::defaultLinkButton.color);
 	p.drawText(_invitationLink, _link, option);
 	if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 		p.setOpacity(a_goodOpacity.current());

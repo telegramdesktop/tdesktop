@@ -30,34 +30,6 @@ textStyle {
 	lineHeight: pixels;
 }
 
-linkButton {
-	color: color;
-	overColor: color;
-	downColor: color;
-	font: font;
-	overFont: font;
-}
-
-flatButton {
-	color: color;
-	overColor: color;
-
-	bgColor: color;
-	overBgColor: color;
-
-	width: pixels;
-	height: pixels;
-
-	textTop: pixels;
-	overTextTop: pixels;
-	downTextTop: pixels;
-
-	font: font;
-	overFont: font;
-	duration: int;
-	cursor: cursor;
-}
-
 flatInput {
 	textColor: color;
 	bgColor: color;

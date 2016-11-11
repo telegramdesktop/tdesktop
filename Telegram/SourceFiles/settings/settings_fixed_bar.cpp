@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 #include "lang.h"
 

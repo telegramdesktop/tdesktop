@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Checkbox;
+class RoundButton;
 } // namespace Ui
 
 class InformBox;
@@ -85,8 +86,8 @@ private:
 
 	QPoint _lastMousePos;
 
-	ChildWidget<BoxButton> _confirm;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _confirm;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	base::lambda_unique<void()> _confirmedCallback;
 
@@ -164,7 +165,7 @@ private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void step_good(float64 ms, bool timer);
 
-	ChildWidget<BoxButton> _close;
+	ChildWidget<Ui::RoundButton> _close;
 
 	Text _text;
 	int32 _textWidth, _textHeight;
@@ -205,8 +206,8 @@ private:
 	Text _text, _note;
 	int32 _textWidth, _textHeight;
 
-	ChildWidget<BoxButton> _convert;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _convert;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 };
 
@@ -234,8 +235,8 @@ private:
 	ChildWidget<FlatLabel> _text;
 	ChildWidget<Ui::Checkbox> _notify;
 
-	ChildWidget<BoxButton> _pin;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _pin;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	mtpRequestId _requestId = 0;
 
@@ -265,8 +266,8 @@ private:
 	ChildWidget<Ui::Checkbox> _reportSpam;
 	ChildWidget<Ui::Checkbox> _deleteAll;
 
-	ChildWidget<BoxButton> _delete;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _delete;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 };
 
@@ -298,11 +299,13 @@ protected:
 	void showAll() override;
 
 private:
-	ChildWidget<FlatLabel> _title, _status;
+	ChildWidget<FlatLabel> _title;
+	ChildWidget<FlatLabel> _status;
 	ImagePtr _photo;
 	QVector<UserData*> _participants;
 
-	ChildWidget<BoxButton> _join, _cancel;
+	ChildWidget<Ui::RoundButton> _join;
+	ChildWidget<Ui::RoundButton> _cancel;
 	int _userWidth = 0;
 
 };

@@ -20,7 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/flatbutton.h"
 #include "ui/countryinput.h"
 #include "ui/flatlabel.h"
 #include "intro/introwidget.h"

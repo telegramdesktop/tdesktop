@@ -22,8 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_cover.h"
 
 #include "ui/flatlabel.h"
-#include "ui/buttons/round_button.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "observer_peer.h"
 #include "lang.h"
 #include "application.h"
@@ -50,9 +49,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 
-	_setPhoto->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_setPhoto, SIGNAL(clicked()), this, SLOT(onSetPhoto()));
-	_editName->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
 	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 
@@ -280,7 +277,7 @@ void CoverWidget::refreshStatusText() {
 			_statusText = lang(lng_settings_uploading_photo);
 			_statusTextIsOnline = false;
 			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload = new LinkButton(this, lang(lng_cancel), st::btnDefLink);
+				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
 				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
 				_cancelPhotoUpload->show();
 				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());

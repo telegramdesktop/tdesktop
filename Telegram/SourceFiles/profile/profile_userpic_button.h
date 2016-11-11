@@ -20,6 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/abstract_button.h"
 #include "core/observer.h"
 
 namespace Notify {
@@ -28,7 +29,7 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class UserpicButton final : public Button, private base::Subscriber {
+class UserpicButton : public Ui::AbstractButton, private base::Subscriber {
 public:
 	UserpicButton(QWidget *parent, PeerData *peer);
 

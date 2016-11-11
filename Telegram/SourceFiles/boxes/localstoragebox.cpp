@@ -22,13 +22,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/localstoragebox.h"
 
 #include "styles/style_boxes.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
-#include "ui/flatbutton.h"
 #include "lang.h"
 #include "mainwindow.h"
 
 LocalStorageBox::LocalStorageBox() : AbstractBox()
-, _clear(this, lang(lng_local_storage_clear), st::defaultBoxLinkButton)
+, _clear(this, lang(lng_local_storage_clear), st::boxLinkButton)
 , _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	connect(_clear, SIGNAL(clicked()), this, SLOT(onClear()));
 	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "mainwindow.h"
 #include "lang.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -919,8 +919,8 @@ void HideAllButton::paintEvent(QPaintEvent *e) {
 	p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, height() - 2 * st::notifyBorderWidth, st::notifyBorder);
 	p.fillRect(width() - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorderWidth, height() - 2 * st::notifyBorderWidth, st::notifyBorder);
 
-	p.setFont(st::btnDefLink.font);
-	p.setPen(st::btnDefLink.color);
+	p.setFont(st::defaultLinkButton.font);
+	p.setPen(st::defaultLinkButton.color);
 	p.drawText(rect(), lang(lng_notification_hide_all), style::al_center);
 }
 

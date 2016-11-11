@@ -21,9 +21,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "intro/introwidget.h"
-#include "ui/flatlabel.h"
+
+class FlatLabel;
 
 namespace Ui {
+class LinkButton;
 class RoundButton;
 } // namespace Ui
 
@@ -39,7 +41,7 @@ public:
 private:
 	ChildWidget<FlatLabel> _intro;
 
-	ChildWidget<LinkButton> _changeLang;
+	ChildWidget<Ui::LinkButton> _changeLang;
 
 	ChildWidget<Ui::RoundButton> _next;
 

@@ -22,8 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/notifications_box.h"
 
 #include "lang.h"
-#include "ui/buttons/round_button.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/discrete_slider.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"

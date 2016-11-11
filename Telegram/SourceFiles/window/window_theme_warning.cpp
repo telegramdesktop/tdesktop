@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/window_theme_warning.h"
 
 #include "styles/style_boxes.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 #include "window/window_theme.h"
 #include "lang.h"
 

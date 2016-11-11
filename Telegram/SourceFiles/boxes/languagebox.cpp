@@ -22,7 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/languagebox.h"
 
 #include "lang.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
 #include "mainwidget.h"
@@ -56,16 +57,16 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	resizeMaxHeight(st::langsWidth, titleHeight() + (languageCount + (haveTestLang ? 1 : 0)) * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::langsWidth, titleHeight() + (languageCount + (haveTestLang ? 1 : 0)) * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
 
-	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
+	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
 	prepare();
 }
 
 void LanguageBox::showAll() {
-	_close.show();
+	_close->show();
 	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
 		_langs[i]->show();
 	}

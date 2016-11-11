@@ -51,7 +51,7 @@ private:
 	ChildWidget<Ui::Checkbox> _nativeNotifications = { nullptr };
 	ChildWidget<Ui::Checkbox> _playSound = { nullptr };
 	ChildWidget<Ui::Checkbox> _includeMuted = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _advanced = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Ui::LinkButton>> _advanced = { nullptr };
 
 };
 

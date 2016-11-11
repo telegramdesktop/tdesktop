@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/photocropbox.h"
 #include "lang.h"
 #include "application.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -42,7 +42,6 @@ IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
-	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_next, SIGNAL(clicked()), this, SLOT(onSubmitName()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 

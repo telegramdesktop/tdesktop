@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "photocropbox.h"
 #include "fileuploader.h"
+#include "ui/widgets/buttons.h"
 
 PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : AbstractBox()
 , _downState(0)
@@ -54,8 +55,8 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 		_title = lang(lng_settings_crop_profile);
 	}
 
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_done, SIGNAL(clicked()), this, SLOT(onSend()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	if (peerToBareInt(_peerId)) {
 		connect(this, SIGNAL(ready(const QImage&)), this, SLOT(onReady(const QImage&)));
 	}
@@ -77,7 +78,7 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 	_thumby = st::boxPhotoPadding.top();
 	setMouseTracking(true);
 
-	resizeMaxHeight(st::boxWideWidth, st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxTextFont->height + st::cropSkip + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::boxWideWidth, st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxTextFont->height + st::cropSkip + st::boxButtonPadding.top() + _done->height() + st::boxButtonPadding.bottom());
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
@@ -257,8 +258,8 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 }
 
 void PhotoCropBox::resizeEvent(QResizeEvent *e) {
-	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _done.width() + st::boxButtonPadding.left(), _done.y());
+	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _done->width() + st::boxButtonPadding.left(), _done->y());
 	AbstractBox::resizeEvent(e);
 }
 
@@ -304,6 +305,6 @@ void PhotoCropBox::onReady(const QImage &tosend) {
 }
 
 void PhotoCropBox::showAll() {
-	_done.show();
-	_cancel.show();
+	_done->show();
+	_cancel->show();
 }

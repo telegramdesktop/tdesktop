@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "observer_peer.h"
 
 MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox(st::boxScroll)
@@ -248,11 +248,7 @@ void MembersBox::Inner::paintDialog(Painter &p, PeerData *peer, MemberData *data
 
 	if (data->canKick) {
 		p.setFont((kickSel ? st::linkOverFont : st::linkFont)->f);
-		if (kickDown) {
-			p.setPen(st::btnDefLink.downColor->p);
-		} else {
-			p.setPen(st::btnDefLink.color->p);
-		}
+		p.setPen(kickDown ? st::defaultLinkButton.downColor : st::defaultLinkButton.color);
 		p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), _kickText, _kickWidth);
 	}
 

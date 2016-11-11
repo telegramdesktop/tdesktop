@@ -37,6 +37,7 @@ struct PeerUpdate;
 
 namespace Ui {
 class MultiSelect;
+class RoundButton;
 } // namespace Ui
 
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
@@ -90,9 +91,9 @@ private:
 	ChildWidget<Inner> _inner;
 	ChildWidget<Ui::MultiSelect> _select;
 
-	ChildWidget<BoxButton> _copy;
-	ChildWidget<BoxButton> _share;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _copy;
+	ChildWidget<Ui::RoundButton> _share;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	ChildWidget<ScrollableBoxShadow> _topShadow;
 	ChildWidget<ScrollableBoxShadow> _bottomShadow;

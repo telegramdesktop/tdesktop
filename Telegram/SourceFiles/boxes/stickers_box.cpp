@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
+#include "ui/widgets/buttons.h"
 
 namespace {
 
@@ -611,11 +612,8 @@ void StickersBox::Inner::paintRow(Painter &p, int32 index) {
 		bool removeDown = removeSel && (index == _actionDown);
 
 		p.setFont(removeSel ? st::linkOverFont : st::linkFont);
-		if (removeDown) {
-			p.setPen(st::btnDefLink.downColor);
-		} else {
-			p.setPen(st::btnDefLink.color);
-		}
+		p.setPen(removeDown ? st::defaultLinkButton.downColor : st::defaultLinkButton.color);
+
 		int32 remWidth = s->recent ? _clearWidth : (s->disabled ? (s->official ? _restoreWidth : _returnWidth) : _removeWidth);
 		QString remText = lang(s->recent ? lng_stickers_clear_recent : (s->disabled ? (s->official ? lng_stickers_restore : lng_stickers_return) : lng_stickers_remove));
 		p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), remText, remWidth);

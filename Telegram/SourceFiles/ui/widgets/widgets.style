@@ -27,6 +27,34 @@ LabelSimple {
 	textFg: color;
 }
 
+LinkButton {
+	color: color;
+	overColor: color;
+	downColor: color;
+	font: font;
+	overFont: font;
+}
+
+FlatButton {
+	color: color;
+	overColor: color;
+
+	bgColor: color;
+	overBgColor: color;
+
+	width: pixels;
+	height: pixels;
+
+	textTop: pixels;
+	overTextTop: pixels;
+	downTextTop: pixels;
+
+	font: font;
+	overFont: font;
+	duration: int;
+	cursor: cursor;
+}
+
 IconButton {
 	width: pixels;
 	height: pixels;
@@ -51,22 +79,6 @@ Shadow {
 	bottomLeft: icon;
 	extend: margins;
 	fallback: color;
-}
-
-MaskButton {
-	width: pixels;
-	height: pixels;
-
-	bg: color;
-	icon: icon;
-
-	iconBg: color;
-	iconBgOver: color;
-
-	iconPosition: point;
-	iconPositionDown: point;
-
-	duration: int;
 }
 
 MediaSlider {
@@ -212,15 +224,17 @@ defaultLabelSimple: LabelSimple {
 	textFg: windowTextFg;
 }
 
+defaultLinkButton: LinkButton {
+	color: btnYesColor;
+	overColor: btnYesColor;
+	downColor: btnYesHover;
+	font: linkFont;
+	overFont: linkOverFont;
+}
+
 defaultIconButton: IconButton {
 	iconPosition: point(-1px, -1px);
 	iconPositionDown: point(-1px, -1px);
-}
-
-defaultMaskButton: MaskButton {
-	iconPosition: point(-1px, -1px);
-	iconPositionDown: point(-1px, -1px);
-	duration: 150;
 }
 
 widgetSlideDuration: 200;

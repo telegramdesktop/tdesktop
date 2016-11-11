@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "countries.h"
 #include "boxes/confirmbox.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 
 SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
@@ -38,14 +38,14 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 , _shortPollRequest(0) {
 	setMaxHeight(st::sessionsHeight);
 
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
 	connect(_inner, SIGNAL(allTerminated()), this, SLOT(onAllTerminated()));
 	connect(_inner, SIGNAL(terminateAll()), this, SLOT(onTerminateAll()));
 	connect(App::wnd(), SIGNAL(newAuthorization()), this, SLOT(onNewAuthorization()));
 	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
-	init(_inner, st::boxButtonPadding.bottom() + _done.height() + st::boxButtonPadding.top(), titleHeight());
+	init(_inner, st::boxButtonPadding.bottom() + _done->height() + st::boxButtonPadding.top(), titleHeight());
 	_inner->resize(width(), st::noContactsHeight);
 
 	prepare();
@@ -55,12 +55,12 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 
 void SessionsBox::resizeEvent(QResizeEvent *e) {
 	ScrollableBox::resizeEvent(e);
-	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _done.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
-	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
+	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _done->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
+	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
 }
 
 void SessionsBox::showAll() {
-	_done.show();
+	_done->show();
 	if (_loading) {
 		scrollArea()->hide();
 		_shadow.hide();
@@ -194,7 +194,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		}
 	}
 	_inner->listUpdated();
-	if (!_done.isHidden()) {
+	if (!_done->isHidden()) {
 		showAll();
 		update();
 	}
@@ -204,7 +204,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 
 void SessionsBox::onOneTerminated() {
 	if (_list.isEmpty()) {
-		if (!_done.isHidden()) {
+		if (!_done->isHidden()) {
 			showAll();
 			update();
 		}
@@ -214,7 +214,7 @@ void SessionsBox::onOneTerminated() {
 void SessionsBox::onShortPollAuthorizations() {
 	if (!_shortPollRequest) {
 		_shortPollRequest = MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
-		if (!_done.isHidden()) {
+		if (!_done->isHidden()) {
 			showAll();
 			update();
 		}
@@ -236,7 +236,7 @@ void SessionsBox::onAllTerminated() {
 
 void SessionsBox::onTerminateAll() {
 	_loading = true;
-	if (!_done.isHidden()) {
+	if (!_done->isHidden()) {
 		showAll();
 		update();
 	}
@@ -246,10 +246,10 @@ SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox:
 , _list(list)
 , _current(current)
 , _terminating(0)
-, _terminateAll(this, lang(lng_sessions_terminate_all), st::redBoxLinkButton)
+, _terminateAll(this, lang(lng_sessions_terminate_all), st::sessionTerminateAllButton)
 , _terminateBox(0) {
-	connect(&_terminateAll, SIGNAL(clicked()), this, SLOT(onTerminateAll()));
-	_terminateAll.hide();
+	connect(_terminateAll, SIGNAL(clicked()), this, SLOT(onTerminateAll()));
+	_terminateAll->hide();
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
@@ -320,7 +320,7 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 
 void SessionsBox::Inner::onTerminate() {
 	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
-		if (i.value()->getState() & Button::StateOver) {
+		if (i.value()->getState() & Ui::AbstractButton::StateOver) {
 			_terminating = i.key();
 
 			if (_terminateBox) _terminateBox->deleteLater();
@@ -399,14 +399,14 @@ bool SessionsBox::Inner::terminateAllFail(const RPCError &error) {
 }
 
 void SessionsBox::Inner::resizeEvent(QResizeEvent *e) {
-	_terminateAll.moveToLeft(st::sessionPadding.left(), st::sessionCurrentPadding.top() + st::sessionHeight + st::sessionCurrentPadding.bottom());
+	_terminateAll->moveToLeft(st::sessionPadding.left(), st::sessionCurrentPadding.top() + st::sessionHeight + st::sessionCurrentPadding.bottom());
 }
 
 void SessionsBox::Inner::listUpdated() {
 	if (_list->isEmpty()) {
-		_terminateAll.hide();
+		_terminateAll->hide();
 	} else {
-		_terminateAll.show();
+		_terminateAll->show();
 	}
 	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
 		i.value()->move(0, -1);

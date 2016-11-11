@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_privacy_widget.h"
 
 #include "ui/effects/widget_slide_wrap.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_settings.h"
 #include "lang.h"
 #include "application.h"
@@ -33,8 +34,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 LocalPasscodeState::LocalPasscodeState(QWidget *parent) : TWidget(parent)
-, _edit(this, lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on), st::defaultBoxLinkButton)
-, _turnOff(this, lang(lng_passcode_turn_off), st::defaultBoxLinkButton) {
+, _edit(this, lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on), st::boxLinkButton)
+, _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	updateControls();
 	connect(_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
 	connect(_turnOff, SIGNAL(clicked()), this, SLOT(onTurnOff()));
@@ -62,8 +63,8 @@ void LocalPasscodeState::updateControls() {
 }
 
 CloudPasswordState::CloudPasswordState(QWidget *parent) : TWidget(parent)
-, _edit(this, lang(lng_cloud_password_set), st::defaultBoxLinkButton)
-, _turnOff(this, lang(lng_passcode_turn_off), st::defaultBoxLinkButton) {
+, _edit(this, lang(lng_cloud_password_set), st::boxLinkButton)
+, _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	_turnOff->hide();
 	connect(_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
 	connect(_turnOff, SIGNAL(clicked()), this, SLOT(onTurnOff()));

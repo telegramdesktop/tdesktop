@@ -20,26 +20,28 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
 #include "ui/twidget.h"
 #include "core/lambda_wrap.h"
 
-typedef enum {
-	ButtonByUser  = 0x00, // by clearState() call
-	ButtonByPress = 0x01,
-	ButtonByHover = 0x02,
-} ButtonStateChangeSource;
+namespace Ui {
 
-class Button : public TWidget {
+class AbstractButton : public TWidget {
 	Q_OBJECT
 
 public:
-	Button(QWidget *parent);
+	enum class StateChangeSource {
+		ByUser = 0x00,
+		ByPress = 0x01,
+		ByHover = 0x02,
+	};
+
+	AbstractButton(QWidget *parent) : TWidget(parent) {
+	}
 
 	enum {
-		StateNone     = 0x00,
-		StateOver     = 0x01,
-		StateDown     = 0x02,
+		StateNone = 0x00,
+		StateOver = 0x01,
+		StateDown = 0x02,
 		StateDisabled = 0x04,
 	};
 
@@ -51,7 +53,7 @@ public:
 	int getState() const;
 
 	void setDisabled(bool disabled = true);
-	void setOver(bool over, ButtonStateChangeSource source = ButtonByUser);
+	void setOver(bool over, StateChangeSource source = StateChangeSource::ByUser);
 	bool disabled() const {
 		return (_state & StateDisabled);
 	}
@@ -71,16 +73,17 @@ protected:
 
 signals:
 	void clicked();
-	void stateChanged(int oldState, ButtonStateChangeSource source);
 
 protected:
-	virtual void onStateChanged(int oldState, ButtonStateChangeSource source) {
+	virtual void onStateChanged(int oldState, StateChangeSource source) {
 	}
 
 	Qt::KeyboardModifiers _modifiers;
-	int _state;
-	bool _acceptBoth;
+	int _state = StateNone;
+	bool _acceptBoth = false;
 
 	base::lambda_unique<void()> _clickedCallback;
 
 };
+
+} // namespace Ui

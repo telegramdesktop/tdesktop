@@ -30,10 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "shortcuts.h"
 #include "lang.h"
 #include "ui/buttons/peer_avatar_button.h"
-#include "ui/buttons/round_button.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
-#include "ui/flatbutton.h"
 #include "dialogs/dialogs_layout.h"
 
 namespace Window {
@@ -47,9 +45,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
-	_clearSelection->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
-	_forward->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
-	_delete->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_mediaType->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 
 	_forward->setClickedCallback([this] { onForwardSelection(); });
 	_delete->setClickedCallback([this] { onDeleteSelection(); });

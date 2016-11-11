@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/filedialog.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/buttons.h"
 #include "media/media_clip_reader.h"
 #include "media/view/media_clip_controller.h"
 #include "styles/style_mediaview.h"
@@ -130,9 +131,9 @@ MediaView::MediaView() : TWidget(App::wnd())
 	_controlsHideTimer.setSingleShot(true);
 	connect(&_controlsHideTimer, SIGNAL(timeout()), this, SLOT(onHideControls()));
 
-	connect(&_docDownload, SIGNAL(clicked()), this, SLOT(onDownload()));
-	connect(&_docSaveAs, SIGNAL(clicked()), this, SLOT(onSaveAs()));
-	connect(&_docCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
+	connect(_docDownload, SIGNAL(clicked()), this, SLOT(onDownload()));
+	connect(_docSaveAs, SIGNAL(clicked()), this, SLOT(onSaveAs()));
+	connect(_docCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
 }
@@ -237,7 +238,7 @@ void MediaView::stopGif() {
 
 void MediaView::documentUpdated(DocumentData *doc) {
 	if (_doc && _doc == doc && !fileShown()) {
-		if ((_doc->loading() && _docCancel.isHidden()) || (!_doc->loading() && !_docCancel.isHidden())) {
+		if ((_doc->loading() && _docCancel->isHidden()) || (!_doc->loading() && !_docCancel->isHidden())) {
 			updateControls();
 		} else if (_doc->loading()) {
 			updateDocSize();
@@ -289,29 +290,29 @@ void MediaView::updateDocSize() {
 void MediaView::updateControls() {
 	if (_doc && !fileShown()) {
 		if (_doc->loading()) {
-			_docDownload.hide();
-			_docSaveAs.hide();
-			_docCancel.moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
-			_docCancel.show();
+			_docDownload->hide();
+			_docSaveAs->hide();
+			_docCancel->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
+			_docCancel->show();
 		} else {
 			if (_doc->loaded(DocumentData::FilePathResolveChecked)) {
-				_docDownload.hide();
-				_docSaveAs.moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
-				_docSaveAs.show();
-				_docCancel.hide();
+				_docDownload->hide();
+				_docSaveAs->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
+				_docSaveAs->show();
+				_docCancel->hide();
 			} else {
-				_docDownload.moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
-				_docDownload.show();
-				_docSaveAs.moveToLeft(_docRect.x() + 2.5 * st::mediaviewFilePadding + st::mediaviewFileIconSize + _docDownload.width(), _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
-				_docSaveAs.show();
-				_docCancel.hide();
+				_docDownload->moveToLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
+				_docDownload->show();
+				_docSaveAs->moveToLeft(_docRect.x() + 2.5 * st::mediaviewFilePadding + st::mediaviewFileIconSize + _docDownload->width(), _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileLinksTop);
+				_docSaveAs->show();
+				_docCancel->hide();
 			}
 		}
 		updateDocSize();
 	} else {
-		_docDownload.hide();
-		_docSaveAs.hide();
-		_docCancel.hide();
+		_docDownload->hide();
+		_docSaveAs->hide();
+		_docCancel->hide();
 	}
 	radialStart();
 

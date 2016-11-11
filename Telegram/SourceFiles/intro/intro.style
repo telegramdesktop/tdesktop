@@ -43,6 +43,14 @@ introCountry: countryInput {
 	align: align(left);
 }
 
+introIcon: icon {{ "intro_logo", #008ed5 }};
+
+introResetLink: LinkButton(defaultLinkButton) {
+	color: #d15948;
+	overColor: #d15948;
+	downColor: #db6352;
+}
+
 introBtnTop: 288px;
 introSkip: 25px;
 introFinishSkip: 15px;
@@ -51,7 +59,7 @@ introHeaderFont: font(24px);
 introHeaderSkip: 14px;
 introIconSkip: 50px;
 introFont: font(16px);
-introLink: linkButton(btnDefLink) {
+introLink: LinkButton(defaultLinkButton) {
 	font: introFont;
 	overFont: font(16px underline);
 }

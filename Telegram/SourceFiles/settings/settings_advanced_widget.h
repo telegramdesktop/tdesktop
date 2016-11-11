@@ -49,14 +49,14 @@ private:
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void supportGot(const MTPhelp_Support &support);
 
-	ChildWidget<LinkButton> _manageLocalStorage = { nullptr };
+	ChildWidget<Ui::LinkButton> _manageLocalStorage = { nullptr };
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	ChildWidget<LabeledLink> _connectionType = { nullptr };
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	ChildWidget<LinkButton> _askQuestion = { nullptr };
-	ChildWidget<LinkButton> _telegramFAQ = { nullptr };
-	ChildWidget<LinkButton> _about = { nullptr };
-	ChildWidget<LinkButton> _logOut = { nullptr };
+	ChildWidget<Ui::LinkButton> _askQuestion = { nullptr };
+	ChildWidget<Ui::LinkButton> _telegramFAQ = { nullptr };
+	ChildWidget<Ui::LinkButton> _about = { nullptr };
+	ChildWidget<Ui::LinkButton> _logOut = { nullptr };
 
 	mtpRequestId _supportGetRequest = 0;
 

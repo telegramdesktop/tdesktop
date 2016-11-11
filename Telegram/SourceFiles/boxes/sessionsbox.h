@@ -27,6 +27,8 @@ class ConfirmBox;
 
 namespace Ui {
 class IconButton;
+class LinkButton;
+class RoundButton;
 } // namespace Ui
 
 class SessionsBox : public ScrollableBox, public RPCSender {
@@ -68,7 +70,7 @@ private:
 	class Inner;
 	ChildWidget<Inner> _inner;
 	ScrollableBoxShadow _shadow;
-	BoxButton _done;
+	ChildWidget<Ui::RoundButton> _done;
 
 	SingleTimer _shortPollTimer;
 	mtpRequestId _shortPollRequest;
@@ -114,7 +116,7 @@ private:
 	TerminateButtons _terminateButtons;
 
 	uint64 _terminating;
-	LinkButton _terminateAll;
+	ChildWidget<Ui::LinkButton> _terminateAll;
 	ConfirmBox *_terminateBox;
 
 };

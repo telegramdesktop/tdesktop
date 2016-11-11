@@ -22,7 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 
 #include "styles/style_settings.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 
 namespace Settings {
 
@@ -85,17 +86,17 @@ void BlockWidget::rowHeightUpdated() {
 }
 
 void BlockWidget::createChildRow(ChildWidget<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
-	child = new Ui::Checkbox(this, text, checked, st::defaultBoxCheckbox);
+	child.create(this, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
 void BlockWidget::createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
-	child = new Ui::Radiobutton(this, group, value, text, checked, st::defaultRadiobutton);
+	child .create(this, group, value, text, checked, st::defaultRadiobutton);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::linkButton &st) {
-	child = new LinkButton(this, text, st);
+void BlockWidget::createChildRow(ChildWidget<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
+	child .create(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }
 

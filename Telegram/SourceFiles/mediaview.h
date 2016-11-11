@@ -31,6 +31,7 @@ class Controller;
 
 namespace Ui {
 class PopupMenu;
+class LinkButton;
 } // namespace Ui
 
 struct AudioPlaybackState;
@@ -242,7 +243,9 @@ private:
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
 	int _docThumbx = 0, _docThumby = 0, _docThumbw = 0;
-	LinkButton _docDownload, _docSaveAs, _docCancel;
+	ChildWidget<Ui::LinkButton> _docDownload;
+	ChildWidget<Ui::LinkButton> _docSaveAs;
+	ChildWidget<Ui::LinkButton> _docCancel;
 
 	QRect _photoRadialRect;
 	Ui::RadialAnimation _radial;

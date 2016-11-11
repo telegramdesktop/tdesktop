@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Radiobutton;
+class LinkButton;
+class RoundButton;
 } // namespace Ui
 
 class DownloadPathBox : public AbstractBox {
@@ -53,9 +55,9 @@ private:
 	ChildWidget<Ui::Radiobutton> _default;
 	ChildWidget<Ui::Radiobutton> _temp;
 	ChildWidget<Ui::Radiobutton> _dir;
-	ChildWidget<LinkButton> _pathLink;
+	ChildWidget<Ui::LinkButton> _pathLink;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 };

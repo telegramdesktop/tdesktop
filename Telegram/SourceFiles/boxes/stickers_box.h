@@ -26,6 +26,7 @@ class ConfirmBox;
 
 namespace Ui {
 class PlainShadow;
+class RoundButton;
 } // namespace Ui
 
 class StickersBox : public ItemListBox, public RPCSender {
@@ -81,8 +82,8 @@ private:
 
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ChildWidget<BoxButton> _save = { nullptr };
-	ChildWidget<BoxButton> _cancel = { nullptr };
+	ChildWidget<Ui::RoundButton> _save = { nullptr };
+	ChildWidget<Ui::RoundButton> _cancel = { nullptr };
 	OrderedSet<mtpRequestId> _disenableRequests;
 	mtpRequestId _reorderRequest = 0;
 	ChildWidget<Ui::PlainShadow> _topShadow = { nullptr };

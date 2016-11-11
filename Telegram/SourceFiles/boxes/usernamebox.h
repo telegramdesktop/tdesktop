@@ -22,6 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Ui {
+class RoundButton;
+class LinkButton;
+} // namespace Ui
+
 class UsernameBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
@@ -53,9 +58,10 @@ private:
 	QString getName() const;
 	void updateLinkText();
 
-	BoxButton _save, _cancel;
-	UsernameInput _username;
-	LinkButton _link;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
+	ChildWidget<UsernameInput> _username;
+	ChildWidget<Ui::LinkButton> _link;
 
 	mtpRequestId _saveRequestId, _checkRequestId;
 	QString _sentUsername, _checkUsername, _errorText, _goodText, _copiedTextLink;

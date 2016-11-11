@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Radiobutton;
+class RoundButton;
 } // namespace Ui
 
 class ReportBox : public AbstractBox, public RPCSender {
@@ -60,7 +61,7 @@ private:
 	ChildWidget<Ui::Radiobutton> _reasonOther;
 	ChildWidget<InputArea> _reasonOtherText = { nullptr };
 
-	ChildWidget<BoxButton> _report, _cancel;
+	ChildWidget<Ui::RoundButton> _report, _cancel;
 
 	enum Reason {
 		ReasonSpam,

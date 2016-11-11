@@ -22,10 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-class BoxButton;
-class LinkButton;
-
 namespace Ui {
+class RoundButton;
+class LinkButton;
 class DiscreteSlider;
 } // namespace Ui
 
@@ -72,7 +71,7 @@ private:
 
 	int _oldCount;
 	ChildWidget<Ui::DiscreteSlider> _countSlider;
-	ChildWidget<BoxButton> _done;
+	ChildWidget<Ui::RoundButton> _done;
 
 	QVector<SampleWidget*> _cornerSamples[4];
 

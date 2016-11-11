@@ -20,11 +20,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/flatinput.h"
 #include "intro/introwidget.h"
+
+class FlatInput;
 
 namespace Ui {
 class RoundButton;
+class LinkButton;
 } // namespace Ui
 
 class IntroPwdCheck final : public IntroStep {
@@ -80,9 +82,9 @@ private:
 
 	ChildWidget<FlatInput> _pwdField;
 	ChildWidget<FlatInput> _codeField;
-	ChildWidget<LinkButton> _toRecover;
-	ChildWidget<LinkButton> _toPassword;
-	ChildWidget<LinkButton> _reset;
+	ChildWidget<Ui::LinkButton> _toRecover;
+	ChildWidget<Ui::LinkButton> _toPassword;
+	ChildWidget<Ui::LinkButton> _reset;
 	mtpRequestId _sentRequest = 0;
 
 	Text _hintText;

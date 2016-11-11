@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_dialogs.h"
 #include "ui/buttons/peer_avatar_button.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "window/section_memento.h"
 #include "window/section_widget.h"

@@ -115,7 +115,7 @@ mediaviewFileExtPadding: 10px;
 mediaviewFileLinksTop: 57px;
 mediaviewFileIconSize: 80px;
 
-mediaviewFileLink: linkButton(btnDefLink) {
+mediaviewFileLink: LinkButton(defaultLinkButton) {
 	color: #4595d3;
 	overColor: #4595d3;
 	downColor: #4595d3;

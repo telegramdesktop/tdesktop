@@ -27,6 +27,7 @@ class ConfirmBox;
 
 namespace Ui {
 class PlainShadow;
+class RoundButton;
 } // namespace Ui
 
 class StickerSetBox : public ScrollableBox, public RPCSender {
@@ -59,7 +60,10 @@ private:
 	class Inner;
 	ChildWidget<Inner> _inner;
 	ScrollableBoxShadow _shadow;
-	BoxButton _add, _share, _cancel, _done;
+	ChildWidget<Ui::RoundButton> _add;
+	ChildWidget<Ui::RoundButton> _share;
+	ChildWidget<Ui::RoundButton> _cancel;
+	ChildWidget<Ui::RoundButton> _done;
 	QString _title;
 
 };

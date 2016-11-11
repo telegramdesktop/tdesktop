@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "intro/introsignup.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 
 IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -40,12 +40,11 @@ IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , _codeField(this, st::inpIntroPassword, lang(lng_signin_code))
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
-, _reset(this, lang(lng_signin_reset_account), st::btnRedLink)
+, _reset(this, lang(lng_signin_reset_account), st::introResetLink)
 , _checkRequest(this) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
-	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_next, SIGNAL(clicked()), this, SLOT(onSubmitPwd()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 	connect(_toRecover, SIGNAL(clicked()), this, SLOT(onToRecover()));

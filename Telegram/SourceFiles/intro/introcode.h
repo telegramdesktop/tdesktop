@@ -20,13 +20,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "ui/flatbutton.h"
-#include "ui/flatinput.h"
 #include "intro/introwidget.h"
+
+class FlatInput;
 
 namespace Ui {
 class RoundButton;
+class LinkButton;
 } // namespace Ui
 
 class CodeInput final : public FlatInput {
@@ -91,7 +91,7 @@ private:
 	ChildWidget<Ui::RoundButton> _next;
 
 	Text _desc;
-	ChildWidget<LinkButton> _noTelegramCode;
+	ChildWidget<Ui::LinkButton> _noTelegramCode;
 	mtpRequestId _noTelegramCodeRequestId;
 	QRect _textRect;
 

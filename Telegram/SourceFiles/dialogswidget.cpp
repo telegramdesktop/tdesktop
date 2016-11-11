@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_stickers.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"
 #include "lang.h"
@@ -54,7 +54,7 @@ DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(pare
 	connect(main, SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(main, SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(onPeerPhotoChanged(PeerData*)));
 	connect(main, SIGNAL(dialogRowReplaced(Dialogs::Row*,Dialogs::Row*)), this, SLOT(onDialogRowReplaced(Dialogs::Row*,Dialogs::Row*)));
-	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
+	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(_cancelSearchInPeer, SIGNAL(clicked()), this, SIGNAL(cancelSearchInPeer()));
 	_cancelSearchInPeer->hide();
 
@@ -410,7 +410,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 }
 
 void DialogsInner::resizeEvent(QResizeEvent *e) {
-	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
+	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
 	_cancelSearchInPeer->move(width() - st::dialogsPadding.x() - st::dialogsCancelSearch.width, (st::dialogsRowHeight - st::dialogsCancelSearch.height) / 2);
 }
 
@@ -1092,16 +1092,16 @@ void DialogsInner::refresh(bool toTop) {
 		if (shownDialogs()->isEmpty()) {
 			h = st::noContactsHeight;
 			if (cContactsReceived()) {
-				if (_addContactLnk.isHidden()) _addContactLnk.show();
+				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
-				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+				if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			}
 		} else {
 			h = dialogsOffset() + shownDialogs()->size() * st::dialogsRowHeight;
-			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 		}
 	} else {
-		if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+		if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 		if (_state == FilteredState) {
 			h = searchedOffset() + (_searchResults.count() * st::dialogsRowHeight) + ((_searchResults.isEmpty() && !_searchInPeer) ? -st::searchedBarHeight : 0);
 		} else if (_state == SearchedState) {

@@ -24,6 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class FlatLabel;
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 class ConfirmPhoneBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
@@ -90,8 +94,8 @@ private:
 	mtpRequestId _checkCodeRequestId = 0;
 
 	ChildWidget<FlatLabel> _about = { nullptr };
-	ChildWidget<BoxButton> _send = { nullptr };
-	ChildWidget<BoxButton> _cancel = { nullptr };
+	ChildWidget<Ui::RoundButton> _send = { nullptr };
+	ChildWidget<Ui::RoundButton> _cancel = { nullptr };
 	ChildWidget<InputField> _code = { nullptr };
 
 	// Flag for not calling onTextChanged() recursively.

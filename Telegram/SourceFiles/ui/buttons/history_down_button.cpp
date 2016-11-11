@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-HistoryDownButton::HistoryDownButton(QWidget *parent) : Button(parent)
+HistoryDownButton::HistoryDownButton(QWidget *parent) : AbstractButton(parent)
 //, a_arrowOpacity(st::historyAttachEmoji.opacity, st::historyAttachEmoji.opacity)
 , _a_arrowOver(animation(this, &HistoryDownButton::step_arrowOver)) {
 	setCursor(style::cur_pointer);
@@ -78,10 +78,10 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void HistoryDownButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
+void HistoryDownButton::onStateChanged(int oldState, StateChangeSource source) {
 	//a_arrowOpacity.start((_state & (StateOver | StateDown)) ? st::historyAttachEmoji.overOpacity : st::historyAttachEmoji.opacity);
 
-	if (source == ButtonByUser || source == ButtonByPress) {
+	if (source == StateChangeSource::ByUser || source == StateChangeSource::ByPress) {
 		_a_arrowOver.stop();
 		a_arrowOpacity.finish();
 		update();
@@ -133,7 +133,7 @@ void HistoryDownButton::step_arrowOver(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : Button(parent)
+EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : AbstractButton(parent)
 , _st(st)
 , _a_loading(animation(this, &EmojiButton::step_loading)) {
 	resize(_st.width, _st.height);
@@ -183,7 +183,7 @@ void EmojiButton::setLoading(bool loading) {
 	}
 }
 
-void EmojiButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
+void EmojiButton::onStateChanged(int oldState, StateChangeSource source) {
 	auto over = (_state & StateOver);
 	if (over != (oldState & StateOver)) {
 		update();

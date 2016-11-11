@@ -24,8 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "lang.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "ui/flatbutton.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
 #include "pspecific.h"
 #include "mainwindow.h"
@@ -168,7 +168,7 @@ void UpdateStateRow::onFailed() {
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
-, _changeLanguage(this, lang(lng_settings_change_lang), st::defaultBoxLinkButton) {
+, _changeLanguage(this, lang(lng_settings_change_lang), st::boxLinkButton) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
@@ -178,7 +178,7 @@ GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 }
 
 int GeneralWidget::resizeGetHeight(int newWidth) {
-	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::btnDefLink.font->ascent, newWidth);
+	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::defaultLinkButton.font->ascent, newWidth);
 	return BlockWidget::resizeGetHeight(newWidth);
 }
 

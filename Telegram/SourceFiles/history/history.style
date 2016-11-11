@@ -157,7 +157,7 @@ historyComposeFieldMaxHeight: 224px;
 historySendPadding: 9px;
 historySendRight: 2px;
 
-historyComposeButton: flatButton {
+historyComposeButton: FlatButton {
 	duration: 200;
 	cursor: cursor(pointer);
 
@@ -177,7 +177,7 @@ historyComposeButton: flatButton {
 	font: semiboldFont;
 	overFont: semiboldFont;
 }
-historyUnblock: flatButton(historyComposeButton) {
+historyUnblock: FlatButton(historyComposeButton) {
 	color: #d15948;
 	overColor: #d15948;
 }
@@ -307,3 +307,38 @@ topBarMenuToggle: IconButton(topBarSearch) {
 	iconPosition: point(18px, 17px);
 	iconPositionDown: point(18px, 17px);
 }
+reportSpamHide: FlatButton {
+	duration: 200;
+	cursor: cursor(pointer);
+
+	color: btnYesColor;
+	overColor: btnYesHover;
+
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	width: -40px;
+	height: 46px;
+
+	textTop: 15px;
+	overTextTop: 15px;
+	downTextTop: 16px;
+
+	font: font(fsize);
+	overFont: font(fsize underline);
+}
+reportSpamButton: FlatButton(reportSpamHide) {
+	textTop: 6px;
+	overTextTop: 6px;
+	downTextTop: 7px;
+
+	width: -50px;
+	height: 30px;
+
+	bgColor: #888888;
+	overBgColor: #7b7b7b;
+}
+reportSpamSeparator: 30px;
+reportSpamBg: #fffffff0;
+reportSpamFg: #000000;
+

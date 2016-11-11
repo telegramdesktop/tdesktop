@@ -26,7 +26,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 
 AutoLockBox::AutoLockBox() :
 _close(this, lang(lng_box_ok), st::defaultBoxButton) {
@@ -35,7 +36,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 
 	int32 opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
 
-	resizeMaxHeight(st::langsWidth, titleHeight() + cnt * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
+	resizeMaxHeight(st::langsWidth, titleHeight() + cnt * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
 
 	int32 y = titleHeight() + st::boxOptionListPadding.top();
 	_options.reserve(cnt);
@@ -47,14 +48,14 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 		connect(_options.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
+	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
 	prepare();
 }
 
 void AutoLockBox::showAll() {
-	_close.show();
+	_close->show();
 	for (int32 i = 0, l = _options.size(); i < l; ++i) {
 		_options[i]->show();
 	}

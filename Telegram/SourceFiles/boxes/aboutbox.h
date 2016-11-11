@@ -23,6 +23,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 #include "ui/flatlabel.h"
 
+namespace Ui {
+class RoundButton;
+class LinkButton;
+} // namespace Ui
+
 class AboutBox : public AbstractBox {
 	Q_OBJECT
 
@@ -42,9 +47,11 @@ protected:
 	void showAll() override;
 
 private:
-	LinkButton _version;
-	FlatLabel _text1, _text2, _text3;
-	BoxButton _done;
+	ChildWidget<Ui::LinkButton> _version;
+	ChildWidget<FlatLabel> _text1;
+	ChildWidget<FlatLabel> _text2;
+	ChildWidget<FlatLabel> _text3;
+	ChildWidget<Ui::RoundButton> _done;
 
 };
 

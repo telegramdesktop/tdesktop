@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "intro/introcode.h"
 #include "styles/style_intro.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 
 namespace {
 	class SignUpClickHandler : public LeftButtonClickHandler {
@@ -56,7 +56,6 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 	setVisible(false);
 	setGeometry(parent->innerRect());
 
-	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_next, SIGNAL(clicked()), this, SLOT(onSubmitPhone()));
 	connect(_phone, SIGNAL(voidBackspace(QKeyEvent*)), _code, SLOT(startErasing(QKeyEvent*)));
 	connect(_country, SIGNAL(codeChanged(const QString &)), _code, SLOT(codeSelected(const QString &)));

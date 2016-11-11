@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "intro/introsignup.h"
 #include "intro/intropwdcheck.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_intro.h"
 
 CodeInput::CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph) : FlatInput(parent, st, ph) {
@@ -86,7 +86,6 @@ IntroCode::IntroCode(IntroWidget *parent) : IntroStep(parent)
 , _checkRequest(this) {
 	setGeometry(parent->innerRect());
 
-	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_next, SIGNAL(clicked()), this, SLOT(onSubmitCode()));
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));

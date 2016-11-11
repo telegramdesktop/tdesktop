@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/buttons.h"
 #include "core/zlib_help.h"
 #include "lang.h"
 #include "shortcuts.h"
@@ -52,7 +53,7 @@ ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const Q
 , _shadow(st::boxShadow)
 , _reconnect(this, QString()) {
 	set(text, reconnect);
-	connect(&_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
+	connect(_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
 }
 
 void ConnectingWidget::set(const QString &text, const QString &reconnect) {
@@ -60,12 +61,12 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	_textWidth = st::linkFont->width(_text) + st::linkFont->spacew;
 	int32 _reconnectWidth = 0;
 	if (reconnect.isEmpty()) {
-		_reconnect.hide();
+		_reconnect->hide();
 	} else {
-		_reconnect.setText(reconnect);
-		_reconnect.show();
-		_reconnect.move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
-		_reconnectWidth = _reconnect.width();
+		_reconnect->setText(reconnect);
+		_reconnect->show();
+		_reconnect->move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
+		_reconnectWidth = _reconnect->width();
 	}
 	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.width(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
 	update();

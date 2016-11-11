@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_boxes.h"
 #include "boxes/confirmbox.h"
+#include "ui/widgets/buttons.h"
 #include "mainwidget.h"
 #include "lang.h"
 
@@ -107,8 +108,8 @@ void ConfirmPhoneBox::launch() {
 
 	_code = new InputField(this, st::confirmPhoneCodeField, lang(lng_code_ph));
 
-	_send = new BoxButton(this, lang(lng_confirm_phone_send), st::defaultBoxButton);
-	_cancel = new BoxButton(this, lang(lng_cancel), st::cancelBoxButton);
+	_send.create(this, lang(lng_confirm_phone_send), st::defaultBoxButton);
+	_cancel.create(this, lang(lng_cancel), st::cancelBoxButton);
 
 	setMaxHeight(titleHeight() + st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip + _send->height() + st::boxButtonPadding.bottom());
 

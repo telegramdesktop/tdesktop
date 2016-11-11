@@ -36,7 +36,7 @@ public:
 
 	void setLink(const QString &text);
 
-	LinkButton *link() {
+	Ui::LinkButton *link() {
 		return _link;
 	}
 
@@ -47,7 +47,7 @@ protected:
 
 private:
 	ChildWidget<FlatLabel> _label;
-	ChildWidget<LinkButton> _link;
+	ChildWidget<Ui::LinkButton> _link;
 
 };
 
@@ -83,7 +83,7 @@ private:
 	State _state = State::Empty;
 
 	ChildWidget<LabeledLink> _path;
-	ChildWidget<LinkButton> _clear;
+	ChildWidget<Ui::LinkButton> _clear;
 
 };
 
@@ -106,13 +106,13 @@ private:
 	void createControls();
 
 	ChildWidget<Ui::Checkbox> _replaceEmoji = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _viewList = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
 	ChildWidget<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
 	ChildWidget<Ui::Radiobutton> _sendByEnter = { nullptr };
 	ChildWidget<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
-	ChildWidget<LinkButton> _automaticMediaDownloadSettings = { nullptr };
-	ChildWidget<LinkButton> _manageStickerSets = { nullptr };
+	ChildWidget<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
+	ChildWidget<Ui::LinkButton> _manageStickerSets = { nullptr };
 
 };
 

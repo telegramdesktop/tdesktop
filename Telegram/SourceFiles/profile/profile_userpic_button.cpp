@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-UserpicButton::UserpicButton(QWidget *parent, PeerData *peer) : Button(parent), _peer(peer) {
+UserpicButton::UserpicButton(QWidget *parent, PeerData *peer) : AbstractButton(parent), _peer(peer) {
 	resize(st::profilePhotoSize, st::profilePhotoSize);
 
 	processPeerPhoto();

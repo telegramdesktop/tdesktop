@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Radiobutton;
+class RoundButton;
 } // namespace Ui
 
 class LanguageBox : public AbstractBox {
@@ -45,6 +46,6 @@ protected:
 
 private:
 	QVector<Ui::Radiobutton*> _langs;
-	BoxButton _close;
+	ChildWidget<Ui::RoundButton> _close;
 
 };

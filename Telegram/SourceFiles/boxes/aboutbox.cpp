@@ -27,6 +27,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_boxes.h"
 
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 , _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
@@ -34,12 +36,12 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 , _text2(this, lang(lng_about_text_2), FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
 , _text3(this,st::aboutLabel, st::aboutTextStyle)
 , _done(this, lang(lng_close), st::defaultBoxButton) {
-	_text3.setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
+	_text3->setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
 
-	setMaxHeight(titleHeight() + st::aboutTextTop + _text1.height() + st::aboutSkip + _text2.height() + st::aboutSkip + _text3.height() + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + st::aboutTextTop + _text1->height() + st::aboutSkip + _text2->height() + st::aboutSkip + _text3->height() + st::boxButtonPadding.top() + _done->height() + st::boxButtonPadding.bottom());
 
-	connect(&_version, SIGNAL(clicked()), this, SLOT(onVersion()));
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_version, SIGNAL(clicked()), this, SLOT(onVersion()));
+	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
 
@@ -47,19 +49,19 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 }
 
 void AboutBox::showAll() {
-	_version.show();
-	_text1.show();
-	_text2.show();
-	_text3.show();
-	_done.show();
+	_version->show();
+	_text1->show();
+	_text2->show();
+	_text3->show();
+	_done->show();
 }
 
 void AboutBox::resizeEvent(QResizeEvent *e) {
-	_version.moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutVersionTop);
-	_text1.moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutTextTop);
-	_text2.moveToLeft(st::boxPadding.left(), _text1.y() + _text1.height() + st::aboutSkip);
-	_text3.moveToLeft(st::boxPadding.left(), _text2.y() + _text2.height() + st::aboutSkip);
-	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
+	_version->moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutVersionTop);
+	_text1->moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutTextTop);
+	_text2->moveToLeft(st::boxPadding.left(), _text1->y() + _text1->height() + st::aboutSkip);
+	_text3->moveToLeft(st::boxPadding.left(), _text2->y() + _text2->height() + st::aboutSkip);
+	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
 	AbstractBox::resizeEvent(e);
 }
 

@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/window_title_win.h"
 
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "styles/style_window.h"
 

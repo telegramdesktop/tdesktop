@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/label_simple.h"
 #include "ui/widgets/filled_slider.h"
 #include "ui/widgets/shadow.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
 #include "media/player/media_player_button.h"
@@ -39,7 +39,7 @@ namespace Player {
 
 using State = PlayButtonLayout::State;
 
-class Widget::PlayButton : public Button {
+class Widget::PlayButton : public Ui::AbstractButton {
 public:
 	PlayButton(QWidget *parent);
 
@@ -58,7 +58,7 @@ private:
 
 };
 
-Widget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
+Widget::PlayButton::PlayButton(QWidget *parent) : Ui::AbstractButton(parent)
 , _layout(st::mediaPlayerButton, [this] { update(); }) {
 	resize(st::mediaPlayerButtonSize);
 	setCursor(style::cur_pointer);

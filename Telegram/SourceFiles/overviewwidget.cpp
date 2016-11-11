@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "window/top_bar_widget.h"
 #include "window/window_theme.h"
 #include "lang.h"

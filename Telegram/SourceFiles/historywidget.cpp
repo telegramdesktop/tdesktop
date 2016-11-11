@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "ui/toast/toast.h"
 #include "ui/buttons/history_down_button.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "inline_bots/inline_bot_result.h"
@@ -2910,6 +2910,29 @@ HistoryHider::~HistoryHider() {
 	if (_sendPath) cSetSendPaths(QStringList());
 	parent()->noHider(this);
 }
+
+class SilentToggle : public Ui::IconButton, public Ui::AbstractTooltipShower {
+public:
+	SilentToggle(QWidget *parent);
+
+	void setChecked(bool checked);
+	bool checked() const {
+		return _checked;
+	}
+
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+
+private:
+	bool _checked = false;
+
+};
 
 SilentToggle::SilentToggle(QWidget *parent) : IconButton(parent, st::historySilentToggle) {
 	setMouseTracking(true);

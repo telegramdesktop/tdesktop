@@ -26,7 +26,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/backgroundbox.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
 #include "mainwindow.h"
 #include "window/window_theme.h"
@@ -34,8 +35,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
-, _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::defaultBoxLinkButton)
-, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::defaultBoxLinkButton)
+, _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::boxLinkButton)
+, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::boxLinkButton)
 , _radial(animation(this, &BackgroundRow::step_radial)) {
 	updateImage();
 

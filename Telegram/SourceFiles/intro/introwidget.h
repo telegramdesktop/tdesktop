@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class IconButton;
+class RoundButton;
 template <typename Widget>
 class WidgetFadeWrap;
 } // namespace Ui
@@ -152,8 +153,8 @@ private:
 	QString _firstname, _lastname;
 
 	ChildWidget<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
-	ChildWidget<BoxButton> _settings;
-	ChildWidget<BoxButton> _update = { nullptr };
+	ChildWidget<Ui::RoundButton> _settings;
+	ChildWidget<Ui::RoundButton> _update = { nullptr };
 
 	float64 _backFrom = 0.;
 	float64 _backTo = 0.;

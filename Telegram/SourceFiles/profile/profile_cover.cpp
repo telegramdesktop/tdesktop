@@ -25,10 +25,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "profile/profile_cover_drop_area.h"
 #include "profile/profile_userpic_button.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 #include "ui/filedialog.h"
 #include "ui/flatlabel.h"
-#include "ui/flatbutton.h"
 #include "observer_peer.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
@@ -354,7 +353,7 @@ void CoverWidget::refreshStatusText() {
 			_statusText = lang(lng_settings_uploading_photo);
 			_statusTextIsOnline = false;
 			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload = new LinkButton(this, lang(lng_cancel), st::btnDefLink);
+				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
 				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
 				_cancelPhotoUpload->show();
 				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::profileStatusFont->width(_statusText) + st::profileStatusFont->spacew, _statusPosition.y());
@@ -455,7 +454,6 @@ void CoverWidget::clearButtons() {
 void CoverWidget::addButton(const QString &text, const char *slot, const style::RoundButton *replacementStyle) {
 	auto &buttonStyle = _buttons.isEmpty() ? st::profilePrimaryButton : st::profileSecondaryButton;
 	auto button = new Ui::RoundButton(this, text, buttonStyle);
-	button->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(button, SIGNAL(clicked()), this, slot);
 	button->show();
 

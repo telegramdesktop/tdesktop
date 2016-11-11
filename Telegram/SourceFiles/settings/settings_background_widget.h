@@ -24,14 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/radial_animation.h"
 #include "ui/filedialog.h"
 
-class LinkButton;
-
-namespace Ui {
-class Checkbox;
-template <typename Widget>
-class WidgetSlideWrap;
-} // namespace Ui;
-
 namespace Settings {
 
 class BackgroundRow : public TWidget {
@@ -60,8 +52,8 @@ private:
 	void step_radial(uint64 ms, bool timer);
 
 	QPixmap _background;
-	ChildWidget<LinkButton> _chooseFromGallery;
-	ChildWidget<LinkButton> _chooseFromFile;
+	ChildWidget<Ui::LinkButton> _chooseFromGallery;
+	ChildWidget<Ui::LinkButton> _chooseFromFile;
 
 	Ui::RadialAnimation _radial;
 

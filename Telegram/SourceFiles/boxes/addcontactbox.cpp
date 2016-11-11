@@ -29,7 +29,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "ui/filedialog.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -627,7 +628,7 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			QTextOption option(style::al_left);
 			option.setWrapMode(QTextOption::WrapAnywhere);
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
-			p.setPen(st::btnDefLink.color);
+			p.setPen(st::defaultLinkButton.color);
 			p.drawText(_invitationLink, _channel->inviteLink(), option);
 			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
 				p.setOpacity(a_goodOpacity.current());
@@ -1085,7 +1086,7 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 , _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
 , _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
-, _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::defaultBoxLinkButton)
+, _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::boxLinkButton)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
@@ -1404,7 +1405,7 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 	row.name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	p.setFont(selected ? st::linkOverFont : st::linkFont);
-	p.setPen(pressed ? st::btnDefLink.downColor : st::btnDefLink.color->p);
+	p.setPen(pressed ? st::defaultLinkButton.downColor : st::defaultLinkButton.color);
 	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), lang(lng_channels_too_much_public_revoke), _revokeWidth);
 
 	p.setPen(st::contactsStatusFg);

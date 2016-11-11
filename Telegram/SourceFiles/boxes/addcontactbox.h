@@ -30,6 +30,8 @@ class ConfirmBox;
 namespace Ui {
 class Checkbox;
 class Radiobutton;
+class LinkButton;
+class RoundButton;
 } // namespace Ui
 
 class AddContactBox : public AbstractBox, public RPCSender {
@@ -66,9 +68,9 @@ private:
 	ChildWidget<InputField> _last;
 	ChildWidget<PhoneInput> _phone;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _cancel;
-	ChildWidget<BoxButton> _retry;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
+	ChildWidget<Ui::RoundButton> _retry;
 
 	bool _invertOrder;
 
@@ -123,8 +125,8 @@ private:
 	QImage _photoBig;
 	QPixmap _photoSmall;
 
-	ChildWidget<BoxButton> _next;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _next;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	// channel creation
 	int32 _creationRequestId;
@@ -190,8 +192,8 @@ private:
 	QRect _invitationLink;
 	bool _linkOver;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _skip;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _skip;
 
 	bool _tooMuchUsernames = false;
 
@@ -237,8 +239,8 @@ private:
 	ChildWidget<InputField> _first;
 	ChildWidget<InputField> _last;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	bool _invertOrder = false;
 
@@ -285,10 +287,10 @@ private:
 	ChildWidget<InputArea> _description;
 	ChildWidget<Ui::Checkbox> _sign;
 
-	ChildWidget<LinkButton> _publicLink;
+	ChildWidget<Ui::LinkButton> _publicLink;
 
-	ChildWidget<BoxButton> _save;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _save;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	mtpRequestId _saveTitleRequestId = 0;
 	mtpRequestId _saveDescriptionRequestId = 0;
@@ -337,7 +339,7 @@ private:
 	int _revokeWidth = 0;
 
 	ChildWidget<FlatLabel> _aboutRevoke;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _cancel;
 
 	base::lambda_unique<void()> _revokeCallback;
 	mtpRequestId _revokeRequestId = 0;

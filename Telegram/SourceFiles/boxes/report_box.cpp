@@ -25,7 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "boxes/confirmbox.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 
 ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "intro/introphone.h"
 #include "langloaderplain.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 
 IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 , _intro(this, lang(lng_intro), FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
@@ -53,7 +53,6 @@ IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
 
 	setGeometry(parent->innerRect());
 
-	_next->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	connect(_next, SIGNAL(clicked()), parent, SLOT(onStepSubmit()));
 
 	connect(_changeLang, SIGNAL(clicked()), parent, SLOT(onChangeLang()));
@@ -74,7 +73,7 @@ void IntroStart::paintEvent(QPaintEvent *e) {
 	p.setPen(st::introHeaderFg);
 	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
 
-	st::aboutIcon.paint(p, QPoint((width() - st::aboutIcon.width()) / 2, hy - st::introIconSkip - st::aboutIcon.height()), width());
+	st::introIcon.paint(p, QPoint((width() - st::introIcon.width()) / 2, hy - st::introIconSkip - st::introIcon.height()), width());
 }
 
 void IntroStart::resizeEvent(QResizeEvent *e) {

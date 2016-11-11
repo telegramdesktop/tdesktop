@@ -24,7 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "lang.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "ui/flatlabel.h"
 #include "localstorage.h"
 #include "mainwidget.h"
@@ -39,13 +40,12 @@ namespace Settings {
 
 LabeledLink::LabeledLink(QWidget *parent, const QString &label, const QString &text, Type type, const char *slot) : TWidget(parent)
 , _label(this, label, FlatLabel::InitType::Simple, (type == Type::Primary) ? st::settingsPrimaryLabel : st::labelDefFlat)
-, _link(this, text, (type == Type::Primary) ? st::defaultBoxLinkButton : st::btnDefLink) {
+, _link(this, text, (type == Type::Primary) ? st::boxLinkButton : st::defaultLinkButton) {
 	connect(_link, SIGNAL(clicked()), parent, slot);
 }
 
 void LabeledLink::setLink(const QString &text) {
-	_link.destroy();
-	_link = new LinkButton(this, text);
+	_link.create(this, text);
 }
 
 int LabeledLink::naturalWidth() const {
@@ -159,7 +159,7 @@ void ChatSettingsWidget::createControls() {
 
 	addChildRow(_replaceEmoji, marginSub, lang(lng_settings_replace_emojis), SLOT(onReplaceEmoji()), cReplaceEmojis());
 	style::margins marginList(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
-	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()), st::btnDefLink);
+	addChildRow(_viewList, marginList, slidedPadding, lang(lng_settings_view_emojis), SLOT(onViewList()), st::defaultLinkButton);
 	if (!cReplaceEmojis()) {
 		_viewList->hideFast();
 	}

@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/aboutbox.h"
 #include "boxes/localstoragebox.h"
 #include "mainwindow.h"
+#include "ui/widgets/buttons.h"
 
 namespace Settings {
 

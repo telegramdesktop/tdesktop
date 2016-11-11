@@ -22,6 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Ui {
+class LinkButton;
+class RoundButton;
+} // namespace Ui
+
 class PasscodeBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
@@ -74,10 +79,14 @@ private:
 	QString _boxTitle;
 	Text _about, _hintText;
 
-	BoxButton _saveButton, _cancelButton;
-	PasswordField _oldPasscode, _newPasscode, _reenterPasscode;
-	InputField _passwordHint, _recoverEmail;
-	LinkButton _recover;
+	ChildWidget<Ui::RoundButton> _saveButton;
+	ChildWidget<Ui::RoundButton> _cancelButton;
+	ChildWidget<PasswordField> _oldPasscode;
+	ChildWidget<PasswordField> _newPasscode;
+	ChildWidget<PasswordField> _reenterPasscode;
+	ChildWidget<InputField> _passwordHint;
+	ChildWidget<InputField> _recoverEmail;
+	ChildWidget<Ui::LinkButton> _recover;
 
 	QString _oldError, _newError, _emailError;
 
@@ -112,8 +121,9 @@ private:
 
 	QString _pattern;
 
-	BoxButton _saveButton, _cancelButton;
-	InputField _recoverCode;
+	ChildWidget<Ui::RoundButton> _saveButton;
+	ChildWidget<Ui::RoundButton> _cancelButton;
+	ChildWidget<InputField> _recoverCode;
 
 	QString _error;
 

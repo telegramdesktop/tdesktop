@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
 
 #include "lang.h"
 
@@ -87,7 +87,7 @@ void RadiobuttonGroup::remove(Radiobutton * const &radio) {
 	}
 }
 
-Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : Button(parent)
+Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : AbstractButton(parent)
 , _st(st)
 , a_over(0)
 , a_checked(checked ? 1 : 0)
@@ -109,7 +109,6 @@ Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const sty
 	_checkRect = myrtlrect(0, 0, _st.diameter, _st.diameter);
 
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
-	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 
 	setCursor(style::cur_pointer);
 
@@ -222,7 +221,7 @@ void Checkbox::onClicked() {
 	setChecked(!checked());
 }
 
-void Checkbox::onStateChange(int oldState, ButtonStateChangeSource source) {
+void Checkbox::onStateChanged(int oldState, StateChangeSource source) {
 	if ((_state & StateOver) && !(oldState & StateOver)) {
 		a_over.start(1);
 		_a_over.start();
@@ -237,7 +236,7 @@ void Checkbox::onStateChange(int oldState, ButtonStateChangeSource source) {
 	}
 }
 
-Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Radiobutton &st) : Button(parent)
+Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Radiobutton &st) : AbstractButton(parent)
 , _st(st)
 , a_over(0)
 , a_checked(checked ? 1 : 0)
@@ -261,7 +260,6 @@ Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, con
 	_checkRect = myrtlrect(0, 0, _st.diameter, _st.diameter);
 
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
-	connect(this, SIGNAL(stateChanged(int, ButtonStateChangeSource)), this, SLOT(onStateChange(int, ButtonStateChangeSource)));
 
 	setCursor(style::cur_pointer);
 
@@ -381,7 +379,7 @@ void Radiobutton::onClicked() {
 	setChecked(!checked());
 }
 
-void Radiobutton::onStateChange(int oldState, ButtonStateChangeSource source) {
+void Radiobutton::onStateChanged(int oldState, StateChangeSource source) {
 	if ((_state & StateOver) && !(oldState & StateOver)) {
 		a_over.start(1);
 		_a_over.start();

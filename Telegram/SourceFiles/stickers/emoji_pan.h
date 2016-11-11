@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/twidget.h"
 #include "ui/effects/rect_shadow.h"
+#include "ui/abstract_button.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -32,6 +33,8 @@ class Result;
 
 namespace Ui {
 class IconButton;
+class LinkButton;
+class RoundButton;
 } // namesapce Ui
 
 namespace internal {
@@ -372,7 +375,7 @@ private:
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
-	std_::unique_ptr<BoxButton> _switchPmButton;
+	std_::unique_ptr<Ui::RoundButton> _switchPmButton;
 	QString _switchPmStartToken;
 
 	typedef QVector<InlineItem*> InlineItems;
@@ -417,7 +420,7 @@ private:
 	QString _addText;
 	int _addWidth;
 
-	LinkButton _settings;
+	ChildWidget<Ui::LinkButton> _settings;
 
 	QTimer _previewTimer;
 	bool _previewShown = false;
@@ -463,7 +466,7 @@ private:
 
 };
 
-class EmojiSwitchButton : public Button {
+class EmojiSwitchButton : public Ui::AbstractButton {
 public:
 
 	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji

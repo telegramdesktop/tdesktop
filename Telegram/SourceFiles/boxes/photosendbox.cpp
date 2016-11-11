@@ -26,7 +26,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "photosendbox.h"
 #include "history/history_media_types.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_history.h"
 
 PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxWideWidth)

@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/rect_shadow.h"
 
-class BoxButton;
+namespace Ui {
+class RoundButton;
+} // namespace Ui
 
 namespace Window {
 namespace Theme {
@@ -60,8 +62,8 @@ private:
 	QString _text;
 
 	Ui::RectShadow _shadow;
-	ChildWidget<BoxButton> _keepChanges;
-	ChildWidget<BoxButton> _revert;
+	ChildWidget<Ui::RoundButton> _keepChanges;
+	ChildWidget<Ui::RoundButton> _revert;
 
 	base::lambda_unique<void()> _hiddenCallback;
 

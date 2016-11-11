@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "styles/style_window.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
@@ -33,9 +33,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-class BackButton final : public Button, private base::Subscriber {
+class BackButton final : public Ui::AbstractButton, private base::Subscriber {
 public:
-	BackButton(QWidget *parent) : Button(parent) {
+	BackButton(QWidget *parent) : Ui::AbstractButton(parent) {
 		setCursor(style::cur_pointer);
 
 		subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
@@ -58,8 +58,8 @@ protected:
 
 		Window::TopBarWidget::paintUnreadCounter(p, width());
 	}
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override {
-		if ((_state & Button::StateDown) && !(oldState & Button::StateDown)) {
+	void onStateChanged(int oldState, StateChangeSource source) override {
+		if ((_state & StateDown) && !(oldState & StateDown)) {
 			emit clicked();
 		}
 	}
@@ -186,6 +186,7 @@ void FixedBar::addRightAction(RightActionType type, const QString &text, const c
 	_rightActions[_currentAction].type = type;
 	delete _rightActions[_currentAction].button;
 	_rightActions[_currentAction].button = new Ui::RoundButton(this, text, st::profileFixedBarButton);
+	_rightActions[_currentAction].button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	connect(_rightActions[_currentAction].button, SIGNAL(clicked()), this, slot);
 	bool showButton = !_animatingMode && (type != RightActionType::ShareContact || !_hideShareContactButton);
 	_rightActions[_currentAction].button->setVisible(showButton);

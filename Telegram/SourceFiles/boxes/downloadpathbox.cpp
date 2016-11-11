@@ -24,8 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "localstorage.h"
 #include "ui/filedialog.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "pspecific.h"
+#include "styles/style_boxes.h"
 
 DownloadPathBox::DownloadPathBox() : AbstractBox()
 , _path(Global::DownloadPath())
@@ -33,7 +35,7 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 , _default(this, qsl("dir_type"), 0, lang(lng_download_path_default_radio), _path.isEmpty())
 , _temp(this, qsl("dir_type"), 1, lang(lng_download_path_temp_radio), _path == qsl("tmp"))
 , _dir(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), !_path.isEmpty() && _path != qsl("tmp"))
-, _pathLink(this, QString(), st::defaultBoxLinkButton)
+, _pathLink(this, QString(), st::boxLinkButton)
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 

@@ -31,6 +31,8 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
+class RoundButton;
+class LinkButton;
 class Checkbox;
 class MultiSelect;
 template <typename Widget>
@@ -93,8 +95,8 @@ private:
 	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
 	ChildWidget<Ui::IconButton> _add = { nullptr };
 
-	ChildWidget<BoxButton> _next;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _next;
+	ChildWidget<Ui::RoundButton> _cancel;
 	MembersFilter _membersFilter;
 
 	ChildWidget<ScrollableBoxShadow> _topShadow;
@@ -300,7 +302,7 @@ private:
 	int _byUsernameSel = -1;
 
 	QPoint _lastMousePos;
-	ChildWidget<LinkButton> _addContactLnk;
+	ChildWidget<Ui::LinkButton> _addContactLnk;
 
 	bool _saving = false;
 	bool _allAdminsChecked = false;

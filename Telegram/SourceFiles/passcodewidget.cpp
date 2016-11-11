@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/text/text.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 #include "window/slide_animation.h"
 
@@ -39,7 +39,6 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
-	_submit->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
 	_submit->setClickedCallback([this] { onSubmit(); });
 	_logout->setClickedCallback([] { App::wnd()->onLogout(); });
 

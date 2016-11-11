@@ -21,10 +21,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/observer.h"
+#include "styles/style_boxes.h"
 
 namespace Ui {
 class Checkbox;
 class Radiobutton;
+class LinkButton;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
@@ -88,7 +90,7 @@ private:
 	}
 	void createChildRow(ChildWidget<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
 	void createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
-	void createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::linkButton &st = st::defaultBoxLinkButton);
+	void createChildRow(ChildWidget<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);
 	void rowHeightUpdated();
@@ -107,7 +109,7 @@ private:
 		!IsWidgetSlideWrap<Widget>::value &&
 		!std_::is_same<Widget, Ui::Checkbox>::value &&
 		!std_::is_same<Widget, Ui::Radiobutton>::value &&
-		!std_::is_same<Widget, LinkButton>::value>;
+		!std_::is_same<Widget, Ui::LinkButton>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
 	void createChildRow(ChildWidget<Widget> &child, style::margins &margin, Args&&... args) {

@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "ui/buttons/left_outline_button.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"
 #include "observer_peer.h"

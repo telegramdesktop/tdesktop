@@ -25,7 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "ui/buttons/checkbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "history/history_location_manager.h"
 
 ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)

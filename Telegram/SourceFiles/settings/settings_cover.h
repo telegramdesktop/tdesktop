@@ -26,8 +26,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 
 class FlatLabel;
-class LinkButton;
-
 namespace Ui {
 class RoundButton;
 class IconButton;
@@ -95,7 +93,7 @@ private:
 
 	ChildWidget<FlatLabel> _name;
 	ChildWidget<Ui::IconButton> _editNameInline;
-	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
+	ChildWidget<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
 	QString _statusText;

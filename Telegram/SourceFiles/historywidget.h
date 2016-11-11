@@ -23,7 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localimageloader.h"
 #include "ui/effects/rect_shadow.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/buttons/icon_button.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -44,10 +43,14 @@ class PopupMenu;
 class IconButton;
 class HistoryDownButton;
 class EmojiButton;
+class FlatButton;
+class LinkButton;
+class RoundButton;
 } // namespace Ui
 
 class DragArea;
 class EmojiPan;
+class SilentToggle;
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public Ui::AbstractTooltipShower, private base::Subscriber {
@@ -350,9 +353,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	ChildWidget<FlatButton> _report;
-	ChildWidget<FlatButton> _hide;
-	ChildWidget<LinkButton> _clear;
+	ChildWidget<Ui::FlatButton> _report;
+	ChildWidget<Ui::FlatButton> _hide;
+	ChildWidget<Ui::LinkButton> _clear;
 
 };
 
@@ -489,8 +492,8 @@ private:
 	QString _shareUrl, _shareText;
 	QString _botAndQuery;
 
-	ChildWidget<BoxButton> _send;
-	ChildWidget<BoxButton> _cancel;
+	ChildWidget<Ui::RoundButton> _send;
+	ChildWidget<Ui::RoundButton> _cancel;
 	PeerData *_offered = nullptr;
 
 	anim::fvalue a_opacity;
@@ -508,29 +511,6 @@ private:
 	QPixmap _cacheForAnim;
 
 	Ui::RectShadow _shadow;
-
-};
-
-class SilentToggle : public Ui::IconButton, public Ui::AbstractTooltipShower {
-public:
-	SilentToggle(QWidget *parent);
-
-	void setChecked(bool checked);
-	bool checked() const {
-		return _checked;
-	}
-
-	// AbstractTooltipShower interface
-	QString tooltipText() const override;
-	QPoint tooltipPos() const override;
-
-protected:
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
-
-private:
-	bool _checked = false;
 
 };
 
@@ -1099,10 +1079,10 @@ private:
 	ReportSpamPanel _reportSpamPanel;
 
 	ChildWidget<Ui::IconButton> _send;
-	ChildWidget<FlatButton> _unblock;
-	ChildWidget<FlatButton> _botStart;
-	ChildWidget<FlatButton> _joinChannel;
-	ChildWidget<FlatButton> _muteUnmute;
+	ChildWidget<Ui::FlatButton> _unblock;
+	ChildWidget<Ui::FlatButton> _botStart;
+	ChildWidget<Ui::FlatButton> _joinChannel;
+	ChildWidget<Ui::FlatButton> _muteUnmute;
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
 	ChildWidget<Ui::IconButton> _attachToggle;

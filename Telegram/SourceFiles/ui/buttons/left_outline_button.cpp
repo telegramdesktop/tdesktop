@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-LeftOutlineButton::LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st) : Button(parent)
+LeftOutlineButton::LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st) : AbstractButton(parent)
 , _text(text)
 , _fullText(text)
 , _textWidth(st.font->width(_text))
@@ -54,7 +54,7 @@ int LeftOutlineButton::resizeGetHeight(int newWidth) {
 void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	bool over = (_state & Button::StateOver);
+	bool over = (_state & StateOver);
 	if (width() > _st.outlineWidth) {
 		p.fillRect(rtlrect(0, 0, _st.outlineWidth, height(), width()), over ? _st.outlineFgOver : _st.outlineFg);
 		p.fillRect(rtlrect(_st.outlineWidth, 0, width() - _st.outlineWidth, height(), width()), over ? _st.textBgOver : _st.textBg);
@@ -64,7 +64,7 @@ void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(_st.padding.left(), _st.padding.top(), width(), _text, _textWidth);
 }
 
-void LeftOutlineButton::onStateChanged(int oldState, ButtonStateChangeSource source) {
+void LeftOutlineButton::onStateChanged(int oldState, StateChangeSource source) {
 	update();
 }
 

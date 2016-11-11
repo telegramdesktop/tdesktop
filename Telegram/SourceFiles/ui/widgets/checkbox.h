@@ -20,11 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+#include "ui/abstract_button.h"
 
 namespace Ui {
 
-class Checkbox : public Button {
+class Checkbox : public AbstractButton {
 	Q_OBJECT
 
 public:
@@ -44,9 +44,10 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	public slots:
+	void onStateChanged(int oldState, StateChangeSource source) override;
+
+public slots:
 	void onClicked();
-	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 signals:
 	void changed();
@@ -67,7 +68,7 @@ private:
 
 };
 
-class Radiobutton : public Button {
+class Radiobutton : public AbstractButton {
 	Q_OBJECT
 
 public:
@@ -83,13 +84,15 @@ public:
 	void step_over(float64 ms, bool timer);
 	void step_checked(float64 ms, bool timer);
 
-	void paintEvent(QPaintEvent *e);
-
 	~Radiobutton();
 
-	public slots:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(int oldState, StateChangeSource source) override;
+
+public slots:
 	void onClicked();
-	void onStateChange(int oldState, ButtonStateChangeSource source);
 
 signals:
 	void changed();

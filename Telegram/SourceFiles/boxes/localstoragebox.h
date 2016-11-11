@@ -22,8 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
-class BoxButton;
+namespace Ui {
+class RoundButton;
 class LinkButton;
+} // namespace Ui
 
 class LocalStorageBox : public AbstractBox {
 	Q_OBJECT
@@ -53,8 +55,8 @@ private:
 	};
 	State _state = State::Normal;
 
-	ChildWidget<LinkButton> _clear;
-	ChildWidget<BoxButton> _close;
+	ChildWidget<Ui::LinkButton> _clear;
+	ChildWidget<Ui::RoundButton> _close;
 
 	int _imagesCount = -1;
 	int _audiosCount = -1;
