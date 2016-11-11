@@ -30,7 +30,6 @@ public:
 	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
 
 	void step_appearance(float64 ms, bool timer);
-	void paintEvent(QPaintEvent *e);
 	void setOpacity(float64 o);
 	float64 opacity() const;
 
@@ -40,11 +39,13 @@ public:
 	int32 textWidth() const;
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
 	QString _text, _textForAutoSize;
-	int _width, _textWidth;
+	int _width;
 
 	const style::FlatButton &_st;
 
