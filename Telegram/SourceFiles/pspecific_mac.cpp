@@ -405,6 +405,10 @@ void finish() {
 	objc_finish();
 }
 
+bool TransparentWindowsSupported(QPoint globalPosition) {
+        return true;
+}
+
 namespace ThirdParty {
 
 void start() {

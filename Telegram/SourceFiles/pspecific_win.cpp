@@ -732,6 +732,10 @@ void finish() {
 void SetWatchingMediaKeys(bool watching) {
 }
 
+bool TransparentWindowsSupported(QPoint globalPosition) {
+	return true;
+}
+
 namespace ThirdParty {
 
 void start() {

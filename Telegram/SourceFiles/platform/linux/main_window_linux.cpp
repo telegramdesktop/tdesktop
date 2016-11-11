@@ -61,7 +61,7 @@ void _trayIconActivate(GtkStatusIcon *status_icon, gpointer popup_menu) {
 
 gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_menu) {
 	_trayIconSize = size;
-	if (App::wnd()) App::wnd()->psUpdateCounter();
+	if (Global::started()) Notify::unreadCounterUpdated();
 	return FALSE;
 }
 
@@ -166,7 +166,7 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
 			cSetSupportTray(true);
 			if (App::wnd()) {
 				App::wnd()->psUpdateWorkmode();
-				App::wnd()->psUpdateCounter();
+				Notify::unreadCounterUpdated();
 				App::wnd()->updateTrayMenu();
 			}
 		}
@@ -239,7 +239,7 @@ void MainWindow::psTrayMenuUpdated() {
 void MainWindow::psSetupTrayIcon() {
 	if (noQtTrayIcon) {
 		if (!cSupportTray()) return;
-		psUpdateCounter();
+		updateIconCounters();
 	} else {
 		LOG(("Using Qt tray icon."));
 		if (!trayIcon) {
@@ -266,7 +266,7 @@ void MainWindow::psSetupTrayIcon() {
 
 			App::wnd()->updateTrayMenu();
 		}
-		psUpdateCounter();
+		updateIconCounters();
 
 		trayIcon->show();
 	}
@@ -315,12 +315,16 @@ void MainWindow::psUpdateIndicator() {
 	}
 }
 
-void MainWindow::psUpdateCounter() {
+void MainWindow::unreadCounterChangedHook() {
+	setWindowTitle(titleText());
+	updateIconCounters();
+}
+
+void MainWindow::updateIconCounters() {
 	setWindowIcon(wndIcon);
 
 	int32 counter = App::histories().unreadBadge();
 
-	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	if (_psUnityLauncherEntry) {
 		if (counter > 0) {

@@ -11896,6 +11896,52 @@ index 6fffa1e..cb1c9c1 100644
      void destroyWindow();
      inline bool isDropSiteEnabled() const { return m_dropTarget != 0; }
      void setDropSiteEnabled(bool enabled);
+diff --git a/src/plugins/platforms/xcb/qxcbnativeinterface.cpp b/src/plugins/platforms/xcb/qxcbnativeinterface.cpp
+index 09e7ecf..c0f15a4 100644
+--- a/src/plugins/platforms/xcb/qxcbnativeinterface.cpp
++++ b/src/plugins/platforms/xcb/qxcbnativeinterface.cpp
+@@ -79,7 +79,10 @@ static int resourceType(const QByteArray &key)
+         QByteArrayLiteral("rootwindow"),
+         QByteArrayLiteral("subpixeltype"), QByteArrayLiteral("antialiasingenabled"),
+         QByteArrayLiteral("nofonthinting"),
+-        QByteArrayLiteral("atspibus")
++        QByteArrayLiteral("atspibus"),
++
++        // Patch: Backport compositing manager check from Qt 5.7
++        QByteArrayLiteral("compositingenabled")
+     };
+     const QByteArray *end = names + sizeof(names) / sizeof(names[0]);
+     const QByteArray *result = std::find(names, end, key);
+@@ -252,6 +255,13 @@ void *QXcbNativeInterface::nativeResourceForScreen(const QByteArray &resourceStr
+     case RootWindow:
+         result = reinterpret_cast<void *>(xcbScreen->root());
+         break;
++
++    // Patch: Backport compositing manager check from Qt 5.7
++    case CompositingEnabled:
++        if (QXcbVirtualDesktop *vd = xcbScreen->virtualDesktop())
++            result = vd->compositingActive() ? this : Q_NULLPTR;
++        break;
++
+     default:
+         break;
+     }
+diff --git a/src/plugins/platforms/xcb/qxcbnativeinterface.h b/src/plugins/platforms/xcb/qxcbnativeinterface.h
+index f88b710..6f818a5 100644
+--- a/src/plugins/platforms/xcb/qxcbnativeinterface.h
++++ b/src/plugins/platforms/xcb/qxcbnativeinterface.h
+@@ -68,7 +68,10 @@ public:
+         ScreenSubpixelType,
+         ScreenAntialiasingEnabled,
+         NoFontHinting,
+-        AtspiBus
++        AtspiBus,
++
++        // Patch: Backport compositing manager check from Qt 5.7
++        CompositingEnabled
+     };
+ 
+     QXcbNativeInterface();
 diff --git a/src/widgets/dialogs/qfiledialog.cpp b/src/widgets/dialogs/qfiledialog.cpp
 index bc2de89..aa8f8df 100644
 --- a/src/widgets/dialogs/qfiledialog.cpp

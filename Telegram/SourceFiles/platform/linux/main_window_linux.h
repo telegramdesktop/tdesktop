@@ -74,6 +74,7 @@ protected:
 	virtual void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) = 0;
 
 private:
+	void updateIconCounters();
 	void psCreateTrayIcon();
 
 	QTimer _psCheckStatusIconTimer;
@@ -81,6 +82,7 @@ private:
 
 	QTimer _psUpdateIndicatorTimer;
 	uint64 _psLastIndicatorUpdate = 0;
+
 };
 
 } // namespace Platform

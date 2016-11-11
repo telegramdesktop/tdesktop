@@ -117,7 +117,7 @@ private:
 	std_::unique_ptr<PanelAnimation> _showAnimation;
 	FloatAnimation _a_show;
 
-	bool _compositing = true;
+	bool _useTransaprency = true;
 	bool _hiding = false;
 	QPixmap _cache;
 	FloatAnimation _a_opacity;

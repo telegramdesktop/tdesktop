@@ -34,6 +34,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <iostream>
 
+#include <qpa/qplatformnativeinterface.h>
+
 using namespace Platform;
 
 namespace {
@@ -407,6 +409,31 @@ void finish() {
 }
 
 void SetWatchingMediaKeys(bool watching) {
+}
+
+bool TransparentWindowsSupported(QPoint globalPosition) {
+	if (auto app = static_cast<QGuiApplication*>(QCoreApplication::instance())) {
+		if (auto native = app->platformNativeInterface()) {
+			if (auto desktop = QApplication::desktop()) {
+				auto index = desktop->screenNumber(globalPosition);
+				auto screens = QGuiApplication::screens();
+				if (auto screen = (index >= 0 && index < screens.size()) ? screens[index] : QGuiApplication::primaryScreen()) {
+					if (native->nativeResourceForScreen(QByteArray("compositingEnabled"), screen)) {
+						return true;
+					}
+
+					static OrderedSet<int> WarnedAbout;
+					if (!WarnedAbout.contains(index)) {
+						WarnedAbout.insert(index);
+						LOG(("WARNING: Compositing is disabled for screen index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
+					}
+				} else {
+					LOG(("WARNING: Could not get screen for index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
+				}
+			}
+		}
+	}
+	return false;
 }
 
 namespace ThirdParty {
