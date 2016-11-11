@@ -68,7 +68,7 @@ void PopupMenu::init() {
 }
 
 void PopupMenu::handleCompositingUpdate() {
-	_padding = _useTransaprency ? _st.shadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
+	_padding = _useTransparency ? _st.shadow.extend : style::margins(st::lineWidth, st::lineWidth, st::lineWidth, st::lineWidth);
 	_menu->moveToLeft(_padding.left() + _st.scrollPadding.left(), _padding.top() + _st.scrollPadding.top());
 	handleMenuResize();
 }
@@ -126,7 +126,7 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 }
 
 void PopupMenu::paintBg(Painter &p) {
-	if (_useTransaprency) {
+	if (_useTransparency) {
 		Shadow::paint(p, _inner, width(), _st.shadow);
 		App::roundRect(p, _inner, _st.menu.itemBg, ImageRoundRadius::Small);
 	} else {
@@ -307,7 +307,7 @@ void PopupMenu::prepareCache() {
 
 void PopupMenu::startOpacityAnimation(bool hiding) {
 	_hiding = false;
-	if (!_useTransaprency) {
+	if (!_useTransparency) {
 		_a_opacity.finish();
 		if (hiding) {
 			hideFinished();
@@ -334,7 +334,7 @@ void PopupMenu::showStarted() {
 }
 
 void PopupMenu::startShowAnimation() {
-	if (!_useTransaprency) {
+	if (!_useTransparency) {
 		_a_show.finish();
 		update();
 		return;
@@ -346,8 +346,8 @@ void PopupMenu::startShowAnimation() {
 		_a_opacity = base::take(opacityAnimation);
 
 		_showAnimation = std_::make_unique<PanelAnimation>(_st.animation, _origin);
-		_showAnimation->setFinalImage(std_::move(cache), _inner);
-		if (_useTransaprency) {
+		_showAnimation->setFinalImage(std_::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
+		if (_useTransparency) {
 			auto corners = App::cornersMask(ImageRoundRadius::Small);
 			_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
 		} else {
@@ -382,7 +382,7 @@ QImage PopupMenu::grabForPanelAnimation() {
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
-		if (_useTransaprency) {
+		if (_useTransparency) {
 			App::roundRect(p, _inner, _st.menu.itemBg, ImageRoundRadius::Small);
 		} else {
 			p.fillRect(_inner, _st.menu.itemBg);
@@ -410,7 +410,7 @@ void PopupMenu::showMenu(const QPoint &p, PopupMenu *parent, TriggeredSource sou
 	auto origin = PanelAnimation::Origin::TopLeft;
 	auto w = p - QPoint(0, _padding.top());
 	auto r = Sandbox::screenGeometry(p);
-	_useTransaprency = Platform::TransparentWindowsSupported(p);
+	_useTransparency = Platform::TransparentWindowsSupported(p);
 	handleCompositingUpdate();
 	if (rtl()) {
 		if (w.x() - width() < r.x() - _padding.left()) {

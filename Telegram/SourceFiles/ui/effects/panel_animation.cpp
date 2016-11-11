@@ -30,6 +30,13 @@ void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
 	t_assert(!_finalImage.isNull());
 	_finalWidth = _finalImage.width();
 	_finalHeight = _finalImage.height();
+	_finalInnerLeft = inner.x();
+	_finalInnerTop = inner.y();
+	_finalInnerWidth = inner.width();
+	_finalInnerHeight = inner.height();
+	_finalInnerRight = _finalInnerLeft + _finalInnerWidth;
+	_finalInnerBottom = _finalInnerTop + _finalInnerHeight;
+	t_assert(QRect(0, 0, _finalWidth, _finalHeight).contains(inner));
 
 	setStartWidth();
 	setStartHeight();
@@ -59,20 +66,12 @@ void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
 	t_assert(_finalImage.depth() == static_cast<int>(sizeof(uint32) << 3));
 	t_assert(_finalImage.bytesPerLine() == (_finalIntsPerLine << 2));
 	t_assert(_finalIntsPerLineAdded >= 0);
-
-	_finalInnerLeft = inner.x();
-	_finalInnerTop = inner.y();
-	_finalInnerWidth = inner.width();
-	_finalInnerHeight = inner.height();
-	_finalInnerRight = _finalInnerLeft + _finalInnerWidth;
-	_finalInnerBottom = _finalInnerTop + _finalInnerHeight;
-	t_assert(QRect(0, 0, _finalWidth, _finalHeight).contains(inner));
 }
 
 void PanelAnimation::setShadow() {
 	if (_skipShadow) return;
 
-	_shadow.extend = _st.shadow.extend;
+	_shadow.extend = _st.shadow.extend * cIntRetinaFactor();
 	_shadow.left = cloneImage(_st.shadow.left);
 	if (_shadow.valid()) {
 		_shadow.topLeft = cloneImage(_st.shadow.topLeft);
@@ -101,13 +100,13 @@ void PanelAnimation::setShadow() {
 }
 
 void PanelAnimation::setStartWidth() {
-	_startWidth = qRound(_st.startWidth * _finalImage.width());
-	if (_startWidth >= 0) t_assert(_startWidth <= _finalWidth);
+	_startWidth = qRound(_st.startWidth * _finalInnerWidth);
+	if (_startWidth >= 0) t_assert(_startWidth <= _finalInnerWidth);
 }
 
 void PanelAnimation::setStartHeight() {
-	_startHeight = qRound(_st.startHeight * _finalImage.height());
-	if (_startHeight >= 0) t_assert(_startHeight <= _finalHeight);
+	_startHeight = qRound(_st.startHeight * _finalInnerHeight);
+	if (_startHeight >= 0) t_assert(_startHeight <= _finalInnerHeight);
 }
 
 void PanelAnimation::setStartAlpha() {
@@ -116,7 +115,7 @@ void PanelAnimation::setStartAlpha() {
 }
 
 void PanelAnimation::setStartFadeTop() {
-	_startFadeTop = qRound(_st.startFadeTop * _finalImage.height());
+	_startFadeTop = qRound(_st.startFadeTop * _finalInnerHeight);
 }
 
 void PanelAnimation::createFadeMask() {
@@ -177,7 +176,8 @@ void PanelAnimation::setCornerMask(Corner &corner, QImage &&image) {
 QImage PanelAnimation::cloneImage(const style::icon &source) {
 	if (source.empty()) return QImage();
 
-	auto result = QImage(source.width(), source.height(), QImage::Format_ARGB32_Premultiplied);
+	auto result = QImage(source.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);

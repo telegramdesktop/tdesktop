@@ -239,6 +239,7 @@ void TopBarWidget::startAnim() {
 	_mediaType->hide();
 	_search->hide();
 	_menuToggle->hide();
+	_menu.destroy();
 	if (_membersShowArea) {
 		_membersShowArea->hide();
 	}
@@ -282,6 +283,7 @@ void TopBarWidget::showAll() {
 			_info->setPeer(h);
 			_info->show();
 			_menuToggle->hide();
+			_menu.destroy();
 		} else {
 			_info->hide();
 			_menuToggle->show();
@@ -291,6 +293,7 @@ void TopBarWidget::showAll() {
 		_search->hide();
 		_info->hide();
 		_menuToggle->hide();
+		_menu.destroy();
 	}
 	if (_membersShowArea) {
 		_membersShowArea->show();

@@ -23,23 +23,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-SlideAnimation::SlideAnimation()
-	: _animation(animation(this, &SlideAnimation::step)) {
-}
-
 void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 	int retina = cIntRetinaFactor();
 
-	_animation.step(getms());
-	if (a_coordOver.current() > 0) {
-		p.drawPixmap(QRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, _cacheUnder.height()));
-		p.setOpacity(a_progress.current());
-		p.fillRect(0, 0, a_coordOver.current(), _cacheUnder.height() / retina, st::slideFadeOutBg);
+	auto progress = _animation.current(getms());
+	auto coordUnder = anim::interpolate(0, -st::slideShift, progress);
+	auto coordOver = anim::interpolate(_cacheOver.width() / cIntRetinaFactor(), 0, progress);
+	if (coordOver) {
+		p.drawPixmap(QRect(0, 0, coordOver, _cacheUnder.height() / retina), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, _cacheUnder.height()));
+		p.setOpacity(progress);
+		p.fillRect(0, 0, coordOver, _cacheUnder.height() / retina, st::slideFadeOutBg);
 		p.setOpacity(1);
 	}
-	p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
-	p.setOpacity(a_progress.current());
-	st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), _cacheOver.height() / retina));
+	p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
+	p.setOpacity(progress);
+	st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), _cacheOver.height() / retina));
 
 	if (_topBarShadowEnabled) {
 		p.setOpacity(1);
@@ -69,41 +67,19 @@ void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 }
 
 void SlideAnimation::start() {
-	int delta = st::slideShift;
-	if (_direction == SlideDirection::FromLeft) {
-		a_progress = anim::fvalue(1, 0);
-		std::swap(_cacheUnder, _cacheOver);
-		a_coordUnder = anim::ivalue(-delta, 0);
-		a_coordOver = anim::ivalue(0, _cacheOver.width() / cIntRetinaFactor());
-	} else {
-		a_progress = anim::fvalue(0, 1);
-		a_coordUnder = anim::ivalue(0, -delta);
-		a_coordOver = anim::ivalue(_cacheOver.width() / cIntRetinaFactor(), 0);
-	}
-	_animation.start();
+	auto delta = st::slideShift;
+	auto fromLeft = (_direction == SlideDirection::FromLeft);
+	if (fromLeft) std::swap(_cacheUnder, _cacheOver);
+	_animation.start([this] { animationCallback(); }, fromLeft ? 1. : 0., fromLeft ? 0. : 1., st::slideDuration, transition());
+	_repaintCallback();
 }
 
-void SlideAnimation::step(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
-	if (dt >= 1) {
-		dt = 1;
-		if (timer) {
-			_animation.stop();
-			a_coordUnder.finish();
-			a_coordOver.finish();
-
-			if (_finishedCallback) {
-				_finishedCallback();
-			}
-			return;
+void SlideAnimation::animationCallback() {
+	_repaintCallback();
+	if (!_animation.animating()) {
+		if (_finishedCallback) {
+			_finishedCallback();
 		}
-	}
-
-	a_coordUnder.update(dt, transition());
-	a_coordOver.update(dt, transition());
-	a_progress.update(dt, transition());
-	if (timer && _repaintCallback) {
-		_repaintCallback();
 	}
 }
 

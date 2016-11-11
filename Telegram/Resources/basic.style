@@ -30,7 +30,7 @@ semiboldFont: font(fsize semibold);
 
 emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
-emojiPadding: 0px;
+emojiPadding: 1px;
 
 lineWidth: 1px;
 

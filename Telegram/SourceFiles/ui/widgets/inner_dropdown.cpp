@@ -237,7 +237,8 @@ void InnerDropdown::startShowAnimation() {
 		_a_opacity = base::take(opacityAnimation);
 
 		_showAnimation = std_::make_unique<PanelAnimation>(_st.animation, _origin);
-		_showAnimation->setFinalImage(std_::move(cache), rect().marginsRemoved(_st.padding));
+		auto inner = rect().marginsRemoved(_st.padding);
+		_showAnimation->setFinalImage(std_::move(cache), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
 		auto corners = App::cornersMask(ImageRoundRadius::Small);
 		_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
 		_showAnimation->start();

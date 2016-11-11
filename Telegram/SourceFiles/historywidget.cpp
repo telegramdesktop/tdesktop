@@ -4219,7 +4219,6 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	if (_list) _list->deleteLater();
 	_list = nullptr;
 	_scroll.takeWidget();
-	updateTopBarSelection();
 
 	clearInlineBot();
 
@@ -4229,6 +4228,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_peer = peerId ? App::peer(peerId) : nullptr;
 	_channel = _peer ? peerToChannel(_peer->id) : NoChannel;
 	_canSendMessages = canSendMessages(_peer);
+
+	updateTopBarSelection();
+
 	if (_peer && _peer->isChannel()) {
 		_peer->asChannel()->updateFull();
 		_joinChannel->setText(lang(_peer->isMegagroup() ? lng_group_invite_join : lng_channel_join).toUpper());

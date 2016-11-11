@@ -29,8 +29,6 @@ enum class SlideDirection {
 
 class SlideAnimation {
 public:
-	SlideAnimation();
-
 	void paintContents(Painter &p, const QRect &update) const;
 
 	void setDirection(SlideDirection direction);
@@ -50,15 +48,13 @@ public:
 	}
 
 private:
-	void step(float64 ms, bool timer);
+	void animationCallback();
 
 	SlideDirection _direction = SlideDirection::FromRight;
 	bool _topBarShadowEnabled = false;
 
-	mutable Animation _animation;
+	mutable FloatAnimation _animation;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_progress;
 
 	RepaintCallback _repaintCallback;
 	FinishedCallback _finishedCallback;
