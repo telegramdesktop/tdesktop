@@ -3274,8 +3274,13 @@ void HistoryWidget::onTextChange() {
 			_send->hide();
 			updateMouseTracking();
 			mouseMoveEvent(0);
-		} else if (!_field->isHidden() && _send->isHidden()) {
-			_send->show();
+		} else if (!_field->isHidden() && _send->isHidden() && (!_inlineBotCancel || _inlineBotCancel->isHidden())) {
+			if (_inlineBotCancel) {
+				_send->hide();
+				_inlineBotCancel->show();
+			} else {
+				_send->show();
+			}
 			updateMouseTracking();
 			_a_record.stop();
 			_inRecord = _inField = false;
@@ -4717,7 +4722,7 @@ void HistoryWidget::updateControlsVisibility() {
 }
 
 void HistoryWidget::updateMouseTracking() {
-	bool trackMouse = !_fieldBarCancel->isHidden() || _pinnedBar || (cHasAudioCapture() && _send->isHidden() && !_field->isHidden());
+	bool trackMouse = !_fieldBarCancel->isHidden() || _pinnedBar || (cHasAudioCapture() && _send->isHidden() && (!_inlineBotCancel || _inlineBotCancel->isHidden()) && !_field->isHidden());
 	setMouseTracking(trackMouse);
 }
 
@@ -5542,7 +5547,7 @@ void HistoryWidget::animStop() {
 
 void HistoryWidget::step_record(float64 ms, bool timer) {
 	float64 dt = ms / st::historyComposeButton.duration;
-	if (dt >= 1 || !_send->isHidden() || isBotStart() || isBlocked()) {
+	if (dt >= 1 || !_send->isHidden() || (_inlineBotCancel && !_inlineBotCancel->isHidden()) || isBotStart() || isBlocked()) {
 		_a_record.stop();
 		a_recordDown.finish();
 		a_recordCancelActive.finish();
@@ -8748,7 +8753,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	if (_list) {
 		if (!_field->isHidden() || _recording) {
 			drawField(p, r);
-			if (_send->isHidden()) {
+			if (_send->isHidden() && (!_inlineBotCancel || _inlineBotCancel->isHidden())) {
 				drawRecordButton(p);
 				if (_recording) drawRecording(p);
 			}
