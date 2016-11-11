@@ -84,6 +84,40 @@ notifySendReply: IconButton {
 titleUnreadCounterTop: 5px;
 titleUnreadCounterRight: 35px;
 
+mainMenuBg: #ffffff;
+mainMenuWidth: 274px;
+mainMenuCoverBg: #419fd9;
+mainMenuCoverFg: windowActiveFg;
+mainMenuCoverHeight: 140px;
+mainMenuUserpicLeft: 24px;
+mainMenuUserpicTop: 22px;
+mainMenuUserpicSize: 48px;
+mainMenuCoverTextLeft: 30px;
+mainMenuCoverNameTop: 88px;
+mainMenuCoverStatusTop: 106px;
+mainMenuSkip: 13px;
+mainMenuFooterLeft: 30px;
+mainMenuTelegramLabel: flatLabel(labelDefFlat) {
+	font: semiboldFont;
+	align: align(left);
+	textFg: windowSubTextFg;
+}
+mainMenuTelegramStyle: textStyle(defaultTextStyle) {
+	linkFlags: semiboldFont;
+	linkFlagsOver: font(fsize semibold underline);
+	linkFg: windowSubTextFg;
+	linkFgDown: windowSubTextFg;
+}
+mainMenuTelegramBottom: 43px;
+mainMenuVersionLabel: flatLabel(mainMenuTelegramLabel) {
+	font: normalFont;
+}
+mainMenuVersionStyle: textStyle(mainMenuTelegramStyle) {
+	linkFlags: normalFont;
+	linkFlagsOver: font(fsize underline);
+}
+mainMenuVersionBottom: 21px;
+
 // Windows specific title
 
 titleHeight: 21px;

@@ -100,18 +100,20 @@ dialogsFilter: flatInput(inpDefGray) {
 
 	width: 240px;
 	height: 32px;
-	textMrg: margins(12px, 3px, 12px, 3px);
+	textMrg: margins(12px, 3px, 30px, 3px);
 }
 dialogsCancelSearch: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg, point(0px, 1px) }};
 	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver, point(0px, 1px) }};
 }
 
-dialogsMenu: DropdownMenu(defaultDropdownMenu) {
-	menu: Menu(defaultMenu) {
-		itemIconPosition: point(15px, 8px);
-		itemPadding: margins(56px, 10px, 56px, 12px);
-	}
+dialogsMenu: Menu(defaultMenu) {
+	itemFont: semiboldFont;
+	itemIconPosition: point(28px, 11px);
+	itemPadding: margins(76px, 14px, 28px, 14px);
+}
+dialogsMenuWrap: DropdownMenu(defaultDropdownMenu) {
+	menu: dialogsMenu;
 }
 dialogsMenuPosition: point(-3px, -2px);
 dialogsMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};

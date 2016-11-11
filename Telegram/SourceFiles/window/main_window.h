@@ -50,7 +50,7 @@ public:
 
 	virtual ~MainWindow();
 
-	QWidget *bodyWidget() {
+	TWidget *bodyWidget() {
 		return _body;
 	}
 
@@ -90,7 +90,7 @@ private:
 	bool _positionInited = false;
 
 	ChildWidget<TitleWidget> _title = { nullptr };
-	ChildWidget<QWidget> _body;
+	ChildWidget<TWidget> _body;
 
 	QString _titleText;
 

@@ -157,6 +157,8 @@ public:
 		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
 	}
 
+	void showMainMenu();
+
 	void ui_showLayer(LayerWidget *box, ShowLayerOptions options);
 	void ui_hideSettingsAndLayer(ShowLayerOptions options);
 	bool ui_isLayerShown();

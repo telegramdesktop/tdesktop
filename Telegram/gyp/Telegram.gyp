@@ -555,6 +555,8 @@
       '<(src_loc)/window/slide_animation.h',
       '<(src_loc)/window/top_bar_widget.cpp',
       '<(src_loc)/window/top_bar_widget.h',
+      '<(src_loc)/window/window_main_menu.cpp',
+      '<(src_loc)/window/window_main_menu.h',
       '<(src_loc)/window/window_theme.cpp',
       '<(src_loc)/window/window_theme.h',
       '<(src_loc)/window/window_theme_warning.cpp',

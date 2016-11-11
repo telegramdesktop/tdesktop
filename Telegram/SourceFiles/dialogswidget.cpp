@@ -2012,8 +2012,11 @@ void DialogsWidget::onChooseByDrag() {
 }
 
 void DialogsWidget::showMainMenu() {
+	App::wnd()->showMainMenu();
+	return;
+
 	if (!_mainMenu) {
-		_mainMenu.create(this, st::dialogsMenu);
+		_mainMenu.create(this, st::dialogsMenuWrap);
 		_mainMenu->addAction(lang(lng_create_group_title), [] {
 			App::wnd()->onShowNewGroup();
 		}, &st::dialogsMenuNewGroup, &st::dialogsMenuNewGroupOver);

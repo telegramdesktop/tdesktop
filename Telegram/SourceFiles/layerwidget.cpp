@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "ui/filedialog.h"
 #include "styles/style_stickers.h"
+#include "window/window_main_menu.h"
 
 namespace {
 
@@ -48,6 +49,19 @@ public:
 	, _shadow(st::boxShadow) {
 	}
 
+	void setBodyCache(QPixmap &&bodyCache) {
+		_bodyCache = std_::move(bodyCache);
+	}
+	void setMainMenuCache(QPixmap &&mainMenuCache) {
+		_mainMenuCache = std_::move(mainMenuCache);
+		if (!_mainMenuCache.isNull()) {
+			_mainMenuWidth = _mainMenuCache.width() / cIntRetinaFactor();
+			_mainMenuRight = 0;
+		}
+	}
+	void setMainMenuRight(int right) {
+		_mainMenuRight = right;
+	}
 	void setLayerBox(const QRect &box, const QRect &hiddenSpecialBox) {
 		_box = box;
 		_hiddenSpecialBox = hiddenSpecialBox;
@@ -61,6 +75,25 @@ protected:
 	void paintEvent(QPaintEvent *e) override {
 		Painter p(this);
 
+		auto hasMainMenuCache = !_mainMenuCache.isNull();
+		if (hasMainMenuCache || _mainMenuRight) {
+			auto boxLeft = _mainMenuRight;
+			auto cacheWidth = boxLeft * cIntRetinaFactor();
+			if (left > 0 && hasMainMenuCache) {
+				p.drawPixmapLeft(0, 0, width(), _mainMenuCache, rtlrect(_mainMenuCache.width() - cacheWidth, 0, cacheWidth, height() * cIntRetinaFactor(), _mainMenuCache.width()));
+			}
+			if (!_bodyCache.isNull()) {
+				p.drawPixmapLeft(boxLeft, 0, width(), _bodyCache, rtlrect(cacheWidth, 0, _bodyCache.width() - cacheWidth, height() * cIntRetinaFactor(), _bodyCache.width() - cacheWidth));
+			}
+			_shadow.paint(p, QRect(0, 0, boxLeft, height()), 0, Ui::RectShadow::Side::Right);
+
+			p.setOpacity(_opacity);
+			p.fillRect(myrtlrect(boxLeft, 0, width() - boxLeft, height()), st::layerBg);
+			return;
+		}
+		if (!_bodyCache.isNull()) {
+			p.drawPixmap(0, 0, _bodyCache);
+		}
 		p.setOpacity(_opacity);
 		if (_box.isNull()) {
 			p.fillRect(rect(), st::layerBg);
@@ -79,6 +112,11 @@ protected:
 	}
 
 private:
+	QPixmap _bodyCache;
+	QPixmap _mainMenuCache;
+	int _mainMenuWidth = 0;
+	int _mainMenuRight = 0;
+
 	QRect _box, _hiddenSpecialBox;
 	float64 _opacity = 0.;
 
@@ -224,6 +262,16 @@ void LayerStackWidget::startHide() {
 }
 
 void LayerStackWidget::startAnimation(float64 toOpacity) {
+	if (_mainMenu) {
+		setAttribute(Qt::WA_OpaquePaintEvent);
+		hide();
+		_background->setBodyCache(myGrab(App::wnd()->bodyWidget()));
+		show();
+		_mainMenu->hide();
+		_background->setMainMenuCache(myGrab(_mainMenu));
+		_background->setMainMenuRight(toOpacity ? 0 : _mainMenu->width());
+	}
+
 	if (App::app()) App::app()->mtpPause();
 	a_bg.start(toOpacity);
 	a_layer.start(toOpacity);
@@ -283,6 +331,9 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
 	if (auto l = layer()) {
 		l->parentResized();
 	}
+	if (_mainMenu) {
+		_mainMenu->resize(_mainMenu->width(), height());
+	}
 	updateLayerBox();
 }
 
@@ -298,6 +349,28 @@ void LayerStackWidget::showSpecialLayer(LayerWidget *l) {
 	}
 	_specialLayer = l;
 	activateLayer(l);
+}
+
+void LayerStackWidget::showMainMenu() {
+	clearLayers();
+	if (_specialLayer) {
+		_specialLayer.destroyDelayed();
+	}
+	_mainMenu.create(this);
+	_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
+
+	_mainMenu->setParent(this);
+	fixOrder();
+
+	if (isHidden()) {
+		startShow();
+	} else {
+		_mainMenu->show();
+		if (App::wnd()) App::wnd()->setInnerFocus();
+		updateLayerBox();
+	}
+	fixOrder();
+	sendFakeMouseEvent();
 }
 
 void LayerStackWidget::appendLayer(LayerWidget *l) {
@@ -338,6 +411,11 @@ void LayerStackWidget::initChildLayer(LayerWidget *l) {
 }
 
 void LayerStackWidget::activateLayer(LayerWidget *l) {
+	if (_mainMenu) {
+		_mainMenu.destroyDelayed();
+		_background->setMainMenuRight(0);
+		_background->setMainMenuCache(QPixmap());
+	}
 	initChildLayer(l);
 	if (isHidden()) {
 		startShow();
@@ -358,6 +436,9 @@ void LayerStackWidget::fixOrder() {
 	} else if (_specialLayer) {
 		_specialLayer->raise();
 	}
+	if (_mainMenu) {
+		_mainMenu->raise();
+	}
 }
 
 void LayerStackWidget::sendFakeMouseEvent() {
@@ -371,8 +452,15 @@ void LayerStackWidget::step_background(float64 ms, bool timer) {
 		a_layer.finish();
 		_a_background.stop();
 		_layerCache = _hiddenSpecialLayerCache = QPixmap();
+		setAttribute(Qt::WA_OpaquePaintEvent, false);
+		_background->setBodyCache(QPixmap());
 		if (_hiding) {
 			App::wnd()->layerFinishedHide(this);
+			if (_mainMenu) {
+				_background->setMainMenuRight(0);
+				_background->setMainMenuCache(QPixmap());
+				_mainMenu.destroyDelayed();
+			}
 		} else {
 			if (_specialLayer) {
 				_specialLayer->show();
@@ -382,7 +470,11 @@ void LayerStackWidget::step_background(float64 ms, bool timer) {
 				l->show();
 				l->showDone();
 			}
-			fixOrder();
+			if (_mainMenu) {
+				_background->setMainMenuRight(_mainMenu->width());
+				_background->setMainMenuCache(QPixmap());
+				_mainMenu->show();
+			}
 			if (App::wnd()) App::wnd()->setInnerFocus();
 		}
 		updateLayerBox();
@@ -390,6 +482,9 @@ void LayerStackWidget::step_background(float64 ms, bool timer) {
 	} else {
 		a_bg.update(dt, anim::easeOutCirc);
 		a_layer.update(dt, anim::linear);
+		if (_mainMenu) {
+			_background->setMainMenuRight(a_bg.current() * _mainMenu->width());
+		}
 	}
 	_background->setOpacity(a_bg.current());
 	if (timer) {

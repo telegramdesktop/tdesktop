@@ -20,6 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Window {
+class MainMenu;
+} // namespace Window
+
 #include "ui/effects/rect_shadow.h"
 
 class LayerWidget : public TWidget {
@@ -65,6 +69,7 @@ public:
 
 	void showLayer(LayerWidget *l);
 	void showSpecialLayer(LayerWidget *l);
+	void showMainMenu();
 	void appendLayer(LayerWidget *l);
 	void prependLayer(LayerWidget *l);
 
@@ -115,6 +120,7 @@ private:
 	Layers _layers;
 
 	ChildWidget<LayerWidget> _specialLayer = { nullptr };
+	ChildWidget<Window::MainMenu> _mainMenu = { nullptr };
 
 	class BackgroundWidget;
 	ChildWidget<BackgroundWidget> _background;

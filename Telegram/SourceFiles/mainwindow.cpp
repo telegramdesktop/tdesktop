@@ -48,6 +48,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager.h"
 #include "window/window_theme.h"
 #include "window/window_theme_warning.h"
+#include "window/window_main_menu.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _shadow(st::boxShadow)
@@ -404,6 +405,17 @@ void MainWindow::showSettings() {
 	_settings.create(this);
 	connect(_settings, SIGNAL(destroyed(QObject*)), this, SLOT(onSettingsDestroyed(QObject*)));
 	_layerBg->showSpecialLayer(_settings);
+}
+
+void MainWindow::showMainMenu() {
+	if (_passcode) return;
+
+	if (isHidden()) showFromTray();
+
+	if (!_layerBg) {
+		_layerBg.create(bodyWidget());
+	}
+	_layerBg->showMainMenu();
 }
 
 void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
