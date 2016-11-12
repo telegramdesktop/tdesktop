@@ -201,6 +201,7 @@
       '<(src_loc)/boxes/stickers_box.h',
       '<(src_loc)/boxes/usernamebox.cpp',
       '<(src_loc)/boxes/usernamebox.h',
+      '<(src_loc)/core/build_config.h',
       '<(src_loc)/core/basic_types.h',
       '<(src_loc)/core/click_handler.cpp',
       '<(src_loc)/core/click_handler.h',

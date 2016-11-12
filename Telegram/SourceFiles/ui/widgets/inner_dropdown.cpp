@@ -110,7 +110,7 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 	if (_a_show.animating(ms)) {
 		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
-			p.drawImage(0, 0, _showAnimation->getFrame(_a_show.current(1.), opacity));
+			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
 		}
 	} else if (_a_opacity.animating(ms)) {
 		p.setOpacity(_a_opacity.current(0.));
@@ -118,10 +118,11 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 	} else if (_hiding || isHidden()) {
 		hideFinished();
 	} else if (_showAnimation) {
-		p.drawImage(0, 0, _showAnimation->getFrame(1., 1.));
+		_showAnimation->paintFrame(p, 0, 0, width(), 1., 1.);
 		_showAnimation.reset();
 		showChildren();
 	} else {
+		if (!_cache.isNull()) _cache = QPixmap();
 		auto inner = rect().marginsRemoved(_st.padding);
 		Shadow::paint(p, inner, width(), _st.shadow);
 		App::roundRect(p, inner, _st.bg, ImageRoundRadius::Small);
@@ -207,6 +208,9 @@ void InnerDropdown::prepareCache() {
 	_cache = myGrab(this);
 	_showAnimation = base::take(showAnimationData);
 	_a_show = base::take(showAnimation);
+	if (_a_show.animating()) {
+		hideChildren();
+	}
 }
 
 void InnerDropdown::startOpacityAnimation(bool hiding) {
@@ -270,7 +274,7 @@ void InnerDropdown::opacityAnimationCallback() {
 		if (_hiding) {
 			_hiding = false;
 			hideFinished();
-		} else {
+		} else if (!_a_show.animating()) {
 			showChildren();
 		}
 	}

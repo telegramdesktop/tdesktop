@@ -208,7 +208,8 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	auto frame = frameToShow();
 	t_assert(frame != nullptr);
 
-	if (ms) {
+	auto shouldBePaused = !ms;
+	if (!shouldBePaused) {
 		frame->displayed.storeRelease(1);
 		if (_autoPausedGif.loadAcquire()) {
 			_autoPausedGif.storeRelease(0);
@@ -218,10 +219,10 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 			}
 		}
 	} else {
-		frame->displayed.storeRelease(-1); // displayed, but should be paused
+		frame->displayed.storeRelease(-1);
 	}
 
-	int32 factor(cIntRetinaFactor());
+	auto factor = cIntRetinaFactor();
 	if (frame->pix.width() == outerw * factor && frame->pix.height() == outerh * factor) {
 		moveToNextShow();
 		return frame->pix;

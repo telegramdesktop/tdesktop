@@ -117,12 +117,18 @@ emojiCategoryTravel: IconButton(emojiCategory) { icon: emojiTravel; }
 emojiCategoryObjects: IconButton(emojiCategory) { icon: emojiObjects; }
 emojiCategorySymbols: IconButton(emojiCategory) { icon: emojiSymbols; }
 
+emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
+	fadeBg: emojiPanBg;
+}
 emojiPanPadding: 12px;
 emojiPanSize: size(45px, 41px);
 emojiPanWidth: 345px;
 emojiPanMaxHeight: 366px;
+emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: #f0f4f7;
+emojiPanSlideDuration: 200;
+emojiPanSlideDelta: 0; // between hide start and show start
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;

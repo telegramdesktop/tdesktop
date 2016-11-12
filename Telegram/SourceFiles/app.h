@@ -279,18 +279,39 @@ namespace App {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void setProxySettings(QTcpSocket &socket);
 
+	enum class RectPart {
+		TopLeft     = 0x001,
+		Top         = 0x002,
+		TopRight    = 0x004,
+		Left        = 0x008,
+		Center      = 0x010,
+		Right       = 0x020,
+		BottomLeft  = 0x040,
+		Bottom      = 0x080,
+		BottomRight = 0x100,
+		TopFull     = 0x007,
+		LeftFull    = 0x049,
+		RightFull   = 0x124,
+		BottomFull  = 0x1c0,
+		NoTopBottom = 0x038,
+		NoLeftRight = 0x092,
+		Full        = 0x1ff,
+	};
+	Q_DECLARE_FLAGS(RectParts, RectPart);
+	Q_DECLARE_OPERATORS_FOR_FLAGS(RectParts);
+
 	QImage **cornersMask(ImageRoundRadius radius);
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh = 0);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *sh = 0) {
-		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, sh);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
+	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);
 	}
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index);
-	inline void roundShadow(Painter &p, const QRect &rect, const style::color &sh, RoundCorners index) {
-		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), sh, index);
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &shadow, RoundCorners index, RectParts parts = RectPart::Full);
+	inline void roundShadow(Painter &p, const QRect &rect, const style::color &shadow, RoundCorners index, RectParts parts = RectPart::Full) {
+		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index, parts);
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, ImageRoundRadius radius) {
-		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
+	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
+		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);
 	}
 
 	struct WallPaper {

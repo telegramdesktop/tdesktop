@@ -85,15 +85,7 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 	auto height = srcRect.height();
 	t_assert(outResult && outResult->rect().contains(QRect(dstPoint, srcRect.size())));
 
-	auto initialAlpha = c.alpha() + 1;
-	auto red = (c.red() * initialAlpha) >> 8;
-	auto green = (c.green() * initialAlpha) >> 8;
-	auto blue = (c.blue() * initialAlpha) >> 8;
-	auto alpha = (255 * initialAlpha) >> 8;
-	auto pattern = static_cast<uint64>(blue)
-		| (static_cast<uint64>(green) << 16)
-		| (static_cast<uint64>(red) << 32)
-		| (static_cast<uint64>(alpha) << 48);
+	auto pattern = anim::shifted(c);
 
 	auto resultBytesPerPixel = (src.depth() >> 3);
 	auto resultIntsPerPixel = 1;

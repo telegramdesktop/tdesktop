@@ -22,8 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stickers/emoji_pan.h"
 
 #include "styles/style_stickers.h"
-#include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/shadow.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "boxes/stickers_box.h"
@@ -103,8 +103,8 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 		}
 	} else {
 		p.drawPixmap(r.left(), r.top(), _cache);
+		p.setOpacity(1.);
 	}
-
 }
 
 void EmojiColorPicker::enterEvent(QEvent *e) {
@@ -286,7 +286,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 		QPoint tl(w);
 		if (rtl()) tl.setX(width() - tl.x() - st::emojiPanSize.width());
 		App::roundRect(p, QRect(tl, st::emojiPanSize), st::emojiPanHover, StickerHoverCorners);
-		p.setOpacity(1);
+		p.setOpacity(1.);
 	}
 	int esize = EmojiSizes[EIndex + 1];
 	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x * esize, _variants[variant]->y * esize, esize, esize));
@@ -295,7 +295,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 EmojiPanInner::EmojiPanInner() : TWidget()
 , _maxHeight(int(st::emojiPanMaxHeight) - st::emojiCategory.height)
 , _a_selected(animation(this, &EmojiPanInner::step_selected)) {
-	resize(st::emojiPanWidth - st::emojiScroll.width, countHeight());
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -394,7 +394,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 					QPoint tl(w);
 					if (rtl()) tl.setX(width() - tl.x() - st::emojiPanSize.width());
 					App::roundRect(p, QRect(tl, st::emojiPanSize), st::emojiPanHover, StickerHoverCorners);
-					p.setOpacity(1);
+					p.setOpacity(1.);
 				}
 				p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (_esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (_esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_emojis[c][index]->x * _esize, _emojis[c][index]->y * _esize, _esize, _esize));
 			}
@@ -820,7 +820,7 @@ StickerPanInner::StickerPanInner() : TWidget()
 
 void StickerPanInner::setMaxHeight(int32 h) {
 	_maxHeight = h;
-	resize(st::emojiPanWidth - st::emojiScroll.width, countHeight());
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 	_settings->moveToLeft((st::emojiPanWidth - _settings->width()) / 2, height() / 3);
 }
 
@@ -911,18 +911,22 @@ StickerPanInner::~StickerPanInner() {
 	deleteUnusedInlineLayouts();
 }
 
+int StickerPanInner::stickersLeft() const {
+	return (st::stickerPanPadding - st::buttonRadius);
+}
+
 QRect StickerPanInner::stickerRect(int tab, int sel) {
 	int x = 0, y = 0;
 	if (_section == Section::Featured) {
 		y += st::emojiPanHeader + (tab * featuredRowHeight()) + st::stickersTrendingHeader;
-		x = st::stickerPanPadding + (sel * st::stickerPanSize.width());
+		x = stickersLeft() + (sel * st::stickerPanSize.width());
 	} else {
 		auto &sets = shownSets();
 		for (int i = 0; i < sets.size(); ++i) {
 			if (i == tab) {
 				int rows = (((sel >= sets[i].pack.size()) ? (sel - sets[i].pack.size()) : sel) / StickerPanPerRow);
 				y += st::emojiPanHeader + rows * st::stickerPanSize.height();
-				x = st::stickerPanPadding + ((sel % StickerPanPerRow) * st::stickerPanSize.width());
+				x = stickersLeft() + ((sel % StickerPanPerRow) * st::stickerPanSize.width());
 				break;
 			} else {
 				int cnt = sets[i].pack.size();
@@ -968,7 +972,7 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 		auto &inlineRow = _inlineRows[row];
 		if (top >= r.top() + r.height()) break;
 		if (top + inlineRow.height > r.top()) {
-			int left = st::inlineResultsLeft;
+			int left = st::inlineResultsLeft - st::buttonRadius;
 			if (row == rows - 1) context.lastRow = true;
 			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
@@ -991,8 +995,8 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 }
 
 void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
-	int32 fromcol = floorclamp(r.x() - st::stickerPanPadding, st::stickerPanSize.width(), 0, StickerPanPerRow);
-	int32 tocol = ceilclamp(r.x() + r.width() - st::stickerPanPadding, st::stickerPanSize.width(), 0, StickerPanPerRow);
+	int32 fromcol = floorclamp(r.x() - stickersLeft(), st::stickerPanSize.width(), 0, StickerPanPerRow);
+	int32 tocol = ceilclamp(r.x() + r.width() - stickersLeft(), st::stickerPanSize.width(), 0, StickerPanPerRow);
 	if (rtl()) {
 		qSwap(fromcol, tocol);
 		fromcol = StickerPanPerRow - fromcol;
@@ -1013,7 +1017,7 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 
 			int size = set.pack.size();
 
-			int widthForTitle = featuredContentWidth() - st::emojiPanHeaderLeft;
+			int widthForTitle = featuredContentWidth() - (st::emojiPanHeaderLeft - st::buttonRadius);
 			if (featuredHasAddButton(c)) {
 				auto add = featuredAddRect(c);
 				auto selected = (_selectedFeaturedSetAdd == c);
@@ -1044,20 +1048,20 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 			}
 			p.setFont(st::stickersTrendingHeaderFont);
 			p.setPen(st::stickersTrendingHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft, y + st::stickersTrendingHeaderTop, width(), titleText, titleWidth);
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, y + st::stickersTrendingHeaderTop, width(), titleText, titleWidth);
 
 			if (set.flags & MTPDstickerSet_ClientFlag::f_unread) {
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::stickersFeaturedUnreadBg);
 
 				p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-				p.drawEllipse(rtlrect(st::emojiPanHeaderLeft + titleWidth + st::stickersFeaturedUnreadSkip, y + st::stickersTrendingHeaderTop + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
+				p.drawEllipse(rtlrect(st::emojiPanHeaderLeft - st::buttonRadius + titleWidth + st::stickersFeaturedUnreadSkip, y + st::stickersTrendingHeaderTop + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
 				p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 			}
 
 			p.setFont(st::stickersTrendingSubheaderFont);
 			p.setPen(st::stickersTrendingSubheaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft, y + st::stickersTrendingSubheaderTop, width(), lng_stickers_count(lt_count, size));
+			p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, y + st::stickersTrendingSubheaderTop, width(), lng_stickers_count(lt_count, size));
 
 			y += st::stickersTrendingHeader;
 			if (y >= r.y() + r.height()) break;
@@ -1104,13 +1108,13 @@ void StickerPanInner::paintSticker(Painter &p, Set &set, int y, int index) {
 
 	int row = (index / StickerPanPerRow), col = (index % StickerPanPerRow);
 
-	QPoint pos(st::stickerPanPadding + col * st::stickerPanSize.width(), y + row * st::stickerPanSize.height());
+	QPoint pos(stickersLeft() + col * st::stickerPanSize.width(), y + row * st::stickerPanSize.height());
 	if (hover > 0) {
 		p.setOpacity(hover);
 		QPoint tl(pos);
 		if (rtl()) tl.setX(width() - tl.x() - st::stickerPanSize.width());
 		App::roundRect(p, QRect(tl, st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
-		p.setOpacity(1);
+		p.setOpacity(1.);
 	}
 
 	bool goodThumb = !sticker->thumb->isNull() && ((sticker->thumb->width() >= 128) || (sticker->thumb->height() >= 128));
@@ -1138,7 +1142,7 @@ void StickerPanInner::paintSticker(Painter &p, Set &set, int y, int index) {
 		QPoint xPos = pos + QPoint(st::stickerPanSize.width() - st::stickerPanDelete.width(), 0);
 		p.setOpacity(hover * (xHover + (1 - xHover) * st::stickerPanDeleteOpacity));
 		st::stickerPanDelete.paint(p, xPos, width());
-		p.setOpacity(1);
+		p.setOpacity(1.);
 	}
 }
 
@@ -1151,7 +1155,7 @@ bool StickerPanInner::featuredHasAddButton(int index) const {
 }
 
 int StickerPanInner::featuredContentWidth() const {
-	return st::stickerPanPadding + (StickerPanPerRow * st::stickerPanSize.width());
+	return stickersLeft() + (StickerPanPerRow * st::stickerPanSize.width());
 }
 
 QRect StickerPanInner::featuredAddRect(int index) const {
@@ -1634,7 +1638,7 @@ StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int
 	});
 
 	row.height = 0;
-	int availw = width() - st::inlineResultsLeft;
+	int availw = width() - (st::inlineResultsLeft - st::buttonRadius);
 	for (int i = 0; i < count; ++i) {
 		int index = indices[i];
 		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
@@ -1730,7 +1734,7 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 		if (!_switchPmButton) {
 			_switchPmButton = std_::make_unique<Ui::RoundButton>(this, QString(), st::switchPmButton);
 			_switchPmButton->show();
-			_switchPmButton->move(st::inlineResultsLeft, st::emojiPanHeader);
+			_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, st::emojiPanHeader);
 			connect(_switchPmButton.get(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
 		}
 		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
@@ -2082,7 +2086,7 @@ void StickerPanInner::updateSelected() {
 	auto p = mapFromGlobal(_lastMousePos);
 
 	if (showingInlineItems()) {
-		int sx = (rtl() ? width() - p.x() : p.x()) - st::inlineResultsLeft;
+		int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::buttonRadius);
 		int sy = p.y() - st::emojiPanHeader;
 		if (_switchPmButton) {
 			sy -= _switchPmButton->height() + st::inlineResultsSkip;
@@ -2157,7 +2161,7 @@ void StickerPanInner::updateSelected() {
 	int selectedFeaturedSetAdd = -1;
 	auto featured = (_section == Section::Featured);
 	auto &sets = shownSets();
-	int y, ytill = 0, sx = (rtl() ? width() - p.x() : p.x()) - st::stickerPanPadding;
+	int y, ytill = 0, sx = (rtl() ? width() - p.x() : p.x()) - stickersLeft();
 	if (featured) {
 		ytill += st::emojiPanHeader;
 	}
@@ -2426,12 +2430,12 @@ EmojiPanel::EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool 
 , _special(special)
 , _deleteVisible(false)
 , _delete(special ? 0 : new Ui::IconButton(this, st::hashtagClose)) { // Stickers::NoneSetId if in emoji
-	resize(st::emojiPanWidth, st::emojiPanHeader);
+	resize(st::emojiPanWidth - 2 * st::buttonRadius, st::emojiPanHeader);
 	setMouseTracking(true);
 	setText(text);
 	if (_delete) {
 		_delete->hide();
-		_delete->moveToRight(st::emojiPanHeaderLeft - ((_delete->width() - st::hashtagClose.icon.width()) / 2), (st::emojiPanHeader - _delete->height()) / 2, width());
+		_delete->moveToRight(st::emojiPanHeaderLeft - ((_delete->width() - st::hashtagClose.icon.width()) / 2) - st::buttonRadius, (st::emojiPanHeader - _delete->height()) / 2, width());
 		connect(_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
 	}
 }
@@ -2489,7 +2493,7 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 	}
 	p.setFont(st::emojiPanHeaderFont);
 	p.setPen(st::emojiPanHeaderFg);
-	p.drawTextLeft(st::emojiPanHeaderLeft, st::emojiPanHeaderTop, width(), _text);
+	p.drawTextLeft(st::emojiPanHeaderLeft - st::buttonRadius, st::emojiPanHeaderTop, width(), _text);
 }
 
 EmojiSwitchButton::EmojiSwitchButton(QWidget *parent, bool toStickers) : AbstractButton(parent)
@@ -2512,7 +2516,7 @@ void EmojiSwitchButton::updateText(const QString &inlineBotUsername) {
 	if (_toStickers && !inlineBotUsername.isEmpty()) {
 		int32 maxw = 0;
 		for (int c = 0; c < emojiTabCount; ++c) {
-			maxw = qMax(maxw, st::emojiPanHeaderFont->width(lang(LangKey(lng_emoji_category0 + c))));
+			accumulate_max(maxw, st::emojiPanHeaderFont->width(lang(LangKey(lng_emoji_category0 + c))));
 		}
 		maxw += st::emojiPanHeaderLeft + st::emojiSwitchSkip + (st::emojiSwitchSkip - st::emojiSwitchImgSkip);
 		if (_textWidth > st::emojiPanWidth - maxw) {
@@ -2521,7 +2525,7 @@ void EmojiSwitchButton::updateText(const QString &inlineBotUsername) {
 		}
 	}
 
-	int32 w = st::emojiSwitchSkip + _textWidth + (st::emojiSwitchSkip - st::emojiSwitchImgSkip);
+	int32 w = st::emojiSwitchSkip + _textWidth + (st::emojiSwitchSkip - st::emojiSwitchImgSkip) - st::buttonRadius;
 	resize(w, st::emojiPanHeader);
 }
 
@@ -2541,14 +2545,264 @@ void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
 
 } // namespace internal
 
+namespace {
+
+FORCE_INLINE uint32 twoImagesOnBgWithAlpha(
+	const anim::Shifted shiftedBg,
+	const uint32 source1Alpha,
+	const uint32 source2Alpha,
+	const uint32 source1,
+	const uint32 source2,
+	const uint32 alpha) {
+	auto source1Pattern = anim::reshifted(anim::shifted(source1) * source1Alpha);
+	auto bg1Alpha = 256 - anim::getAlpha(source1Pattern);
+	auto mixed1Pattern = anim::reshifted(shiftedBg * bg1Alpha) + source1Pattern;
+	auto source2Pattern = anim::reshifted(anim::shifted(source2) * source2Alpha);
+	auto bg2Alpha = 256 - anim::getAlpha(source2Pattern);
+	auto mixed2Pattern = anim::reshifted(mixed1Pattern * bg2Alpha) + source2Pattern;
+	return anim::unshifted(mixed2Pattern * alpha);
+}
+
+FORCE_INLINE uint32 oneImageOnBgWithAlpha(
+	const anim::Shifted shiftedBg,
+	const uint32 sourceAlpha,
+	const uint32 source,
+	const uint32 alpha) {
+	auto sourcePattern = anim::reshifted(anim::shifted(source) * sourceAlpha);
+	auto bgAlpha = 256 - anim::getAlpha(sourcePattern);
+	auto mixedPattern = anim::reshifted(shiftedBg * bgAlpha) + sourcePattern;
+	return anim::unshifted(mixedPattern * alpha);
+};
+
+} // namespace
+
+class EmojiPan::SlideAnimation : public Ui::RoundShadowAnimation {
+public:
+	enum class Direction {
+		LeftToRight,
+		RightToLeft,
+	};
+	void setFinalImages(Direction direction, QImage &&left, QImage &&right, QRect inner);
+
+	void start();
+	void paintFrame(QPainter &p, float64 dt, float64 opacity);
+
+private:
+	Direction _direction = Direction::LeftToRight;
+	QPixmap _leftImage, _rightImage;
+	int _width = 0;
+	int _height = 0;
+	int _innerLeft = 0;
+	int _innerTop = 0;
+	int _innerRight = 0;
+	int _innerBottom = 0;
+	int _innerWidth = 0;
+	int _innerHeight = 0;
+
+	int _painterInnerLeft = 0;
+	int _painterInnerTop = 0;
+	int _painterInnerWidth = 0;
+	int _painterInnerBottom = 0;
+	int _painterCategoriesTop = 0;
+	int _painterInnerHeight = 0;
+	int _painterInnerRight = 0;
+
+	int _frameIntsPerLineAdd = 0;
+
+};
+
+void EmojiPan::SlideAnimation::setFinalImages(Direction direction, QImage &&left, QImage &&right, QRect inner) {
+	t_assert(!started());
+	_direction = direction;
+	_leftImage = QPixmap::fromImage(std_::move(left).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
+	_rightImage = QPixmap::fromImage(std_::move(right).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
+
+	t_assert(!_leftImage.isNull());
+	t_assert(!_rightImage.isNull());
+	_width = _leftImage.width();
+	_height = _rightImage.height();
+	t_assert(!(_width % cIntRetinaFactor()));
+	t_assert(!(_height % cIntRetinaFactor()));
+	t_assert(_leftImage.devicePixelRatio() == _rightImage.devicePixelRatio());
+	t_assert(_rightImage.width() == _width);
+	t_assert(_rightImage.height() == _height);
+	t_assert(QRect(0, 0, _width, _height).contains(inner));
+	_innerLeft = inner.x();
+	_innerTop = inner.y();
+	_innerWidth = inner.width();
+	_innerHeight = inner.height();
+	t_assert(!(_innerLeft % cIntRetinaFactor()));
+	t_assert(!(_innerTop % cIntRetinaFactor()));
+	t_assert(!(_innerWidth % cIntRetinaFactor()));
+	t_assert(!(_innerHeight % cIntRetinaFactor()));
+	_innerRight = _innerLeft + _innerWidth;
+	_innerBottom = _innerTop + _innerHeight;
+
+	_painterInnerLeft = _innerLeft / cIntRetinaFactor();
+	_painterInnerTop = _innerTop / cIntRetinaFactor();
+	_painterInnerRight = _innerRight / cIntRetinaFactor();
+	_painterInnerBottom = _innerBottom / cIntRetinaFactor();
+	_painterInnerWidth = _innerWidth / cIntRetinaFactor();
+	_painterInnerHeight = _innerHeight / cIntRetinaFactor();
+	_painterCategoriesTop = _painterInnerBottom - st::emojiCategory.height;
+
+	setShadow(st::emojiPanAnimation.shadow);
+}
+
+void EmojiPan::SlideAnimation::start() {
+	t_assert(!_leftImage.isNull());
+	t_assert(!_rightImage.isNull());
+	RoundShadowAnimation::start(_width, _height, _leftImage.devicePixelRatio());
+	auto checkCorner = [this](const Corner &corner) {
+		if (!corner.valid()) return;
+		t_assert(corner.width <= _innerWidth);
+		t_assert(corner.height <= _innerHeight);
+	};
+	checkCorner(_topLeft);
+	checkCorner(_topRight);
+	checkCorner(_bottomLeft);
+	checkCorner(_bottomRight);
+	_frameIntsPerLineAdd = (_width - _innerWidth) + _frameIntsPerLineAdded;
+}
+
+void EmojiPan::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64 opacity) {
+	t_assert(started());
+	t_assert(dt >= 0.);
+
+	auto &transition = anim::easeOutCirc;
+	_frameAlpha = anim::interpolate(1, 256, opacity);
+
+	auto frameInts = _frameInts + _innerLeft + _innerTop * _frameIntsPerLine;
+
+	auto leftToRight = (_direction == Direction::LeftToRight);
+
+	auto easeOut = anim::easeOutCirc(1., dt);
+	auto easeIn = anim::easeInCirc(1., dt);
+
+	auto arrivingCoord = anim::interpolate(_innerWidth, 0, easeOut);
+	auto departingCoord = anim::interpolate(0, _innerWidth, easeIn);
+	if (auto decrease = (arrivingCoord % cIntRetinaFactor())) {
+		arrivingCoord -= decrease;
+	}
+	if (auto decrease = (departingCoord % cIntRetinaFactor())) {
+		departingCoord -= decrease;
+	}
+	auto arrivingAlpha = easeIn;
+	auto departingAlpha = 1. - easeOut;
+	auto leftCoord = (leftToRight ? arrivingCoord : departingCoord) * -1;
+	auto leftAlpha = (leftToRight ? arrivingAlpha : departingAlpha);
+	auto rightCoord = (leftToRight ? departingCoord : arrivingCoord);
+	auto rightAlpha = (leftToRight ? departingAlpha : arrivingAlpha);
+
+	// _innerLeft ..(left).. leftTo ..(both).. bothTo ..(none).. noneTo ..(right).. _innerRight
+	auto leftTo = _innerLeft + snap(_innerWidth + leftCoord, 0, _innerWidth);
+	auto rightFrom = _innerLeft + snap(rightCoord, 0, _innerWidth);
+	auto painterRightFrom = rightFrom / cIntRetinaFactor();
+	if (opacity < 1.) {
+		_frame.fill(Qt::transparent);
+	}
+	{
+		Painter p(&_frame);
+		p.setOpacity(opacity);
+		p.fillRect(_painterInnerLeft, _painterInnerTop, _painterInnerWidth, _painterCategoriesTop - _painterInnerTop, st::emojiPanBg);
+		p.fillRect(_painterInnerLeft, _painterCategoriesTop, _painterInnerWidth, _painterInnerBottom - _painterCategoriesTop, st::emojiPanCategories);
+		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+		if (leftTo > _innerLeft) {
+			p.setOpacity(opacity * leftAlpha);
+			p.drawPixmap(_painterInnerLeft, _painterInnerTop, _leftImage, _innerLeft - leftCoord, _innerTop, leftTo - _innerLeft, _innerHeight);
+		}
+		if (rightFrom < _innerRight) {
+			p.setOpacity(opacity * rightAlpha);
+			p.drawPixmap(painterRightFrom, _painterInnerTop, _rightImage, _innerLeft, _innerTop, _innerRight - rightFrom, _innerHeight);
+		}
+	}
+
+	// Draw corners
+	paintCorner(_topLeft, _innerLeft, _innerTop);
+	paintCorner(_topRight, _innerRight - _topRight.width, _innerTop);
+	paintCorner(_bottomLeft, _innerLeft, _innerBottom - _bottomLeft.height);
+	paintCorner(_bottomRight, _innerRight - _bottomRight.width, _innerBottom - _bottomRight.height);
+
+	// Draw shadow upon the transparent
+	auto outerLeft = _innerLeft;
+	auto outerTop = _innerTop;
+	auto outerRight = _innerRight;
+	auto outerBottom = _innerBottom;
+	if (_shadow.valid()) {
+		outerLeft -= _shadow.extend.left();
+		outerTop -= _shadow.extend.top();
+		outerRight += _shadow.extend.right();
+		outerBottom += _shadow.extend.bottom();
+	}
+	if (cIntRetinaFactor() > 1) {
+		if (auto skipLeft = (outerLeft % cIntRetinaFactor())) {
+			outerLeft -= skipLeft;
+		}
+		if (auto skipTop = (outerTop % cIntRetinaFactor())) {
+			outerTop -= skipTop;
+		}
+		if (auto skipRight = (outerRight % cIntRetinaFactor())) {
+			outerRight += (cIntRetinaFactor() - skipRight);
+		}
+		if (auto skipBottom = (outerBottom % cIntRetinaFactor())) {
+			outerBottom += (cIntRetinaFactor() - skipBottom);
+		}
+	}
+
+	if (opacity == 1.) {
+		// Fill above the frame top with transparent.
+		auto fillTopInts = (_frameInts + outerTop * _frameIntsPerLine + outerLeft);
+		auto fillWidth = (outerRight - outerLeft) * sizeof(uint32);
+		for (auto fillTop = _innerTop - outerTop; fillTop != 0; --fillTop) {
+			memset(fillTopInts, 0, fillWidth);
+			fillTopInts += _frameIntsPerLine;
+		}
+
+		// Fill to the left and to the right of the frame with transparent.
+		auto fillLeft = (_innerLeft - outerLeft) * sizeof(uint32);
+		auto fillRight = (outerRight - _innerRight) * sizeof(uint32);
+		if (fillLeft || fillRight) {
+			auto fillInts = _frameInts + _innerTop * _frameIntsPerLine;
+			for (auto y = _innerTop; y != _innerBottom; ++y) {
+				memset(fillInts + outerLeft, 0, fillLeft);
+				memset(fillInts + _innerRight, 0, fillRight);
+				fillInts += _frameIntsPerLine;
+			}
+		}
+
+		// Fill below the frame bottom with transparent.
+		auto fillBottomInts = (_frameInts + _innerBottom * _frameIntsPerLine + outerLeft);
+		for (auto fillBottom = outerBottom - _innerBottom; fillBottom != 0; --fillBottom) {
+			memset(fillBottomInts, 0, fillWidth);
+			fillBottomInts += _frameIntsPerLine;
+		}
+	}
+	if (_shadow.valid()) {
+		paintShadow(outerLeft, outerTop, outerRight, outerBottom);
+	}
+
+	// Debug
+	//frameInts = _frameInts;
+	//auto pattern = anim::shifted((static_cast<uint32>(0xFF) << 24) | (static_cast<uint32>(0xFF) << 16) | (static_cast<uint32>(0xFF) << 8) | static_cast<uint32>(0xFF));
+	//for (auto y = 0; y != _finalHeight; ++y) {
+	//	for (auto x = 0; x != _finalWidth; ++x) {
+	//		auto source = *frameInts;
+	//		auto sourceAlpha = (source >> 24);
+	//		*frameInts = anim::unshifted(anim::shifted(source) * 256 + pattern * (256 - sourceAlpha));
+	//		++frameInts;
+	//	}
+	//	frameInts += _frameIntsPerLineAdded;
+	//}
+
+	p.drawImage(outerLeft / cIntRetinaFactor(), outerTop / cIntRetinaFactor(), _frame, outerLeft, outerTop, outerRight - outerLeft, outerBottom - outerTop);
+}
+
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _maxHeight(st::emojiPanMaxHeight)
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _contentHeightEmoji(_contentHeight - st::emojiCategory.height)
 , _contentHeightStickers(_contentHeight - st::emojiCategory.height)
-, _a_appearance(animation(this, &EmojiPan::step_appearance))
-, _shadow(st::defaultDropdownShadow)
 , _recent(this, st::emojiCategoryRecent)
 , _people(this, st::emojiCategoryPeople)
 , _nature(this, st::emojiCategoryNature)
@@ -2558,31 +2812,30 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 , _objects(this, st::emojiCategoryObjects)
 , _symbols(this, st::emojiCategorySymbols)
 , _a_icons(animation(this, &EmojiPan::step_icons))
-, _a_slide(animation(this, &EmojiPan::step_slide))
 , e_scroll(this, st::emojiScroll)
 , e_inner()
 , e_switch(&e_scroll, true)
 , s_scroll(this, st::emojiScroll)
 , s_inner()
 , s_switch(&s_scroll, false) {
-	_width = st::defaultDropdownPadding.left() + st::emojiPanWidth + st::defaultDropdownPadding.right();
-	_height = st::defaultDropdownPadding.top() + _contentHeight + st::defaultDropdownPadding.bottom();
+	resize(QRect(0, 0, st::emojiPanWidth, _contentHeight).marginsAdded(innerPadding()).size());
+	_width = width();
+	_height = height();
 	_bottom = 0;
-	resize(_width, _height);
 
-	e_scroll.resize(st::emojiPanWidth, _contentHeightEmoji);
-	s_scroll.resize(st::emojiPanWidth, _contentHeightStickers);
+	e_scroll.resize(st::emojiPanWidth - st::buttonRadius, _contentHeightEmoji);
+	s_scroll.resize(st::emojiPanWidth - st::buttonRadius, _contentHeightStickers);
 
-	e_scroll.move(st::defaultDropdownPadding.left(), st::defaultDropdownPadding.top());
+	e_scroll.move(verticalRect().topLeft());
 	e_scroll.setWidget(&e_inner);
-	s_scroll.move(st::defaultDropdownPadding.left(), st::defaultDropdownPadding.top());
+	s_scroll.move(verticalRect().topLeft());
 	s_scroll.setWidget(&s_inner);
 
 	e_inner.moveToLeft(0, 0, e_scroll.width());
 	s_inner.moveToLeft(0, 0, s_scroll.width());
 
-	int32 left = _iconsLeft = st::defaultDropdownPadding.left() + (st::emojiPanWidth - 8 * st::emojiCategory.width) / 2;
-	int32 top = _iconsTop = st::defaultDropdownPadding.top() + _contentHeight - st::emojiCategory.height;
+	int32 left = _iconsLeft = innerRect().x() + (st::emojiPanWidth - 8 * st::emojiCategory.width) / 2;
+	int32 top = _iconsTop = innerRect().y() + innerRect().height() - st::emojiCategory.height;
 	prepareTab(left, top, _width, _recent, dbietRecent);
 	prepareTab(left, top, _width, _people, dbietPeople);
 	prepareTab(left, top, _width, _nature, dbietNature);
@@ -2617,8 +2870,8 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 
 	connect(&s_switch, SIGNAL(clicked()), this, SLOT(onSwitch()));
 	connect(&e_switch, SIGNAL(clicked()), this, SLOT(onSwitch()));
-	s_switch.moveToRight(0, 0, st::emojiPanWidth);
-	e_switch.moveToRight(0, 0, st::emojiPanWidth);
+	s_switch.moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
+	e_switch.moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
 
 	connect(&s_inner, SIGNAL(displaySet(quint64)), this, SLOT(onDisplaySet(quint64)));
 	connect(&s_inner, SIGNAL(installSet(quint64)), this, SLOT(onInstallSet(quint64)));
@@ -2660,24 +2913,23 @@ void EmojiPan::updateContentHeight() {
 	_contentHeightEmoji = he;
 	_contentHeightStickers = hs;
 
-	_height = st::defaultDropdownPadding.top() + _contentHeight + st::defaultDropdownPadding.bottom();
-
-	resize(_width, _height);
-	move(x(), _bottom - height());
+	resize(QRect(0, 0, innerRect().width(), _contentHeight).marginsAdded(innerPadding()).size());
+	_height = height();
+	move(x(), _bottom - _height);
 
 	if (was > _contentHeight || (was == _contentHeight && wass > _contentHeightStickers)) {
-		e_scroll.resize(st::emojiPanWidth, _contentHeightEmoji);
-		s_scroll.resize(st::emojiPanWidth, _contentHeightStickers);
+		e_scroll.resize(e_scroll.width(), _contentHeightEmoji);
+		s_scroll.resize(s_scroll.width(), _contentHeightStickers);
 		s_inner.setMaxHeight(_contentHeightStickers);
 		e_inner.setMaxHeight(_contentHeightEmoji);
 	} else {
 		s_inner.setMaxHeight(_contentHeightStickers);
 		e_inner.setMaxHeight(_contentHeightEmoji);
-		e_scroll.resize(st::emojiPanWidth, _contentHeightEmoji);
-		s_scroll.resize(st::emojiPanWidth, _contentHeightStickers);
+		e_scroll.resize(e_scroll.width(), _contentHeightEmoji);
+		s_scroll.resize(s_scroll.width(), _contentHeightStickers);
 	}
 
-	_iconsTop = st::defaultDropdownPadding.top() + _contentHeight - st::emojiCategory.height;
+	_iconsTop = innerRect().y() + innerRect().height() - st::emojiCategory.height;
 	_recent->move(_recent->x(), _iconsTop);
 	_people->move(_people->x(), _iconsTop);
 	_nature->move(_nature->x(), _iconsTop);
@@ -2730,113 +2982,114 @@ void EmojiPan::paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const {
 void EmojiPan::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	float64 o = 1;
-	if (!_cache.isNull()) {
-		p.setOpacity(o = a_opacity.current());
-	}
-
-	QRect r(st::defaultDropdownPadding.left(), st::defaultDropdownPadding.top(), _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right(), _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom());
-
-	_shadow.paint(p, r, st::defaultDropdownShadowShift);
-
-	if (_toCache.isNull()) {
-		if (_cache.isNull()) {
-			p.fillRect(myrtlrect(r.x() + r.width() - st::emojiScroll.width, r.y(), st::emojiScroll.width, e_scroll.height()), st::emojiPanBg);
-			if (_stickersShown && s_inner.showSectionIcons()) {
-				p.fillRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height, st::emojiPanCategories);
-				paintStickerSettingsIcon(p);
-
-				if (!_icons.isEmpty()) {
-					int x = _iconsLeft, selxrel = _iconsLeft + _iconSelX.current(), selx = selxrel - _iconsX.current();
-
-					QRect clip(x, _iconsTop, _iconsLeft + 7 * st::emojiCategory.width - x, st::emojiCategory.height);
-					if (rtl()) clip.moveLeft(width() - x - clip.width());
-					p.setClipRect(clip);
-
-					auto getSpecialSetIcon = [](uint64 setId, bool active) {
-						if (setId == Stickers::NoneSetId) {
-							return active ? &st::emojiSavedGifsActive : &st::emojiSavedGifs;
-						} else if (setId == Stickers::FeaturedSetId) {
-							return active ? &st::stickersTrendingActive : &st::stickersTrending;
-						}
-						return active ? &st::emojiRecentActive : &st::emojiRecent;
-					};
-
-					int i = 0;
-					i += _iconsX.current() / int(st::emojiCategory.width);
-					x -= _iconsX.current() % int(st::emojiCategory.width);
-					selxrel -= _iconsX.current();
-					for (int l = qMin(_icons.size(), i + 8); i < l; ++i) {
-						auto &s = _icons.at(i);
-						if (s.sticker) {
-							s.sticker->thumb->load();
-							QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
-
-							p.drawPixmapLeft(x + (st::emojiCategory.width - s.pixw) / 2, _iconsTop + (st::emojiCategory.height - s.pixh) / 2, width(), pix);
-							x += st::emojiCategory.width;
-						} else {
-							getSpecialSetIcon(s.setId, false)->paint(p, x + st::emojiCategory.iconPosition.x(), _iconsTop + st::emojiCategory.iconPosition.y(), width());
-							if (s.setId == Stickers::FeaturedSetId) {
-								paintFeaturedStickerSetsBadge(p, x);
-							}
-							x += st::emojiCategory.width;
-						}
-					}
-
-					if (rtl()) selx = width() - selx - st::emojiCategory.width;
-					p.setOpacity(1.);
-					p.fillRect(selx, _iconsTop + st::emojiCategory.height - st::stickerIconPadding, st::emojiCategory.width, st::stickerIconSel, st::stickerIconSelColor);
-
-					float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.width(), 0., 1.);
-					if (o_left > 0) {
-						p.setOpacity(o_left);
-						st::stickerIconLeft.fill(p, rtlrect(_iconsLeft, _iconsTop, st::stickerIconLeft.width(), st::emojiCategory.height, width()));
-					}
-					float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.width(), 0., 1.);
-					if (o_right > 0) {
-						p.setOpacity(o_right);
-						st::stickerIconRight.fill(p, rtlrect(_iconsLeft + 7 * st::emojiCategory.width - st::stickerIconRight.width(), _iconsTop, st::stickerIconRight.width(), st::emojiCategory.height, width()));
-					}
-				}
-			} else if (_stickersShown) {
-				int32 x = rtl() ? (_recent->x() + _recent->width()) : (_objects->x() + _objects->width());
-				p.fillRect(x, _recent->y(), r.left() + r.width() - x, st::emojiCategory.height, st::emojiPanBg);
-			} else {
-				p.fillRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height, st::emojiPanCategories);
-			}
-		} else {
-			p.fillRect(r, st::emojiPanBg);
-			p.drawPixmap(r.left(), r.top(), _cache);
+	auto ms = getms();
+	auto opacityAnimating = _a_opacity.animating(ms);
+	auto switching = (_slideAnimation != nullptr);
+	if (_a_show.animating(ms)) {
+		if (auto opacity = _a_opacity.current(_hiding ? 0. : 1.)) {
+			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
+		}
+	} else if (!switching && opacityAnimating) {
+		p.setOpacity(_a_opacity.current(_hiding ? 0. : 1.));
+		p.drawPixmap(0, 0, _cache);
+	} else if ((!switching && _hiding) || isHidden()) {
+		hideFinished();
+	} else if (_showAnimation) {
+		_showAnimation->paintFrame(p, 0, 0, width(), 1., 1.);
+		_showAnimation.reset();
+		if (!switching && !opacityAnimating) showAll();
+	} else if (switching) {
+		auto slideDt = _a_slide.current(ms, 1.);
+		_slideAnimation->paintFrame(p, slideDt, _a_opacity.current(_hiding ? 0. : 1.));
+		if (!_a_slide.animating()) {
+			_slideAnimation.reset();
+			if (!opacityAnimating) showAll();
 		}
 	} else {
-		p.fillRect(QRect(r.left(), r.top(), r.width(), r.height() - st::emojiCategory.height), st::emojiPanBg);
-		p.fillRect(QRect(r.left(), _iconsTop, r.width(), st::emojiCategory.height), st::emojiPanCategories);
-		p.setOpacity(o * a_fromAlpha.current());
-		QRect fromDst = QRect(r.left() + a_fromCoord.current(), r.top(), _fromCache.width() / cIntRetinaFactor(), _fromCache.height() / cIntRetinaFactor());
-		QRect fromSrc = QRect(0, 0, _fromCache.width(), _fromCache.height());
-		if (fromDst.x() < r.left() + r.width() && fromDst.x() + fromDst.width() > r.left()) {
-			if (fromDst.x() < r.left()) {
-				fromSrc.setX((r.left() - fromDst.x()) * cIntRetinaFactor());
-				fromDst.setX(r.left());
-			} else if (fromDst.x() + fromDst.width() > r.left() + r.width()) {
-				fromSrc.setWidth((r.left() + r.width() - fromDst.x()) * cIntRetinaFactor());
-				fromDst.setWidth(r.left() + r.width() - fromDst.x());
+		if (!_cache.isNull()) _cache = QPixmap();
+		if (!_inPanelGrab) Ui::Shadow::paint(p, innerRect(), width(), st::emojiPanAnimation.shadow);
+		paintContent(p);
+	}
+}
+
+void EmojiPan::paintContent(Painter &p) {
+	auto inner = innerRect();
+	App::roundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, App::RectPart::TopFull);
+
+	auto showSectionIcons = _emojiShown || s_inner.showSectionIcons();
+	auto &bottomBg = showSectionIcons ? st::emojiPanCategories : st::emojiPanBg;
+	auto bottomParts = showSectionIcons ? (App::RectPart::NoTopBottom | App::RectPart::BottomFull) : App::RectPart::BottomFull;
+	App::roundRect(p, inner.x(), _iconsTop - st::buttonRadius, inner.width(), st::emojiCategory.height + st::buttonRadius, bottomBg, ImageRoundRadius::Small, bottomParts);
+
+	auto horizontal = horizontalRect();
+	auto sidesTop = horizontal.y();
+	auto sidesHeight = e_scroll.y() + e_scroll.height() - sidesTop;
+	p.fillRect(myrtlrect(inner.x() + inner.width() - st::emojiScroll.width, sidesTop, st::emojiScroll.width, sidesHeight), st::emojiPanBg);
+	p.fillRect(myrtlrect(inner.x(), sidesTop, st::buttonRadius, sidesHeight), st::emojiPanBg);
+	if (_emojiShown) {
+		auto vertical = verticalRect();
+		p.fillRect(vertical.x(), _iconsTop, vertical.width(), st::emojiCategory.height - st::buttonRadius, st::emojiPanCategories);
+	} else if (showSectionIcons) {
+		paintStickerSettingsIcon(p);
+
+		if (!_icons.isEmpty()) {
+			int x = _iconsLeft, selxrel = _iconsLeft + _iconSelX.current(), selx = selxrel - _iconsX.current();
+
+			QRect clip(x, _iconsTop, _iconsLeft + 7 * st::emojiCategory.width - x, st::emojiCategory.height);
+			if (rtl()) clip.moveLeft(width() - x - clip.width());
+			p.setClipRect(clip);
+
+			auto getSpecialSetIcon = [](uint64 setId, bool active) {
+				if (setId == Stickers::NoneSetId) {
+					return active ? &st::emojiSavedGifsActive : &st::emojiSavedGifs;
+				} else if (setId == Stickers::FeaturedSetId) {
+					return active ? &st::stickersTrendingActive : &st::stickersTrending;
+				}
+				return active ? &st::emojiRecentActive : &st::emojiRecent;
+			};
+
+			int i = 0;
+			i += _iconsX.current() / int(st::emojiCategory.width);
+			x -= _iconsX.current() % int(st::emojiCategory.width);
+			selxrel -= _iconsX.current();
+			for (int l = qMin(_icons.size(), i + 8); i < l; ++i) {
+				auto &s = _icons.at(i);
+				if (s.sticker) {
+					s.sticker->thumb->load();
+					QPixmap pix(s.sticker->thumb->pix(s.pixw, s.pixh));
+
+					p.drawPixmapLeft(x + (st::emojiCategory.width - s.pixw) / 2, _iconsTop + (st::emojiCategory.height - s.pixh) / 2, width(), pix);
+					x += st::emojiCategory.width;
+				} else {
+					getSpecialSetIcon(s.setId, false)->paint(p, x + st::emojiCategory.iconPosition.x(), _iconsTop + st::emojiCategory.iconPosition.y(), width());
+					if (s.setId == Stickers::FeaturedSetId) {
+						paintFeaturedStickerSetsBadge(p, x);
+					}
+					x += st::emojiCategory.width;
+				}
 			}
-			p.drawPixmap(fromDst, _fromCache, fromSrc);
-		}
-		p.setOpacity(o * a_toAlpha.current());
-		QRect toDst = QRect(r.left() + a_toCoord.current(), r.top(), _toCache.width() / cIntRetinaFactor(), _toCache.height() / cIntRetinaFactor());
-		QRect toSrc = QRect(0, 0, _toCache.width(), _toCache.height());
-		if (toDst.x() < r.left() + r.width() && toDst.x() + toDst.width() > r.left()) {
-			if (toDst.x() < r.left()) {
-				toSrc.setX((r.left() - toDst.x()) * cIntRetinaFactor());
-				toDst.setX(r.left());
-			} else if (toDst.x() + toDst.width() > r.left() + r.width()) {
-				toSrc.setWidth((r.left() + r.width() - toDst.x()) * cIntRetinaFactor());
-				toDst.setWidth(r.left() + r.width() - toDst.x());
+
+			if (rtl()) selx = width() - selx - st::emojiCategory.width;
+			p.fillRect(selx, _iconsTop + st::emojiCategory.height - st::stickerIconPadding, st::emojiCategory.width, st::stickerIconSel, st::stickerIconSelColor);
+
+			float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.width(), 0., 1.);
+			if (o_left > 0) {
+				p.setOpacity(o_left);
+				st::stickerIconLeft.fill(p, rtlrect(_iconsLeft, _iconsTop, st::stickerIconLeft.width(), st::emojiCategory.height, width()));
+				p.setOpacity(1.);
 			}
-			p.drawPixmap(toDst, _toCache, toSrc);
+			float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.width(), 0., 1.);
+			if (o_right > 0) {
+				p.setOpacity(o_right);
+				st::stickerIconRight.fill(p, rtlrect(_iconsLeft + 7 * st::emojiCategory.width - st::stickerIconRight.width(), _iconsTop, st::stickerIconRight.width(), st::emojiCategory.height, width()));
+				p.setOpacity(1.);
+			}
+
+			p.setClipRect(QRect());
 		}
+	} else {
+		p.fillRect(myrtlrect(inner.x() + inner.width() - st::emojiScroll.width, _iconsTop, st::emojiScroll.width, st::emojiCategory.height - st::buttonRadius), st::emojiPanBg);
+		p.fillRect(myrtlrect(inner.x(), _iconsTop, st::buttonRadius, st::emojiCategory.height - st::buttonRadius), st::emojiPanBg);
 	}
 }
 
@@ -2846,16 +3099,18 @@ void EmojiPan::moveBottom(int32 bottom, bool force) {
 		move(x(), _bottom - height());
 		return;
 	}
-	if (_stickersShown && s_inner.inlineResultsShown()) {
+	if (!_emojiShown && s_inner.inlineResultsShown()) {
+		setOrigin(Ui::PanelAnimation::Origin::BottomLeft);
 		moveToLeft(0, _bottom - height());
 	} else {
+		setOrigin(Ui::PanelAnimation::Origin::BottomRight);
 		moveToRight(0, _bottom - height());
 	}
 }
 
 void EmojiPan::enterEvent(QEvent *e) {
 	_hideTimer.stop();
-	if (_hiding) showAnimated();
+	if (_hiding) showAnimated(_origin);
 }
 
 bool EmojiPan::preventAutoHide() const {
@@ -2864,21 +3119,24 @@ bool EmojiPan::preventAutoHide() const {
 
 void EmojiPan::leaveEvent(QEvent *e) {
 	if (preventAutoHide() || s_inner.inlineResultsShown()) return;
-	if (_a_appearance.animating()) {
-		hideByTimerOrLeave();
+	auto ms = getms();
+	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
+		hideAnimated();
 	} else {
 		_hideTimer.start(300);
 	}
+	return TWidget::leaveEvent(e);
 }
 
 void EmojiPan::otherEnter() {
 	_hideTimer.stop();
-	showAnimated();
+	showAnimated(_origin);
 }
 
 void EmojiPan::otherLeave() {
 	if (preventAutoHide() || s_inner.inlineResultsShown()) return;
-	if (_a_appearance.animating()) {
+	auto ms = getms();
+	if (_a_opacity.animating(ms)) {
 		hideByTimerOrLeave();
 	} else {
 		_hideTimer.start(0);
@@ -2886,7 +3144,7 @@ void EmojiPan::otherLeave() {
 }
 
 void EmojiPan::mousePressEvent(QMouseEvent *e) {
-	if (!_stickersShown || e->button() != Qt::LeftButton) return;
+	if (_emojiShown || e->button() != Qt::LeftButton) return;
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	updateSelected();
 
@@ -2900,7 +3158,7 @@ void EmojiPan::mousePressEvent(QMouseEvent *e) {
 }
 
 void EmojiPan::mouseMoveEvent(QMouseEvent *e) {
-	if (!_stickersShown) return;
+	if (_emojiShown) return;
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	updateSelected();
 
@@ -2921,7 +3179,7 @@ void EmojiPan::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_stickersShown || _icons.isEmpty()) return;
+	if (_emojiShown || _icons.isEmpty()) return;
 
 	int32 wasDown = _iconDown;
 	_iconDown = -1;
@@ -2975,18 +3233,17 @@ bool EmojiPan::event(QEvent *e) {
 }
 
 void EmojiPan::hideFast() {
-	if (_a_appearance.animating()) {
-		_a_appearance.stop();
-	}
-	a_opacity = anim::fvalue(0, 0);
+	if (isHidden()) return;
+
 	_hideTimer.stop();
-	hide();
-	_cache = QPixmap();
+	_hiding = false;
+	_a_opacity.finish();
+	hideFinished();
 }
 
 void EmojiPan::refreshStickers() {
 	s_inner.refreshStickers();
-	if (!_stickersShown) {
+	if (_emojiShown) {
 		s_inner.preloadImages();
 	}
 	update();
@@ -2994,9 +3251,9 @@ void EmojiPan::refreshStickers() {
 
 void EmojiPan::refreshSavedGifs() {
 	e_switch.updateText();
-	e_switch.moveToRight(0, 0, st::emojiPanWidth);
+	e_switch.moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
 	s_inner.refreshSavedGifs();
-	if (!_stickersShown) {
+	if (_emojiShown) {
 		s_inner.preloadImages();
 	}
 }
@@ -3022,7 +3279,7 @@ void EmojiPan::onRefreshIcons(bool scrollAnimation) {
 	}
 	updatePanelsPositions(s_panels, s_scroll.scrollTop());
 	updateSelected();
-	if (_stickersShown) {
+	if (!_emojiShown) {
 		validateSelectedIcon(scrollAnimation ? ValidateIconAnimations::Scroll : ValidateIconAnimations::None);
 		updateContentHeight();
 	}
@@ -3030,17 +3287,17 @@ void EmojiPan::onRefreshIcons(bool scrollAnimation) {
 }
 
 void EmojiPan::onRefreshPanels() {
-	s_inner.refreshPanels(s_panels);
 	e_inner.refreshPanels(e_panels);
-	if (_stickersShown) {
-		updatePanelsPositions(s_panels, s_scroll.scrollTop());
-	} else {
+	s_inner.refreshPanels(s_panels);
+	if (_emojiShown) {
 		updatePanelsPositions(e_panels, e_scroll.scrollTop());
+	} else {
+		updatePanelsPositions(s_panels, s_scroll.scrollTop());
 	}
 }
 
 void EmojiPan::leaveToChildEvent(QEvent *e, QWidget *child) {
-	if (!_stickersShown) return;
+	if (_emojiShown) return;
 	_iconsMousePos = QCursor::pos();
 	updateSelected();
 }
@@ -3089,14 +3346,14 @@ void EmojiPan::updateSelected() {
 }
 
 void EmojiPan::updateIcons() {
-	if (!_stickersShown || !s_inner.showSectionIcons()) return;
+	if (_emojiShown || !s_inner.showSectionIcons()) return;
 
 	QRect r(st::defaultDropdownPadding.left(), st::defaultDropdownPadding.top(), _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right(), _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom());
 	update(r.left(), _iconsTop, r.width(), st::emojiCategory.height);
 }
 
 void EmojiPan::step_icons(uint64 ms, bool timer) {
-	if (!_stickersShown) {
+	if (_emojiShown) {
 		_a_icons.stop();
 		return;
 	}
@@ -3135,46 +3392,16 @@ void EmojiPan::step_icons(uint64 ms, bool timer) {
 	}
 }
 
-void EmojiPan::step_slide(float64 ms, bool timer) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
-	if (dt2 >= 1) {
-		_a_slide.stop();
-		a_fromCoord.finish();
-		a_fromAlpha.finish();
-		a_toCoord.finish();
-		a_toAlpha.finish();
-		_fromCache = _toCache = QPixmap();
-		if (_cache.isNull()) showAll();
-	} else {
-		a_fromCoord.update(dt1, anim::easeInCirc);
-		a_fromAlpha.update(dt1, anim::easeOutCirc);
-		a_toCoord.update(dt2, anim::easeOutCirc);
-		a_toAlpha.update(dt2, anim::easeInCirc);
-	}
-	if (timer) update();
-}
-
-void EmojiPan::step_appearance(float64 ms, bool timer) {
-	if (_cache.isNull()) {
-		_a_appearance.stop();
-		return;
-	}
-
-	float64 dt = ms / st::defaultDropdownDuration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_opacity.finish();
+void EmojiPan::opacityAnimationCallback() {
+	update();
+	if (!_a_opacity.animating()) {
 		if (_hiding) {
-			hideFinish();
-		} else {
-			_cache = QPixmap();
-			if (_toCache.isNull()) showAll();
+			_hiding = false;
+			hideFinished();
+		} else if (!_a_show.animating() && !_a_slide.animating()) {
+			showAll();
 		}
-	} else {
-		a_opacity.update(dt, anim::linear);
 	}
-	if (timer) update();
 }
 
 void EmojiPan::hideByTimerOrLeave() {
@@ -3183,32 +3410,84 @@ void EmojiPan::hideByTimerOrLeave() {
 	hideAnimated();
 }
 
-void EmojiPan::prepareShowHideCache() {
-	if (_cache.isNull()) {
-		QPixmap from = _fromCache, to = _toCache;
-		_fromCache = _toCache = QPixmap();
-		showAll();
-		_cache = myGrab(this, rect().marginsRemoved(st::defaultDropdownPadding));
-		_fromCache = from; _toCache = to;
+void EmojiPan::prepareCache() {
+	if (_a_opacity.animating()) return;
+
+	auto showAnimation = base::take(_a_show);
+	auto showAnimationData = base::take(_showAnimation);
+	auto slideAnimation = base::take(_slideAnimation);
+	showAll();
+	_cache = myGrab(this);
+	_slideAnimation = base::take(slideAnimation);
+	_showAnimation = base::take(showAnimationData);
+	_a_show = base::take(showAnimation);
+	if (_a_show.animating()) {
+		hideAll();
 	}
 }
 
-void EmojiPan::hideAnimated() {
-	if (_hiding) return;
-
-	prepareShowHideCache();
+void EmojiPan::startOpacityAnimation(bool hiding) {
+	_hiding = false;
+	prepareCache();
+	_hiding = hiding;
 	hideAll();
-	_hiding = true;
-	a_opacity.start(0);
-	_a_appearance.start();
+	_a_opacity.start([this] { opacityAnimationCallback(); }, _hiding ? 1. : 0., _hiding ? 0. : 1., st::emojiPanDuration);
 }
 
-void EmojiPan::hideFinish() {
+void EmojiPan::startShowAnimation() {
+	if (!_a_show.animating()) {
+		auto cache = base::take(_cache);
+		auto opacityAnimation = base::take(_a_opacity);
+		auto slideAnimationData = base::take(_slideAnimation);
+		auto slideAnimation = base::take(_a_slide);
+		showAll();
+		auto image = grabForPanelAnimation();
+		_a_slide = base::take(slideAnimation);
+		_slideAnimation = base::take(slideAnimationData);
+		_a_opacity = base::take(opacityAnimation);
+		_cache = base::take(_cache);
+
+		_showAnimation = std_::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, _origin);
+		auto inner = rect().marginsRemoved(st::defaultDropdownPadding);
+		_showAnimation->setFinalImage(std_::move(image), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
+		auto corners = App::cornersMask(ImageRoundRadius::Small);
+		_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
+		_showAnimation->start();
+	}
+	hideAll();
+	_a_show.start([this] { update(); }, 0., 1., st::emojiPanShowDuration);
+}
+
+QImage EmojiPan::grabForPanelAnimation() {
+	myEnsureResized(this);
+	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	_inPanelGrab = true;
+	render(&result);
+	_inPanelGrab = false;
+	return std_::move(result);
+}
+
+void EmojiPan::hideAnimated() {
+	if (isHidden()) return;
+	if (_hiding) return;
+
+	_hideTimer.stop();
+	startOpacityAnimation(true);
+}
+
+EmojiPan::~EmojiPan() = default;
+
+void EmojiPan::hideFinished() {
 	hide();
 	e_inner.hideFinish();
 	s_inner.hideFinish(true);
-	_cache = _toCache = _fromCache = QPixmap();
-	_a_slide.stop();
+	_a_show.finish();
+	_showAnimation.reset();
+	_a_slide.finish();
+	_slideAnimation.reset();
+	_cache = QPixmap();
 	_horizontal = false;
 	_hiding = false;
 
@@ -3227,37 +3506,43 @@ void EmojiPan::hideFinish() {
 	Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 }
 
-void EmojiPan::showAnimated() {
-	if (!isHidden() && !_hiding) {
-		return;
-	}
+void EmojiPan::setOrigin(Ui::PanelAnimation::Origin origin) {
+	_origin = origin;
+}
+
+void EmojiPan::showAnimated(Ui::PanelAnimation::Origin origin) {
+	setOrigin(origin);
+	_hideTimer.stop();
+	showStarted();
+}
+
+void EmojiPan::showStarted() {
 	if (isHidden()) {
 		e_inner.refreshRecent();
 		if (s_inner.inlineResultsShown() && refreshInlineRows()) {
-			_stickersShown = true;
+			_emojiShown = false;
 			_shownFromInlineQuery = true;
 		} else {
 			s_inner.refreshRecent();
-			_stickersShown = false;
+			_emojiShown = true;
 			_shownFromInlineQuery = false;
 			_cache = QPixmap(); // clear after refreshInlineRows()
 		}
 		recountContentMaxHeight();
 		s_inner.preloadImages();
-		_fromCache = _toCache = QPixmap();
-		_a_slide.stop();
+		_a_slide.finish();
+		_slideAnimation.reset();
 		moveBottom(y() + height(), true);
-	} else if (_hiding) {
-		if (s_inner.inlineResultsShown() && refreshInlineRows()) {
-			onSwitch();
-		}
+		show();
+		startShowAnimation();
+		return;
+	} else if (!_hiding) {
+		return;
 	}
-	prepareShowHideCache();
-	hideAll();
-	_hiding = false;
-	show();
-	a_opacity.start(1);
-	_a_appearance.start();
+	if (s_inner.inlineResultsShown() && refreshInlineRows()) {
+		onSwitch();
+	}
+	startOpacityAnimation(false);
 	emit updateStickers();
 }
 
@@ -3277,7 +3562,7 @@ bool EmojiPan::eventFilter(QObject *obj, QEvent *e) {
 	} else if (e->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton/* && !dynamic_cast<StickerPan*>(obj)*/) {
 		if (isHidden() || _hiding) {
 			_hideTimer.stop();
-			showAnimated();
+			showAnimated(_origin);
 		} else {
 			hideAnimated();
 		}
@@ -3286,59 +3571,46 @@ bool EmojiPan::eventFilter(QObject *obj, QEvent *e) {
 }
 
 void EmojiPan::stickersInstalled(uint64 setId) {
-	_stickersShown = true;
+	_emojiShown = false;
 	if (isHidden()) {
 		moveBottom(y() + height(), true);
+		startShowAnimation();
 		show();
-		a_opacity = anim::fvalue(0, 1);
-		a_opacity.update(0, anim::linear);
-		_cache = _fromCache = _toCache = QPixmap();
 	}
 	showAll();
 	s_inner.showStickerSet(setId);
 	updateContentHeight();
-	showAnimated();
+	showAnimated(Ui::PanelAnimation::Origin::BottomRight);
 }
 
 void EmojiPan::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
-	if (_stickersShown && !isHidden()) {
+	if (!_emojiShown && !isHidden()) {
 		s_inner.notify_inlineItemLayoutChanged(layout);
 	}
 }
 
 void EmojiPan::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
-	if (_stickersShown && !isHidden()) {
+	if (!_emojiShown && !isHidden()) {
 		s_inner.ui_repaintInlineItem(layout);
 	}
 }
 
 bool EmojiPan::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
-	if (_stickersShown && !isHidden()) {
+	if (!_emojiShown && !isHidden()) {
 		return s_inner.ui_isInlineItemVisible(layout);
 	}
 	return false;
 }
 
 bool EmojiPan::ui_isInlineItemBeingChosen() {
-	if (_stickersShown && !isHidden()) {
+	if (!_emojiShown && !isHidden()) {
 		return s_inner.ui_isInlineItemBeingChosen();
 	}
 	return false;
 }
 
 void EmojiPan::showAll() {
-	if (_stickersShown) {
-		s_scroll.show();
-		_recent->hide();
-		_people->hide();
-		_nature->hide();
-		_food->hide();
-		_activity->hide();
-		_travel->hide();
-		_objects->hide();
-		_symbols->hide();
-		e_scroll.hide();
-	} else {
+	if (_emojiShown) {
 		s_scroll.hide();
 		_recent->show();
 		_people->show();
@@ -3349,6 +3621,17 @@ void EmojiPan::showAll() {
 		_objects->show();
 		_symbols->show();
 		e_scroll.show();
+	} else {
+		s_scroll.show();
+		_recent->hide();
+		_people->hide();
+		_nature->hide();
+		_food->hide();
+		_activity->hide();
+		_travel->hide();
+		_objects->hide();
+		_symbols->hide();
+		e_scroll.hide();
 	}
 }
 
@@ -3454,11 +3737,65 @@ void EmojiPan::validateSelectedIcon(ValidateIconAnimations animations) {
 	}
 }
 
+style::margins EmojiPan::innerPadding() const {
+	return st::defaultDropdownPadding;
+}
+
+QRect EmojiPan::innerRect() const {
+	return rect().marginsRemoved(innerPadding());
+}
+
+QRect EmojiPan::horizontalRect() const {
+	return innerRect().marginsRemoved(style::margins(0, st::buttonRadius, 0, st::buttonRadius));
+}
+
+QRect EmojiPan::verticalRect() const {
+	return innerRect().marginsRemoved(style::margins(st::buttonRadius, 0, st::buttonRadius, 0));
+}
+
 void EmojiPan::onSwitch() {
-	QPixmap cache = _cache;
-	_fromCache = myGrab(this, rect().marginsRemoved(st::defaultDropdownPadding));
-	_stickersShown = !_stickersShown;
-	if (!_stickersShown) {
+	auto cache = base::take(_cache);
+	auto opacityAnimation = base::take(_a_opacity);
+	auto showAnimationData = base::take(_showAnimation);
+	auto showAnimation = base::take(_a_show);
+
+	showAll();
+	auto leftImage = grabForPanelAnimation();
+	performSwitch();
+	showAll();
+	auto rightImage = grabForPanelAnimation();
+	if (_emojiShown) {
+		std_::swap_moveable(leftImage, rightImage);
+	}
+
+	_a_show = base::take(showAnimation);
+	_showAnimation = base::take(showAnimationData);
+	_a_opacity = base::take(opacityAnimation);
+	_cache = base::take(_cache);
+
+	auto direction = _emojiShown ? SlideAnimation::Direction::LeftToRight : SlideAnimation::Direction::RightToLeft;
+	_slideAnimation = std_::make_unique<SlideAnimation>();
+	auto inner = rect().marginsRemoved(st::defaultDropdownPadding);
+	_slideAnimation->setFinalImages(direction, std_::move(leftImage), std_::move(rightImage), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
+	auto corners = App::cornersMask(ImageRoundRadius::Small);
+	_slideAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
+	_slideAnimation->start();
+
+	hideAll();
+
+	if (_emojiShown) {
+		s_inner.hideFinish(false);
+	} else {
+		e_inner.hideFinish();
+	}
+
+	_a_slide.start([this] { update(); }, 0., 1., st::emojiPanSlideDuration, anim::linear);
+	update();
+}
+
+void EmojiPan::performSwitch() {
+	_emojiShown = !_emojiShown;
+	if (_emojiShown) {
 		Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 	} else {
 		if (cShowingSavedGifs() && cSavedGifs().isEmpty()) {
@@ -3478,27 +3815,6 @@ void EmojiPan::onSwitch() {
 	_iconHovers = _icons.isEmpty() ? QVector<float64>() : QVector<float64>(_icons.size(), 0);
 	_iconAnimations.clear();
 	_a_icons.stop();
-
-	_cache = QPixmap();
-	showAll();
-	_toCache = myGrab(this, rect().marginsRemoved(st::defaultDropdownPadding));
-	_cache = cache;
-
-	hideAll();
-
-	if (_stickersShown) {
-		e_inner.hideFinish();
-	} else {
-		s_inner.hideFinish(false);
-	}
-
-	a_toCoord = (_stickersShown != rtl()) ? anim::ivalue(st::emojiPanWidth, 0) : anim::ivalue(-st::emojiPanWidth, 0);
-	a_toAlpha = anim::fvalue(0, 1);
-	a_fromCoord = (_stickersShown != rtl()) ? anim::ivalue(0, -st::emojiPanWidth) : anim::ivalue(0, st::emojiPanWidth);
-	a_fromAlpha = anim::fvalue(1, 0);
-
-	_a_slide.start();
-	update();
 }
 
 void EmojiPan::onDisplaySet(quint64 setId) {
@@ -3593,11 +3909,11 @@ void EmojiPan::onDelayedHide() {
 void EmojiPan::clearInlineBot() {
 	inlineBotChanged();
 	e_switch.updateText();
-	e_switch.moveToRight(0, 0, st::emojiPanWidth);
+	e_switch.moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
 }
 
 bool EmojiPan::hideOnNoInlineResults() {
-	return _inlineBot && _stickersShown && s_inner.inlineResultsShown() && (_shownFromInlineQuery || _inlineBot->username != cInlineGifBotUsername());
+	return _inlineBot && !_emojiShown && s_inner.inlineResultsShown() && (_shownFromInlineQuery || _inlineBot->username != cInlineGifBotUsername());
 }
 
 void EmojiPan::inlineBotChanged() {
@@ -3743,7 +4059,7 @@ bool EmojiPan::refreshInlineRows(int32 *added) {
 		}
 		_inlineNextOffset = i.value()->nextOffset;
 	}
-	if (!entry) prepareShowHideCache();
+	if (!entry) prepareCache();
 	int32 result = s_inner.refreshInlineRows(_inlineBot, entry, false);
 	if (added) *added = result;
 	return (entry != nullptr);
@@ -3770,8 +4086,8 @@ int32 EmojiPan::showInlineRows(bool newResults) {
 	} else {
 		_hideTimer.stop();
 		if (hidden || _hiding) {
-			showAnimated();
-		} else if (!_stickersShown) {
+			showAnimated(_origin);
+		} else if (_emojiShown) {
 			onSwitch();
 		}
 	}

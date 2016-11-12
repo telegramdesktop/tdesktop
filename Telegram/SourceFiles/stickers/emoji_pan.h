@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/twidget.h"
 #include "ui/effects/rect_shadow.h"
 #include "ui/abstract_button.h"
+#include "ui/effects/panel_animation.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -60,7 +61,6 @@ class EmojiColorPicker : public TWidget {
 	Q_OBJECT
 
 public:
-
 	EmojiColorPicker();
 
 	void showEmoji(uint32 code);
@@ -345,6 +345,7 @@ private:
 	void appendSet(Sets &to, uint64 setId, AppendSkip skip);
 
 	void selectEmoji(EmojiPtr emoji);
+	int stickersLeft() const;
 	QRect stickerRect(int tab, int sel);
 
 	int32 _maxHeight;
@@ -510,8 +511,6 @@ public:
 		return _hiding || _hideTimer.isActive();
 	}
 
-	void step_appearance(float64 ms, bool timer);
-	void step_slide(float64 ms, bool timer);
 	void step_icons(uint64 ms, bool timer);
 
 	bool eventFilter(QObject *obj, QEvent *e);
@@ -535,12 +534,11 @@ public:
 	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 
-	bool inlineResultsShown() const {
-		return s_inner.inlineResultsShown();
-	}
-
-	void showAnimated();
+	void setOrigin(Ui::PanelAnimation::Origin origin);
+	void showAnimated(Ui::PanelAnimation::Origin origin);
 	void hideAnimated();
+
+	~EmojiPan();
 
 public slots:
 	void refreshStickers();
@@ -548,8 +546,6 @@ public slots:
 private slots:
 	void hideByTimerOrLeave();
 	void refreshSavedGifs();
-
-	void hideFinish();
 
 	void onWndActiveChanged();
 
@@ -581,6 +577,33 @@ signals:
 	void updateStickers();
 
 private:
+	void paintContent(Painter &p);
+	void performSwitch();
+
+	style::margins innerPadding() const;
+
+	// Rounded rect which has shadow around it.
+	QRect innerRect() const;
+
+	// Inner rect with removed st::buttonRadius from top and bottom.
+	// This one is allowed to be not rounded.
+	QRect horizontalRect() const;
+
+	// Inner rect with removed st::buttonRadius from left and right.
+	// This one is allowed to be not rounded.
+	QRect verticalRect() const;
+
+	QImage grabForPanelAnimation();
+	void startShowAnimation();
+	void startOpacityAnimation(bool hiding);
+	void prepareCache();
+
+	class Container;
+	void opacityAnimationCallback();
+
+	void hideFinished();
+	void showStarted();
+
 	bool preventAutoHide() const;
 	void installSetDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installSetFail(uint64 setId, const RPCError &error);
@@ -599,7 +622,6 @@ private:
 	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child);
-	void prepareShowHideCache();
 
 	void updateSelected();
 	void updateIcons();
@@ -614,15 +636,20 @@ private:
 	bool _horizontal = false;
 
 	int32 _width, _height, _bottom;
+
+	Ui::PanelAnimation::Origin _origin = Ui::PanelAnimation::Origin::BottomRight;
+	std_::unique_ptr<Ui::PanelAnimation> _showAnimation;
+	FloatAnimation _a_show;
+
 	bool _hiding = false;
 	QPixmap _cache;
-
-	anim::fvalue a_opacity = { 0. };
-	Animation _a_appearance;
-
+	FloatAnimation _a_opacity;
 	QTimer _hideTimer;
+	bool _inPanelGrab = false;
 
-	Ui::RectShadow _shadow;
+	class SlideAnimation;
+	std_::unique_ptr<SlideAnimation> _slideAnimation;
+	FloatAnimation _a_slide;
 
 	ChildWidget<Ui::IconButton> _recent;
 	ChildWidget<Ui::IconButton> _people;
@@ -651,12 +678,8 @@ private:
 	anim::ivalue _iconSelX = { 0, 0 };
 	uint64 _iconsStartAnim = 0;
 
-	bool _stickersShown = false;
+	bool _emojiShown = true;
 	bool _shownFromInlineQuery = false;
-	QPixmap _fromCache, _toCache;
-	anim::ivalue a_fromCoord, a_toCoord;
-	anim::fvalue a_fromAlpha, a_toAlpha;
-	Animation _a_slide;
 
 	ScrollArea e_scroll;
 	internal::EmojiPanInner e_inner;

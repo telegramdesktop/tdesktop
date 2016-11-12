@@ -109,7 +109,7 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 	if (_a_show.animating(ms)) {
 		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {
-			p.drawImage(0, 0, _showAnimation->getFrame(_a_show.current(1.), opacity));
+			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
 		}
 	} else if (_a_opacity.animating(ms)) {
 		p.setOpacity(_a_opacity.current(0.));
@@ -117,7 +117,7 @@ void PopupMenu::paintEvent(QPaintEvent *e) {
 	} else if (_hiding || isHidden()) {
 		hideFinished();
 	} else if (_showAnimation) {
-		p.drawImage(0, 0, _showAnimation->getFrame(1., 1.));
+		_showAnimation->paintFrame(p, 0, 0, width(), 1., 1.);
 		_showAnimation.reset();
 		showChildren();
 	} else {

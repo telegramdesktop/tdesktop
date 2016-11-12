@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <QtCore/QReadWriteLock>
 
+#include "core/build_config.h"
 #include "core/stl_subset.h"
 #include "core/ordered_set.h"
 

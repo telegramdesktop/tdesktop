@@ -2732,40 +2732,74 @@ namespace {
 		}
 		return ::cornersMaskSmall;
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &c, const style::color *sh) {
-		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
-		if (w < 2 * cw || h < 2 * ch) return;
-		if (w > 2 * cw) {
-			p.fillRect(QRect(x + cw, y, w - 2 * cw, ch), bg->b);
-			p.fillRect(QRect(x + cw, y + h - ch, w - 2 * cw, ch), bg->b);
-			if (sh) p.fillRect(QRect(x + cw, y + h, w - 2 * cw, st::msgShadow), (*sh)->b);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
+		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
+		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
+		if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
+		if (w > 2 * cornerWidth) {
+			if (parts & RectPart::Top) {
+				p.fillRect(x + cornerWidth, y, w - 2 * cornerWidth, cornerHeight, bg);
+			}
+			if (parts & RectPart::Bottom) {
+				p.fillRect(x + cornerWidth, y + h - cornerHeight, w - 2 * cornerWidth, cornerHeight, bg);
+				if (shadow) {
+					p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, *shadow);
+				}
+			}
 		}
-		if (h > 2 * ch) {
-			p.fillRect(QRect(x, y + ch, w, h - 2 * ch), bg->b);
+		if (h > 2 * cornerHeight) {
+			if ((parts & RectPart::NoTopBottom) == qFlags(RectPart::NoTopBottom)) {
+				p.fillRect(x, y + cornerHeight, w, h - 2 * cornerHeight, bg);
+			} else {
+				if (parts & RectPart::Left) {
+					p.fillRect(x, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
+				}
+				if ((parts & RectPart::Center) && w > 2 * cornerWidth) {
+					p.fillRect(x + cornerWidth, y + cornerHeight, w - 2 * cornerWidth, h - 2 * cornerHeight, bg);
+				}
+				if (parts & RectPart::Right) {
+					p.fillRect(x + w - cornerWidth, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
+				}
+			}
 		}
-		p.drawPixmap(QPoint(x, y), *c.p[0]);
-		p.drawPixmap(QPoint(x + w - cw, y), *c.p[1]);
-		p.drawPixmap(QPoint(x, y + h - ch), *c.p[2]);
-		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c.p[3]);
+		if (parts & RectPart::TopLeft) {
+			p.drawPixmap(x, y, *corner.p[0]);
+		}
+		if (parts & RectPart::TopRight) {
+			p.drawPixmap(x + w - cornerWidth, y, *corner.p[1]);
+		}
+		if (parts & RectPart::BottomLeft) {
+			p.drawPixmap(x, y + h - cornerHeight, *corner.p[2]);
+		}
+		if (parts & RectPart::BottomRight) {
+			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight, *corner.p[3]);
+		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
-		roundRect(p, x, y, w, h, bg, ::corners[index], sh);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *shadow, RectParts parts) {
+		roundRect(p, x, y, w, h, bg, ::corners[index], shadow, parts);
 	}
 
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
-		const CornersPixmaps &c = ::corners[index];
-		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
-		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);
-		p.fillRect(x, y + h - ch, cw, st::msgShadow, sh->b);
-		p.fillRect(x + w - cw, y + h - ch, cw, st::msgShadow, sh->b);
-		p.drawPixmap(x, y + h - ch + st::msgShadow, *c.p[2]);
-		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c.p[3]);
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &shadow, RoundCorners index, RectParts parts) {
+		auto &corner = ::corners[index];
+		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
+		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
+		if (parts & RectPart::Bottom) {
+			p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, shadow);
+		}
+		if (parts & RectPart::BottomLeft) {
+			p.fillRect(x, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
+			p.drawPixmap(x, y + h - cornerHeight + st::msgShadow, *corner.p[2]);
+		}
+		if (parts & RectPart::BottomRight) {
+			p.fillRect(x + w - cornerWidth, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
+			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight + st::msgShadow, *corner.p[3]);
+		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius) {
-		uint32 colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
-		CornersMap::const_iterator i = cornersMap.find(colorKey);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius, RectParts parts) {
+		auto colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
+		auto i = cornersMap.find(colorKey);
 		if (i == cornersMap.cend()) {
 			QImage images[4];
 			switch (radius) {
@@ -2781,7 +2815,7 @@ namespace {
 			}
 			i = cornersMap.insert(colorKey, pixmaps);
 		}
-		roundRect(p, x, y, w, h, bg, i.value(), 0);
+		roundRect(p, x, y, w, h, bg, i.value(), nullptr, parts);
 	}
 
 	WallPapers gServerBackgrounds;
