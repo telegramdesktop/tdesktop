@@ -21,19 +21,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "intro/introwidget.h"
-
-class FlatInput;
+#include "ui/widgets/input_fields.h"
 
 namespace Ui {
 class RoundButton;
 class LinkButton;
 } // namespace Ui
 
-class CodeInput final : public FlatInput {
+class CodeInput final : public Ui::FlatInput {
 	Q_OBJECT
 
 public:
-	CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph);
+	CodeInput(QWidget *parent, const style::FlatInput &st, const QString &ph);
 
 signals:
 	void codeEntered();

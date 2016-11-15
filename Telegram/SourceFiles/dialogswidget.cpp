@@ -40,6 +40,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/widgets/input_fields.h"
 #include "autoupdater.h"
 
 DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(parent)
@@ -47,7 +48,7 @@ DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(pare
 , contactsNoDialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , contacts(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _addContactLnk(this, lang(lng_add_contact_button))
-, _cancelSearchInPeer(this, st::dialogsCancelSearch) {
+, _cancelSearchInPeer(this, st::dialogsCancelSearchInPeer) {
 	if (Global::DialogsModeEnabled()) {
 		importantDialogs = std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 	}

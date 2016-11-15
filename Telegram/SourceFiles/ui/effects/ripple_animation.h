@@ -18,67 +18,45 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
+#pragma once
 
-textStyle {
-	linkFlags: font;
-	linkFlagsOver: font;
-	linkFg: color;
-	linkFgDown: color;
-	monoFg: color;
-	selectBg: color;
-	selectOverlay: color;
-	lineHeight: pixels;
-}
+#include "styles/style_widgets.h"
 
-flatScroll {
-	barColor: color;
-	bgColor: color;
-	barOverColor: color;
-	bgOverColor: color;
+namespace Ui {
 
-	round: pixels;
+class RippleAnimation {
+public:
+	using UpdateCallback = base::lambda_wrap<void()>;
 
-	width: pixels;
-	minHeight: pixels;
-	deltax: pixels;
-	deltat: pixels;
-	deltab: pixels;
+	// White upon transparent mask, like colorizeImage(black-white-mask, white).
+	RippleAnimation(const style::RippleAnimation &st, QImage mask, UpdateCallback update);
 
-	topsh: pixels;
-	bottomsh: pixels;
-	shColor: color;
+	void setMask(QImage &&mask);
 
-	duration: int;
-	hiding: int;
-}
+	void add(QPoint origin, int startRadius = 0);
+	void stopLast();
 
-flatLabel {
-	font: font;
-	margin: margins;
-	width: pixels;
-	align: align;
-	textFg: color;
-	maxHeight: pixels;
-}
+	void paint(QPainter &p, int x, int y, int outerWidth, uint64 ms);
 
-Tooltip {
-	textBg: color;
-	textFg: color;
-	textFont: font;
-	textBorder: color;
-	textPadding: margins;
+	bool empty() const {
+		return _ripples.isEmpty();
+	}
 
-	shift: point;
-	skip: pixels;
+	~RippleAnimation() {
+		clear();
+	}
 
-	widthMax: pixels;
-	linesMax: int;
-}
+private:
+	void clear();
+	void clearFinished();
 
-botKeyboardButton {
-	margin: pixels;
-	padding: pixels;
-	height: pixels;
-	textTop: pixels;
-	downTextTop: pixels;
-}
+	const style::RippleAnimation &_st;
+	QPixmap _mask;
+	UpdateCallback _update;
+
+	class Ripple;
+	QList<Ripple*> _ripples;
+
+};
+
+} // namespace Ui

@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
 #include "window/slide_animation.h"
 

@@ -27,7 +27,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "history/history_location_manager.h"
+#include "styles/style_boxes.h"
 
 ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
 , _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), Global::ConnectionProxy().host)

@@ -20,11 +20,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/flatinput.h"
 #include "intro/introwidget.h"
 
 namespace Ui {
 class RoundButton;
+class FlatInput;
 } // namespace Ui
 
 class IntroSignup final : public IntroStep {
@@ -72,8 +72,8 @@ private:
 	QPixmap _photoSmall;
 	int32 _phLeft, _phTop;
 
-	ChildWidget<FlatInput> _first;
-	ChildWidget<FlatInput> _last;
+	ChildWidget<Ui::FlatInput> _first;
+	ChildWidget<Ui::FlatInput> _last;
 	QString _firstName, _lastName;
 	mtpRequestId _sentRequest = 0;
 

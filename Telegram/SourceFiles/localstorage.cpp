@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "lang.h"
 #include "media/media_audio.h"
+#include "ui/widgets/input_fields.h"
 #include "application.h"
 #include "apiwrap.h"
 
@@ -2369,8 +2370,8 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 			_writeMap(WriteMapFast);
 		}
 
-		auto msgTags = FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
-		auto editTags = FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
+		auto msgTags = Ui::FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
+		auto editTags = Ui::FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
 
 		int size = sizeof(quint64);
 		size += Serialize::stringSize(localDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
@@ -2476,8 +2477,8 @@ void readDraftsWithCursors(History *h) {
 		return;
 	}
 
-	msgData.tags = FlatTextarea::deserializeTagsList(msgTagsSerialized, msgData.text.size());
-	editData.tags = FlatTextarea::deserializeTagsList(editTagsSerialized, editData.text.size());
+	msgData.tags = Ui::FlatTextarea::deserializeTagsList(msgTagsSerialized, msgData.text.size());
+	editData.tags = Ui::FlatTextarea::deserializeTagsList(editTagsSerialized, editData.text.size());
 
 	MessageCursor msgCursor, editCursor;
 	_readDraftCursors(peer, msgCursor, editCursor);

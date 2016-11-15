@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "window/window_theme.h"
 #include "styles/style_overview.h"
+#include "styles/style_boxes.h"
 
 BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
 , _inner(this) {

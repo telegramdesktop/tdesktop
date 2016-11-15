@@ -22,12 +22,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/intropwdcheck.h"
 
 #include "styles/style_intro.h"
+#include "styles/style_boxes.h"
 #include "ui/filedialog.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "application.h"
 #include "intro/introsignup.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 
 IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -36,8 +38,8 @@ IntroPwdCheck::IntroPwdCheck(IntroWidget *parent) : IntroStep(parent)
 , _salt(parent->getPwdSalt())
 , _hasRecovery(parent->getHasRecovery())
 , _hint(parent->getPwdHint())
-, _pwdField(this, st::inpIntroPassword, lang(lng_signin_password))
-, _codeField(this, st::inpIntroPassword, lang(lng_signin_code))
+, _pwdField(this, st::introPassword, lang(lng_signin_password))
+, _codeField(this, st::introPassword, lang(lng_signin_code))
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
 , _reset(this, lang(lng_signin_reset_account), st::introResetLink)

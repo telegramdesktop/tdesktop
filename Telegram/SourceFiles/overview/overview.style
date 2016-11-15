@@ -118,7 +118,7 @@ overviewLinksChecked: icon {
 	{ "overview_links_check", #ffffff, point(4px, 5px) },
 };
 
-overviewFilter: flatInput(inpDefGray) {
+overviewFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
 	bgColor: #f2f2f2;
 	phColor: #949494;

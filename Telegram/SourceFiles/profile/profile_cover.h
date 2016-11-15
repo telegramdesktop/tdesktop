@@ -25,6 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class FlatLabel;
 
+namespace style {
+struct RoundButton;
+} // namespace style
+
 namespace Ui {
 class RoundButton;
 class LinkButton;

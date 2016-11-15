@@ -49,8 +49,8 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 , _a_error(animation(this, &IntroPhone::step_error))
 , _next(this, lang(lng_intro_next), st::introNextButton)
 , _country(this, st::introCountry)
-, _phone(this, st::inpIntroPhone)
-, _code(this, st::inpIntroCountryCode)
+, _phone(this, st::introPhone)
+, _code(this, st::introCountryCode)
 , _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), FlatLabel::InitType::Rich, st::introErrorLabel, st::introErrorLabelTextStyle)
 , _checkRequest(this) {
 	setVisible(false);
@@ -110,7 +110,7 @@ void IntroPhone::resizeEvent(QResizeEvent *e) {
 		_next->move((width() - _next->width()) / 2, st::introBtnTop);
 		_country->move((width() - _country->width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
 		int phoneTop = _country->y() + _country->height() + st::introPhoneTop;
-		_phone->move((width() - _country->width()) / 2 + _country->width() - st::inpIntroPhone.width, phoneTop);
+		_phone->move((width() - _country->width()) / 2 + _country->width() - st::introPhone.width, phoneTop);
 		_code->move((width() - _country->width()) / 2, phoneTop);
 	}
 	_signup->move((width() - _signup->width()) / 2, _next->y() + _next->height() + st::introErrorTop - ((st::introErrorLabelTextStyle.lineHeight - st::introErrorFont->height) / 2));

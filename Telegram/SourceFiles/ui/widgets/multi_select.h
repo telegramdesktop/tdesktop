@@ -22,10 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_widgets.h"
 
-class InputField;
-
 namespace Ui {
 
+class InputField;
 class IconButton;
 
 class MultiSelect : public TWidget {
@@ -153,7 +152,7 @@ private:
 	int _fieldLeft = 0;
 	int _fieldTop = 0;
 	int _fieldWidth = 0;
-	ChildWidget<InputField> _field;
+	ChildWidget<Ui::InputField> _field;
 	ChildWidget<Ui::IconButton> _cancel;
 
 	int _newHeight = 0;

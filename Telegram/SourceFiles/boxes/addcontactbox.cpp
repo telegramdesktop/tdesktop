@@ -31,6 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"

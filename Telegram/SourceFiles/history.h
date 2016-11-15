@@ -152,7 +152,30 @@ struct SendAction {
 	int32 progress;
 };
 
-using TextWithTags = FlatTextarea::TextWithTags;
+struct TextWithTags {
+	struct Tag {
+		int offset, length;
+		QString id;
+	};
+	using Tags = QVector<Tag>;
+
+	QString text;
+	Tags tags;
+};
+
+inline bool operator==(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
+	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
+}
+inline bool operator!=(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const TextWithTags &a, const TextWithTags &b) {
+	return (a.text == b.text) && (a.tags == b.tags);
+}
+inline bool operator!=(const TextWithTags &a, const TextWithTags &b) {
+	return !(a == b);
+}
 
 namespace Data {
 struct Draft;

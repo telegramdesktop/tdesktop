@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class Radiobutton;
 class RoundButton;
+class InputArea;
 } // namespace Ui
 
 class ReportBox : public AbstractBox, public RPCSender {
@@ -59,7 +60,7 @@ private:
 	ChildWidget<Ui::Radiobutton> _reasonViolence;
 	ChildWidget<Ui::Radiobutton> _reasonPornography;
 	ChildWidget<Ui::Radiobutton> _reasonOther;
-	ChildWidget<InputArea> _reasonOtherText = { nullptr };
+	ChildWidget<Ui::InputArea> _reasonOtherText = { nullptr };
 
 	ChildWidget<Ui::RoundButton> _report, _cancel;
 

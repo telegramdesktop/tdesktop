@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "langloaderplain.h"
+#include "styles/style_boxes.h"
 
 LanguageBox::LanguageBox() :
 _close(this, lang(lng_box_ok), st::defaultBoxButton) {

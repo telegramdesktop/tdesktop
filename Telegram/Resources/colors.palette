@@ -37,6 +37,7 @@ imageBgTransparent: #ffffff;
 // widgets
 activeButtonBg: windowActiveBg;
 activeButtonBgOver: #46b4eb;
+activeButtonBgRipple: #177eb2;
 activeButtonFg: windowActiveFg;
 activeButtonFgOver: activeButtonFg;
 activeButtonSecondaryFg: #cceeff;
@@ -44,6 +45,7 @@ activeButtonSecondaryFgOver: activeButtonSecondaryFg;
 
 lightButtonBg: windowBg;
 lightButtonBgOver: #edf7ff;
+lightButtonBgRipple: #c7e1f6;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
@@ -91,6 +93,11 @@ boxBlockTitleFg: boxTitleFg;
 boxBlockTitleAdditionalFg: #808080;
 boxBlockTitleCloseFg: cancelIconFg;
 boxBlockTitleCloseFgOver: cancelIconFgOver;
+
+attentionBoxButtonFg: #ea4b2f;
+attentionBoxButtonFgOver: #ea4b2f;
+attentionBoxButtonBgOver: #fff0ed;
+attentionBoxButtonBgRipple: #efbcb2;
 
 membersAboutLimitFg: windowSubTextFg;
 
@@ -188,6 +195,7 @@ historyReplyCancelFgOver: cancelIconFgOver;
 
 historyComposeButtonBg: historyComposeAreaBg;
 historyComposeButtonBgOver: #f5f5f5;
+historyComposeButtonBgRipple: #e7e7e7;
 
 historyTextInFg: windowTextFg;
 historyTextOutFg: windowTextFg;

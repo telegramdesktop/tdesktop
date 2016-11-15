@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "boxes/confirmbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "mainwidget.h"
 #include "lang.h"
 
@@ -106,7 +107,7 @@ void ConfirmPhoneBox::launch() {
 	}
 	_about->setMarkedText(aboutText);
 
-	_code = new InputField(this, st::confirmPhoneCodeField, lang(lng_code_ph));
+	_code.create(this, st::confirmPhoneCodeField, lang(lng_code_ph));
 
 	_send.create(this, lang(lng_confirm_phone_send), st::defaultBoxButton);
 	_cancel.create(this, lang(lng_cancel), st::cancelBoxButton);
@@ -298,6 +299,10 @@ void ConfirmPhoneBox::resizeEvent(QResizeEvent *e) {
 	_cancel->moveToRight(st::boxButtonPadding.right() + _send->width() + st::boxButtonPadding.left(), _send->y());
 
 	AbstractBox::resizeEvent(e);
+}
+
+void ConfirmPhoneBox::doSetInnerFocus() {
+	_code->setFocus();
 }
 
 ConfirmPhoneBox::~ConfirmPhoneBox() {

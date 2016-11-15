@@ -436,7 +436,7 @@ void MainWindow::createGlobalMenu() {
 namespace {
 	void _sendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
 		QWidget *focused = QApplication::focusWidget();
-		if (qobject_cast<QLineEdit*>(focused) || qobject_cast<FlatTextarea*>(focused) || qobject_cast<HistoryInner*>(focused)) {
+		if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || qobject_cast<HistoryInner*>(focused)) {
 			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
 			QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 		}
@@ -498,11 +498,11 @@ void MainWindow::psMacUpdateMenu() {
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
 		canPaste = !Application::clipboard()->text().isEmpty();
-	} else if (auto edit = qobject_cast<FlatTextarea*>(focused)) {
+	} else if (auto edit = qobject_cast<QTextEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
-		canSelectAll = !edit->isEmpty();
-		canUndo = edit->isUndoAvailable();
-		canRedo = edit->isRedoAvailable();
+		canSelectAll = !edit->document()->isEmpty();
+		canUndo = edit->document()->isUndoAvailable();
+		canRedo = edit->document()->isRedoAvailable();
 		canPaste = !Application::clipboard()->text().isEmpty();
 	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
@@ -534,7 +534,7 @@ bool MainWindow::psFilterNativeEvent(void *event) {
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<FlatTextarea*>(obj) || qobject_cast<HistoryInner*>(obj)) {
+		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || qobject_cast<HistoryInner*>(obj)) {
 			psMacUpdateMenu();
 		}
 	}

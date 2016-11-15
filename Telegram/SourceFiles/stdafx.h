@@ -70,8 +70,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/animation.h"
 #include "ui/twidget.h"
-#include "ui/flatinput.h"
-#include "ui/flattextarea.h"
 #include "ui/scrollarea.h"
 #include "ui/images.h"
 #include "ui/text/text.h"

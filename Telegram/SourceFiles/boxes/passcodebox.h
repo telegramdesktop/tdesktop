@@ -23,6 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 
 namespace Ui {
+class InputField;
+class PasswordInput;
 class LinkButton;
 class RoundButton;
 } // namespace Ui
@@ -81,11 +83,11 @@ private:
 
 	ChildWidget<Ui::RoundButton> _saveButton;
 	ChildWidget<Ui::RoundButton> _cancelButton;
-	ChildWidget<PasswordField> _oldPasscode;
-	ChildWidget<PasswordField> _newPasscode;
-	ChildWidget<PasswordField> _reenterPasscode;
-	ChildWidget<InputField> _passwordHint;
-	ChildWidget<InputField> _recoverEmail;
+	ChildWidget<Ui::PasswordInput> _oldPasscode;
+	ChildWidget<Ui::PasswordInput> _newPasscode;
+	ChildWidget<Ui::PasswordInput> _reenterPasscode;
+	ChildWidget<Ui::InputField> _passwordHint;
+	ChildWidget<Ui::InputField> _recoverEmail;
 	ChildWidget<Ui::LinkButton> _recover;
 
 	QString _oldError, _newError, _emailError;
@@ -123,7 +125,7 @@ private:
 
 	ChildWidget<Ui::RoundButton> _saveButton;
 	ChildWidget<Ui::RoundButton> _cancelButton;
-	ChildWidget<InputField> _recoverCode;
+	ChildWidget<Ui::InputField> _recoverCode;
 
 	QString _error;
 

@@ -78,11 +78,12 @@ public:
 	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius);
 	QPixmap current(int framew, int frameh, int outerw, int outerh, uint64 ms);
 	QPixmap frameOriginal() const {
-		Frame *frame = frameToShow();
-		if (!frame) return QPixmap();
-		QPixmap result(frame ? QPixmap::fromImage(frame->original) : QPixmap());
-		result.detach();
-		return result;
+		if (auto frame = frameToShow()) {
+			auto result = QPixmap::fromImage(frame->original);
+			result.detach();
+			return result;
+		}
+		return QPixmap();
 	}
 	bool currentDisplayed() const {
 		Frame *frame = frameToShow();

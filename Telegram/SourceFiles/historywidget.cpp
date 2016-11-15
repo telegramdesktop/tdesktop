@@ -23,6 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_history.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photosendbox.h"
 #include "boxes/sharebox.h"
@@ -77,13 +79,13 @@ QMimeData *mimeDataFromTextWithEntities(const TextWithEntities &forClipboard) {
 		for (auto &tag : tags) {
 			tag.id = mimeTagFromTag(tag.id);
 		}
-		result->setData(FlatTextarea::tagsMimeType(), FlatTextarea::serializeTagsList(tags));
+		result->setData(Ui::FlatTextarea::tagsMimeType(), Ui::FlatTextarea::serializeTagsList(tags));
 	}
 	return result;
 }
 
 // For mention tags save and validate userId, ignore tags for different userId.
-class FieldTagMimeProcessor : public FlatTextarea::TagMimeProcessor {
+class FieldTagMimeProcessor : public Ui::FlatTextarea::TagMimeProcessor {
 public:
 	QString mimeTagFromTag(const QString &tagId) override {
 		return ::mimeTagFromTag(tagId);
@@ -2302,7 +2304,7 @@ void HistoryInner::onParentGeometryChanged() {
 	}
 }
 
-MessageField::MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph, const QString &val) : FlatTextarea(history, st, ph, val), history(history) {
+MessageField::MessageField(HistoryWidget *history, const style::FlatTextarea &st, const QString &ph, const QString &val) : Ui::FlatTextarea(history, st, ph, val), history(history) {
 	setMinHeight(st::historySend.height - 2 * st::historySendPadding);
 	setMaxHeight(st::historyComposeFieldMaxHeight);
 }
@@ -2976,7 +2978,7 @@ QPoint SilentToggle::tooltipPos() const {
 	return QCursor::pos();
 }
 
-EntitiesInText entitiesFromTextTags(const FlatTextarea::TagList &tags) {
+EntitiesInText entitiesFromTextTags(const TextWithTags::Tags &tags) {
 	EntitiesInText result;
 	if (tags.isEmpty()) {
 		return result;
@@ -3229,14 +3231,14 @@ void HistoryWidget::updateInlineBotQuery() {
 			MTP::cancel(_inlineBotResolveRequestId);
 			_inlineBotResolveRequestId = 0;
 		}
-		if (bot == LookingUpInlineBot) {
-			_inlineBot = LookingUpInlineBot;
+		if (bot == Ui::LookingUpInlineBot) {
+			_inlineBot = Ui::LookingUpInlineBot;
 //			Notify::inlineBotRequesting(true);
 			_inlineBotResolveRequestId = MTP::send(MTPcontacts_ResolveUsername(MTP_string(_inlineBotUsername)), rpcDone(&HistoryWidget::inlineBotResolveDone), rpcFail(&HistoryWidget::inlineBotResolveFail, _inlineBotUsername));
 			return;
 		}
-	} else if (bot == LookingUpInlineBot) {
-		if (_inlineBot == LookingUpInlineBot) {
+	} else if (bot == Ui::LookingUpInlineBot) {
+		if (_inlineBot == Ui::LookingUpInlineBot) {
 			return;
 		}
 		bot = _inlineBot;
@@ -4389,11 +4391,11 @@ void HistoryWidget::updateAfterDrag() {
 }
 
 void HistoryWidget::updateFieldSubmitSettings() {
-	FlatTextarea::SubmitSettings settings = FlatTextarea::SubmitSettings::Enter;
+	auto settings = Ui::FlatTextarea::SubmitSettings::Enter;
 	if (_inlineBotCancel) {
-		settings = FlatTextarea::SubmitSettings::None;
+		settings = Ui::FlatTextarea::SubmitSettings::None;
 	} else if (cCtrlEnter()) {
-		settings = FlatTextarea::SubmitSettings::CtrlEnter;
+		settings = Ui::FlatTextarea::SubmitSettings::CtrlEnter;
 	}
 	_field->setSubmitSettings(settings);
 }
@@ -5156,9 +5158,9 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 void HistoryWidget::onInlineBotCancel() {
 	auto &textWithTags = _field->getTextWithTags();
 	if (textWithTags.text.size() > _inlineBotUsername.size() + 2) {
-		setFieldText({ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
+		setFieldText({ '@' + _inlineBotUsername + ' ', TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
 	} else {
-		clearFieldText(TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
+		clearFieldText(TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
 	}
 }
 
@@ -5883,7 +5885,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 		auto &textWithTags = _field->getTextWithTags();
 		if (specialGif) {
 			if (textWithTags.text.trimmed() == '@' + cInlineGifBotUsername() && textWithTags.text.at(0) == '@') {
-				clearFieldText(TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
+				clearFieldText(TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
 			}
 		} else {
 			TextWithTags textWithTagsToSet;
@@ -5905,7 +5907,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 		}
 	} else {
 		if (!specialGif || _field->isEmpty()) {
-			setFieldText({ toInsert, TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, FlatTextarea::AddToUndoHistory);
+			setFieldText({ toInsert, TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
 			_field->setFocus();
 			return true;
 		}
@@ -6027,7 +6029,7 @@ void HistoryWidget::inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result)
 	QString inlineBotUsername;
 	auto query = _field->getInlineBotQuery(&bot, &inlineBotUsername);
 	if (inlineBotUsername == _inlineBotUsername) {
-		if (bot == LookingUpInlineBot) {
+		if (bot == Ui::LookingUpInlineBot) {
 			bot = resolvedBot;
 		}
 	} else {
@@ -6223,7 +6225,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 }
 
 void HistoryWidget::onCmdStart() {
-	setFieldText({ qsl("/"), TextWithTags::Tags() }, 0, FlatTextarea::AddToUndoHistory);
+	setFieldText({ qsl("/"), TextWithTags::Tags() }, 0, Ui::FlatTextarea::AddToUndoHistory);
 }
 
 void HistoryWidget::contextMenuEvent(QContextMenuEvent *e) {
@@ -6502,7 +6504,7 @@ void HistoryWidget::clearInlineBot() {
 }
 
 void HistoryWidget::inlineBotChanged() {
-	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
+	bool isInlineBot = _inlineBot && (_inlineBot != Ui::LookingUpInlineBot);
 	if (isInlineBot && !_inlineBotCancel) {
 		_inlineBotCancel = std_::make_unique<Ui::IconButton>(this, st::historyInlineBotCancel);
 		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
@@ -6532,7 +6534,7 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 	if (!_history || _a_show.animating()) return;
 
 	bool start = false;
-	bool isInlineBot = _inlineBot && (_inlineBot != LookingUpInlineBot);
+	bool isInlineBot = _inlineBot && (_inlineBot != Ui::LookingUpInlineBot);
 	QString query = isInlineBot ? QString() : _field->getMentionHashtagBotCommandPart(start);
 	if (!query.isEmpty()) {
 		if (query.at(0) == '#' && cRecentWriteHashtags().isEmpty() && cRecentSearchHashtags().isEmpty()) Local::readRecentHashtagsAndBots();
@@ -6547,7 +6549,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 		_field->setPlaceholder(lang(lng_edit_message_text));
 		_send->setIcon(&st::historyEditSaveIcon, &st::historyEditSaveIconOver);
 	} else {
-		if (_inlineBot && _inlineBot != LookingUpInlineBot) {
+		if (_inlineBot && _inlineBot != Ui::LookingUpInlineBot) {
 			_field->setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
 		} else {
 			_field->setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent->checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
@@ -7770,7 +7772,7 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	_field->setFocus();
 }
 
-void HistoryWidget::setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events, FlatTextarea::UndoHistoryAction undoHistoryAction) {
+void HistoryWidget::setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction) {
 	_textUpdateEvents = events;
 	_field->setTextWithTags(textWithTags, undoHistoryAction);
 	_field->moveCursor(QTextCursor::End);

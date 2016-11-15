@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "window/top_bar_widget.h"
 #include "window/window_theme.h"
 #include "lang.h"
@@ -77,17 +78,17 @@ OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerD
 	setMouseTracking(true);
 
 	connect(_cancelSearch, SIGNAL(clicked()), this, SLOT(onCancelSearch()));
-	connect(&_search, SIGNAL(cancelled()), this, SLOT(onCancel()));
-	connect(&_search, SIGNAL(changed()), this, SLOT(onSearchUpdate()));
+	connect(_search, SIGNAL(cancelled()), this, SLOT(onCancel()));
+	connect(_search, SIGNAL(changed()), this, SLOT(onSearchUpdate()));
 
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
 	_cancelSearch->hide();
 	if (_type == OverviewLinks || _type == OverviewFiles) {
-		_search.show();
+		_search->show();
 	} else {
-		_search.hide();
+		_search->hide();
 	}
 }
 
@@ -176,7 +177,7 @@ void OverviewInner::fixItemIndex(int32 &current, MsgId msgId) const {
 }
 
 void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {
-	if (!_search.text().isEmpty()) {
+	if (!_search->text().isEmpty()) {
 		if (type == SearchFromStart) {
 			SearchQueries::iterator i = _searchQueries.find(req);
 			if (i != _searchQueries.cend()) {
@@ -683,7 +684,7 @@ QPoint OverviewInner::mapMouseToItem(QPoint p, MsgId itemId, int32 itemIndex) {
 
 void OverviewInner::activate() {
 	if (_type == OverviewLinks || _type == OverviewFiles) {
-		_search.setFocus();
+		_search->setFocus();
 	} else {
 		setFocus();
 	}
@@ -1111,7 +1112,7 @@ void OverviewInner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void OverviewInner::keyPressEvent(QKeyEvent *e) {
-	if ((_search.isHidden() || !_search.hasFocus()) && !_overview->isHidden() && e->key() == Qt::Key_Escape) {
+	if ((_search->isHidden() || !_search->hasFocus()) && !_overview->isHidden() && e->key() == Qt::Key_Escape) {
 		onCancel();
 	} else if (e->key() == Qt::Key_Back) {
 		App::main()->showBackFromStack();
@@ -1282,8 +1283,8 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 	}
 	_rowsLeft = (_width - _rowWidth) / 2;
 
-	_search.setGeometry(_rowsLeft, st::linksSearchMargin.top(), _rowWidth, _search.height());
-	_cancelSearch->moveToLeft(_rowsLeft + _rowWidth - _cancelSearch->width(), _search.y());
+	_search->setGeometry(_rowsLeft, st::linksSearchMargin.top(), _rowWidth, _search->height());
+	_cancelSearch->moveToLeft(_rowsLeft + _rowWidth - _cancelSearch->width(), _search->y());
 
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
 		for (int32 i = 0, l = _items.size(); i < l; ++i) {
@@ -1334,14 +1335,14 @@ void OverviewInner::switchType(MediaOverviewType type) {
 		_type = type;
 		_reversed = (_type != OverviewLinks && _type != OverviewFiles);
 		if (_type == OverviewLinks || _type == OverviewFiles) {
-			_search.show();
+			_search->show();
 		} else {
-			_search.hide();
+			_search->hide();
 		}
 
-		if (!_search.getLastText().isEmpty()) {
-			_search.setText(QString());
-			_search.updatePlaceholder();
+		if (!_search->getLastText().isEmpty()) {
+			_search->setText(QString());
+			_search->updatePlaceholder();
 			onSearchUpdate();
 		}
 		_cancelSearch->hide();
@@ -1425,7 +1426,7 @@ void OverviewInner::saveContextFile() {
 
 bool OverviewInner::onSearchMessages(bool searchCache) {
 	_searchTimer.stop();
-	QString q = _search.text().trimmed();
+	QString q = _search->text().trimmed();
 	if (q.isEmpty()) {
 		if (_searchRequest) {
 			_searchRequest = 0;
@@ -1462,7 +1463,7 @@ void OverviewInner::onNeedSearchMessages() {
 }
 
 void OverviewInner::onSearchUpdate() {
-	QString filterText = (_type == OverviewLinks || _type == OverviewFiles) ? _search.text().trimmed() : QString();
+	QString filterText = (_type == OverviewLinks || _type == OverviewFiles) ? _search->text().trimmed() : QString();
 	bool inSearch = !filterText.isEmpty(), changed = (inSearch != _inSearch);
 	_inSearch = inSearch;
 
@@ -1495,11 +1496,11 @@ void OverviewInner::onCancel() {
 }
 
 bool OverviewInner::onCancelSearch() {
-	if (_search.isHidden()) return false;
-	bool clearing = !_search.text().isEmpty();
+	if (_search->isHidden()) return false;
+	bool clearing = !_search->text().isEmpty();
 	_cancelSearch->hide();
-	_search.clear();
-	_search.updatePlaceholder();
+	_search->clear();
+	_search->updatePlaceholder();
 	onSearchUpdate();
 	return clearing;
 }
@@ -1796,7 +1797,7 @@ void OverviewInner::recountMargins() {
 		_marginTop = st::playlistPadding;
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
 	} else if (_type == OverviewLinks || _type == OverviewFiles) {
-		_marginTop = st::linksSearchMargin.top() + _search.height() + st::linksSearchMargin.bottom();
+		_marginTop = st::linksSearchMargin.top() + _search->height() + st::linksSearchMargin.bottom();
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
 	} else {
 		_marginBottom = st::playlistPadding;

@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/widgets/buttons.h"
 
+#include "ui/effects/ripple_animation.h"
+
 namespace Ui {
 
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st) : AbstractButton(parent)
@@ -87,6 +89,27 @@ void FlatButton::onStateChanged(int oldState, StateChangeSource source) {
 	} else {
 		_a_appearance.start();
 	}
+
+	handleRipples(oldState & StateDown, (source == StateChangeSource::ByPress));
+}
+
+void FlatButton::handleRipples(bool wasDown, bool wasPress) {
+	auto down = static_cast<bool>(_state & StateDown);
+	if (!_st.ripple.showDuration || down == wasDown) {
+		return;
+	}
+
+	if (down && wasPress) {
+		// Start a ripple only from mouse press.
+		if (!_ripple) {
+			_ripple = std_::make_unique<Ui::RippleAnimation>(_st.ripple, prepareRippleMask(), [this] { update(); });
+		}
+		auto clickPosition = mapFromGlobal(QCursor::pos());
+		_ripple->add(clickPosition);
+	} else if (!down && _ripple) {
+		// Finish ripple anyway.
+		_ripple->stopLast();
+	}
 }
 
 void FlatButton::paintEvent(QPaintEvent *e) {
@@ -97,6 +120,14 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.setOpacity(_opacity);
 	p.fillRect(r, anim::brush(_st.bgColor, _st.overBgColor, a_over.current()));
 
+	auto ms = getms();
+	if (_ripple) {
+		_ripple->paint(p, 0, 0, width(), ms);
+		if (_ripple->empty()) {
+			_ripple.reset();
+		}
+	}
+
 	p.setFont((_state & StateOver) ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(anim::pen(_st.color, _st.overColor, a_over.current()));
@@ -106,6 +137,15 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 
 	p.drawText(r, _text, style::al_top);
 }
+
+QImage FlatButton::prepareRippleMask() const {
+	auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(QColor(255, 255, 255));
+	return std_::move(result);
+}
+
+FlatButton::~FlatButton() = default;
 
 LinkButton::LinkButton(QWidget *parent, const QString &text, const style::LinkButton &st) : AbstractButton(parent)
 , _text(text)
@@ -210,16 +250,25 @@ int RoundButton::contentWidth() const {
 void RoundButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	int innerWidth = contentWidth();
-	auto rounded = rtlrect(rect().marginsRemoved(_st.padding), width());
+	auto innerWidth = contentWidth();
+	auto rounded = rect().marginsRemoved(_st.padding);
 	if (_fullWidthOverride < 0) {
 		rounded = QRect(0, rounded.top(), innerWidth - _fullWidthOverride, rounded.height());
 	}
-	App::roundRect(p, rounded, _st.textBg, ImageRoundRadius::Small);
+	App::roundRect(p, myrtlrect(rounded), _st.textBg, ImageRoundRadius::Small);
 
 	auto over = (_state & StateOver);
+	auto down = (_state & StateDown);
 	if (over) {
-		App::roundRect(p, rounded, _st.textBgOver, ImageRoundRadius::Small);
+		App::roundRect(p, myrtlrect(rounded), _st.textBgOver, ImageRoundRadius::Small);
+	}
+
+	auto ms = getms();
+	if (_ripple) {
+		_ripple->paint(p, rounded.x(), rounded.y(), width(), ms);
+		if (_ripple->empty()) {
+			_ripple.reset();
+		}
 	}
 
 	p.setFont(_st.font);
@@ -230,12 +279,12 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	int textTopDelta = (_state & StateDown) ? (_st.downTextTop - _st.textTop) : 0;
 	int textTop = _st.padding.top() + _st.textTop + textTopDelta;
 	if (!_text.isEmpty()) {
-		p.setPen(over ? _st.textFgOver : _st.textFg);
+		p.setPen((over || down) ? _st.textFgOver : _st.textFg);
 		p.drawTextLeft(textLeft, textTop, width(), _text);
 	}
 	if (!_secondaryText.isEmpty()) {
 		textLeft += _textWidth + (_textWidth ? _st.secondarySkip : 0);
-		p.setPen(over ? _st.secondaryTextFgOver : _st.secondaryTextFg);
+		p.setPen((over || down) ? _st.secondaryTextFgOver : _st.secondaryTextFg);
 		p.drawTextLeft(textLeft, textTop, width(), _secondaryText);
 	}
 	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right() + textTopDelta), width());
@@ -243,7 +292,49 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 
 void RoundButton::onStateChanged(int oldState, StateChangeSource source) {
 	update();
+
+	handleRipples(oldState & StateDown, (source == StateChangeSource::ByPress));
 }
+
+void RoundButton::handleRipples(bool wasDown, bool wasPress) {
+	auto down = static_cast<bool>(_state & StateDown);
+	if (!_st.ripple.showDuration || down == wasDown) {
+		return;
+	}
+
+	if (down && wasPress) {
+		// Start a ripple only from mouse press.
+		if (!_ripple) {
+			_ripple = std_::make_unique<Ui::RippleAnimation>(_st.ripple, prepareRippleMask(), [this] { update(); });
+		}
+		auto clickPosition = mapFromGlobal(QCursor::pos()) - QPoint(_st.padding.left(), _st.padding.top());
+		_ripple->add(clickPosition);
+	} else if (!down && _ripple) {
+		// Finish ripple anyway.
+		_ripple->stopLast();
+	}
+}
+
+QImage RoundButton::prepareRippleMask() const {
+	auto innerWidth = contentWidth();
+	auto rounded = rtlrect(rect().marginsRemoved(_st.padding), width());
+	if (_fullWidthOverride < 0) {
+		rounded = QRect(0, rounded.top(), innerWidth - _fullWidthOverride, rounded.height());
+	}
+
+	auto result = QImage(rounded.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	{
+		Painter p(&result);
+		p.setPen(Qt::NoPen);
+		p.setBrush(QColor(255, 255, 255));
+		p.drawRoundedRect(rounded.translated(-rounded.topLeft()), st::buttonRadius, st::buttonRadius);
+	}
+	return std_::move(result);
+}
+
+RoundButton::~RoundButton() = default;
 
 IconButton::IconButton(QWidget *parent, const style::IconButton &st) : AbstractButton(parent)
 , _st(st) {
@@ -259,6 +350,15 @@ void IconButton::setIcon(const style::icon *icon, const style::icon *iconOver) {
 
 void IconButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	auto ms = getms();
+
+	if (_ripple) {
+		_ripple->paint(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), width(), ms);
+		if (_ripple->empty()) {
+			_ripple.reset();
+		}
+	}
 
 	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
 	auto overIcon = [this] {
@@ -306,6 +406,50 @@ void IconButton::onStateChanged(int oldState, StateChangeSource source) {
 			update();
 		}
 	}
+
+	handleRipples(oldState & StateDown, (source == StateChangeSource::ByPress));
 }
+
+void IconButton::handleRipples(bool wasDown, bool wasPress) {
+	auto down = static_cast<bool>(_state & StateDown);
+	if (!_st.ripple.showDuration || _st.rippleAreaSize <= 0 || down == wasDown) {
+		return;
+	}
+
+	if (down && wasPress) {
+		// Start a ripple only from mouse press.
+		if (!_ripple) {
+			_ripple = std_::make_unique<Ui::RippleAnimation>(_st.ripple, prepareRippleMask(), [this] { update(); });
+		}
+		auto clickPosition = mapFromGlobal(QCursor::pos());
+		auto rippleCenter = QRect(_st.rippleAreaPosition, QSize(_st.rippleAreaSize, _st.rippleAreaSize)).center();
+		auto clickRadiusSquare = style::point::dotProduct(clickPosition - rippleCenter, clickPosition - rippleCenter);
+		auto startRadius = 0;
+		if (clickRadiusSquare * 4 > _st.rippleAreaSize * _st.rippleAreaSize) {
+			startRadius = sqrt(clickRadiusSquare) - (_st.rippleAreaSize / 2);
+		}
+		_ripple->add(clickPosition - _st.rippleAreaPosition, startRadius);
+	} else if (!down && _ripple) {
+		// Finish ripple anyway.
+		_ripple->stopLast();
+	}
+}
+
+QImage IconButton::prepareRippleMask() const {
+	auto size = _st.rippleAreaSize * cIntRetinaFactor();
+	auto result = QImage(size, size, QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	{
+		Painter p(&result);
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(QColor(255, 255, 255));
+		p.drawEllipse(0, 0, _st.rippleAreaSize, _st.rippleAreaSize);
+	}
+	return std_::move(result);
+}
+
+IconButton::~IconButton() = default;
 
 } // namespace Ui

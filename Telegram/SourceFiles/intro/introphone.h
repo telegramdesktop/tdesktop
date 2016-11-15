@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introwidget.h"
 
 namespace Ui {
+class PhonePartInput;
+class CountryCodeInput;
 class RoundButton;
 } // namespace Ui
 
@@ -76,8 +78,8 @@ private:
 	QRect _textRect;
 
 	ChildWidget<CountryInput> _country;
-	ChildWidget<PhonePartInput> _phone;
-	ChildWidget<CountryCodeInput> _code;
+	ChildWidget<Ui::PhonePartInput> _phone;
+	ChildWidget<Ui::CountryCodeInput> _code;
 
 	ChildWidget<FlatLabel> _signup;
 	QPixmap _signupCache;

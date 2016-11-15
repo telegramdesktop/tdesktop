@@ -28,6 +28,10 @@ class FlatLabel;
 class ConfirmBox;
 
 namespace Ui {
+class InputField;
+class PhoneInput;
+class InputArea;
+class UsernameInput;
 class Checkbox;
 class Radiobutton;
 class LinkButton;
@@ -64,9 +68,9 @@ private:
 	UserData *_user = nullptr;
 	QString _boxTitle;
 
-	ChildWidget<InputField> _first;
-	ChildWidget<InputField> _last;
-	ChildWidget<PhoneInput> _phone;
+	ChildWidget<Ui::InputField> _first;
+	ChildWidget<Ui::InputField> _last;
+	ChildWidget<Ui::PhoneInput> _phone;
 
 	ChildWidget<Ui::RoundButton> _save;
 	ChildWidget<Ui::RoundButton> _cancel;
@@ -119,8 +123,8 @@ private:
 	Animation _a_photoOver;
 	bool _photoOver;
 
-	ChildWidget<InputField> _title;
-	ChildWidget<InputArea> _description;
+	ChildWidget<Ui::InputField> _title;
+	ChildWidget<Ui::InputArea> _description;
 
 	QImage _photoBig;
 	QPixmap _photoSmall;
@@ -187,7 +191,7 @@ private:
 	int32 _aboutPublicWidth, _aboutPublicHeight;
 	Text _aboutPublic, _aboutPrivate;
 
-	ChildWidget<UsernameInput> _link;
+	ChildWidget<Ui::UsernameInput> _link;
 
 	QRect _invitationLink;
 	bool _linkOver;
@@ -236,8 +240,8 @@ private:
 	PeerData *_peer;
 	QString _boxTitle;
 
-	ChildWidget<InputField> _first;
-	ChildWidget<InputField> _last;
+	ChildWidget<Ui::InputField> _first;
+	ChildWidget<Ui::InputField> _last;
 
 	ChildWidget<Ui::RoundButton> _save;
 	ChildWidget<Ui::RoundButton> _cancel;
@@ -283,8 +287,8 @@ private:
 
 	ChannelData *_channel;
 
-	ChildWidget<InputField> _title;
-	ChildWidget<InputArea> _description;
+	ChildWidget<Ui::InputField> _title;
+	ChildWidget<Ui::InputArea> _description;
 	ChildWidget<Ui::Checkbox> _sign;
 
 	ChildWidget<Ui::LinkButton> _publicLink;

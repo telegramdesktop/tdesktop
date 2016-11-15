@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "window/top_bar_widget.h"
 
-#include "styles/style_history.h"
 #include "styles/style_window.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
@@ -41,7 +40,7 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _clearSelection(this, lang(lng_selected_clear), st::topBarClearButton)
 , _forward(this, lang(lng_selected_forward), st::defaultActiveButton)
 , _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
-, _info(this, nullptr, st::infoButton)
+, _info(this, nullptr, st::topBarInfoButton)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
@@ -93,15 +92,23 @@ void TopBarWidget::onSearch() {
 void TopBarWidget::showMenu() {
 	if (auto main = App::main()) {
 		if (auto peer = main->peer()) {
-			_menu.create(App::main());
-			App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda_unique<void()> callback) {
-				return _menu->addAction(text, std_::move(callback));
-			});
-			_menu->setHiddenCallback([this] {
-				_menu.destroyDelayed();
-			});
-			_menu->moveToRight(0, 0);
-			_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+			if (auto menu = _menu.ptr()) {
+				_menu = nullptr;
+				_menuToggle->removeEventFilter(menu);
+				menu->setHiddenCallback([menu] { menu->deleteLater(); });
+				menu->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
+			} else {
+				_menu.create(App::main());
+				_menuToggle->installEventFilter(_menu);
+				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda_unique<void()> callback) {
+					return _menu->addAction(text, std_::move(callback));
+				});
+				_menu->setHiddenCallback([this] {
+					_menu.destroyDelayed();
+				});
+				_menu->moveToRight(st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
+				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
+			}
 		}
 	}
 }

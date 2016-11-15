@@ -23,6 +23,13 @@ using "basic.style";
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 
+switchPmButton: RoundButton(defaultBoxButton) {
+	width: 320px;
+	height: 34px;
+	textTop: 7px;
+	downTextTop: 8px;
+}
+
 stickersTrendingHeader: 45px;
 stickersTrendingSkip: 15px;
 

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 class FlatLabel;
 
 namespace Ui {
+class InputField;
 class RoundButton;
 } // namespace Ui
 
@@ -47,9 +48,7 @@ protected:
 	void showAll() override {
 		showChildren();
 	}
-	void doSetInnerFocus() override {
-		_code->setFocus();
-	}
+	void doSetInnerFocus() override;
 
 private:
 	ConfirmPhoneBox(QWidget *parent, const QString &phone, const QString &hash);
@@ -96,7 +95,7 @@ private:
 	ChildWidget<FlatLabel> _about = { nullptr };
 	ChildWidget<Ui::RoundButton> _send = { nullptr };
 	ChildWidget<Ui::RoundButton> _cancel = { nullptr };
-	ChildWidget<InputField> _code = { nullptr };
+	ChildWidget<Ui::InputField> _code = { nullptr };
 
 	// Flag for not calling onTextChanged() recursively.
 	bool _fixing = false;

@@ -39,7 +39,7 @@ introCountry: countryInput {
 	bgColor: #f2f2f2;
 	ptrSize: size(15px, 8px);
 	textMrg: margins(16px, 5px, 16px, 15px);
-	font: inpDefFont;
+	font: defaultInputFont;
 	align: align(left);
 }
 
@@ -89,17 +89,17 @@ introNextButton: RoundButton(defaultActiveButton) {
 }
 
 introPhoneTop: 8px;
-inpIntroCountryCode: flatInput(inpDefGray) {
+introCountryCode: FlatInput(defaultFlatInput) {
 	width: 70px;
 	height: 41px;
 	align: align(center);
 }
-inpIntroPhone: flatInput(inpDefGray) {
+introPhone: FlatInput(defaultFlatInput) {
 	textMrg: margins(12px, 5px, 12px, 6px);
 	width: 225px;
 	height: 41px;
 }
-inpIntroCode: flatInput(inpDefGray) {
+introCode: FlatInput(defaultFlatInput) {
 	textMrg: margins(12px, 5px, 12px, 6px);
 	width: 106px;
 	height: 41px;
@@ -109,10 +109,10 @@ inpIntroCode: flatInput(inpDefGray) {
 	phAlign: align(center);
 	phShift: 0px;
 }
-inpIntroName: flatInput(inpIntroPhone) {
+introName: FlatInput(introPhone) {
 	width: 192px;
 }
-inpIntroPassword: flatInput(inpIntroPhone) {
+introPassword: FlatInput(introPhone) {
 	width: 300px;
 }
 

@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "styles/style_intro.h"
 
-CodeInput::CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph) : FlatInput(parent, st, ph) {
+CodeInput::CodeInput(QWidget *parent, const style::FlatInput &st, const QString &ph) : Ui::FlatInput(parent, st, ph) {
 }
 
 void CodeInput::correctValue(const QString &was, QString &now) {
@@ -80,7 +80,7 @@ IntroCode::IntroCode(IntroWidget *parent) : IntroStep(parent)
 , _desc(st::introTextSize.width())
 , _noTelegramCode(this, lang(lng_code_no_telegram), st::introLink)
 , _noTelegramCodeRequestId(0)
-, _code(this, st::inpIntroCode, lang(lng_code_ph))
+, _code(this, st::introCode, lang(lng_code_ph))
 , _callTimer(this)
 , _callStatus(intro()->getCallStatus())
 , _checkRequest(this) {

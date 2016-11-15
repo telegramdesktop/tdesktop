@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localimageloader.h"
 #include "ui/effects/rect_shadow.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/widgets/input_fields.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -310,11 +311,11 @@ private:
 
 };
 
-class MessageField : public FlatTextarea {
+class MessageField : public Ui::FlatTextarea {
 	Q_OBJECT
 
 public:
-	MessageField(HistoryWidget *history, const style::flatTextarea &st, const QString &ph = QString(), const QString &val = QString());
+	MessageField(HistoryWidget *history, const style::FlatTextarea &st, const QString &ph = QString(), const QString &val = QString());
 	void dropEvent(QDropEvent *e);
 	bool canInsertFromMimeData(const QMimeData *source) const;
 	void insertFromMimeData(const QMimeData *source);
@@ -1014,8 +1015,8 @@ private:
 
 	void writeDrafts(Data::Draft **localDraft, Data::Draft **editDraft);
 	void writeDrafts(History *history);
-	void setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory);
-	void clearFieldText(TextUpdateEvents events = 0, FlatTextarea::UndoHistoryAction undoHistoryAction = FlatTextarea::ClearUndoHistory) {
+	void setFieldText(const TextWithTags &textWithTags, TextUpdateEvents events = 0, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction = Ui::FlatTextarea::ClearUndoHistory);
+	void clearFieldText(TextUpdateEvents events = 0, Ui::FlatTextarea::UndoHistoryAction undoHistoryAction = Ui::FlatTextarea::ClearUndoHistory) {
 		setFieldText(TextWithTags(), events, undoHistoryAction);
 	}
 

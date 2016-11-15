@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/utils.h"
 
-#define BETA_VERSION_MACRO (10019006ULL)
+#define BETA_VERSION_MACRO (10019007ULL)
 
 constexpr int AppVersion = 10020;
 constexpr str_const AppVersionStr = "0.10.20";

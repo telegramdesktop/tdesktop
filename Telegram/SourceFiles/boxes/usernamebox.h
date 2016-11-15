@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 
 namespace Ui {
+class UsernameInput;
 class RoundButton;
 class LinkButton;
 } // namespace Ui
@@ -60,7 +61,7 @@ private:
 
 	ChildWidget<Ui::RoundButton> _save;
 	ChildWidget<Ui::RoundButton> _cancel;
-	ChildWidget<UsernameInput> _username;
+	ChildWidget<Ui::UsernameInput> _username;
 	ChildWidget<Ui::LinkButton> _link;
 
 	mtpRequestId _saveRequestId, _checkRequestId;

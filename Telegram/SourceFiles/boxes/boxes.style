@@ -23,6 +23,48 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
+defaultBoxButton: RoundButton {
+	textFg: #2f9fea;
+	textFgOver: #2f9fea;
+	secondaryTextFg: #2f9fea;
+	secondaryTextFgOver: #2f9fea;
+	textBg: boxBg;
+	textBgOver: lightButtonBgOver;
+
+	width: -24px;
+	height: 36px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+	downTextTop: 8px;
+
+	font: boxButtonFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
+
+cancelBoxButton: RoundButton(defaultBoxButton) {
+	textFg: #aeaeae;
+}
+
+attentionBoxButton: RoundButton(defaultBoxButton) {
+	textFg: attentionBoxButtonFg;
+	textFgOver: attentionBoxButtonFgOver;
+	textBgOver: attentionBoxButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionBoxButtonBgRipple;
+	}
+}
+
+defaultBoxCheckbox: Checkbox(defaultCheckbox) {
+	width: -46px;
+	textPosition: point(34px, 1px);
+	font: boxTextFont;
+}
+
 boxBlockTitleHeight: 48px;
 boxBlockTitlePosition: point(18px, 14px);
 boxBlockTitleFont: font(boxFontSize semibold);
@@ -45,6 +87,8 @@ boxLinkButton: LinkButton {
 	font: boxTextFont;
 	overFont: font(boxFontSize underline);
 }
+
+boxOptionListPadding: margins(2px, 20px, 2px, 2px);
 
 confirmInviteTitle: flatLabel(labelDefFlat) {
 	font: font(16px semibold);
@@ -281,7 +325,7 @@ sessionTerminateAllButton: LinkButton(boxLinkButton) {
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
-passcodeInput: flatInput(inpIntroPhone) {
+passcodeInput: FlatInput(introPhone) {
 }
 passcodeSubmit: RoundButton(introNextButton) {
 	width: 225px;
@@ -339,4 +383,46 @@ aboutLabel: flatLabel(labelDefFlat) {
 }
 aboutTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 22px;
+}
+
+editTextArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 256px;
+}
+
+confirmCaptionArea: InputArea(defaultInputArea) {
+	textMargins: margins(1px, 6px, 1px, 4px);
+	heightMax: 56px;
+}
+confirmBg: #f2f2f2;
+confirmMaxHeight: 245px;
+confirmCompressedSkip: 10px;
+
+connectionHostInputField: InputField(defaultInputField) {
+	width: 160px;
+}
+connectionPortInputField: InputField(defaultInputField) {
+	width: 55px;
+}
+connectionUserInputField: InputField(defaultInputField) {
+	width: 95px;
+}
+connectionPasswordInputField: InputField(defaultInputField) {
+	width: 120px;
+}
+connectionIPv6Skip: 11px;
+
+langsWidth: 256px;
+langsButton: Radiobutton(defaultRadiobutton) {
+	width: 200px;
+}
+
+backgroundPadding: 10px;
+backgroundSize: size(108px, 193px);
+backgroundScroll: flatScroll(boxScroll) {
+	round: 2px;
+	width: 10px;
+	deltax: 3px;
+	deltat: 10px;
+	deltab: 0px;
 }

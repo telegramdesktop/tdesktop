@@ -229,7 +229,7 @@ void RoundShadowAnimation::paintShadowHorizontal(int left, int right, int top, c
 
 void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
 	t_assert(!started());
-	_finalImage = QPixmap::fromImage(std_::move(finalImage).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
+	_finalImage = App::pixmapFromImageInPlace(std_::move(finalImage).convertToFormat(QImage::Format_ARGB32_Premultiplied));
 
 	t_assert(!_finalImage.isNull());
 	_finalWidth = _finalImage.width();
@@ -317,7 +317,7 @@ void PanelAnimation::createFadeMask() {
 		}
 		ints += intsPerLineAdded;
 	}
-	_fadeMask = QPixmap::fromImage(style::colorizeImage(result, _st.fadeBg), Qt::ColorOnly);
+	_fadeMask = App::pixmapFromImageInPlace(style::colorizeImage(result, _st.fadeBg));
 	_fadeHeight = _fadeMask.height();
 }
 

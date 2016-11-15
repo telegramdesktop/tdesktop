@@ -58,6 +58,7 @@ void MainWindow::init() {
 	}
 
 	initSize();
+	updateUnreadCounter();
 }
 
 HitTestResult MainWindow::hitTest(const QPoint &p) const {

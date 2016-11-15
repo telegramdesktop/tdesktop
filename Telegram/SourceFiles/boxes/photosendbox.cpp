@@ -28,7 +28,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "styles/style_history.h"
+#include "styles/style_boxes.h"
 
 PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxWideWidth)
 , _file(file)
@@ -141,7 +143,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 
 	updateBoxSize();
 	_caption->setMaxLength(MaxPhotoCaption);
-	_caption->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+	_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
 	connect(_compressed, SIGNAL(changed()), this, SLOT(onCompressedChange()));
 	connect(_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
 	connect(_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
@@ -493,13 +495,13 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 	if (_animated || _photo || _doc) {
 		_field.create(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
 		_field->setMaxLength(MaxPhotoCaption);
-		_field->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+		_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
 	} else {
 		auto original = msg->originalText();
 		QString text = textApplyEntities(original.text, original.entities);
 		_field.create(this, st::editTextArea, lang(lng_photo_caption), text);
 //		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
-		_field->setCtrlEnterSubmit(cCtrlEnter() ? CtrlEnterSubmitCtrlEnter : CtrlEnterSubmitEnter);
+		_field->setCtrlEnterSubmit(cCtrlEnter() ? Ui::CtrlEnterSubmitCtrlEnter : Ui::CtrlEnterSubmitEnter);
 	}
 	updateBoxSize();
 	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSave(bool)));

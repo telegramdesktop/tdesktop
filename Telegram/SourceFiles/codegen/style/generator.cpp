@@ -651,10 +651,19 @@ bool Generator::writeIncludesInSource() {
 		return true;
 	}
 
-	bool result = module_.enumIncludes([this](const Module &module) -> bool {
-		source_->include(moduleBaseName(module) + ".h");
+	auto includes = QStringList();
+	std::function<bool(const Module&)> collector = [this, &collector, &includes](const Module &module) {
+		module.enumIncludes(collector);
+		auto base = moduleBaseName(module);
+		if (!includes.contains(base)) {
+			includes.push_back(base);
+		}
 		return true;
-	});
+	};
+	auto result = module_.enumIncludes(collector);
+	for (auto base : includes) {
+		source_->include(base + ".h");
+	}
 	source_->newline();
 	return result;
 }

@@ -84,7 +84,6 @@ int32 oldMapVersion();
 
 int32 oldSettingsVersion();
 
-using TextWithTags = FlatTextarea::TextWithTags;
 struct MessageDraft {
 	MessageDraft(MsgId msgId = 0, TextWithTags textWithTags = TextWithTags(), bool previewCancelled = false)
 		: msgId(msgId)

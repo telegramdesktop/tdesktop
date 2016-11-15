@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class Checkbox;
 class RoundButton;
+class InputArea;
 } // namespace Ui
 
 class PhotoSendBox : public AbstractBox {
@@ -57,7 +58,7 @@ private:
 
 	QPixmap _thumb;
 
-	ChildWidget<InputArea> _caption;
+	ChildWidget<Ui::InputArea> _caption;
 	bool _compressedFromSettings;
 	ChildWidget<Ui::Checkbox> _compressed;
 
@@ -108,7 +109,7 @@ private:
 
 	QPixmap _thumb;
 
-	ChildWidget<InputArea> _field = { nullptr };
+	ChildWidget<Ui::InputArea> _field = { nullptr };
 	ChildWidget<Ui::RoundButton> _save;
 	ChildWidget<Ui::RoundButton> _cancel;
 

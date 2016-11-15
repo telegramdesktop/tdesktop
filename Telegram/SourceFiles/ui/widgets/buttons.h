@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
+class RippleAnimation;
+
 class FlatButton : public AbstractButton {
 public:
 	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
@@ -38,12 +40,17 @@ public:
 
 	int32 textWidth() const;
 
+	~FlatButton();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
+	QImage prepareRippleMask() const;
+	void handleRipples(bool wasDown, bool wasPress);
+
 	QString _text, _textForAutoSize;
 	int _width;
 
@@ -53,6 +60,8 @@ private:
 	Animation _a_appearance;
 
 	float64 _opacity = 1.;
+
+	std_::unique_ptr<RippleAnimation> _ripple;
 
 };
 
@@ -93,12 +102,17 @@ public:
 	};
 	void setTextTransform(TextTransform transform);
 
+	~RoundButton();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
+	QImage prepareRippleMask() const;
+	void handleRipples(bool wasDown, bool wasPress);
+
 	void updateText();
 	void resizeToText();
 
@@ -114,6 +128,8 @@ private:
 
 	TextTransform _transform = TextTransform::ToUpper;
 
+	std_::unique_ptr<RippleAnimation> _ripple;
+
 };
 
 class IconButton : public AbstractButton {
@@ -123,17 +139,24 @@ public:
 	// Pass nullptr to restore the default icon.
 	void setIcon(const style::icon *icon, const style::icon *iconOver = nullptr);
 
+	~IconButton();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
+	QImage prepareRippleMask() const;
+	void handleRipples(bool wasDown, bool wasPress);
+
 	const style::IconButton &_st;
 	const style::icon *_iconOverride = nullptr;
 	const style::icon *_iconOverrideOver = nullptr;
 
 	FloatAnimation _a_over;
+
+	std_::unique_ptr<RippleAnimation> _ripple;
 
 };
 

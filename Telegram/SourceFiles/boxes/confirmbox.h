@@ -29,6 +29,11 @@ class Checkbox;
 class RoundButton;
 } // namespace Ui
 
+namespace st {
+extern const style::RoundButton &defaultBoxButton;
+extern const style::RoundButton &cancelBoxButton;
+} // namespace style
+
 class InformBox;
 class ConfirmBox : public AbstractBox, public ClickHandlerHost {
 	Q_OBJECT

@@ -37,6 +37,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_intro.h"
 #include "autoupdater.h"
 #include "window/slide_animation.h"
+#include "styles/style_boxes.h"
 
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))

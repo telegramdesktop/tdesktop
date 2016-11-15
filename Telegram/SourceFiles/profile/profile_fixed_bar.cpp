@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
 #include "window/top_bar_widget.h"
+#include "styles/style_boxes.h"
 
 namespace Profile {
 

@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 
 IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -35,8 +36,8 @@ IntroSignup::IntroSignup(IntroWidget *parent) : IntroStep(parent)
 , _a_error(animation(this, &IntroSignup::step_error))
 , _a_photo(animation(this, &IntroSignup::step_photo))
 , _next(this, lang(lng_intro_finish), st::introNextButton)
-, _first(this, st::inpIntroName, lang(lng_signup_firstname))
-, _last(this, st::inpIntroName, lang(lng_signup_lastname))
+, _first(this, st::introName, lang(lng_signup_firstname))
+, _last(this, st::introName, lang(lng_signup_lastname))
 , _invertOrder(langFirstNameGoesSecond())
 , _checkRequest(this) {
 	setVisible(false);

@@ -26,8 +26,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "lang.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_boxes.h"
 #include "styles/style_window.h"
 
 namespace Window {
@@ -225,7 +227,7 @@ void Manager::moveWidgets() {
 	}
 
 	if (count > 1 || !_queuedNotifications.isEmpty()) {
-		auto deltaY = st::notifyHideAll.height + st::notifyDeltaY;
+		auto deltaY = st::notifyHideAllHeight + st::notifyDeltaY;
 		if (!_hideAll) {
 			_hideAll = new HideAllButton(notificationStartPosition(), lastShiftCurrent, notificationShiftDirection());
 		}
@@ -735,17 +737,17 @@ void Notification::showReplyField() {
 	}
 	stopHiding();
 
-	_background = new Background(this);
+	_background.create(this);
 	_background->setGeometry(0, st::notifyMinHeight, width(), st::notifySendReply.height + st::notifyBorderWidth);
 	_background->show();
 
-	_replyArea = new InputArea(this, st::notifyReplyArea, lang(lng_message_ph), QString());
+	_replyArea.create(this, st::notifyReplyArea, lang(lng_message_ph), QString());
 	_replyArea->resize(width() - st::notifySendReply.width - 2 * st::notifyBorderWidth, st::notifySendReply.height);
 	_replyArea->moveToLeft(st::notifyBorderWidth, st::notifyMinHeight);
 	_replyArea->show();
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
-	_replyArea->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+	_replyArea->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
 
 	// Catch mouse press event to activate the window.
 	Sandbox::installEventFilter(this);
@@ -860,8 +862,8 @@ Notification::~Notification() {
 HideAllButton::HideAllButton(QPoint startPosition, int shift, Direction shiftDirection) : Widget(startPosition, shift, shiftDirection) {
 	setCursor(style::cur_pointer);
 
-	auto position = computePosition(st::notifyHideAll.height);
-	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyHideAll.height);
+	auto position = computePosition(st::notifyHideAllHeight);
+	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyHideAllHeight);
 	hide();
 	createWinId();
 
@@ -913,7 +915,7 @@ void HideAllButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setClipRect(e->rect());
 
-	p.fillRect(rect(), _mouseOver ? st::notifyHideAll.textBgOver : st::notifyHideAll.textBg);
+	p.fillRect(rect(), _mouseOver ? st::lightButtonBgOver : st::lightButtonBg);
 	p.fillRect(0, 0, width(), st::notifyBorderWidth, st::notifyBorder);
 	p.fillRect(0, height() - st::notifyBorderWidth, width(), st::notifyBorderWidth, st::notifyBorder);
 	p.fillRect(0, st::notifyBorderWidth, st::notifyBorderWidth, height() - 2 * st::notifyBorderWidth, st::notifyBorder);

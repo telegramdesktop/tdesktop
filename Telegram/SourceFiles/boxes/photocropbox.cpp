@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "photocropbox.h"
 #include "fileuploader.h"
 #include "ui/widgets/buttons.h"
+#include "styles/style_boxes.h"
 
 PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : AbstractBox()
 , _downState(0)

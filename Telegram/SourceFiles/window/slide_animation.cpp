@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "window/slide_animation.h"
 
+#include "styles/style_window.h"
+
 namespace Window {
 
 void SlideAnimation::paintContents(Painter &p, const QRect &update) const {

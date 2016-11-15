@@ -23,6 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "abstractbox.h"
 
 namespace Ui {
+class InputField;
+class PortInput;
+class PasswordInput;
 class Checkbox;
 class Radiobutton;
 class RoundButton;
@@ -47,10 +50,10 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
-	ChildWidget<InputField> _hostInput;
-	ChildWidget<PortInput> _portInput;
-	ChildWidget<InputField> _userInput;
-	ChildWidget<PasswordField> _passwordInput;
+	ChildWidget<Ui::InputField> _hostInput;
+	ChildWidget<Ui::PortInput> _portInput;
+	ChildWidget<Ui::InputField> _userInput;
+	ChildWidget<Ui::PasswordInput> _passwordInput;
 	ChildWidget<Ui::Radiobutton> _autoRadio;
 	ChildWidget<Ui::Radiobutton> _httpProxyRadio;
 	ChildWidget<Ui::Radiobutton> _tcpProxyRadio;

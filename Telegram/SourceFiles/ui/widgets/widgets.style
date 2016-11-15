@@ -35,6 +35,12 @@ LinkButton {
 	overFont: font;
 }
 
+RippleAnimation {
+	color: color;
+	showDuration: int;
+	hideDuration: int;
+}
+
 FlatButton {
 	color: color;
 	overColor: color;
@@ -53,6 +59,188 @@ FlatButton {
 	overFont: font;
 	duration: int;
 	cursor: cursor;
+
+	ripple: RippleAnimation;
+}
+
+RoundButton {
+	textFg: color;
+	textFgOver: color;
+	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
+	textBgOver: color;
+
+	secondaryTextFg: color;
+	secondaryTextFgOver: color;
+	secondarySkip: pixels;
+
+	width: pixels;
+	height: pixels;
+	padding: margins;
+
+	textTop: pixels;
+	downTextTop: pixels;
+
+	icon: icon;
+
+	font: font;
+
+	ripple: RippleAnimation;
+}
+
+Checkbox {
+	textFg: color;
+	textBg: color;
+
+	checkBg: color;
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: pixels;
+	height: pixels;
+
+	textPosition: point;
+	diameter: pixels;
+	thickness: pixels;
+	checkIcon: icon;
+
+	font: font;
+	duration: int;
+}
+
+Radiobutton {
+	textFg: color;
+	textBg: color;
+
+	checkBg: color;
+	checkFg: color;
+	checkFgOver: color;
+	checkFgActive: color;
+
+	width: pixels;
+	height: pixels;
+
+	textPosition: point;
+	diameter: pixels;
+	thickness: pixels;
+	checkSkip: pixels;
+
+	font: font;
+	duration: int;
+}
+
+FlatTextarea {
+	textColor: color;
+	bgColor: color;
+	width: pixels;
+	textMrg: margins;
+	align: align;
+	font: font;
+	cursor: cursor;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: pixels;
+	phDuration: int;
+}
+
+FlatInput {
+	textColor: color;
+	bgColor: color;
+	bgActive: color;
+	width: pixels;
+	height: pixels;
+	textMrg: margins;
+	align: align;
+	font: font;
+	cursor: cursor;
+
+	icon: icon;
+
+	borderWidth: pixels;
+	borderColor: color;
+	borderActive: color;
+	borderError: color;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: pixels;
+	phDuration: int;
+}
+
+InputArea {
+	textBg: color;
+	textFg: color;
+	textMargins: margins;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: pixels;
+
+	duration: int;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: pixels;
+	borderActive: pixels;
+	borderError: pixels;
+
+	font: font;
+
+	width: pixels;
+	heightMin: pixels;
+	heightMax: pixels;
+}
+
+InputField {
+	textBg: color;
+	textFg: color;
+	textMargins: margins;
+	textAlign: align;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderShift: pixels;
+
+	duration: int;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: pixels;
+	borderActive: pixels;
+	borderError: pixels;
+
+	font: font;
+
+	width: pixels;
+	height: pixels;
+}
+
+OutlineButton {
+	outlineWidth: pixels;
+	outlineFg: color;
+	outlineFgOver: color;
+
+	textBg: color;
+	textBgOver: color;
+
+	textFg: color;
+	textFgOver: color;
+
+	font: font;
+	padding: margins;
 }
 
 IconButton {
@@ -66,6 +254,10 @@ IconButton {
 	iconPositionDown: point;
 
 	duration: int;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	ripple: RippleAnimation;
 }
 
 Shadow {
@@ -230,6 +422,194 @@ defaultLinkButton: LinkButton {
 	downColor: btnYesHover;
 	font: linkFont;
 	overFont: linkOverFont;
+}
+
+defaultRippleAnimation: RippleAnimation {
+	color: windowOverBg;
+	showDuration: 200;
+	hideDuration: 200;
+}
+
+emptyRippleAnimation: RippleAnimation {
+}
+
+defaultActiveButton: RoundButton {
+	textFg: activeButtonFg;
+	textFgOver: activeButtonFgOver;
+	secondaryTextFg: activeButtonSecondaryFg;
+	secondaryTextFgOver: activeButtonSecondaryFgOver;
+	textBg: activeButtonBg;
+	textBgOver: activeButtonBgOver;
+
+	secondarySkip: 7px;
+
+	width: -34px;
+	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+	downTextTop: 8px;
+
+	font: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonBgRipple;
+	}
+}
+
+defaultLightButton: RoundButton(defaultActiveButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	textBg: lightButtonBg;
+	textBgOver: lightButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
+
+defaultInputFont: font(17px);
+defaultFlatInput: FlatInput {
+	textColor: #000000;
+	bgColor: #f2f2f2;
+	bgActive: #ffffff;
+	width: 210px;
+	height: 40px;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: defaultInputFont;
+	cursor: cursor(text);
+
+	borderWidth: 2px;
+	borderColor: #f2f2f2;
+	borderActive: #54c3f3;
+	borderError: #ed8080;
+
+	phColor: #808080;
+	phFocusColor: #aaaaaa;
+	phAlign: align(left);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+}
+
+defaultLeftOutlineButton: OutlineButton {
+	outlineWidth: 3px;
+	outlineFg: windowBg;
+	outlineFgOver: windowActiveBg;
+
+	textBg: windowBg;
+	textBgOver: #f2f7fa;
+
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+
+	font: normalFont;
+	padding: margins(11px, 5px, 11px, 5px);
+}
+attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
+	outlineFgOver: #e43f3f;
+
+	textBgOver: #faf2f2;
+
+	textFg: #d15948;
+	textFgOver: #d15948;
+}
+
+defaultInputArea: InputArea {
+	textBg: windowBg;
+	textFg: windowTextFg;
+	textMargins: margins(5px, 6px, 5px, 4px);
+
+	placeholderFg: #999999;
+	placeholderFgActive: #aaaaaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
+
+	heightMin: 32px;
+	heightMax: 128px;
+}
+
+defaultInputField: InputField {
+	textBg: windowBg;
+	textFg: windowTextFg;
+	textMargins: margins(0px, 6px, 0px, 4px);
+	textAlign: align(topleft);
+
+	placeholderFg: #999999;
+	placeholderFgActive: #aaaaaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderShift: 50px;
+	duration: 120;
+
+	borderFg: #e0e0e0;
+	borderFgActive: #62c0f7;
+	borderFgError: #e48383;
+
+	border: 1px;
+	borderActive: 2px;
+	borderError: 2px;
+
+	font: boxTextFont;
+
+	height: 32px;
+}
+
+defaultCheckboxIcon: icon {{ "default_checkbox_check", windowActiveFg, point(4px, 7px) }};
+
+defaultCheckbox: Checkbox {
+	textFg: windowTextFg;
+	textBg: windowBg;
+
+	checkBg: #ffffff;
+	checkFg: #b3b3b3;
+	checkFgOver: #b3b3b3;
+	checkFgActive: windowActiveBg;
+
+	width: -44px;
+	height: 22px;
+
+	textPosition: point(32px, 2px);
+	diameter: 22px;
+	thickness: 2px;
+	checkIcon: defaultCheckboxIcon;
+
+	font: normalFont;
+	duration: 120;
+}
+
+defaultRadiobutton: Radiobutton {
+	textFg: windowTextFg;
+	textBg: windowBg;
+
+	checkBg: #ffffff;
+	checkFg: #b3b3b3;
+	checkFgOver: #bfbfbf;
+	checkFgActive: #4eb3ee;
+
+	width: -46px;
+	height: 22px;
+
+	textPosition: point(34px, 0px);
+	diameter: 22px;
+	thickness: 2px;
+	checkSkip: 65px; // * 0.1
+
+	font: boxTextFont;
+	duration: 120;
 }
 
 defaultIconButton: IconButton {

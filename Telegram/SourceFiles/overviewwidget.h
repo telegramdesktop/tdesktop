@@ -35,6 +35,7 @@ namespace Ui {
 class PlainShadow;
 class PopupMenu;
 class IconButton;
+class FlatInput;
 } // namespace Ui
 
 class OverviewWidget;
@@ -179,7 +180,7 @@ private:
 	Overview::Layout::AbstractItem *layoutPrepare(const QDate &date, bool month);
 	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
-	FlatInput _search;
+	ChildWidget<Ui::FlatInput> _search;
 	ChildWidget<Ui::IconButton> _cancelSearch;
 	QVector<MsgId> _results;
 	int32 _itemsToBeLoaded;

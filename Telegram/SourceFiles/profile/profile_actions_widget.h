@@ -22,6 +22,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+namespace style {
+struct OutlineButton;
+} // namespace style
+
+namespace st {
+extern const style::OutlineButton &defaultLeftOutlineButton;
+} // namespace st
+
 namespace Ui {
 class LeftOutlineButton;
 } // namespace Ui

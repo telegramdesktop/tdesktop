@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -58,6 +59,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/qthelp_url.h"
 #include "window/window_theme.h"
 #include "window/player_wrap_widget.h"
+#include "styles/style_boxes.h"
 
 StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std_::move(memento)) {

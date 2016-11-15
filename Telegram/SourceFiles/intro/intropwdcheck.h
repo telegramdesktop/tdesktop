@@ -22,9 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "intro/introwidget.h"
 
-class FlatInput;
-
 namespace Ui {
+class FlatInput;
 class RoundButton;
 class LinkButton;
 } // namespace Ui
@@ -80,8 +79,8 @@ private:
 	bool _hasRecovery;
 	QString _hint, _emailPattern;
 
-	ChildWidget<FlatInput> _pwdField;
-	ChildWidget<FlatInput> _codeField;
+	ChildWidget<Ui::FlatInput> _pwdField;
+	ChildWidget<Ui::FlatInput> _codeField;
 	ChildWidget<Ui::LinkButton> _toRecover;
 	ChildWidget<Ui::LinkButton> _toPassword;
 	ChildWidget<Ui::LinkButton> _reset;

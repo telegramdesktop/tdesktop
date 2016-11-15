@@ -60,8 +60,7 @@ notifyDeltaX: 6px;
 notifyDeltaY: 7px;
 notifyActionsDuration: 200;
 
-notifyHideAll: RoundButton(defaultBoxButton) {
-}
+notifyHideAllHeight: 36px;
 
 notifyReplyArea: InputArea(defaultInputArea) {
 	font: normalFont;
@@ -154,6 +153,78 @@ titleButtonClose: IconButton(titleButtonMinimize) {
 		{ size(25px, 21px), titleButtonCloseBgOver },
 		{ "title_button_close", titleButtonCloseFgOver, point(5px, 4px) },
 	};
+}
+
+// Legacy top bar.
+topBarHeight: 54px;
+topBarMenuPosition: point(-2px, 37px);
+topBarDuration: 200;
+topBarBackward: icon {{ "title_back", #a3a3a3 }};
+topBarForwardAlpha: 0.6;
+topBarBack: icon {{ "title_back", #259fd8 }};
+topBarBackAlpha: 0.8;
+topBarBackColor: #005faf;
+topBarBackFont: font(16px);
+topBarArrowPadding: margins(39px, 8px, 17px, 8px);
+topBarMinPadding: 5px;
+topBarButton: RoundButton {
+	textFg: btnYesColor;
+	textFgOver: btnYesColor;
+	secondaryTextFg: btnYesColor;
+	secondaryTextFgOver: btnYesColor;
+	textBg: windowBg;
+	textBgOver: #edf4f7;
+
+	width: -22px;
+	height: 28px;
+	padding: margins(0px, 14px, 12px, 12px);
+
+	textTop: 6px;
+	downTextTop: 6px;
+
+	font: font(fsize);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
+topBarClearButton: RoundButton(defaultLightButton) {
+	width: -18px;
+}
+topBarSearch: IconButton {
+	width: 44px;
+	height: topBarHeight;
+
+	icon: icon {{ "title_search", menuIconFg }};
+	iconOver: icon {{ "title_search", menuIconFgOver }};
+
+	iconPosition: point(15px, 18px);
+	iconPositionDown: point(15px, 18px);
+
+	rippleAreaPosition: point(8px, 11px);
+	rippleAreaSize: 32px;
+	ripple: defaultRippleAnimation;
+}
+topBarMenuToggle: IconButton(topBarSearch) {
+	icon: icon {{ "title_menu_dots", menuIconFg }};
+	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+
+	iconPosition: point(15px, 17px);
+	iconPositionDown: point(15px, 17px);
+
+	rippleAreaPosition: point(3px, 11px);
+	rippleAreaSize: 32px;
+	ripple: defaultRippleAnimation;
+}
+topBarActionSkip: 10px;
+
+PeerAvatarButton {
+	size: pixels;
+	photoSize: pixels;
+}
+topBarInfoButton: PeerAvatarButton {
+	size: topBarHeight;
+	photoSize: 42px;
 }
 
 // Mac specific

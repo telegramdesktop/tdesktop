@@ -136,7 +136,7 @@ historyPeer8UserpicBg: #f7b37c;
 historyPeer8UserpicFg: #de8d62;
 historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};
 
-historyComposeField: flatTextarea {
+historyComposeField: FlatTextarea {
 	textColor: #000000;
 	bgColor: historyComposeAreaBg;
 	align: align(left);
@@ -170,12 +170,16 @@ historyComposeButton: FlatButton {
 	width: -32px;
 	height: 46px;
 
-	textTop: 12px;
-	overTextTop: 12px;
-	downTextTop: 13px;
+	textTop: 14px;
+	overTextTop: 14px;
+	downTextTop: 14px;
 
 	font: semiboldFont;
 	overFont: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyComposeButtonBgRipple;
+	}
 }
 historyUnblock: FlatButton(historyComposeButton) {
 	color: #d15948;
@@ -290,23 +294,6 @@ historyInlineBotCancel: IconButton(historyReplyCancel) {
 	height: 46px;
 }
 
-topBarSearch: IconButton {
-	width: 44px;
-	height: topBarHeight;
-
-	icon: icon {{ "title_search", menuIconFg }};
-	iconOver: icon {{ "title_search", menuIconFgOver }};
-
-	iconPosition: point(13px, 18px);
-	iconPositionDown: point(13px, 18px);
-}
-topBarMenuToggle: IconButton(topBarSearch) {
-	icon: icon {{ "title_menu_dots", menuIconFg }};
-	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
-
-	iconPosition: point(18px, 17px);
-	iconPositionDown: point(18px, 17px);
-}
 reportSpamHide: FlatButton {
 	duration: 200;
 	cursor: cursor(pointer);
@@ -326,17 +313,6 @@ reportSpamHide: FlatButton {
 
 	font: font(fsize);
 	overFont: font(fsize underline);
-}
-reportSpamButton: FlatButton(reportSpamHide) {
-	textTop: 6px;
-	overTextTop: 6px;
-	downTextTop: 7px;
-
-	width: -50px;
-	height: 30px;
-
-	bgColor: #888888;
-	overBgColor: #7b7b7b;
 }
 reportSpamSeparator: 30px;
 reportSpamBg: #fffffff0;

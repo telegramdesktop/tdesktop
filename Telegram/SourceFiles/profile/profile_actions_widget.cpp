@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_actions_widget.h"
 
 #include "styles/style_profile.h"
+#include "styles/style_boxes.h"
 #include "ui/buttons/left_outline_button.h"
 #include "boxes/confirmbox.h"
 #include "boxes/report_box.h"
