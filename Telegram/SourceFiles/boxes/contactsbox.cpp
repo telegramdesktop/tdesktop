@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/filedialog.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"

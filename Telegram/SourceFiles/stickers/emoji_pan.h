@@ -33,6 +33,7 @@ class Result;
 } // namespace InlineBots
 
 namespace Ui {
+class ScrollArea;
 class IconButton;
 class LinkButton;
 class RoundButton;
@@ -123,7 +124,7 @@ class EmojiPanInner : public TWidget {
 	Q_OBJECT
 
 public:
-	EmojiPanInner();
+	EmojiPanInner(QWidget *parent);
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e) override;
@@ -217,7 +218,7 @@ class StickerPanInner : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	StickerPanInner();
+	StickerPanInner(QWidget *parent);
 
 	void setMaxHeight(int32 h);
 	void paintEvent(QPaintEvent *e) override;
@@ -681,14 +682,14 @@ private:
 	bool _emojiShown = true;
 	bool _shownFromInlineQuery = false;
 
-	ScrollArea e_scroll;
-	internal::EmojiPanInner e_inner;
+	ChildWidget<Ui::ScrollArea> e_scroll;
+	ChildWidget<internal::EmojiPanInner> e_inner;
 	QVector<internal::EmojiPanel*> e_panels;
-	internal::EmojiSwitchButton e_switch;
-	ScrollArea s_scroll;
-	internal::StickerPanInner s_inner;
+	ChildWidget<internal::EmojiSwitchButton> e_switch;
+	ChildWidget<Ui::ScrollArea> s_scroll;
+	ChildWidget<internal::StickerPanInner> s_inner;
 	QVector<internal::EmojiPanel*> s_panels;
-	internal::EmojiSwitchButton s_switch;
+	ChildWidget<internal::EmojiSwitchButton> s_switch;
 
 	uint64 _displayingSetId = 0;
 	uint64 _removingSetId = 0;

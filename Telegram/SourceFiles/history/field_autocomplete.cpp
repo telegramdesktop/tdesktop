@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "localstorage.h"
+#include "ui/widgets/scroll_area.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"
 #include "styles/style_stickers.h"
@@ -624,11 +625,11 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				user->loadUserpic();
 				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
 
-				p.setPen(st::mentionNameFg);
+				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
 				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
 				p.setFont(st::mentionFont);
-				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
+				p.setPen(selected ? st::mentionFgOverActive : st::mentionFgActive);
 				p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 				if (!second.isEmpty()) {
 					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
@@ -671,7 +672,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 				auto commandText = '/' + toHighlight;
 
-				p.setPen(st::mentionNameFg);
+				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
 				p.setFont(st::semiboldFont);
 				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop + st::semiboldFont->ascent, commandText);
 

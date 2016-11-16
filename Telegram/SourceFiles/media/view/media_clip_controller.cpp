@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/view/media_clip_playback.h"
 #include "media/view/media_clip_volume_controller.h"
 #include "styles/style_mediaview.h"
-#include "ui/widgets/label_simple.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/media_slider.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/buttons.h"

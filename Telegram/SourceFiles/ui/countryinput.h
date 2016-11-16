@@ -20,7 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/scrollarea.h"
 #include "ui/effects/rect_shadow.h"
 #include "boxes/abstractbox.h"
 #include "styles/style_intro.h"

@@ -20,13 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "ui/flatlabel.h"
-#include "core/lambda_wrap.h"
+#include "boxes/abstractbox.h"
 
 namespace Ui {
 class Checkbox;
 class RoundButton;
+class FlatLabel;
 } // namespace Ui
 
 namespace st {
@@ -237,7 +236,7 @@ private:
 	ChannelData *_channel;
 	MsgId _msgId;
 
-	ChildWidget<FlatLabel> _text;
+	ChildWidget<Ui::FlatLabel> _text;
 	ChildWidget<Ui::Checkbox> _notify;
 
 	ChildWidget<Ui::RoundButton> _pin;
@@ -266,7 +265,7 @@ private:
 	UserData *_from;
 	MsgId _msgId;
 
-	ChildWidget<FlatLabel> _text;
+	ChildWidget<Ui::FlatLabel> _text;
 	ChildWidget<Ui::Checkbox> _banUser;
 	ChildWidget<Ui::Checkbox> _reportSpam;
 	ChildWidget<Ui::Checkbox> _deleteAll;
@@ -304,8 +303,8 @@ protected:
 	void showAll() override;
 
 private:
-	ChildWidget<FlatLabel> _title;
-	ChildWidget<FlatLabel> _status;
+	ChildWidget<Ui::FlatLabel> _title;
+	ChildWidget<Ui::FlatLabel> _status;
 	ImagePtr _photo;
 	QVector<UserData*> _participants;
 

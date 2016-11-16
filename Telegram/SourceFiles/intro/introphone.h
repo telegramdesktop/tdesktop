@@ -21,13 +21,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/countryinput.h"
-#include "ui/flatlabel.h"
 #include "intro/introwidget.h"
 
 namespace Ui {
 class PhonePartInput;
 class CountryCodeInput;
 class RoundButton;
+class FlatLabel;
 } // namespace Ui
 
 class IntroPhone final : public IntroStep {
@@ -52,8 +52,6 @@ public:
 	void phoneSubmitDone(const MTPauth_SentCode &result);
 	bool phoneSubmitFail(const RPCError &error);
 
-	void toSignUp();
-
 public slots:
 	void countryChanged();
 	void onInputChange();
@@ -61,6 +59,8 @@ public slots:
 	void onCheckRequest();
 
 private:
+	void toSignUp();
+
 	QString fullNumber() const;
 	void disableAll();
 	void enableAll(bool failed);
@@ -81,7 +81,7 @@ private:
 	ChildWidget<Ui::PhonePartInput> _phone;
 	ChildWidget<Ui::CountryCodeInput> _code;
 
-	ChildWidget<FlatLabel> _signup;
+	ChildWidget<Ui::FlatLabel> _signup;
 	QPixmap _signupCache;
 	bool _showSignup = false;
 

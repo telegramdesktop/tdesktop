@@ -22,26 +22,37 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/rect_shadow.h"
 
-class FlatLabel;
-
 namespace Ui {
+class FlatLabel;
 class Menu;
 } // namespace Ui
 
+namespace Profile {
+class UserpicButton;
+} // namespace Profile
+
 namespace Window {
 
-class MainMenu : public TWidget {
+class MainMenu : public TWidget, private base::Subscriber {
 public:
 	MainMenu(QWidget *parent);
+
+	void showFinished();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void checkSelf();
+	void updateControlsGeometry();
+
+	ChildWidget<Profile::UserpicButton> _userpicButton = { nullptr };
 	ChildWidget<Ui::Menu> _menu;
-	ChildWidget<FlatLabel> _telegram;
-	ChildWidget<FlatLabel> _version;
+	ChildWidget<Ui::FlatLabel> _telegram;
+	ChildWidget<Ui::FlatLabel> _version;
+
+	bool _showFinished = false;
 
 };
 

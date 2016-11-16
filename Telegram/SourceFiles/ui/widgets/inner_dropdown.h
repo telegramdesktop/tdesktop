@@ -23,9 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_widgets.h"
 #include "ui/effects/panel_animation.h"
 
-class ScrollArea;
-
 namespace Ui {
+
+class ScrollArea;
 
 class InnerDropdown : public TWidget {
 	Q_OBJECT
@@ -112,7 +112,7 @@ private:
 	bool _ignoreShowEvents = false;
 	base::lambda_unique<void()> _hiddenCallback;
 
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 
 	int _maxHeight = 0;
 

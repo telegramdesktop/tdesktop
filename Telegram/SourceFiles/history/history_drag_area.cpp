@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_drag_area.h"
 
 #include "styles/style_stickers.h"
+#include "styles/style_boxes.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "inline_bots/inline_bot_result.h"

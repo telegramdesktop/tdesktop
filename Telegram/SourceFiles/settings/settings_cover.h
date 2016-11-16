@@ -25,8 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 
-class FlatLabel;
 namespace Ui {
+class FlatLabel;
 class RoundButton;
 class IconButton;
 } // namespace Ui
@@ -91,7 +91,7 @@ private:
 	ChildWidget<Profile::UserpicButton> _userpicButton;
 	ChildWidget<Profile::CoverDropArea> _dropArea = { nullptr };
 
-	ChildWidget<FlatLabel> _name;
+	ChildWidget<Ui::FlatLabel> _name;
 	ChildWidget<Ui::IconButton> _editNameInline;
 	ChildWidget<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 

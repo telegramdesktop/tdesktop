@@ -27,6 +27,8 @@ semibold: "Open Sans Semibold";
 fsize: 13px;
 normalFont: font(fsize);
 semiboldFont: font(fsize semibold);
+boxFontSize: 14px;
+boxTextFont: font(boxFontSize);
 
 emojiImgSize: 18px; // exceptional value for retina
 emojiSize: 18px;
@@ -34,56 +36,6 @@ emojiPadding: 1px;
 
 lineWidth: 1px;
 
-labelDefFlat: flatLabel {
-	font: font(fsize);
-	width: 0px;
-	maxHeight: 0px;
-	align: align(left);
-	textFg: windowTextFg;
-}
-
-boxVerticalMargin: 10px;
-boxWidth: 320px;
-boxWideWidth: 364px;
-boxPadding: margins(26px, 30px, 34px, 8px);
-boxMaxListHeight: 600px;
-boxFontSize: 14px;
-boxTextFont: font(boxFontSize);
-boxLittleSkip: 10px;
-boxMediumSkip: 20px;
-
-boxTitleFont: font(boxFontSize bold);
-boxTitlePosition: point(26px, 28px);
-boxTitleHeight: 54px;
-
-boxButtonFont: font(boxFontSize semibold);
-boxButtonPadding: margins(12px, 16px, 22px, 16px);
-boxLabel: flatLabel(labelDefFlat) {
-	font: font(boxFontSize);
-	align: align(topleft);
-}
-
-solidScroll: flatScroll {
-	barColor: #3f729734;
-	bgColor: #214f751a;
-	barOverColor: #3f729734;
-	bgOverColor: #214f751a;
-
-	minHeight: 20px;
-
-	round: 2px;
-	deltax: 5px;
-	width: 14px;
-	deltat: 6px;
-	deltab: 6px;
-
-	topsh: 0px;
-	bottomsh: 0px;
-	shColor: #00000012;
-
-	duration: 150;
-	hiding: 0;
-}
 defaultDropdownDuration: 150;
 defaultDropdownPadding: margins(10px, 10px, 10px, 10px);
 defaultDropdownShadow: icon {{ "dropdown_shadow", windowShadowFg }};
@@ -102,14 +54,6 @@ defaultTooltip: Tooltip {
 	widthMax: 800px;
 	linesMax: 12;
 }
-
-boxScroll: flatScroll(solidScroll) {
-	round: 3px;
-	width: 18px;
-	deltax: 6px;
-}
-boxScrollSkip: 6px;
-boxScrollShadowBg: #00000012;
 
 statusFont: font(fsize);
 statusFg: #999999;
@@ -135,63 +79,12 @@ linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);
 
-scrollDef: flatScroll {
-	barColor: #00000053;
-	bgColor: #0000001a;
-	barOverColor: #0000007a;
-	bgOverColor: #0000002c;
-
-	round: 2px;
-
-	width: 10px;
-	minHeight: 20px;
-	deltax: 3px;
-	deltat: 3px;
-	deltab: 3px;
-
-	topsh: 2px;
-	bottomsh: 2px;
-	shColor: #00000012;
-
-	duration: 150;
-	hiding: 1000;
-}
-
 dateRadius: 10px;
 buttonRadius: 3px;
 
-scrollCountries: flatScroll(scrollDef) {
-	topsh: 0px;
-	bottomsh: -2px;
-}
-
 lnkText: #0f7dc7;
 
-boxShadow: icon {{ "box_shadow", windowShadowFg }};
-boxShadowShift: 2px;
-
-btnSelectSep: #e0e0e0;
-
-countryRowHeight: 36px;
-countryRowNameFont: semiboldFont;
-countryRowNameFg: boxTextFg;
-countryRowPadding: margins(22px, 9px, 8px, 0px);
-countryRowCodeFont: font(fsize);
-countryRowBg: windowBg;
-countryRowBgOver: windowOverBg;
-countryRowCodeFg: windowSubTextFg;
-countryRowCodeFgOver: windowSubTextFgOver;
-countriesSkip: 12px;
-countriesScroll: flatScroll(boxScroll) {
-	deltat: 9px;
-	deltab: 3px;
-}
-
 setLittleSkip: 9px;
-setScroll: flatScroll(scrollDef) {
-	bottomsh: 0px;
-	topsh: 0px;
-}
 
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
@@ -245,20 +138,6 @@ msgOutReplyBarColor: historyOutIconFg;
 msgOutReplyBarSelColor: historyOutIconFgSelected;
 msgImgReplyBarColor: #ffffff;
 
-msgBotKbDuration: 200;
-msgBotKbFont: semiboldFont;
-msgBotKbOverBg: #ffffff1a;
-msgBotKbIconPadding: 2px;
-msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
-msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
-msgBotKbButton: botKeyboardButton {
-	margin: 5px;
-	padding: 10px;
-	height: 36px;
-	textTop: 8px;
-	downTextTop: 9px;
-}
-
 msgServiceBg: #89a0b47f;
 msgServiceSelectBg: #bbc8d4a2;
 msgServiceColor: #ffffff;
@@ -283,7 +162,7 @@ msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
-defaultTextStyle: textStyle {
+defaultTextStyle: TextStyle {
 	linkFlags: font(fsize);
 	linkFlagsOver: font(fsize underline);
 	linkFg: btnYesColor;
@@ -293,10 +172,7 @@ defaultTextStyle: textStyle {
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
 }
-boxTextStyle: textStyle(defaultTextStyle) {
-	lineHeight: 22px;
-}
-serviceTextStyle: textStyle(defaultTextStyle) {
+serviceTextStyle: TextStyle(defaultTextStyle) {
 	linkFlags: msgServiceFont;
 	linkFlagsOver: font(fsize semibold underline);
 	linkFg: msgServiceColor;
@@ -305,35 +181,35 @@ serviceTextStyle: textStyle(defaultTextStyle) {
 	selectBg: msgServiceSelectBg;
 	selectOverlay: msgServiceSelectBg;
 }
-inTextStyle: textStyle(defaultTextStyle) {
+inTextStyle: TextStyle(defaultTextStyle) {
 	monoFg: #4e7391;
 	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
-outTextStyle: textStyle(defaultTextStyle) {
+outTextStyle: TextStyle(defaultTextStyle) {
 	monoFg: #469165;
 	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
-inFwdTextStyle: textStyle(defaultTextStyle) {
+inFwdTextStyle: TextStyle(defaultTextStyle) {
 	linkFlags: semiboldFont;
 	linkFlagsOver: semiboldFont;
 	linkFg: msgInServiceFg;
 	linkFgDown: msgInServiceFg;
 }
-outFwdTextStyle: textStyle(inFwdTextStyle) {
+outFwdTextStyle: TextStyle(inFwdTextStyle) {
 	linkFg: msgOutServiceFg;
 	linkFgDown: msgOutServiceFg;
 }
-inFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+inFwdTextStyleSelected: TextStyle(inFwdTextStyle) {
 	linkFg: msgInServiceFgSelected;
 	linkFgDown: msgInServiceFgSelected;
 }
-outFwdTextStyleSelected: textStyle(inFwdTextStyle) {
+outFwdTextStyleSelected: TextStyle(inFwdTextStyle) {
 	linkFg: msgOutServiceFgSelected;
 	linkFgDown: msgOutServiceFgSelected;
 }
-medviewSaveAsTextStyle: textStyle(defaultTextStyle) {
+medviewSaveAsTextStyle: TextStyle(defaultTextStyle) {
 	linkFg: #91d9ff;
 	linkFgDown: #91d9ff;
 }
@@ -356,11 +232,11 @@ mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
 mediaUnreadTop: 6px;
 
-mediaInStyle: textStyle(defaultTextStyle) {
+mediaInStyle: TextStyle(defaultTextStyle) {
 	linkFg: mediaInFg;
 	linkFgDown: mediaInFg;
 }
-mediaInStyleSelected: textStyle(defaultTextStyle) {
+mediaInStyleSelected: TextStyle(defaultTextStyle) {
 	linkFg: mediaInFgSelected;
 	linkFgDown: mediaInFgSelected;
 }
@@ -397,7 +273,7 @@ msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
-msgFileInBg: windowActiveBg;
+msgFileInBg: windowBgActive;
 msgFileInBgOver: #4eade3;
 msgFileInBgSelected: #51a3d3;
 msgFileOutBg: #78c67f;
@@ -413,7 +289,7 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
-msgWaveformInActive: windowActiveBg;
+msgWaveformInActive: windowBgActive;
 msgWaveformInActiveSelected: #51a3d3;
 msgWaveformInInactive: #d4dee6;
 msgWaveformInInactiveSelected: #9cc1e1;
@@ -422,22 +298,6 @@ msgWaveformOutActiveSelected: #6badad;
 msgWaveformOutInactive: #b3e2b4;
 msgWaveformOutInactiveSelected: #91c3c3;
 
-historyScroll: flatScroll(scrollDef) {
-	barColor: #89a0b47a;
-	bgColor: #89a0b44c;
-	barOverColor: #89a0b4bc;
-	bgOverColor: #89a0b46b;
-
-	round: 3px;
-
-	width: 12px;
-	deltax: 3px;
-	deltat: 3px;
-	deltab: 3px;
-
-	topsh: 0px;
-	bottomsh: -1px;
-}
 textRectMargins: margins(-2px, -1px, -2px, -1px);
 
 newMsgSound: ":/gui/art/newmsg.wav";
@@ -462,13 +322,6 @@ layerPadding: margins(10px, 10px, 10px, 10px);
 simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
 dialogsForwardCancelIcon: icon {{ "simple_close", dialogsForwardFg }};
-
-boxPhotoPadding: margins(28px, 28px, 28px, 18px);
-boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
-boxPhotoTextFg: #808080;
-cropPointSize: 10px;
-cropSkip: 13px;
-cropMinSize: 20px;
 
 profileMaxWidth: 410px;
 profilePadding: margins(28px, 30px, 28px, 0px);
@@ -503,31 +356,6 @@ dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);
 
 dragHeight: 72px;
-
-botKbDuration: 200;
-botKbBg: #edf1f5;
-botKbOverBg: #d8e2ec;
-botKbDownBg: #d8e2ec;
-botKbColor: #4b565f;
-botKbFont: font(15px semibold);
-botKbButton: botKeyboardButton {
-	margin: 10px;
-	padding: 10px;
-	height: 38px;
-	textTop: 9px;
-	downTextTop: 9px;
-}
-botKbTinyButton: botKeyboardButton {
-	margin: 4px;
-	padding: 3px;
-	height: 25px;
-	textTop: 2px;
-	downTextTop: 2px;
-}
-botKbScroll: flatScroll(solidScroll) {
-	deltax: 3px;
-	width: 10px;
-}
 
 minPhotoSize: 100px;
 maxMediaSize: 420px;
@@ -590,7 +418,7 @@ downloadPathSkip: 10px;
 
 usernamePadding: margins(23px, 22px, 21px, 12px);
 usernameSkip: 49px;
-usernameTextStyle: textStyle(defaultTextStyle) {
+usernameTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
 usernameDefaultFg: #777777;
@@ -604,23 +432,6 @@ videoIcon: icon {
 	{ "media_video_play", #ffffff, point(12px, 12px) },
 };
 locationSize: size(320px, 240px);
-
-mentionHeight: 40px;
-mentionScroll: flatScroll(scrollDef) {
-	topsh: 0px;
-	bottomsh: 0px;
-}
-mentionPadding: margins(8px, 5px, 8px, 5px);
-mentionTop: 11px;
-mentionFont: linkFont;
-mentionNameFg: windowTextFg;
-mentionPhotoSize: msgPhotoSize;
-mentionBg: #ffffff;
-mentionBgOver: #f5f5f5;
-mentionFg: #777777;
-mentionFgOver: #707070;
-mentionFgActive: #0080c0;
-mentionFgOverActive: #0077b3;
 
 webPageLeft: 10px;
 webPageBar: 2px;
@@ -645,7 +456,7 @@ inlineResultsSkip: 3px;
 inlineMediaHeight: 96px;
 inlineThumbSize: 64px;
 inlineThumbSkip: 10px;
-inlineTitleFg: windowTextFg;
+inlineTitleFg: windowFg;
 inlineDescriptionFg: windowSubTextFg;
 inlineRowMargin: 6px;
 inlineRowBorder: 1px;

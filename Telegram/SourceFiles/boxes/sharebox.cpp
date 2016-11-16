@@ -36,6 +36,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/multi_select.h"
 #include "history/history_media_types.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/scroll_area.h"
 #include "boxes/contactsbox.h"
 
 ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback) : ItemListBox(st::boxScroll)

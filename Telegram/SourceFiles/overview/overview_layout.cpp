@@ -409,7 +409,7 @@ Voice::Voice(DocumentData *voice, HistoryItem *parent) : FileBase(parent)
 	QString d = textcmdLink(1, textRichPrepare(langDateTime(date(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
 	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
-	_details.setLink(1, MakeShared<GoToMessageClickHandler>(parent));
+	_details.setLink(1, goToMessageClickHandler(parent));
 }
 
 void Voice::initDimensions() {
@@ -588,7 +588,7 @@ bool Voice::updateStatusText() const {
 
 Document::Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st) : FileBase(parent)
 , _data(document)
-, _msgl(new GoToMessageClickHandler(parent))
+, _msgl(goToMessageClickHandler(parent))
 , _namel(new DocumentOpenClickHandler(_data))
 , _st(st)
 , _date(langDateTime(date(_data->date)))

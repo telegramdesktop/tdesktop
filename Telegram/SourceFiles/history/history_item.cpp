@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 #include "fileuploader.h"
 
 namespace {
@@ -176,7 +177,7 @@ void ReplyKeyboard::resize(int width, int height) {
 	}
 }
 
-bool ReplyKeyboard::isEnoughSpace(int width, const style::botKeyboardButton &st) const {
+bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st) const {
 	for_const (auto &row, _rows) {
 		int s = row.size();
 		int widthLeft = width - ((s - 1) * st.margin + s * 2 * st.padding);
@@ -315,6 +316,18 @@ void ReplyKeyboard::clearSelection() {
 	}
 	_animations.clear();
 	_a_selected.stop();
+}
+
+int ReplyKeyboard::Style::buttonSkip() const {
+	return _st->margin;
+}
+
+int ReplyKeyboard::Style::buttonPadding() const {
+	return _st->padding;
+}
+
+int ReplyKeyboard::Style::buttonHeight() const {
+	return _st->height;
 }
 
 void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const {
@@ -880,12 +893,14 @@ HistoryItem::~HistoryItem() {
 	}
 }
 
-void GoToMessageClickHandler::onClickImpl() const {
-	if (App::main()) {
-		HistoryItem *current = App::mousedItem();
-		if (current && current->history()->peer->id == peer()) {
-			App::main()->pushReplyReturn(current);
+ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId) {
+	return MakeShared<LambdaClickHandler>([peer, msgId] {
+		if (App::main()) {
+			auto current = App::mousedItem();
+			if (current && current->history()->peer == peer) {
+				App::main()->pushReplyReturn(current);
+			}
+			Ui::showPeerHistory(peer, msgId, Ui::ShowWay::Forward);
 		}
-		Ui::showPeerHistory(peer(), msgid(), Ui::ShowWay::Forward);
-	}
+	});
 }

@@ -178,3 +178,18 @@ protected:
 	virtual void onClickImpl() const = 0;
 
 };
+
+class LambdaClickHandler : public ClickHandler {
+public:
+	LambdaClickHandler(base::lambda_unique<void()> handler) : _handler(std_::move(handler)) {
+	}
+	void onClick(Qt::MouseButton button) const override final {
+		if (button == Qt::LeftButton && _handler) {
+			_handler();
+		}
+	}
+
+private:
+	base::lambda_unique<void()> _handler;
+
+};

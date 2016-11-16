@@ -898,21 +898,3 @@ private:
 	int32 fullHeight() const;
 
 };
-
-class SendMessageClickHandler : public PeerClickHandler {
-public:
-	using PeerClickHandler::PeerClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class AddContactClickHandler : public MessageClickHandler {
-public:
-	using MessageClickHandler::MessageClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};

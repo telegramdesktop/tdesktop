@@ -21,12 +21,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 // basic
 windowBg: #ffffff; // white: fallback for background
-windowTextFg: #000000; // black: fallback for text color
+windowFg: #000000; // black: fallback for text color
+windowBgOver: #f1f1f1; // light gray: fallback for over background
+windowBgRipple: #e5e5e5; // darker gray: fallback for ripple effect
+windowFgOver: windowFg; // black: fallback for over text color
 windowSubTextFg: #999999; // gray: fallback for subtext color
-windowActiveBg: #40ace3; // bright blue: fallback for blue filled active areas
-windowActiveFg: #ffffff; // text on bright blue: fallback for text on active areas
-windowOverBg: #f0f0f0; // light gray: fallback for over background
-windowSubTextFgOver: #7c99b2; // gray over light blue: fallback for subtext over color
+windowSubTextFgOver: #919191; // gray over light blue: fallback for subtext over color
+windowBoldFg: #222222; // dark gray: fallback for bold text color
+windowBoldFgOver: #222222; // dark gray: fallback for over bold text color
+windowBgActive: #40ace3; // bright blue: fallback for blue filled active areas
+windowFgActive: #ffffff; // text on bright blue: fallback for text on active areas
 windowActiveTextFg: #2687bf; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
 windowShadowFgFallback: #cdcdcd; // gray: fallback for shadow without
@@ -35,27 +39,28 @@ imageBg: #000000;
 imageBgTransparent: #ffffff;
 
 // widgets
-activeButtonBg: windowActiveBg;
-activeButtonBgOver: #46b4eb;
-activeButtonBgRipple: #177eb2;
-activeButtonFg: windowActiveFg;
+activeButtonBg: windowBgActive;
+activeButtonBgOver: #39a5db;
+activeButtonBgRipple: #2095d0;
+activeButtonFg: windowFgActive;
 activeButtonFgOver: activeButtonFg;
 activeButtonSecondaryFg: #cceeff;
 activeButtonSecondaryFgOver: activeButtonSecondaryFg;
 
 lightButtonBg: windowBg;
-lightButtonBgOver: #edf7ff;
-lightButtonBgRipple: #c7e1f6;
+lightButtonBgOver: #e3f1fa;
+lightButtonBgRipple: #c9e4f6;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
 menuBg: windowBg;
-menuBgOver: windowOverBg;
+menuBgOver: windowBgOver;
+menuBgRipple: windowBgRipple;
 menuIconFg: #a8a8a8;
 menuIconFgOver: #999999;
 
 // custom title bar for Windows and macOS
-titleBg: windowOverBg;
+titleBg: windowBgOver;
 titleShadow: #00000003;
 titleButtonFg: #ababab;
 titleButtonBgOver: #e5e5e5;
@@ -80,7 +85,7 @@ cancelIconFgOver: #808080;
 
 // boxes
 boxBg: windowBg;
-boxTextFg: windowTextFg;
+boxTextFg: windowFg;
 boxTextFgGood: #4ab44a;
 boxTextFgError: #d84d4d;
 boxTitleFg: #404040;
@@ -94,41 +99,41 @@ boxBlockTitleAdditionalFg: #808080;
 boxBlockTitleCloseFg: cancelIconFg;
 boxBlockTitleCloseFgOver: cancelIconFgOver;
 
-attentionBoxButtonFg: #ea4b2f;
-attentionBoxButtonFgOver: #ea4b2f;
-attentionBoxButtonBgOver: #fff0ed;
-attentionBoxButtonBgRipple: #efbcb2;
+attentionBoxButtonFg: #d14e4e;
+attentionBoxButtonFgOver: #d14e4e;
+attentionBoxButtonBgOver: #fcdfde;
+attentionBoxButtonBgRipple: #f4c3c2;
 
-membersAboutLimitFg: windowSubTextFg;
+membersAboutLimitFg: windowSubTextFgOver;
 
 contactsBg: windowBg;
-contactsBgOver: windowOverBg;
+contactsBgOver: windowBgOver;
 contactsNameFg: boxTextFg;
 contactsStatusFg: windowSubTextFg;
-contactsStatusFgOver: contactsStatusFg;
-contactsStatusFgOnline: #3b8dcc;
+contactsStatusFgOver: windowSubTextFgOver;
+contactsStatusFgOnline: windowActiveTextFg;
 
 photoCropFadeBg: #0000007f;
 photoCropPointFg: #ffffff7f;
 
 // settings
-notificationsBoxMonitorFg: windowTextFg;
+notificationsBoxMonitorFg: windowFg;
 
-notificationSampleUserpicFg: windowActiveBg;
+notificationSampleUserpicFg: windowBgActive;
 notificationSampleCloseFg: #d7d7d7 | windowSubTextFg;
 notificationSampleTextFg: #d7d7d7 | windowSubTextFg;
 notificationSampleNameFg: #939393 | windowSubTextFg;
 
 // intro
-introHeaderFg: windowTextFg;
-introErrorFg: windowTextFg;
+introHeaderFg: windowFg;
+introErrorFg: windowFg;
 
 // dialogs
 dialogsMenuIconFg: menuIconFg;
 dialogsMenuIconFgOver: menuIconFgOver;
 
 dialogsBg: windowBg;
-dialogsNameFg: #373737;
+dialogsNameFg: windowBoldFg;
 dialogsChatIconFg: dialogsNameFg;
 dialogsDateFg: windowSubTextFg;
 dialogsTextFg: windowSubTextFg;
@@ -138,15 +143,15 @@ dialogsVerifiedIconBg: #4abcf1;
 dialogsVerifiedIconFg: #ffffff;
 dialogsSendingIconFg: #c1c1c1;
 dialogsSentIconFg: #5dc452;
-dialogsUnreadBg: windowActiveBg;
+dialogsUnreadBg: windowBgActive;
 dialogsUnreadBgMuted: #bbbbbb;
 dialogsUnreadFg: #ffffff;
 
-dialogsBgOver: windowOverBg;
-dialogsNameFgOver: windowTextFg;
+dialogsBgOver: windowBgOver;
+dialogsNameFgOver: windowBoldFgOver;
 dialogsChatIconFgOver: dialogsNameFgOver;
-dialogsDateFgOver: #8a8a8a | dialogsDateFg;
-dialogsTextFgOver: dialogsTextFg;
+dialogsDateFgOver: windowSubTextFgOver;
+dialogsTextFgOver: windowSubTextFgOver;
 dialogsTextFgServiceOver: dialogsTextFgService;
 dialogsDraftFgOver: dialogsDraftFg;
 dialogsVerifiedIconBgOver: dialogsVerifiedIconBg;
@@ -158,10 +163,10 @@ dialogsUnreadBgMutedOver: dialogsUnreadBgMuted;
 dialogsUnreadFgOver: dialogsUnreadFg;
 
 dialogsBgActive: #419fd9;
-dialogsNameFgActive: windowActiveFg;
+dialogsNameFgActive: windowFgActive;
 dialogsChatIconFgActive: dialogsNameFgActive;
-dialogsDateFgActive: windowActiveFg;
-dialogsTextFgActive: windowActiveFg;
+dialogsDateFgActive: windowFgActive;
+dialogsTextFgActive: windowFgActive;
 dialogsTextFgServiceActive: dialogsTextFgActive;
 dialogsDraftFgActive: #c6e1f7;
 dialogsVerifiedIconBgActive: dialogsTextFgActive;
@@ -186,19 +191,19 @@ emojiPanHeaderBg: #fffffff2 | emojiPanBg;
 historyComposeAreaBg: windowBg;
 historyComposeIconFg: menuIconFg;
 historyComposeIconFgOver: menuIconFgOver;
-historySendIconFg: windowActiveBg;
-historySendIconFgOver: windowActiveBg;
+historySendIconFg: windowBgActive;
+historySendIconFgOver: windowBgActive;
 historyPinnedBg: historyComposeAreaBg;
 historyReplyBg: historyComposeAreaBg;
 historyReplyCancelFg: cancelIconFg;
 historyReplyCancelFgOver: cancelIconFgOver;
 
 historyComposeButtonBg: historyComposeAreaBg;
-historyComposeButtonBgOver: #f5f5f5;
-historyComposeButtonBgRipple: #e7e7e7;
+historyComposeButtonBgOver: windowBgOver;
+historyComposeButtonBgRipple: windowBgRipple;
 
-historyTextInFg: windowTextFg;
-historyTextOutFg: windowTextFg;
+historyTextInFg: windowFg;
+historyTextOutFg: windowFg;
 historyCaptionInFg: historyTextInFg;
 historyCaptionOutFg: historyTextOutFg;
 historyFileNameInFg: historyTextInFg;
@@ -213,7 +218,7 @@ historySystemFg: #ffffff;
 
 // mediaview
 mediaviewFileBg: windowBg;
-mediaviewFileNameFg: windowTextFg;
+mediaviewFileNameFg: windowFg;
 mediaviewFileSizeFg: windowSubTextFg;
 mediaviewFileRedCornerFg: #d55959;
 mediaviewFileYellowCornerFg: #e8a659;

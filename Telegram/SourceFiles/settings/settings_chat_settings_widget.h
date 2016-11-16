@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 
+namespace Ui {
 class FlatLabel;
+} // namespace Ui
 
 namespace Settings {
 
@@ -46,7 +48,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	ChildWidget<FlatLabel> _label;
+	ChildWidget<Ui::FlatLabel> _label;
 	ChildWidget<Ui::LinkButton> _link;
 
 };

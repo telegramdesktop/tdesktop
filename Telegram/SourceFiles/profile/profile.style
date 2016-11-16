@@ -39,14 +39,14 @@ profilePhotoLeftMax: 35px;
 profilePhotoDuration: 500;
 profileNameLeft: 26px;
 profileNameTop: 9px;
-profileNameLabel: flatLabel(labelDefFlat) {
+profileNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
 	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
 	textFg: #333333;
 }
-profileNameTextStyle: textStyle(defaultTextStyle) {
+profileNameTextStyle: TextStyle(defaultTextStyle) {
 }
 profileStatusLeft: 27px;
 profileStatusTop: 35px;
@@ -94,14 +94,14 @@ profileBlockTitleHeight: 24px;
 profileBlockTitleFont: font(14px semibold);
 profileBlockTitleFg: #333333;
 profileBlockTitlePosition: point(24px, 0px);
-profileBlockLabel: flatLabel(labelDefFlat) {
+profileBlockLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowSubTextFg;
 }
-profileBlockTextPart: flatLabel(labelDefFlat) {
+profileBlockTextPart: FlatLabel(defaultFlatLabel) {
 	width: 180px;
 	margin: margins(5px, 5px, 5px, 5px);
 }
-profileBlockOneLineTextPart: flatLabel(profileBlockTextPart) {
+profileBlockOneLineTextPart: FlatLabel(profileBlockTextPart) {
 	width: 0px; // No need to set minWidth in one-line text.
 	maxHeight: 20px;
 }
@@ -111,7 +111,7 @@ profileBlockOneLineWidthMax: 240px;
 profileEnableNotificationsTop: 7px;
 profileSettingsBlockSkip: 8px;
 
-profileInviteLinkText: flatLabel(profileBlockTextPart) {
+profileInviteLinkText: FlatLabel(profileBlockTextPart) {
 	width: 1px; // Required for BreakEverywhere
 }
 
@@ -122,17 +122,17 @@ profileMemberPaddingLeft: 16px;
 profileMemberPhotoSize: 46px;
 profileMemberPhotoPosition: point(12px, 6px);
 profileMemberNamePosition: point(68px, 11px);
-profileMemberNameFg: #222222;//windowTextFg;
+profileMemberNameFg: #222222;
 profileMemberStatusPosition: point(68px, 31px);
 profileMemberStatusFg: windowSubTextFg;
 profileMemberStatusFgOver: windowSubTextFgOver;
 profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {{ "profile_admin_star", #3babe7, point(4px, 3px) }};
-profileLimitReachedLabel: flatLabel(labelDefFlat) {
+profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {
 	width: 180px;
 	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);
 }
-profileLimitReachedStyle: textStyle(defaultTextStyle) {
+profileLimitReachedStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 19px;
 }
 

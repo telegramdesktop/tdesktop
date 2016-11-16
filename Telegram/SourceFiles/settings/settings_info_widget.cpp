@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_settings.h"
 #include "lang.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/usernamebox.h"
 #include "observer_peer.h"
@@ -133,18 +133,18 @@ void InfoWidget::LabeledWidget::setLabeledText(const QString &label, const TextW
 	_shortText.destroy();
 	if (textWithEntities.text.isEmpty()) return;
 
-	_label = new FlatLabel(this, label, FlatLabel::InitType::Simple, st::settingsBlockLabel);
+	_label.create(this, label, Ui::FlatLabel::InitType::Simple, st::settingsBlockLabel);
 	_label->show();
 	setLabelText(_text, textWithEntities, copyText);
 	setLabelText(_shortText, shortTextWithEntities, copyText);
 	resizeToWidth(width());
 }
 
-void InfoWidget::LabeledWidget::setLabelText(ChildWidget<FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
+void InfoWidget::LabeledWidget::setLabelText(ChildWidget<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
 	text.destroy();
 	if (textWithEntities.text.isEmpty()) return;
 
-	text = new FlatLabel(this, QString(), FlatLabel::InitType::Simple, st::settingsBlockOneLineTextPart);
+	text.create(this, QString(), Ui::FlatLabel::InitType::Simple, st::settingsBlockOneLineTextPart);
 	text->show();
 	text->setMarkedText(textWithEntities);
 	text->setContextCopyText(copyText);

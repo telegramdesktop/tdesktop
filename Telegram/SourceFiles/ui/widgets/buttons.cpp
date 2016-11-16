@@ -132,7 +132,7 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(anim::pen(_st.color, _st.overColor, a_over.current()));
 
-	int32 top = (_state & StateOver) ? ((_state & StateDown) ? _st.downTextTop : _st.overTextTop) : _st.textTop;
+	auto top = (_state & StateDown) ? _st.downTextTop : ((_state & StateOver) ? _st.overTextTop : _st.textTop);
 	r.setTop(top);
 
 	p.drawText(r, _text, style::al_top);
@@ -259,7 +259,7 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 
 	auto over = (_state & StateOver);
 	auto down = (_state & StateDown);
-	if (over) {
+	if (over || down) {
 		App::roundRect(p, myrtlrect(rounded), _st.textBgOver, ImageRoundRadius::Small);
 	}
 
@@ -360,6 +360,7 @@ void IconButton::paintEvent(QPaintEvent *e) {
 		}
 	}
 
+	auto down = (_state & StateDown);
 	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
 	auto overIcon = [this] {
 		if (_iconOverrideOver) {
@@ -377,7 +378,7 @@ void IconButton::paintEvent(QPaintEvent *e) {
 		}
 		return &_st.icon;
 	};
-	auto icon = (over == 1.) ? overIcon() : justIcon();
+	auto icon = (over == 1. || down) ? overIcon() : justIcon();
 	auto position = (_state & StateDown) ? _st.iconPositionDown : _st.iconPosition;
 	if (position.x() < 0) {
 		position.setX((width() - icon->width()) / 2);

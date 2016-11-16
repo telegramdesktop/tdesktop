@@ -27,8 +27,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-UserpicButton::UserpicButton(QWidget *parent, PeerData *peer) : AbstractButton(parent), _peer(peer) {
-	resize(st::profilePhotoSize, st::profilePhotoSize);
+UserpicButton::UserpicButton(QWidget *parent, PeerData *peer, int size) : AbstractButton(parent)
+, _size(size ? size : st::profilePhotoSize)
+, _peer(peer) {
+	resize(_size, _size);
 
 	processPeerPhoto();
 	_notShownYet = _waiting;
@@ -107,13 +109,13 @@ void UserpicButton::startNewPhotoShowing() {
 
 QPixmap UserpicButton::prepareUserpicPixmap() const {
 	auto retina = cIntRetinaFactor();
-	auto size = st::profilePhotoSize * retina;
+	auto size = width() * retina;
 	QImage image(size, size, QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
+	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
-		p.fillRect(0, 0, st::profilePhotoSize, st::profilePhotoSize, st::profileBg);
-		_peer->paintUserpic(p, st::profilePhotoSize, 0, 0);
+		_peer->paintUserpic(p, width(), 0, 0);
 	}
 	return App::pixmapFromImageInPlace(std_::move(image));
 }

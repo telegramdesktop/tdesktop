@@ -22,9 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class AudioMsgId;
 struct AudioPlaybackState;
-class FlatLabel;
 
 namespace Ui {
+class FlatLabel;
 class LabelSimple;
 class IconButton;
 class PlainShadow;
@@ -91,7 +91,7 @@ private:
 	QString _time;
 
 	class PlayButton;
-	ChildWidget<FlatLabel> _nameLabel;
+	ChildWidget<Ui::FlatLabel> _nameLabel;
 	ChildWidget<Ui::LabelSimple> _timeLabel;
 	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
 	ChildWidget<PlayButton> _playPause;

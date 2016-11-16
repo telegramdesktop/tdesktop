@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_invite_link_widget.h"
 
 #include "styles/style_profile.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
 #include "lang.h"
@@ -94,7 +94,7 @@ void InviteLinkWidget::refreshLink() {
 	if (linkData.text.isEmpty()) {
 		_link.destroy();
 	} else {
-		_link = new FlatLabel(this, QString(), FlatLabel::InitType::Simple, st::profileInviteLinkText);
+		_link.create(this, QString(), Ui::FlatLabel::InitType::Simple, st::profileInviteLinkText);
 		_link->show();
 
 		linkData.entities.push_back(EntityInText(EntityInTextUrl, 0, linkData.text.size()));

@@ -23,6 +23,7 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
+boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton {
 	textFg: #2f9fea;
 	textFgOver: #2f9fea;
@@ -90,14 +91,70 @@ boxLinkButton: LinkButton {
 
 boxOptionListPadding: margins(2px, 20px, 2px, 2px);
 
-confirmInviteTitle: flatLabel(labelDefFlat) {
+boxVerticalMargin: 10px;
+boxWidth: 320px;
+boxWideWidth: 364px;
+boxPadding: margins(26px, 30px, 34px, 8px);
+boxMaxListHeight: 600px;
+boxLittleSkip: 10px;
+boxMediumSkip: 20px;
+
+boxTitleFont: font(boxFontSize bold);
+boxTitlePosition: point(26px, 28px);
+boxTitleHeight: 54px;
+
+boxButtonPadding: margins(12px, 16px, 22px, 16px);
+boxLabel: FlatLabel(defaultFlatLabel) {
+	font: font(boxFontSize);
+	align: align(topleft);
+}
+
+boxScroll: FlatScroll(defaultSolidScroll) {
+	round: 3px;
+	width: 18px;
+	deltax: 6px;
+}
+boxScrollSkip: 6px;
+boxScrollShadowBg: #00000012;
+
+boxShadow: icon {{ "box_shadow", windowShadowFg }};
+boxShadowShift: 2px;
+
+countryRowHeight: 36px;
+countryRowNameFont: semiboldFont;
+countryRowNameFg: boxTextFg;
+countryRowPadding: margins(22px, 9px, 8px, 0px);
+countryRowCodeFont: font(fsize);
+countryRowBg: windowBg;
+countryRowBgOver: windowBgOver;
+countryRowCodeFg: windowSubTextFg;
+countryRowCodeFgOver: windowSubTextFgOver;
+countriesSkip: 12px;
+countriesScroll: FlatScroll(boxScroll) {
+	deltat: 9px;
+	deltab: 3px;
+}
+
+boxTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 22px;
+}
+
+boxPhotoPadding: margins(28px, 28px, 28px, 18px);
+boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
+boxPhotoTextFg: #808080;
+
+cropPointSize: 10px;
+cropSkip: 13px;
+cropMinSize: 20px;
+
+confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	font: font(16px semibold);
 	align: align(center);
 	width: 320px;
 	maxHeight: 24px;
 	textFg: #333333;
 }
-confirmInviteStatus: flatLabel(labelDefFlat) {
+confirmInviteStatus: FlatLabel(defaultFlatLabel) {
 	font: font(boxFontSize);
 	align: align(center);
 	width: 320px;
@@ -111,7 +168,7 @@ confirmInviteStatusTop: 136px;
 confirmInviteUserHeight: 80px;
 confirmInviteUserPhotoSize: 56px;
 confirmInviteUserPhotoTop: 166px;
-confirmInviteUserName: flatLabel(labelDefFlat) {
+confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 	font: normalFont;
 	align: align(center);
 	width: 66px;
@@ -119,22 +176,22 @@ confirmInviteUserName: flatLabel(labelDefFlat) {
 }
 confirmInviteUserNameTop: 227px;
 
-confirmPhoneAboutLabel: flatLabel(labelDefFlat) {
+confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 	width: 282px;
 }
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
 
-revokePublicLinkStatusStyle: textStyle(defaultTextStyle) {
+revokePublicLinkStatusStyle: TextStyle(defaultTextStyle) {
 	linkFg: contactsStatusFgOnline;
 	linkFgDown: contactsStatusFgOnline;
 	linkFlagsOver: font(fsize);
 }
-aboutRevokePublicLabel: flatLabel(labelDefFlat) {
+aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	font: normalFont;
 	align: align(topleft);
 	width: 320px;
-	textFg: windowTextFg;
+	textFg: windowFg;
 }
 
 contactUserIcon: icon {{ "add_contact_user", #999999 }};
@@ -172,7 +229,7 @@ contactsAdminCheckbox: Checkbox(defaultBoxCheckbox) {
 contactsAboutSkip: 53px;
 contactsAboutHeight: 42px;
 contactsAboutTop: 9px;
-contactsScroll: flatScroll(boxScroll) {
+contactsScroll: FlatScroll(boxScroll) {
 	deltab: 0px;
 }
 
@@ -180,7 +237,7 @@ contactsMultiSelect: MultiSelect {
 	bg: boxSearchBg;
 	padding: margins(8px, 8px, 8px, 8px);
 	maxHeight: 104px;
-	scroll: flatScroll(solidScroll) {
+	scroll: FlatScroll(defaultSolidScroll) {
 		deltat: 3px;
 		deltab: 3px;
 		round: 1px;
@@ -195,7 +252,7 @@ contactsMultiSelect: MultiSelect {
 		height: 32px;
 		font: normalFont;
 		textBg: contactsBgOver;
-		textFg: windowTextFg;
+		textFg: windowFg;
 		textActiveBg: activeButtonBg;
 		textActiveFg: activeButtonFg;
 		deleteFg: activeButtonFg;
@@ -242,13 +299,13 @@ contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
 	imageSmallRadius: 18px;
 	selectWidth: 2px;
-	selectFg: windowActiveBg;
+	selectFg: windowBgActive;
 	selectDuration: 150;
 	checkBorder: windowBg;
-	checkBg: windowActiveBg;
+	checkBg: windowBgActive;
 	checkRadius: 10px;
 	checkSmallRadius: 3px;
-	checkIcon: icon {{ "default_checkbox_check", windowActiveFg, point(3px, 6px) }};
+	checkIcon: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
 }
 contactsPhotoDisabledCheckFg: #bbbbbb;
 contactsNameCheckedFg: #2b88b8;
@@ -263,7 +320,7 @@ sharePhotoCheckbox: RoundImageCheckbox(contactsPhotoCheckbox) {
 	imageSmallRadius: 24px;
 }
 shareNameFont: font(11px);
-shareNameFg: windowTextFg;
+shareNameFg: windowFg;
 shareNameActiveFg: btnYesColor;
 shareNameTop: 6px;
 shareColumnSkip: 6px;
@@ -289,7 +346,7 @@ notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
 
-sessionsScroll: flatScroll(boxScroll) {
+sessionsScroll: FlatScroll(boxScroll) {
 	round: 2px;
 	deltax: 5px;
 	width: 14px;
@@ -376,12 +433,12 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 }
 aboutTextTop: 34px;
 aboutSkip: 14px;
-aboutLabel: flatLabel(labelDefFlat) {
+aboutLabel: FlatLabel(defaultFlatLabel) {
 	font: normalFont;
 	width: 330px;
 	align: align(topleft);
 }
-aboutTextStyle: textStyle(defaultTextStyle) {
+aboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 22px;
 }
 
@@ -419,7 +476,7 @@ langsButton: Radiobutton(defaultRadiobutton) {
 
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
-backgroundScroll: flatScroll(boxScroll) {
+backgroundScroll: FlatScroll(boxScroll) {
 	round: 2px;
 	width: 10px;
 	deltax: 3px;

@@ -21,16 +21,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "profile/profile_widget.h"
 
+#include "styles/style_settings.h"
 #include "profile/profile_fixed_bar.h"
 #include "profile/profile_inner_widget.h"
 #include "profile/profile_section_memento.h"
 #include "mainwindow.h"
 #include "application.h"
+#include "ui/widgets/scroll_area.h"
 
 namespace Profile {
 
 Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
-, _scroll(this, st::setScroll)
+, _scroll(this, st::settingsScroll)
 , _inner(this, peer)
 , _fixedBar(this, peer)
 , _fixedBarShadow(this, st::shadowColor) {

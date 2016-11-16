@@ -20,21 +20,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "styles/style_widgets.h"
+
 namespace Ui {
+
 class PopupMenu;
-} // namespace Ui
+
+class LabelSimple : public TWidget {
+public:
+	LabelSimple(QWidget *parent, const style::LabelSimple &st = st::defaultLabelSimple, const QString &value = QString());
+
+	// This method also resizes the label.
+	void setText(const QString &newText, bool *outTextChanged = nullptr);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	QString _fullText;
+	int _fullTextWidth;
+
+	QString _text;
+	int _textWidth;
+
+	const style::LabelSimple &_st;
+
+};
 
 class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-	FlatLabel(QWidget *parent, const style::flatLabel &st = st::labelDefFlat, const style::textStyle &tst = st::defaultTextStyle);
+	FlatLabel(QWidget *parent, const style::FlatLabel &st = st::defaultFlatLabel, const style::TextStyle &tst = st::defaultTextStyle);
 
 	enum class InitType {
 		Simple,
 		Rich,
 	};
-	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::flatLabel &st = st::labelDefFlat, const style::textStyle &tst = st::defaultTextStyle);
+	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st = st::defaultFlatLabel, const style::TextStyle &tst = st::defaultTextStyle);
 
 	void setOpacity(float64 o);
 
@@ -51,7 +74,7 @@ public:
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 
-	using ClickHandlerHook = base::lambda_unique<bool(const ClickHandlerPtr&,Qt::MouseButton)>;
+	using ClickHandlerHook = base::lambda_unique<bool(const ClickHandlerPtr&, Qt::MouseButton)>;
 	void setClickHandlerHook(ClickHandlerHook &&hook);
 
 	// ClickHandlerHost interface
@@ -109,8 +132,8 @@ private:
 	void showContextMenu(QContextMenuEvent *e, ContextMenuReason reason);
 
 	Text _text;
-	const style::flatLabel &_st;
-	const style::textStyle &_tst;
+	const style::FlatLabel &_st;
+	const style::TextStyle &_tst;
 	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;
@@ -153,3 +176,5 @@ private:
 	QTimer _touchSelectTimer;
 
 };
+
+} // namespace Ui

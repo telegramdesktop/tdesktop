@@ -19,11 +19,13 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/scrollarea.h"
+#include "ui/widgets/scroll_area.h"
+
+namespace Ui {
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-ScrollShadow::ScrollShadow(ScrollArea *parent, const style::flatScroll *st) : QWidget(parent), _st(st) {
+ScrollShadow::ScrollShadow(ScrollArea *parent, const style::FlatScroll *st) : QWidget(parent), _st(st) {
 	setVisible(false);
 }
 
@@ -36,7 +38,7 @@ void ScrollShadow::changeVisibility(bool shown) {
 	setVisible(shown);
 }
 
-ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::flatScroll *st) : QWidget(parent)
+ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::FlatScroll *st) : QWidget(parent)
 , _st(st)
 , _vertical(vert)
 , _over(false)
@@ -338,7 +340,7 @@ void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	}
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::flatScroll &st, bool handleTouch) : QScrollArea(parent)
+ScrollArea::ScrollArea(QWidget *parent, const style::FlatScroll &st, bool handleTouch) : QScrollArea(parent)
 , _st(st)
 , _horizontalBar(this, false, &_st)
 , _verticalBar(this, true, &_st)
@@ -444,16 +446,16 @@ void ScrollArea::onTouchTimer() {
 
 void ScrollArea::onTouchScrollTimer() {
 	uint64 nowTime = getms();
-	if (_touchScrollState == TouchScrollAcceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
-		_touchScrollState = TouchScrollManual;
+	if (_touchScrollState == TouchScrollState::Acceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
+		_touchScrollState = TouchScrollState::Manual;
 		touchResetSpeed();
-	} else if (_touchScrollState == TouchScrollAuto || _touchScrollState == TouchScrollAcceleration) {
+	} else if (_touchScrollState == TouchScrollState::Auto || _touchScrollState == TouchScrollState::Acceleration) {
 		int32 elapsed = int32(nowTime - _touchTime);
 		QPoint delta = _touchSpeed * elapsed / 1000;
 		bool hasScrolled = touchScroll(delta);
 
 		if (_touchSpeed.isNull() || !hasScrolled) {
-			_touchScrollState = TouchScrollManual;
+			_touchScrollState = TouchScrollState::Manual;
 			_touchScroll = false;
 			_touchScrollTimer.stop();
 		} else {
@@ -475,7 +477,7 @@ void ScrollArea::touchUpdateSpeed() {
 			// of a small horizontal offset when scrolling vertically
 			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > FingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
 			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > FingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
-			if (_touchScrollState == TouchScrollAuto) {
+			if (_touchScrollState == TouchScrollState::Auto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
 				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
@@ -542,8 +544,8 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchBegin:
 		if (_touchPress || e->touchPoints().isEmpty()) return;
 		_touchPress = true;
-		if (_touchScrollState == TouchScrollAuto) {
-			_touchScrollState = TouchScrollAcceleration;
+		if (_touchScrollState == TouchScrollState::Auto) {
+			_touchScrollState = TouchScrollState::Acceleration;
 			_touchWaitingAcceleration = true;
 			_touchAccelerationTime = getms();
 			touchUpdateSpeed();
@@ -564,13 +566,13 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 			touchUpdateSpeed();
 		}
 		if (_touchScroll) {
-			if (_touchScrollState == TouchScrollManual) {
+			if (_touchScrollState == TouchScrollState::Manual) {
 				touchScrollUpdated(_touchPos);
-			} else if (_touchScrollState == TouchScrollAcceleration) {
+			} else if (_touchScrollState == TouchScrollState::Acceleration) {
 				touchUpdateSpeed();
 				_touchAccelerationTime = getms();
 				if (_touchSpeed.isNull()) {
-					_touchScrollState = TouchScrollManual;
+					_touchScrollState = TouchScrollState::Manual;
 				}
 			}
 		}
@@ -580,17 +582,17 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 		if (!_touchPress) return;
 		_touchPress = false;
 		if (_touchScroll) {
-			if (_touchScrollState == TouchScrollManual) {
-				_touchScrollState = TouchScrollAuto;
+			if (_touchScrollState == TouchScrollState::Manual) {
+				_touchScrollState = TouchScrollState::Auto;
 				_touchPrevPosValid = false;
 				_touchScrollTimer.start(15);
 				_touchTime = getms();
-			} else if (_touchScrollState == TouchScrollAuto) {
-				_touchScrollState = TouchScrollManual;
+			} else if (_touchScrollState == TouchScrollState::Auto) {
+				_touchScrollState = TouchScrollState::Manual;
 				_touchScroll = false;
 				touchResetSpeed();
-			} else if (_touchScrollState == TouchScrollAcceleration) {
-				_touchScrollState = TouchScrollAuto;
+			} else if (_touchScrollState == TouchScrollState::Acceleration) {
+				_touchScrollState = TouchScrollState::Auto;
 				_touchWaitingAcceleration = false;
 				_touchPrevPosValid = false;
 			}
@@ -616,7 +618,7 @@ void ScrollArea::touchEvent(QTouchEvent *e) {
 	case QEvent::TouchCancel:
 		_touchPress = false;
 		_touchScroll = false;
-		_touchScrollState = TouchScrollManual;
+		_touchScrollState = TouchScrollState::Manual;
 		_touchTimer.stop();
 		break;
 	}
@@ -822,3 +824,5 @@ ScrollArea::~ScrollArea() {
 		takeWidget();
 	}
 }
+
+} // namespace Ui

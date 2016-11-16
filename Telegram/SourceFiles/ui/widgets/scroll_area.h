@@ -20,10 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-enum TouchScrollState {
-	TouchScrollManual, // Scrolling manually with the finger on the screen
-	TouchScrollAuto, // Scrolling automatically
-	TouchScrollAcceleration // Scrolling automatically but a finger is on the screen
+#include "styles/style_widgets.h"
+
+namespace Ui {
+
+enum class TouchScrollState {
+	Manual, // Scrolling manually with the finger on the screen
+	Auto, // Scrolling automatically
+	Acceleration // Scrolling automatically but a finger is on the screen
 };
 
 class ScrollArea;
@@ -33,7 +37,7 @@ class ScrollShadow : public QWidget {
 
 public:
 
-	ScrollShadow(ScrollArea *parent, const style::flatScroll *st);
+	ScrollShadow(ScrollArea *parent, const style::FlatScroll *st);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -43,7 +47,7 @@ public slots:
 
 private:
 
-	const style::flatScroll *_st;
+	const style::FlatScroll *_st;
 
 };
 
@@ -52,7 +56,7 @@ class ScrollBar : public QWidget {
 
 public:
 
-	ScrollBar(ScrollArea *parent, bool vertical, const style::flatScroll *st);
+	ScrollBar(ScrollArea *parent, bool vertical, const style::FlatScroll *st);
 
 	void recountSize();
 
@@ -82,7 +86,7 @@ signals:
 private:
 
 	ScrollArea *area();
-	const style::flatScroll *_st;
+	const style::FlatScroll *_st;
 
 	bool _vertical;
 	bool _over, _overbar, _moving;
@@ -156,10 +160,10 @@ private:
 class SplittedWidgetOther;
 class ScrollArea : public QScrollArea {
 	Q_OBJECT
-	T_WIDGET
+		T_WIDGET
 
 public:
-	ScrollArea(QWidget *parent, const style::flatScroll &st = st::scrollDef, bool handleTouch = true);
+	ScrollArea(QWidget *parent, const style::FlatScroll &st = st::defaultFlatScroll, bool handleTouch = true);
 
 	int scrollWidth() const;
 	int scrollHeight() const;
@@ -229,7 +233,7 @@ private:
 	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
 	bool _movingByScrollBar = false;
 
-	const style::flatScroll &_st;
+	const style::FlatScroll &_st;
 	ChildWidget<ScrollBar> _horizontalBar, _verticalBar;
 	ChildWidget<ScrollShadow> _topShadow, _bottomShadow;
 	int _horizontalValue, _verticalValue;
@@ -241,7 +245,7 @@ private:
 	bool _touchRightButton = false;
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 
-	TouchScrollState _touchScrollState = TouchScrollManual;
+	TouchScrollState _touchScrollState = TouchScrollState::Manual;
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
@@ -266,3 +270,5 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 };
+
+} // namespace Ui

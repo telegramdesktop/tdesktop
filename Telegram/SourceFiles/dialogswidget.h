@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/section_widget.h"
+#include "ui/widgets/scroll_area.h"
 
 namespace Dialogs {
 class Row;
@@ -46,7 +47,7 @@ enum DialogsSearchRequestType {
 	DialogsSearchMigratedFromOffset,
 };
 
-class DialogsInner : public SplittedWidget, public RPCSender, private base::Subscriber {
+class DialogsInner : public Ui::SplittedWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -310,7 +311,6 @@ private:
 	void showMainMenu();
 	void updateLockUnlockVisibility();
 	void updateControlsGeometry();
-	void updateMainMenuGeometry();
 	void updateForwardBar();
 
 	bool _dragInScroll = false;
@@ -332,11 +332,10 @@ private:
 
 	ChildWidget<Ui::IconButton> _forwardCancel = { nullptr };
 	ChildWidget<Ui::IconButton> _mainMenuToggle;
-	ChildWidget<Ui::DropdownMenu> _mainMenu = { nullptr };
 	ChildWidget<Ui::FlatInput> _filter;
 	ChildWidget<Ui::IconButton> _cancelSearch;
 	ChildWidget<Ui::IconButton> _lockUnlock;
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<DialogsInner> _inner;
 	ChildWidget<Ui::FlatButton> _updateTelegram = { nullptr };
 

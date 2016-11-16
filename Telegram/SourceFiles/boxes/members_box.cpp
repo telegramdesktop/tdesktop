@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/scroll_area.h"
 #include "observer_peer.h"
 
 MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox(st::boxScroll)

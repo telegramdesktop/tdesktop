@@ -22,9 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
-class FlatLabel;
-
 namespace Ui {
+class FlatLabel;
 class LeftOutlineButton;
 } // namespace Ui
 
@@ -123,7 +122,7 @@ private:
 	Member *addUser(ChannelData *megagroup, UserData *user);
 	bool addUsersToEnd(ChannelData *megagroup);
 
-	ChildWidget<FlatLabel> _limitReachedInfo = { nullptr };
+	ChildWidget<Ui::FlatLabel> _limitReachedInfo = { nullptr };
 
 	QList<Member*> _list;
 	QMap<UserData*, Member*> _membersByUser;

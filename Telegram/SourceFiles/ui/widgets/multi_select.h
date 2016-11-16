@@ -26,6 +26,7 @@ namespace Ui {
 
 class InputField;
 class IconButton;
+class ScrollArea;
 
 class MultiSelect : public TWidget {
 public:
@@ -59,7 +60,7 @@ private:
 
 	const style::MultiSelect &_st;
 
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 
 	class Inner;
 	ChildWidget<Inner> _inner;

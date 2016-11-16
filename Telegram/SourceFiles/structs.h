@@ -215,25 +215,7 @@ inline const QString &emptyUsername() {
 	return empty;
 }
 
-class PeerClickHandler : public LeftButtonClickHandler {
-public:
-	PeerClickHandler(PeerData *peer) : _peer(peer) {
-	}
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PeerData *_peer;
-
-};
-
-class PeerOpenClickHandler : public PeerClickHandler {
-public:
-	using PeerClickHandler::PeerClickHandler;
-protected:
-	void onClickImpl() const override;
-};
+ClickHandlerPtr peerOpenClickHandler(PeerData *peer);
 
 class UserData;
 class ChatData;
@@ -339,7 +321,7 @@ public:
 
 	const ClickHandlerPtr &openLink() {
 		if (!_openLink) {
-			_openLink.reset(new PeerOpenClickHandler(this));
+			_openLink = peerOpenClickHandler(this);
 		}
 		return _openLink;
 	}

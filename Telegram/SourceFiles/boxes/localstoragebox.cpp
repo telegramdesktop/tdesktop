@@ -81,7 +81,7 @@ void LocalStorageBox::paintEvent(QPaintEvent *e) {
 	paintTitle(p, lang(lng_local_storage_title));
 
 	p.setFont(st::boxTextFont);
-	p.setPen(st::windowTextFg);
+	p.setPen(st::windowFg);
 	checkLocalStoredCounts();
 	int top = titleHeight() + st::localStorageBoxSkip;
 	if (_imagesCount > 0) {

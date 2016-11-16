@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_userpic_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/filedialog.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "observer_peer.h"
 #include "boxes/confirmbox.h"
 #include "boxes/contactsbox.h"

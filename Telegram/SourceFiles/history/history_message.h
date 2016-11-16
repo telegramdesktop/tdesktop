@@ -366,16 +366,3 @@ protected:
 	friend class HistoryItemInstantiated<HistoryJoined>;
 
 };
-
-class ViaInlineBotClickHandler : public LeftButtonClickHandler {
-public:
-	ViaInlineBotClickHandler(UserData *bot) : _bot(bot) {
-	}
-
-protected:
-	void onClickImpl() const override;
-
-private:
-	UserData *_bot;
-
-};

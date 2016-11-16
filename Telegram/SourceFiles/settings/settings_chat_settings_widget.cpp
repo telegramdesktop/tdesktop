@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -39,7 +39,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 LabeledLink::LabeledLink(QWidget *parent, const QString &label, const QString &text, Type type, const char *slot) : TWidget(parent)
-, _label(this, label, FlatLabel::InitType::Simple, (type == Type::Primary) ? st::settingsPrimaryLabel : st::labelDefFlat)
+, _label(this, label, Ui::FlatLabel::InitType::Simple, (type == Type::Primary) ? st::settingsPrimaryLabel : st::defaultFlatLabel)
 , _link(this, text, (type == Type::Primary) ? st::boxLinkButton : st::defaultLinkButton) {
 	connect(_link, SIGNAL(clicked()), parent, slot);
 }
@@ -97,7 +97,7 @@ void DownloadPathState::paintEvent(QPaintEvent *e) {
 	})();
 	if (!text.isEmpty()) {
 		p.setFont(st::linkFont);
-		p.setPen(st::windowTextFg);
+		p.setPen(st::windowFg);
 		p.drawTextRight(0, 0, width(), text);
 	}
 }

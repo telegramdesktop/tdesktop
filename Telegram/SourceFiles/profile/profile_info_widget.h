@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+namespace Ui {
 class FlatLabel;
+} // namespace Ui
 
 namespace Notify {
 struct PeerUpdate;
@@ -52,17 +54,17 @@ private:
 	void refreshVisibility();
 
 	// labelWidget may be nullptr.
-	void setLabeledText(ChildWidget<FlatLabel> *labelWidget, const QString &label,
-		ChildWidget<FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
+	void setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,
+		ChildWidget<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
 
-	ChildWidget<FlatLabel> _about = { nullptr };
-	ChildWidget<FlatLabel> _channelLinkLabel = { nullptr };
-	ChildWidget<FlatLabel> _channelLink = { nullptr };
-	ChildWidget<FlatLabel> _channelLinkShort = { nullptr };
-	ChildWidget<FlatLabel> _mobileNumberLabel = { nullptr };
-	ChildWidget<FlatLabel> _mobileNumber = { nullptr };
-	ChildWidget<FlatLabel> _usernameLabel = { nullptr };
-	ChildWidget<FlatLabel> _username = { nullptr };
+	ChildWidget<Ui::FlatLabel> _about = { nullptr };
+	ChildWidget<Ui::FlatLabel> _channelLinkLabel = { nullptr };
+	ChildWidget<Ui::FlatLabel> _channelLink = { nullptr };
+	ChildWidget<Ui::FlatLabel> _channelLinkShort = { nullptr };
+	ChildWidget<Ui::FlatLabel> _mobileNumberLabel = { nullptr };
+	ChildWidget<Ui::FlatLabel> _mobileNumber = { nullptr };
+	ChildWidget<Ui::FlatLabel> _usernameLabel = { nullptr };
+	ChildWidget<Ui::FlatLabel> _username = { nullptr };
 
 };
 

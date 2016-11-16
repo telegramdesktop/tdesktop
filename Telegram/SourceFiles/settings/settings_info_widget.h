@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 
+namespace Ui {
 class FlatLabel;
+} // namespace Ui
 
 namespace Notify {
 struct PeerUpdate;
@@ -50,10 +52,10 @@ private:
 
 		void setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
 
-		FlatLabel *textLabel() {
+		Ui::FlatLabel *textLabel() {
 			return _text;
 		}
-		FlatLabel *shortTextLabel() {
+		Ui::FlatLabel *shortTextLabel() {
 			return _shortText;
 		}
 
@@ -63,11 +65,11 @@ private:
 		int resizeGetHeight(int newWidth) override;
 
 	private:
-		void setLabelText(ChildWidget<FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
+		void setLabelText(ChildWidget<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
 
-		ChildWidget<FlatLabel> _label = { nullptr };
-		ChildWidget<FlatLabel> _text = { nullptr };
-		ChildWidget<FlatLabel> _shortText = { nullptr };
+		ChildWidget<Ui::FlatLabel> _label = { nullptr };
+		ChildWidget<Ui::FlatLabel> _text = { nullptr };
+		ChildWidget<Ui::FlatLabel> _shortText = { nullptr };
 
 	};
 

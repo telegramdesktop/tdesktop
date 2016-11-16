@@ -264,8 +264,8 @@ const QRegularExpression &reHashtag();
 const QRegularExpression &reBotCommand();
 
 // text style
-const style::textStyle *textstyleCurrent();
-void textstyleSet(const style::textStyle *style);
+const style::TextStyle *textstyleCurrent();
+void textstyleSet(const style::TextStyle *style);
 inline void textstyleRestore() {
 	textstyleSet(nullptr);
 }

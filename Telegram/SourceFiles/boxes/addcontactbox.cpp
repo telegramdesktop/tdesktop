@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/labels.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
@@ -1301,7 +1302,7 @@ void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
 RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCallback) : AbstractBox()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
-, _aboutRevoke(this, lang(lng_channels_too_much_public_about), FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
+, _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _revokeCallback(std_::move(revokeCallback)) {
 	setMouseTracking(true);

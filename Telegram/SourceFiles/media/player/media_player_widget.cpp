@@ -21,8 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_widget.h"
 
-#include "ui/flatlabel.h"
-#include "ui/widgets/label_simple.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/filled_slider.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"

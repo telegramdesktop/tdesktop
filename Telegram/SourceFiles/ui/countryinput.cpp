@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "application.h"
-#include "ui/scrollarea.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/widgets/multi_select.h"
 #include "boxes/contactsbox.h"
 #include "countries.h"
@@ -126,7 +126,7 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 	p.drawPixmap(_arrowRect.x(), _arrowRect.top(), _arrow);
 
 	p.setFont(_st.font);
-	p.setPen(st::windowTextFg);
+	p.setPen(st::windowFg);
 
 	p.drawText(rect().marginsRemoved(_st.textMrg), _text, QTextOption(_st.align));
 }

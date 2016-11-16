@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "lang.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/scroll_area.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -150,7 +151,7 @@ void AbstractBox::raiseShadow() {
 ScrollableBoxShadow::ScrollableBoxShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxScrollShadowBg) {
 }
 
-ScrollableBox::ScrollableBox(const style::flatScroll &scroll, int32 w) : AbstractBox(w)
+ScrollableBox::ScrollableBox(const style::FlatScroll &scroll, int32 w) : AbstractBox(w)
 , _scroll(this, scroll)
 , _topSkip(st::boxBlockTitleHeight)
 , _bottomSkip(st::boxScrollSkip) {
@@ -185,6 +186,6 @@ void ScrollableBox::updateScrollGeometry() {
 	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
 }
 
-ItemListBox::ItemListBox(const style::flatScroll &scroll, int32 w) : ScrollableBox(scroll, w) {
+ItemListBox::ItemListBox(const style::FlatScroll &scroll, int32 w) : ScrollableBox(scroll, w) {
 	setMaxHeight(st::boxMaxListHeight);
 }

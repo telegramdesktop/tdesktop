@@ -32,25 +32,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "boxes/languagebox.h"
 #include "boxes/confirmbox.h"
+#include "boxes/aboutbox.h"
 #include "ui/filedialog.h"
 #include "langloaderplain.h"
 #include "autoupdater.h"
 
 namespace Settings {
-namespace {
-
-QString currentVersion() {
-	auto result = QString::fromLatin1(AppVersionStr.c_str());
-	if (cAlphaVersion()) {
-		result += " alpha";
-	}
-	if (cBetaVersion()) {
-		result += qsl(" beta %1").arg(cBetaVersion() % 1000);
-	}
-	return result;
-}
-
-} // namespace
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 UpdateStateRow::UpdateStateRow(QWidget *parent) : TWidget(parent)
@@ -189,7 +176,7 @@ void GeneralWidget::refreshControls() {
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	addChildRow(_updateAutomatically, marginSub, lng_settings_update_automatically(lt_version, currentVersion()), SLOT(onUpdateAutomatically()), cAutoUpdate());
+	addChildRow(_updateAutomatically, marginSub, lng_settings_update_automatically(lt_version, currentVersionText()), SLOT(onUpdateAutomatically()), cAutoUpdate());
 	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));

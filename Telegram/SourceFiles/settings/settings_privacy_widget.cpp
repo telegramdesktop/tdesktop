@@ -146,7 +146,7 @@ void CloudPasswordState::paintEvent(QPaintEvent *e) {
 
 	auto text = st::linkFont->elided(_waitingConfirm, width() - _turnOff->width());
 	if (!text.isEmpty()) {
-		p.setPen(st::windowTextFg);
+		p.setPen(st::windowFg);
 		p.setFont(st::boxTextFont);
 		p.drawTextLeft(0, 0, width(), text);
 	}

@@ -86,7 +86,7 @@ titleUnreadCounterRight: 35px;
 mainMenuBg: #ffffff;
 mainMenuWidth: 274px;
 mainMenuCoverBg: #419fd9;
-mainMenuCoverFg: windowActiveFg;
+mainMenuCoverFg: windowFgActive;
 mainMenuCoverHeight: 140px;
 mainMenuUserpicLeft: 24px;
 mainMenuUserpicTop: 22px;
@@ -95,23 +95,38 @@ mainMenuCoverTextLeft: 30px;
 mainMenuCoverNameTop: 88px;
 mainMenuCoverStatusTop: 106px;
 mainMenuSkip: 13px;
+mainMenu: Menu(defaultMenu) {
+	itemFont: semiboldFont;
+	itemIconPosition: point(28px, 11px);
+	itemPadding: margins(76px, 14px, 28px, 14px);
+}
+mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
+mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
+mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
+mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
+mainMenuContacts: icon {{ "menu_contacts", menuIconFg }};
+mainMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
+mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
+mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
+mainMenuHelp: icon {{ "menu_help", menuIconFg }};
+mainMenuHelpOver: icon {{ "menu_help", menuIconFgOver }};
 mainMenuFooterLeft: 30px;
-mainMenuTelegramLabel: flatLabel(labelDefFlat) {
+mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	font: semiboldFont;
 	align: align(left);
 	textFg: windowSubTextFg;
 }
-mainMenuTelegramStyle: textStyle(defaultTextStyle) {
+mainMenuTelegramStyle: TextStyle(defaultTextStyle) {
 	linkFlags: semiboldFont;
 	linkFlagsOver: font(fsize semibold underline);
 	linkFg: windowSubTextFg;
 	linkFgDown: windowSubTextFg;
 }
 mainMenuTelegramBottom: 43px;
-mainMenuVersionLabel: flatLabel(mainMenuTelegramLabel) {
+mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	font: normalFont;
 }
-mainMenuVersionStyle: textStyle(mainMenuTelegramStyle) {
+mainMenuVersionStyle: TextStyle(mainMenuTelegramStyle) {
 	linkFlags: normalFont;
 	linkFlagsOver: font(fsize underline);
 }
@@ -192,7 +207,7 @@ topBarClearButton: RoundButton(defaultLightButton) {
 	width: -18px;
 }
 topBarSearch: IconButton {
-	width: 44px;
+	width: 45px;
 	height: topBarHeight;
 
 	icon: icon {{ "title_search", menuIconFg }};
@@ -201,20 +216,20 @@ topBarSearch: IconButton {
 	iconPosition: point(15px, 18px);
 	iconPositionDown: point(15px, 18px);
 
-	rippleAreaPosition: point(8px, 11px);
-	rippleAreaSize: 32px;
-	ripple: defaultRippleAnimation;
+	rippleAreaPosition: point(4px, 7px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 topBarMenuToggle: IconButton(topBarSearch) {
 	icon: icon {{ "title_menu_dots", menuIconFg }};
 	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
 
-	iconPosition: point(15px, 17px);
-	iconPositionDown: point(15px, 17px);
+	iconPosition: point(16px, 17px);
+	iconPositionDown: point(16px, 17px);
 
-	rippleAreaPosition: point(3px, 11px);
-	rippleAreaSize: 32px;
-	ripple: defaultRippleAnimation;
+	rippleAreaPosition: point(0px, 7px);
 }
 topBarActionSkip: 10px;
 

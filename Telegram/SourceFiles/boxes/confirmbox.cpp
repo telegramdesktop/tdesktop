@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "core/click_handler_types.h"
 #include "localstorage.h"
 
@@ -397,7 +398,7 @@ void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
 PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st::boxWidth)
 , _channel(channel)
 , _msgId(msgId)
-, _text(this, lang(lng_pinned_pin_sure), FlatLabel::InitType::Simple, st::boxLabel)
+, _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel)
 , _notify(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox)
 , _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
@@ -450,7 +451,7 @@ RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from,
 , _channel(channel)
 , _from(from)
 , _msgId(msgId)
-, _text(this, lang(lng_selected_delete_sure_this), FlatLabel::InitType::Simple, st::boxLabel)
+, _text(this, lang(lng_selected_delete_sure_this), Ui::FlatLabel::InitType::Simple, st::boxLabel)
 , _banUser(this, lang(lng_ban_user), false, st::defaultBoxCheckbox)
 , _reportSpam(this, lang(lng_report_spam), false, st::defaultBoxCheckbox)
 , _deleteAll(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox)
@@ -562,7 +563,7 @@ ConfirmInviteBox::ConfirmInviteBox(const QString &title, const MTPChatPhoto &pho
 		int sumWidth = _participants.size() * _userWidth;
 		int left = (width() - sumWidth) / 2;
 		for_const (auto user, _participants) {
-			auto name = new FlatLabel(this, st::confirmInviteUserName);
+			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
 			name->setText(user->firstName.isEmpty() ? App::peerName(user) : user->firstName);
 			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);

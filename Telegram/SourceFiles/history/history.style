@@ -22,6 +22,31 @@ using "basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
+BotKeyboardButton {
+	margin: pixels;
+	padding: pixels;
+	height: pixels;
+	textTop: pixels;
+	downTextTop: pixels;
+}
+
+historyScroll: FlatScroll(defaultFlatScroll) {
+	barColor: #89a0b47a;
+	bgColor: #89a0b44c;
+	barOverColor: #89a0b4bc;
+	bgOverColor: #89a0b46b;
+
+	round: 3px;
+
+	width: 12px;
+	deltax: 3px;
+	deltat: 3px;
+	deltab: 3px;
+
+	topsh: 0px;
+	bottomsh: -1px;
+}
+
 historyPaddingBottom: 10px;
 
 historyToDownPosition: point(12px, 10px);
@@ -41,7 +66,7 @@ historyEmptySize: 128px;
 membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
-	scroll: flatScroll(solidScroll) {
+	scroll: FlatScroll(defaultSolidScroll) {
 		deltat: 3px;
 		deltab: 3px;
 		round: 1px;
@@ -202,6 +227,12 @@ historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, poi
 historyAttach: IconButton(historySend) {
 	icon: icon {{ "send_control_attach", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 historyAttachFileIcon: icon {{ "media_type_file", historyComposeIconFg }};
 historyAttachFileIconOver: icon {{ "media_type_file", historyComposeIconFgOver }};
@@ -214,6 +245,8 @@ historyAttachEmoji: IconButton(historyAttach) {
 
 	iconPosition: point(15px, 15px);
 	iconPositionDown: point(15px, 15px);
+
+	rippleAreaSize: 0px;
 }
 historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
@@ -289,9 +322,17 @@ historyReplyCancel: IconButton {
 
 	iconPosition: point(-1px, -1px);
 	iconPositionDown: point(-1px, -1px);
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 historyInlineBotCancel: IconButton(historyReplyCancel) {
 	height: 46px;
+
+	rippleAreaPosition: point(4px, 3px);
 }
 
 reportSpamHide: FlatButton {
@@ -318,3 +359,59 @@ reportSpamSeparator: 30px;
 reportSpamBg: #fffffff0;
 reportSpamFg: #000000;
 
+msgBotKbDuration: 200;
+msgBotKbFont: semiboldFont;
+msgBotKbOverBg: #ffffff1a;
+msgBotKbIconPadding: 2px;
+msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
+msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
+msgBotKbButton: BotKeyboardButton {
+	margin: 5px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	downTextTop: 9px;
+}
+
+botKbDuration: 200;
+botKbBg: #edf1f5;
+botKbOverBg: #d8e2ec;
+botKbDownBg: #d8e2ec;
+botKbColor: #4b565f;
+botKbFont: font(15px semibold);
+botKbButton: BotKeyboardButton {
+	margin: 10px;
+	padding: 10px;
+	height: 38px;
+	textTop: 9px;
+	downTextTop: 9px;
+}
+botKbTinyButton: BotKeyboardButton {
+	margin: 4px;
+	padding: 3px;
+	height: 25px;
+	textTop: 2px;
+	downTextTop: 2px;
+}
+botKbScroll: FlatScroll(defaultSolidScroll) {
+	deltax: 3px;
+	width: 10px;
+}
+
+mentionHeight: 40px;
+mentionScroll: FlatScroll(defaultFlatScroll) {
+	topsh: 0px;
+	bottomsh: 0px;
+}
+mentionPadding: margins(8px, 5px, 8px, 5px);
+mentionTop: 11px;
+mentionFont: linkFont;
+mentionNameFg: windowFg;
+mentionNameFgOver: windowFgOver;
+mentionPhotoSize: msgPhotoSize;
+mentionBg: #ffffff;
+mentionBgOver: #f5f5f5;
+mentionFg: #777777;
+mentionFgOver: #707070;
+mentionFgActive: #0080c0;
+mentionFgOverActive: #0077b3;

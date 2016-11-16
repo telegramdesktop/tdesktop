@@ -1678,18 +1678,20 @@ GameData::GameData(const GameId &id, const uint64 &accessHash, const QString &sh
 , document(document) {
 }
 
-void PeerOpenClickHandler::onClickImpl() const {
-	if (App::main()) {
-		if (peer() && peer()->isChannel() && App::main()->historyPeer() != peer()) {
-			if (!peer()->asChannel()->isPublic() && !peer()->asChannel()->amIn()) {
-				Ui::showLayer(new InformBox(lang((peer()->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
+ClickHandlerPtr peerOpenClickHandler(PeerData *peer) {
+	return MakeShared<LambdaClickHandler>([peer] {
+		if (App::main()) {
+			if (peer && peer->isChannel() && App::main()->historyPeer() != peer) {
+				if (!peer->asChannel()->isPublic() && !peer->asChannel()->amIn()) {
+					Ui::showLayer(new InformBox(lang((peer->isMegagroup()) ? lng_group_not_accessible : lng_channel_not_accessible)));
+				} else {
+					Ui::showPeerHistory(peer, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+				}
 			} else {
-				Ui::showPeerHistory(peer(), ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+				Ui::showPeerProfile(peer);
 			}
-		} else {
-			Ui::showPeerProfile(peer());
 		}
-	}
+	});
 }
 
 MsgId clientMsgId() {

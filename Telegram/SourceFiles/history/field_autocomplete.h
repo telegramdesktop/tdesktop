@@ -23,6 +23,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/twidget.h"
 #include "ui/effects/rect_shadow.h"
 
+namespace Ui {
+class ScrollArea;
+} // namespace Ui
+
 namespace internal {
 
 using MentionRows = QList<UserData*>;
@@ -106,7 +110,7 @@ private:
 
 	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll);
 
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<internal::FieldAutocompleteInner> _inner;
 
 	ChatData *_chat = nullptr;

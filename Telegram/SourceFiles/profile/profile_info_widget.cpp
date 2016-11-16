@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_info_widget.h"
 
 #include "styles/style_profile.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "core/click_handler_types.h"
 #include "observer_peer.h"
 #include "lang.h"
@@ -80,7 +80,7 @@ int InfoWidget::resizeGetHeight(int newWidth) {
 		newHeight += _about->height();
 	}
 
-	auto moveLabeledText = [&newHeight, left, newWidth, marginLeft, marginRight](FlatLabel *label, FlatLabel *text, FlatLabel *shortText) {
+	auto moveLabeledText = [&newHeight, left, newWidth, marginLeft, marginRight](Ui::FlatLabel *label, Ui::FlatLabel *text, Ui::FlatLabel *shortText) {
 		if (!label) return;
 
 		label->moveToLeft(left, newHeight);
@@ -144,7 +144,7 @@ void InfoWidget::refreshAbout() {
 	_about.destroy();
 	auto aboutText = textClean(getAboutText());
 	if (!aboutText.isEmpty()) {
-		_about = new FlatLabel(this, st::profileBlockTextPart);
+		_about.create(this, st::profileBlockTextPart);
 		_about->show();
 
 		EntitiesInText aboutEntities;
@@ -198,17 +198,17 @@ void InfoWidget::refreshChannelLink() {
 	}
 }
 
-void InfoWidget::setLabeledText(ChildWidget<FlatLabel> *labelWidget, const QString &label,
-	ChildWidget<FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText) {
+void InfoWidget::setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,
+	ChildWidget<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText) {
 	if (labelWidget) labelWidget->destroy();
 	textWidget->destroy();
 	if (textWithEntities.text.isEmpty()) return;
 
 	if (labelWidget) {
-		*labelWidget = new FlatLabel(this, label, FlatLabel::InitType::Simple, st::profileBlockLabel);
+		labelWidget->create(this, label, Ui::FlatLabel::InitType::Simple, st::profileBlockLabel);
 		(*labelWidget)->show();
 	}
-	*textWidget = new FlatLabel(this, QString(), FlatLabel::InitType::Simple, st::profileBlockOneLineTextPart);
+	textWidget->create(this, QString(), Ui::FlatLabel::InitType::Simple, st::profileBlockOneLineTextPart);
 	(*textWidget)->show();
 	(*textWidget)->setMarkedText(textWithEntities);
 	(*textWidget)->setContextCopyText(copyText);

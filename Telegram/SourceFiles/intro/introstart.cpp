@@ -26,9 +26,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introphone.h"
 #include "langloaderplain.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 
 IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
-, _intro(this, lang(lng_intro), FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
+, _intro(this, lang(lng_intro), Ui::FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
 , _changeLang(this, QString())
 , _next(this, lang(lng_start_msgs), st::introNextButton) {
 	_changeLang->hide();

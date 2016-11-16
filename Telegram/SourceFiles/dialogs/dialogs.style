@@ -33,7 +33,8 @@ dialogsDateSkip: 5px;
 dialogsNameTop: 2px;
 
 dialogsRowHeight: 62px;
-dialogsFilterPadding: point(11px, 11px);
+dialogsFilterPadding: point(7px, 7px);
+dialogsFilterSkip: 4px;
 dialogsPhotoSize: 46px;
 dialogsPhotoPadding: 12px;
 dialogsPadding: point(10px, 8px);
@@ -45,49 +46,51 @@ dialogsSkip: 8px;
 dialogsWidthMin: 260px;
 dialogsWidthMax: 540px;
 dialogsTextWidthMin: 150px;
-dialogsScroll: flatScroll(scrollDef) {
+dialogsScroll: FlatScroll(defaultFlatScroll) {
 	topsh: 0px;
 	bottomsh: 0px;
 }
 
-dialogsTextStyle: textStyle(defaultTextStyle) {
+dialogsTextStyle: TextStyle(defaultTextStyle) {
 	linkFg: dialogsTextFgService;
 	linkFgDown: dialogsTextFgService;
 	linkFlagsOver: font(fsize);
 }
-dialogsTextStyleOver: textStyle(dialogsTextStyle) {
+dialogsTextStyleOver: TextStyle(dialogsTextStyle) {
 	linkFg: dialogsTextFgServiceOver;
 	linkFgDown: dialogsTextFgServiceOver;
 }
-dialogsTextStyleActive: textStyle(dialogsTextStyle) {
+dialogsTextStyleActive: TextStyle(dialogsTextStyle) {
 	linkFg: dialogsTextFgServiceActive;
 	linkFgDown: dialogsTextFgServiceActive;
 }
-dialogsTextStyleDraft: textStyle(dialogsTextStyle) {
+dialogsTextStyleDraft: TextStyle(dialogsTextStyle) {
 	linkFg: dialogsDraftFg;
 	linkFgDown: dialogsDraftFg;
 }
-dialogsTextStyleDraftOver: textStyle(dialogsTextStyle) {
+dialogsTextStyleDraftOver: TextStyle(dialogsTextStyle) {
 	linkFg: dialogsDraftFgOver;
 	linkFgDown: dialogsDraftFgOver;
 }
-dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
+dialogsTextStyleDraftActive: TextStyle(dialogsTextStyle) {
 	linkFg: dialogsDraftFgActive;
 	linkFgDown: dialogsDraftFgActive;
 }
 
 dialogsMenuToggle: IconButton {
-	width: 32px;
-	height: 32px;
+	width: 40px;
+	height: 40px;
 
 	icon: icon {{ "dialogs_menu", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_menu", dialogsMenuIconFgOver }};
-	iconPosition: point(6px, 6px);
-	iconPositionDown: point(6px, 6px);
+	iconPosition: point(10px, 10px);
+	iconPositionDown: point(10px, 10px);
 
 	rippleAreaPosition: point(0px, 0px);
-	rippleAreaSize: 32px;
-	ripple: defaultRippleAnimation;
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 dialogsLock: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_lock", dialogsMenuIconFg }};
@@ -110,32 +113,18 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg }};
 	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver }};
 
-	iconPosition: point(7px, 7px);
-	iconPositionDown: point(7px, 7px);
+	iconPosition: point(11px, 11px);
+	iconPositionDown: point(11px, 11px);
 }
 dialogsCancelSearch: IconButton(dialogsCancelSearchInPeer) {
+	width: 32px;
+	height: 32px;
+
+	iconPosition: point(7px, 7px);
+	iconPositionDown: point(7px, 7px);
+
 	rippleAreaSize: 0px;
 }
-
-dialogsMenu: Menu(defaultMenu) {
-	itemFont: semiboldFont;
-	itemIconPosition: point(28px, 11px);
-	itemPadding: margins(76px, 14px, 28px, 14px);
-}
-dialogsMenuWrap: DropdownMenu(defaultDropdownMenu) {
-	menu: dialogsMenu;
-}
-dialogsMenuPosition: point(-3px, -2px);
-dialogsMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
-dialogsMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
-dialogsMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
-dialogsMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
-dialogsMenuContacts: icon {{ "menu_contacts", menuIconFg }};
-dialogsMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
-dialogsMenuSettings: icon {{ "menu_settings", menuIconFg }};
-dialogsMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
-dialogsMenuHelp: icon {{ "menu_help", menuIconFg }};
-dialogsMenuHelpOver: icon {{ "menu_help", menuIconFgOver }};
 
 dialogsChatTypeSkip: 22px;
 dialogsChatIcon: icon {{ "dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};

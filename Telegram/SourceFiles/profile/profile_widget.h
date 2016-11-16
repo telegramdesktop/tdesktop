@@ -23,7 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "ui/widgets/shadow.h"
 
+namespace Ui {
 class ScrollArea;
+} // namespace Ui
 
 namespace Profile {
 
@@ -68,7 +70,7 @@ private:
 
 	friend class SectionMemento;
 
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
 	ChildWidget<FixedBar> _fixedBar;
 	ChildWidget<Ui::ToggleableShadow> _fixedBarShadow;

@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_overview.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
+#include "styles/style_settings.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
@@ -45,7 +46,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-OverviewInner::OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type) : TWidget(nullptr)
+OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, PeerData *peer, MediaOverviewType type) : TWidget(nullptr)
 , _overview(overview)
 , _scroll(scroll)
 , _peer(peer->migrateTo() ? peer->migrateTo() : peer)
@@ -116,7 +117,7 @@ void OverviewInner::touchUpdateSpeed() {
 			// of a small horizontal offset when scrolling vertically
 			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > FingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
 			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > FingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
-			if (_touchScrollState == TouchScrollAuto) {
+			if (_touchScrollState == Ui::TouchScrollState::Auto) {
 				const int oldSpeedY = _touchSpeed.y();
 				const int oldSpeedX = _touchSpeed.x();
 				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
@@ -352,7 +353,7 @@ void OverviewInner::touchEvent(QTouchEvent *e) {
 		_touchInProgress = false;
 		_touchSelectTimer.stop();
 		_touchScroll = _touchSelect = false;
-		_touchScrollState = TouchScrollManual;
+		_touchScrollState = Ui::TouchScrollState::Manual;
 		dragActionCancel();
 		return;
 	}
@@ -368,8 +369,8 @@ void OverviewInner::touchEvent(QTouchEvent *e) {
 		if (e->touchPoints().isEmpty()) return;
 
 		_touchInProgress = true;
-		if (_touchScrollState == TouchScrollAuto) {
-			_touchScrollState = TouchScrollAcceleration;
+		if (_touchScrollState == Ui::TouchScrollState::Auto) {
+			_touchScrollState = Ui::TouchScrollState::Acceleration;
 			_touchWaitingAcceleration = true;
 			_touchAccelerationTime = getms();
 			touchUpdateSpeed();
@@ -392,13 +393,13 @@ void OverviewInner::touchEvent(QTouchEvent *e) {
 			touchUpdateSpeed();
 		}
 		if (_touchScroll) {
-			if (_touchScrollState == TouchScrollManual) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
 				touchScrollUpdated(_touchPos);
-			} else if (_touchScrollState == TouchScrollAcceleration) {
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
 				touchUpdateSpeed();
 				_touchAccelerationTime = getms();
 				if (_touchSpeed.isNull()) {
-					_touchScrollState = TouchScrollManual;
+					_touchScrollState = Ui::TouchScrollState::Manual;
 				}
 			}
 		}
@@ -413,17 +414,17 @@ void OverviewInner::touchEvent(QTouchEvent *e) {
 			showContextMenu(&contextMenu, true);
 			_touchScroll = false;
 		} else if (_touchScroll) {
-			if (_touchScrollState == TouchScrollManual) {
-				_touchScrollState = TouchScrollAuto;
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
 				_touchPrevPosValid = false;
 				_touchScrollTimer.start(15);
 				_touchTime = getms();
-			} else if (_touchScrollState == TouchScrollAuto) {
-				_touchScrollState = TouchScrollManual;
+			} else if (_touchScrollState == Ui::TouchScrollState::Auto) {
+				_touchScrollState = Ui::TouchScrollState::Manual;
 				_touchScroll = false;
 				touchResetSpeed();
-			} else if (_touchScrollState == TouchScrollAcceleration) {
-				_touchScrollState = TouchScrollAuto;
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
 				_touchWaitingAcceleration = false;
 				_touchPrevPosValid = false;
 			}
@@ -1561,16 +1562,16 @@ void OverviewInner::onTouchSelect() {
 
 void OverviewInner::onTouchScrollTimer() {
 	uint64 nowTime = getms();
-	if (_touchScrollState == TouchScrollAcceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
-		_touchScrollState = TouchScrollManual;
+	if (_touchScrollState == Ui::TouchScrollState::Acceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
+		_touchScrollState = Ui::TouchScrollState::Manual;
 		touchResetSpeed();
-	} else if (_touchScrollState == TouchScrollAuto || _touchScrollState == TouchScrollAcceleration) {
+	} else if (_touchScrollState == Ui::TouchScrollState::Auto || _touchScrollState == Ui::TouchScrollState::Acceleration) {
 		int32 elapsed = int32(nowTime - _touchTime);
 		QPoint delta = _touchSpeed * elapsed / 1000;
 		bool hasScrolled = _overview->touchScroll(delta);
 
 		if (_touchSpeed.isNull() || !hasScrolled) {
-			_touchScrollState = TouchScrollManual;
+			_touchScrollState = Ui::TouchScrollState::Manual;
 			_touchScroll = false;
 			_touchScrollTimer.stop();
 		} else {
@@ -1876,16 +1877,16 @@ OverviewInner::~OverviewInner() {
 }
 
 OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type) : TWidget(parent)
-, _scroll(this, st::setScroll, false)
-, _inner(this, &_scroll, peer, type)
+, _scroll(this, st::settingsScroll, false)
+, _inner(this, _scroll, peer, type)
 , _a_show(animation(this, &OverviewWidget::step_show))
 , _topShadow(this, st::shadowColor) {
-	_scroll.setWidget(&_inner);
-	_scroll.move(0, 0);
-	_inner.move(0, 0);
+	_scroll->setOwnedWidget(_inner);
+	_scroll->move(0, 0);
+	_inner->move(0, 0);
 
-	_scroll.show();
-	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	_scroll->show();
+	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	connect(&_scrollTimer, SIGNAL(timeout()), this, SLOT(onScrollTimer()));
 	_scrollTimer.setSingleShot(false);
@@ -1894,37 +1895,37 @@ OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewTyp
 }
 
 void OverviewWidget::clear() {
-	_inner.clear();
+	_inner->clear();
 }
 
 void OverviewWidget::onScroll() {
 	MTP::clearLoaderPriorities();
-	int32 preloadThreshold = _scroll.height() * 5;
+	int32 preloadThreshold = _scroll->height() * 5;
 	bool needToPreload = false;
 	do {
-		needToPreload = (type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? (_scroll.scrollTop() < preloadThreshold) : (_scroll.scrollTop() + preloadThreshold > _scroll.scrollTopMax());
-		if (!needToPreload || !_inner.preloadLocal()) {
+		needToPreload = (type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? (_scroll->scrollTop() < preloadThreshold) : (_scroll->scrollTop() + preloadThreshold > _scroll->scrollTopMax());
+		if (!needToPreload || !_inner->preloadLocal()) {
 			break;
 		}
 	} while (true);
 	if (needToPreload) {
-		_inner.preloadMore();
+		_inner->preloadMore();
 	}
 	if (!_noDropResizeIndex) {
-		_inner.dropResizeIndex();
+		_inner->dropResizeIndex();
 	}
 }
 
 void OverviewWidget::resizeEvent(QResizeEvent *e) {
 	_noDropResizeIndex = true;
-	int32 st = _scroll.scrollTop();
-	_scroll.resize(size());
-	int32 newScrollTop = _inner.resizeToWidth(width(), st, height());
+	int32 st = _scroll->scrollTop();
+	_scroll->resize(size());
+	int32 newScrollTop = _inner->resizeToWidth(width(), st, height());
 	if (int32 addToY = App::main() ? App::main()->contentScrollAddToY() : 0) {
 		newScrollTop += addToY;
 	}
-	if (newScrollTop != _scroll.scrollTop()) {
-		_scroll.scrollToY(newScrollTop);
+	if (newScrollTop != _scroll->scrollTop()) {
+		_scroll->scrollToY(newScrollTop);
 	}
 	_noDropResizeIndex = false;
 
@@ -1955,19 +1956,19 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 }
 
 void OverviewWidget::contextMenuEvent(QContextMenuEvent *e) {
-	return _inner.showContextMenu(e);
+	return _inner->showContextMenu(e);
 }
 
 void OverviewWidget::scrollBy(int32 add) {
-	if (_scroll.isHidden()) {
+	if (_scroll->isHidden()) {
 		_scrollSetAfterShow += add;
 	} else {
-		_scroll.scrollToY(_scroll.scrollTop() + add);
+		_scroll->scrollToY(_scroll->scrollTop() + add);
 	}
 }
 
 void OverviewWidget::scrollReset() {
-	_scroll.scrollToY((type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? _scroll.scrollTopMax() : 0);
+	_scroll->scrollToY((type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? _scroll->scrollTopMax() : 0);
 }
 
 bool OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
@@ -1998,24 +1999,24 @@ void OverviewWidget::topBarClick() {
 }
 
 PeerData *OverviewWidget::peer() const {
-	return _inner.peer();
+	return _inner->peer();
 }
 
 PeerData *OverviewWidget::migratePeer() const {
-	return _inner.migratePeer();
+	return _inner->migratePeer();
 }
 
 MediaOverviewType OverviewWidget::type() const {
-	return _inner.type();
+	return _inner->type();
 }
 
 void OverviewWidget::switchType(MediaOverviewType type) {
 	_selCount = 0;
 
-	disconnect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	disconnect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
-	_inner.setSelectMode(false);
-	_inner.switchType(type);
+	_inner->setSelectMode(false);
+	_inner->switchType(type);
 	switch (type) {
 	case OverviewPhotos: _header = lang(lng_profile_photos_header); break;
 	case OverviewVideos: _header = lang(lng_profile_videos_header); break;
@@ -2029,7 +2030,7 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	updateTopBarSelection();
 	scrollReset();
 
-	connect(&_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 	onScroll();
 	activate();
@@ -2037,15 +2038,15 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 
 void OverviewWidget::updateTopBarSelection() {
 	int32 selectedForForward, selectedForDelete;
-	_inner.getSelectionState(selectedForForward, selectedForDelete);
+	_inner->getSelectionState(selectedForForward, selectedForDelete);
 	_selCount = selectedForForward ? selectedForForward : selectedForDelete;
-	_inner.setSelectMode(_selCount > 0);
+	_inner->setSelectMode(_selCount > 0);
 	if (App::main()) {
 		App::main()->topBar()->showSelected(_selCount > 0 ? _selCount : 0, (selectedForDelete == selectedForForward));
 		App::main()->topBar()->update();
 	}
 	if (App::wnd() && !Ui::isLayerShown()) {
-		_inner.activate();
+		_inner->activate();
 	}
 	update();
 }
@@ -2055,7 +2056,7 @@ int32 OverviewWidget::lastWidth() const {
 }
 
 int32 OverviewWidget::lastScrollTop() const {
-	return _scroll.scrollTop();
+	return _scroll->scrollTop();
 }
 
 int32 OverviewWidget::countBestScroll() const {
@@ -2063,22 +2064,22 @@ int32 OverviewWidget::countBestScroll() const {
 		AudioMsgId playing;
 		audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
 		if (playing) {
-			int32 top = _inner.itemTop(playing.contextId());
+			int32 top = _inner->itemTop(playing.contextId());
 			if (top >= 0) {
-				return snap(top - int(_scroll.height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll.scrollTopMax());
+				return snap(top - int(_scroll->height() - (st::msgPadding.top() + st::mediaThumbSize + st::msgPadding.bottom())) / 2, 0, _scroll->scrollTopMax());
 			}
 		}
 	} else if (type() == OverviewLinks || type() == OverviewFiles) {
 		return 0;
 	}
-	return _scroll.scrollTopMax();
+	return _scroll->scrollTopMax();
 }
 
 void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 	resizeEvent(0);
 	_scrollSetAfterShow = (lastScrollTop < 0 ? countBestScroll() : lastScrollTop);
 	show();
-	_inner.activate();
+	_inner->activate();
 	doneShow();
 
 	if (App::app()) App::app()->mtpUnpause();
@@ -2086,7 +2087,7 @@ void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 
 void OverviewWidget::setLastScrollTop(int lastScrollTop) {
 	resizeEvent(0);
-	_scroll.scrollToY(lastScrollTop < 0 ? countBestScroll() : lastScrollTop);
+	_scroll->scrollToY(lastScrollTop < 0 ? countBestScroll() : lastScrollTop);
 }
 
 void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
@@ -2101,8 +2102,8 @@ void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window
 	_topShadow->setVisible(params.withTopBarShadow ? true : false);
 	App::main()->topBar()->startAnim();
 
-	_scrollSetAfterShow = _scroll.scrollTop();
-	_scroll.hide();
+	_scrollSetAfterShow = _scroll->scrollTop();
+	_scroll->hide();
 
 	int delta = st::slideShift;
 	if (direction == Window::SlideDirection::FromLeft) {
@@ -2149,15 +2150,15 @@ void OverviewWidget::step_show(float64 ms, bool timer) {
 }
 
 void OverviewWidget::doneShow() {
-	_scroll.show();
-	_scroll.scrollToY(_scrollSetAfterShow);
+	_scroll->show();
+	_scroll->scrollToY(_scrollSetAfterShow);
 	activate();
 	onScroll();
 }
 
 void OverviewWidget::mediaOverviewUpdated(PeerData *p, MediaOverviewType t) {
 	if ((peer() == p || migratePeer() == p) && t == type()) {
-		_inner.mediaOverviewUpdated();
+		_inner->mediaOverviewUpdated();
 		onScroll();
 		updateTopBarSelection();
 	}
@@ -2165,7 +2166,7 @@ void OverviewWidget::mediaOverviewUpdated(PeerData *p, MediaOverviewType t) {
 
 void OverviewWidget::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (peer() == row->history()->peer || migratePeer() == row->history()->peer) {
-		_inner.changingMsgId(row, newId);
+		_inner->changingMsgId(row, newId);
 	}
 }
 
@@ -2182,22 +2183,22 @@ void OverviewWidget::grabFinish() {
 
 void OverviewWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
-		_inner.repaintItem(item);
+		_inner->repaintItem(item);
 	}
 }
 
 void OverviewWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	if (peer() == item->history()->peer || migratePeer() == item->history()->peer) {
-		_inner.onUpdateSelected();
+		_inner->onUpdateSelected();
 	}
 }
 
 void OverviewWidget::fillSelectedItems(SelectedItemSet &sel, bool forDelete) {
-	_inner.fillSelectedItems(sel, forDelete);
+	_inner->fillSelectedItems(sel, forDelete);
 }
 
 void OverviewWidget::updateAfterDrag() {
-	_inner.dragActionUpdate(QCursor::pos());
+	_inner->dragActionUpdate(QCursor::pos());
 }
 
 OverviewWidget::~OverviewWidget() {
@@ -2206,37 +2207,37 @@ OverviewWidget::~OverviewWidget() {
 }
 
 void OverviewWidget::activate() {
-	if (_scroll.isHidden()) {
+	if (_scroll->isHidden()) {
 		setFocus();
 	} else {
-		_inner.activate();
+		_inner->activate();
 	}
 }
 
 QPoint OverviewWidget::clampMousePosition(QPoint point) {
 	if (point.x() < 0) {
 		point.setX(0);
-	} else if (point.x() >= _scroll.width()) {
-		point.setX(_scroll.width() - 1);
+	} else if (point.x() >= _scroll->width()) {
+		point.setX(_scroll->width() - 1);
 	}
-	if (point.y() < _scroll.scrollTop()) {
-		point.setY(_scroll.scrollTop());
-	} else if (point.y() >= _scroll.scrollTop() + _scroll.height()) {
-		point.setY(_scroll.scrollTop() + _scroll.height() - 1);
+	if (point.y() < _scroll->scrollTop()) {
+		point.setY(_scroll->scrollTop());
+	} else if (point.y() >= _scroll->scrollTop() + _scroll->height()) {
+		point.setY(_scroll->scrollTop() + _scroll->height() - 1);
 	}
 	return point;
 }
 
 void OverviewWidget::onScrollTimer() {
 	int32 d = (_scrollDelta > 0) ? qMin(_scrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_scrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
-	_scroll.scrollToY(_scroll.scrollTop() + d);
+	_scroll->scrollToY(_scroll->scrollTop() + d);
 }
 
 void OverviewWidget::checkSelectingScroll(QPoint point) {
-	if (point.y() < _scroll.scrollTop()) {
-		_scrollDelta = point.y() - _scroll.scrollTop();
-	} else if (point.y() >= _scroll.scrollTop() + _scroll.height()) {
-		_scrollDelta = point.y() - _scroll.scrollTop() - _scroll.height() + 1;
+	if (point.y() < _scroll->scrollTop()) {
+		_scrollDelta = point.y() - _scroll->scrollTop();
+	} else if (point.y() >= _scroll->scrollTop() + _scroll->height()) {
+		_scrollDelta = point.y() - _scroll->scrollTop() - _scroll->height() + 1;
 	} else {
 		_scrollDelta = 0;
 	}
@@ -2252,10 +2253,10 @@ void OverviewWidget::noSelectingScroll() {
 }
 
 bool OverviewWidget::touchScroll(const QPoint &delta) {
-	int32 scTop = _scroll.scrollTop(), scMax = _scroll.scrollTopMax(), scNew = snap(scTop - delta.y(), 0, scMax);
+	int32 scTop = _scroll->scrollTop(), scMax = _scroll->scrollTopMax(), scNew = snap(scTop - delta.y(), 0, scMax);
 	if (scNew == scTop) return false;
 
-	_scroll.scrollToY(scNew);
+	_scroll->scrollToY(scNew);
 	return true;
 }
 
@@ -2265,7 +2266,7 @@ void OverviewWidget::onForwardSelected() {
 
 void OverviewWidget::onDeleteSelected() {
 	SelectedItemSet sel;
-	_inner.fillSelectedItems(sel);
+	_inner->fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
 
 	App::main()->deleteLayer(sel.size());
@@ -2275,7 +2276,7 @@ void OverviewWidget::onDeleteSelectedSure() {
 	Ui::hideLayer();
 
 	SelectedItemSet sel;
-	_inner.fillSelectedItems(sel);
+	_inner->fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
 
 	QMap<PeerData*, QVector<MTPint> > ids;
@@ -2318,5 +2319,5 @@ void OverviewWidget::onDeleteContextSure() {
 }
 
 void OverviewWidget::onClearSelected() {
-	_inner.clearSelectedItems();
+	_inner->clearSelectedItems();
 }

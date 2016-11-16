@@ -32,6 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/scroll_area.h"
 
 StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::stickersScroll)
 , _inner(this, set)

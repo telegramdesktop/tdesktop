@@ -26,23 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introcode.h"
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
-
-namespace {
-	class SignUpClickHandler : public LeftButtonClickHandler {
-	public:
-		SignUpClickHandler(IntroPhone *widget) : _widget(widget) {
-		}
-
-	protected:
-		void onClickImpl() const override {
-			_widget->toSignUp();
-		}
-
-	private:
-		IntroPhone *_widget;
-
-	};
-}
+#include "ui/widgets/labels.h"
 
 IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 , a_errorAlpha(0)
@@ -51,7 +35,7 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 , _country(this, st::introCountry)
 , _phone(this, st::introPhone)
 , _code(this, st::introCountryCode)
-, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), FlatLabel::InitType::Rich, st::introErrorLabel, st::introErrorLabelTextStyle)
+, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), Ui::FlatLabel::InitType::Rich, st::introErrorLabel, st::introErrorLabelTextStyle)
 , _checkRequest(this) {
 	setVisible(false);
 	setGeometry(parent->innerRect());
@@ -68,7 +52,9 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_signup->setLink(1, MakeShared<SignUpClickHandler>(this));
+	_signup->setLink(1, MakeShared<LambdaClickHandler>([this] {
+		toSignUp();
+	}));
 	_signup->hide();
 
 	_signupCache = myGrab(_signup);

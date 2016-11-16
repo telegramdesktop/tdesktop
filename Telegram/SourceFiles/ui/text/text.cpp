@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace {
 
-const style::textStyle *_textStyle = nullptr;
+const style::TextStyle *_textStyle = nullptr;
 
 void initDefault() {
 	_textStyle = &st::defaultTextStyle;
@@ -44,11 +44,11 @@ inline int32 countBlockHeight(const ITextBlock *b, const style::font &font) {
 
 } // namespace
 
-const style::textStyle *textstyleCurrent() {
+const style::TextStyle *textstyleCurrent() {
 	return _textStyle;
 }
 
-void textstyleSet(const style::textStyle *style) {
+void textstyleSet(const style::TextStyle *style) {
 	_textStyle = style ? style : &st::defaultTextStyle;
 }
 

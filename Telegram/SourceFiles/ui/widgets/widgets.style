@@ -27,6 +27,15 @@ LabelSimple {
 	textFg: color;
 }
 
+FlatLabel {
+	font: font;
+	margin: margins;
+	width: pixels;
+	align: align;
+	textFg: color;
+	maxHeight: pixels;
+}
+
 LinkButton {
 	color: color;
 	overColor: color;
@@ -127,6 +136,28 @@ Radiobutton {
 
 	font: font;
 	duration: int;
+}
+
+FlatScroll {
+	barColor: color;
+	bgColor: color;
+	barOverColor: color;
+	bgOverColor: color;
+
+	round: pixels;
+
+	width: pixels;
+	minHeight: pixels;
+	deltax: pixels;
+	deltat: pixels;
+	deltab: pixels;
+
+	topsh: pixels;
+	bottomsh: pixels;
+	shColor: color;
+
+	duration: int;
+	hiding: int;
 }
 
 FlatTextarea {
@@ -327,7 +358,7 @@ MultiSelect {
 	bg: color;
 	padding: margins;
 	maxHeight: pixels;
-	scroll: flatScroll;
+	scroll: FlatScroll;
 
 	item: MultiSelectItem;
 	itemSkip: pixels;
@@ -400,7 +431,7 @@ InnerDropdown {
 	width: pixels;
 
 	bg: color;
-	scroll: flatScroll;
+	scroll: FlatScroll;
 	scrollMargin: margins;
 	scrollPadding: margins;
 }
@@ -413,7 +444,15 @@ DropdownMenu {
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
-	textFg: windowTextFg;
+	textFg: windowFg;
+}
+
+defaultFlatLabel: FlatLabel {
+	font: font(fsize);
+	width: 0px;
+	maxHeight: 0px;
+	align: align(left);
+	textFg: windowFg;
 }
 
 defaultLinkButton: LinkButton {
@@ -425,7 +464,7 @@ defaultLinkButton: LinkButton {
 }
 
 defaultRippleAnimation: RippleAnimation {
-	color: windowOverBg;
+	color: windowBgRipple;
 	showDuration: 200;
 	hideDuration: 200;
 }
@@ -468,6 +507,50 @@ defaultLightButton: RoundButton(defaultActiveButton) {
 	}
 }
 
+defaultFlatScroll: FlatScroll {
+	barColor: #00000053;
+	bgColor: #0000001a;
+	barOverColor: #0000007a;
+	bgOverColor: #0000002c;
+
+	round: 2px;
+
+	width: 10px;
+	minHeight: 20px;
+	deltax: 3px;
+	deltat: 3px;
+	deltab: 3px;
+
+	topsh: 2px;
+	bottomsh: 2px;
+	shColor: #00000012;
+
+	duration: 150;
+	hiding: 1000;
+}
+
+defaultSolidScroll: FlatScroll {
+	barColor: #3f729734;
+	bgColor: #214f751a;
+	barOverColor: #3f729734;
+	bgOverColor: #214f751a;
+
+	minHeight: 20px;
+
+	round: 2px;
+	deltax: 5px;
+	width: 14px;
+	deltat: 6px;
+	deltab: 6px;
+
+	topsh: 0px;
+	bottomsh: 0px;
+	shColor: #00000012;
+
+	duration: 150;
+	hiding: 0;
+}
+
 defaultInputFont: font(17px);
 defaultFlatInput: FlatInput {
 	textColor: #000000;
@@ -496,7 +579,7 @@ defaultFlatInput: FlatInput {
 defaultLeftOutlineButton: OutlineButton {
 	outlineWidth: 3px;
 	outlineFg: windowBg;
-	outlineFgOver: windowActiveBg;
+	outlineFgOver: windowBgActive;
 
 	textBg: windowBg;
 	textBgOver: #f2f7fa;
@@ -518,7 +601,7 @@ attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
 
 defaultInputArea: InputArea {
 	textBg: windowBg;
-	textFg: windowTextFg;
+	textFg: windowFg;
 	textMargins: margins(5px, 6px, 5px, 4px);
 
 	placeholderFg: #999999;
@@ -544,7 +627,7 @@ defaultInputArea: InputArea {
 
 defaultInputField: InputField {
 	textBg: windowBg;
-	textFg: windowTextFg;
+	textFg: windowFg;
 	textMargins: margins(0px, 6px, 0px, 4px);
 	textAlign: align(topleft);
 
@@ -568,16 +651,16 @@ defaultInputField: InputField {
 	height: 32px;
 }
 
-defaultCheckboxIcon: icon {{ "default_checkbox_check", windowActiveFg, point(4px, 7px) }};
+defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
 
 defaultCheckbox: Checkbox {
-	textFg: windowTextFg;
+	textFg: windowFg;
 	textBg: windowBg;
 
 	checkBg: #ffffff;
 	checkFg: #b3b3b3;
 	checkFgOver: #b3b3b3;
-	checkFgActive: windowActiveBg;
+	checkFgActive: windowBgActive;
 
 	width: -44px;
 	height: 22px;
@@ -592,7 +675,7 @@ defaultCheckbox: Checkbox {
 }
 
 defaultRadiobutton: Radiobutton {
-	textFg: windowTextFg;
+	textFg: windowFg;
 	textBg: windowBg;
 
 	checkBg: #ffffff;
@@ -669,9 +752,9 @@ defaultMenu: Menu {
 	skip: 0px;
 
 	itemBg: windowBg;
-	itemBgOver: windowOverBg;
-	itemFg: windowTextFg;
-	itemFgOver: windowTextFg;
+	itemBgOver: windowBgOver;
+	itemFg: windowFg;
+	itemFgOver: windowFgOver;
 	itemFgDisabled: #cccccc;
 	itemFgShortcut: #999999;
 	itemFgShortcutOver: #7c99b2;
@@ -709,7 +792,7 @@ defaultInnerDropdown: InnerDropdown {
 	showDuration: 200;
 
 	bg: menuBg;
-	scroll: solidScroll;
+	scroll: defaultSolidScroll;
 }
 defaultDropdownMenu: DropdownMenu {
 	wrap: InnerDropdown(defaultInnerDropdown) {

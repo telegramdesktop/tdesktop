@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "layerwidget.h"
 
 namespace Ui {
+class ScrollArea;
 class GradientShadow;
 } // namespace Ui
 
@@ -51,7 +52,7 @@ private slots:
 private:
 	void resizeUsingInnerHeight(int newWidth, int newContentLeft);
 
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<InnerWidget> _inner;
 	ChildWidget<FixedBar> _fixedBar;
 	ChildWidget<Ui::GradientShadow> _fixedBarShadow;

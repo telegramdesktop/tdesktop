@@ -20,14 +20,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "core/lambda_wrap.h"
+#include "boxes/abstractbox.h"
 #include "ui/filedialog.h"
 
-class FlatLabel;
 class ConfirmBox;
 
 namespace Ui {
+class FlatLabel;
 class InputField;
 class PhoneInput;
 class InputArea;
@@ -342,7 +341,7 @@ private:
 	int _rowHeight = 0;
 	int _revokeWidth = 0;
 
-	ChildWidget<FlatLabel> _aboutRevoke;
+	ChildWidget<Ui::FlatLabel> _aboutRevoke;
 	ChildWidget<Ui::RoundButton> _cancel;
 
 	base::lambda_unique<void()> _revokeCallback;

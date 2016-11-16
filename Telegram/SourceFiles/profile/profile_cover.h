@@ -23,13 +23,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 #include "ui/filedialog.h"
 
-class FlatLabel;
-
 namespace style {
 struct RoundButton;
 } // namespace style
 
 namespace Ui {
+class FlatLabel;
 class RoundButton;
 class LinkButton;
 } // namespace Ui
@@ -121,7 +120,7 @@ private:
 	ChildWidget<UserpicButton> _userpicButton;
 	ChildWidget<CoverDropArea> _dropArea = { nullptr };
 
-	ChildWidget<FlatLabel> _name;
+	ChildWidget<Ui::FlatLabel> _name;
 	ChildWidget<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;

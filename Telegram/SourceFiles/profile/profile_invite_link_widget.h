@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+namespace Ui {
 class FlatLabel;
+} // namespace Ui
 
 namespace Notify {
 struct PeerUpdate;
@@ -46,7 +48,7 @@ private:
 	void refreshLink();
 	void refreshVisibility();
 
-	ChildWidget<FlatLabel> _link = { nullptr };
+	ChildWidget<Ui::FlatLabel> _link = { nullptr };
 
 };
 

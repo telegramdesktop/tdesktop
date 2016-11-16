@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/section_widget.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/widgets/scroll_area.h"
 
 namespace Overview {
 namespace Layout {
@@ -43,7 +44,7 @@ class OverviewInner : public TWidget, public Ui::AbstractTooltipShower, public R
 	Q_OBJECT
 
 public:
-	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
+	OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
 
 	void activate();
 
@@ -154,7 +155,7 @@ private:
 	int32 countHeight();
 
 	OverviewWidget *_overview;
-	ScrollArea *_scroll;
+	Ui::ScrollArea *_scroll;
 	int _resizeIndex = -1;
 	int _resizeSkip = 0;
 
@@ -257,7 +258,7 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
 
-	TouchScrollState _touchScrollState = TouchScrollManual;
+	Ui::TouchScrollState _touchScrollState = Ui::TouchScrollState::Manual;
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
@@ -325,7 +326,7 @@ public:
 	void grapWithoutTopBarShadow();
 	void grabFinish() override;
 	void rpcClear() override {
-		_inner.rpcClear();
+		_inner->rpcClear();
 		RPCSender::rpcClear();
 	}
 
@@ -353,8 +354,8 @@ public slots:
 	void onClearSelected();
 
 private:
-	ScrollArea _scroll;
-	OverviewInner _inner;
+	ChildWidget<Ui::ScrollArea> _scroll;
+	ChildWidget<OverviewInner> _inner;
 	bool _noDropResizeIndex = false;
 
 	QString _header;

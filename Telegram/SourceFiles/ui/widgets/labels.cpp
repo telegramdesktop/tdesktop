@@ -19,28 +19,69 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 
 #include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "lang.h"
 
+namespace Ui {
 namespace {
-	TextParseOptions _labelOptions = {
-		TextParseMultiline, // flags
-		0, // maxw
-		0, // maxh
-		Qt::LayoutDirectionAuto, // dir
-	};
-	TextParseOptions _labelMarkedOptions = {
-		TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands | TextParseMono, // flags
-		0, // maxw
-		0, // maxh
-		Qt::LayoutDirectionAuto, // dir
-	};
+
+TextParseOptions _labelOptions = {
+	TextParseMultiline, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+TextParseOptions _labelMarkedOptions = {
+	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands | TextParseMono, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
+} // namespace
+
+LabelSimple::LabelSimple(QWidget *parent, const style::LabelSimple &st, const QString &value) : TWidget(parent)
+, _st(st) {
+	setText(value);
 }
 
-FlatLabel::FlatLabel(QWidget *parent, const style::flatLabel &st, const style::textStyle &tst) : TWidget(parent)
+void LabelSimple::setText(const QString &value, bool *outTextChanged) {
+	if (_fullText == value) {
+		if (outTextChanged) *outTextChanged = false;
+		return;
+	}
+
+	_fullText = value;
+	_fullTextWidth = _st.font->width(_fullText);
+	if (!_st.maxWidth || _fullTextWidth <= _st.maxWidth) {
+		_text = _fullText;
+		_textWidth = _fullTextWidth;
+	} else {
+		auto newText = _st.font->elided(_fullText, _st.maxWidth);
+		if (newText == _text) {
+			if (outTextChanged) *outTextChanged = false;
+			return;
+		}
+		_text = newText;
+		_textWidth = _st.font->width(_text);
+	}
+	resize(_textWidth, _st.font->height);
+	update();
+	if (outTextChanged) *outTextChanged = true;
+}
+
+void LabelSimple::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.setFont(_st.font);
+	p.setPen(_st.textFg);
+	p.drawTextLeft(0, 0, width(), _text, _textWidth);
+}
+
+FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st, const style::TextStyle &tst) : TWidget(parent)
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
 , _tst(tst)
@@ -48,7 +89,7 @@ FlatLabel::FlatLabel(QWidget *parent, const style::flatLabel &st, const style::t
 	init();
 }
 
-FlatLabel::FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::flatLabel &st, const style::textStyle &tst) : TWidget(parent)
+FlatLabel::FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st, const style::TextStyle &tst) : TWidget(parent)
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
 , _tst(tst)
@@ -356,40 +397,40 @@ void FlatLabel::touchEvent(QTouchEvent *e) {
 
 	switch (e->type()) {
 	case QEvent::TouchBegin:
-		if (_contextMenu) {
-			e->accept();
-			return; // ignore mouse press, that was hiding context menu
-		}
-		if (_touchInProgress) return;
-		if (e->touchPoints().isEmpty()) return;
+	if (_contextMenu) {
+		e->accept();
+		return; // ignore mouse press, that was hiding context menu
+	}
+	if (_touchInProgress) return;
+	if (e->touchPoints().isEmpty()) return;
 
-		_touchInProgress = true;
-		_touchSelectTimer.start(QApplication::startDragTime());
-		_touchSelect = false;
-		_touchStart = _touchPrevPos = _touchPos;
+	_touchInProgress = true;
+	_touchSelectTimer.start(QApplication::startDragTime());
+	_touchSelect = false;
+	_touchStart = _touchPrevPos = _touchPos;
 	break;
 
 	case QEvent::TouchUpdate:
-		if (!_touchInProgress) return;
-		if (_touchSelect) {
-			_lastMousePos = _touchPos;
-			dragActionUpdate();
-		}
+	if (!_touchInProgress) return;
+	if (_touchSelect) {
+		_lastMousePos = _touchPos;
+		dragActionUpdate();
+	}
 	break;
 
 	case QEvent::TouchEnd:
-		if (!_touchInProgress) return;
-		_touchInProgress = false;
-		if (_touchSelect) {
-			dragActionFinish(_touchPos, Qt::RightButton);
-			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
-			showContextMenu(&contextMenu, ContextMenuReason::FromTouch);
-		} else { // one short tap -- like mouse click
-			dragActionStart(_touchPos, Qt::LeftButton);
-			dragActionFinish(_touchPos, Qt::LeftButton);
-		}
-		_touchSelectTimer.stop();
-		_touchSelect = false;
+	if (!_touchInProgress) return;
+	_touchInProgress = false;
+	if (_touchSelect) {
+		dragActionFinish(_touchPos, Qt::RightButton);
+		QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
+		showContextMenu(&contextMenu, ContextMenuReason::FromTouch);
+	} else { // one short tap -- like mouse click
+		dragActionStart(_touchPos, Qt::LeftButton);
+		dragActionFinish(_touchPos, Qt::LeftButton);
+	}
+	_touchSelectTimer.stop();
+	_touchSelect = false;
 	break;
 	}
 }
@@ -558,9 +599,9 @@ void FlatLabel::updateHover(const Text::StateResult &state) {
 		}
 	}
 	if (_dragAction == Selecting) {
-//		checkSelectingScroll();
+		//		checkSelectingScroll();
 	} else {
-//		noSelectingScroll();
+		//		noSelectingScroll();
 	}
 
 	if (_dragAction == NoDrag && (lnkChanged || cur != _cursor)) {
@@ -634,3 +675,5 @@ void FlatLabel::paintEvent(QPaintEvent *e) {
 	}
 	textstyleRestore();
 }
+
+} // namespace Ui

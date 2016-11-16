@@ -51,7 +51,7 @@ void FixedBar::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::boxBlockTitleBg);
 
 	p.setFont(st::settingsFixedBarFont);
-	p.setPen(st::windowTextFg);
+	p.setPen(st::windowFg);
 	p.drawTextLeft(st::settingsFixedBarTextLeft, st::settingsFixedBarTextTop, width(), lang(lng_menu_settings));
 }
 

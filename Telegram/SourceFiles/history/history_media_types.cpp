@@ -1927,33 +1927,6 @@ bool HistoryGif::dataLoaded() const {
 	return (!_parent || _parent->id > 0) ? _data->loaded() : false;
 }
 
-namespace {
-
-class StickerClickHandler : public LeftButtonClickHandler {
-public:
-	StickerClickHandler(const HistoryItem *item) : _item(item) {
-	}
-
-protected:
-	void onClickImpl() const override {
-		if (auto media = _item->getMedia()) {
-			if (auto document = media->getDocument()) {
-				if (auto sticker = document->sticker()) {
-					if (sticker->set.type() != mtpc_inputStickerSetEmpty && App::main()) {
-						App::main()->stickersBox(sticker->set);
-					}
-				}
-			}
-		}
-	}
-
-private:
-	const HistoryItem *_item;
-
-};
-
-} // namespace
-
 HistorySticker::HistorySticker(HistoryItem *parent, DocumentData *document) : HistoryMedia(parent)
 , _data(document)
 , _emoji(_data->sticker()->alt) {
@@ -1963,11 +1936,21 @@ HistorySticker::HistorySticker(HistoryItem *parent, DocumentData *document) : Hi
 	}
 }
 
+class TestClickHandler : public ClickHandler {
+
+};
+
 void HistorySticker::initDimensions() {
 	auto sticker = _data->sticker();
 
 	if (!_packLink && sticker && sticker->set.type() != mtpc_inputStickerSetEmpty) {
-		_packLink = ClickHandlerPtr(new StickerClickHandler(_parent));
+		_packLink = MakeShared<LambdaClickHandler>([document = _data] {
+			if (auto sticker = document->sticker()) {
+				if (sticker->set.type() != mtpc_inputStickerSetEmpty && App::main()) {
+					App::main()->stickersBox(sticker->set);
+				}
+			}
+		});
 	}
 	_pixw = _data->dimensions.width();
 	_pixh = _data->dimensions.height();
@@ -2198,22 +2181,31 @@ int HistorySticker::additionalWidth(const HistoryMessageVia *via, const HistoryM
 	return result;
 }
 
-void SendMessageClickHandler::onClickImpl() const {
-	Ui::showPeerHistory(peer()->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+namespace {
+
+ClickHandlerPtr sendMessageClickHandler(PeerData *peer) {
+	return MakeShared<LambdaClickHandler>([peer] {
+		Ui::showPeerHistory(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
+	});
 }
 
-void AddContactClickHandler::onClickImpl() const {
-	if (HistoryItem *item = App::histItemById(peerToChannel(peer()), msgid())) {
-		if (HistoryMedia *media = item->getMedia()) {
-			if (media->type() == MediaTypeContact) {
-				QString fname = static_cast<HistoryContact*>(media)->fname();
-				QString lname = static_cast<HistoryContact*>(media)->lname();
-				QString phone = static_cast<HistoryContact*>(media)->phone();
-				Ui::showLayer(new AddContactBox(fname, lname, phone));
+ClickHandlerPtr addContactClickHandler(HistoryItem *item) {
+	return MakeShared<LambdaClickHandler>([fullId = item->fullId()] {
+		if (auto item = App::histItemById(fullId)) {
+			if (auto media = item->getMedia()) {
+				if (media->type() == MediaTypeContact) {
+					auto contact = static_cast<HistoryContact*>(media);
+					auto fname = contact->fname();
+					auto lname = contact->lname();
+					auto phone = contact->phone();
+					Ui::showLayer(new AddContactBox(fname, lname, phone));
+				}
 			}
 		}
-	}
+	});
 }
+
+} // namespace
 
 HistoryContact::HistoryContact(HistoryItem *parent, int32 userId, const QString &first, const QString &last, const QString &phone) : HistoryMedia(parent)
 , _userId(userId)
@@ -2236,10 +2228,10 @@ void HistoryContact::initDimensions() {
 		_contact->loadUserpic();
 	}
 	if (_contact && _contact->contact > 0) {
-		_linkl.reset(new SendMessageClickHandler(_contact));
+		_linkl = sendMessageClickHandler(_contact);
 		_link = lang(lng_profile_send_message).toUpper();
 	} else if (_userId) {
-		_linkl.reset(new AddContactClickHandler(_parent->history()->peer->id, _parent->id));
+		_linkl = addContactClickHandler(_parent);
 		_link = lang(lng_profile_add_contact).toUpper();
 	}
 	_linkw = _link.isEmpty() ? 0 : st::semiboldFont->width(_link);

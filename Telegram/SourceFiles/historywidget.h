@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/rect_shadow.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/scroll_area.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -58,7 +59,7 @@ class HistoryInner : public TWidget, public Ui::AbstractTooltipShower, private b
 	Q_OBJECT
 
 public:
-	HistoryInner(HistoryWidget *historyWidget, ScrollArea *scroll, History *history);
+	HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll, History *history);
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
@@ -203,7 +204,7 @@ private:
 	std_::unique_ptr<BotAbout> _botAbout;
 
 	HistoryWidget *_widget = nullptr;
-	ScrollArea *_scroll = nullptr;
+	Ui::ScrollArea *_scroll = nullptr;
 	mutable History *_curHistory = nullptr;
 	mutable int _curBlock = 0;
 	mutable int _curItem = 0;
@@ -254,7 +255,7 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
 
-	TouchScrollState _touchScrollState = TouchScrollManual;
+	Ui::TouchScrollState _touchScrollState = Ui::TouchScrollState::Manual;
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
@@ -364,7 +365,7 @@ class BotKeyboard : public TWidget, public Ui::AbstractTooltipShower, public Cli
 	Q_OBJECT
 
 public:
-	BotKeyboard();
+	BotKeyboard(QWidget *parent);
 
 	bool moderateKeyActivate(int index);
 
@@ -423,7 +424,7 @@ private:
 
 	class Style : public ReplyKeyboard::Style {
 	public:
-		Style(BotKeyboard *parent, const style::botKeyboardButton &st) : ReplyKeyboard::Style(st), _parent(parent) {
+		Style(BotKeyboard *parent, const style::BotKeyboardButton &st) : ReplyKeyboard::Style(st), _parent(parent) {
 		}
 
 		void startPaint(Painter &p) const override;
@@ -440,7 +441,7 @@ private:
 		BotKeyboard *_parent;
 
 	};
-	const style::botKeyboardButton *_st = &st::botKbButton;
+	const style::BotKeyboardButton *_st = nullptr;
 
 };
 
@@ -1049,7 +1050,7 @@ private:
 
 	MsgId _activeAnimMsgId = 0;
 
-	ScrollArea _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	HistoryInner *_list = nullptr;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
@@ -1077,7 +1078,7 @@ private:
 	bool isMuteUnmute() const;
 	bool updateCmdStartShown();
 
-	ReportSpamPanel _reportSpamPanel;
+	ChildWidget<ReportSpamPanel> _reportSpamPanel;
 
 	ChildWidget<Ui::IconButton> _send;
 	ChildWidget<Ui::FlatButton> _unblock;
@@ -1110,8 +1111,8 @@ private:
 
 	bool _kbShown = false;
 	HistoryItem *_kbReplyTo = nullptr;
-	ScrollArea _kbScroll;
-	BotKeyboard _keyboard;
+	ChildWidget<Ui::ScrollArea> _kbScroll;
+	ChildWidget<BotKeyboard> _keyboard;
 
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;

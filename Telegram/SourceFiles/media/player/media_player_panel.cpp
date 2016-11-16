@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_widgets.h"
 #include "styles/style_media_player.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
 
 namespace Media {

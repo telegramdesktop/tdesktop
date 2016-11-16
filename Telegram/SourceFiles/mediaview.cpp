@@ -37,23 +37,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace {
 
-class SaveMsgClickHandler : public ClickHandler {
-public:
-
-	SaveMsgClickHandler(MediaView *view) : _view(view) {
-	}
-
-	void onClick(Qt::MouseButton button) const {
-		if (button == Qt::LeftButton) {
-			_view->showSaveMsgFile();
-		}
-	}
-
-private:
-
-	MediaView *_view;
-};
-
 TextParseOptions _captionTextOptions = {
 	TextParseLinks | TextParseMentions | TextParseHashtags | TextParseMultiline | TextParseRichText, // flags
 	0, // maxw
@@ -95,7 +78,7 @@ MediaView::MediaView() : TWidget(App::wnd())
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::medviewSaveMsgFont, lang(lng_mediaview_saved), _textDlgOptions, custom);
 	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::medviewSaveMsgPadding.left() + st::medviewSaveMsgPadding.right(), st::medviewSaveMsgFont->height + st::medviewSaveMsgPadding.top() + st::medviewSaveMsgPadding.bottom());
-	_saveMsgText.setLink(1, MakeShared<SaveMsgClickHandler>(this));
+	_saveMsgText.setLink(1, MakeShared<LambdaClickHandler>([this] { showSaveMsgFile(); }));
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 

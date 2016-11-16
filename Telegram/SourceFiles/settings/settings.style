@@ -24,6 +24,11 @@ using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 using "boxes/boxes.style";
 
+settingsScroll: FlatScroll(defaultFlatScroll) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
+
 settingsMaxWidth: 520px;
 settingsMaxPadding: 48px;
 settingsMinPadding: 32px;
@@ -44,14 +49,14 @@ settingsPhotoLeft: -8px;
 settingsPhotoDuration: 500;
 settingsNameLeft: 26px;
 settingsNameTop: 9px;
-settingsNameLabel: flatLabel(labelDefFlat) {
+settingsNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
 	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
 	textFg: #333333;
 }
-settingsNameTextStyle: textStyle(defaultTextStyle) {
+settingsNameTextStyle: TextStyle(defaultTextStyle) {
 }
 settingsStatusLeft: 27px;
 settingsStatusTop: 35px;
@@ -83,13 +88,13 @@ settingsBlockTitleHeight: 31px;
 settingsBlockTitleFont: font(15px semibold);
 settingsBlockTitleFg: #333333;
 settingsBlockTitleTop: 0px;
-settingsPrimaryLabel: flatLabel(labelDefFlat) {
+settingsPrimaryLabel: FlatLabel(defaultFlatLabel) {
 	font: boxTextFont;
 }
-settingsBlockLabel: flatLabel(settingsPrimaryLabel) {
+settingsBlockLabel: FlatLabel(settingsPrimaryLabel) {
 	textFg: windowSubTextFg;
 }
-settingsBlockOneLineTextPart: flatLabel(settingsPrimaryLabel) {
+settingsBlockOneLineTextPart: FlatLabel(settingsPrimaryLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
 	margin: margins(5px, 5px, 5px, 5px);
 	maxHeight: 20px;

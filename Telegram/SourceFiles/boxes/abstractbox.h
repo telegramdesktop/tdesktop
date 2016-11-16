@@ -26,6 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class IconButton;
 class GradientShadow;
+class ScrollArea;
 } // namespace Ui
 
 class AbstractBox : public LayerWidget, protected base::Subscriber {
@@ -81,7 +82,7 @@ public:
 
 class ScrollableBox : public AbstractBox {
 public:
-	ScrollableBox(const style::flatScroll &scroll, int w = 0);
+	ScrollableBox(const style::FlatScroll &scroll, int w = 0);
 
 protected:
 	void init(TWidget *inner, int bottomSkip = -1, int topSkip = -1);
@@ -89,21 +90,21 @@ protected:
 
 	void resizeEvent(QResizeEvent *e) override;
 
-	ScrollArea *scrollArea() {
+	Ui::ScrollArea *scrollArea() {
 		return _scroll;
 	}
 
 private:
 	void updateScrollGeometry();
 
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	int _topSkip, _bottomSkip;
 
 };
 
 class ItemListBox : public ScrollableBox {
 public:
-	ItemListBox(const style::flatScroll &scroll, int32 w = 0);
+	ItemListBox(const style::FlatScroll &scroll, int32 w = 0);
 
 };
 

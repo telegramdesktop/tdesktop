@@ -22,9 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/rect_shadow.h"
 
-class ScrollArea;
-
 namespace Ui {
+class ScrollArea;
 class GradientShadow;
 } // namespace Ui
 
@@ -110,7 +109,7 @@ private:
 	Ui::RectShadow _shadow;
 	ButtonCallback _pinCallback, _closeCallback;
 	ChildWidget<CoverWidget> _cover = { nullptr };
-	ChildWidget<ScrollArea> _scroll;
+	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<Ui::GradientShadow> _scrollShadow = { nullptr };
 
 };

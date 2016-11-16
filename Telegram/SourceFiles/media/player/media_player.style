@@ -34,7 +34,7 @@ MediaPlayerButton {
 	cancelStroke: pixels;
 }
 
-mediaPlayerActiveFg: windowActiveBg;
+mediaPlayerActiveFg: windowBgActive;
 mediaPlayerInactiveFg: #dfebf2;
 
 mediaPlayerButton: MediaPlayerButton {
@@ -60,9 +60,9 @@ mediaPlayerPlaySkip: 1px;
 mediaPlayerPlayTop: 0px;
 mediaPlayerCloseRight: 0px;
 
-mediaPlayerName: flatLabel(labelDefFlat) {
+mediaPlayerName: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
-	textFg: windowTextFg;
+	textFg: windowFg;
 }
 mediaPlayerTime: LabelSimple(defaultLabelSimple) {
 	textFg: windowSubTextFg;
@@ -209,7 +209,7 @@ mediaPlayerPanelVolumeWidth: 64px;
 mediaPlayerPanelVolumeToggleSkip: 0px;
 mediaPlayerPanelVolumeToggleTop: 57px;
 
-mediaPlayerScroll: flatScroll(solidScroll) {
+mediaPlayerScroll: FlatScroll(defaultSolidScroll) {
 	deltat: 10px;
 	deltab: 0px;
 }

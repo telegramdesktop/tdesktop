@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/runtime_composer.h"
 
+namespace style {
+struct BotKeyboardButton;
+} // namespace style
+
 class HistoryElement {
 public:
 	HistoryElement() = default;
@@ -281,21 +285,15 @@ private:
 public:
 	class Style {
 	public:
-		Style(const style::botKeyboardButton &st) : _st(&st) {
+		Style(const style::BotKeyboardButton &st) : _st(&st) {
 		}
 
 		virtual void startPaint(Painter &p) const = 0;
 		virtual style::font textFont() const = 0;
 
-		int buttonSkip() const {
-			return _st->margin;
-		}
-		int buttonPadding() const {
-			return _st->padding;
-		}
-		int buttonHeight() const {
-			return _st->height;
-		}
+		int buttonSkip() const;
+		int buttonPadding() const;
+		int buttonHeight() const;
 
 		virtual void repaint(const HistoryItem *item) const = 0;
 		virtual ~Style() {
@@ -308,7 +306,7 @@ public:
 		virtual int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const = 0;
 
 	private:
-		const style::botKeyboardButton *_st;
+		const style::BotKeyboardButton *_st;
 
 		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const;
 		friend class ReplyKeyboard;
@@ -320,7 +318,7 @@ public:
 	ReplyKeyboard(const ReplyKeyboard &other) = delete;
 	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
 
-	bool isEnoughSpace(int width, const style::botKeyboardButton &st) const;
+	bool isEnoughSpace(int width, const style::BotKeyboardButton &st) const;
 	void setStyle(StylePtr &&s);
 	void resize(int width, int height);
 
@@ -951,30 +949,8 @@ public:
 	}
 };
 
-class MessageClickHandler : public LeftButtonClickHandler {
-public:
-	MessageClickHandler(PeerId peer, MsgId msgid) : _peer(peer), _msgid(msgid) {
-	}
-	MessageClickHandler(HistoryItem *item) : _peer(item->history()->peer->id), _msgid(item->id) {
-	}
-	PeerId peer() const {
-		return _peer;
-	}
-	MsgId msgid() const {
-		return _msgid;
-	}
+ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId);
 
-private:
-	PeerId _peer;
-	MsgId _msgid;
-
-};
-
-class GoToMessageClickHandler : public MessageClickHandler {
-public:
-	using MessageClickHandler::MessageClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
+inline ClickHandlerPtr goToMessageClickHandler(HistoryItem *item) {
+	return goToMessageClickHandler(item->history()->peer, item->id);
+}

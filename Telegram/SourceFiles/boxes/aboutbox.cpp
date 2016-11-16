@@ -28,12 +28,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
 
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 , _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
-, _text1(this, lang(lng_about_text_1), FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
-, _text2(this, lang(lng_about_text_2), FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
+, _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
+, _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
 , _text3(this,st::aboutLabel, st::aboutTextStyle)
 , _done(this, lang(lng_close), st::defaultBoxButton) {
 	_text3->setRichText(lng_about_text_3(lt_faq_open, qsl("[a href=\"%1\"]").arg(telegramFaqLink()), lt_faq_close, qsl("[/a]")));
@@ -137,6 +138,17 @@ QString telegramFaqLink() {
 		} else if (qstr("pt_BR") == code) {
 			result += qsl("/br");
 		}
+	}
+	return result;
+}
+
+QString currentVersionText() {
+	auto result = QString::fromLatin1(AppVersionStr.c_str());
+	if (cAlphaVersion()) {
+		result += " alpha";
+	}
+	if (cBetaVersion()) {
+		result += qsl(" beta %1").arg(cBetaVersion() % 1000);
 	}
 	return result;
 }

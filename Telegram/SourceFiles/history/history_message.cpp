@@ -83,7 +83,9 @@ void historyInitMessages() {
 void HistoryMessageVia::create(int32 userId) {
 	_bot = App::user(peerFromUser(userId));
 	_maxWidth = st::msgServiceNameFont->width(lng_inline_bot_via(lt_inline_bot, '@' + _bot->username));
-	_lnk.reset(new ViaInlineBotClickHandler(_bot));
+	_lnk = MakeShared<LambdaClickHandler>([bot = _bot] {
+		App::insertBotCommand('@' + bot->username);
+	});
 }
 
 void HistoryMessageVia::resize(int32 availw) const {
@@ -149,7 +151,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	textstyleSet(&st::inFwdTextStyle);
 	_text.setText(st::msgServiceNameFont, text, opts);
 	textstyleRestore();
-	_text.setLink(1, (_originalId && _authorOriginal->isChannel()) ? ClickHandlerPtr(new GoToMessageClickHandler(_authorOriginal->id, _originalId)) : _authorOriginal->openLink());
+	_text.setLink(1, (_originalId && _authorOriginal->isChannel()) ? goToMessageClickHandler(_authorOriginal, _originalId) : _authorOriginal->openLink());
 	if (via) {
 		_text.setLink(2, via->_lnk);
 	}
@@ -173,7 +175,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 
 		updateName();
 
-		replyToLnk.reset(new GoToMessageClickHandler(replyToMsg->history()->peer->id, replyToMsg->id));
+		replyToLnk = goToMessageClickHandler(replyToMsg);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
 				_replyToVia.reset(new HistoryMessageVia());
@@ -1760,7 +1762,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto from = textcmdLink(1, _from->name);
 
 	Links links;
-	links.push_back(MakeShared<PeerOpenClickHandler>(_from));
+	links.push_back(peerOpenClickHandler(_from));
 
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
@@ -1778,7 +1780,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			if (u == _from) {
 				text = lng_action_user_joined(lt_from, from);
 			} else {
-				links.push_back(MakeShared<PeerOpenClickHandler>(u));
+				links.push_back(peerOpenClickHandler(u));
 				text = lng_action_add_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 			}
 		} else if (v.isEmpty()) {
@@ -1794,7 +1796,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				} else {
 					text = lng_action_add_users_and_last(lt_accumulated, text, lt_user, linkText);
 				}
-				links.push_back(MakeShared<PeerOpenClickHandler>(u));
+				links.push_back(peerOpenClickHandler(u));
 			}
 			text = lng_action_add_users_many(lt_from, from, lt_users, text);
 		}
@@ -1811,7 +1813,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		text = lng_action_user_joined_by_link(lt_from, from);
 		//} else {
 		//	UserData *u = App::user(App::peerFromUser(d.vinviter_id));
-		//	links.push_back(MakeShared<PeerOpenClickHandler>(u));
+		//	links.push_back(peerOpenClickHandler(u));
 		//	text = lng_action_user_joined_by_link_from(lt_from, from, lt_inviter, textcmdLink(2, u->name));
 		//}
 		if (_from->isSelf() && history()->peer->isMegagroup()) {
@@ -1847,7 +1849,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			text = lng_action_user_left(lt_from, from);
 		} else {
 			auto u = App::user(peerFromUser(d.vuser_id));
-			links.push_back(MakeShared<PeerOpenClickHandler>(u));
+			links.push_back(peerOpenClickHandler(u));
 			text = lng_action_kick_user(lt_from, from, lt_user, textcmdLink(2, u->name));
 		}
 	} break;
@@ -1913,7 +1915,7 @@ bool HistoryService::updateDependent(bool force) {
 	}
 
 	if (!dependent->lnk) {
-		dependent->lnk.reset(new GoToMessageClickHandler(history()->peer->id, dependent->msgId));
+		dependent->lnk = goToMessageClickHandler(history()->peer, dependent->msgId);
 	}
 	bool gotDependencyItem = false;
 	if (!dependent->msg) {
@@ -2312,7 +2314,7 @@ bool HistoryService::updateDependentText() {
 	auto from = textcmdLink(1, _from->name);
 	QString text;
 	Links links;
-	links.push_back(MakeShared<PeerOpenClickHandler>(_from));
+	links.push_back(peerOpenClickHandler(_from));
 	if (Has<HistoryServicePinned>()) {
 		result = preparePinnedText(from, &text, &links);
 	} else if (Has<HistoryServiceGameScore>()) {
@@ -2352,15 +2354,11 @@ HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, User
 		if (peerToUser(inviter->id) == MTP::authedId()) {
 			return lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined);
 		}
-		links.push_back(MakeShared<PeerOpenClickHandler>(inviter));
+		links.push_back(peerOpenClickHandler(inviter));
 		if (history->isMegagroup()) {
 			return lng_action_add_you_group(lt_from, textcmdLink(1, inviter->name));
 		}
 		return lng_action_add_you(lt_from, textcmdLink(1, inviter->name));
 	})();
 	setServiceText(text, links);
-}
-
-void ViaInlineBotClickHandler::onClickImpl() const {
-	App::insertBotCommand('@' + _bot->username);
 }

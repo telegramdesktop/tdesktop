@@ -63,7 +63,7 @@ introLink: LinkButton(defaultLinkButton) {
 	font: introFont;
 	overFont: font(16px underline);
 }
-introLabel: flatLabel(labelDefFlat) {
+introLabel: FlatLabel(defaultFlatLabel) {
 	font: introFont;
 	align: align(center);
 }
@@ -124,14 +124,14 @@ introErrorTop: 15px;
 introErrorHeight: 40px;
 introErrorFont: font(16px);
 
-introLabelTextStyle: textStyle(defaultTextStyle) {
+introLabelTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 30px;
 }
-introErrorLabelTextStyle: textStyle(defaultTextStyle) {
+introErrorLabelTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 27px;
 }
 
-introErrorLabel: flatLabel(labelDefFlat) {
+introErrorLabel: FlatLabel(defaultFlatLabel) {
 	font: introErrorFont;
 	align: align(center);
 }

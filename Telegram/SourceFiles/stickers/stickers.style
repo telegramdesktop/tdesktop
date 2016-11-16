@@ -34,7 +34,7 @@ stickersTrendingHeader: 45px;
 stickersTrendingSkip: 15px;
 
 stickersTrendingHeaderFont: semiboldFont;
-stickersTrendingHeaderFg: windowTextFg;
+stickersTrendingHeaderFg: windowFg;
 stickersTrendingHeaderTop: 0px;
 stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: #777777;
@@ -68,7 +68,7 @@ stickersFeaturedInstalled: icon {{ "mediaview_save_check", lightButtonFg }};
 stickersMaxHeight: 440px;
 stickersPadding: margins(19px, 17px, 19px, 17px);
 stickersSize: size(64px, 64px);
-stickersScroll: flatScroll(boxScroll) {
+stickersScroll: FlatScroll(boxScroll) {
 	round: 2px;
 	deltax: 7px;
 	deltat: 23px;
@@ -86,7 +86,7 @@ stickersTrendingActive: icon {{ "emoji_trending", #58b2ed }};
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
 
-emojiScroll: flatScroll(solidScroll) {
+emojiScroll: FlatScroll(defaultSolidScroll) {
 	deltat: 48px;
 }
 emojiRecent: icon {{ "emoji_recent", #b3b3b3 }};

@@ -22,11 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 
-class FlatLabel;
-
 namespace Ui {
 class InputField;
 class RoundButton;
+class FlatLabel;
 } // namespace Ui
 
 class ConfirmPhoneBox : public AbstractBox, public RPCSender {
@@ -92,7 +91,7 @@ private:
 
 	mtpRequestId _checkCodeRequestId = 0;
 
-	ChildWidget<FlatLabel> _about = { nullptr };
+	ChildWidget<Ui::FlatLabel> _about = { nullptr };
 	ChildWidget<Ui::RoundButton> _send = { nullptr };
 	ChildWidget<Ui::RoundButton> _cancel = { nullptr };
 	ChildWidget<Ui::InputField> _code = { nullptr };

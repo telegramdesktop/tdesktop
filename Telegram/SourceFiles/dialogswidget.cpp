@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_stickers.h"
+#include "styles/style_history.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_drafts.h"
@@ -412,7 +413,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 
 void DialogsInner::resizeEvent(QResizeEvent *e) {
 	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_cancelSearchInPeer->move(width() - st::dialogsPadding.x() - st::dialogsCancelSearch.width, (st::dialogsRowHeight - st::dialogsCancelSearch.height) / 2);
+	_cancelSearchInPeer->moveToRight(st::dialogsFilterSkip + st::dialogsFilterPadding.x() - otherWidth(), (st::dialogsRowHeight - st::dialogsCancelSearchInPeer.height) / 2);
 }
 
 void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
@@ -2014,28 +2015,6 @@ void DialogsWidget::onChooseByDrag() {
 
 void DialogsWidget::showMainMenu() {
 	App::wnd()->showMainMenu();
-	return;
-
-	if (!_mainMenu) {
-		_mainMenu.create(this, st::dialogsMenuWrap);
-		_mainMenu->addAction(lang(lng_create_group_title), [] {
-			App::wnd()->onShowNewGroup();
-		}, &st::dialogsMenuNewGroup, &st::dialogsMenuNewGroupOver);
-		_mainMenu->addAction(lang(lng_create_channel_title), [] {
-			App::wnd()->onShowNewChannel();
-		}, &st::dialogsMenuNewChannel, &st::dialogsMenuNewChannelOver);
-		_mainMenu->addAction(lang(lng_menu_contacts), [] {
-			Ui::showLayer(new ContactsBox());
-		}, &st::dialogsMenuContacts, &st::dialogsMenuContactsOver);
-		_mainMenu->addAction(lang(lng_menu_settings), [] {
-			App::wnd()->showSettings();
-		}, &st::dialogsMenuSettings, &st::dialogsMenuSettingsOver);
-		_mainMenu->addAction(lang(lng_settings_faq), [] {
-			QDesktopServices::openUrl(telegramFaqLink());
-		}, &st::dialogsMenuHelp, &st::dialogsMenuHelpOver);
-	}
-	updateMainMenuGeometry();
-	_mainMenu->showAnimated(Ui::PanelAnimation::Origin::TopLeft);
 }
 
 void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
@@ -2381,7 +2360,6 @@ void DialogsWidget::onCompleteHashtag(QString tag) {
 
 void DialogsWidget::resizeEvent(QResizeEvent *e) {
 	updateControlsGeometry();
-	updateMainMenuGeometry();
 }
 
 void DialogsWidget::updateLockUnlockVisibility() {
@@ -2397,21 +2375,18 @@ void DialogsWidget::updateControlsGeometry() {
 		_forwardCancel->moveToLeft(0, filterTop);
 		filterTop += st::dialogsForwardHeight;
 	}
-	auto filterLeft = st::dialogsFilterPadding.x() * 2 + _mainMenuToggle->width();
-	auto filterWidth = width() - 2 * st::dialogsFilterPadding.x();
-	filterWidth -= st::dialogsFilterPadding.x() + _mainMenuToggle->width();
-	if (Global::LocalPasscode()) {
-		filterWidth -= st::dialogsFilterPadding.x() + _lockUnlock->width();
-	}
-	filterTop += st::dialogsFilterPadding.y();
+	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
+	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
+	auto filterWidth = width() - filterLeft - filterRight;
+	auto scrollTop = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
+	filterTop += (scrollTop - _filter->height()) / 2;
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
-	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), _filter->y());
-	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), _filter->y());
+	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
+	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 
 	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;
 	auto newScrollTop = _scroll->scrollTop() + addToScroll;
-	auto scrollTop = filterTop + _filter->height() + st::dialogsFilterPadding.y();
 	auto scrollHeight = height() - scrollTop;
 	if (_updateTelegram) {
 		auto updateHeight = _updateTelegram->height();
@@ -2426,12 +2401,6 @@ void DialogsWidget::updateControlsGeometry() {
 	} else {
 		onListScroll();
 	}
-}
-
-void DialogsWidget::updateMainMenuGeometry() {
-	if (!_mainMenu) return;
-
-	_mainMenu->moveToLeft(st::dialogsMenuPosition.x(), st::dialogsMenuPosition.y());
 }
 
 void DialogsWidget::updateForwardBar() {

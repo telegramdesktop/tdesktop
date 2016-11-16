@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/labels.h"
 #include "mainwidget.h"
 #include "lang.h"
 
@@ -97,7 +98,7 @@ void ConfirmPhoneBox::setCallStatus(const CallStatus &status) {
 void ConfirmPhoneBox::launch() {
 	setBlockTitle(true);
 
-	_about = new FlatLabel(this, st::confirmPhoneAboutLabel);
+	_about.create(this, st::confirmPhoneAboutLabel);
 	TextWithEntities aboutText;
 	auto formattedPhone = App::formatPhone(_phone);
 	aboutText.text = lng_confirm_phone_about(lt_phone, formattedPhone);

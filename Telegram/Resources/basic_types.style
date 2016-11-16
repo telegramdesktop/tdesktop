@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
-textStyle {
+TextStyle {
 	linkFlags: font;
 	linkFlagsOver: font;
 	linkFg: color;
@@ -28,37 +28,6 @@ textStyle {
 	selectBg: color;
 	selectOverlay: color;
 	lineHeight: pixels;
-}
-
-flatScroll {
-	barColor: color;
-	bgColor: color;
-	barOverColor: color;
-	bgOverColor: color;
-
-	round: pixels;
-
-	width: pixels;
-	minHeight: pixels;
-	deltax: pixels;
-	deltat: pixels;
-	deltab: pixels;
-
-	topsh: pixels;
-	bottomsh: pixels;
-	shColor: color;
-
-	duration: int;
-	hiding: int;
-}
-
-flatLabel {
-	font: font;
-	margin: margins;
-	width: pixels;
-	align: align;
-	textFg: color;
-	maxHeight: pixels;
 }
 
 Tooltip {
@@ -73,12 +42,4 @@ Tooltip {
 
 	widthMax: pixels;
 	linesMax: int;
-}
-
-botKeyboardButton {
-	margin: pixels;
-	padding: pixels;
-	height: pixels;
-	textTop: pixels;
-	downTextTop: pixels;
 }

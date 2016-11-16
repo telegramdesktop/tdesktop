@@ -20,12 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "ui/flatlabel.h"
+#include "boxes/abstractbox.h"
 
 namespace Ui {
 class RoundButton;
 class LinkButton;
+class FlatLabel;
 } // namespace Ui
 
 class AboutBox : public AbstractBox {
@@ -48,11 +48,12 @@ protected:
 
 private:
 	ChildWidget<Ui::LinkButton> _version;
-	ChildWidget<FlatLabel> _text1;
-	ChildWidget<FlatLabel> _text2;
-	ChildWidget<FlatLabel> _text3;
+	ChildWidget<Ui::FlatLabel> _text1;
+	ChildWidget<Ui::FlatLabel> _text2;
+	ChildWidget<Ui::FlatLabel> _text3;
 	ChildWidget<Ui::RoundButton> _done;
 
 };
 
 QString telegramFaqLink();
+QString currentVersionText();

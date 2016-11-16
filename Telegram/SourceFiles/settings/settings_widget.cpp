@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "ui/widgets/shadow.h"
-#include "ui/scrollarea.h"
+#include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "localstorage.h"
@@ -125,7 +125,7 @@ void codesFeedString(const QString &text) {
 } // namespace
 
 Widget::Widget(QWidget *parent) : LayerWidget(parent)
-, _scroll(this, st::setScroll)
+, _scroll(this, st::settingsScroll)
 , _inner(this)
 , _fixedBar(this)
 , _fixedBarShadow(this, st::boxBlockTitleShadow) {

@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "mtproto/file_download.h"
 #include "ui/buttons/left_outline_button.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "core/click_handler_types.h"
@@ -307,7 +307,7 @@ void MembersWidget::refreshLimitReached() {
 
 	bool limitReachedShown = (_list.size() >= Global::ChatSizeMax()) && chat->amCreator() && !emptyTitle();
 	if (limitReachedShown && !_limitReachedInfo) {
-		_limitReachedInfo = new FlatLabel(this, st::profileLimitReachedLabel, st::profileLimitReachedStyle);
+		_limitReachedInfo.create(this, st::profileLimitReachedLabel, st::profileLimitReachedStyle);
 		QString title = textRichPrepare(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
 		QString body = textRichPrepare(lang(lng_profile_migrate_body));
 		QString link = textRichPrepare(lang(lng_profile_migrate_learn_more));

@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "ui/filedialog.h"
+#include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
 #include "window/window_main_menu.h"
 
@@ -366,6 +367,7 @@ void LayerStackWidget::showMainMenu() {
 		startShow();
 	} else {
 		_mainMenu->show();
+		_mainMenu->showFinished();
 		if (App::wnd()) App::wnd()->setInnerFocus();
 		updateLayerBox();
 	}
@@ -474,6 +476,7 @@ void LayerStackWidget::step_background(float64 ms, bool timer) {
 				_background->setMainMenuRight(_mainMenu->width());
 				_background->setMainMenuCache(QPixmap());
 				_mainMenu->show();
+				_mainMenu->showFinished();
 			}
 			if (App::wnd()) App::wnd()->setInnerFocus();
 		}

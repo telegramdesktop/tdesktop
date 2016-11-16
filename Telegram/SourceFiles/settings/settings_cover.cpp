@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settings/settings_cover.h"
 
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "observer_peer.h"
 #include "lang.h"

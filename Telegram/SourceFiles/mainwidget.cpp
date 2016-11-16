@@ -3541,7 +3541,9 @@ void MainWidget::start(const MTPUser &user) {
 	Local::readSavedPeers();
 
 	cSetOtherOnline(0);
-	App::feedUsers(MTP_vector<MTPUser>(1, user));
+	if (auto self = App::feedUsers(MTP_vector<MTPUser>(1, user))) {
+		self->loadUserpic();
+	}
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
 

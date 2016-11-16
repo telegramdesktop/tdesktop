@@ -64,7 +64,6 @@ public:
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
-	void showSaveMsgFile();
 	void close();
 
 	void activateControls();
@@ -128,6 +127,8 @@ private slots:
 	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
+	void showSaveMsgFile();
+
 	void dropdownHidden();
 	void updateDocSize();
 	void updateControls();
