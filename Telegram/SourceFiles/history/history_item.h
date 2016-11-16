@@ -22,8 +22,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/runtime_composer.h"
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace style {
 struct BotKeyboardButton;
+struct RippleAnimation;
 } // namespace style
 
 class HistoryElement {
@@ -294,13 +299,14 @@ public:
 		int buttonSkip() const;
 		int buttonPadding() const;
 		int buttonHeight() const;
+		virtual int buttonRadius() const = 0;
 
 		virtual void repaint(const HistoryItem *item) const = 0;
 		virtual ~Style() {
 		}
 
 	protected:
-		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
+		virtual void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const = 0;
 		virtual void paintButtonLoading(Painter &p, const QRect &rect) const = 0;
 		virtual int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const = 0;
@@ -308,7 +314,7 @@ public:
 	private:
 		const style::BotKeyboardButton *_st;
 
-		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const;
+		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, uint64 ms) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -326,7 +332,7 @@ public:
 	int naturalWidth() const;
 	int naturalHeight() const;
 
-	void paint(Painter &p, int outerWidth, const QRect &clip) const;
+	void paint(Painter &p, int outerWidth, const QRect &clip, uint64 ms) const;
 	ClickHandlerPtr getState(int x, int y) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
@@ -336,8 +342,7 @@ public:
 	void updateMessageId();
 
 private:
-	const HistoryItem *_item;
-	int _width = 0;
+	void startAnimation(int i, int j, int direction);
 
 	friend class Style;
 	using ReplyMarkupClickHandlerPtr = QSharedPointer<ReplyMarkupClickHandler>;
@@ -348,17 +353,33 @@ private:
 		float64 howMuchOver = 0.;
 		HistoryMessageReplyMarkup::Button::Type type;
 		ReplyMarkupClickHandlerPtr link;
+		mutable QSharedPointer<Ui::RippleAnimation> ripple;
 	};
 	using ButtonRow = QVector<Button>;
 	using ButtonRows = QVector<ButtonRow>;
-	ButtonRows _rows;
+
+	struct ButtonCoords {
+		int i, j;
+	};
+	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
 
 	using Animations = QMap<int, uint64>;
-	Animations _animations;
-	Animation _a_selected;
 	void step_selected(uint64 ms, bool timer);
 
+	const HistoryItem *_item;
+	int _width = 0;
+
+	ButtonRows _rows;
+
+	Animations _animations;
+	Animation _a_selected;
+
 	StylePtr _st;
+
+	ClickHandlerPtr _savedPressed;
+	ClickHandlerPtr _savedActive;
+	mutable QPoint _savedCoords;
+
 };
 
 // any HistoryItem can have this Interface for

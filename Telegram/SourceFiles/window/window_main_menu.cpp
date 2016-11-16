@@ -80,6 +80,7 @@ void MainMenu::checkSelf() {
 		_userpicButton->setClickedCallback([] {
 			App::wnd()->showSettings();
 		});
+		_userpicButton->show();
 		updateControlsGeometry();
 		if (_showFinished) {
 			_userpicButton->showFinished();

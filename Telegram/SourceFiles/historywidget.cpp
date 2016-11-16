@@ -2437,7 +2437,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
 		p.translate(x, st::botKbScroll.deltat);
-		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat));
+		_impl->paint(p, width(), clip.translated(-x, -st::botKbScroll.deltat), getms());
 	}
 }
 
@@ -2454,17 +2454,12 @@ void BotKeyboard::Style::repaint(const HistoryItem *item) const {
 	_parent->update();
 }
 
-void BotKeyboard::Style::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
-	if (down) {
-		App::roundRect(p, rect, st::botKbDownBg, BotKeyboardDownCorners);
-	} else {
-		App::roundRect(p, rect, st::botKbBg, BotKeyboardCorners);
-		if (howMuchOver > 0) {
-			p.setOpacity(howMuchOver);
-			App::roundRect(p, rect, st::botKbOverBg, BotKeyboardOverCorners);
-			p.setOpacity(1);
-		}
-	}
+int BotKeyboard::Style::buttonRadius() const {
+	return st::buttonRadius;
+}
+
+void BotKeyboard::Style::paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const {
+	App::roundRect(p, rect, st::botKbBg, BotKeyboardCorners);
 }
 
 void BotKeyboard::Style::paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const {
@@ -3018,7 +3013,7 @@ TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities) {
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _scroll(this, st::historyScroll, false)
-, _historyToEnd(this)
+, _historyToEnd(this, st::historyToDown)
 , _fieldAutocomplete(this)
 , _reportSpamPanel(this)
 , _send(this, st::historySend)

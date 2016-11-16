@@ -20,9 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/single_timer.h"
 #include "ui/effects/round_image_checkbox.h"
+#include "ui/widgets/buttons.h"
 
 class ContactsBox;
 class ConfirmBox;
@@ -32,6 +33,21 @@ enum class MembersFilter {
 	Admins,
 };
 using MembersAlreadyIn = OrderedSet<UserData*>;
+
+class MembersAddButton : public Ui::RippleButton {
+public:
+	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	const style::TwoIconButton &_st;
+
+};
 
 class MembersBox : public ItemListBox {
 	Q_OBJECT
@@ -54,7 +70,7 @@ private:
 
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::IconButton> _add = { nullptr };
+	ChildWidget<MembersAddButton> _add = { nullptr };
 
 	ContactsBox *_addBox = nullptr;
 

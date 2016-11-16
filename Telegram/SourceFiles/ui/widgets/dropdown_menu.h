@@ -88,6 +88,10 @@ private:
 		_menu->handleMousePress(globalPosition);
 	}
 	void handleMousePress(QPoint globalPosition);
+	void forwardMouseRelease(QPoint globalPosition) {
+		_menu->handleMouseRelease(globalPosition);
+	}
+	void handleMouseRelease(QPoint globalPosition);
 
 	using SubmenuPointer = QPointer<DropdownMenu>;
 	bool popupSubmenuFromAction(QAction *action, int actionTop, TriggeredSource source);

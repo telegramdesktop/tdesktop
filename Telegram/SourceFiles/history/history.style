@@ -22,14 +22,6 @@ using "basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
-BotKeyboardButton {
-	margin: pixels;
-	padding: pixels;
-	height: pixels;
-	textTop: pixels;
-	downTextTop: pixels;
-}
-
 historyScroll: FlatScroll(defaultFlatScroll) {
 	barColor: #89a0b47a;
 	bgColor: #89a0b44c;
@@ -47,13 +39,28 @@ historyScroll: FlatScroll(defaultFlatScroll) {
 	bottomsh: -1px;
 }
 
-historyPaddingBottom: 10px;
+historyPaddingBottom: 8px;
 
 historyToDownPosition: point(12px, 10px);
-historyToDownArrow: icon {
-	{ "history_down_arrow", #b9b9b9, point(17px, 23px) },
-};
+historyToDownAbove: icon {{ "history_down_arrow", #b9b9b9, point(17px, 23px) }};
+historyToDownAboveOver: icon {{ "history_down_arrow", #a3a3a3, point(17px, 23px) }};
 historyToDownPaddingTop: 10px;
+historyToDown: TwoIconButton {
+	width: 52px;
+	height: 62px;
+
+	iconBelow: historyToDownBelow;
+	iconBelowOver: historyToDownBelowOver;
+	iconAbove: historyToDownAbove;
+	iconAboveOver: historyToDownAboveOver;
+	iconPosition: point(0px, historyToDownPaddingTop);
+
+	rippleAreaPosition: point(5px, 15px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
 historyToDownBadgeFont: semiboldFont;
 historyToDownBadgeSize: 22px;
 
@@ -196,8 +203,6 @@ historyComposeButton: FlatButton {
 	height: 46px;
 
 	textTop: 14px;
-	overTextTop: 14px;
-	downTextTop: 14px;
 
 	font: semiboldFont;
 	overFont: semiboldFont;
@@ -217,9 +222,7 @@ historySend: IconButton {
 
 	icon: icon {{ "send_control_send", historySendIconFg }};
 	iconOver: icon {{ "send_control_send", historySendIconFgOver }};
-
 	iconPosition: point(11px, 11px);
-	iconPositionDown: point(11px, 11px);
 }
 historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
 historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
@@ -242,11 +245,9 @@ historyAttachPhotoIconOver: icon {{ "media_type_photo", historyComposeIconFgOver
 historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
-
 	iconPosition: point(15px, 15px);
-	iconPositionDown: point(15px, 15px);
 
-	rippleAreaSize: 0px;
+	ripple: emptyRippleAnimation;
 }
 historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
@@ -263,9 +264,7 @@ historyBotKeyboardShow: IconButton(historySend) {
 historyBotKeyboardHide: IconButton(historySend) {
 	icon: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFgOver }};
-
 	iconPosition: point(11px, 16px);
-	iconPositionDown: point(11px, 16px);
 }
 historyBotCommandStart: IconButton(historySend) {
 	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
@@ -319,9 +318,7 @@ historyReplyCancel: IconButton {
 
 	icon: historyReplyCancelIcon;
 	iconOver: historyReplyCancelIconOver;
-
 	iconPosition: point(-1px, -1px);
-	iconPositionDown: point(-1px, -1px);
 
 	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
@@ -349,8 +346,6 @@ reportSpamHide: FlatButton {
 	height: 46px;
 
 	textTop: 15px;
-	overTextTop: 15px;
-	downTextTop: 16px;
 
 	font: font(fsize);
 	overFont: font(fsize underline);
@@ -361,7 +356,7 @@ reportSpamFg: #000000;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
-msgBotKbOverBg: #ffffff1a;
+msgBotKbOverBg: #ffffff20;
 msgBotKbIconPadding: 2px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
@@ -370,28 +365,30 @@ msgBotKbButton: BotKeyboardButton {
 	padding: 10px;
 	height: 36px;
 	textTop: 8px;
-	downTextTop: 9px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: #00000020;
+	}
 }
 
 botKbDuration: 200;
-botKbBg: #edf1f5;
-botKbOverBg: #d8e2ec;
-botKbDownBg: #d8e2ec;
-botKbColor: #4b565f;
+botKbBg: menuBgOver;
+botKbOverBg: menuBgOver;
+botKbDownBg: menuBgRipple;
+botKbColor: windowBoldFgOver;
 botKbFont: font(15px semibold);
 botKbButton: BotKeyboardButton {
 	margin: 10px;
 	padding: 10px;
 	height: 38px;
 	textTop: 9px;
-	downTextTop: 9px;
+	ripple: defaultRippleAnimation;
 }
 botKbTinyButton: BotKeyboardButton {
 	margin: 4px;
 	padding: 3px;
 	height: 25px;
 	textTop: 2px;
-	downTextTop: 2px;
+	ripple: defaultRippleAnimation;
 }
 botKbScroll: FlatScroll(defaultSolidScroll) {
 	deltax: 3px;

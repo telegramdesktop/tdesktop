@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_stickers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/effects/ripple_animation.h"
 
 namespace {
 
@@ -563,6 +564,7 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 
 	_a_shifting.step();
 
+	auto ms = getms();
 	p.fillRect(r, st::boxBg);
 	p.setClipRect(r);
 
@@ -591,19 +593,26 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 		p.translate(0, from * _rowHeight);
 		for (int32 i = from; i < to; ++i) {
 			if (i != _above) {
-				paintRow(p, i);
+				paintRow(p, i, ms);
 			}
 			p.translate(0, _rowHeight);
 		}
 		if (from <= _above && _above < to) {
 			p.translate(0, (_above - to) * _rowHeight);
-			paintRow(p, _above);
+			paintRow(p, _above, ms);
 		}
 	}
 }
 
-void StickersBox::Inner::paintRow(Painter &p, int32 index) {
-	const StickerSetRow *s(_rows.at(index));
+QRect StickersBox::Inner::relativeAddButtonRect() const {
+	int addw = st::stickersAddSize.width();
+	int addx = width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - addw;
+	int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersAddSize.height()) / 2;
+	return QRect(addx, addy, addw, st::stickersAddSize.height());
+}
+
+void StickersBox::Inner::paintRow(Painter &p, int32 index, uint64 ms) {
+	auto s = _rows.at(index);
 
 	int32 xadd = 0, yadd = s->yadd.current();
 	if (xadd || yadd) p.translate(xadd, yadd);
@@ -639,17 +648,23 @@ void StickersBox::Inner::paintRow(Painter &p, int32 index) {
 		int checkx = width() - (st::contactsPadding.right() + st::contactsCheckPosition.x() + (addw + st::stickersFeaturedInstalled.width()) / 2);
 		int checky = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersFeaturedInstalled.height()) / 2;
 		st::stickersFeaturedInstalled.paint(p, QPoint(checkx, checky), width());
+		if (s->ripple) {
+			s->ripple.reset();
+		}
 	} else {
-		int addw = st::stickersAddSize.width();
-		int addx = width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - addw;
-		int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersAddSize.height()) / 2;
-		QRect add(myrtlrect(addx, addy, addw, st::stickersAddSize.height()));
+		auto relativeAdd = relativeAddButtonRect();
+		auto add = myrtlrect(relativeAdd);
 
-		auto &textBg = (_actionSel == index) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg;
+		auto &textBg = (_actionSel == index || _actionDown == index) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg;
 		App::roundRect(p, add, textBg, ImageRoundRadius::Small);
-		int iconx = addx + (st::stickersAddSize.width() - st::stickersAddIcon.width()) / 2;
-		int icony = addy + (st::stickersAddSize.height() - st::stickersAddIcon.height()) / 2;
-		icony += (_actionSel == index && _actionDown == index) ? (st::defaultActiveButton.downTextTop - st::defaultActiveButton.textTop) : 0;
+		if (s->ripple) {
+			s->ripple->paint(p, relativeAdd.x(), relativeAdd.y(), width(), ms);
+			if (s->ripple->empty()) {
+				s->ripple.reset();
+			}
+		}
+		int iconx = relativeAdd.x() + (st::stickersAddSize.width() - st::stickersAddIcon.width()) / 2;
+		int icony = relativeAdd.y() + (st::stickersAddSize.height() - st::stickersAddIcon.height()) / 2;
 		st::stickersAddIcon.paint(p, QPoint(iconx, icony), width());
 	}
 
@@ -696,11 +711,38 @@ void StickersBox::Inner::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	if (_actionSel >= 0) {
-		_actionDown = _actionSel;
+		setActionDown(_actionSel);
 		update(0, _itemsTop + _actionSel * _rowHeight, width(), _rowHeight);
 	} else if (_selected >= 0 && _section == Section::Installed && !_rows.at(_selected)->recent) {
 		_above = _dragging = _started = _selected;
 		_dragStart = mapFromGlobal(_mouse);
+	}
+}
+
+void StickersBox::Inner::setActionDown(int newActionDown) {
+	if (_actionDown == newActionDown) {
+		return;
+	}
+	if (_actionDown >= 0 && _actionDown < _rows.size()) {
+		update(0, _itemsTop + _actionDown * _rowHeight, width(), _rowHeight);
+		auto set = _rows[_actionDown];
+		if (set->ripple) {
+			set->ripple->lastStop();
+		}
+	}
+	_actionDown = newActionDown;
+	if (_actionDown >= 0 && _actionDown < _rows.size()) {
+		update(0, _itemsTop + _actionDown * _rowHeight, width(), _rowHeight);
+		auto set = _rows[_actionDown];
+		if (!set->ripple) {
+			auto mask = Ui::RippleAnimation::roundRectMask(st::stickersAddSize, st::buttonRadius);
+			set->ripple = MakeShared<Ui::RippleAnimation>(st::defaultActiveButton.ripple, std_::move(mask), [this, index = _actionDown] {
+				update(0, _itemsTop + index * _rowHeight, width(), _rowHeight);
+			});
+		}
+		auto relativeAdd = relativeAddButtonRect();
+		auto add = myrtlrect(relativeAdd);
+		set->ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(add.x(), _itemsTop + _actionDown * _rowHeight + add.y()));
 	}
 }
 
@@ -762,10 +804,8 @@ void StickersBox::Inner::onUpdateSelected() {
 			} else if (_rows.at(selected)->installed && !_rows.at(selected)->disabled) {
 				actionSel = -1;
 			} else {
-				int addw = st::stickersAddSize.width();
-				int addx = width() - st::contactsPadding.right() - st::contactsCheckPosition.x() - addw;
-				int addy = st::contactsPadding.top() + (st::contactsPhotoSize - st::stickersAddSize.height()) / 2;
-				QRect add(myrtlrect(addx, addy, addw, st::stickersAddSize.height()));
+				auto relativeAdd = relativeAddButtonRect();
+				auto add = myrtlrect(relativeAdd);
 				actionSel = add.contains(local.x(), local.y() - _itemsTop - selected * _rowHeight) ? selected : -1;
 			}
 		} else if (_hasFeaturedButton && QRect(0, st::membersPadding.top(), width(), _buttonHeight).contains(local)) {
@@ -878,10 +918,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			}
 		}
 	}
-	if (_actionDown >= 0) {
-		update(0, _itemsTop + _actionDown * _rowHeight, width(), _rowHeight);
-		_actionDown = -1;
-	}
+	setActionDown(-1);
 }
 
 void StickersBox::Inner::leaveEvent(QEvent *e) {

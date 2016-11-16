@@ -83,7 +83,6 @@ introNextButton: RoundButton(defaultActiveButton) {
 	height: 56px;
 
 	textTop: 16px;
-	downTextTop: 17px;
 
 	font: font(17px);
 }
@@ -147,8 +146,6 @@ introBackButton: IconButton {
 		{ size(40px, 40px), #eeeeee },
 		{ "title_back", #969696, point(12px, 12px) },
 	};
-
 	iconPosition: point(0px, 0px);
-	iconPositionDown: point(0px, 0px);
 }
 introBackPosition: point(32px, 32px);

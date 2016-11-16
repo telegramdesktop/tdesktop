@@ -24,6 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
+class RippleAnimation;
+
 class Menu : public TWidget {
 	Q_OBJECT
 
@@ -76,11 +78,17 @@ public:
 	}
 	void handleMousePress(QPoint globalPosition);
 
+	void setMouseReleaseDelegate(base::lambda_unique<void(QPoint globalPosition)> delegate) {
+		_mouseReleaseDelegate = std_::move(delegate);
+	}
+	void handleMouseRelease(QPoint globalPosition);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
@@ -99,8 +107,10 @@ private:
 	void clearMouseSelection();
 
 	int itemTop(int index);
+	void updateItem(int index);
 	void updateSelectedItem();
 	void itemPressed(TriggeredSource source);
+	void itemReleased(TriggeredSource source);
 
 	const style::Menu &_st;
 
@@ -110,6 +120,7 @@ private:
 	base::lambda_unique<bool(int key)> _keyPressDelegate;
 	base::lambda_unique<void(QPoint globalPosition)> _mouseMoveDelegate;
 	base::lambda_unique<void(QPoint globalPosition)> _mousePressDelegate;
+	base::lambda_unique<void(QPoint globalPosition)> _mouseReleaseDelegate;
 
 	struct ActionData {
 		bool hasSubmenu = false;
@@ -117,6 +128,7 @@ private:
 		QString shortcut;
 		const style::icon *icon = nullptr;
 		const style::icon *iconOver = nullptr;
+		QSharedPointer<RippleAnimation> ripple;
 	};
 	using ActionsData = QList<ActionData>;
 
@@ -129,6 +141,7 @@ private:
 	bool _mouseSelection = false;
 
 	int _selected = -1;
+	int _pressed = -1;
 	bool _childShown = false;
 
 };

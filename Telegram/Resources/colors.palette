@@ -53,6 +53,11 @@ lightButtonBgRipple: #c9e4f6;
 lightButtonFg: #2b99d5;
 lightButtonFgOver: lightButtonFg;
 
+attentionButtonFg: #d14e4e;
+attentionButtonFgOver: #d14e4e;
+attentionButtonBgOver: #fcdfde;
+attentionButtonBgRipple: #f4c3c2;
+
 menuBg: windowBg;
 menuBgOver: windowBgOver;
 menuBgRipple: windowBgRipple;
@@ -98,11 +103,6 @@ boxBlockTitleFg: boxTitleFg;
 boxBlockTitleAdditionalFg: #808080;
 boxBlockTitleCloseFg: cancelIconFg;
 boxBlockTitleCloseFgOver: cancelIconFgOver;
-
-attentionBoxButtonFg: #d14e4e;
-attentionBoxButtonFgOver: #d14e4e;
-attentionBoxButtonBgOver: #fcdfde;
-attentionBoxButtonBgRipple: #f4c3c2;
 
 membersAboutLimitFg: windowSubTextFgOver;
 
@@ -228,6 +228,7 @@ mediaviewFileExtFg: activeButtonFg;
 
 mediaviewMenuBg: #383838;
 mediaviewMenuBgOver: #505050;
+mediaviewMenuBgRipple: #676767;
 mediaviewMenuFg: #ffffff;
 
 mediaviewBg: #222222eb;

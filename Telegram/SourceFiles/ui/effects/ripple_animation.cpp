@@ -190,6 +190,35 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, uint64 ms
 	clearFinished();
 }
 
+QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda_unique<void(QPainter &p)> drawer) {
+	auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
+	if (drawer) {
+		Painter p(&result);
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(QColor(255, 255, 255));
+		drawer(p);
+	}
+	return std_::move(result);
+}
+
+QImage RippleAnimation::rectMask(QSize size) {
+	return maskByDrawer(size, true, base::lambda_unique<void(QPainter&)>());
+}
+
+QImage RippleAnimation::roundRectMask(QSize size, int radius) {
+	return maskByDrawer(size, false, [size, radius](QPainter &p) {
+		p.drawRoundedRect(0, 0, size.width(), size.height(), radius, radius);
+	});
+}
+
+QImage RippleAnimation::ellipseMask(QSize size) {
+	return maskByDrawer(size, false, [size](QPainter &p) {
+		p.drawEllipse(0, 0, size.width(), size.height());
+	});
+}
+
 void RippleAnimation::clearFinished() {
 	while (!_ripples.isEmpty() && _ripples.front()->finished()) {
 		delete base::take(_ripples.front());

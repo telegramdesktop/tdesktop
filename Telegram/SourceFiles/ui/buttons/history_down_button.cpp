@@ -23,46 +23,43 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_history.h"
 #include "dialogs/dialogs_layout.h"
+#include "ui/effects/ripple_animation.h"
 
 namespace Ui {
 
-HistoryDownButton::HistoryDownButton(QWidget *parent) : AbstractButton(parent)
+HistoryDownButton::HistoryDownButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
+, _st(st)
 //, a_arrowOpacity(st::historyAttachEmoji.opacity, st::historyAttachEmoji.opacity)
 , _a_arrowOver(animation(this, &HistoryDownButton::step_arrowOver)) {
+	resize(_st.width, _st.height);
 	setCursor(style::cur_pointer);
 
-	int iconWidth = st::historyToDown.width();
-	int iconHeight = st::historyToDown.height();
-	int retina = cIntRetinaFactor();
-	resize(iconWidth, st::historyToDownPaddingTop + iconHeight);
-
-	QImage cache(iconWidth * retina, iconHeight * retina, QImage::Format_ARGB32_Premultiplied);
-	cache.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&cache);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, iconWidth, iconHeight, Qt::transparent);
-		st::historyToDown.paint(p, QPoint(0, 0), st::historyToDown.width());
-	}
-	_cache = App::pixmapFromImageInPlace(std_::move(cache));
-	_cache.setDevicePixelRatio(cRetinaFactor());
-
 	hide();
+}
+
+QImage HistoryDownButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
+QPoint HistoryDownButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 }
 
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_a_show.animating(getms())) {
-		p.setOpacity(_a_show.current());
-		p.drawPixmap(0, st::historyToDownPaddingTop, _cache);
-	} else if (!_shown) {
-		hide();
+	auto ms = getms();
+	auto opacity = _a_show.current(ms, _shown ? 1. : 0.);
+	if (opacity == 0.) {
+		if (!_shown) hide();
 		return;
-	} else {
-		st::historyToDown.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
 	}
-	st::historyToDownArrow.paint(p, QPoint(0, st::historyToDownPaddingTop), width());
+	p.setOpacity(opacity);
+	auto over = (_state & StateOver);
+	auto down = (_state & StateDown);
+	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
 	if (_unreadCount > 0) {
 		auto unreadString = QString::number(_unreadCount);
 		if (unreadString.size() > 4) {
@@ -75,18 +72,6 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 		st.size = st::historyToDownBadgeSize;
 		st.sizeId = Dialogs::Layout::UnreadBadgeInHistoryToDown;
 		Dialogs::Layout::paintUnreadCount(p, unreadString, width(), 0, st, nullptr);
-	}
-}
-
-void HistoryDownButton::onStateChanged(int oldState, StateChangeSource source) {
-	//a_arrowOpacity.start((_state & (StateOver | StateDown)) ? st::historyAttachEmoji.overOpacity : st::historyAttachEmoji.opacity);
-
-	if (source == StateChangeSource::ByUser || source == StateChangeSource::ByPress) {
-		_a_arrowOver.stop();
-		a_arrowOpacity.finish();
-		update();
-	} else {
-		_a_arrowOver.start();
 	}
 }
 
@@ -152,7 +137,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 
 	auto over = (_state & StateOver);
 	auto icon = &(over ? _st.iconOver : _st.icon);
-	icon->paint(p, (_state & StateDown) ? _st.iconPositionDown : _st.iconPosition, width());
+	icon->paint(p, _st.iconPosition, width());
 
 	p.setOpacity(1.);
 	p.setPen(QPen(over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg, st::historyEmojiCircleLine));

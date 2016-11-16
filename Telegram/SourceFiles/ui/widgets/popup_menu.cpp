@@ -55,6 +55,7 @@ void PopupMenu::init() {
 	_menu->setKeyPressDelegate([this](int key) { return handleKeyPress(key); });
 	_menu->setMouseMoveDelegate([this](QPoint globalPosition) { handleMouseMove(globalPosition); });
 	_menu->setMousePressDelegate([this](QPoint globalPosition) { handleMousePress(globalPosition); });
+	_menu->setMouseReleaseDelegate([this](QPoint globalPosition) { handleMouseRelease(globalPosition); });
 
 	handleCompositingUpdate();
 
@@ -219,6 +220,14 @@ void PopupMenu::handleMouseMove(QPoint globalPosition) {
 void PopupMenu::handleMousePress(QPoint globalPosition) {
 	if (_parent) {
 		_parent->forwardMousePress(globalPosition);
+	} else {
+		hideMenu();
+	}
+}
+
+void PopupMenu::handleMouseRelease(QPoint globalPosition) {
+	if (_parent) {
+		_parent->forwardMouseRelease(globalPosition);
 	} else {
 		hideMenu();
 	}

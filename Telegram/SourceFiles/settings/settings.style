@@ -76,7 +76,6 @@ settingsEditButton: IconButton {
 
 	icon: icon {{ "settings_edit_name", #b7b7b7 }};
 	iconPosition: point(3px, 9px);
-	iconPositionDown: point(3px, 10px);
 }
 
 settingsBlocksTop: 7px;

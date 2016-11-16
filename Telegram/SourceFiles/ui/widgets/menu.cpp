@@ -18,6 +18,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/widgets/menu.h"
 
+#include "ui/effects/ripple_animation.h"
+
 namespace Ui {
 
 Menu::Menu(QWidget *parent, const style::Menu &st) : TWidget(parent)
@@ -150,6 +152,7 @@ void Menu::actionChanged() {
 void Menu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
 	auto clip = e->rect();
 
 	auto topskip = QRect(0, 0, width(), _st.skip);
@@ -172,8 +175,15 @@ void Menu::paintEvent(QPaintEvent *e) {
 				p.fillRect(0, 0, width(), actionHeight, _st.itemBg);
 				p.fillRect(_st.separatorPadding.left(), _st.separatorPadding.top(), width() - _st.separatorPadding.left() - _st.separatorPadding.right(), _st.separatorWidth, _st.separatorFg);
 			} else {
-				auto enabled = action->isEnabled(), selected = (i == _selected && enabled);
+				auto enabled = action->isEnabled();
+				auto selected = ((i == _selected || i == _pressed) && enabled);
 				p.fillRect(0, 0, width(), actionHeight, selected ? _st.itemBgOver : _st.itemBg);
+				if (data.ripple) {
+					data.ripple->paint(p, 0, 0, width(), ms);
+					if (data.ripple->empty()) {
+						data.ripple.reset();
+					}
+				}
 				if (auto icon = (selected ? data.iconOver : data.icon)) {
 					icon->paint(p, _st.itemIconPosition, width());
 				}
@@ -207,9 +217,29 @@ void Menu::itemPressed(TriggeredSource source) {
 		return;
 	}
 	if (_selected >= 0 && _selected < _actions.size() && _actions[_selected]->isEnabled()) {
-		if (_triggeredCallback) {
-			auto actionTop = _st.skip + itemTop(_selected);
-			_triggeredCallback(_actions[_selected], actionTop, source);
+		_pressed = _selected;
+		if (source == TriggeredSource::Mouse) {
+			if (!_actionsData[_pressed].ripple) {
+				auto mask = RippleAnimation::rectMask(QSize(width(), _itemHeight));
+				_actionsData[_pressed].ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this, selected = _pressed] {
+					updateItem(selected);
+				});
+			}
+			_actionsData[_pressed].ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(0, itemTop(_pressed)));
+		} else {
+			itemReleased(source);
+		}
+	}
+}
+
+void Menu::itemReleased(TriggeredSource source) {
+	auto pressed = base::take(_pressed, -1);
+	if (pressed >= 0 && pressed < _actions.size()) {
+		if (source == TriggeredSource::Mouse && _actionsData[pressed].ripple) {
+			_actionsData[pressed].ripple->lastStop();
+		}
+		if (pressed == _selected && _triggeredCallback) {
+			_triggeredCallback(_actions[_selected], itemTop(_selected), source);
 		}
 	}
 }
@@ -290,9 +320,8 @@ void Menu::setSelected(int selected) {
 		_selected = selected;
 		updateSelectedItem();
 		if (_activatedCallback) {
-			auto actionTop = _st.skip + itemTop(_selected);
 			auto source = _mouseSelection ? TriggeredSource::Mouse : TriggeredSource::Keyboard;
-			_activatedCallback((_selected >= 0) ? _actions[_selected] : nullptr, actionTop, source);
+			_activatedCallback((_selected >= 0) ? _actions[_selected] : nullptr, itemTop(_selected), source);
 		}
 	}
 }
@@ -301,17 +330,21 @@ int Menu::itemTop(int index) {
 	if (index > _actions.size()) {
 		index = _actions.size();
 	}
-	int top = 0;
+	int top = _st.skip;
 	for (int i = 0; i < index; ++i) {
 		top += _actions.at(i)->isSeparator() ? _separatorHeight : _itemHeight;
 	}
 	return top;
 }
 
-void Menu::updateSelectedItem() {
-	if (_selected >= 0) {
-		update(0, _st.skip + itemTop(_selected), width(), _actions.at(_selected)->isSeparator() ? _separatorHeight : _itemHeight);
+void Menu::updateItem(int index) {
+	if (index >= 0 && index < _actions.size()) {
+		update(0, itemTop(index), width(), _actions[index]->isSeparator() ? _separatorHeight : _itemHeight);
 	}
+}
+
+void Menu::updateSelectedItem() {
+	updateItem(_selected);
 }
 
 void Menu::mouseMoveEvent(QMouseEvent *e) {
@@ -336,12 +369,24 @@ void Menu::mousePressEvent(QMouseEvent *e) {
 	handleMousePress(e->globalPos());
 }
 
+void Menu::mouseReleaseEvent(QMouseEvent *e) {
+	handleMouseRelease(e->globalPos());
+}
+
 void Menu::handleMousePress(QPoint globalPosition) {
 	handleMouseMove(globalPosition);
 	if (rect().contains(mapFromGlobal(globalPosition))) {
 		itemPressed(TriggeredSource::Mouse);
 	} else if (_mousePressDelegate) {
 		_mousePressDelegate(globalPosition);
+	}
+}
+
+void Menu::handleMouseRelease(QPoint globalPosition) {
+	handleMouseMove(globalPosition);
+	itemReleased(TriggeredSource::Mouse);
+	if (!rect().contains(mapFromGlobal(globalPosition)) && _mouseReleaseDelegate) {
+		_mouseReleaseDelegate(globalPosition);
 	}
 }
 

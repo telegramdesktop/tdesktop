@@ -310,11 +310,12 @@ void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
 	Ui::repaintHistoryItem(item);
 }
 
-void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const {
+int HistoryMessage::KeyboardStyle::buttonRadius() const {
+	return st::dateRadius;
+}
+
+void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const {
 	App::roundRect(p, rect, st::msgServiceBg, StickerCorners);
-	if (down) {
-		howMuchOver = 1.;
-	}
 	if (howMuchOver > 0) {
 		auto o = p.opacity();
 		p.setOpacity(o * howMuchOver);
@@ -1278,7 +1279,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		height -= h;
 		int top = height + st::msgBotKbButton.margin - marginBottom();
 		p.translate(left, top);
-		keyboard->paint(p, width, r.translated(-left, -top));
+		keyboard->paint(p, width, r.translated(-left, -top), ms);
 		p.translate(-left, -top);
 	}
 

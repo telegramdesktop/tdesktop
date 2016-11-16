@@ -27,44 +27,6 @@ namespace Ui {
 
 class RippleAnimation;
 
-class FlatButton : public AbstractButton {
-public:
-	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
-
-	void step_appearance(float64 ms, bool timer);
-	void setOpacity(float64 o);
-	float64 opacity() const;
-
-	void setText(const QString &text);
-	void setWidth(int32 w);
-
-	int32 textWidth() const;
-
-	~FlatButton();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void onStateChanged(int oldState, StateChangeSource source) override;
-
-private:
-	QImage prepareRippleMask() const;
-	void handleRipples(bool wasDown, bool wasPress);
-
-	QString _text, _textForAutoSize;
-	int _width;
-
-	const style::FlatButton &_st;
-
-	anim::fvalue a_over;
-	Animation _a_appearance;
-
-	float64 _opacity = 1.;
-
-	std_::unique_ptr<RippleAnimation> _ripple;
-
-};
-
 class LinkButton : public AbstractButton {
 public:
 	LinkButton(QWidget *parent, const QString &text, const style::LinkButton &st = st::defaultLinkButton);
@@ -85,7 +47,73 @@ private:
 
 };
 
-class RoundButton : public AbstractButton {
+class RippleButton : public AbstractButton {
+public:
+	RippleButton(QWidget *parent, const style::RippleAnimation &st);
+
+	// Displays full ripple circle constantly.
+	enum class SetForceRippledWay {
+		Default,
+		SkipAnimation,
+	};
+	void setForceRippled(bool rippled, SetForceRippledWay way = SetForceRippledWay::Default);
+	bool forceRippled() const {
+		return _forceRippled;
+	}
+
+	~RippleButton();
+
+protected:
+	void paintRipple(QPainter &p, int x, int y, uint64 ms);
+
+	void onStateChanged(int oldState, StateChangeSource source) override;
+
+	virtual QImage prepareRippleMask() const;
+	virtual QPoint prepareRippleStartPosition() const;
+
+private:
+	void ensureRipple();
+	void handleRipples(bool wasDown, bool wasPress);
+
+	const style::RippleAnimation &_st;
+	std_::unique_ptr<RippleAnimation> _ripple;
+	bool _forceRippled = false;
+
+};
+
+class FlatButton : public RippleButton {
+public:
+	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
+
+	void step_appearance(float64 ms, bool timer);
+
+	void setText(const QString &text);
+	void setWidth(int32 w);
+
+	int32 textWidth() const;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(int oldState, StateChangeSource source) override;
+
+private:
+	void setOpacity(float64 o);
+	float64 opacity() const;
+
+	QString _text, _textForAutoSize;
+	int _width;
+
+	const style::FlatButton &_st;
+
+	anim::fvalue a_over;
+	Animation _a_appearance;
+
+	float64 _opacity = 1.;
+
+};
+
+class RoundButton : public RippleButton {
 public:
 	RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st);
 
@@ -102,17 +130,13 @@ public:
 	};
 	void setTextTransform(TextTransform transform);
 
-	~RoundButton();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
-	QImage prepareRippleMask() const;
-	void handleRipples(bool wasDown, bool wasPress);
-
 	void updateText();
 	void resizeToText();
 
@@ -128,44 +152,48 @@ private:
 
 	TextTransform _transform = TextTransform::ToUpper;
 
-	std_::unique_ptr<RippleAnimation> _ripple;
-
 };
 
-class IconButton : public AbstractButton {
+class IconButton : public RippleButton {
 public:
 	IconButton(QWidget *parent, const style::IconButton &st);
 
 	// Pass nullptr to restore the default icon.
 	void setIcon(const style::icon *icon, const style::icon *iconOver = nullptr);
 
-	// Displays full ripple circle constantly.
-	enum class SetStateWay {
-		Default,
-		SkipAnimation,
-	};
-	void setActiveState(bool activeState, SetStateWay way = SetStateWay::Default);
-
-	~IconButton();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
-private:
-	void ensureRipple();
-	QImage prepareRippleMask() const;
-	void handleRipples(bool wasDown, bool wasPress);
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
+private:
 	const style::IconButton &_st;
 	const style::icon *_iconOverride = nullptr;
 	const style::icon *_iconOverrideOver = nullptr;
 
 	FloatAnimation _a_over;
 
-	std_::unique_ptr<RippleAnimation> _ripple;
-	bool _activeState = false;
+};
+
+class LeftOutlineButton : public RippleButton {
+public:
+	LeftOutlineButton(QWidget *parent, const QString &text, const style::OutlineButton &st = st::defaultLeftOutlineButton);
+
+	void setText(const QString &text);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
+
+private:
+	QString _text, _fullText;
+	int _textWidth, _fullTextWidth;
+
+	const style::OutlineButton &_st;
 
 };
 

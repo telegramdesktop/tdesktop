@@ -76,7 +76,6 @@ mediaPlayerRepeatButton: IconButton {
 		{ "player_repeat", mediaPlayerActiveFg, point(9px, 11px) }
 	};
 	iconPosition: point(0px, 0px);
-	iconPositionDown: point(0px, 0px);
 }
 mediaPlayerRepeatDisabledIcon: icon {
 	{ "player_repeat", #c8c8c8, point(9px, 11px)}
@@ -103,7 +102,6 @@ mediaPlayerVolumeToggle: IconButton {
 
 	icon: mediaPlayerVolumeIcon0;
 	iconPosition: point(8px, 11px);
-	iconPositionDown: point(8px, 11px);
 }
 mediaPlayerVolumeMargin: 10px;
 mediaPlayerVolumeSize: size(27px, 100px);

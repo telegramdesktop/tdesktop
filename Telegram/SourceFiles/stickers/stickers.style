@@ -27,7 +27,6 @@ switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
 	height: 34px;
 	textTop: 7px;
-	downTextTop: 8px;
 }
 
 stickersTrendingHeader: 45px;
@@ -45,7 +44,6 @@ stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	width: -17px;
 	height: 26px;
 	textTop: 4px;
-	downTextTop: 5px;
 }
 
 stickerEmojiSkip: 5px;
@@ -113,7 +111,6 @@ emojiCategory: IconButton {
 	height: 46px;
 
 	iconPosition: point(11px, 12px);
-	iconPositionDown: point(11px, 12px);
 }
 emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
 emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
@@ -174,7 +171,5 @@ hashtagClose: IconButton {
 
 	icon: simpleCloseIcon;
 	iconOver: simpleCloseIconOver;
-
 	iconPosition: point(10px, 10px);
-	iconPositionDown: point(10px, 11px);
 }

@@ -45,6 +45,11 @@ public:
 		return _ripples.isEmpty();
 	}
 
+	static QImage maskByDrawer(QSize size, bool filled, base::lambda_unique<void(QPainter &p)> drawer);
+	static QImage rectMask(QSize size);
+	static QImage roundRectMask(QSize size, int radius);
+	static QImage ellipseMask(QSize size);
+
 	~RippleAnimation() {
 		clear();
 	}

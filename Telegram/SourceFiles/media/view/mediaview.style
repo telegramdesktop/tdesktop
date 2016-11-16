@@ -51,9 +51,7 @@ mediaviewPlayButton: IconButton {
 
 	icon: icon {{ "media_play", #c7c7c7, point(3px, 0px) }};
 	iconOver: icon {{ "media_play", #ffffff, point(3px, 0px) }};
-
 	iconPosition: point(3px, 1px);
-	iconPositionDown: point(3px, 1px);
 
 	duration: mediaviewOverDuration;
 }
@@ -67,7 +65,6 @@ mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
 	icon: icon {{ "media_fullscreen_to", #c7c7c7, point(0px, 0px) }};
 	iconOver: icon {{ "media_fullscreen_to", #ffffff, point(0px, 0px) }};
 	iconPosition: point(0px, 1px);
-	iconPositionDown: point(0px, 1px);
 }
 mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", #c7c7c7, point(0px, 0px) }};
 mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", #ffffff, point(0px, 0px) }};
@@ -136,6 +133,10 @@ mediaviewMenu: Menu(defaultMenu) {
 	itemFgShortcutDisabled: mediaviewMenuFg;
 
 	separatorFg: mediaviewMenuFg;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: mediaviewMenuBgRipple;
+	}
 }
 mediaviewMenuShadow: Shadow(defaultEmptyShadow) {
 	fallback: mediaviewMenuBg;

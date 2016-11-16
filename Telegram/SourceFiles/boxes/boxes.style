@@ -37,7 +37,6 @@ defaultBoxButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
-	downTextTop: 8px;
 
 	font: boxButtonFont;
 
@@ -51,12 +50,12 @@ cancelBoxButton: RoundButton(defaultBoxButton) {
 }
 
 attentionBoxButton: RoundButton(defaultBoxButton) {
-	textFg: attentionBoxButtonFg;
-	textFgOver: attentionBoxButtonFgOver;
-	textBgOver: attentionBoxButtonBgOver;
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	textBgOver: attentionButtonBgOver;
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: attentionBoxButtonBgRipple;
+		color: attentionButtonBgRipple;
 	}
 }
 
@@ -198,12 +197,21 @@ contactUserIcon: icon {{ "add_contact_user", #999999 }};
 contactPhoneIcon: icon {{ "add_contact_phone", #999999 }};
 contactIconTop: 10px;
 
-contactsAdd: IconButton {
+contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
+contactsAdd: TwoIconButton {
 	width: 52px;
 	height: 52px;
 
-	icon: contactsAddIcon;
-	iconOver: contactsAddIconOver;
+	iconBelow: contactsAddIconBelow;
+	iconBelowOver: contactsAddIconBelowOver;
+	iconAbove: contactsAddIconAbove;
+	iconAboveOver: contactsAddIconAbove;
+
+	rippleAreaPosition: point(5px, 5px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonBgRipple;
+	}
 }
 contactsAddPosition: point(14px, 8px);
 
@@ -289,9 +297,7 @@ contactsMultiSelect: MultiSelect {
 
 		icon: boxSearchCancelIcon;
 		iconOver: boxSearchCancelIconOver;
-
 		iconPosition: point(8px, 18px);
-		iconPositionDown: point(8px, 18px);
 	}
 	fieldCancelSkip: 34px;
 }
@@ -370,9 +376,7 @@ sessionTerminate: IconButton {
 
 	icon: simpleCloseIcon;
 	iconOver: simpleCloseIconOver;
-
 	iconPosition: point(3px, 3px);
-	iconPositionDown: point(3px, 4px);
 }
 sessionTerminateAllButton: LinkButton(boxLinkButton) {
 	color: #d15948;

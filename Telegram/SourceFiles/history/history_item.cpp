@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/media_clip_reader.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
+#include "ui/effects/ripple_animation.h"
 #include "fileuploader.h"
 
 namespace {
@@ -221,7 +222,7 @@ int ReplyKeyboard::naturalHeight() const {
 	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
 }
 
-void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip) const {
+void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, uint64 ms) const {
 	t_assert(_st != nullptr);
 	t_assert(_width > 0);
 
@@ -235,7 +236,7 @@ void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip) const {
 			// just ignore the buttons that didn't layout well
 			if (rect.x() + rect.width() > _width) break;
 
-			_st->paintButton(p, outerWidth, button);
+			_st->paintButton(p, outerWidth, button, ms);
 		}
 	}
 }
@@ -251,6 +252,7 @@ ClickHandlerPtr ReplyKeyboard::getState(int x, int y) const {
 			if (rect.x() + rect.width() > _width) break;
 
 			if (rect.contains(x, y)) {
+				_savedCoords = QPoint(x, y);
 				return button.link;
 			}
 		}
@@ -261,34 +263,63 @@ ClickHandlerPtr ReplyKeyboard::getState(int x, int y) const {
 void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (!p) return;
 
-	bool startAnimation = false;
+	_savedActive = active ? p : ClickHandlerPtr();
+	auto coords = findButtonCoordsByClickHandler(p);
+	if (coords.i >= 0 && _savedPressed != p) {
+		startAnimation(coords.i, coords.j, active ? 1 : -1);
+	}
+}
+
+
+ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const ClickHandlerPtr &p) {
 	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
-		auto &row = _rows.at(i);
+		auto &row = _rows[i];
 		for (int j = 0, cols = row.size(); j != cols; ++j) {
-			if (row.at(j).link == p) {
-				bool startAnimation = _animations.isEmpty();
+			if (row[j].link == p) {
+				return { i, j };
+			}
+		}
+	}
+	return { -1, -1 };
+}
 
-				int indexForAnimation = i * MatrixRowShift + j + 1;
-				if (!active) {
-					indexForAnimation = -indexForAnimation;
-				}
+void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	if (!p) return;
 
-				_animations.remove(-indexForAnimation);
-				if (!_animations.contains(indexForAnimation)) {
-					_animations.insert(indexForAnimation, getms());
-				}
-
-				if (startAnimation && !_a_selected.animating()) {
-					_a_selected.start();
-				}
-				return;
+	_savedPressed = pressed ? p : ClickHandlerPtr();
+	auto coords = findButtonCoordsByClickHandler(p);
+	if (coords.i >= 0) {
+		auto &button = _rows[coords.i][coords.j];
+		if (pressed) {
+			if (!button.ripple) {
+				auto mask = Ui::RippleAnimation::roundRectMask(button.rect.size(), _st->buttonRadius());
+				button.ripple = MakeShared<Ui::RippleAnimation>(_st->_st->ripple, std_::move(mask), [this] { _st->repaint(_item); });
+			}
+			button.ripple->add(_savedCoords - button.rect.topLeft());
+		} else {
+			if (button.ripple) {
+				button.ripple->lastStop();
+			}
+			if (_savedActive != p) {
+				startAnimation(coords.i, coords.j, -1);
 			}
 		}
 	}
 }
 
-void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	_st->repaint(_item);
+void ReplyKeyboard::startAnimation(int i, int j, int direction) {
+	auto notStarted = _animations.isEmpty();
+
+	int indexForAnimation = (i * MatrixRowShift + j + 1) * direction;
+
+	_animations.remove(-indexForAnimation);
+	if (!_animations.contains(indexForAnimation)) {
+		_animations.insert(indexForAnimation, getms());
+	}
+
+	if (notStarted && !_a_selected.animating()) {
+		_a_selected.start();
+	}
 }
 
 void ReplyKeyboard::step_selected(uint64 ms, bool timer) {
@@ -330,11 +361,15 @@ int ReplyKeyboard::Style::buttonHeight() const {
 	return _st->height;
 }
 
-void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const {
+void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, uint64 ms) const {
 	const QRect &rect = button.rect;
-	bool pressed = ClickHandler::showAsPressed(button.link);
-
-	paintButtonBg(p, rect, pressed, button.howMuchOver);
+	paintButtonBg(p, rect, button.howMuchOver);
+	if (button.ripple) {
+		button.ripple->paint(p, rect.x(), rect.y(), outerWidth, ms);
+		if (button.ripple->empty()) {
+			button.ripple.reset();
+		}
+	}
 	paintButtonIcon(p, rect, outerWidth, button.type);
 	if (button.type == HistoryMessageReplyMarkup::Button::Type::Callback
 		|| button.type == HistoryMessageReplyMarkup::Button::Type::Game) {
@@ -353,8 +388,7 @@ void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKe
 		tx += (tw - st::botKbFont->elidew) / 2;
 		tw = st::botKbFont->elidew;
 	}
-	int textTop = rect.y() + (pressed ? _st->downTextTop : _st->textTop);
-	button.text.drawElided(p, tx, textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
+	button.text.drawElided(p, tx, rect.y() + _st->textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
 }
 
 void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardButtonRow> &v) {

@@ -58,6 +58,7 @@ void DropdownMenu::init() {
 	_menu->setKeyPressDelegate([this](int key) { return handleKeyPress(key); });
 	_menu->setMouseMoveDelegate([this](QPoint globalPosition) { handleMouseMove(globalPosition); });
 	_menu->setMousePressDelegate([this](QPoint globalPosition) { handleMousePress(globalPosition); });
+	_menu->setMouseReleaseDelegate([this](QPoint globalPosition) { handleMouseRelease(globalPosition); });
 
 	setMouseTracking(true);
 
@@ -171,6 +172,14 @@ void DropdownMenu::handleMouseMove(QPoint globalPosition) {
 void DropdownMenu::handleMousePress(QPoint globalPosition) {
 	if (_parent) {
 		_parent->forwardMousePress(globalPosition);
+	} else {
+		hideMenu();
+	}
+}
+
+void DropdownMenu::handleMouseRelease(QPoint globalPosition) {
+	if (_parent) {
+		_parent->forwardMouseRelease(globalPosition);
 	} else {
 		hideMenu();
 	}

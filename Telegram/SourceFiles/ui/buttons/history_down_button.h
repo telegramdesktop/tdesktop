@@ -20,14 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/abstract_button.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
 
-class HistoryDownButton : public AbstractButton {
+class HistoryDownButton : public RippleButton {
 public:
-	HistoryDownButton(QWidget *parent);
+	HistoryDownButton(QWidget *parent, const style::TwoIconButton &st);
 
 	void setUnreadCount(int unreadCount);
 	int unreadCount() const {
@@ -44,13 +44,15 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
 	void toggleAnimated();
 	void step_arrowOver(float64 ms, bool timer);
 
-	QPixmap _cache;
+	const style::TwoIconButton &_st;
+
 	bool _shown = false;
 
 	anim::fvalue a_arrowOpacity;

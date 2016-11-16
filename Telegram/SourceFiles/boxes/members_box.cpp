@@ -30,7 +30,35 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/effects/ripple_animation.h"
 #include "observer_peer.h"
+
+
+MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
+, _st(st) {
+	resize(_st.width, _st.height);
+	setCursor(style::cur_pointer);
+}
+
+void MembersAddButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	auto ms = getms();
+	auto over = (_state & StateOver);
+	auto down = (_state & StateDown);
+
+	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
+}
+
+QImage MembersAddButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
+QPoint MembersAddButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+}
 
 MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox(st::boxScroll)
 , _inner(this, channel, filter) {

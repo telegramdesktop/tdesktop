@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "observer_peer.h"
-#include "ui/buttons/left_outline_button.h"
+#include "ui/widgets/buttons.h"
 #include "mainwidget.h"
 #include "lang.h"
 

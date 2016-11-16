@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/vector_of_moveable.h"
 
 class ConfirmBox;

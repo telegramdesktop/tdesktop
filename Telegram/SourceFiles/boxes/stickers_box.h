@@ -20,13 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
 class ConfirmBox;
 
 namespace Ui {
 class PlainShadow;
 class RoundButton;
+class RippleAnimation;
 } // namespace Ui
 
 class StickersBox : public ItemListBox, public RPCSender {
@@ -150,11 +151,13 @@ private slots:
 	void onImageLoaded();
 
 private:
+	void setActionDown(int newActionDown);
 	void setup();
+	QRect relativeAddButtonRect() const;
 	void paintButton(Painter &p, int y, bool selected, const QString &text, int badgeCounter) const;
 
 	void step_shifting(uint64 ms, bool timer);
-	void paintRow(Painter &p, int32 index);
+	void paintRow(Painter &p, int32 index, uint64 ms);
 	void clear();
 	void setActionSel(int32 actionSel);
 	float64 aboveShadowOpacity() const;
@@ -192,6 +195,7 @@ private:
 		bool installed, official, unread, disabled, recent;
 		int32 pixw, pixh;
 		anim::ivalue yadd;
+		QSharedPointer<Ui::RippleAnimation> ripple;
 	};
 	using StickerSetRows = QList<StickerSetRow*>;
 
@@ -236,5 +240,6 @@ private:
 
 	Ui::RectShadow _aboveShadow;
 
-	int32 _scrollbar = 0;
+	int _scrollbar = 0;
+
 };

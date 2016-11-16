@@ -56,10 +56,10 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 	subscribe(w->searchInPeerChanged(), [this](PeerData *peer) {
 		_searchInPeer = peer;
 		auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
-		_search->setActiveState(historyPeer && historyPeer == _searchInPeer);
+		_search->setForceRippled(historyPeer && historyPeer == _searchInPeer);
 	});
 	subscribe(w->historyPeerChanged(), [this](PeerData *peer) {
-		_search->setActiveState(peer && peer == _searchInPeer, Ui::IconButton::SetStateWay::SkipAnimation);
+		_search->setForceRippled(peer && peer == _searchInPeer, Ui::IconButton::SetForceRippledWay::SkipAnimation);
 		update();
 	});
 
@@ -115,17 +115,17 @@ void TopBarWidget::showMenu() {
 					data->menu->deleteLater();
 					if (data->that && _menu == data->menu) {
 						_menu = nullptr;
-						_menuToggle->setActiveState(false);
+						_menuToggle->setForceRippled(false);
 					}
 				});
 				_menu->setShowStartCallback([this, data] {
 					if (data->that && _menu == data->menu) {
-						_menuToggle->setActiveState(true);
+						_menuToggle->setForceRippled(true);
 					}
 				});
 				_menu->setHideStartCallback([this, data] {
 					if (data->that && _menu == data->menu) {
-						_menuToggle->setActiveState(false);
+						_menuToggle->setForceRippled(false);
 					}
 				});
 				_menuToggle->installEventFilter(_menu);

@@ -452,8 +452,6 @@
       '<(src_loc)/stickers/stickers.h',
       '<(src_loc)/ui/buttons/history_down_button.cpp',
       '<(src_loc)/ui/buttons/history_down_button.h',
-      '<(src_loc)/ui/buttons/left_outline_button.cpp',
-      '<(src_loc)/ui/buttons/left_outline_button.h',
       '<(src_loc)/ui/buttons/peer_avatar_button.cpp',
       '<(src_loc)/ui/buttons/peer_avatar_button.h',
       '<(src_loc)/ui/effects/panel_animation.cpp',

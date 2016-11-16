@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/single_timer.h"
 #include "ui/effects/round_image_checkbox.h"
 #include "boxes/members_box.h"
@@ -93,7 +93,7 @@ private:
 	class Inner;
 	ChildWidget<Inner> _inner;
 	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
-	ChildWidget<Ui::IconButton> _add = { nullptr };
+	ChildWidget<MembersAddButton> _add = { nullptr };
 
 	ChildWidget<Ui::RoundButton> _next;
 	ChildWidget<Ui::RoundButton> _cancel;

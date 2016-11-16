@@ -37,6 +37,7 @@ class ScrollArea;
 class IconButton;
 class LinkButton;
 class RoundButton;
+class RippleAnimation;
 } // namesapce Ui
 
 namespace internal {
@@ -307,6 +308,8 @@ private:
 	static constexpr bool kRefreshIconsScrollAnimation = true;
 	static constexpr bool kRefreshIconsNoAnimation = false;
 
+	void setPressedFeaturedSetAdd(int newPressedFeaturedSetAdd);
+
 	struct Set {
 		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), hovers(hoversSize, 0), pack(pack) {
 		}
@@ -315,6 +318,7 @@ private:
 		QString title;
 		QVector<float64> hovers;
 		StickerPack pack;
+		QSharedPointer<Ui::RippleAnimation> ripple;
 	};
 	using Sets = QList<Set>;
 	Sets &shownSets() {

@@ -61,8 +61,6 @@ FlatButton {
 	height: pixels;
 
 	textTop: pixels;
-	overTextTop: pixels;
-	downTextTop: pixels;
 
 	font: font;
 	overFont: font;
@@ -87,7 +85,6 @@ RoundButton {
 	padding: margins;
 
 	textTop: pixels;
-	downTextTop: pixels;
 
 	icon: icon;
 
@@ -272,6 +269,8 @@ OutlineButton {
 
 	font: font;
 	padding: margins;
+
+	ripple: RippleAnimation;
 }
 
 IconButton {
@@ -280,9 +279,7 @@ IconButton {
 
 	icon: icon;
 	iconOver: icon;
-
 	iconPosition: point;
-	iconPositionDown: point;
 
 	duration: int;
 
@@ -394,6 +391,8 @@ Menu {
 
 	widthMin: pixels;
 	widthMax: pixels;
+
+	ripple: RippleAnimation;
 }
 
 PanelAnimation {
@@ -487,7 +486,6 @@ defaultActiveButton: RoundButton {
 	padding: margins(0px, 0px, 0px, 0px);
 
 	textTop: 8px;
-	downTextTop: 8px;
 
 	font: semiboldFont;
 
@@ -589,14 +587,22 @@ defaultLeftOutlineButton: OutlineButton {
 
 	font: normalFont;
 	padding: margins(11px, 5px, 11px, 5px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
 }
 attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
-	outlineFgOver: attentionBoxButtonFg;
+	outlineFgOver: attentionButtonFg;
 
-	textBgOver: attentionBoxButtonBgOver;
+	textBgOver: attentionButtonBgOver;
 
-	textFg: attentionBoxButtonFg;
-	textFgOver: attentionBoxButtonFg;
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFg;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
 }
 
 defaultInputArea: InputArea {
@@ -697,7 +703,6 @@ defaultRadiobutton: Radiobutton {
 
 defaultIconButton: IconButton {
 	iconPosition: point(-1px, -1px);
-	iconPositionDown: point(-1px, -1px);
 }
 
 widgetSlideDuration: 200;
@@ -756,8 +761,8 @@ defaultMenu: Menu {
 	itemFg: windowFg;
 	itemFgOver: windowFgOver;
 	itemFgDisabled: #cccccc;
-	itemFgShortcut: #999999;
-	itemFgShortcutOver: #7c99b2;
+	itemFgShortcut: windowSubTextFg;
+	itemFgShortcutOver: windowSubTextFgOver;
 	itemFgShortcutDisabled: #cccccc;
 	itemIconPosition: point(0px, 0px);
 	itemPadding: margins(17px, 8px, 17px, 7px);
@@ -771,6 +776,8 @@ defaultMenu: Menu {
 
 	widthMin: 180px;
 	widthMax: 300px;
+
+	ripple: defaultRippleAnimation;
 }
 defaultPopupMenu: PopupMenu {
 	shadow: defaultRoundShadow;
@@ -801,18 +808,42 @@ defaultDropdownMenu: DropdownMenu {
 	menu: defaultMenu;
 }
 
-historyToDown: icon {
+historyToDownBelow: icon {
 	{ "history_down_shadow", #00000040 },
-	{ "history_down_circle", #ffffff, point(4px, 4px) },
+	{ "history_down_circle", windowBg, point(4px, 4px) },
+};
+historyToDownBelowOver: icon {
+	{ "history_down_shadow", #00000040 },
+	{ "history_down_circle", windowBgOver, point(4px, 4px) },
+};
+contactsAddIconBelow: icon {
+	{ "history_down_shadow", #00000040 },
+	{ "history_down_circle", activeButtonBg, point(4px, 4px) },
+};
+contactsAddIconBelowOver: icon {
+	{ "history_down_shadow", #00000040 },
+	{ "history_down_circle", activeButtonBgOver, point(4px, 4px) },
 };
 
-contactsAddIcon: icon {
-	{ "history_down_shadow", #00000020 },
-	{ "history_down_circle", activeButtonBg, point(4px, 4px) },
-	{ "contacts_add", activeButtonFg, point(18px, 18px) },
-};
-contactsAddIconOver: icon {
-	{ "history_down_shadow", #00000020 },
-	{ "history_down_circle", activeButtonBgOver, point(4px, 4px) },
-	{ "contacts_add", activeButtonFg, point(18px, 18px) },
-};
+BotKeyboardButton {
+	margin: pixels;
+	padding: pixels;
+	height: pixels;
+	textTop: pixels;
+	ripple: RippleAnimation;
+}
+
+TwoIconButton {
+	width: pixels;
+	height: pixels;
+
+	iconBelow: icon;
+	iconAbove: icon;
+	iconBelowOver: icon;
+	iconAboveOver: icon;
+	iconPosition: point;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	ripple: RippleAnimation;
+}

@@ -208,12 +208,14 @@ private:
 	public:
 		using ReplyKeyboard::Style::Style;
 
+		int buttonRadius() const override;
+
 		void startPaint(Painter &p) const override;
 		style::font textFont() const override;
 		void repaint(const HistoryItem *item) const override;
 
 	protected:
-		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
+		void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const override;
 		void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const override;
 		void paintButtonLoading(Painter &p, const QRect &rect) const override;
 		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;

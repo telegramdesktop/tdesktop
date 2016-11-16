@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_stickers.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/effects/ripple_animation.h"
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "boxes/stickers_box.h"
@@ -1003,13 +1004,13 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 		tocol = StickerPanPerRow - tocol;
 	}
 
-	int y, tilly = 0;
-
+	auto tilly = 0;
+	auto ms = getms();
 	auto &sets = shownSets();
 	if (_section == Section::Featured) {
 		tilly += st::emojiPanHeader;
 		for (int c = 0, l = sets.size(); c < l; ++c) {
-			y = tilly;
+			auto y = tilly;
 			auto &set = sets[c];
 			tilly = y + featuredRowHeight();
 			if (r.top() >= tilly) continue;
@@ -1020,14 +1021,19 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 			int widthForTitle = featuredContentWidth() - (st::emojiPanHeaderLeft - st::buttonRadius);
 			if (featuredHasAddButton(c)) {
 				auto add = featuredAddRect(c);
-				auto selected = (_selectedFeaturedSetAdd == c);
+				auto selected = (_selectedFeaturedSetAdd == c) || (_pressedFeaturedSetAdd == c);
 				auto &textBg = selected ? st::stickersTrendingAdd.textBgOver : st::stickersTrendingAdd.textBg;
-				auto textTop = (selected && _selectedFeaturedSetAdd == _pressedFeaturedSetAdd) ? st::stickersTrendingAdd.downTextTop : st::stickersTrendingAdd.textTop;
 
 				App::roundRect(p, myrtlrect(add), textBg, ImageRoundRadius::Small);
+				if (set.ripple) {
+					set.ripple->paint(p, add.x(), add.y(), width(), ms);
+					if (set.ripple->empty()) {
+						set.ripple.reset();
+					}
+				}
 				p.setFont(st::stickersTrendingAdd.font);
 				p.setPen(selected ? st::stickersTrendingAdd.textFgOver : st::stickersTrendingAdd.textFg);
-				p.drawTextLeft(add.x() - (st::stickersTrendingAdd.width / 2), add.y() + textTop, width(), _addText, _addWidth);
+				p.drawTextLeft(add.x() - (st::stickersTrendingAdd.width / 2), add.y() + st::stickersTrendingAdd.textTop, width(), _addText, _addWidth);
 
 				widthForTitle -= add.width() - (st::stickersTrendingAdd.width / 2);
 			} else {
@@ -1075,10 +1081,10 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 		}
 	} else {
 		for (int c = 0, l = sets.size(); c < l; ++c) {
-			y = tilly;
+			auto y = tilly;
 			auto &set = sets[c];
-			int32 size = set.pack.size();
-			int32 rows = (size / StickerPanPerRow) + ((size % StickerPanPerRow) ? 1 : 0);
+			auto size = set.pack.size();
+			auto rows = (size / StickerPanPerRow) + ((size % StickerPanPerRow) ? 1 : 0);
 			tilly = y + st::emojiPanHeader + (rows * st::stickerPanSize.height());
 			if (r.y() >= tilly) continue;
 
@@ -1175,25 +1181,45 @@ void StickerPanInner::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	_pressedFeaturedSet = _selectedFeaturedSet;
-	_pressedFeaturedSetAdd = _selectedFeaturedSetAdd;
+	setPressedFeaturedSetAdd(_selectedFeaturedSetAdd);
 	ClickHandler::pressed();
 	_previewTimer.start(QApplication::startDragTime());
+}
+
+void StickerPanInner::setPressedFeaturedSetAdd(int newPressedFeaturedSetAdd) {
+	if (_pressedFeaturedSetAdd >= 0 && _pressedFeaturedSetAdd < _featuredSets.size()) {
+		auto &set = _featuredSets[_pressedFeaturedSetAdd];
+		if (set.ripple) {
+			set.ripple->lastStop();
+		}
+	}
+	_pressedFeaturedSetAdd = newPressedFeaturedSetAdd;
+	if (_pressedFeaturedSetAdd >= 0 && _pressedFeaturedSetAdd < _featuredSets.size()) {
+		auto &set = _featuredSets[_pressedFeaturedSetAdd];
+		if (!set.ripple) {
+			auto maskSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
+			auto mask = Ui::RippleAnimation::roundRectMask(maskSize, st::buttonRadius);
+			set.ripple = MakeShared<Ui::RippleAnimation>(st::stickersTrendingAdd.ripple, std_::move(mask), [this, index = _pressedFeaturedSetAdd] {
+				update(myrtlrect(featuredAddRect(index)));
+			});
+		}
+		auto rect = myrtlrect(featuredAddRect(_pressedFeaturedSetAdd));
+		set.ripple->add(mapFromGlobal(QCursor::pos()) - rect.topLeft());
+	}
 }
 
 void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
-	auto pressed = _pressed;
-	_pressed = -1;
-	auto pressedFeaturedSet = _pressedFeaturedSet;
-	_pressedFeaturedSet = -1;
+	auto pressed = base::take(_pressed, -1);
+	auto pressedFeaturedSet = base::take(_pressedFeaturedSet, -1);
 	auto pressedFeaturedSetAdd = _pressedFeaturedSetAdd;
-	if (_pressedFeaturedSetAdd != _selectedFeaturedSetAdd) {
+	setPressedFeaturedSetAdd(-1);
+	if (pressedFeaturedSetAdd != _selectedFeaturedSetAdd) {
 		update();
 	}
-	_pressedFeaturedSetAdd = -1;
 
-	ClickHandlerPtr activated = ClickHandler::unpressed();
+	auto activated = ClickHandler::unpressed();
 
 	if (_previewShown) {
 		_previewShown = false;
@@ -1360,7 +1386,8 @@ void StickerPanInner::clearSelection(bool fast) {
 		}
 		_selected = _pressed = -1;
 		_selectedFeaturedSet = _pressedFeaturedSet = -1;
-		_selectedFeaturedSetAdd = _pressedFeaturedSetAdd = -1;
+		_selectedFeaturedSetAdd = -1;
+		setPressedFeaturedSetAdd(-1);
 		_a_selected.stop();
 		update();
 	} else {

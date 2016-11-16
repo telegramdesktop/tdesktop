@@ -47,7 +47,6 @@ notifyClose: IconButton {
 	iconOver: simpleCloseIconOver;
 
 	iconPosition: point(10px, 10px);
-	iconPositionDown: point(10px, 11px);
 }
 notifyItemTop: 12px;
 notifyTextLeft: 12px;
@@ -77,7 +76,6 @@ notifySendReply: IconButton {
 
 	icon: icon {{ "notification_send", lightButtonFg, point(3px, 9px) }};
 	iconPosition: point(0px, 0px);
-	iconPositionDown: point(0px, 1px);
 }
 
 titleUnreadCounterTop: 5px;
@@ -96,6 +94,8 @@ mainMenuCoverNameTop: 88px;
 mainMenuCoverStatusTop: 106px;
 mainMenuSkip: 13px;
 mainMenu: Menu(defaultMenu) {
+	itemFg: windowBoldFg;
+	itemFgOver: windowBoldFgOver;
 	itemFont: semiboldFont;
 	itemIconPosition: point(28px, 11px);
 	itemPadding: margins(76px, 14px, 28px, 14px);
@@ -144,9 +144,7 @@ titleButtonMinimize: IconButton {
 		{ size(24px, 21px), titleButtonBgOver },
 		{ "title_button_minimize", titleButtonFgOver, point(4px, 4px) },
 	};
-
 	iconPosition: point(0px, 0px);
-	iconPositionDown: point(0px, 0px);
 }
 titleButtonMaximize: IconButton(titleButtonMinimize) {
 	icon: icon {{ "title_button_maximize", titleButtonFg, point(4px, 4px) }};
@@ -195,7 +193,6 @@ topBarButton: RoundButton {
 	padding: margins(0px, 14px, 12px, 12px);
 
 	textTop: 6px;
-	downTextTop: 6px;
 
 	font: font(fsize);
 
@@ -212,9 +209,7 @@ topBarSearch: IconButton {
 
 	icon: icon {{ "title_search", menuIconFg }};
 	iconOver: icon {{ "title_search", menuIconFgOver }};
-
 	iconPosition: point(15px, 18px);
-	iconPositionDown: point(15px, 18px);
 
 	rippleAreaPosition: point(4px, 7px);
 	rippleAreaSize: 40px;
@@ -225,9 +220,7 @@ topBarSearch: IconButton {
 topBarMenuToggle: IconButton(topBarSearch) {
 	icon: icon {{ "title_menu_dots", menuIconFg }};
 	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
-
 	iconPosition: point(16px, 17px);
-	iconPositionDown: point(16px, 17px);
 
 	rippleAreaPosition: point(0px, 7px);
 }
