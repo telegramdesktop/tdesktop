@@ -371,6 +371,13 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
+	base::Observable<PeerData*> &searchInPeerChanged() {
+		return _searchInPeerChanged;
+	}
+	base::Observable<PeerData*> &historyPeerChanged() {
+		return _historyPeerChanged;
+	}
+
 	void rpcClear() override;
 
 	bool isItemVisible(HistoryItem *item);
@@ -578,6 +585,9 @@ private:
 	bool overviewFailed(PeerData *data, const RPCError &error, mtpRequestId req);
 
 	void clearCachedBackground();
+
+	base::Observable<PeerData*> _searchInPeerChanged;
+	base::Observable<PeerData*> _historyPeerChanged;
 
 	Animation _a_show;
 	QPixmap _cacheUnder, _cacheOver;

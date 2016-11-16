@@ -1154,8 +1154,8 @@ bool DialogsInner::hasFilteredResults() const {
 }
 
 void DialogsInner::searchInPeer(PeerData *peer) {
-	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : 0;
-	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
+	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : nullptr;
+	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : nullptr;
 	if (_searchInPeer) {
 		onHashtagFilterUpdate(QStringRef());
 		_cancelSearchInPeer->show();
@@ -2021,9 +2021,7 @@ void DialogsWidget::searchMessages(const QString &query, PeerData *inPeer) {
 	if ((_filter->getLastText() != query) || (inPeer && inPeer != _searchInPeer && inPeer->migrateTo() != _searchInPeer)) {
 		if (inPeer) {
 			onCancelSearch();
-			_searchInPeer = inPeer->migrateTo() ? inPeer->migrateTo() : inPeer;
-			_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
-			_inner->searchInPeer(_searchInPeer);
+			setSearchInPeer(inPeer);
 		}
 		_filter->setText(query);
 		_filter->updatePlaceholder();
@@ -2309,10 +2307,18 @@ void DialogsWidget::onFilterUpdate(bool force) {
 
 void DialogsWidget::searchInPeer(PeerData *peer) {
 	onCancelSearch();
-	_searchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : 0;
-	_searchInMigrated = _searchInPeer ? _searchInPeer->migrateFrom() : 0;
-	_inner->searchInPeer(_searchInPeer);
+	setSearchInPeer(peer);
 	onFilterUpdate(true);
+}
+
+void DialogsWidget::setSearchInPeer(PeerData *peer) {
+	auto newSearchInPeer = peer ? (peer->migrateTo() ? peer->migrateTo() : peer) : nullptr;
+	_searchInMigrated = newSearchInPeer ? newSearchInPeer->migrateFrom() : nullptr;
+	if (newSearchInPeer != _searchInPeer) {
+		_searchInPeer = newSearchInPeer;
+		App::main()->searchInPeerChanged().notify(_searchInPeer, true);
+	}
+	_inner->searchInPeer(_searchInPeer);
 }
 
 void DialogsWidget::onFilterCursorMoved(int from, int to) {
@@ -2527,8 +2533,7 @@ bool DialogsWidget::onCancelSearch() {
 		if (Adaptive::OneColumn()) {
 			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
-		_searchInPeer = _searchInMigrated = 0;
-		_inner->searchInPeer(0);
+		setSearchInPeer(nullptr);
 		clearing = true;
 	}
 	_inner->clearFilter();
@@ -2547,8 +2552,7 @@ void DialogsWidget::onCancelSearchInPeer() {
 		if (Adaptive::OneColumn() && !App::main()->selectingPeer()) {
 			Ui::showPeerHistory(_searchInPeer, ShowAtUnreadMsgId);
 		}
-		_searchInPeer = _searchInMigrated = 0;
-		_inner->searchInPeer(0);
+		setSearchInPeer(nullptr);
 	}
 	_inner->clearFilter();
 	_filter->clear();

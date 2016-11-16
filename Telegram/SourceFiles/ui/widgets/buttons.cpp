@@ -108,7 +108,7 @@ void FlatButton::handleRipples(bool wasDown, bool wasPress) {
 		_ripple->add(clickPosition);
 	} else if (!down && _ripple) {
 		// Finish ripple anyway.
-		_ripple->stopLast();
+		_ripple->lastStop();
 	}
 }
 
@@ -311,7 +311,7 @@ void RoundButton::handleRipples(bool wasDown, bool wasPress) {
 		_ripple->add(clickPosition);
 	} else if (!down && _ripple) {
 		// Finish ripple anyway.
-		_ripple->stopLast();
+		_ripple->lastStop();
 	}
 }
 
@@ -348,6 +348,26 @@ void IconButton::setIcon(const style::icon *icon, const style::icon *iconOver) {
 	update();
 }
 
+void IconButton::setActiveState(bool activeState, SetStateWay way) {
+	if (_activeState != activeState) {
+		_activeState = activeState;
+		if (_activeState) {
+			ensureRipple();
+			if (_ripple->empty()) {
+				_ripple->addFading();
+			} else {
+				_ripple->lastUnstop();
+			}
+		} else if (_ripple) {
+			_ripple->lastStop();
+		}
+	}
+	if (way == SetStateWay::SkipAnimation && _ripple) {
+		_ripple->lastFinish();
+	}
+	update();
+}
+
 void IconButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -361,7 +381,7 @@ void IconButton::paintEvent(QPaintEvent *e) {
 	}
 
 	auto down = (_state & StateDown);
-	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
+	auto overIconOpacity = (down || _activeState) ? 1. : _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
 	auto overIcon = [this] {
 		if (_iconOverrideOver) {
 			return _iconOverrideOver;
@@ -378,7 +398,7 @@ void IconButton::paintEvent(QPaintEvent *e) {
 		}
 		return &_st.icon;
 	};
-	auto icon = (over == 1. || down) ? overIcon() : justIcon();
+	auto icon = (overIconOpacity == 1.) ? overIcon() : justIcon();
 	auto position = (_state & StateDown) ? _st.iconPositionDown : _st.iconPosition;
 	if (position.x() < 0) {
 		position.setX((width() - icon->width()) / 2);
@@ -387,10 +407,10 @@ void IconButton::paintEvent(QPaintEvent *e) {
 		position.setY((height() - icon->height()) / 2);
 	}
 	icon->paint(p, position, width());
-	if (over > 0. && over < 1.) {
+	if (overIconOpacity > 0. && overIconOpacity < 1.) {
 		auto iconOver = overIcon();
 		if (iconOver != icon) {
-			p.setOpacity(over);
+			p.setOpacity(overIconOpacity);
 			iconOver->paint(p, position, width());
 		}
 	}
@@ -417,11 +437,9 @@ void IconButton::handleRipples(bool wasDown, bool wasPress) {
 		return;
 	}
 
-	if (down && wasPress) {
+	if (down && wasPress && !_activeState) {
 		// Start a ripple only from mouse press.
-		if (!_ripple) {
-			_ripple = std_::make_unique<Ui::RippleAnimation>(_st.ripple, prepareRippleMask(), [this] { update(); });
-		}
+		ensureRipple();
 		auto clickPosition = mapFromGlobal(QCursor::pos());
 		auto rippleCenter = QRect(_st.rippleAreaPosition, QSize(_st.rippleAreaSize, _st.rippleAreaSize)).center();
 		auto clickRadiusSquare = style::point::dotProduct(clickPosition - rippleCenter, clickPosition - rippleCenter);
@@ -430,9 +448,15 @@ void IconButton::handleRipples(bool wasDown, bool wasPress) {
 			startRadius = sqrt(clickRadiusSquare) - (_st.rippleAreaSize / 2);
 		}
 		_ripple->add(clickPosition - _st.rippleAreaPosition, startRadius);
-	} else if (!down && _ripple) {
+	} else if (!down && _ripple && !_activeState) {
 		// Finish ripple anyway.
-		_ripple->stopLast();
+		_ripple->lastStop();
+	}
+}
+
+void IconButton::ensureRipple() {
+	if (!_ripple) {
+		_ripple = std_::make_unique<Ui::RippleAnimation>(_st.ripple, prepareRippleMask(), [this] { update(); });
 	}
 }
 

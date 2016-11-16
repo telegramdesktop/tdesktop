@@ -308,6 +308,7 @@ private slots:
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
 private:
+	void setSearchInPeer(PeerData *peer);
 	void showMainMenu();
 	void updateLockUnlockVisibility();
 	void updateControlsGeometry();

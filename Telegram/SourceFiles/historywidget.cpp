@@ -4362,7 +4362,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	App::main()->dlgUpdated(wasHistory, wasMsgId);
 	emit historyShown(_history, _showAtMsgId);
 
-	App::main()->topBar()->update();
+	App::main()->historyPeerChanged().notify(_peer, true);
 	update();
 }
 

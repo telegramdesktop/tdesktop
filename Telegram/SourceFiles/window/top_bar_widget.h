@@ -78,6 +78,7 @@ private:
 	anim::fvalue a_over = { 0. };
 	Animation _a_appearance;
 
+	PeerData *_searchInPeer = nullptr;
 	PeerData *_selPeer = nullptr;
 	int _selCount = 0;
 	bool _canDelete = false;

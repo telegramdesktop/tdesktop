@@ -139,6 +139,13 @@ public:
 	// Pass nullptr to restore the default icon.
 	void setIcon(const style::icon *icon, const style::icon *iconOver = nullptr);
 
+	// Displays full ripple circle constantly.
+	enum class SetStateWay {
+		Default,
+		SkipAnimation,
+	};
+	void setActiveState(bool activeState, SetStateWay way = SetStateWay::Default);
+
 	~IconButton();
 
 protected:
@@ -147,6 +154,7 @@ protected:
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
 private:
+	void ensureRipple();
 	QImage prepareRippleMask() const;
 	void handleRipples(bool wasDown, bool wasPress);
 
@@ -157,6 +165,7 @@ private:
 	FloatAnimation _a_over;
 
 	std_::unique_ptr<RippleAnimation> _ripple;
+	bool _activeState = false;
 
 };
 

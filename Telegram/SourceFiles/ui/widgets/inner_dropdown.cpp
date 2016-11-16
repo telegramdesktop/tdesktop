@@ -214,6 +214,14 @@ void InnerDropdown::prepareCache() {
 }
 
 void InnerDropdown::startOpacityAnimation(bool hiding) {
+	if (hiding) {
+		if (_hideStartCallback) {
+			_hideStartCallback();
+		}
+	} else if (_showStartCallback) {
+		_showStartCallback();
+	}
+
 	_hiding = false;
 	prepareCache();
 	_hiding = hiding;
@@ -234,6 +242,9 @@ void InnerDropdown::showStarted() {
 }
 
 void InnerDropdown::startShowAnimation() {
+	if (_showStartCallback) {
+		_showStartCallback();
+	}
 	if (!_a_show.animating()) {
 		auto opacityAnimation = base::take(_a_opacity);
 		showChildren();
@@ -289,7 +300,7 @@ bool InnerDropdown::eventFilter(QObject *obj, QEvent *e) {
 		otherEnter();
 	} else if (e->type() == QEvent::Leave) {
 		otherLeave();
-	} else if (e->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton) {
+	} else if (e->type() == QEvent::MouseButtonRelease && static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton) {
 		if (isHidden() || _hiding) {
 			otherEnter();
 		} else {

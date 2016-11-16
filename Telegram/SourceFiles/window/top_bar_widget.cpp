@@ -53,6 +53,16 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 	_search->setClickedCallback([this] { onSearch(); });
 	_menuToggle->setClickedCallback([this] { showMenu(); });
 
+	subscribe(w->searchInPeerChanged(), [this](PeerData *peer) {
+		_searchInPeer = peer;
+		auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
+		_search->setActiveState(historyPeer && historyPeer == _searchInPeer);
+	});
+	subscribe(w->historyPeerChanged(), [this](PeerData *peer) {
+		_search->setActiveState(peer && peer == _searchInPeer, Ui::IconButton::SetStateWay::SkipAnimation);
+		update();
+	});
+
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 	if (Adaptive::OneColumn()) {
 		_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
@@ -92,19 +102,35 @@ void TopBarWidget::onSearch() {
 void TopBarWidget::showMenu() {
 	if (auto main = App::main()) {
 		if (auto peer = main->peer()) {
-			if (auto menu = _menu.ptr()) {
-				_menu = nullptr;
-				_menuToggle->removeEventFilter(menu);
-				menu->setHiddenCallback([menu] { menu->deleteLater(); });
-				menu->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
-			} else {
+			if (!_menu) {
 				_menu.create(App::main());
+				struct Data {
+					Ui::DropdownMenu *menu = nullptr;
+					QPointer<TWidget> that;
+				};
+				auto data = MakeShared<Data>();
+				data->that = weakThis();
+				data->menu = _menu.ptr();
+				_menu->setHiddenCallback([this, data] {
+					data->menu->deleteLater();
+					if (data->that && _menu == data->menu) {
+						_menu = nullptr;
+						_menuToggle->setActiveState(false);
+					}
+				});
+				_menu->setShowStartCallback([this, data] {
+					if (data->that && _menu == data->menu) {
+						_menuToggle->setActiveState(true);
+					}
+				});
+				_menu->setHideStartCallback([this, data] {
+					if (data->that && _menu == data->menu) {
+						_menuToggle->setActiveState(false);
+					}
+				});
 				_menuToggle->installEventFilter(_menu);
 				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda_unique<void()> callback) {
 					return _menu->addAction(text, std_::move(callback));
-				});
-				_menu->setHiddenCallback([this] {
-					_menu.destroyDelayed();
 				});
 				_menu->moveToRight(st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
@@ -261,7 +287,8 @@ void TopBarWidget::showAll() {
 		resizeEvent(nullptr);
 		return;
 	}
-	PeerData *h = App::main() ? App::main()->historyPeer() : 0, *o = App::main() ? App::main()->overviewPeer() : 0;
+	auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
+	auto overviewPeer = App::main() ? App::main()->overviewPeer() : nullptr;
 	if (_selCount) {
 		_clearSelection->show();
 		if (_canDelete) {
@@ -281,9 +308,9 @@ void TopBarWidget::showAll() {
 			_mediaType->hide();
 		}
 	}
-	if (h && !o && _clearSelection->isHidden()) {
+	if (historyPeer && !overviewPeer && _clearSelection->isHidden()) {
 		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-			_info->setPeer(h);
+			_info->setPeer(historyPeer);
 			_info->show();
 			_menuToggle->hide();
 			_menu.destroy();

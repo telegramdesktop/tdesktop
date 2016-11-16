@@ -172,7 +172,7 @@ titleButtonClose: IconButton(titleButtonMinimize) {
 
 // Legacy top bar.
 topBarHeight: 54px;
-topBarMenuPosition: point(-2px, 37px);
+topBarMenuPosition: point(-2px, 35px);
 topBarDuration: 200;
 topBarBackward: icon {{ "title_back", #a3a3a3 }};
 topBarForwardAlpha: 0.6;

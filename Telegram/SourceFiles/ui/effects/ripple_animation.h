@@ -34,7 +34,10 @@ public:
 	void setMask(QImage &&mask);
 
 	void add(QPoint origin, int startRadius = 0);
-	void stopLast();
+	void addFading();
+	void lastStop();
+	void lastUnstop();
+	void lastFinish();
 
 	void paint(QPainter &p, int x, int y, int outerWidth, uint64 ms);
 

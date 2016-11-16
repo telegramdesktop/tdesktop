@@ -591,12 +591,12 @@ defaultLeftOutlineButton: OutlineButton {
 	padding: margins(11px, 5px, 11px, 5px);
 }
 attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
-	outlineFgOver: #e43f3f;
+	outlineFgOver: attentionBoxButtonFg;
 
-	textBgOver: #faf2f2;
+	textBgOver: attentionBoxButtonBgOver;
 
-	textFg: #d15948;
-	textFgOver: #d15948;
+	textFg: attentionBoxButtonFg;
+	textFgOver: attentionBoxButtonFg;
 }
 
 defaultInputArea: InputArea {

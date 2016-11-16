@@ -26,10 +26,13 @@ namespace Ui {
 class RippleAnimation::Ripple {
 public:
 	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, UpdateCallback update);
+	Ripple(const style::RippleAnimation &st, const QPixmap &mask, UpdateCallback update);
 
 	void paint(QPainter &p, const QPixmap &mask, uint64 ms);
 
 	void stop();
+	void unstop();
+	void finish();
 	bool finished() const {
 		return _hiding && !_hide.animating();
 	}
@@ -72,6 +75,17 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin,
 	_show.start(UpdateCallback(_update), 0., 1., _st.showDuration);
 }
 
+RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, UpdateCallback update)
+: _st(st)
+, _update(update)
+, _origin(mask.width() / (2 * cIntRetinaFactor()), mask.height() / (2 * cIntRetinaFactor()))
+, _radiusFrom(mask.width() + mask.height())
+, _frame(mask.size(), QImage::Format_ARGB32_Premultiplied) {
+	_frame.setDevicePixelRatio(mask.devicePixelRatio());
+	_radiusTo = _radiusFrom;
+	_hide.start(UpdateCallback(_update), 0., 1., _st.hideDuration);
+}
+
 void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, uint64 ms) {
 	auto opacity = _hide.current(ms, _hiding ? 0. : 1.);
 	if (opacity == 0.) {
@@ -110,6 +124,23 @@ void RippleAnimation::Ripple::stop() {
 	_hide.start(UpdateCallback(_update), 1., 0., _st.hideDuration);
 }
 
+void RippleAnimation::Ripple::unstop() {
+	if (_hiding) {
+		if (_hide.animating()) {
+			_hide.start(UpdateCallback(_update), 0., 1., _st.hideDuration);
+		}
+		_hiding = false;
+	}
+}
+
+void RippleAnimation::Ripple::finish() {
+	if (_update) {
+		_update();
+	}
+	_show.finish();
+	_hide.finish();
+}
+
 RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, UpdateCallback callback)
 : _st(st)
 , _mask(App::pixmapFromImageInPlace(std_::move(mask)))
@@ -118,12 +149,30 @@ RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, 
 
 
 void RippleAnimation::add(QPoint origin, int startRadius) {
+	lastStop();
 	_ripples.push_back(new Ripple(_st, origin, startRadius, _mask, _update));
 }
 
-void RippleAnimation::stopLast() {
+void RippleAnimation::addFading() {
+	lastStop();
+	_ripples.push_back(new Ripple(_st, _mask, _update));
+}
+
+void RippleAnimation::lastStop() {
 	if (!_ripples.isEmpty()) {
 		_ripples.back()->stop();
+	}
+}
+
+void RippleAnimation::lastUnstop() {
+	if (!_ripples.isEmpty()) {
+		_ripples.back()->unstop();
+	}
+}
+
+void RippleAnimation::lastFinish() {
+	if (!_ripples.isEmpty()) {
+		_ripples.back()->finish();
 	}
 }
 
