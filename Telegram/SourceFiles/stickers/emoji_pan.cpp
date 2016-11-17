@@ -2922,6 +2922,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 
 	setMouseTracking(true);
 //	setAttribute(Qt::WA_AcceptTouchEvents);
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
 void EmojiPan::setMaxHeight(int32 h) {
@@ -3199,7 +3200,7 @@ void EmojiPan::mouseMoveEvent(QMouseEvent *e) {
 		if (newX != _iconsX.current()) {
 			_iconsX = anim::ivalue(newX, newX);
 			_iconsStartAnim = 0;
-			if (_iconAnimations.isEmpty()) _a_icons.stop();
+			_a_icons.stop();
 			updateIcons();
 		}
 	}
@@ -3217,7 +3218,7 @@ void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
 		if (newX != _iconsX.current()) {
 			_iconsX = anim::ivalue(newX, newX);
 			_iconsStartAnim = 0;
-			if (_iconAnimations.isEmpty()) _a_icons.stop();
+			_a_icons.stop();
 			updateIcons();
 		}
 		_iconsDragging = false;
@@ -3250,7 +3251,7 @@ bool EmojiPan::event(QEvent *e) {
 			if (newX != _iconsX.current()) {
 				_iconsX = anim::ivalue(newX, newX);
 				_iconsStartAnim = 0;
-				if (_iconAnimations.isEmpty()) _a_icons.stop();
+				_a_icons.stop();
 				updateSelected();
 				updateIcons();
 			}
@@ -3287,8 +3288,6 @@ void EmojiPan::refreshSavedGifs() {
 
 void EmojiPan::onRefreshIcons(bool scrollAnimation) {
 	_iconOver = -1;
-	_iconHovers.clear();
-	_iconAnimations.clear();
 	s_inner->fillIcons(_icons);
 	s_inner->fillPanels(s_panels);
 	_iconsX.finish();
@@ -3298,7 +3297,6 @@ void EmojiPan::onRefreshIcons(bool scrollAnimation) {
 	if (_icons.isEmpty()) {
 		_iconsMax = 0;
 	} else {
-		_iconHovers = QVector<float64>(_icons.size(), 0);
 		_iconsMax = qMax(int((_icons.size() - 7) * st::emojiCategory.width), 0);
 	}
 	if (_iconsX.current() > _iconsMax) {
@@ -3352,30 +3350,14 @@ void EmojiPan::updateSelected() {
 		} else if (_iconOver < 0) {
 			setCursor(style::cur_pointer);
 		}
-		bool startanim = false;
-		if (_iconOver >= 0 && _iconOver < _icons.size()) {
-			_iconAnimations.remove(_iconOver + 1);
-			if (_iconAnimations.find(-_iconOver - 1) == _iconAnimations.end()) {
-				if (_iconAnimations.isEmpty() && !_iconsStartAnim) startanim = true;
-				_iconAnimations.insert(-_iconOver - 1, getms());
-			}
-		}
 		_iconOver = newOver;
-		if (_iconOver >= 0 && _iconOver < _icons.size()) {
-			_iconAnimations.remove(-_iconOver - 1);
-			if (_iconAnimations.find(_iconOver + 1) == _iconAnimations.end()) {
-				if (_iconAnimations.isEmpty() && !_iconsStartAnim) startanim = true;
-				_iconAnimations.insert(_iconOver + 1, getms());
-			}
-		}
-		if (startanim && !_a_icons.animating()) _a_icons.start();
 	}
 }
 
 void EmojiPan::updateIcons() {
 	if (_emojiShown || !s_inner->showSectionIcons()) return;
 
-	QRect r(st::defaultDropdownPadding.left(), st::defaultDropdownPadding.top(), _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right(), _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom());
+	QRect r(st::defaultDropdownPadding.left() + st::buttonRadius, st::defaultDropdownPadding.top(), _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right() - 2 * st::buttonRadius, _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom());
 	update(r.left(), _iconsTop, r.width(), st::emojiCategory.height);
 }
 
@@ -3383,20 +3365,6 @@ void EmojiPan::step_icons(uint64 ms, bool timer) {
 	if (_emojiShown) {
 		_a_icons.stop();
 		return;
-	}
-
-	for (Animations::iterator i = _iconAnimations.begin(); i != _iconAnimations.end();) {
-		int index = qAbs(i.key()) - 1;
-		float64 dt = float64(ms - i.value()) / st::emojiPanDuration;
-		if (index >= _iconHovers.size()) {
-			i = _iconAnimations.erase(i);
-		} else if (dt >= 1) {
-			_iconHovers[index] = (i.key() > 0) ? 1 : 0;
-			i = _iconAnimations.erase(i);
-		} else {
-			_iconHovers[index] = (i.key() > 0) ? dt : (1 - dt);
-			++i;
-		}
 	}
 
 	if (_iconsStartAnim) {
@@ -3414,7 +3382,7 @@ void EmojiPan::step_icons(uint64 ms, bool timer) {
 
 	if (timer) updateIcons();
 
-	if (_iconAnimations.isEmpty() && !_iconsStartAnim) {
+	if (!_iconsStartAnim) {
 		_a_icons.stop();
 	}
 }
@@ -3527,8 +3495,6 @@ void EmojiPan::hideFinished() {
 	_iconSelX = anim::ivalue(0, 0);
 	_iconsStartAnim = 0;
 	_a_icons.stop();
-	_iconHovers = _icons.isEmpty() ? QVector<float64>() : QVector<float64>(_icons.size(), 0);
-	_iconAnimations.clear();
 
 	Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 }
@@ -3837,8 +3803,6 @@ void EmojiPan::performSwitch() {
 		updateContentHeight();
 	}
 	_iconOver = -1;
-	_iconHovers = _icons.isEmpty() ? QVector<float64>() : QVector<float64>(_icons.size(), 0);
-	_iconAnimations.clear();
 	_a_icons.stop();
 }
 

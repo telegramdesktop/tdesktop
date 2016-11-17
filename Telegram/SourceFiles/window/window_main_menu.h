@@ -37,6 +37,9 @@ class MainMenu : public TWidget, private base::Subscriber {
 public:
 	MainMenu(QWidget *parent);
 
+	void setInnerFocus() {
+		setFocus();
+	}
 	void showFinished();
 
 protected:

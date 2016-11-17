@@ -41,6 +41,8 @@ settingsFixedBarTextTop: 16px;
 settingsFixedBarClose: IconButton(boxBlockTitleClose) {
 	width: settingsFixedBarHeight;
 	height: settingsFixedBarHeight;
+
+	rippleAreaPosition: point(6px, 6px);
 }
 
 settingsMarginTop: 34px;

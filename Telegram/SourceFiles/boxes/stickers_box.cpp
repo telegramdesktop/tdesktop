@@ -539,9 +539,15 @@ void StickersBox::Inner::onImageLoaded() {
 	readVisibleSets();
 }
 
-void StickersBox::Inner::paintButton(Painter &p, int y, bool selected, const QString &text, int badgeCounter) const {
+void StickersBox::Inner::paintButton(Painter &p, int y, bool selected, std_::unique_ptr<Ui::RippleAnimation> &ripple, const QString &text, int badgeCounter) const {
 	if (selected) {
 		p.fillRect(0, y, width(), _buttonHeight, st::contactsBgOver);
+	}
+	if (ripple) {
+		ripple->paint(p, 0, y, width(), getms());
+		if (ripple->empty()) {
+			ripple.reset();
+		}
 	}
 	p.setFont(st::stickersFeaturedFont);
 	p.setPen(st::stickersFeaturedPen);
@@ -571,12 +577,12 @@ void StickersBox::Inner::paintEvent(QPaintEvent *e) {
 	int y = st::membersPadding.top();
 	if (_hasFeaturedButton) {
 		auto selected = (_selected == -2);
-		paintButton(p, y, selected, lang(lng_stickers_featured), Global::FeaturedStickerSetsUnreadCount());
+		paintButton(p, y, selected, _featuredRipple, lang(lng_stickers_featured), Global::FeaturedStickerSetsUnreadCount());
 		y += _buttonHeight;
 	}
 	if (_hasArchivedButton) {
 		auto selected = (_selected == -1);
-		paintButton(p, y, selected, lang(lng_stickers_archived), 0);
+		paintButton(p, y, selected, _archivedRipple, lang(lng_stickers_archived), 0);
 		y += _buttonHeight;
 	}
 
@@ -709,7 +715,7 @@ void StickersBox::Inner::mousePressEvent(QMouseEvent *e) {
 	_mouse = e->globalPos();
 	onUpdateSelected();
 
-	_pressed = _selected;
+	setPressed(_selected);
 	if (_actionSel >= 0) {
 		setActionDown(_actionSel);
 		update(0, _itemsTop + _actionSel * _rowHeight, width(), _rowHeight);
@@ -867,9 +873,32 @@ float64 StickersBox::Inner::aboveShadowOpacity() const {
 	return qMin((dx + dy)  * 2. / _rowHeight, 1.);
 }
 
+void StickersBox::Inner::setPressed(int newPressed) {
+	if (auto ripple = (_pressed == -1) ? &_archivedRipple : (_pressed == -2) ? &_featuredRipple : nullptr) {
+		if (*ripple) {
+			(*ripple)->lastStop();
+		}
+	}
+	_pressed = newPressed;
+	if (auto ripple = (_pressed == -1) ? &_archivedRipple : (_pressed == -2) ? &_featuredRipple : nullptr) {
+		if (!*ripple) {
+			auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _buttonHeight));
+			auto updateCallback = [this, index = _pressed] {
+				auto y = st::membersPadding.top();
+				if (index == -1 && _hasFeaturedButton) {
+					y += _buttonHeight;
+				}
+				update(0, y, width(), _buttonHeight);
+			};
+			*ripple = std_::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std_::move(mask), std_::move(updateCallback));
+		}
+		(*ripple)->add(mapFromGlobal(QCursor::pos()));
+	}
+}
+
 void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	auto pressed = _pressed;
-	_pressed = -2;
+	setPressed(-3);
 
 	if (_section != Section::Installed && _selected < 0 && pressed >= 0) {
 		setCursor(style::cur_default);

@@ -152,9 +152,10 @@ private slots:
 
 private:
 	void setActionDown(int newActionDown);
+	void setPressed(int newPressed);
 	void setup();
 	QRect relativeAddButtonRect() const;
-	void paintButton(Painter &p, int y, bool selected, const QString &text, int badgeCounter) const;
+	void paintButton(Painter &p, int y, bool selected, std_::unique_ptr<Ui::RippleAnimation> &ripple, const QString &text, int badgeCounter) const;
 
 	void step_shifting(uint64 ms, bool timer);
 	void paintRow(Painter &p, int32 index, uint64 ms);
@@ -237,6 +238,9 @@ private:
 	int _started = -1;
 	int _dragging = -1;
 	int _above = -1;
+
+	std_::unique_ptr<Ui::RippleAnimation> _archivedRipple;
+	std_::unique_ptr<Ui::RippleAnimation> _featuredRipple;
 
 	Ui::RectShadow _aboveShadow;
 

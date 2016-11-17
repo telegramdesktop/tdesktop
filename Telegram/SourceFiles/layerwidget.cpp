@@ -298,7 +298,7 @@ void LayerStackWidget::startAnimation(float64 toOpacity) {
 }
 
 bool LayerStackWidget::canSetFocus() const {
-	return (layer() || _specialLayer) && !_hiding;
+	return (layer() || _specialLayer || _mainMenu) && !_hiding;
 }
 
 void LayerStackWidget::setInnerFocus() {
@@ -308,6 +308,8 @@ void LayerStackWidget::setInnerFocus() {
 		l->setInnerFocus();
 	} else if (_specialLayer) {
 		_specialLayer->setInnerFocus();
+	} else if (_mainMenu) {
+		_mainMenu->setInnerFocus();
 	}
 }
 

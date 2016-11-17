@@ -527,9 +527,9 @@ public:
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
 
-		return QRect(st::defaultDropdownPadding.left(),
+		return QRect(st::defaultDropdownPadding.left() + st::buttonRadius,
 					 st::defaultDropdownPadding.top(),
-					 _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right(),
+					 _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right() - 2 * st::buttonRadius,
 					 _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom()
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
@@ -666,13 +666,10 @@ private:
 	ChildWidget<Ui::IconButton> _symbols;
 
 	QList<internal::StickerIcon> _icons;
-	QVector<float64> _iconHovers;
 	int _iconOver = -1;
 	int _iconSel = 0;
 	int _iconDown = -1;
 	bool _iconsDragging = false;
-	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
-	Animations _iconAnimations;
 	Animation _a_icons;
 	QPoint _iconsMousePos, _iconsMouseDown;
 	int _iconsLeft = 0;

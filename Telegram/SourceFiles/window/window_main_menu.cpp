@@ -112,7 +112,8 @@ void MainMenu::updateControlsGeometry() {
 
 void MainMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight).intersected(e->rect());
+	auto clip = e->rect();
+	auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight).intersected(clip);
 	if (!cover.isEmpty()) {
 		p.fillRect(cover, st::mainMenuCoverBg);
 		p.setPen(st::mainMenuCoverFg);
@@ -123,7 +124,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), qsl("online"));
 		}
 	}
-	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight);
+	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);
 	if (!other.isEmpty()) {
 		p.fillRect(other, st::mainMenuBg);
 	}

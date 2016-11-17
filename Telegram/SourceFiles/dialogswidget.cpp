@@ -1122,7 +1122,7 @@ void DialogsInner::setMouseSel(bool msel, bool toTop) {
 	_selByMouse = msel;
 	if (!_selByMouse && toTop) {
 		if (_state == DefaultState) {
-			_sel = !shownDialogs()->isEmpty() ? *shownDialogs()->cbegin() : nullptr;
+			_sel = nullptr;
 			_importantSwitchSel = false;
 		} else if (_state == FilteredState || _state == SearchedState) { // don't select first elem in search
 			_filteredSel = _peopleSel = _searchedSel = _hashtagSel = -1;
@@ -2376,21 +2376,22 @@ void DialogsWidget::updateLockUnlockVisibility() {
 }
 
 void DialogsWidget::updateControlsGeometry() {
-	auto filterTop = 0;
+	auto filterAreaTop = 0;
 	if (_forwardCancel) {
-		_forwardCancel->moveToLeft(0, filterTop);
-		filterTop += st::dialogsForwardHeight;
+		_forwardCancel->moveToLeft(0, filterAreaTop);
+		filterAreaTop += st::dialogsForwardHeight;
 	}
 	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
 	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
 	auto filterWidth = width() - filterLeft - filterRight;
-	auto scrollTop = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
-	filterTop += (scrollTop - _filter->height()) / 2;
+	auto filterAreaHeight = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
+	auto filterTop = filterAreaTop + (filterAreaHeight - _filter->height()) / 2;
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
-	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
-	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), st::dialogsFilterPadding.y());
+	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
+	_lockUnlock->moveToRight(st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 
+	auto scrollTop = filterAreaTop + filterAreaHeight;
 	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;
 	auto newScrollTop = _scroll->scrollTop() + addToScroll;
 	auto scrollHeight = height() - scrollTop;
