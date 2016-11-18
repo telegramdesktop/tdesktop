@@ -621,6 +621,9 @@ void HistoryItem::finishEditionToEmpty() {
 	if (auto next = nextItem()) {
 		next->previousItemChanged();
 	}
+	if (auto previous = previousItem()) {
+		previous->nextItemChanged();
+	}
 }
 
 void HistoryItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
@@ -690,16 +693,22 @@ void HistoryItem::previousItemChanged() {
 	recountAttachToPrevious();
 }
 
+// Called only if there is no more next item! Not always when it changes!
+void HistoryItem::nextItemChanged() {
+	setAttachToNext(false);
+}
+
 void HistoryItem::recountAttachToPrevious() {
 	bool attach = false;
-	if (!isPost() && !Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-		if (auto previos = previousItem()) {
-			attach = !previos->isPost()
-				&& !previos->serviceMsg()
-				&& !previos->isEmpty()
-				&& previos->from() == from()
-				&& (qAbs(previos->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
+	if (auto previous = previousItem()) {
+		if (!isPost() && !Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
+			attach = !previous->isPost()
+				&& !previous->serviceMsg()
+				&& !previous->isEmpty()
+				&& previous->from() == from()
+				&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
 		}
+		previous->setAttachToNext(attach);
 	}
 	if (attach && !(_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
 		_flags |= MTPDmessage_ClientFlag::f_attach_to_previous;
@@ -707,6 +716,16 @@ void HistoryItem::recountAttachToPrevious() {
 	} else if (!attach && (_flags & MTPDmessage_ClientFlag::f_attach_to_previous)) {
 		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_previous;
 		setPendingInitDimensions();
+	}
+}
+
+void HistoryItem::setAttachToNext(bool attachToNext) {
+	if (attachToNext && !(_flags & MTPDmessage_ClientFlag::f_attach_to_next)) {
+		_flags |= MTPDmessage_ClientFlag::f_attach_to_next;
+		Global::RefPendingRepaintItems().insert(this);
+	} else if (!attachToNext && (_flags & MTPDmessage_ClientFlag::f_attach_to_next)) {
+		_flags &= ~MTPDmessage_ClientFlag::f_attach_to_next;
+		Global::RefPendingRepaintItems().insert(this);
 	}
 }
 

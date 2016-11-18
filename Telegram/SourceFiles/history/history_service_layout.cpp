@@ -352,4 +352,27 @@ void serviceColorsUpdated() {
 	}
 }
 
+void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, BubbleTail tail) {
+	auto &bg = selected ? (outbg ? st::msgOutBgSelected : st::msgInBgSelected) : (outbg ? st::msgOutBg : st::msgInBg);
+	auto &sh = selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow);
+	auto cors = selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners);
+	auto parts = App::RectPart::TopFull | App::RectPart::NoTopBottom | App::RectPart::Bottom;
+	if (tail == BubbleTail::Right) {
+		parts |= App::RectPart::BottomLeft;
+		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height() - st::historyMessageRadius, st::historyMessageRadius, st::historyMessageRadius, bg);
+		auto &tail = selected ? st::historyBubbleTailOutRightSelected : st::historyBubbleTailOutRight;
+		tail.paint(p, rect.x() + rect.width(), rect.y() + rect.height() - tail.height(), outerWidth);
+		p.fillRect(rect.x() + rect.width() - st::historyMessageRadius, rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, sh);
+	} else if (tail == BubbleTail::Left) {
+		parts |= App::RectPart::BottomRight;
+		p.fillRect(rect.x(), rect.y() + rect.height() - st::historyMessageRadius, st::historyMessageRadius, st::historyMessageRadius, bg);
+		auto &tail = selected ? (outbg ? st::historyBubbleTailOutLeftSelected : st::historyBubbleTailInLeftSelected) : (outbg ? st::historyBubbleTailOutLeft : st::historyBubbleTailInLeft);
+		tail.paint(p, rect.x() - tail.width(), rect.y() + rect.height() - tail.height(), outerWidth);
+		p.fillRect(rect.x() - tail.width(), rect.y() + rect.height(), st::historyMessageRadius + tail.width(), st::msgShadow, sh);
+	} else {
+		parts |= App::RectPart::BottomFull;
+	}
+	App::roundRect(p, rect, bg, cors, &sh, parts);
+}
+
 } // namespace HistoryLayout

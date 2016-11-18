@@ -1290,12 +1290,11 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 
 		auto mediaDisplayed = _media && _media->isDisplayed();
 		auto top = marginTop();
-		QRect r(left, top, width, height - top - marginBottom());
+		auto r = QRect(left, top, width, height - top - marginBottom());
 
-		auto &bg = selected ? (outbg ? st::msgOutBgSelected : st::msgInBgSelected) : (outbg ? st::msgOutBg : st::msgInBg);
-		auto &sh = selected ? (outbg ? st::msgOutShadowSelected : st::msgInShadowSelected) : (outbg ? st::msgOutShadow : st::msgInShadow);
-		RoundCorners cors(selected ? (outbg ? MessageOutSelectedCorners : MessageInSelectedCorners) : (outbg ? MessageOutCorners : MessageInCorners));
-		App::roundRect(p, r, bg, cors, &sh);
+		auto skipTail = isAttachedToNext() || (_media && _media->skipBubbleTail());
+		auto displayTail = skipTail ? HistoryLayout::BubbleTail::None : (outbg && !Adaptive::Wide()) ? HistoryLayout::BubbleTail::Right : HistoryLayout::BubbleTail::Left;
+		HistoryLayout::paintBubble(p, r, _history->width, selected, outbg, displayTail);
 
 		QRect trect(r.marginsAdded(-st::msgPadding));
 		if (mediaDisplayed && _media->isBubbleTop()) {
@@ -1335,7 +1334,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 			HistoryMessage::drawInfo(p, r.x() + r.width(), r.y() + r.height(), 2 * r.x() + r.width(), selected, InfoDisplayDefault);
 		}
 	} else if (_media) {
-		int32 top = marginTop();
+		auto top = marginTop();
 		p.translate(left, top);
 		_media->draw(p, r.translated(-left, -top), toMediaSelection(selection), ms);
 		p.translate(-left, -top);
@@ -1744,7 +1743,7 @@ QString HistoryMessage::notificationHeader() const {
 }
 
 bool HistoryMessage::displayFromPhoto() const {
-	return hasFromPhoto() && !isAttachedToPrevious();
+	return hasFromPhoto() && !isAttachedToNext();
 }
 
 bool HistoryMessage::hasFromPhoto() const {

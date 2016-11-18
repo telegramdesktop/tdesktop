@@ -1637,18 +1637,22 @@ HistoryItem *History::addNewInTheMiddle(HistoryItem *newItem, int32 blockIndex, 
 	t_assert(blockIndex >= 0);
 	t_assert(blockIndex < blocks.size());
 	t_assert(itemIndex >= 0);
-	t_assert(itemIndex <= blocks.at(blockIndex)->items.size());
+	t_assert(itemIndex <= blocks[blockIndex]->items.size());
 
-	HistoryBlock *block = blocks.at(blockIndex);
+	auto block = blocks.at(blockIndex);
 
 	newItem->attachToBlock(block, itemIndex);
 	block->items.insert(itemIndex, newItem);
 	newItem->previousItemChanged();
-	for (int i = itemIndex + 1, l = block->items.size(); i < l; ++i) {
-		block->items.at(i)->setIndexInBlock(i);
-	}
 	if (itemIndex + 1 < block->items.size()) {
-		block->items.at(itemIndex + 1)->previousItemChanged();
+		for (int i = itemIndex + 1, l = block->items.size(); i < l; ++i) {
+			block->items[i]->setIndexInBlock(i);
+		}
+		block->items[itemIndex + 1]->previousItemChanged();
+	} else if (blockIndex + 1 < blocks.size() && !blocks[blockIndex + 1]->items.empty()) {
+		blocks[blockIndex + 1]->items.front()->previousItemChanged();
+	} else {
+		newItem->nextItemChanged();
 	}
 
 	return newItem;
@@ -1666,14 +1670,18 @@ HistoryBlock *History::finishBuildingFrontBlock() {
 	t_assert(isBuildingFrontBlock());
 
 	// Some checks if there was some message history already
-	HistoryBlock *block = _buildingFrontBlock->block;
-	if (block && blocks.size() > 1) {
-		HistoryItem *last = block->items.back(); // ... item, item, item, last ], [ first, item, item ...
-		HistoryItem *first = blocks.at(1)->items.front();
+	auto block = _buildingFrontBlock->block;
+	if (block) {
+		if (blocks.size() > 1) {
+			auto last = block->items.back(); // ... item, item, item, last ], [ first, item, item ...
+			auto first = blocks.at(1)->items.front();
 
-		// we've added a new front block, so previous item for
-		// the old first item of a first block was changed
-		first->previousItemChanged();
+			// we've added a new front block, so previous item for
+			// the old first item of a first block was changed
+			first->previousItemChanged();
+		} else {
+			block->items.back()->nextItemChanged();
+		}
 	}
 
 	_buildingFrontBlock = nullptr;
@@ -2106,11 +2114,13 @@ void History::removeBlock(HistoryBlock *block) {
 
 	int index = block->indexInHistory();
 	blocks.removeAt(index);
-	for (int i = index, l = blocks.size(); i < l; ++i) {
-		blocks.at(i)->setIndexInHistory(i);
-	}
 	if (index < blocks.size()) {
+		for (int i = index, l = blocks.size(); i < l; ++i) {
+			blocks.at(i)->setIndexInHistory(i);
+		}
 		blocks.at(index)->items.front()->previousItemChanged();
+	} else if (!blocks.empty() && !blocks.back()->items.empty()) {
+		blocks.back()->items.back()->nextItemChanged();
 	}
 }
 
@@ -2176,6 +2186,8 @@ void HistoryBlock::removeItem(HistoryItem *item) {
 		items.at(itemIndex)->previousItemChanged();
 	} else if (blockIndex + 1 < history->blocks.size()) {
 		history->blocks.at(blockIndex + 1)->items.front()->previousItemChanged();
+	} else if (!history->blocks.empty() && !history->blocks.back()->items.empty()) {
+		history->blocks.back()->items.back()->nextItemChanged();
 	}
 
 	if (items.isEmpty()) {

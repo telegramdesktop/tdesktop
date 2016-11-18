@@ -412,3 +412,16 @@ mentionFg: #777777;
 mentionFgOver: #707070;
 mentionFgActive: #0080c0;
 mentionFgOverActive: #0077b3;
+
+historyDateFadeDuration: 200;
+
+historyPhotoLeft: 14px;
+historyMessageRadius: 6px;
+historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
+historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};
+historyBubbleTailOutLeft: icon {{ "bubble_tail", msgOutBg }};
+historyBubbleTailOutLeftSelected: icon {{ "bubble_tail", msgOutBgSelected }};
+historyBubbleTailInRight: icon {{ "bubble_tail-flip_horizontal", msgInBg }};
+historyBubbleTailInRightSelected: icon {{ "bubble_tail-flip_horizontal", msgInBgSelected }};
+historyBubbleTailOutRight: icon {{ "bubble_tail-flip_horizontal", msgOutBg }};
+historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOutBgSelected }};

@@ -999,17 +999,20 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message is attached to previous one when displaying the history
 	f_attach_to_previous = (1 << 25),
 
+	// message is attached to next one when displaying the history
+	f_attach_to_next = (1 << 24),
+
 	// message was sent from inline bot, need to re-set media when sent
-	f_from_inline_bot = (1 << 24),
+	f_from_inline_bot = (1 << 23),
 
 	// message has a switch inline keyboard button, need to return to inline
-	f_has_switch_inline_button = (1 << 23),
+	f_has_switch_inline_button = (1 << 22),
 
 	// message is generated on the client side and should be unread
-	f_clientside_unread = (1 << 22),
+	f_clientside_unread = (1 << 21),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 22),
+	MIN_FIELD = (1 << 21),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

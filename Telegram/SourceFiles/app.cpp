@@ -2198,6 +2198,7 @@ namespace {
 
 	int msgRadius() {
 		static int MsgRadius = ([]() {
+			return st::historyMessageRadius;
 			auto minMsgHeight = (st::msgPadding.top() + st::msgFont->height + st::msgPadding.bottom());
 			return minMsgHeight / 2;
 		})();

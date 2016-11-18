@@ -175,24 +175,29 @@ void HistoryInner::repaintItem(const HistoryItem *item) {
 }
 
 namespace {
-	// helper binary search for an item in a list that is not completely below the given bottom of the visible area
-	// is applied once for blocks list in a history and once for items list in the found block
-	template <typename T>
-	int binarySearchBlocksOrItems(const T &list, int bottom) {
-		int start = 0, end = list.size();
-		while (end - start > 1) {
-			int middle = (start + end) / 2;
-			if (list.at(middle)->y >= bottom) {
-				end = middle;
-			} else {
-				start = middle;
-			}
+
+// helper binary search for an item in a list that is not completely
+// above the given top of the visible area or below the given bottom of the visible area
+// is applied once for blocks list in a history and once for items list in the found block
+template <bool TopToBottom, typename T>
+int binarySearchBlocksOrItems(const T &list, int edge) {
+	auto start = 0, end = list.size();
+	while (end - start > 1) {
+		auto middle = (start + end) / 2;
+		auto top = list[middle]->y;
+		auto chooseLeft = (TopToBottom ? (top <= edge) : (top < edge));
+		if (chooseLeft) {
+			start = middle;
+		} else {
+			end = middle;
 		}
-		return start;
 	}
+	return start;
 }
 
-template <typename Method>
+} // namespace
+
+template <bool TopToBottom, typename Method>
 void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Method method) {
 	// no displayed messages in this history
 	if (historytop < 0 || history->isEmpty()) {
@@ -202,43 +207,82 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 		return;
 	}
 
+	auto searchEdge = TopToBottom ? _visibleAreaTop : _visibleAreaBottom;
+
 	// binary search for blockIndex of the first block that is not completely below the visible area
-	int blockIndex = binarySearchBlocksOrItems(history->blocks, _visibleAreaBottom - historytop);
+	auto blockIndex = binarySearchBlocksOrItems<TopToBottom>(history->blocks, searchEdge - historytop);
 
 	// binary search for itemIndex of the first item that is not completely below the visible area
-	HistoryBlock *block = history->blocks.at(blockIndex);
-	int blocktop = historytop + block->y;
-	int itemIndex = binarySearchBlocksOrItems(block->items, _visibleAreaBottom - blocktop);
+	auto block = history->blocks.at(blockIndex);
+	auto blocktop = historytop + block->y;
+	auto blockbottom = blocktop + block->height;
+	auto itemIndex = binarySearchBlocksOrItems<TopToBottom>(block->items, searchEdge - blocktop);
 
 	while (true) {
-		while (itemIndex >= 0) {
-			HistoryItem *item = block->items.at(itemIndex--);
-			int itemtop = blocktop + item->y;
-			int itembottom = itemtop + item->height();
+		while (true) {
+			auto item = block->items.at(itemIndex);
+			auto itemtop = blocktop + item->y;
+			auto itembottom = itemtop + item->height();
 
-			// binary search should've skipped all the items that are below the visible area
-			t_assert(itemtop < _visibleAreaBottom);
+			// binary search should've skipped all the items that are above / below the visible area
+			if (TopToBottom) {
+				t_assert(itembottom > _visibleAreaTop);
+			} else {
+				t_assert(itemtop < _visibleAreaBottom);
+			}
 
 			if (!method(item, itemtop, itembottom)) {
 				return;
 			}
 
-			// skip all the items that are above the visible area
-			if (itemtop <= _visibleAreaTop) {
+			// skip all the items that are below / above the visible area
+			if (TopToBottom) {
+				if (itembottom >= _visibleAreaBottom) {
+					return;
+				}
+			} else {
+				if (itemtop <= _visibleAreaTop) {
+					return;
+				}
+			}
+
+			if (TopToBottom) {
+				if (++itemIndex >= block->items.size()) {
+					break;
+				}
+			} else {
+				if (--itemIndex < 0) {
+					break;
+				}
+			}
+		}
+
+		// skip all the rest blocks that are below / above the visible area
+		if (TopToBottom) {
+			if (blockbottom >= _visibleAreaBottom) {
+				return;
+			}
+		} else {
+			if (blocktop <= _visibleAreaTop) {
 				return;
 			}
 		}
 
-		// skip all the rest blocks that are above the visible area
-		if (blocktop <= _visibleAreaTop) {
-			return;
-		}
-
-		if (--blockIndex < 0) {
-			return;
+		if (TopToBottom) {
+			if (++blockIndex >= history->blocks.size()) {
+				return;
+			}
 		} else {
-			block = history->blocks.at(blockIndex);
-			blocktop = historytop + block->y;
+			if (--blockIndex < 0) {
+				return;
+			}
+		}
+		block = history->blocks.at(blockIndex);
+		blocktop = historytop + block->y;
+		blockbottom = blocktop + block->height;
+		if (TopToBottom) {
+			itemIndex = 0;
+		} else {
 			itemIndex = block->items.size() - 1;
 		}
 	}
@@ -250,47 +294,48 @@ void HistoryInner::enumerateUserpics(Method method) {
 		return;
 	}
 
-	// find and remember the bottom of an attached messages pack
-	// -1 means we didn't find an attached to previous message yet
-	int lowestAttachedItemBottom = -1;
+	// find and remember the top of an attached messages pack
+	// -1 means we didn't find an attached to next message yet
+	int lowestAttachedItemTop = -1;
 
-	auto userpicCallback = [this, &lowestAttachedItemBottom, &method](HistoryItem *item, int itemtop, int itembottom) {
+	auto userpicCallback = [this, &lowestAttachedItemTop, &method](HistoryItem *item, int itemtop, int itembottom) {
 		// skip all service messages
 		auto message = item->toHistoryMessage();
 		if (!message) return true;
 
-		if (lowestAttachedItemBottom < 0 && message->isAttachedToPrevious()) {
-			lowestAttachedItemBottom = itembottom - message->marginBottom();
+		if (lowestAttachedItemTop < 0 && message->isAttachedToNext()) {
+			lowestAttachedItemTop = itemtop + message->marginTop();
 		}
 
 		// call method on a userpic for all messages that have it and for those who are not showing it
-		// because of their attachment to the previous message if they are top-most visible
-		if (message->displayFromPhoto() || (message->hasFromPhoto() && itemtop <= _visibleAreaTop)) {
-			if (lowestAttachedItemBottom < 0) {
-				lowestAttachedItemBottom = itembottom - message->marginBottom();
+		// because of their attachment to the next message if they are bottom-most visible
+		if (message->displayFromPhoto() || (message->hasFromPhoto() && itembottom >= _visibleAreaBottom)) {
+			if (lowestAttachedItemTop < 0) {
+				lowestAttachedItemTop = itemtop + message->marginTop();
 			}
-			// attach userpic to the top of the visible area with the same margin as it is from the left side
-			int userpicTop = qMax(itemtop + message->marginTop(), _visibleAreaTop + st::msgMargin.left());
+			// attach userpic to the bottom of the visible area with the same margin as the last message
+			auto userpicMinBottomSkip = st::historyPaddingBottom + st::msgMargin.bottom();
+			auto userpicBottom = qMin(itembottom - message->marginBottom(), _visibleAreaBottom - userpicMinBottomSkip);
 
-			// do not let the userpic go below the attached messages pack bottom line
-			userpicTop = qMin(userpicTop, lowestAttachedItemBottom - st::msgPhotoSize);
+			// do not let the userpic go above the attached messages pack top line
+			userpicBottom = qMax(userpicBottom, lowestAttachedItemTop + st::msgPhotoSize);
 
 			// call the template callback function that was passed
 			// and return if it finished everything it needed
-			if (!method(message, userpicTop)) {
+			if (!method(message, userpicBottom - st::msgPhotoSize)) {
 				return false;
 			}
 		}
 
-		// forget the found bottom of the pack, search for the next one from scratch
-		if (!message->isAttachedToPrevious()) {
-			lowestAttachedItemBottom = -1;
+		// forget the found top of the pack, search for the next one from scratch
+		if (!message->isAttachedToNext()) {
+			lowestAttachedItemTop = -1;
 		}
 
 		return true;
 	};
 
-	enumerateItems(userpicCallback);
+	enumerateItems<EnumItemsDirection::TopToBottom>(userpicCallback);
 }
 
 template <typename Method>
@@ -346,7 +391,7 @@ void HistoryInner::enumerateDates(Method method) {
 		return true;
 	};
 
-	enumerateItems(dateCallback);
+	enumerateItems<EnumItemsDirection::BottomToTop>(dateCallback);
 }
 
 void HistoryInner::paintEvent(QPaintEvent *e) {
@@ -494,13 +539,13 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		if (mtop >= 0 || htop >= 0) {
 			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) {
 				// stop the enumeration if the userpic is above the painted rect
-				if (userpicTop + st::msgPhotoSize <= r.top()) {
+				if (userpicTop >= r.top() + r.height()) {
 					return false;
 				}
 
 				// paint the userpic if it intersects the painted rect
-				if (userpicTop < r.top() + r.height()) {
-					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::msgMargin.left(), userpicTop, message->history()->width);
+				if (userpicTop + st::msgPhotoSize > r.top()) {
+					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::historyPhotoLeft, userpicTop, message->history()->width);
 				}
 				return true;
 			});
@@ -1704,7 +1749,7 @@ void HistoryInner::toggleScrollDateShown() {
 	_scrollDateShown = !_scrollDateShown;
 	auto from = _scrollDateShown ? 0. : 1.;
 	auto to = _scrollDateShown ? 1. : 0.;
-	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::historyAttach.duration);
+	_scrollDateOpacity.start([this] { repaintScrollDateCallback(); }, from, to, st::historyDateFadeDuration);
 }
 
 void HistoryInner::repaintScrollDateCallback() {
@@ -1975,7 +2020,7 @@ void HistoryInner::onUpdateSelected() {
 		}
 		dragState = item->getState(m.x(), m.y(), request);
 		lnkhost = item;
-		if (!dragState.link && m.x() >= st::msgMargin.left() && m.x() < st::msgMargin.left() + st::msgPhotoSize) {
+		if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
 			if (auto msg = item->toHistoryMessage()) {
 				if (msg->hasFromPhoto()) {
 					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {

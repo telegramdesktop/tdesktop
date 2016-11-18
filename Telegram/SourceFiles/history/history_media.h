@@ -168,6 +168,9 @@ public:
 	bool isBubbleBottom() const {
 		return (_inBubbleState == MediaInBubbleState::Bottom) || (_inBubbleState == MediaInBubbleState::None);
 	}
+	virtual bool skipBubbleTail() const {
+		return false;
+	}
 
 	// Sometimes click on media in message is overloaded by the messsage:
 	// (for example it can open a link or a game instead of opening media)

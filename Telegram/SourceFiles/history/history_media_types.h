@@ -172,6 +172,9 @@ public:
 	bool hideFromName() const override {
 		return true;
 	}
+	bool skipBubbleTail() const override {
+		return isBubbleBottom();
+	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
 	}
@@ -258,6 +261,9 @@ public:
 	}
 	bool hideFromName() const override {
 		return true;
+	}
+	bool skipBubbleTail() const override {
+		return isBubbleBottom();
 	}
 
 protected:
@@ -483,6 +489,9 @@ public:
 	}
 	bool hideFromName() const override {
 		return true;
+	}
+	bool skipBubbleTail() const override {
+		return isBubbleBottom();
 	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
@@ -880,6 +889,10 @@ public:
 	}
 	bool customInfoLayout() const override {
 		return true;
+	}
+
+	bool skipBubbleTail() const override {
+		return isBubbleBottom();
 	}
 
 private:

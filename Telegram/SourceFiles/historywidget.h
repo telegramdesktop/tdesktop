@@ -278,24 +278,32 @@ private:
 	HistoryItem *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
 
+	enum class EnumItemsDirection {
+		TopToBottom,
+		BottomToTop,
+	};
 	// this function finds all history items that are displayed and calls template method
-	// for each found message (from the bottom to the top) in the passed history with passed top offset
+	// for each found message (in given direction) in the passed history with passed top offset
 	//
 	// method has "bool (*Method)(HistoryItem *item, int itemtop, int itembottom)" signature
 	// if it returns false the enumeration stops immidiately
-	template <typename Method>
+	template <bool TopToBottom, typename Method>
 	void enumerateItemsInHistory(History *history, int historytop, Method method);
 
-	template <typename Method>
+	template <EnumItemsDirection direction, typename Method>
 	void enumerateItems(Method method) {
-		enumerateItemsInHistory(_history, historyTop(), method);
-		if (_migrated) {
-			enumerateItemsInHistory(_migrated, migratedTop(), method);
+		constexpr auto TopToBottom = (direction == EnumItemsDirection::TopToBottom);
+		if (TopToBottom && _migrated) {
+			enumerateItemsInHistory<TopToBottom>(_migrated, migratedTop(), method);
+		}
+		enumerateItemsInHistory<TopToBottom>(_history, historyTop(), method);
+		if (!TopToBottom && _migrated) {
+			enumerateItemsInHistory<TopToBottom>(_migrated, migratedTop(), method);
 		}
 	}
 
 	// this function finds all userpics on the left that are displayed and calls template method
-	// for each found userpic (from the bottom to the top) using enumerateItems() method
+	// for each found userpic (from the top to the bottom) using enumerateItems() method
 	//
 	// method has "bool (*Method)(HistoryMessage *message, int userpicTop)" signature
 	// if it returns false the enumeration stops immidiately

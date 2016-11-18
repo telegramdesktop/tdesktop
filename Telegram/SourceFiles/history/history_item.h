@@ -652,7 +652,9 @@ public:
 	virtual bool hasBubble() const {
 		return false;
 	}
-	virtual void previousItemChanged();
+
+	void previousItemChanged();
+	void nextItemChanged();
 
 	virtual TextWithEntities selectedText(TextSelection selection) const {
 		return { qsl("[-]"), EntitiesInText() };
@@ -845,6 +847,9 @@ public:
 	bool isAttachedToPrevious() const {
 		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
 	}
+	bool isAttachedToNext() const {
+		return _flags & MTPDmessage_ClientFlag::f_attach_to_next;
+	}
 	bool displayDate() const {
 		return Has<HistoryMessageDate>();
 	}
@@ -909,15 +914,19 @@ protected:
 		return nullptr;
 	}
 
-	// this should be used only in previousItemChanged()
+	// this should be called only from previousItemChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
 	void recountDisplayDate();
 
-	// this should be used only in previousItemChanged() or when
+	// this should be called only from previousItemChanged() or when
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
 	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous
 	void recountAttachToPrevious();
+
+	// this should be called only recountAttachToPrevious() of the next item
+	// or when the next item is removed through nextItemChanged() call
+	void setAttachToNext(bool attachToNext);
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();

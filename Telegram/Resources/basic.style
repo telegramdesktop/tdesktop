@@ -79,7 +79,7 @@ linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);
 
-dateRadius: 10px;
+dateRadius: 6px;
 buttonRadius: 3px;
 
 lnkText: #0f7dc7;
@@ -104,8 +104,8 @@ msgMinWidth: 190px;
 msgPhotoSize: 33px;
 msgPhotoSkip: 40px;
 msgPadding: margins(13px, 7px, 13px, 8px);
-msgMargin: margins(13px, 10px, 53px, 2px);
-msgMarginTopAttached: 3px;
+msgMargin: margins(16px, 6px, 56px, 2px);
+msgMarginTopAttached: 1px;
 msgLnkPadding: 2px; // for media open / save links
 msgBorder: #f0f0f0;
 msgInBg: #ffffff;
