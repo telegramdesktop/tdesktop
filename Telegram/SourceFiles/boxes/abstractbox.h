@@ -35,9 +35,6 @@ class AbstractBox : public LayerWidget, protected base::Subscriber {
 public:
 	AbstractBox(int w = 0);
 	void parentResized() override;
-	void showDone() override {
-		showAll();
-	}
 
 	void setBlockTitle(bool block);
 	void raiseShadow();
@@ -58,8 +55,6 @@ protected:
 	void resizeMaxHeight(int32 newWidth, int32 maxHeight);
 
 	virtual void closePressed() {
-	}
-	virtual void showAll() {
 	}
 
 private:

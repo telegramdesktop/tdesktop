@@ -23,6 +23,8 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
+boxDuration: 200;
+
 boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton {
 	textFg: #2f9fea;
@@ -297,15 +299,8 @@ contactsMultiSelect: MultiSelect {
 	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: IconButton {
-		width: 41px;
-		height: 48px;
-
-		icon: boxSearchCancelIcon;
-		iconOver: boxSearchCancelIconOver;
-		iconPosition: point(8px, 18px);
-	}
-	fieldCancelSkip: 34px;
+	fieldCancel: boxBlockTitleClose;
+	fieldCancelSkip: 40px;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;

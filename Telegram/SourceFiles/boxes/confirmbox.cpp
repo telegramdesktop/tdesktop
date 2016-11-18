@@ -145,15 +145,6 @@ void ConfirmBox::closePressed() {
 	emit cancelled();
 }
 
-void ConfirmBox::showAll() {
-	if (_informative) {
-		_confirm->show();
-	} else {
-		_confirm->show();
-		_cancel->show();
-	}
-}
-
 void ConfirmBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onConfirmPressed();
@@ -269,10 +260,6 @@ void MaxInviteBox::step_good(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void MaxInviteBox::showAll() {
-	_close->show();
-}
-
 void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;
@@ -362,11 +349,6 @@ bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
 	return true;
 }
 
-void ConvertToSupergroupBox::showAll() {
-	_convert->show();
-	_cancel->show();
-}
-
 void ConvertToSupergroupBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onConvert();
@@ -425,13 +407,6 @@ void PinMessageBox::onPin() {
 		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
 	}
 	_requestId = MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(flags), _channel->inputChannel, MTP_int(_msgId)), rpcDone(&PinMessageBox::pinDone), rpcFail(&PinMessageBox::pinFail));
-}
-
-void PinMessageBox::showAll() {
-	_text->show();
-	_notify->show();
-	_pin->show();
-	_cancel->show();
 }
 
 void PinMessageBox::pinDone(const MTPUpdates &updates) {
@@ -497,15 +472,6 @@ void RichDeleteMessageBox::onDelete() {
 		}
 	}
 	Ui::hideLayer();
-}
-
-void RichDeleteMessageBox::showAll() {
-	_text->show();
-	_banUser->show();
-	_reportSpam->show();
-	_deleteAll->show();
-	_delete->show();
-	_cancel->show();
 }
 
 KickMemberBox::KickMemberBox(PeerData *chat, UserData *member)
@@ -598,8 +564,4 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 		user->paintUserpicLeft(p, st::confirmInviteUserPhotoSize, left + (_userWidth - st::confirmInviteUserPhotoSize) / 2, st::confirmInviteUserPhotoTop, width());
 		left += _userWidth;
 	}
-}
-
-void ConfirmInviteBox::showAll() {
-	showChildren();
 }

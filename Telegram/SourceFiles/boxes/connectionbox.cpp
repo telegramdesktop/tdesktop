@@ -55,15 +55,12 @@ ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
 	connect(_userInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_passwordInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
+	updateControlsVisibility();
+
 	prepare();
 }
 
-void ConnectionBox::showAll() {
-	_autoRadio->show();
-	_httpProxyRadio->show();
-	_tcpProxyRadio->show();
-	_tryIPv6->show();
-
+void ConnectionBox::updateControlsVisibility() {
 	int32 h = titleHeight() + st::boxOptionListPadding.top() + _autoRadio->height() + st::boxOptionListPadding.top() + _httpProxyRadio->height() + st::boxOptionListPadding.top() + _tcpProxyRadio->height() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6->height() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
 		h += 2 * st::boxOptionListPadding.top() + 2 * _hostInput->height();
@@ -77,9 +74,6 @@ void ConnectionBox::showAll() {
 		_userInput->hide();
 		_passwordInput->hide();
 	}
-
-	_save->show();
-	_cancel->show();
 
 	setMaxHeight(h);
 	resizeEvent(0);
@@ -130,7 +124,7 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 }
 
 void ConnectionBox::onChange() {
-	showAll();
+	updateControlsVisibility();
 	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
 		_hostInput->setFocus();
 		if (_httpProxyRadio->checked() && !_portInput->getLastText().toInt()) {
@@ -233,19 +227,6 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	prepare();
-}
-
-void AutoDownloadBox::showAll() {
-	_photoPrivate->show();
-	_photoGroups->show();
-	_audioPrivate->show();
-	_audioGroups->show();
-	_gifPrivate->show();
-	_gifGroups->show();
-	_gifPlay->show();
-
-	_save->show();
-	_cancel->show();
 }
 
 void AutoDownloadBox::paintEvent(QPaintEvent *e) {

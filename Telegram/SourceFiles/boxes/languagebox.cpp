@@ -66,13 +66,6 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	prepare();
 }
 
-void LanguageBox::showAll() {
-	_close->show();
-	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
-		_langs[i]->show();
-	}
-}
-
 void LanguageBox::mousePressEvent(QMouseEvent *e) {
 	if ((e->modifiers() & Qt::CTRL) && (e->modifiers() & Qt::ALT) && (e->modifiers() & Qt::SHIFT)) {
 		for (int32 i = 1; i < languageCount; ++i) {

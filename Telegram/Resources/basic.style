@@ -315,10 +315,6 @@ searchedBarBG: #ebeef1;
 searchedBarBorder: unreadBarBorder;
 searchedBarColor: #a2aeb7;
 
-layerSlideDuration: 200;
-layerHideDuration: 200;
-layerPadding: margins(10px, 10px, 10px, 10px);
-
 simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
 dialogsForwardCancelIcon: icon {{ "simple_close", dialogsForwardFg }};

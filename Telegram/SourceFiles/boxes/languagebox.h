@@ -42,8 +42,6 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAll() override;
-
 private:
 	QVector<Ui::Radiobutton*> _langs;
 	ChildWidget<Ui::RoundButton> _close;

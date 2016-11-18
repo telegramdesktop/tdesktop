@@ -44,8 +44,6 @@ protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
 
-	void showAll() override;
-
 private:
 	ChildWidget<Ui::LinkButton> _version;
 	ChildWidget<Ui::FlatLabel> _text1;

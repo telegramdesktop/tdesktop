@@ -55,13 +55,6 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	prepare();
 }
 
-void AutoLockBox::showAll() {
-	_close->show();
-	for (int32 i = 0, l = _options.size(); i < l; ++i) {
-		_options[i]->show();
-	}
-}
-
 void AutoLockBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	if (paint(p)) return;

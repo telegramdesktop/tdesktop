@@ -55,16 +55,9 @@ _about(st::boxWidth - st::usernamePadding.left()) {
 	_checkTimer.setSingleShot(true);
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
-	prepare();
-}
-
-void UsernameBox::showAll() {
-	_username->show();
-	_save->show();
-	_cancel->show();
 	updateLinkText();
 
-	AbstractBox::showAll();
+	prepare();
 }
 
 void UsernameBox::doSetInnerFocus() {

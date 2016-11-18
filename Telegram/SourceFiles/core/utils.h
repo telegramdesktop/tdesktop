@@ -56,6 +56,31 @@ inline constexpr D up_cast(T object) {
 	return internal::up_cast_helper<D>(std_::integral_constant<bool, std_::is_base_of<DV, TV>::value || std_::is_same<DV, TV>::value>(), object);
 }
 
+template <typename Lambda>
+class scope_guard_helper {
+public:
+	scope_guard_helper(Lambda on_scope_exit) : _handler(std_::move(on_scope_exit)) {
+	}
+	void dismiss() {
+		_dismissed = true;
+	}
+	~scope_guard_helper() {
+		if (!_dismissed) {
+			_handler();
+		}
+	}
+
+private:
+	Lambda _handler;
+	bool _dismissed = false;
+
+};
+
+template <typename Lambda>
+scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
+	return scope_guard_helper<Lambda>(std_::move(on_scope_exit));
+}
+
 } // namespace base
 
 template <typename Enum>

@@ -57,6 +57,7 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 	connect(_inner, SIGNAL(installed(uint64)), this, SLOT(onInstalled(uint64)));
 
 	onStickersUpdated();
+	updateControlsVisibility();
 
 	onScroll();
 
@@ -69,7 +70,7 @@ void StickerSetBox::onInstalled(uint64 setId) {
 }
 
 void StickerSetBox::onStickersUpdated() {
-	showAll();
+	updateControlsVisibility();
 }
 
 void StickerSetBox::onAddStickers() {
@@ -84,7 +85,7 @@ void StickerSetBox::onShareStickers() {
 
 void StickerSetBox::onUpdateButtons() {
 	if (!_cancel->isHidden() || !_done->isHidden()) {
-		showAll();
+		updateControlsVisibility();
 	}
 }
 
@@ -94,9 +95,7 @@ void StickerSetBox::onScroll() {
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + scroll->height());
 }
 
-void StickerSetBox::showAll() {
-	ScrollableBox::showAll();
-	int32 cnt = _inner->notInstalled();
+void StickerSetBox::updateControlsVisibility() {
 	if (_inner->loaded()) {
 		_shadow.show();
 		if (_inner->notInstalled()) {

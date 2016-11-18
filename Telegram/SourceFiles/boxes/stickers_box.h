@@ -62,7 +62,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void closePressed() override;
-	void showAll() override;
 
 private:
 	void setup();

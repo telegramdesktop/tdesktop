@@ -44,9 +44,8 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
-
 private:
+	void updateControlsVisibility();
 	void setPathText(const QString &text);
 
 	QString _path;

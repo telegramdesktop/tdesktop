@@ -48,9 +48,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAll() override;
-
 private:
+	void setLoading(bool loading);
 	struct Data {
 		uint64 hash;
 
@@ -69,7 +68,7 @@ private:
 
 	class Inner;
 	ChildWidget<Inner> _inner;
-	ScrollableBoxShadow _shadow;
+	ChildWidget<ScrollableBoxShadow> _shadow;
 	ChildWidget<Ui::RoundButton> _done;
 
 	SingleTimer _shortPollTimer;

@@ -53,7 +53,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
@@ -104,7 +103,6 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
@@ -165,7 +163,6 @@ protected:
 	void leaveEvent(QEvent *e) override;
 
 	void closePressed() override;
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
@@ -226,7 +223,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
@@ -270,7 +266,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:

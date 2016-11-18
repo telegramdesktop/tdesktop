@@ -90,14 +90,6 @@ void AddContactBox::initBox() {
 	prepare();
 }
 
-void AddContactBox::showAll() {
-	_first->show();
-	_last->show();
-	_phone->show();
-	_save->show();
-	_cancel->show();
-}
-
 void AddContactBox::doSetInnerFocus() {
 	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
 		(_invertOrder ? _last : _first)->setFocus();
@@ -230,10 +222,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		Notify::userIsContactChanged(user, true);
 		Ui::hideLayer();
 	} else {
-		_save->hide();
-		_first->hide();
-		_last->hide();
-		_phone->hide();
+		hideChildren();
 		_retry->show();
 		resizeEvent(0);
 		update();
@@ -249,10 +238,9 @@ void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
 void AddContactBox::onRetry() {
 	_addRequest = 0;
 	_contactId = 0;
-	_save->show();
+	showChildren();
 	_retry->hide();
 	resizeEvent(0);
-	showAll();
 	_first->setText(QString());
 	_first->updatePlaceholder();
 	_last->setText(QString());
@@ -280,6 +268,7 @@ _creationRequestId(0), _createdChannel(0) {
 
 	_description->setMaxLength(MaxChannelDescription);
 	_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
+	_description->setVisible(_creating == CreatingGroupChannel);
 
 	updateMaxHeight();
 	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
@@ -296,17 +285,6 @@ _creationRequestId(0), _createdChannel(0) {
 	});
 
 	prepare();
-}
-
-void GroupInfoBox::showAll() {
-	_title->show();
-	if (_creating == CreatingGroupChannel) {
-		_description->show();
-	} else {
-		_description->hide();
-	}
-	_cancel->show();
-	_next->show();
 }
 
 void GroupInfoBox::doSetInnerFocus() {
@@ -554,6 +532,7 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 	connect(_skip, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
+	_link->setVisible(_public->checked());
 
 	_checkTimer.setSingleShot(true);
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
@@ -562,18 +541,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 	connect(_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
 
 	prepare();
-}
-
-void SetupChannelBox::showAll() {
-	_public->show();
-	_private->show();
-	if (_public->checked()) {
-		_link->show();
-	} else {
-		_link->hide();
-	}
-	_save->show();
-	_skip->show();
 }
 
 void SetupChannelBox::doSetInnerFocus() {
@@ -937,19 +904,9 @@ _invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
 
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+	_last->setVisible(!_peer->isChat());
 
 	prepare();
-}
-
-void EditNameTitleBox::showAll() {
-	_first->show();
-	if (_peer->isChat()) {
-		_last->hide();
-	} else {
-		_last->show();
-	}
-	_save->show();
-	_cancel->show();
 }
 
 void EditNameTitleBox::doSetInnerFocus() {
@@ -1109,25 +1066,10 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
+	_publicLink->setVisible(_channel->canEditUsername());
+	_sign->setVisible(!_channel->isMegagroup());
 
 	prepare();
-}
-
-void EditChannelBox::showAll() {
-	_title->show();
-	_description->show();
-	_save->show();
-	_cancel->show();
-	if (_channel->canEditUsername()) {
-		_publicLink->show();
-	} else {
-		_publicLink->hide();
-	}
-	if (_channel->isMegagroup()) {
-		_sign->hide();
-	} else {
-		_sign->show();
-	}
 }
 
 void EditChannelBox::doSetInnerFocus() {

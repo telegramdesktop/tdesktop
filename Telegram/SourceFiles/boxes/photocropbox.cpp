@@ -304,8 +304,3 @@ void PhotoCropBox::onSend() {
 void PhotoCropBox::onReady(const QImage &tosend) {
 	App::app()->uploadProfilePhoto(tosend, _peerId);
 }
-
-void PhotoCropBox::showAll() {
-	_done->show();
-	_cancel->show();
-}

@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 
 SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
-, _loading(true)
+, _loading(false)
 , _inner(this, &_list, &_current)
 , _shadow(this)
 , _done(this, lang(lng_about_done), st::defaultBoxButton)
@@ -49,27 +49,25 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 	init(_inner, st::boxButtonPadding.bottom() + _done->height() + st::boxButtonPadding.top(), titleHeight());
 	_inner->resize(width(), st::noContactsHeight);
 
+	setLoading(true);
+
 	prepare();
 
 	MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
 }
 
-void SessionsBox::resizeEvent(QResizeEvent *e) {
-	ScrollableBox::resizeEvent(e);
-	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _done->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
-	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
+void SessionsBox::setLoading(bool loading) {
+	if (_loading != loading) {
+		_loading = loading;
+		scrollArea()->setVisible(!_loading);
+		_shadow->setVisible(!_loading);
+	}
 }
 
-void SessionsBox::showAll() {
-	_done->show();
-	if (_loading) {
-		scrollArea()->hide();
-		_shadow.hide();
-	} else {
-		scrollArea()->show();
-		_shadow.show();
-	}
-	ScrollableBox::showAll();
+void SessionsBox::resizeEvent(QResizeEvent *e) {
+	ScrollableBox::resizeEvent(e);
+	_shadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _done->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
+	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
 }
 
 void SessionsBox::paintEvent(QPaintEvent *e) {
@@ -80,28 +78,33 @@ void SessionsBox::paintEvent(QPaintEvent *e) {
 	p.translate(0, titleHeight());
 
 	if (_loading) {
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	}
 }
 
 void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
-	_loading = false;
 	_shortPollRequest = 0;
+	setLoading(false);
 
-	int32 availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
-	int32 availOther = availCurrent - st::sessionTerminate.iconPosition.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
+	auto availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
+	auto availOther = availCurrent - st::sessionTerminate.iconPosition.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
 
 	_list.clear();
-	const auto &v(result.c_account_authorizations().vauthorizations.c_vector().v);
-	int32 l = v.size();
-	if (l > 1) _list.reserve(l - 1);
+	if (result.type() != mtpc_account_authorizations) {
+		return;
+	}
+	auto &v = result.c_account_authorizations().vauthorizations.c_vector().v;
+	_list.reserve(v.size());
 
 	const CountriesByISO2 &countries(countriesByISO2());
 
-	for (int32 i = 0; i < l; ++i) {
-		const auto &d(v.at(i).c_authorization());
+	for_const (auto &auth, v) {
+		if (auth.type() != mtpc_authorization) {
+			continue;
+		}
+		auto &d = auth.c_authorization();
 		Data data;
 		data.hash = d.vhash.v;
 
@@ -195,30 +198,20 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		}
 	}
 	_inner->listUpdated();
-	if (!_done->isHidden()) {
-		showAll();
-		update();
-	}
+
+	update();
 
 	_shortPollTimer.start(SessionsShortPollTimeout);
 }
 
 void SessionsBox::onOneTerminated() {
-	if (_list.isEmpty()) {
-		if (!_done->isHidden()) {
-			showAll();
-			update();
-		}
-	}
+	update();
 }
 
 void SessionsBox::onShortPollAuthorizations() {
 	if (!_shortPollRequest) {
 		_shortPollRequest = MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
-		if (!_done->isHidden()) {
-			showAll();
-			update();
-		}
+		update();
 	}
 }
 
@@ -236,11 +229,7 @@ void SessionsBox::onAllTerminated() {
 }
 
 void SessionsBox::onTerminateAll() {
-	_loading = true;
-	if (!_done->isHidden()) {
-		showAll();
-		update();
-	}
+	setLoading(true);
 }
 
 SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : TWidget(parent)

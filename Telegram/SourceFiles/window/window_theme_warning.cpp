@@ -141,7 +141,7 @@ void WarningWidget::startAnimation(bool hiding) {
 				_hiddenCallback();
 			}
 		}
-	}, _hiding ? 1. : 0., _hiding ? 0. : 1., st::layerSlideDuration);
+	}, _hiding ? 1. : 0., _hiding ? 0. : 1., st::boxDuration);
 }
 
 } // namespace Theme

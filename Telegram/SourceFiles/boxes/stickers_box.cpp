@@ -488,20 +488,6 @@ void StickersBox::onSave() {
 	}
 }
 
-void StickersBox::showAll() {
-	if (_topShadow) {
-		_topShadow->show();
-	}
-	if (_save) {
-		_save->show();
-	}
-	if (_cancel) {
-		_cancel->show();
-		_bottomShadow->show();
-	}
-	ItemListBox::showAll();
-}
-
 StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidget(parent)
 , _section(section)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())

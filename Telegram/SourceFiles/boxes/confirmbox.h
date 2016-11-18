@@ -69,7 +69,6 @@ protected:
 	void leaveEvent(QEvent *e) override;
 
 	void closePressed() override;
-	void showAll() override;
 
 private slots:
 	void onConfirmPressed();
@@ -163,8 +162,6 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
-	void showAll() override;
-
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	void step_good(float64 ms, bool timer);
@@ -200,8 +197,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
-
 private:
 	void convertDone(const MTPUpdates &updates);
 	bool convertFail(const RPCError &error);
@@ -226,8 +221,6 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
 
 private:
 	void pinDone(const MTPUpdates &updates);
@@ -257,8 +250,6 @@ public slots:
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
 
 private:
 	ChannelData *_channel;
@@ -299,8 +290,6 @@ public:
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-
-	void showAll() override;
 
 private:
 	ChildWidget<Ui::FlatLabel> _title;

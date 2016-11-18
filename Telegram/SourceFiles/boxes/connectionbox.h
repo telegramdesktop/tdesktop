@@ -46,10 +46,11 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
+	void updateControlsVisibility();
+
 	ChildWidget<Ui::InputField> _hostInput;
 	ChildWidget<Ui::PortInput> _portInput;
 	ChildWidget<Ui::InputField> _userInput;
@@ -76,8 +77,6 @@ public slots:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
 
 private:
 	ChildWidget<Ui::Checkbox> _photoPrivate;

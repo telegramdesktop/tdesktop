@@ -134,7 +134,11 @@ void ContactsBox::init() {
 		}
 		updateScrollSkips();
 	});
-
+	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins && _inner->allAdmins()) {
+		_select->hideFast();
+	} else {
+		_select->showFast();
+	}
 	if (_inner->channel() && _inner->membersFilter() == MembersFilter::Admins) {
 		_next->hide();
 		_cancel->hide();
@@ -237,30 +241,6 @@ bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
 		_peopleFull = true;
 	}
 	return true;
-}
-
-void ContactsBox::showAll() {
-	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins && _inner->allAdmins()) {
-		_select->hideFast();
-	} else {
-		_select->showFast();
-	}
-	if (_inner->channel() && _inner->membersFilter() == MembersFilter::Admins) {
-		_next->hide();
-		_cancel->hide();
-	} else if (_inner->chat() || _inner->channel()) {
-		_next->show();
-		_cancel->show();
-	} else if (_inner->creating() != CreatingGroupNone) {
-		_next->show();
-		_cancel->show();
-	} else {
-		_next->hide();
-		_cancel->hide();
-	}
-	_topShadow->show();
-	if (_bottomShadow) _bottomShadow->show();
-	ItemListBox::showAll();
 }
 
 void ContactsBox::doSetInnerFocus() {

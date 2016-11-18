@@ -33,7 +33,7 @@ public:
 	using TWidget::TWidget;
 
 	virtual void parentResized() = 0;
-	virtual void showDone() {
+	virtual void showFinished() {
 	}
 	void setInnerFocus();
 
@@ -65,55 +65,63 @@ class LayerStackWidget : public TWidget {
 public:
 	LayerStackWidget(QWidget *parent);
 
-	void showFast();
+	void finishAnimation();
 
-	void showLayer(LayerWidget *l);
-	void showSpecialLayer(LayerWidget *l);
+	void showLayer(LayerWidget *layer);
+	void showSpecialLayer(LayerWidget *layer);
 	void showMainMenu();
-	void appendLayer(LayerWidget *l);
-	void prependLayer(LayerWidget *l);
+	void appendLayer(LayerWidget *layer);
+	void prependLayer(LayerWidget *layer);
 
 	bool canSetFocus() const;
 	void setInnerFocus();
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	void onCloseCurrent();
-	void onCloseLayers();
-	void onClose();
+	void hideLayers();
+	void hideAll();
 
 	~LayerStackWidget();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private slots:
 	void onLayerDestroyed(QObject *obj);
-	void onLayerClosed(LayerWidget *l);
+	void onLayerClosed(LayerWidget *layer);
 	void onLayerResized();
 
 private:
+	void showFinished();
+	void hideCurrent();
+
+	enum class Action {
+		ShowMainMenu,
+		ShowSpecialLayer,
+		ShowLayer,
+		HideLayer,
+		HideAll,
+	};
+	template <typename SetupNew, typename ClearOld>
+	void startAnimation(SetupNew setupNewWidgets, ClearOld clearOldWidgets, Action action);
+
+	void prepareForAnimation();
+	void animationDone();
+
+	void setCacheImages();
 	void clearLayers();
-	void initChildLayer(LayerWidget *l);
-	void activateLayer(LayerWidget *l);
-	void updateLayerBox();
+	void initChildLayer(LayerWidget *layer);
+	void updateLayerBoxes();
 	void fixOrder();
 	void sendFakeMouseEvent();
 
-	void startShow();
-	void startHide();
-	void startAnimation(float64 toOpacity);
-
-	void step_background(float64 ms, bool timer);
-
-	LayerWidget *layer() {
+	LayerWidget *currentLayer() {
 		return _layers.empty() ? nullptr : _layers.back();
 	}
-	const LayerWidget *layer() const {
-		return const_cast<LayerStackWidget*>(this)->layer();
+	const LayerWidget *currentLayer() const {
+		return const_cast<LayerStackWidget*>(this)->currentLayer();
 	}
 
 	using Layers = QList<LayerWidget*>;
@@ -124,16 +132,6 @@ private:
 
 	class BackgroundWidget;
 	ChildWidget<BackgroundWidget> _background;
-
-	anim::fvalue a_bg, a_layer;
-	Animation _a_background;
-
-	QPixmap _layerCache;
-	QRect _layerCacheBox;
-	QPixmap _hiddenSpecialLayerCache;
-	QRect _hiddenSpecialLayerCacheBox;
-
-	bool _hiding = false;
 
 };
 

@@ -246,12 +246,6 @@ void CountrySelectBox::resizeEvent(QResizeEvent *e) {
 	_topShadow.setGeometry(0, titleHeight() + _select->height(), width(), st::lineWidth);
 }
 
-void CountrySelectBox::showAll() {
-	_select->show();
-	_topShadow.show();
-	ItemListBox::showAll();
-}
-
 void CountrySelectBox::onFilterUpdate(const QString &query) {
 	scrollArea()->scrollToY(0);
 	_inner->updateFilter(query);

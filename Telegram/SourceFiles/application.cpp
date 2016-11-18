@@ -834,7 +834,7 @@ void AppClass::cancelPhotoUpdate(const PeerId &peer) {
 
 void AppClass::mtpPause() {
 	MTP::pause();
-	_mtpUnpauseTimer.start(st::layerSlideDuration * 2);
+	_mtpUnpauseTimer.start(st::slideDuration * 2);
 }
 
 void AppClass::mtpUnpause() {

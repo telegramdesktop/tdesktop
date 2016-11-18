@@ -37,178 +37,315 @@ constexpr int kStickerPreviewEmojiLimit = 10;
 
 } // namespace
 
-void LayerWidget::setInnerFocus() {
-	auto focused = App::wnd()->focusWidget();
-	if (!isAncestorOf(focused)) {
-		doSetInnerFocus();
-	}
-}
-
 class LayerStackWidget::BackgroundWidget : public TWidget {
 public:
 	BackgroundWidget(QWidget *parent) : TWidget(parent)
 	, _shadow(st::boxShadow) {
 	}
 
-	void setBodyCache(QPixmap &&bodyCache) {
-		_bodyCache = std_::move(bodyCache);
+	void setDoneCallback(base::lambda_unique<void()> callback) {
+		_doneCallback = std_::move(callback);
 	}
-	void setMainMenuCache(QPixmap &&mainMenuCache) {
-		_mainMenuCache = std_::move(mainMenuCache);
-		if (!_mainMenuCache.isNull()) {
-			_mainMenuWidth = _mainMenuCache.width() / cIntRetinaFactor();
-			_mainMenuRight = 0;
-		}
-	}
-	void setMainMenuRight(int right) {
-		_mainMenuRight = right;
-	}
-	void setLayerBox(const QRect &box, const QRect &hiddenSpecialBox) {
-		_box = box;
-		_hiddenSpecialBox = hiddenSpecialBox;
-		update();
-	}
-	void setOpacity(float64 opacity) {
-		_opacity = opacity;
+
+	void setLayerBoxes(const QRect &specialLayerBox, const QRect &layerBox);
+	void setCacheImages(QPixmap &&bodyCache, QPixmap &&mainMenuCache, QPixmap &&specialLayerCache, QPixmap &&layerCache);
+	void startAnimation(Action action);
+	void finishAnimation();
+
+	bool animating() const {
+		return _a_mainMenuShown.animating() || _a_specialLayerShown.animating() || _a_layerShown.animating();
 	}
 
 protected:
-	void paintEvent(QPaintEvent *e) override {
-		Painter p(this);
-
-		auto hasMainMenuCache = !_mainMenuCache.isNull();
-		if (hasMainMenuCache || _mainMenuRight) {
-			auto boxLeft = _mainMenuRight;
-			auto cacheWidth = boxLeft * cIntRetinaFactor();
-			if (left > 0 && hasMainMenuCache) {
-				p.drawPixmapLeft(0, 0, width(), _mainMenuCache, rtlrect(_mainMenuCache.width() - cacheWidth, 0, cacheWidth, height() * cIntRetinaFactor(), _mainMenuCache.width()));
-			}
-			if (!_bodyCache.isNull()) {
-				p.drawPixmapLeft(boxLeft, 0, width(), _bodyCache, rtlrect(cacheWidth, 0, _bodyCache.width() - cacheWidth, height() * cIntRetinaFactor(), _bodyCache.width() - cacheWidth));
-			}
-			_shadow.paint(p, QRect(0, 0, boxLeft, height()), 0, Ui::RectShadow::Side::Right);
-
-			p.setOpacity(_opacity);
-			p.fillRect(myrtlrect(boxLeft, 0, width() - boxLeft, height()), st::layerBg);
-			return;
-		}
-		if (!_bodyCache.isNull()) {
-			p.drawPixmap(0, 0, _bodyCache);
-		}
-		p.setOpacity(_opacity);
-		if (_box.isNull()) {
-			p.fillRect(rect(), st::layerBg);
-		} else {
-			auto clip = QRegion(rect()) - _box;
-			for (auto &r : clip.rects()) {
-				p.fillRect(r, st::layerBg);
-			}
-			p.setClipRegion(clip);
-			_shadow.paint(p, _box, st::boxShadowShift);
-			if (!_hiddenSpecialBox.isNull()) {
-				p.setClipRegion(QRegion(rect()) - _hiddenSpecialBox);
-				_shadow.paint(p, _hiddenSpecialBox, st::boxShadowShift);
-			}
-		}
-	}
+	void paintEvent(QPaintEvent *e) override;
 
 private:
+	bool isShown() const {
+		return _mainMenuShown || _specialLayerShown || _layerShown;
+	}
+	void checkIfDone();
+	void setMainMenuShown(bool shown);
+	void setSpecialLayerShown(bool shown);
+	void setLayerShown(bool shown);
+	void checkWasShown(bool wasShown);
+	void animationCallback();
+
 	QPixmap _bodyCache;
 	QPixmap _mainMenuCache;
-	int _mainMenuWidth = 0;
-	int _mainMenuRight = 0;
+	QPixmap _specialLayerCache;
+	QPixmap _layerCache;
 
-	QRect _box, _hiddenSpecialBox;
-	float64 _opacity = 0.;
+	base::lambda_unique<void()> _doneCallback;
+
+	bool _wasAnimating = false;
+	bool _inPaintEvent = false;
+	FloatAnimation _a_shown;
+	FloatAnimation _a_mainMenuShown;
+	FloatAnimation _a_specialLayerShown;
+	FloatAnimation _a_layerShown;
 
 	Ui::RectShadow _shadow;
 
+	QRect _specialLayerBox, _specialLayerCacheBox;
+	QRect _layerBox, _layerCacheBox;
+	int _mainMenuRight = 0;
+
+	bool _mainMenuShown = false;
+	bool _specialLayerShown = false;
+	bool _layerShown = false;
+
 };
 
-LayerStackWidget::LayerStackWidget(QWidget *parent) : TWidget(parent)
-, _background(this)
-, a_bg(0)
-, a_layer(0)
-, _a_background(animation(this, &LayerStackWidget::step_background)) {
-	setGeometry(parentWidget()->rect());
-	hide();
+void LayerStackWidget::BackgroundWidget::setCacheImages(QPixmap &&bodyCache, QPixmap &&mainMenuCache, QPixmap &&specialLayerCache, QPixmap &&layerCache) {
+	_bodyCache = std_::move(bodyCache);
+	_mainMenuCache = std_::move(mainMenuCache);
+	_specialLayerCache = std_::move(specialLayerCache);
+	_layerCache = std_::move(layerCache);
+	_specialLayerCacheBox = _specialLayerBox;
+	_layerCacheBox = _layerBox;
+	setAttribute(Qt::WA_OpaquePaintEvent, !_bodyCache.isNull());
 }
 
-void LayerStackWidget::paintEvent(QPaintEvent *e) {
-	if (!layer() && !_specialLayer && _layerCache.isNull()) {
+void LayerStackWidget::BackgroundWidget::startAnimation(Action action) {
+	if (action == Action::ShowMainMenu) {
+		setMainMenuShown(true);
+	} else if (action != Action::HideLayer) {
+		setMainMenuShown(false);
+	}
+	if (action == Action::ShowSpecialLayer) {
+		setSpecialLayerShown(true);
+	} else if (action == Action::ShowMainMenu || action == Action::HideAll) {
+		setSpecialLayerShown(false);
+	}
+	if (action == Action::ShowLayer) {
+		setLayerShown(true);
+	} else {
+		setLayerShown(false);
+	}
+	_wasAnimating = true;
+	checkIfDone();
+}
+
+void LayerStackWidget::BackgroundWidget::checkIfDone() {
+	if (!_wasAnimating || _inPaintEvent || animating()) {
+		return;
+	}
+	_wasAnimating = false;
+	_bodyCache = _mainMenuCache = _specialLayerCache = _layerCache = QPixmap();
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
+	if (_doneCallback) {
+		_doneCallback();
+	}
+}
+
+void LayerStackWidget::BackgroundWidget::setMainMenuShown(bool shown) {
+	auto wasShown = isShown();
+	if (_mainMenuShown != shown) {
+		_mainMenuShown = shown;
+		_a_mainMenuShown.start([this] { animationCallback(); }, _mainMenuShown ? 0. : 1., _mainMenuShown ? 1. : 0., st::boxDuration, anim::easeOutCirc);
+	}
+	_mainMenuRight = _mainMenuShown ? (_mainMenuCache.width() / cIntRetinaFactor()) : 0;
+	checkWasShown(wasShown);
+}
+
+void LayerStackWidget::BackgroundWidget::setSpecialLayerShown(bool shown) {
+	auto wasShown = isShown();
+	if (_specialLayerShown != shown) {
+		_specialLayerShown = shown;
+		_a_specialLayerShown.start([this] { animationCallback(); }, _specialLayerShown ? 0. : 1., _specialLayerShown ? 1. : 0., st::boxDuration);
+	}
+	checkWasShown(wasShown);
+}
+
+void LayerStackWidget::BackgroundWidget::setLayerShown(bool shown) {
+	auto wasShown = isShown();
+	if (_layerShown != shown) {
+		_layerShown = shown;
+		_a_layerShown.start([this] { animationCallback(); }, _layerShown ? 0. : 1., _layerShown ? 1. : 0., st::boxDuration);
+	}
+	checkWasShown(wasShown);
+}
+
+void LayerStackWidget::BackgroundWidget::checkWasShown(bool wasShown) {
+	if (isShown() != wasShown) {
+		_a_shown.start([this] { animationCallback(); }, wasShown ? 1. : 0., wasShown ? 0. : 1., st::boxDuration, anim::easeOutCirc);
+	}
+}
+
+void LayerStackWidget::BackgroundWidget::setLayerBoxes(const QRect &specialLayerBox, const QRect &layerBox) {
+	_specialLayerBox = specialLayerBox;
+	_layerBox = layerBox;
+	update();
+}
+
+void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	_inPaintEvent = true;
+	auto guard = base::scope_guard([this] {
+		_inPaintEvent = false;
+		checkIfDone();
+	});
+
+	if (!_bodyCache.isNull()) {
+		p.drawPixmap(0, 0, _bodyCache);
+	}
+
+	auto specialLayerBox = _specialLayerCache.isNull() ? _specialLayerBox : _specialLayerCacheBox;
+	auto layerBox = _layerCache.isNull() ? _layerBox : _layerCacheBox;
+
+	auto ms = getms();
+	auto mainMenuProgress = _a_mainMenuShown.current(ms, -1);
+	auto mainMenuRight = (_mainMenuCache.isNull() || mainMenuProgress < 0) ? _mainMenuRight : (mainMenuProgress < 0) ? _mainMenuRight : anim::interpolate(0, _mainMenuCache.width() / cIntRetinaFactor(), mainMenuProgress);
+	if (mainMenuRight) {
+		if (!_specialLayerCache.isNull()) {
+			specialLayerBox.setX(specialLayerBox.x() + mainMenuRight / 2);
+		}
+		if (!_layerCache.isNull()) {
+			layerBox.setX(layerBox.x() + mainMenuRight / 2);
+		}
+	}
+	auto bgOpacity = _a_shown.current(ms, isShown() ? 1. : 0.);
+	auto specialLayerOpacity = _a_specialLayerShown.current(ms, _specialLayerShown ? 1. : 0.);
+	auto layerOpacity = _a_layerShown.current(ms, _layerShown ? 1. : 0.);
+	if (bgOpacity == 0.) {
 		return;
 	}
 
-	if (!_layerCache.isNull()) {
-		Painter p(this);
-		p.setClipRect(rect());
-		p.setOpacity(a_layer.current());
-		if (!_hiddenSpecialLayerCache.isNull()) {
-			p.drawPixmap(_hiddenSpecialLayerCacheBox.topLeft(), _hiddenSpecialLayerCache);
+	p.setOpacity(bgOpacity);
+	auto bg = myrtlrect(mainMenuRight, 0, width() - mainMenuRight, height());
+	p.fillRect(bg, st::layerBg);
+	if (mainMenuRight > 0) {
+		_shadow.paint(p, myrtlrect(0, 0, mainMenuRight, height()), 0, Ui::RectShadow::Side::Right);
+	}
+	if (!specialLayerBox.isEmpty()) {
+		p.setClipRegion(QRegion(bg) - specialLayerBox);
+		_shadow.paint(p, specialLayerBox, st::boxShadowShift);
+	}
+
+	p.setClipping(false);
+	if (!_specialLayerCache.isNull() && specialLayerOpacity > 0) {
+		p.setOpacity(specialLayerOpacity);
+		p.drawPixmap(specialLayerBox.topLeft(), _specialLayerCache);
+	}
+	if (!layerBox.isEmpty()) {
+		if (!_specialLayerCache.isNull()) {
+			p.setOpacity(layerOpacity * specialLayerOpacity);
+			p.setClipRegion(QRegion(specialLayerBox) - layerBox);
+			p.fillRect(specialLayerBox, st::layerBg);
 		}
-		p.drawPixmap(_layerCacheBox.topLeft(), _layerCache);
+		p.setOpacity(layerOpacity);
+		p.setClipRegion(QRegion(bg) - layerBox);
+		_shadow.paint(p, layerBox, st::boxShadowShift);
+		p.setClipping(false);
+	}
+	if (!_layerCache.isNull() && layerOpacity > 0) {
+		p.setOpacity(layerOpacity);
+		p.drawPixmap(layerBox.topLeft(), _layerCache);
+	}
+	if (!_mainMenuCache.isNull() && mainMenuRight > 0) {
+		p.setOpacity(1.);
+		auto shownWidth = mainMenuRight * cIntRetinaFactor();
+		auto shownRect = rtlrect(_mainMenuCache.width() - shownWidth, 0, shownWidth, _mainMenuCache.height(), _mainMenuCache.width());
+		p.drawPixmapLeft(0, 0, mainMenuRight, height(), width(), _mainMenuCache, shownRect);
+	}
+}
+
+void LayerStackWidget::BackgroundWidget::finishAnimation() {
+	_a_shown.finish();
+	_a_mainMenuShown.finish();
+	_a_specialLayerShown.finish();
+	_a_layerShown.finish();
+	checkIfDone();
+}
+
+void LayerStackWidget::BackgroundWidget::animationCallback() {
+	update();
+	checkIfDone();
+}
+
+LayerStackWidget::LayerStackWidget(QWidget *parent) : TWidget(parent)
+, _background(this) {
+	setGeometry(parentWidget()->rect());
+	hide();
+	_background->setDoneCallback([this] { animationDone(); });
+}
+
+void LayerWidget::setInnerFocus() {
+	if (!isAncestorOf(App::wnd()->focusWidget())) {
+		doSetInnerFocus();
 	}
 }
 
 void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		onCloseCurrent();
+		hideCurrent();
 	}
 }
 
 void LayerStackWidget::mousePressEvent(QMouseEvent *e) {
-	onCloseCurrent();
+	hideCurrent();
 }
 
-void LayerStackWidget::onCloseCurrent() {
-	if (layer()) {
-		onCloseLayers();
-	} else {
-		onClose();
-	}
+void LayerStackWidget::hideCurrent() {
+	return currentLayer() ? hideLayers() : hideAll();
 }
 
-void LayerStackWidget::onCloseLayers() {
-	if (_specialLayer) {
+void LayerStackWidget::hideLayers() {
+	startAnimation([] {}, [this] {
 		clearLayers();
-		fixOrder();
-		if (App::wnd()) App::wnd()->setInnerFocus();
-	} else {
-		onClose();
+	}, Action::HideLayer);
+}
+
+void LayerStackWidget::hideAll() {
+	startAnimation([] {}, [this] {
+		clearLayers();
+		_specialLayer.destroyDelayed();
+		_mainMenu.destroyDelayed();
+	}, Action::HideAll);
+}
+
+void LayerStackWidget::setCacheImages() {
+	auto bodyCache = QPixmap(), mainMenuCache = QPixmap();
+	if (isAncestorOf(App::wnd()->focusWidget())) {
+		setFocus();
 	}
+	if (_mainMenu) {
+		hideChildren();
+		bodyCache = myGrab(App::wnd()->bodyWidget());
+		showChildren();
+		mainMenuCache = myGrab(_mainMenu);
+	}
+	auto specialLayerCache = _specialLayer ? myGrab(_specialLayer) : QPixmap();
+	auto layerCache = QPixmap();
+	if (auto layer = currentLayer()) {
+		layerCache = myGrab(layer);
+	}
+	setAttribute(Qt::WA_OpaquePaintEvent, !bodyCache.isNull());
+	updateLayerBoxes();
+	_background->setCacheImages(std_::move(bodyCache), std_::move(mainMenuCache), std_::move(specialLayerCache), std_::move(layerCache));
 }
 
-void LayerStackWidget::onClose() {
-	startHide();
-}
-
-void LayerStackWidget::onLayerClosed(LayerWidget *l) {
-	l->deleteLater();
-	if (l == _specialLayer) {
-		onClose();
-		_specialLayer = nullptr;
-	} else if (l == layer()) {
-		_layers.pop_back();
-		if (auto newLayer = layer()) {
-			l->hide();
-			newLayer->parentResized();
-			if (!_a_background.animating()) {
-				newLayer->show();
-			}
-		} else if (_specialLayer) {
-			l->hide();
+void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
+	layer->deleteLater();
+	if (layer == _specialLayer) {
+		hideAll();
+	} else if (layer == currentLayer()) {
+		if (_layers.size() == 1) {
+			hideCurrent();
 		} else {
-			_layers.push_back(l); // For animation cache grab.
-			onClose();
+			layer->hide();
 			_layers.pop_back();
+			layer = currentLayer();
+			layer->parentResized();
+			if (!_background->animating()) {
+				layer->show();
+				showFinished();
+			}
 		}
-		fixOrder();
-		if (App::wnd()) App::wnd()->setInnerFocus();
-		updateLayerBox();
-		sendFakeMouseEvent();
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
-			if (l == *i) {
+			if (layer == *i) {
 				_layers.erase(i);
 				break;
 			}
@@ -217,94 +354,35 @@ void LayerStackWidget::onLayerClosed(LayerWidget *l) {
 }
 
 void LayerStackWidget::onLayerResized() {
-	updateLayerBox();
+	updateLayerBoxes();
 }
 
-void LayerStackWidget::updateLayerBox() {
+void LayerStackWidget::updateLayerBoxes() {
 	auto getLayerBox = [this]() {
-		if (!_layerCache.isNull()) {
-			return _layerCacheBox;
-		} else if (auto l = layer()) {
-			return l->geometry();
-		} else if (_specialLayer) {
-			return _specialLayer->geometry();
+		if (auto layer = currentLayer()) {
+			return layer->geometry();
 		}
 		return QRect();
 	};
 	auto getSpecialLayerBox = [this]() {
-		if (!_layerCache.isNull()) {
-			return _hiddenSpecialLayerCacheBox;
-		} else if (auto l = layer()) {
-			return _specialLayer ? _specialLayer->geometry() : QRect();
-		}
-		return QRect();
+		return _specialLayer ? _specialLayer->geometry() : QRect();
 	};
-	_background->setLayerBox(getLayerBox(), getSpecialLayerBox());
+	_background->setLayerBoxes(getSpecialLayerBox(), getLayerBox());
 	update();
 }
 
-void LayerStackWidget::startShow() {
-	startAnimation(1);
-	show();
-}
-
-void LayerStackWidget::showFast() {
-	if (_a_background.animating()) {
-		_a_background.step(getms() + st::layerSlideDuration + 1);
-	}
-}
-
-void LayerStackWidget::startHide() {
-	if (isHidden() || _hiding) {
-		return;
-	}
-	_hiding = true;
-	startAnimation(0);
-}
-
-void LayerStackWidget::startAnimation(float64 toOpacity) {
-	if (_mainMenu) {
-		setAttribute(Qt::WA_OpaquePaintEvent);
-		hide();
-		_background->setBodyCache(myGrab(App::wnd()->bodyWidget()));
-		show();
-		_mainMenu->hide();
-		_background->setMainMenuCache(myGrab(_mainMenu));
-		_background->setMainMenuRight(toOpacity ? 0 : _mainMenu->width());
-	}
-
-	if (App::app()) App::app()->mtpPause();
-	a_bg.start(toOpacity);
-	a_layer.start(toOpacity);
-	_a_background.start();
-	if (_layerCache.isNull()) {
-		if (auto cacheLayer = layer() ? layer() : _specialLayer.ptr()) {
-			_layerCache = myGrab(cacheLayer);
-			_layerCacheBox = cacheLayer->geometry();
-			if (layer() && _specialLayer) {
-				_hiddenSpecialLayerCache = myGrab(_specialLayer);
-				_hiddenSpecialLayerCacheBox = _specialLayer->geometry();
-			}
-		}
-	}
-	if (_specialLayer) {
-		_specialLayer->hide();
-	}
-	if (auto l = layer()) {
-		l->hide();
-	}
-	updateLayerBox();
-	if (App::wnd()) App::wnd()->setInnerFocus();
+void LayerStackWidget::finishAnimation() {
+	_background->finishAnimation();
 }
 
 bool LayerStackWidget::canSetFocus() const {
-	return (layer() || _specialLayer || _mainMenu) && !_hiding;
+	return (currentLayer() || _specialLayer || _mainMenu);
 }
 
 void LayerStackWidget::setInnerFocus() {
-	if (_a_background.animating()) {
+	if (_background->animating()) {
 		setFocus();
-	} else if (auto l = layer()) {
+	} else if (auto l = currentLayer()) {
 		l->setInnerFocus();
 	} else if (_specialLayer) {
 		_specialLayer->setInnerFocus();
@@ -320,10 +398,21 @@ bool LayerStackWidget::contentOverlapped(const QRect &globalRect) {
 	if (_specialLayer && _specialLayer->overlaps(globalRect)) {
 		return true;
 	}
-	if (auto l = layer()) {
-		return l->overlaps(globalRect);
+	if (auto layer = currentLayer()) {
+		return layer->overlaps(globalRect);
 	}
 	return false;
+}
+
+template <typename SetupNew, typename ClearOld>
+void LayerStackWidget::startAnimation(SetupNew setupNewWidgets, ClearOld clearOldWidgets, Action action) {
+	if (App::quitting()) return;
+
+	setupNewWidgets();
+	setCacheImages();
+	clearOldWidgets();
+	prepareForAnimation();
+	_background->startAnimation(action);
 }
 
 void LayerStackWidget::resizeEvent(QResizeEvent *e) {
@@ -331,112 +420,157 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
 	if (_specialLayer) {
 		_specialLayer->parentResized();
 	}
-	if (auto l = layer()) {
-		l->parentResized();
+	if (auto layer = currentLayer()) {
+		layer->parentResized();
 	}
 	if (_mainMenu) {
 		_mainMenu->resize(_mainMenu->width(), height());
 	}
-	updateLayerBox();
+	updateLayerBoxes();
 }
 
-void LayerStackWidget::showLayer(LayerWidget *l) {
-	clearLayers();
-	appendLayer(l);
-}
+void LayerStackWidget::showLayer(LayerWidget *layer) {
+	appendLayer(layer);
+	while (!_layers.isEmpty() && _layers.front() != layer) {
+		auto removingLayer = _layers.front();
+		_layers.pop_front();
 
-void LayerStackWidget::showSpecialLayer(LayerWidget *l) {
-	clearLayers();
-	if (_specialLayer) {
-		_specialLayer.destroyDelayed();
+		removingLayer->hide();
+		removingLayer->deleteLater();
 	}
-	_specialLayer = l;
-	activateLayer(l);
+}
+
+void LayerStackWidget::prepareForAnimation() {
+	if (isHidden()) {
+		show();
+	}
+	if (_mainMenu) {
+		_mainMenu->hide();
+	}
+	if (_specialLayer) {
+		_specialLayer->hide();
+	}
+	if (auto layer = currentLayer()) {
+		layer->hide();
+	}
+	if (auto app = App::app()) {
+		app->mtpPause();
+	}
+}
+
+void LayerStackWidget::animationDone() {
+	bool hidden = true;
+	if (_mainMenu) {
+		_mainMenu->show();
+		hidden = false;
+	}
+	if (_specialLayer) {
+		_specialLayer->show();
+		hidden = false;
+	}
+	if (auto layer = currentLayer()) {
+		layer->show();
+		hidden = false;
+	}
+	if (hidden) {
+		App::wnd()->layerFinishedHide(this);
+	} else {
+		showFinished();
+	}
+	if (auto app = App::app()) {
+		app->mtpUnpause();
+	}
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
+}
+
+void LayerStackWidget::showFinished() {
+	fixOrder();
+	sendFakeMouseEvent();
+	updateLayerBoxes();
+	if (_mainMenu) {
+		_mainMenu->showFinished();
+	}
+	if (_specialLayer) {
+		_specialLayer->showFinished();
+	}
+	if (auto layer = currentLayer()) {
+		layer->showFinished();
+	}
+	if (auto window = App::wnd()) {
+		window->setInnerFocus();
+	}
+}
+
+void LayerStackWidget::showSpecialLayer(LayerWidget *layer) {
+	startAnimation([this, layer] {
+		_specialLayer.destroyDelayed();
+		_specialLayer = layer;
+		initChildLayer(_specialLayer);
+	}, [this] {
+		clearLayers();
+		_mainMenu.destroyDelayed();
+	}, Action::ShowSpecialLayer);
 }
 
 void LayerStackWidget::showMainMenu() {
-	clearLayers();
-	if (_specialLayer) {
+	startAnimation([this] {
+		_mainMenu.create(this);
+		_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
+		_mainMenu->setParent(this);
+	}, [this] {
+		clearLayers();
 		_specialLayer.destroyDelayed();
-	}
-	_mainMenu.create(this);
-	_mainMenu->setGeometryToLeft(0, 0, _mainMenu->width(), height());
-
-	_mainMenu->setParent(this);
-	fixOrder();
-
-	if (isHidden()) {
-		startShow();
-	} else {
-		_mainMenu->show();
-		_mainMenu->showFinished();
-		if (App::wnd()) App::wnd()->setInnerFocus();
-		updateLayerBox();
-	}
-	fixOrder();
-	sendFakeMouseEvent();
+	}, Action::ShowMainMenu);
 }
 
-void LayerStackWidget::appendLayer(LayerWidget *l) {
-	if (auto oldLayer = layer()) {
+void LayerStackWidget::appendLayer(LayerWidget *layer) {
+	auto oldLayer = currentLayer();
+	if (oldLayer) {
 		oldLayer->hide();
 	}
-	_layers.push_back(l);
-	activateLayer(l);
+	_layers.push_back(layer);
+	initChildLayer(layer);
+
+	if (_layers.size() > 1) {
+		if (!_background->animating()) {
+			layer->show();
+			showFinished();
+		}
+	} else {
+		startAnimation([] {}, [this] {
+			_mainMenu.destroyDelayed();
+		}, Action::ShowLayer);
+	}
 }
 
-void LayerStackWidget::prependLayer(LayerWidget *l) {
+void LayerStackWidget::prependLayer(LayerWidget *layer) {
 	if (_layers.empty()) {
-		showLayer(l);
-	} else {
-		l->hide();
-		_layers.push_front(l);
-		initChildLayer(l);
+		return showLayer(layer);
 	}
+	layer->hide();
+	_layers.push_front(layer);
+	initChildLayer(layer);
 }
 
 void LayerStackWidget::clearLayers() {
-	for_const (auto oldLayer, _layers) {
-		oldLayer->hide();
-		oldLayer->deleteLater();
+	for (auto layer : base::take(_layers)) {
+		layer->hide();
+		layer->deleteLater();
 	}
-	_layers.clear();
-	updateLayerBox();
-	sendFakeMouseEvent();
 }
 
-void LayerStackWidget::initChildLayer(LayerWidget *l) {
-	l->setParent(this);
-	connect(l, SIGNAL(closed(LayerWidget*)), this, SLOT(onLayerClosed(LayerWidget*)));
-	connect(l, SIGNAL(resized()), this, SLOT(onLayerResized()));
-	connect(l, SIGNAL(destroyed(QObject*)), this, SLOT(onLayerDestroyed(QObject*)));
-	l->parentResized();
-	fixOrder();
-}
-
-void LayerStackWidget::activateLayer(LayerWidget *l) {
-	if (_mainMenu) {
-		_mainMenu.destroyDelayed();
-		_background->setMainMenuRight(0);
-		_background->setMainMenuCache(QPixmap());
-	}
-	initChildLayer(l);
-	if (isHidden()) {
-		startShow();
-	} else {
-		l->show();
-		l->showDone();
-		if (App::wnd()) App::wnd()->setInnerFocus();
-		updateLayerBox();
-	}
-	fixOrder();
-	sendFakeMouseEvent();
+void LayerStackWidget::initChildLayer(LayerWidget *layer) {
+	layer->setParent(this);
+	connect(layer, SIGNAL(closed(LayerWidget*)), this, SLOT(onLayerClosed(LayerWidget*)));
+	connect(layer, SIGNAL(resized()), this, SLOT(onLayerResized()));
+	connect(layer, SIGNAL(destroyed(QObject*)), this, SLOT(onLayerDestroyed(QObject*)));
+	layer->parentResized();
 }
 
 void LayerStackWidget::fixOrder() {
-	if (auto l = layer()) {
+	if (auto layer = currentLayer()) {
 		_background->raise();
-		l->raise();
+		layer->raise();
 	} else if (_specialLayer) {
 		_specialLayer->raise();
 	}
@@ -449,72 +583,21 @@ void LayerStackWidget::sendFakeMouseEvent() {
 	sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 }
 
-void LayerStackWidget::step_background(float64 ms, bool timer) {
-	float64 dt = ms / (_hiding ? st::layerHideDuration : st::layerSlideDuration);
-	if (dt >= 1) {
-		a_bg.finish();
-		a_layer.finish();
-		_a_background.stop();
-		_layerCache = _hiddenSpecialLayerCache = QPixmap();
-		setAttribute(Qt::WA_OpaquePaintEvent, false);
-		_background->setBodyCache(QPixmap());
-		if (_hiding) {
-			App::wnd()->layerFinishedHide(this);
-			if (_mainMenu) {
-				_background->setMainMenuRight(0);
-				_background->setMainMenuCache(QPixmap());
-				_mainMenu.destroyDelayed();
-			}
-		} else {
-			if (_specialLayer) {
-				_specialLayer->show();
-				_specialLayer->showDone();
-			}
-			if (auto l = layer()) {
-				l->show();
-				l->showDone();
-			}
-			if (_mainMenu) {
-				_background->setMainMenuRight(_mainMenu->width());
-				_background->setMainMenuCache(QPixmap());
-				_mainMenu->show();
-				_mainMenu->showFinished();
-			}
-			if (App::wnd()) App::wnd()->setInnerFocus();
-		}
-		updateLayerBox();
-		if (App::app()) App::app()->mtpUnpause();
-	} else {
-		a_bg.update(dt, anim::easeOutCirc);
-		a_layer.update(dt, anim::linear);
-		if (_mainMenu) {
-			_background->setMainMenuRight(a_bg.current() * _mainMenu->width());
-		}
-	}
-	_background->setOpacity(a_bg.current());
-	if (timer) {
-		_background->update();
-		update();
-	}
-}
-
 void LayerStackWidget::onLayerDestroyed(QObject *obj) {
 	if (obj == _specialLayer) {
 		_specialLayer = nullptr;
-		onClose();
-	} else if (obj == layer()) {
+		hideAll();
+	} else if (obj == currentLayer()) {
 		_layers.pop_back();
-		if (auto newLayer = layer()) {
+		if (auto newLayer = currentLayer()) {
 			newLayer->parentResized();
-			if (!_a_background.animating()) {
+			if (!_background->animating()) {
 				newLayer->show();
+				showFinished();
 			}
 		} else if (!_specialLayer) {
-			onClose();
+			hideAll();
 		}
-		fixOrder();
-		if (App::wnd()) App::wnd()->setInnerFocus();
-		updateLayerBox();
 	} else {
 		for (auto i = _layers.begin(), e = _layers.end(); i != e; ++i) {
 			if (obj == *i) {

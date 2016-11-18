@@ -54,7 +54,6 @@ signals:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
@@ -69,14 +68,16 @@ private:
 	void recover();
 	QString _pattern;
 
-	AbstractBox *_replacedBy;
-	bool _turningOff, _cloudPwd;
-	mtpRequestId _setRequest;
+	AbstractBox *_replacedBy = nullptr;
+	bool _turningOff = false;
+	bool _cloudPwd = false;
+	mtpRequestId _setRequest = 0;
 
 	QByteArray _newSalt, _curSalt;
-	bool _hasRecovery, _skipEmailWarning = false;
+	bool _hasRecovery = false;
+	bool _skipEmailWarning = false;
 
-	int32 _aboutHeight;
+	int _aboutHeight = 0;
 
 	QString _boxTitle;
 	Text _about, _hintText;
@@ -112,7 +113,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:

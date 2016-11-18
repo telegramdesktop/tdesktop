@@ -39,7 +39,7 @@ public:
 	Widget(QWidget *parent);
 
 	void parentResized() override;
-	void showDone() override;
+	void showFinished() override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

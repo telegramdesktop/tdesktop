@@ -38,6 +38,8 @@ LocalStorageBox::LocalStorageBox() : AbstractBox()
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
+	updateControls();
+
 	checkLocalStoredCounts();
 	prepare();
 }
@@ -54,11 +56,6 @@ void LocalStorageBox::updateControls() {
 	_clear->moveToLeft(st::boxPadding.left(), titleHeight() + st::localStorageBoxSkip + rowsHeight);
 	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
 	update();
-}
-
-void LocalStorageBox::showAll() {
-	showChildren();
-	_clear->setVisible(_imagesCount > 0 || _audiosCount > 0);
 }
 
 void LocalStorageBox::checkLocalStoredCounts() {

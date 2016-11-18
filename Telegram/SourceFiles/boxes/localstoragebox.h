@@ -41,8 +41,6 @@ private slots:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAll() override;
-
 private:
 	void updateControls();
 	void checkLocalStoredCounts();

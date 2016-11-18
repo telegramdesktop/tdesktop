@@ -83,7 +83,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void doSetInnerFocus() override;
-	void showAll() override;
 
 private:
 	void onFilterUpdate(const QString &query);

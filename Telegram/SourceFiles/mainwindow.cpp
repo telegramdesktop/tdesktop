@@ -421,7 +421,7 @@ void MainWindow::showMainMenu() {
 
 void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
 	if (_layerBg) {
-		_layerBg->onClose();
+		_layerBg->hideAll();
 	}
 }
 
@@ -498,14 +498,14 @@ void MainWindow::ui_showLayer(LayerWidget *box, ShowLayerOptions options) {
 			_layerBg->showLayer(box);
 		}
 		if (options.testFlag(ForceFastShowLayer)) {
-			_layerBg->showFast();
+			_layerBg->finishAnimation();
 		}
 	} else {
 		if (_layerBg) {
 			if (_settings) {
-				_layerBg->onCloseLayers();
+				_layerBg->hideLayers();
 			} else {
-				_layerBg->onClose();
+				_layerBg->hideAll();
 				if (options.testFlag(ForceFastShowLayer)) {
 					_layerBg.destroyDelayed();
 				}
@@ -606,6 +606,7 @@ void MainWindow::layerHidden() {
 	_layerBg.destroyDelayed();
 	hideMediaview();
 	setInnerFocus();
+	checkHistoryActivation();
 }
 
 void MainWindow::onReActivate() {
@@ -1469,13 +1470,9 @@ MainWindow::~MainWindow() {
 		_clearManager->stop();
 		_clearManager = nullptr;
 	}
-	delete _connecting;
 	delete _mediaView;
 	delete trayIcon;
 	delete trayIconMenu;
-	delete _intro;
-	delete _main;
-	delete _settings;
 }
 
 PreLaunchWindow *PreLaunchWindowInstance = 0;

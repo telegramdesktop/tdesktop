@@ -5679,11 +5679,12 @@ void HistoryWidget::leaveEvent(QEvent *e) {
 }
 
 void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
-	QPoint pos(e ? e->pos() : mapFromGlobal(QCursor::pos()));
-	bool inRecord = _send->geometry().contains(pos);
-	bool inField = pos.y() >= (_scroll->y() + _scroll->height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
-	bool inReplyEdit = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId());
-	bool inPinnedMsg = QRect(0, 0, width(), st::historyReplyHeight).contains(pos) && _pinnedBar;
+	auto pos = e ? e->pos() : mapFromGlobal(QCursor::pos());
+	auto inRecord = _send->geometry().contains(pos);
+	auto inField = pos.y() >= (_scroll->y() + _scroll->height()) && pos.y() < height() && pos.x() >= 0 && pos.x() < width();
+	auto inReplyEdit = QRect(st::historyReplySkip, _field->y() - st::historySendPadding - st::historyReplyHeight, width() - st::historyReplySkip - _fieldBarCancel->width(), st::historyReplyHeight).contains(pos) && (_editMsgId || replyToId());
+	auto inPinnedMsg = QRect(0, 0, width(), st::historyReplyHeight).contains(pos) && _pinnedBar;
+	auto inClickable = inRecord || inReplyEdit || inPinnedMsg;
 	if (inRecord != _inRecord) {
 		_inRecord = inRecord;
 		update(_send->geometry());
@@ -5694,13 +5695,11 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 		a_recordCancelActive.start(_inField ? 0. : 1.);
 		_a_record.start();
 	}
-	if (inReplyEdit != _inReplyEdit) {
-		_inReplyEdit = inReplyEdit;
-		setCursor(inReplyEdit ? style::cur_pointer : style::cur_default);
-	}
-	if (inPinnedMsg != _inPinnedMsg) {
-		_inPinnedMsg = inPinnedMsg;
-		setCursor(inPinnedMsg ? style::cur_pointer : style::cur_default);
+	_inReplyEdit = inReplyEdit;
+	_inPinnedMsg = inPinnedMsg;
+	if (inClickable != _inClickable) {
+		_inClickable = inClickable;
+		setCursor(_inClickable ? style::cur_pointer : style::cur_default);
 	}
 }
 

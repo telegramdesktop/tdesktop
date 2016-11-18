@@ -36,7 +36,6 @@ AbstractBox::AbstractBox(int w) : LayerWidget(App::wnd()->bodyWidget()) {
 
 void AbstractBox::prepare() {
 	raiseShadow();
-	showAll();
 }
 
 void AbstractBox::keyPressEvent(QKeyEvent *e) {

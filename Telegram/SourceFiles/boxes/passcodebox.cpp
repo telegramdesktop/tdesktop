@@ -30,13 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 
 PasscodeBox::PasscodeBox(bool turningOff) : AbstractBox(st::boxWidth)
-, _replacedBy(0)
 , _turningOff(turningOff)
-, _cloudPwd(false)
-, _setRequest(0)
-, _hasRecovery(false)
-, _skipEmailWarning(false)
-, _aboutHeight(0)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::defaultBoxButton)
 , _cancelButton(this, lang(lng_cancel), st::cancelBoxButton)
@@ -47,19 +41,14 @@ PasscodeBox::PasscodeBox(bool turningOff) : AbstractBox(st::boxWidth)
 , _recoverEmail(this, st::defaultInputField, lang(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
 	init();
-	prepare();
 }
 
 PasscodeBox::PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff) : AbstractBox(st::boxWidth)
-, _replacedBy(0)
 , _turningOff(turningOff)
 , _cloudPwd(true)
-, _setRequest(0)
 , _newSalt(newSalt)
 , _curSalt(curSalt)
 , _hasRecovery(hasRecovery)
-, _skipEmailWarning(false)
-, _aboutHeight(0)
 , _about(st::boxWidth - st::boxPadding.left() * 1.5)
 , _saveButton(this, lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), st::defaultBoxButton)
 , _cancelButton(this, lang(lng_cancel), st::cancelBoxButton)
@@ -72,8 +61,8 @@ PasscodeBox::PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, b
 	textstyleSet(&st::usernameTextStyle);
 	if (!hint.isEmpty()) _hintText.setText(st::normalFont, lng_signin_hint(lt_password_hint, hint));
 	textstyleRestore();
+
 	init();
-	prepare();
 }
 
 void PasscodeBox::init() {
@@ -116,49 +105,16 @@ void PasscodeBox::init() {
 	connect(_recoverEmail, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	connect(_recover, SIGNAL(clicked()), this, SLOT(onRecoverByEmail()));
-}
 
-void PasscodeBox::showAll() {
 	bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
-	if (_turningOff) {
-		_oldPasscode->show();
-		if (_cloudPwd && _hasRecovery) {
-			_recover->show();
-		} else {
-			_recover->hide();
-		}
-		_newPasscode->hide();
-		_reenterPasscode->hide();
-		_passwordHint->hide();
-		_recoverEmail->hide();
-	} else {
-		if (has) {
-			_oldPasscode->show();
-			if (_cloudPwd && _hasRecovery) {
-				_recover->show();
-			} else {
-				_recover->hide();
-			}
-		} else {
-			_oldPasscode->hide();
-			_recover->hide();
-		}
-		_newPasscode->show();
-		_reenterPasscode->show();
-		if (_cloudPwd) {
-			_passwordHint->show();
-		} else {
-			_passwordHint->hide();
-		}
-		if (_cloudPwd && _curSalt.isEmpty()) {
-			_recoverEmail->show();
-		} else {
-			_recoverEmail->hide();
-		}
-	}
-	_saveButton->show();
-	_cancelButton->show();
-	AbstractBox::showAll();
+	_oldPasscode->setVisible(_turningOff || has);
+	_recover->setVisible((_turningOff || has) && _cloudPwd && _hasRecovery);
+	_newPasscode->setVisible(!_turningOff);
+	_reenterPasscode->setVisible(!_turningOff);
+	_passwordHint->setVisible(!_turningOff && _cloudPwd);
+	_recoverEmail->setVisible(!_turningOff && _cloudPwd && _curSalt.isEmpty());
+
+	prepare();
 }
 
 void PasscodeBox::onSubmit() {
@@ -509,13 +465,6 @@ RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth)
 	connect(_recoverCode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	prepare();
-}
-
-void RecoverBox::showAll() {
-	_recoverCode->show();
-	_saveButton->show();
-	_cancelButton->show();
-	AbstractBox::showAll();
 }
 
 void RecoverBox::paintEvent(QPaintEvent *e) {

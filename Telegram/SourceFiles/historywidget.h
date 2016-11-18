@@ -1103,6 +1103,7 @@ private:
 	bool _inField = false;
 	bool _inReplyEdit = false;
 	bool _inPinnedMsg = false;
+	bool _inClickable = false;
 	anim::ivalue a_recordingLevel = { 0, 0 };
 	int32 _recordingSamples = 0;
 	anim::fvalue a_recordDown = { 0, 0 };

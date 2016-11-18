@@ -193,7 +193,7 @@ void Widget::resizeUsingInnerHeight(int newWidth, int newContentLeft) {
 	update();
 }
 
-void Widget::showDone() {
+void Widget::showFinished() {
 	_inner->showFinished();
 }
 

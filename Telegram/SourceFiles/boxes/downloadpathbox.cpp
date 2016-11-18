@@ -50,22 +50,13 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 	if (!_path.isEmpty() && _path != qsl("tmp")) {
 		setPathText(QDir::toNativeSeparators(_path));
 	}
+	updateControlsVisibility();
+
 	prepare();
 }
 
-void DownloadPathBox::showAll() {
-	_default->show();
-	_temp->show();
-	_dir->show();
-
-	if (_dir->checked()) {
-		_pathLink->show();
-	} else {
-		_pathLink->hide();
-	}
-
-	_save->show();
-	_cancel->show();
+void DownloadPathBox::updateControlsVisibility() {
+	_pathLink->setVisible(_dir->checked());
 
 	int32 h = titleHeight() + st::boxOptionListPadding.top() + _default->height() + st::boxOptionListPadding.top() + _temp->height() + st::boxOptionListPadding.top() + _dir->height();
 	if (_dir->checked()) h += st::downloadPathSkip + _pathLink->height();
@@ -111,7 +102,7 @@ void DownloadPathBox::onChange() {
 	} else {
 		_path = QString();
 	}
-	showAll();
+	updateControlsVisibility();
 	update();
 }
 

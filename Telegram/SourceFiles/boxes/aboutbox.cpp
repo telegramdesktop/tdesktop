@@ -49,14 +49,6 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
 	setAcceptDrops(true);
 }
 
-void AboutBox::showAll() {
-	_version->show();
-	_text1->show();
-	_text2->show();
-	_text3->show();
-	_done->show();
-}
-
 void AboutBox::resizeEvent(QResizeEvent *e) {
 	_version->moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutVersionTop);
 	_text1->moveToLeft(st::boxPadding.left(), titleHeight() + st::aboutTextTop);

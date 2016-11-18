@@ -54,9 +54,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
-
 private:
+	void updateControlsVisibility();
+
 	class Inner;
 	ChildWidget<Inner> _inner;
 	ScrollableBoxShadow _shadow;

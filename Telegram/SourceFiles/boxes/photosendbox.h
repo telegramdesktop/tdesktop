@@ -47,7 +47,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void closePressed() override;
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:
@@ -95,7 +94,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
 	void doSetInnerFocus() override;
 
 private:

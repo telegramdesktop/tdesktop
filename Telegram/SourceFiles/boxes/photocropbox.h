@@ -50,8 +50,6 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 
-	void showAll() override;
-
 private:
 	void init(const QImage &img, PeerData *peer);
 

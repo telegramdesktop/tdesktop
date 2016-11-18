@@ -137,6 +137,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 		_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
 		_isImage = fileIsImage(_file->filename, _file->filemime);
 	}
+
 	if (_file->type != PreparePhoto) {
 		_compressed->hide();
 	}
@@ -172,6 +173,7 @@ PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QSt
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	_compressed->hide();
+	_caption->hide();
 
 	_name.setText(st::semiboldFont, lng_full_name(lt_first_name, _fname, lt_last_name, _lname), _textNameOptions);
 	_status = _phone;
@@ -182,7 +184,6 @@ PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QSt
 }
 
 void PhotoSendBox::onCompressedChange() {
-	showAll();
 	if (_caption->isHidden()) {
 		setFocus();
 	} else {
@@ -310,20 +311,6 @@ void PhotoSendBox::closePressed() {
 		} else {
 			App::main()->onShareContactCancel();
 		}
-	}
-}
-
-void PhotoSendBox::showAll() {
-	_send->show();
-	_cancel->show();
-	if (_file) {
-		if (_file->type == PreparePhoto) {
-			_compressed->show();
-		}
-		_caption->show();
-	} else {
-		_caption->hide();
-		_compressed->hide();
 	}
 }
 
@@ -628,12 +615,6 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 	_field->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _field->height());
 	_field->moveToLeft(st::boxPhotoPadding.left(), _save->y() - st::boxButtonPadding.top() - st::normalFont->height - _field->height());
 	AbstractBox::resizeEvent(e);
-}
-
-void EditCaptionBox::showAll() {
-	_save->show();
-	_cancel->show();
-	_field->show();
 }
 
 void EditCaptionBox::doSetInnerFocus() {
