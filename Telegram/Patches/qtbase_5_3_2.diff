@@ -615,10 +615,49 @@ index c680764..e2a7aaf 100644
                      continue;
  
 diff --git a/src/widgets/kernel/qwidget.cpp b/src/widgets/kernel/qwidget.cpp
-index 7396808..87b4978 100644
+index 7396808..7178aec 100644
 --- a/src/widgets/kernel/qwidget.cpp
 +++ b/src/widgets/kernel/qwidget.cpp
-@@ -7983,7 +7983,8 @@ bool QWidget::event(QEvent *event)
+@@ -4722,6 +4722,17 @@ void QWidget::render(QPainter *painter, const QPoint &targetOffset,
+         return; // Fully transparent.
+ 
+     Q_D(QWidget);
++
++    // Patch: save and restore dirtyOpaqueChildren field.
++    //
++    // Just like in QWidget::grab() this field should be restored
++    // after the d->render() call, because it will be set to 1 and
++    // opaqueChildren field will be filled with empty region in
++    // case the widget is hidden (because all the opaque children
++    // will be skipped in isVisible() check).
++    //
++    const bool oldDirtyOpaqueChildren = d->dirtyOpaqueChildren;
++
+     const bool inRenderWithPainter = d->extra && d->extra->inRenderWithPainter;
+     const QRegion toBePainted = !inRenderWithPainter ? d->prepareToRender(sourceRegion, renderFlags)
+                                                      : sourceRegion;
+@@ -4743,6 +4754,10 @@ void QWidget::render(QPainter *painter, const QPoint &targetOffset,
+     if (!inRenderWithPainter && (opacity < 1.0 || (target->devType() == QInternal::Printer))) {
+         d->render_helper(painter, targetOffset, toBePainted, renderFlags);
+         d->extra->inRenderWithPainter = inRenderWithPainter;
++
++        // Patch: save and restore dirtyOpaqueChildren field.
++        d->dirtyOpaqueChildren = oldDirtyOpaqueChildren;
++
+         return;
+     }
+ 
+@@ -4774,6 +4789,9 @@ void QWidget::render(QPainter *painter, const QPoint &targetOffset,
+     d->setSharedPainter(oldPainter);
+ 
+     d->extra->inRenderWithPainter = inRenderWithPainter;
++
++    // Patch: save and restore dirtyOpaqueChildren field.
++    d->dirtyOpaqueChildren = oldDirtyOpaqueChildren;
+ }
+ 
+ static void sendResizeEvents(QWidget *target)
+@@ -7983,7 +8001,8 @@ bool QWidget::event(QEvent *event)
      case QEvent::KeyPress: {
          QKeyEvent *k = (QKeyEvent *)event;
          bool res = false;
