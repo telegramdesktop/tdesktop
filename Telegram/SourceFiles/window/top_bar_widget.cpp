@@ -36,7 +36,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Window {
 
 TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
-, _a_appearance(animation(this, &TopBarWidget::step_appearance))
 , _clearSelection(this, lang(lng_selected_clear), st::topBarClearButton)
 , _forward(this, lang(lng_selected_forward), st::defaultActiveButton)
 , _delete(this, lang(lng_selected_delete), st::defaultActiveButton)
@@ -44,8 +43,6 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _mediaType(this, lang(lng_media_type), st::topBarButton)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
-	_mediaType->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-
 	_forward->setClickedCallback([this] { onForwardSelection(); });
 	_delete->setClickedCallback([this] { onDeleteSelection(); });
 	_clearSelection->setClickedCallback([this] { onClearSelection(); });
@@ -139,41 +136,6 @@ void TopBarWidget::showMenu() {
 	}
 }
 
-void TopBarWidget::enterEvent(QEvent *e) {
-	a_over.start(1);
-	_a_appearance.start();
-}
-
-void TopBarWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
-	if (child != _membersShowArea) {
-		a_over.start(1);
-		_a_appearance.start();
-	}
-}
-
-void TopBarWidget::leaveEvent(QEvent *e) {
-	a_over.start(0);
-	_a_appearance.start();
-}
-
-void TopBarWidget::leaveToChildEvent(QEvent *e, QWidget *child) {
-	if (child != _membersShowArea) {
-		a_over.start(0);
-		_a_appearance.start();
-	}
-}
-
-void TopBarWidget::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / st::topBarDuration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_over.finish();
-	} else {
-		a_over.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 	if (obj == _membersShowArea) {
 		switch (e->type()) {
@@ -207,7 +169,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}
-		auto paintCounter = main()->paintTopBar(p, a_over.current(), decreaseWidth);
+		auto paintCounter = main()->paintTopBar(p, decreaseWidth);
 		p.restore();
 
 		if (paintCounter) {

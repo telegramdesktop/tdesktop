@@ -37,16 +37,6 @@ class TopBarWidget : public TWidget, private base::Subscriber {
 public:
 	TopBarWidget(MainWidget *w);
 
-	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override;
-	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_appearance(float64 ms, bool timer);
-
 	void startAnim();
 	void stopAnim();
 	void showAll();
@@ -59,6 +49,9 @@ public:
 	static void paintUnreadCounter(Painter &p, int outerWidth);
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 signals:
@@ -75,8 +68,6 @@ private:
 	void updateAdaptiveLayout();
 
 	MainWidget *main();
-	anim::fvalue a_over = { 0. };
-	Animation _a_appearance;
 
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_selPeer = nullptr;

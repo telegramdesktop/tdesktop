@@ -67,8 +67,6 @@ stickersMaxHeight: 440px;
 stickersPadding: margins(19px, 17px, 19px, 17px);
 stickersSize: size(64px, 64px);
 stickersScroll: FlatScroll(boxScroll) {
-	round: 2px;
-	deltax: 7px;
 	deltat: 23px;
 	deltab: 9px;
 }
@@ -130,7 +128,7 @@ emojiPanWidth: 345px;
 emojiPanMaxHeight: 366px;
 emojiPanShowDuration: 200;
 emojiPanDuration: 200;
-emojiPanHover: #f0f4f7;
+emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
 emojiPanSlideDelta: 0; // between hide start and show start
 

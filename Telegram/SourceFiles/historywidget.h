@@ -550,7 +550,7 @@ public:
 
 	void updateTopBarSelection();
 
-	bool paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	bool paintTopBar(Painter &p, int decreaseWidth);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
 	void topBarClick();

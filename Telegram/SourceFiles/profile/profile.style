@@ -26,10 +26,6 @@ using "window/window.style";
 profileBg: windowBg;
 
 profileTopBarHeight: topBarHeight;
-profileTopBarBackIconPosition: point(12px, 20px);
-profileTopBarBackFont: font(14px);
-profileTopBarBackFg: #1485c2;
-profileTopBarBackPosition: point(39px, 17px);
 profileFixedBarButton: topBarButton;
 
 profileMarginTop: 13px;

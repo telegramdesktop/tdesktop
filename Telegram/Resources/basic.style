@@ -471,10 +471,6 @@ toastPadding: margins(19px, 13px, 19px, 12px);
 toastFadeInDuration: 200;
 toastFadeOutDuration: 1000;
 
-// forward declaration for single "title_back" usage.
-profileTopBarBackIconFg: #0290d7;
-profileTopBarBackIcon: icon {{ "title_back", profileTopBarBackIconFg }};
-
 historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
 historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
 boxSearchCancelIcon: icon {{ "box_button_close", boxSearchCancelIconFg }};

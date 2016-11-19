@@ -67,17 +67,9 @@ public:
 
 	void showEmoji(uint32 code);
 
-	void paintEvent(QPaintEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-
-	void step_appearance(float64 ms, bool timer);
-	void step_selected(uint64 ms, bool timer);
-
-	void clearSelection(bool fast = false);
+	void clearSelection();
+	void handleMouseMove(QPoint globalPos);
+	void handleMouseRelease(QPoint globalPos);
 
 	void hideFast();
 
@@ -89,20 +81,25 @@ signals:
 	void emojiSelected(EmojiPtr emoji);
 	void hidden();
 
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+
 private:
+	void step_appearance(float64 ms, bool timer);
+
 	void drawVariant(Painter &p, int variant);
 
 	void updateSelected();
+	void setSelected(int newSelected);
 
 	bool _ignoreShow = false;
 
 	EmojiPtr _variants[EmojiColorsCount + 1];
-
-	typedef QMap<int32, uint64> EmojiAnimations; // index - showing, -index - hiding
-	EmojiAnimations _emojiAnimations;
-	Animation _a_selected;
-
-	float64 _hovers[EmojiColorsCount + 1];
 
 	int _selected = -1;
 	int _pressedSel = -1;
@@ -128,14 +125,12 @@ public:
 	EmojiPanInner(QWidget *parent);
 
 	void setMaxHeight(int32 h);
-	void paintEvent(QPaintEvent *e) override;
 
-	void step_selected(uint64 ms, bool timer);
 	void hideFinish();
 
 	void showEmojiPack(DBIEmojiTab packIndex);
 
-	void clearSelection(bool fast = false);
+	void clearSelection();
 
 	DBIEmojiTab currentTab(int yOffset) const;
 
@@ -150,13 +145,12 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 public slots:
-	void updateSelected();
-
 	void onShowPicker();
 	void onPickerHidden();
 	void onColorSelected(EmojiPtr emoji);
@@ -175,6 +169,9 @@ signals:
 	void saveConfigDelayed(int32 delay);
 
 private:
+	void updateSelected();
+	void setSelected(int newSelected);
+
 	int32 _maxHeight;
 
 	int countHeight();
@@ -182,16 +179,11 @@ private:
 
 	QRect emojiRect(int tab, int sel);
 
-	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
-	Animations _animations;
-	Animation _a_selected;
-
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	int _counts[emojiTabCount];
 
 	QVector<EmojiPtr> _emojis[emojiTabCount];
-	QVector<float64> _hovers[emojiTabCount];
 
 	int32 _esize;
 
@@ -222,9 +214,6 @@ public:
 	StickerPanInner(QWidget *parent);
 
 	void setMaxHeight(int32 h);
-	void paintEvent(QPaintEvent *e) override;
-
-	void step_selected(uint64 ms, bool timer);
 
 	void hideFinish(bool completely);
 	void showFinish();
@@ -232,7 +221,7 @@ public:
 	void updateShowingSavedGifs();
 
 	bool showSectionIcons() const;
-	void clearSelection(bool fast = false);
+	void clearSelection();
 
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
@@ -272,12 +261,12 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 
 private slots:
-	void updateSelected();
 	void onSettings();
 	void onPreview();
 	void onUpdateInlineItems();
@@ -308,15 +297,17 @@ private:
 	static constexpr bool kRefreshIconsScrollAnimation = true;
 	static constexpr bool kRefreshIconsNoAnimation = false;
 
+	void updateSelected();
+	void setSelected(int newSelected, int newSelectedFeaturedSet, int newSelectedFeaturedSetAdd);
+
 	void setPressedFeaturedSetAdd(int newPressedFeaturedSetAdd);
 
 	struct Set {
-		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), hovers(hoversSize, 0), pack(pack) {
+		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
 		}
 		uint64 id;
 		MTPDstickerSet::Flags flags;
 		QString title;
-		QVector<float64> hovers;
 		StickerPack pack;
 		QSharedPointer<Ui::RippleAnimation> ripple;
 	};
@@ -336,7 +327,7 @@ private:
 
 	void paintInlineItems(Painter &p, const QRect &r);
 	void paintStickers(Painter &p, const QRect &r);
-	void paintSticker(Painter &p, Set &set, int y, int index);
+	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
 	bool featuredHasAddButton(int index) const;
 	int featuredContentWidth() const;
 	QRect featuredAddRect(int y) const;
@@ -354,10 +345,6 @@ private:
 	QRect stickerRect(int tab, int sel);
 
 	int32 _maxHeight;
-
-	typedef QMap<int32, uint64> Animations; // index - showing, -index - hiding
-	Animations _animations;
-	Animation _a_selected;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -436,15 +423,11 @@ class EmojiPanel : public TWidget {
 	Q_OBJECT
 
 public:
-
 	EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool special, int32 wantedY); // Stickers::NoneSetId if in emoji
 	void setText(const QString &text);
 	void setDeleteVisible(bool isVisible);
 
-	void paintEvent(QPaintEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-
-	int32 wantedY() const {
+	int wantedY() const {
 		return _wantedY;
 	}
 	void setWantedY(int32 y) {
@@ -452,38 +435,39 @@ public:
 	}
 
 signals:
-
 	void deleteClicked(quint64 setId);
 	void mousePressed();
 
 public slots:
-
 	void onDelete();
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
 
+private:
 	void updateText();
 
 	int32 _wantedY;
 	QString _text, _fullText;
 	uint64 _setId;
 	bool _special, _deleteVisible;
-	Ui::IconButton *_delete;
+	Ui::IconButton *_delete = nullptr;
 
 };
 
 class EmojiSwitchButton : public Ui::AbstractButton {
 public:
-
 	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji
-	void paintEvent(QPaintEvent *e);
 	void updateText(const QString &inlineBotUsername = QString());
 
 protected:
+	void paintEvent(QPaintEvent *e) override;
 
-	bool _toStickers;
+private:
+	bool _toStickers = false;
 	QString _text;
-	int32 _textWidth;
+	int _textWidth = 0;
 
 };
 
@@ -496,20 +480,8 @@ public:
 	EmojiPan(QWidget *parent);
 
 	void setMaxHeight(int32 h);
-	void paintEvent(QPaintEvent *e);
 
 	void moveBottom(int32 bottom, bool force = false);
-
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void otherEnter();
-	void otherLeave();
-
-	void mousePressEvent(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-
-	bool event(QEvent *e);
 
 	void hideFast();
 	bool hiding() const {
@@ -518,7 +490,6 @@ public:
 
 	void step_icons(uint64 ms, bool timer);
 
-	bool eventFilter(QObject *obj, QEvent *e);
 	void stickersInstalled(uint64 setId);
 
 	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
@@ -544,6 +515,20 @@ public:
 	void hideAnimated();
 
 	~EmojiPan();
+
+protected:
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void otherEnter();
+	void otherLeave();
+
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+	bool event(QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
 
 public slots:
 	void refreshStickers();

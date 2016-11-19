@@ -2976,11 +2976,11 @@ bool MainWidget::needBackButton() {
 	return _overview || _wideSection || _history->peer();
 }
 
-bool MainWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+bool MainWidget::paintTopBar(Painter &p, int decreaseWidth) {
 	if (_overview) {
-		return _overview->paintTopBar(p, over, decreaseWidth);
+		return _overview->paintTopBar(p, decreaseWidth);
 	} else if (!_wideSection) {
-		return _history->paintTopBar(p, over, decreaseWidth);
+		return _history->paintTopBar(p, decreaseWidth);
 	}
 	return false;
 }

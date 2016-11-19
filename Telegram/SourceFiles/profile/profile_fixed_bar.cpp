@@ -36,7 +36,8 @@ namespace Profile {
 
 class BackButton final : public Ui::AbstractButton, private base::Subscriber {
 public:
-	BackButton(QWidget *parent) : Ui::AbstractButton(parent) {
+	BackButton(QWidget *parent) : Ui::AbstractButton(parent)
+	, _text(lang(lng_menu_back).toUpper()) {
 		setCursor(style::cur_pointer);
 
 		subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
@@ -51,11 +52,11 @@ protected:
 		Painter p(this);
 
 		p.fillRect(e->rect(), st::profileBg);
-		st::profileTopBarBackIcon.paint(p, st::profileTopBarBackIconPosition, width());
+		st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
 
-		p.setFont(st::profileTopBarBackFont);
-		p.setPen(st::profileTopBarBackFg);
-		p.drawTextLeft(st::profileTopBarBackPosition.x(), st::profileTopBarBackPosition.y(), width(), lang(lng_menu_back));
+		p.setFont(st::topBarButton.font);
+		p.setPen(st::topBarButton.textFg);
+		p.drawTextLeft(st::topBarArrowPadding.left(), st::topBarButton.padding.top() + st::topBarButton.textTop, width(), _text);
 
 		Window::TopBarWidget::paintUnreadCounter(p, width());
 	}
@@ -77,6 +78,7 @@ private:
 	}
 
 	int _unreadCounterSubscription = 0;
+	QString _text;
 
 };
 
@@ -187,7 +189,6 @@ void FixedBar::addRightAction(RightActionType type, const QString &text, const c
 	_rightActions[_currentAction].type = type;
 	delete _rightActions[_currentAction].button;
 	_rightActions[_currentAction].button = new Ui::RoundButton(this, text, st::profileFixedBarButton);
-	_rightActions[_currentAction].button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	connect(_rightActions[_currentAction].button, SIGNAL(clicked()), this, slot);
 	bool showButton = !_animatingMode && (type != RightActionType::ShareContact || !_hideShareContactButton);
 	_rightActions[_currentAction].button->setVisible(showButton);

@@ -390,10 +390,7 @@ botKbTinyButton: BotKeyboardButton {
 	textTop: 2px;
 	ripple: defaultRippleAnimation;
 }
-botKbScroll: FlatScroll(defaultSolidScroll) {
-	deltax: 3px;
-	width: 10px;
-}
+botKbScroll: defaultSolidScroll;
 
 mentionHeight: 40px;
 mentionScroll: FlatScroll(defaultFlatScroll) {

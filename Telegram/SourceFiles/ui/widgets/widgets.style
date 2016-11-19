@@ -527,15 +527,7 @@ defaultFlatScroll: FlatScroll {
 	hiding: 1000;
 }
 
-defaultSolidScroll: FlatScroll {
-	barColor: #3f729734;
-	bgColor: #214f751a;
-	barOverColor: #3f729734;
-	bgOverColor: #214f751a;
-
-	minHeight: 20px;
-
-	round: 2px;
+defaultSolidScroll: FlatScroll(defaultFlatScroll) {
 	deltax: 5px;
 	width: 14px;
 	deltat: 6px;
@@ -543,9 +535,7 @@ defaultSolidScroll: FlatScroll {
 
 	topsh: 0px;
 	bottomsh: 0px;
-	shColor: #00000012;
 
-	duration: 150;
 	hiding: 0;
 }
 

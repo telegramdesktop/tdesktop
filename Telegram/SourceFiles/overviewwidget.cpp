@@ -1971,7 +1971,7 @@ void OverviewWidget::scrollReset() {
 	_scroll->scrollToY((type() == OverviewMusicFiles || type() == OverviewVoiceFiles) ? _scroll->scrollTopMax() : 0);
 }
 
-bool OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+bool OverviewWidget::paintTopBar(Painter &p, int decreaseWidth) {
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
@@ -1985,12 +1985,10 @@ bool OverviewWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) 
 		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
 		return false;
 	}
-	p.setOpacity(st::topBarBackAlpha + (1 - st::topBarBackAlpha) * over);
 	st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
-	p.setFont(st::topBarBackFont);
-	p.setPen(st::topBarBackColor);
-	p.drawText(st::topBarArrowPadding.left(), (st::topBarHeight - st::topBarBackFont->height) / 2 + st::topBarBackFont->ascent, _header);
-	p.setOpacity(1.);
+	p.setFont(st::defaultLightButton.font);
+	p.setPen(st::defaultLightButton.textFg);
+	p.drawTextLeft(st::topBarArrowPadding.left(), st::topBarButton.padding.top() + st::topBarButton.textTop, width(), _header);
 	return true;
 }
 
@@ -2025,6 +2023,8 @@ void OverviewWidget::switchType(MediaOverviewType type) {
 	case OverviewVoiceFiles: _header = lang(lng_profile_audios_header); break;
 	case OverviewLinks: _header = lang(lng_profile_shared_links_header); break;
 	}
+	_header = _header.toUpper();
+
 	noSelectingScroll();
 	App::main()->topBar()->showSelected(0);
 	updateTopBarSelection();

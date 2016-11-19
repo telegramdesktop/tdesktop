@@ -6304,7 +6304,7 @@ void HistoryWidget::onForwardHere() {
 	App::forward(_peer->id, ForwardContextMessage);
 }
 
-bool HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
+bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth) {
 	if (_a_show.animating()) {
 		int retina = cIntRetinaFactor();
 		if (a_coordOver.current() > 0) {
@@ -6337,9 +6337,7 @@ bool HistoryWidget::paintTopBar(Painter &p, float64 over, int32 decreaseWidth) {
 	_peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 
 	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
-		p.setOpacity(st::topBarForwardAlpha + (1 - st::topBarForwardAlpha) * over);
 		st::topBarBackward.paint(p, (st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2, (st::topBarHeight - st::topBarBackward.height()) / 2, width());
-		p.setOpacity(1.);
 	}
 	return true;
 }

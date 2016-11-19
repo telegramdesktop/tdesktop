@@ -116,11 +116,7 @@ boxLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 }
 
-boxScroll: FlatScroll(defaultSolidScroll) {
-	round: 3px;
-	width: 18px;
-	deltax: 6px;
-}
+boxScroll: defaultSolidScroll;
 boxScrollSkip: 6px;
 boxScrollShadowBg: #00000012;
 
@@ -353,11 +349,7 @@ notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
 
-sessionsScroll: FlatScroll(boxScroll) {
-	round: 2px;
-	deltax: 5px;
-	width: 14px;
-}
+sessionsScroll: boxScroll;
 sessionsHeight: 440px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
@@ -482,9 +474,6 @@ langsButton: Radiobutton(defaultRadiobutton) {
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
 backgroundScroll: FlatScroll(boxScroll) {
-	round: 2px;
-	width: 10px;
-	deltax: 3px;
 	deltat: 10px;
 	deltab: 0px;
 }

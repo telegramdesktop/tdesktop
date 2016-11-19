@@ -174,31 +174,12 @@ topBarMenuPosition: point(-2px, 35px);
 topBarDuration: 200;
 topBarBackward: icon {{ "title_back", #a3a3a3 }};
 topBarForwardAlpha: 0.6;
-topBarBack: icon {{ "title_back", #259fd8 }};
-topBarBackAlpha: 0.8;
-topBarBackColor: #005faf;
-topBarBackFont: font(16px);
+topBarBack: icon {{ "title_back", lightButtonFg }};
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);
 topBarMinPadding: 5px;
-topBarButton: RoundButton {
-	textFg: btnYesColor;
-	textFgOver: btnYesColor;
-	secondaryTextFg: btnYesColor;
-	secondaryTextFgOver: btnYesColor;
-	textBg: windowBg;
-	textBgOver: #edf4f7;
-
-	width: -22px;
-	height: 28px;
-	padding: margins(0px, 14px, 12px, 12px);
-
-	textTop: 6px;
-
-	font: font(fsize);
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgRipple;
-	}
+topBarButton: RoundButton(defaultLightButton) {
+	width: -18px;
+	padding: margins(0px, 10px, 12px, 10px);
 }
 topBarClearButton: RoundButton(defaultLightButton) {
 	width: -18px;
