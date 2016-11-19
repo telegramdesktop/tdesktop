@@ -200,6 +200,7 @@ CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxW
 , _select(this, st::contactsMultiSelect, lang(lng_country_ph))
 , _topShadow(this) {
 	_select->resizeToWidth(st::boxWidth);
+	setTitleText(lang(lng_country_select));
 
 	ItemListBox::init(_inner, st::boxScrollSkip, titleHeight() + _select->height());
 
@@ -227,13 +228,6 @@ void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
 	} else {
 		ItemListBox::keyPressEvent(e);
 	}
-}
-
-void CountrySelectBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_country_select));
 }
 
 void CountrySelectBox::resizeEvent(QResizeEvent *e) {

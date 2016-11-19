@@ -51,6 +51,7 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 , _bottomShadow(this) {
 	_select->resizeToWidth(st::boxWideWidth);
 	myEnsureResized(_select);
+	setTitleText(lang(lng_share_title));
 
 	auto topSkip = getTopScrollSkip();
 	auto bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();
@@ -175,13 +176,6 @@ bool ShareBox::peopleFailed(const RPCError &error, mtpRequestId requestId) {
 
 void ShareBox::doSetInnerFocus() {
 	_select->setInnerFocus();
-}
-
-void ShareBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_share_title));
 }
 
 void ShareBox::resizeEvent(QResizeEvent *e) {

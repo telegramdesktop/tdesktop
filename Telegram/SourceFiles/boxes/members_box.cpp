@@ -64,6 +64,7 @@ MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox
 , _inner(this, channel, filter) {
 	ItemListBox::init(_inner);
 
+	setTitleText(lang(_inner->filter() == MembersFilter::Recent ? lng_channel_members : lng_channel_admins));
 	if (channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilter::Admins)) {
 		_add.create(this, st::contactsAdd);
 		_add->setClickedCallback([this] { onAdd(); });
@@ -89,14 +90,6 @@ void MembersBox::keyPressEvent(QKeyEvent *e) {
 	} else {
 		ItemListBox::keyPressEvent(e);
 	}
-}
-
-void MembersBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	QString title(lang(_inner->filter() == MembersFilter::Recent ? lng_channel_members : lng_channel_admins));
-	paintTitle(p, title);
 }
 
 void MembersBox::resizeEvent(QResizeEvent *e) {

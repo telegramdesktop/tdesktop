@@ -64,7 +64,6 @@ private slots:
 	void onMustScrollTo(int top, int bottom);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 

@@ -41,6 +41,8 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 , _share(this, lang(lng_stickers_share_pack), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _done(this, lang(lng_about_done), st::defaultBoxButton) {
+	setTitleText(lang(lng_contacts_loading));
+
 	setMaxHeight(st::stickersMaxHeight);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 
@@ -84,6 +86,7 @@ void StickerSetBox::onShareStickers() {
 }
 
 void StickerSetBox::onUpdateButtons() {
+	setTitleText(_inner->title());
 	if (!_cancel->isHidden() || !_done->isHidden()) {
 		updateControlsVisibility();
 	}
@@ -123,13 +126,6 @@ void StickerSetBox::updateControlsVisibility() {
 	}
 	resizeEvent(0);
 	update();
-}
-
-void StickerSetBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, _inner->title());
 }
 
 void StickerSetBox::resizeEvent(QResizeEvent *e) {

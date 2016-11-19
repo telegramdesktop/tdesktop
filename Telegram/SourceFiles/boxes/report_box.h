@@ -40,7 +40,6 @@ private slots:
 	void onDescriptionResized();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void doSetInnerFocus() override;

@@ -120,7 +120,6 @@ std::string logType(const structure::Type &type) {
 		{ structure::TypeTag::Color     , "color" },
 		{ structure::TypeTag::Point     , "point" },
 		{ structure::TypeTag::Size      , "size" },
-		{ structure::TypeTag::Cursor    , "cursor" },
 		{ structure::TypeTag::Align     , "align" },
 		{ structure::TypeTag::Margins   , "margins" },
 		{ structure::TypeTag::Font      , "font" },
@@ -135,10 +134,6 @@ bool validateAnsiString(const QString &value) {
 		}
 	}
 	return true;
-}
-
-bool validateCursorString(const QString &value) {
-	return QRegularExpression("^[a-z_]+$").match(value).hasMatch();
 }
 
 bool validateAlignString(const QString &value) {
@@ -308,8 +303,6 @@ structure::Value ParsedFile::readValue() {
 		return pointValue;
 	} else if (auto sizeValue = readSizeValue()) {
 		return sizeValue;
-	} else if (auto cursorValue = readCursorValue()) {
-		return cursorValue;
 	} else if (auto alignValue = readAlignValue()) {
 		return alignValue;
 	} else if (auto marginsValue = readMarginsValue()) {
@@ -593,26 +586,6 @@ structure::Value ParsedFile::readSizeValue() {
 			assertNextToken(BasicType::RightParenthesis);
 
 			return { structure::data::size { w.Int(), h.Int() } };
-		}
-		file_.putBack();
-	}
-	return {};
-}
-
-structure::Value ParsedFile::readCursorValue() {
-	if (auto font = file_.getToken(BasicType::Name)) {
-		if (tokenValue(font) == "cursor") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto cursor = tokenValue(assertNextToken(BasicType::Name));
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			if (validateCursorString(cursor)) {
-				return { structure::TypeTag::Cursor, cursor.toStdString() };
-			} else {
-				logError(kErrorBadString) << "bad cursor string";
-			}
 		}
 		file_.putBack();
 	}

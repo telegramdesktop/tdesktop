@@ -38,6 +38,7 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 , _pathLink(this, QString(), st::boxLinkButton)
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	setTitleText(lang(lng_download_path_header));
 
 	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -63,13 +64,6 @@ void DownloadPathBox::updateControlsVisibility() {
 	h += st::boxOptionListPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 
 	setMaxHeight(h);
-}
-
-void DownloadPathBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_download_path_header));
 }
 
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {

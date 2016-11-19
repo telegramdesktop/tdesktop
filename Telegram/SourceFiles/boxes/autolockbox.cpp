@@ -30,8 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 
-AutoLockBox::AutoLockBox() :
-_close(this, lang(lng_box_ok), st::defaultBoxButton) {
+AutoLockBox::AutoLockBox() : _close(this, lang(lng_box_ok), st::defaultBoxButton) {
+	setTitleText(lang(lng_passcode_autolock));
 
 	bool haveTestLang = (cLang() == languageTest);
 
@@ -53,13 +53,6 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 
 	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
 	prepare();
-}
-
-void AutoLockBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_passcode_autolock));
 }
 
 void AutoLockBox::onChange() {

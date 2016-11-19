@@ -174,7 +174,6 @@ historyComposeField: FlatTextarea {
 	align: align(left);
 	textMrg: margins(5px, 5px, 5px, 5px);
 	font: msgFont;
-	cursor: cursor(text);
 
 	phColor: #999999;
 	phFocusColor: #aaaaaa;
@@ -191,7 +190,6 @@ historySendRight: 2px;
 
 historyComposeButton: FlatButton {
 	duration: 200;
-	cursor: cursor(pointer);
 
 	color: btnYesColor;
 	overColor: btnYesHover;
@@ -334,7 +332,6 @@ historyInlineBotCancel: IconButton(historyReplyCancel) {
 
 reportSpamHide: FlatButton {
 	duration: 200;
-	cursor: cursor(pointer);
 
 	color: btnYesColor;
 	overColor: btnYesHover;

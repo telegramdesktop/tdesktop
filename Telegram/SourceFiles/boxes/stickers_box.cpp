@@ -151,6 +151,7 @@ void StickersBox::setup() {
 			MTPmessages_GetArchivedStickers::Flags flags = 0;
 			_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(flags), MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
 		}
+		setTitleText(lang(lng_stickers_packs));
 	} else if (_section == Section::Archived) {
 		// Reload the archived list.
 		MTPmessages_GetArchivedStickers::Flags flags = 0;
@@ -166,6 +167,9 @@ void StickersBox::setup() {
 			}
 		}
 		App::api()->requestStickerSets();
+		setTitleText(lang(lng_stickers_archived));
+	} else {
+		setTitleText(lang(lng_stickers_featured));
 	}
 
 	int bottomSkip = st::boxPadding.bottom();
@@ -297,18 +301,10 @@ bool StickersBox::reorderFail(const RPCError &result) {
 }
 
 void StickersBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	auto title = ([this]() {
-		if (_section == Section::Installed) {
-			return lang(lng_stickers_packs);
-		} else if (_section == Section::Featured) {
-			return lang(lng_stickers_featured);
-		}
-		return lang(lng_stickers_archived);
-	})();
-	paintTitle(p, title);
+	Painter p(this);
+
 	p.translate(0, titleHeight());
 
 	if (_aboutHeight > 0) {

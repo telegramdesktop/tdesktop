@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
 
-AboutBox::AboutBox() : AbstractBox(st::aboutWidth)
+AboutBox::AboutBox() : AbstractBox(st::aboutWidth, qsl("Telegram Desktop"))
 , _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
 , _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
 , _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
@@ -84,13 +84,6 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 	} else {
 		AbstractBox::keyPressEvent(e);
 	}
-}
-
-void AboutBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, qsl("Telegram Desktop"));
 }
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS

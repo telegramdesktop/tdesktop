@@ -30,6 +30,7 @@ enum class ImageRoundRadius {
 
 QImage imageBlur(QImage img);
 void imageRound(QImage &img, ImageRoundRadius radius);
+void imageCircle(QImage &img);
 
 inline uint32 packInt(int32 a) {
 	return (a < 0) ? uint32(int64(a) + 0x100000000LL) : uint32(a);

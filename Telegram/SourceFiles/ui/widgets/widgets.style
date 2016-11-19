@@ -65,7 +65,6 @@ FlatButton {
 	font: font;
 	overFont: font;
 	duration: int;
-	cursor: cursor;
 
 	ripple: RippleAnimation;
 }
@@ -164,7 +163,6 @@ FlatTextarea {
 	textMrg: margins;
 	align: align;
 	font: font;
-	cursor: cursor;
 
 	phColor: color;
 	phFocusColor: color;
@@ -183,7 +181,6 @@ FlatInput {
 	textMrg: margins;
 	align: align;
 	font: font;
-	cursor: cursor;
 
 	icon: icon;
 
@@ -549,7 +546,6 @@ defaultFlatInput: FlatInput {
 	align: align(left);
 	textMrg: margins(5px, 5px, 5px, 5px);
 	font: defaultInputFont;
-	cursor: cursor(text);
 
 	borderWidth: 2px;
 	borderColor: #f2f2f2;

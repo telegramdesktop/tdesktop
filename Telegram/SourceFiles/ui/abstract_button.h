@@ -36,6 +36,7 @@ public:
 	};
 
 	AbstractButton(QWidget *parent) : TWidget(parent) {
+		setCursor(style::cur_pointer);
 	}
 
 	enum {

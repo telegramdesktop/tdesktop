@@ -72,6 +72,7 @@ namespace {
 }
 
 EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
+	setTitleText(lang(lng_settings_emoji_list));
 	setBlockTitle(true);
 
 	fillBlocks();
@@ -122,10 +123,9 @@ void EmojiBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void EmojiBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_settings_emoji_list));
+	Painter p(this);
 
 	p.setFont(st::emojiTextFont);
 	p.setPen(st::boxTextFg);

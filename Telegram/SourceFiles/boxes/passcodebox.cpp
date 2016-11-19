@@ -74,17 +74,17 @@ void PasscodeBox::init() {
 	textstyleRestore();
 	if (_turningOff) {
 		_oldPasscode->show();
-		_boxTitle = lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove);
+		setTitleText(lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
 		setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
 	} else {
 		bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 		if (has) {
 			_oldPasscode->show();
-			_boxTitle = lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change);
+			setTitleText(lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
 			setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _newPasscode->height() + st::contactSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::contactSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
 		} else {
 			_oldPasscode->hide();
-			_boxTitle = lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create);
+			setTitleText(lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create));
 			setMaxHeight(titleHeight() + st::passcodePadding.top() + _newPasscode->height() + st::contactSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::contactSkip : 0) + _aboutHeight + (_cloudPwd ? st::contactSkip + _recoverEmail->height() + st::passcodeSkip : st::passcodePadding.bottom()) + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
 		}
 	}
@@ -153,10 +153,9 @@ void PasscodeBox::onSubmit() {
 }
 
 void PasscodeBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, _boxTitle);
+	Painter p(this);
 
 	textstyleSet(&st::usernameTextStyle);
 
@@ -448,7 +447,7 @@ bool PasscodeBox::recoverStartFail(const RPCError &error) {
 	return true;
 }
 
-RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth)
+RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth, lang(lng_signin_recover_title))
 , _submitRequest(0)
 , _pattern(st::normalFont->elided(lng_signin_recover_hint(lt_recover_email, pattern), st::boxWidth - st::boxPadding.left() * 1.5))
 , _saveButton(this, lang(lng_passcode_submit), st::defaultBoxButton)
@@ -468,10 +467,9 @@ RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth)
 }
 
 void RecoverBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_signin_recover_title));
+	Painter p(this);
 
 	p.setFont(st::normalFont);
 	p.setPen(st::boxTextFg);

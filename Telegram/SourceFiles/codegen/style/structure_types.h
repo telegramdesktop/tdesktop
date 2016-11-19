@@ -48,7 +48,6 @@ enum class TypeTag {
 	Color,
 	Point,
 	Size,
-	Cursor,
 	Align,
 	Margins,
 	Font,
@@ -135,7 +134,7 @@ public:
 	// Can be int / pixels.
 	Value(TypeTag type, int value);
 
-	// Can be string / transition / cursor / align.
+	// Can be string / align.
 	Value(TypeTag type, std::string value);
 
 	// Default constructed value (uninitialized).

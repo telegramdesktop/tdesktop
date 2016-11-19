@@ -142,7 +142,6 @@ FlatButton::FlatButton(QWidget *parent, const QString &text, const style::FlatBu
 		_width = _st.width;
 	}
 	resize(_width, _st.height);
-	setCursor(_st.cursor);
 }
 
 void FlatButton::setOpacity(float64 o) {

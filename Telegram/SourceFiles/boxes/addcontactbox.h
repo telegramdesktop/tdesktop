@@ -35,6 +35,7 @@ class Checkbox;
 class Radiobutton;
 class LinkButton;
 class RoundButton;
+class NewAvatarButton;
 } // namespace Ui
 
 class AddContactBox : public AbstractBox, public RPCSender {
@@ -64,7 +65,6 @@ private:
 	void initBox();
 
 	UserData *_user = nullptr;
-	QString _boxTitle;
 
 	ChildWidget<Ui::InputField> _first;
 	ChildWidget<Ui::InputField> _last;
@@ -89,7 +89,6 @@ public:
 	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
 
 public slots:
-	void onPhoto();
 	void onPhotoReady(const QImage &img);
 
 	void onNext();
@@ -97,41 +96,29 @@ public slots:
 	void onDescriptionResized();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
 
 	void doSetInnerFocus() override;
 
 private:
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	void step_photoOver(float64 ms, bool timer);
-
-	QRect photoRect() const;
-
 	void updateMaxHeight();
 	void updateSelected(const QPoint &cursorGlobalPosition);
 	CreatingGroupType _creating;
 
-	anim::fvalue a_photoOver;
-	Animation _a_photoOver;
-	bool _photoOver;
-
+	ChildWidget<Ui::NewAvatarButton> _photo;
 	ChildWidget<Ui::InputField> _title;
 	ChildWidget<Ui::InputArea> _description;
 
-	QImage _photoBig;
-	QPixmap _photoSmall;
+	QImage _photoImage;
 
 	ChildWidget<Ui::RoundButton> _next;
 	ChildWidget<Ui::RoundButton> _cancel;
 
 	// channel creation
-	int32 _creationRequestId;
-	ChannelData *_createdChannel;
+	mtpRequestId _creationRequestId = 0;
+	ChannelData *_createdChannel = nullptr;
 
 	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
@@ -220,7 +207,6 @@ public slots:
 	void onSubmit();
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void doSetInnerFocus() override;
@@ -233,7 +219,6 @@ private:
 	bool onSaveChatFail(const RPCError &e);
 
 	PeerData *_peer;
-	QString _boxTitle;
 
 	ChildWidget<Ui::InputField> _first;
 	ChildWidget<Ui::InputField> _last;
@@ -263,7 +248,6 @@ public slots:
 
 protected:
 	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 	void doSetInnerFocus() override;

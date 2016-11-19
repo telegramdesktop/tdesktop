@@ -228,8 +228,9 @@ void PhotoCropBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PhotoCropBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	p.setFont(st::boxTextFont);
 	p.setPen(st::boxPhotoTextFg);

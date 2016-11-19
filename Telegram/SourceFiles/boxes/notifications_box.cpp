@@ -132,8 +132,9 @@ NotificationsBox::NotificationsBox() : AbstractBox()
 }
 
 void NotificationsBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	auto contentLeft = getContentLeft();
 

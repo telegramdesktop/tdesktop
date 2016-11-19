@@ -51,7 +51,6 @@ signals:
 	void installed(uint64 id);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:

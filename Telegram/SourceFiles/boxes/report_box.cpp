@@ -38,6 +38,8 @@ ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
 , _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other))
 , _report(this, lang(lng_report_button), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	setTitleText(lang(_channel->isMegagroup() ? lng_report_group_title : lng_report_title));
+
 	connect(_report, SIGNAL(clicked()), this, SLOT(onReport()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
@@ -49,13 +51,6 @@ ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
 	updateMaxHeight();
 
 	prepare();
-}
-
-void ReportBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(_channel->isMegagroup() ? lng_report_group_title : lng_report_title));
 }
 
 void ReportBox::resizeEvent(QResizeEvent *e) {

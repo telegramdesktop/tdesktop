@@ -140,6 +140,7 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const
 , _a_appearance(animation(this, &FlatTextarea::step_appearance))
 , _lastTextWithTags { v, tags }
 , _st(st) {
+	setCursor(style::cur_text);
 	setAcceptRichText(false);
 	resize(_st.width, _st.font->height);
 
@@ -1489,6 +1490,7 @@ FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString 
 , _a_appearance(animation(this, &FlatInput::step_appearance))
 , _notingBene(0)
 , _st(st) {
+	setCursor(style::cur_text);
 	resize(_st.width, _st.height);
 
 	setFont(_st.font->f);

@@ -29,9 +29,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 
-AbstractBox::AbstractBox(int w) : LayerWidget(App::wnd()->bodyWidget()) {
+AbstractBox::AbstractBox(int w, const QString &title) : LayerWidget(App::wnd()->bodyWidget())
+, _title(title) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize((w > 0) ? w : st::boxWideWidth, 0);
+}
+
+void AbstractBox::setTitleText(const QString &title) {
+	_title = title;
+	update();
+}
+
+void AbstractBox::setAdditionalTitle(const QString &additionalTitle) {
+	_additionalTitle = additionalTitle;
+	update();
 }
 
 void AbstractBox::prepare() {
@@ -63,11 +74,6 @@ void AbstractBox::parentResized() {
 	update();
 }
 
-bool AbstractBox::paint(QPainter &p) {
-	p.fillRect(rect(), st::boxBg);
-	return false;
-}
-
 int AbstractBox::titleHeight() const {
 	return _blockTitle ? st::boxBlockTitleHeight : st::boxTitleHeight;
 }
@@ -95,8 +101,11 @@ void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &ad
 }
 
 void AbstractBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	if (paint(p)) return;
+	Painter p(this);
+	p.fillRect(e->rect(), st::boxBg);
+	if (!_title.isEmpty()) {
+		paintTitle(p, _title, _additionalTitle);
+	}
 }
 
 void AbstractBox::setMaxHeight(int32 maxHeight) {

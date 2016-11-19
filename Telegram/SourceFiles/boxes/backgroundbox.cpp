@@ -31,17 +31,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
 , _inner(this) {
 	init(_inner);
+	setTitleText(lang(lng_backgrounds_header));
 
 	connect(_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
 
 	prepare();
-}
-
-void BackgroundBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_backgrounds_header));
 }
 
 void BackgroundBox::onBackgroundChosen(int index) {

@@ -40,7 +40,6 @@ public slots:
 
 protected:
 	void mousePressEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 
 private:
 	QVector<Ui::Radiobutton*> _langs;

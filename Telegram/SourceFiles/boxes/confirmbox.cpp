@@ -154,8 +154,9 @@ void ConfirmBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void ConfirmBox::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
+
+	Painter p(this);
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
@@ -261,8 +262,9 @@ void MaxInviteBox::step_good(float64 ms, bool timer) {
 }
 
 void MaxInviteBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
@@ -288,7 +290,7 @@ void MaxInviteBox::resizeEvent(QResizeEvent *e) {
 	AbstractBox::resizeEvent(e);
 }
 
-ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st::boxWideWidth)
+ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st::boxWideWidth, lang(lng_profile_convert_title))
 , _chat(chat)
 , _text(100)
 , _note(100)
@@ -358,10 +360,9 @@ void ConvertToSupergroupBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_profile_convert_title));
+	Painter p(this);
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
@@ -553,8 +554,9 @@ void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
 }
 
 void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	p.drawPixmap((width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, _photo->pixCircled(st::confirmInvitePhotoSize, st::confirmInvitePhotoSize));
 

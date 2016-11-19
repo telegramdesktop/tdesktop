@@ -45,7 +45,7 @@ void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
 	}
 }
 
-ConfirmPhoneBox::ConfirmPhoneBox(QWidget *parent, const QString &phone, const QString &hash) : AbstractBox(st::boxWidth)
+ConfirmPhoneBox::ConfirmPhoneBox(QWidget *parent, const QString &phone, const QString &hash) : AbstractBox(st::boxWidth, lang(lng_confirm_phone_title))
 , _phone(phone)
 , _hash(hash) {
 	setParent(parent);
@@ -248,10 +248,9 @@ void ConfirmPhoneBox::showError(const QString &error) {
 }
 
 void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_confirm_phone_title));
+	Painter p(this);
 
 	p.setFont(st::boxTextFont);
 	auto callText = getCallText();

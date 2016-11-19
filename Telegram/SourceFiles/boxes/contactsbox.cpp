@@ -275,8 +275,9 @@ void ContactsBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void ContactsBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	bool addingAdmin = _inner->channel() && _inner->membersFilter() == MembersFilter::Admins;
 	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins) {

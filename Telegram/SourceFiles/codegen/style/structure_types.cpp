@@ -179,7 +179,6 @@ Value::Value(TypeTag type, int value) : Value(type, std::make_shared<DataTypes::
 
 Value::Value(TypeTag type, std::string value) : Value(type, std::make_shared<DataTypes::TString>(value)) {
 	if (type_.tag != TypeTag::String &&
-		type_.tag != TypeTag::Cursor &&
 		type_.tag != TypeTag::Align) {
 		type_.tag = TypeTag::Invalid;
 		data_ = std::make_shared<DataBase>();
@@ -196,7 +195,6 @@ Value::Value(Type type, Qt::Initialization) : type_(type) {
 	case TypeTag::Color: data_ = std::make_shared<DataTypes::TColor>(data::color { 0, 0, 0, 255 }); break;
 	case TypeTag::Point: data_ = std::make_shared<DataTypes::TPoint>(data::point { 0, 0 }); break;
 	case TypeTag::Size: data_ = std::make_shared<DataTypes::TSize>(data::size { 0, 0 }); break;
-	case TypeTag::Cursor: data_ = std::make_shared<DataTypes::TString>("default"); break;
 	case TypeTag::Align: data_ = std::make_shared<DataTypes::TString>("topleft"); break;
 	case TypeTag::Margins: data_ = std::make_shared<DataTypes::TMargins>(data::margins { 0, 0, 0, 0 }); break;
 	case TypeTag::Font: data_ = std::make_shared<DataTypes::TFont>(data::font { "", 13, 0 }); break;

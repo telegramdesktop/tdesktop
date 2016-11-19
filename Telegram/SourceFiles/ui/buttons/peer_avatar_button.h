@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/abstract_button.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_window.h"
 
 class PeerData;
@@ -42,6 +42,22 @@ protected:
 private:
 	PeerData *_peer;
 	const style::PeerAvatarButton &_st;
+
+};
+
+class NewAvatarButton : public RippleButton {
+public:
+	NewAvatarButton(QWidget *parent, int size);
+
+	void setImage(const QImage &image);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+
+private:
+	QPixmap _image;
 
 };
 

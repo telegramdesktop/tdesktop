@@ -38,6 +38,7 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 , _done(this, lang(lng_about_done), st::defaultBoxButton)
 , _shortPollRequest(0) {
 	setMaxHeight(st::sessionsHeight);
+	setTitleText(lang(lng_sessions_other_header));
 
 	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
@@ -71,10 +72,10 @@ void SessionsBox::resizeEvent(QResizeEvent *e) {
 }
 
 void SessionsBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_sessions_other_header));
+	Painter p(this);
+
 	p.translate(0, titleHeight());
 
 	if (_loading) {

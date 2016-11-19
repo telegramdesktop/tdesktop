@@ -33,9 +33,11 @@ class AbstractBox : public LayerWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
-	AbstractBox(int w = 0);
+	AbstractBox(int w = 0, const QString &title = QString());
 	void parentResized() override;
 
+	void setTitleText(const QString &title);
+	void setAdditionalTitle(const QString &additionalTitle);
 	void setBlockTitle(bool block);
 	void raiseShadow();
 
@@ -48,7 +50,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void prepare();
-	bool paint(QPainter &p);
 	int titleHeight() const;
 	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
 	void setMaxHeight(int32 maxHeight);
@@ -63,6 +64,8 @@ private:
 
 	bool _closed = false;
 
+	QString _title;
+	QString _additionalTitle;
 	bool _blockTitle = false;
 	ChildWidget<Ui::IconButton> _blockClose = { nullptr };
 	ChildWidget<Ui::GradientShadow> _blockShadow = { nullptr };

@@ -32,9 +32,6 @@ public:
 public slots:
 	void onBackgroundChosen(int index);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
 private:
 	class Inner;
 	ChildWidget<Inner> _inner;

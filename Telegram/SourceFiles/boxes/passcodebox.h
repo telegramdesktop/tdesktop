@@ -79,7 +79,6 @@ private:
 
 	int _aboutHeight = 0;
 
-	QString _boxTitle;
 	Text _about, _hintText;
 
 	ChildWidget<Ui::RoundButton> _saveButton;

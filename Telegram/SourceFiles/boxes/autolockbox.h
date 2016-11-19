@@ -36,9 +36,6 @@ public:
 public slots:
 	void onChange();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
 private:
 	QVector<Ui::Radiobutton*> _options;
 	ChildWidget<Ui::RoundButton> _close;

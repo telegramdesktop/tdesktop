@@ -93,7 +93,6 @@ private:
 	structure::Value readColorValue();
 	structure::Value readPointValue();
 	structure::Value readSizeValue();
-	structure::Value readCursorValue();
 	structure::Value readAlignValue();
 	structure::Value readMarginsValue();
 	structure::Value readFontValue();
@@ -130,7 +129,6 @@ private:
 		{ "color"     , { structure::TypeTag::Color } },
 		{ "point"     , { structure::TypeTag::Point } },
 		{ "size"      , { structure::TypeTag::Size } },
-		{ "cursor"    , { structure::TypeTag::Cursor } },
 		{ "align"     , { structure::TypeTag::Align } },
 		{ "margins"   , { structure::TypeTag::Margins } },
 		{ "font"      , { structure::TypeTag::Font } },

@@ -29,7 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
 
-UsernameBox::UsernameBox() : AbstractBox(st::boxWidth),
+UsernameBox::UsernameBox() : AbstractBox(st::boxWidth, lang(lng_username_title)),
 _save(this, lang(lng_settings_save), st::defaultBoxButton),
 _cancel(this, lang(lng_cancel), st::cancelBoxButton),
 _username(this, st::defaultInputField, qsl("@username"), App::self()->username, false),
@@ -65,10 +65,9 @@ void UsernameBox::doSetInnerFocus() {
 }
 
 void UsernameBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_username_title));
+	Painter p(this);
 
 	p.setFont(st::boxTextFont);
 	if (!_copiedTextLink.isEmpty()) {

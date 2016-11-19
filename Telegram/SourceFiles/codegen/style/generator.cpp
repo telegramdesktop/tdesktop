@@ -284,7 +284,6 @@ QString Generator::typeToString(structure::Type type) const {
 	case Tag::Color: return "style::color";
 	case Tag::Point: return "style::point";
 	case Tag::Size: return "style::size";
-	case Tag::Cursor: return "style::cursor";
 	case Tag::Align: return "style::align";
 	case Tag::Margins: return "style::margins";
 	case Tag::Font: return "style::font";
@@ -305,7 +304,6 @@ QString Generator::typeToDefaultValue(structure::Type type) const {
 	case Tag::Color: return "{ Qt::Uninitialized }";
 	case Tag::Point: return "{ 0, 0 }";
 	case Tag::Size: return "{ 0, 0 }";
-	case Tag::Cursor: return "style::cur_default";
 	case Tag::Align: return "style::al_topleft";
 	case Tag::Margins: return "{ 0, 0, 0, 0 }";
 	case Tag::Font: return "{ Qt::Uninitialized }";
@@ -355,7 +353,6 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 		auto v(value.Size());
 		return QString("{ %1, %2 }").arg(pxValueName(v.width)).arg(pxValueName(v.height));
 	} break;
-	case Tag::Cursor: return QString("style::cur_%1").arg(value.String().c_str());
 	case Tag::Align: return QString("style::al_%1").arg(value.String().c_str());
 	case Tag::Margins: {
 		auto v(value.Margins());
@@ -1120,7 +1117,6 @@ bool Generator::collectUniqueValues() {
 		case Tag::Double:
 		case Tag::String:
 		case Tag::Color:
-		case Tag::Cursor:
 		case Tag::Align: break;
 		case Tag::Pixels: pxValues_.insert(value.Int(), true); break;
 		case Tag::Point: {

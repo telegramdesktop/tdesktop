@@ -31,7 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "styles/style_boxes.h"
 
-ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth)
+ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth, lang(lng_connection_header))
 , _hostInput(this, st::connectionHostInputField, lang(lng_connection_host_ph), Global::ConnectionProxy().host)
 , _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
 , _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), Global::ConnectionProxy().user)
@@ -83,13 +83,6 @@ void ConnectionBox::doSetInnerFocus() {
 	if (!_hostInput->isHidden()) {
 		_hostInput->setFocus();
 	}
-}
-
-void ConnectionBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_connection_header));
 }
 
 void ConnectionBox::resizeEvent(QResizeEvent *e) {
@@ -230,8 +223,9 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 }
 
 void AutoDownloadBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	p.setPen(st::boxTextFg);
 	p.setFont(st::semiboldFont);

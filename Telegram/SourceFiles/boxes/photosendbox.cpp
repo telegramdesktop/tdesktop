@@ -219,8 +219,9 @@ void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PhotoSendBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	if (_file && (_file->type == PreparePhoto || _animated)) {
 		if (_thumbx > st::boxPhotoPadding.left()) {
@@ -526,8 +527,9 @@ void EditCaptionBox::updateBoxSize() {
 }
 
 void EditCaptionBox::paintEvent(QPaintEvent *e) {
+	AbstractBox::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	if (_photo || _animated) {
 		if (_thumbx > st::boxPhotoPadding.left()) {

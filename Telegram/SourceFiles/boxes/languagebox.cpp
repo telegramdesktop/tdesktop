@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 LanguageBox::LanguageBox() :
 _close(this, lang(lng_box_ok), st::defaultBoxButton) {
+	setTitleText(lang(lng_languages));
 
 	bool haveTestLang = (cLang() == languageTest);
 
@@ -82,13 +83,6 @@ void LanguageBox::mousePressEvent(QMouseEvent *e) {
 		}
 		Ui::showLayer(new InformBox(qsl("Everything seems great in all %1 languages!").arg(languageCount - 1)));
 	}
-}
-
-void LanguageBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_languages));
 }
 
 void LanguageBox::onChange() {

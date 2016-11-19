@@ -30,6 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 LocalStorageBox::LocalStorageBox() : AbstractBox()
 , _clear(this, lang(lng_local_storage_clear), st::boxLinkButton)
 , _close(this, lang(lng_box_ok), st::defaultBoxButton) {
+	setTitleText(lang(lng_local_storage_title));
+
 	connect(_clear, SIGNAL(clicked()), this, SLOT(onClear()));
 	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
@@ -72,10 +74,9 @@ void LocalStorageBox::checkLocalStoredCounts() {
 }
 
 void LocalStorageBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	AbstractBox::paintEvent(e);
 
-	paintTitle(p, lang(lng_local_storage_title));
+	Painter p(this);
 
 	p.setFont(st::boxTextFont);
 	p.setPen(st::windowFg);
