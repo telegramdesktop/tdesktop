@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
-#include "core/lambda_wrap.h"
 #include <QtCore/QTimer>
 #include <QtGui/QColor>
 
@@ -89,7 +88,7 @@ enum Notification {
 
 namespace anim {
 
-using transition = base::lambda_wrap<float64(float64 delta, float64 dt)>;
+using transition = base::lambda_copy<float64(float64 delta, float64 dt)>;
 
 extern transition linear;
 extern transition sineInOut;
@@ -584,7 +583,7 @@ template <typename AnimType>
 class SimpleAnimation {
 public:
 	using ValueType = typename AnimType::ValueType;
-	using Callback = base::lambda_unique<void()>;
+	using Callback = base::lambda<void()>;
 
 	void step(uint64 ms) {
 		if (_data) {
@@ -621,7 +620,7 @@ public:
 	}
 
 	template <typename Lambda>
-	void start(Lambda &&updateCallback, const ValueType &from, const ValueType &to, float64 duration, anim::transition transition = anim::linear) {
+	void start(Lambda &&updateCallback, const ValueType &from, const ValueType &to, float64 duration, const anim::transition &transition = anim::linear) {
 		if (!_data) {
 			_data = std_::make_unique<Data>(from, std_::forward<Lambda>(updateCallback));
 		}
@@ -647,10 +646,10 @@ private:
 			, a_animation(animation(this, &Data::step))
 			, updateCallback(std_::move(updateCallback)) {
 		}
-		Data(const ValueType &from, const base::lambda_wrap<void()> &updateCallback)
+		Data(const ValueType &from, const base::lambda_copy<void()> &updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
-			, updateCallback(base::lambda_wrap<void()>(updateCallback)) {
+			, updateCallback(base::lambda_copy<void()>(updateCallback)) {
 		}
 		void step(float64 ms, bool timer) {
 			auto dt = (ms >= duration) ? 1. : (ms / duration);

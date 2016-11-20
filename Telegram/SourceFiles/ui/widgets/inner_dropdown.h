@@ -48,13 +48,13 @@ public:
 	void otherLeave();
 	void hideFast();
 
-	void setShowStartCallback(base::lambda_unique<void()> callback) {
+	void setShowStartCallback(base::lambda<void()> &&callback) {
 		_showStartCallback = std_::move(callback);
 	}
-	void setHideStartCallback(base::lambda_unique<void()> callback) {
+	void setHideStartCallback(base::lambda<void()> &&callback) {
 		_hideStartCallback = std_::move(callback);
 	}
-	void setHiddenCallback(base::lambda_unique<void()> callback) {
+	void setHiddenCallback(base::lambda<void()> &&callback) {
 		_hiddenCallback = std_::move(callback);
 	}
 
@@ -116,9 +116,9 @@ private:
 
 	QTimer _hideTimer;
 	bool _ignoreShowEvents = false;
-	base::lambda_unique<void()> _showStartCallback;
-	base::lambda_unique<void()> _hideStartCallback;
-	base::lambda_unique<void()> _hiddenCallback;
+	base::lambda<void()> _showStartCallback;
+	base::lambda<void()> _hideStartCallback;
+	base::lambda<void()> _hiddenCallback;
 
 	ChildWidget<Ui::ScrollArea> _scroll;
 

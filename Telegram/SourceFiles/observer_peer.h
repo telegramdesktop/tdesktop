@@ -102,7 +102,7 @@ public:
 
 private:
 	PeerUpdate::Flags _events;
-	base::lambda_unique<void(const PeerUpdate&)> _handler;
+	base::lambda<void(const PeerUpdate&)> _handler;
 
 };
 base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated();

@@ -545,8 +545,8 @@ bool ContactsBox::creationFail(const RPCError &error) {
 	return false;
 }
 
-ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda_wrap<void()> updateCallback)
-: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer))) {
+ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
+: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
 }
 
 ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : TWidget(parent)
@@ -1371,7 +1371,7 @@ void ContactsBox::Inner::peerUnselected(PeerData *peer) {
 	changePeerCheckState(data, peer, false, ChangeStateWay::SkipCallback);
 }
 
-void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback) {
+void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
 	_peerSelectedChangedCallback = std_::move(callback);
 }
 

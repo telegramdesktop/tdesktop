@@ -286,7 +286,7 @@ class RevokePublicLinkBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-	RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCallback);
+	RevokePublicLinkBox(base::lambda<void()> &&revokeCallback);
 
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -323,7 +323,7 @@ private:
 	ChildWidget<Ui::FlatLabel> _aboutRevoke;
 	ChildWidget<Ui::RoundButton> _cancel;
 
-	base::lambda_unique<void()> _revokeCallback;
+	base::lambda<void()> _revokeCallback;
 	mtpRequestId _revokeRequestId = 0;
 	QPointer<ConfirmBox> weakRevokeConfirmBox;
 

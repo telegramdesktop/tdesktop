@@ -1303,6 +1303,10 @@ void MainWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cm
 	_history->sendBotCommand(peer, bot, cmd, replyTo);
 }
 
+void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
+	_history->hideSingleUseKeyboard(peer, replyTo);
+}
+
 void MainWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col) {
 	_history->app_sendBotCallback(button, msg, row, col);
 }
@@ -1997,7 +2001,7 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 	j.value().insert(item->id, true);
 }
 
-void MainWidget::fillPeerMenu(PeerData *peer, base::lambda_unique<QAction*(const QString &text, base::lambda_unique<void()> handler)> callback) {
+void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> &&handler)> &&callback) {
 	callback(lang((peer->isChat() || peer->isMegagroup()) ? lng_context_view_group : (peer->isUser() ? lng_context_view_profile : lng_context_view_channel)), [peer] {
 		Ui::showPeerProfile(peer);
 	});
@@ -2051,8 +2055,8 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda_unique<QAction*(const
 		Ui::showLayer(box);
 	};
 	if (auto user = peer->asUser()) {
-		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
 		callback(lang(lng_profile_delete_conversation), std_::move(deleteAndLeaveHandler));
+		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
 		if (user->access != UserNoAccess && user != App::self()) {
 			auto blockSubscription = MakeShared<base::Subscription>();
 			auto blockAction = callback(lang(user->isBlocked() ? (user->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (user->botInfo ? lng_profile_block_bot : lng_profile_block_user)), [user, blockSubscription] {

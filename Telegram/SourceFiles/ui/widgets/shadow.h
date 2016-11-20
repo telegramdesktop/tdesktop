@@ -74,7 +74,8 @@ protected:
 	}
 	void paintEvent(QPaintEvent *e) override {
 		Painter p(this);
-		_icon.fill(p, e->rect());
+		auto clip = e->rect();
+		_icon.fill(p, QRect(clip.x(), 0, clip.width(), height()));
 	}
 
 private:

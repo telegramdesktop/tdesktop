@@ -152,7 +152,7 @@ protected:
 private:
 	void destroyDelayed();
 	void moveByShift();
-	void hideAnimated(float64 duration, anim::transition func);
+	void hideAnimated(float64 duration, const anim::transition &func);
 	void step_opacity(float64 ms, bool timer);
 	void step_shift(float64 ms, bool timer);
 

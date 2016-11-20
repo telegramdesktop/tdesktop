@@ -644,7 +644,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	_menuPeer = history->peer;
 
 	_menu = new Ui::PopupMenu();
-	App::main()->fillPeerMenu(_menuPeer, [this](const QString &text, base::lambda_unique<void()> callback) {
+	App::main()->fillPeerMenu(_menuPeer, [this](const QString &text, base::lambda<void()> &&callback) {
 		return _menu->addAction(text, std_::move(callback));
 	});
 	connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroyed(QObject*)));

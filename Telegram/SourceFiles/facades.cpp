@@ -44,6 +44,12 @@ void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId rep
 	}
 }
 
+void hideSingleUseKeyboard(const HistoryItem *msg) {
+	if (auto m = main()) {
+		m->hideSingleUseKeyboard(msg->history()->peer, msg->id);
+	}
+}
+
 bool insertBotCommand(const QString &cmd, bool specialGif) {
 	if (auto m = main()) {
 		return m->insertBotCommand(cmd, specialGif);
@@ -85,11 +91,13 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 	} break;
 
 	case ButtonType::RequestLocation: {
+		hideSingleUseKeyboard(msg);
 		Ui::showLayer(new InformBox(lang(lng_bot_share_location_unavailable)));
 	} break;
 
 	case ButtonType::RequestPhone: {
-		SharePhoneConfirmBox *box = new SharePhoneConfirmBox(msg->history()->peer);
+		hideSingleUseKeyboard(msg);
+		auto box = new SharePhoneConfirmBox(msg->history()->peer);
 		box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
 		Ui::showLayer(box);
 	} break;

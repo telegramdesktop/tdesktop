@@ -30,8 +30,8 @@ public:
 	ApiWrap(QObject *parent);
 	void init();
 
-	using RequestMessageDataCallback = base::lambda_wrap<void(ChannelData*, MsgId)>;
-	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback &&callback);
+	using RequestMessageDataCallback = base::lambda_copy<void(ChannelData*, MsgId)>;
+	void requestMessageData(ChannelData *channel, MsgId msgId, const RequestMessageDataCallback &callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);

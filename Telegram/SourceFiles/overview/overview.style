@@ -43,19 +43,19 @@ OverviewFileLayout {
 	fileDateTop: pixels;
 }
 
-overviewCheckBg: #00000066;
+overviewCheckBg: #00000042;
 overviewCheckedBg: #2fa9e2;
 
 overviewPhotoSkip: 10px;
 overviewPhotoBg: #F1F1F1;
 overviewPhotoMinSize: minPhotoSize;
 overviewPhotoCheck: icon {
-	{ size(32px, 32px), overviewCheckBg },
-	{ "overview_photo_check", #ffffff, point(8px, 10px) },
+	{ size(31px, 31px), overviewCheckBg },
+	{ "overview_photo_check", #ffffff, point(4px, 8px) },
 };
 overviewPhotoChecked: icon {
-	{ size(32px, 32px), overviewCheckedBg },
-	{ "overview_photo_check", #ffffff, point(8px, 10px) },
+	{ size(31px, 31px), overviewCheckedBg },
+	{ "overview_photo_check", #ffffff, point(4px, 8px) },
 };
 overviewPhotoSelectOverlay: #0a7bb03f;
 

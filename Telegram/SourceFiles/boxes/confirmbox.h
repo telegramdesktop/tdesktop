@@ -43,7 +43,7 @@ public:
 	void updateLink();
 
 	// You can use this instead of connecting to "confirmed()" signal.
-	void setConfirmedCallback(base::lambda_unique<void()> &&callback) {
+	void setConfirmedCallback(base::lambda<void()> &&callback) {
 		_confirmedCallback = std_::move(callback);
 	}
 
@@ -92,7 +92,7 @@ private:
 	ChildWidget<Ui::RoundButton> _confirm;
 	ChildWidget<Ui::RoundButton> _cancel;
 
-	base::lambda_unique<void()> _confirmedCallback;
+	base::lambda<void()> _confirmedCallback;
 
 };
 

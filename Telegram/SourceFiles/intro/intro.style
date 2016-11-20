@@ -134,18 +134,17 @@ introErrorLabel: FlatLabel(defaultFlatLabel) {
 	font: introErrorFont;
 	align: align(center);
 }
-introBackButton: IconButton {
-	width: 40px;
-	height: 40px;
+introBackButton: IconButton(defaultIconButton) {
+	width: 56px;
+	height: 56px;
 
-	icon: icon {
-		{ size(40px, 40px), #f2f2f2 },
-		{ "title_back", #adadad, point(12px, 12px) },
-	};
-	iconOver: icon {
-		{ size(40px, 40px), #eeeeee },
-		{ "title_back", #969696, point(12px, 12px) },
-	};
-	iconPosition: point(0px, 0px);
+	icon: icon {{ "box_button_back", menuIconFg }};
+	iconOver: icon {{ "box_button_back", menuIconFgOver }};
+
+	rippleAreaPosition: point(8px, 8px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
-introBackPosition: point(32px, 32px);
+

@@ -33,10 +33,10 @@ public:
 	bool paint(Painter &p);
 	void refreshCache();
 
-	using FinishedCallback = base::lambda_unique<void()>;
+	using FinishedCallback = base::lambda<void()>;
 	void setFinishedCallback(FinishedCallback &&callback);
 
-	using UpdatedCallback = base::lambda_unique<void(float64)>;
+	using UpdatedCallback = base::lambda<void(float64)>;
 	void setUpdatedCallback(UpdatedCallback &&callback);
 
 	void show();
@@ -68,7 +68,7 @@ template <>
 class WidgetFadeWrap<TWidget> : public TWidget {
 public:
 	WidgetFadeWrap(QWidget *parent, TWidget *entity
-		, base::lambda_unique<void()> updateCallback
+		, base::lambda<void()> &&updateCallback
 		, int duration = st::widgetFadeDuration);
 
 	void fadeOut() {
@@ -105,7 +105,7 @@ protected:
 private:
 	TWidget *_entity;
 	int _duration;
-	base::lambda_unique<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 
 	FadeAnimation _animation;
 
@@ -115,7 +115,7 @@ template <typename Widget>
 class WidgetFadeWrap : public WidgetFadeWrap<TWidget> {
 public:
 	WidgetFadeWrap(QWidget *parent, Widget *entity
-		, base::lambda_unique<void()> updateCallback
+		, base::lambda<void()> &&updateCallback
 		, int duration = st::widgetFadeDuration) : WidgetFadeWrap<TWidget>(parent, entity, std_::move(updateCallback), duration) {
 	}
 	Widget *entity() {

@@ -26,7 +26,7 @@ namespace Ui {
 WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 , TWidget *entity
 , style::margins entityPadding
-, base::lambda_unique<void()> updateCallback
+, base::lambda<void()> &&updateCallback
 , int duration) : TWidget(parent)
 , _entity(entity)
 , _padding(entityPadding)

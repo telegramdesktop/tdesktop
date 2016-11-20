@@ -31,7 +31,7 @@ SingleTimer::SingleTimer() {
 	}
 }
 
-void SingleTimer::setTimeoutHandler(base::lambda_unique<void()> &&handler) {
+void SingleTimer::setTimeoutHandler(base::lambda<void()> &&handler) {
 	if (_handler && !handler) {
 		disconnect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
 	} else if (handler && !_handler) {

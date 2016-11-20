@@ -32,7 +32,7 @@ class WidgetSlideWrap<TWidget> : public TWidget {
 public:
 	WidgetSlideWrap(QWidget *parent, TWidget *entity
 		, style::margins entityPadding
-		, base::lambda_unique<void()> updateCallback
+		, base::lambda<void()> &&updateCallback
 		, int duration = st::widgetSlideDuration);
 
 	void slideUp();
@@ -61,7 +61,7 @@ private:
 	bool _inResizeToWidth = false;
 	style::margins _padding;
 	int _duration;
-	base::lambda_unique<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 
 	style::size _realSize;
 	int _forceHeight = -1;
@@ -76,7 +76,7 @@ class WidgetSlideWrap : public WidgetSlideWrap<TWidget> {
 public:
 	WidgetSlideWrap(QWidget *parent, Widget *entity
 		, style::margins entityPadding
-		, base::lambda_unique<void()> updateCallback
+		, base::lambda<void()> &&updateCallback
 		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent, entity, entityPadding, std_::move(updateCallback), duration) {
 	}
 	Widget *entity() {

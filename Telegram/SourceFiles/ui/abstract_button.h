@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "core/lambda_wrap.h"
 
 namespace Ui {
 
@@ -61,7 +60,7 @@ public:
 
 	void setAcceptBoth(bool acceptBoth = true);
 
-	void setClickedCallback(base::lambda_unique<void()> &&callback) {
+	void setClickedCallback(base::lambda<void()> &&callback) {
 		_clickedCallback = std_::move(callback);
 	}
 
@@ -83,7 +82,7 @@ protected:
 	int _state = StateNone;
 	bool _acceptBoth = false;
 
-	base::lambda_unique<void()> _clickedCallback;
+	base::lambda<void()> _clickedCallback;
 
 };
 

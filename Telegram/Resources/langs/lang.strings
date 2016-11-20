@@ -110,7 +110,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_status_online" = "online";
 "lng_status_connecting" = "connecting...";
 
-"lng_chat_status_unaccessible" = "group is unaccessible";
+"lng_chat_status_unaccessible" = "group is inaccessible";
 "lng_chat_status_members" = "{count:no members|# member|# members}";
 "lng_chat_status_members_online" = "{count:_not_used_|# member|# members}, {count_online:_not_used_|# online|# online}";
 
@@ -422,7 +422,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_preview_loading" = "Getting Link Info...";
 
-"lng_profile_chat_unaccessible" = "Group is unaccessible";
+"lng_profile_chat_unaccessible" = "Group is inaccessible";
 "lng_profile_about_section" = "About";
 "lng_profile_description_section" = "Description";
 "lng_profile_settings_section" = "Settings";

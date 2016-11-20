@@ -1150,7 +1150,7 @@ void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
 	onClose();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(base::lambda_unique<void()> &&revokeCallback) : AbstractBox()
+RevokePublicLinkBox::RevokePublicLinkBox(base::lambda<void()> &&revokeCallback) : AbstractBox()
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)

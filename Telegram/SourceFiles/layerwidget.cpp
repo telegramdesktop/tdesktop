@@ -43,7 +43,7 @@ public:
 	, _shadow(st::boxShadow) {
 	}
 
-	void setDoneCallback(base::lambda_unique<void()> callback) {
+	void setDoneCallback(base::lambda<void()> &&callback) {
 		_doneCallback = std_::move(callback);
 	}
 
@@ -75,7 +75,7 @@ private:
 	QPixmap _specialLayerCache;
 	QPixmap _layerCache;
 
-	base::lambda_unique<void()> _doneCallback;
+	base::lambda<void()> _doneCallback;
 
 	bool _wasAnimating = false;
 	bool _inPaintEvent = false;

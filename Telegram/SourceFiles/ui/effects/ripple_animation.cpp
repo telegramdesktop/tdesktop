@@ -25,8 +25,8 @@ namespace Ui {
 
 class RippleAnimation::Ripple {
 public:
-	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, UpdateCallback update);
-	Ripple(const style::RippleAnimation &st, const QPixmap &mask, UpdateCallback update);
+	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, const UpdateCallback &update);
+	Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update);
 
 	void paint(QPainter &p, const QPixmap &mask, uint64 ms);
 
@@ -53,7 +53,7 @@ private:
 
 };
 
-RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, UpdateCallback update)
+RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, const UpdateCallback &update)
 : _st(st)
 , _update(update)
 , _origin(origin)
@@ -75,7 +75,7 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin,
 	_show.start(UpdateCallback(_update), 0., 1., _st.showDuration);
 }
 
-RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, UpdateCallback update)
+RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update)
 : _st(st)
 , _update(update)
 , _origin(mask.width() / (2 * cIntRetinaFactor()), mask.height() / (2 * cIntRetinaFactor()))
@@ -141,10 +141,10 @@ void RippleAnimation::Ripple::finish() {
 	_hide.finish();
 }
 
-RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, UpdateCallback callback)
+RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, const UpdateCallback &callback)
 : _st(st)
 , _mask(App::pixmapFromImageInPlace(std_::move(mask)))
-, _update(std_::move(callback)) {
+, _update(callback) {
 }
 
 
@@ -190,7 +190,7 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, uint64 ms
 	clearFinished();
 }
 
-QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda_unique<void(QPainter &p)> drawer) {
+QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(QPainter &p)> &&drawer) {
 	auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
 	if (drawer) {
@@ -204,7 +204,7 @@ QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda_uniqu
 }
 
 QImage RippleAnimation::rectMask(QSize size) {
-	return maskByDrawer(size, true, base::lambda_unique<void(QPainter&)>());
+	return maskByDrawer(size, true, base::lambda<void(QPainter&)>());
 }
 
 QImage RippleAnimation::roundRectMask(QSize size, int radius) {

@@ -43,10 +43,10 @@ ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 void ApiWrap::init() {
 }
 
-void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback &&callback) {
+void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, const RequestMessageDataCallback &callback) {
 	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
 	if (callback) {
-		req.callbacks.append(std_::move(callback));
+		req.callbacks.append(callback);
 	}
 	if (!req.req) _messageDataResolveDelayed->call();
 }

@@ -20,8 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/lambda_wrap.h"
-
 class RPCError {
 public:
 	RPCError(const MTPrpcError &error) : _code(error.c_rpc_error().verror_code.v) {
@@ -834,7 +832,7 @@ struct LambdaUniqueHelper;
 
 template <typename Lambda, typename R, typename ...Args>
 struct LambdaUniqueHelper<R(Lambda::*)(Args...) const> {
-	using UniqueType = base::lambda_unique<R(Args...)>;
+	using UniqueType = base::lambda<R(Args...)>;
 };
 
 template <typename FunctionType>
@@ -843,7 +841,7 @@ using LambdaGetUnique = typename LambdaUniqueHelper<FunctionType>::UniqueType;
 template <typename Base, typename FunctionType>
 class RPCHandlerImplementation : public Base {
 protected:
-	using Lambda = base::lambda_unique<FunctionType>;
+	using Lambda = base::lambda<FunctionType>;
 	using Parent = RPCHandlerImplementation<Base, FunctionType>;
 
 public:
@@ -919,32 +917,32 @@ public:
 };
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda_unique<R(const mtpPrime*, const mtpPrime*)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const mtpPrime*, const mtpPrime*)> &&lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationBare<R>(std_::move(lambda)));
 }
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda_unique<R(const mtpPrime*, const mtpPrime*, mtpRequestId)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const mtpPrime*, const mtpPrime*, mtpRequestId)> &&lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationBareReq<R>(std_::move(lambda)));
 }
 
 template <typename R, typename T>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda_unique<R(const T&)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const T&)> &&lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationPlain<R, T>(std_::move(lambda)));
 }
 
 template <typename R, typename T>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda_unique<R(const T&, mtpRequestId)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const T&, mtpRequestId)> &&lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationReq<R, T>(std_::move(lambda)));
 }
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda_unique<R()> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R()> &&lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationNo<R>(std_::move(lambda)));
 }
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda_unique<R(mtpRequestId)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(mtpRequestId)> &&lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationNoReq<R>(std_::move(lambda)));
 }
 
@@ -992,19 +990,19 @@ public:
 
 };
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda_unique<bool(const RPCError&)> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(const RPCError&)> &&lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationPlain(std_::move(lambda)));
 }
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda_unique<bool(const RPCError&, mtpRequestId)> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(const RPCError&, mtpRequestId)> &&lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationReq(std_::move(lambda)));
 }
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda_unique<bool()> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool()> &&lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationNo(std_::move(lambda)));
 }
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda_unique<bool(mtpRequestId)> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(mtpRequestId)> &&lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationNoReq(std_::move(lambda)));
 }
 

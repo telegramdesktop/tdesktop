@@ -538,7 +538,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 		if (mtop >= 0 || htop >= 0) {
 			enumerateUserpics([&p, &r](HistoryMessage *message, int userpicTop) {
-				// stop the enumeration if the userpic is above the painted rect
+				// stop the enumeration if the userpic is below the painted rect
 				if (userpicTop >= r.top() + r.height()) {
 					return false;
 				}
@@ -2024,8 +2024,8 @@ void HistoryInner::onUpdateSelected() {
 			if (auto msg = item->toHistoryMessage()) {
 				if (msg->hasFromPhoto()) {
 					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
-						// stop enumeration if the userpic is above our point
-						if (userpicTop + st::msgPhotoSize <= point.y()) {
+						// stop enumeration if the userpic is below our point
+						if (userpicTop > point.y()) {
 							return false;
 						}
 
@@ -5821,6 +5821,22 @@ void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString 
 	}
 
 	_field->setFocus();
+}
+
+void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
+	if (!_peer || _peer != peer) return;
+
+	bool lastKeyboardUsed = (_keyboard->forMsgId() == FullMsgId(_channel, _history->lastKeyboardId)) && (_keyboard->forMsgId() == FullMsgId(_channel, replyTo));
+	if (replyTo) {
+		if (_replyToId == replyTo) {
+			cancelReply();
+			onCloudDraftSave();
+		}
+		if (_keyboard->singleUse() && _keyboard->hasMarkup() && lastKeyboardUsed) {
+			if (_kbShown) onKbToggle(false);
+			_history->lastKeyboardUsed = true;
+		}
+	}
 }
 
 void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col) {

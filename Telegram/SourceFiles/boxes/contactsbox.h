@@ -145,7 +145,7 @@ public:
 	Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter);
 	Inner(QWidget *parent, UserData *bot);
 
-	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
 	void peerUnselected(PeerData *peer);
 
 	void updateFilter(QString filter = QString());
@@ -157,7 +157,7 @@ public:
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
 	bool allAdmins() const;
-	void setAllAdminsChangedCallback(base::lambda_unique<void()> allAdminsChangedCallback) {
+	void setAllAdminsChangedCallback(base::lambda<void()> &&allAdminsChangedCallback) {
 		_allAdminsChangedCallback = std_::move(allAdminsChangedCallback);
 	}
 
@@ -213,7 +213,7 @@ protected:
 private:
 	struct ContactData {
 		ContactData() = default;
-		ContactData(PeerData *peer, base::lambda_wrap<void()> updateCallback);
+		ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
 
 		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
 		Text name;
@@ -251,7 +251,7 @@ private:
 		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilter::Admins));
 	}
 
-	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
+	base::lambda<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
 	int _rowHeight;
 	int _aboutHeight = 0;
@@ -266,7 +266,7 @@ private:
 	ChildWidget<Ui::Checkbox> _allAdmins;
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
-	base::lambda_unique<void()> _allAdminsChangedCallback;
+	base::lambda<void()> _allAdminsChangedCallback;
 
 	PeerData *_addToPeer = nullptr;
 	UserData *_addAdmin = nullptr;

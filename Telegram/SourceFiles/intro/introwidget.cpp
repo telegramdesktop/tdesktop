@@ -42,7 +42,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 , _a_stage(animation(this, &IntroWidget::step_stage))
 , _a_show(animation(this, &IntroWidget::step_show))
-, _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda_unique<void()>(), st::introSlideDuration)
+, _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda<void()>(), st::introSlideDuration)
 , _settings(this, lang(lng_menu_settings), st::defaultBoxButton) {
 	_back->entity()->setClickedCallback([this] { onBack(); });
 	_back->hideFast();
@@ -62,7 +62,7 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 
 	cSetPasswordRecovered(false);
 
-	_back->moveToLeft(st::introBackPosition.x(), st::introBackPosition.y());
+	_back->moveToLeft(0, 0);
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onCheckUpdateStatus()));
@@ -378,9 +378,9 @@ void IntroWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void IntroWidget::updateControlsGeometry() {
-	_settings->moveToLeft(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _settings->height());
+	_settings->moveToRight(st::boxButtonPadding.right(), st::boxButtonPadding.top());
 	if (_update) {
-		_update->moveToLeft(st::boxButtonPadding.right() + _settings->width() + st::boxButtonPadding.left(), _settings->y());
+		_update->moveToRight(st::boxButtonPadding.right() + _settings->width() + st::boxButtonPadding.left(), _settings->y());
 	}
 }
 

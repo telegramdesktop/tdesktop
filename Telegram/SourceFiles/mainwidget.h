@@ -300,6 +300,7 @@ public:
 	void stopAnimActive();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
+	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
 	bool insertBotCommand(const QString &cmd, bool specialGif);
 
 	void searchMessages(const QString &query, PeerData *inPeer);
@@ -364,7 +365,7 @@ public:
 
 	void scheduleViewIncrement(HistoryItem *item);
 
-	void fillPeerMenu(PeerData *peer, base::lambda_unique<QAction*(const QString &text, base::lambda_unique<void()> handler)> callback);
+	void fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> &&handler)> &&callback);
 
 	void gotRangeDifference(ChannelData *channel, const MTPupdates_ChannelDifference &diff);
 	void onSelfParticipantUpdated(ChannelData *channel);

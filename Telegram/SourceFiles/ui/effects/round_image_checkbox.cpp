@@ -58,9 +58,9 @@ void prepareCheckCaches(const style::RoundImageCheckbox *st, QPixmap &checkBgCac
 
 } // namespace
 
-RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, base::lambda_wrap<void()> updateCallback, PaintRoundImage paintRoundImage)
+RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, const base::lambda_copy<void()> &updateCallback, PaintRoundImage &&paintRoundImage)
 : _st(st)
-, _updateCallback(std_::move(updateCallback))
+, _updateCallback(updateCallback)
 , _paintRoundImage(std_::move(paintRoundImage)) {
 	prepareCheckCaches(&_st, _wideCheckBgCache, _wideCheckFullCache);
 }

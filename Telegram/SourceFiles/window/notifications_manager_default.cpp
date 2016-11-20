@@ -419,7 +419,7 @@ void Widget::hideStop() {
 	}
 }
 
-void Widget::hideAnimated(float64 duration, anim::transition func) {
+void Widget::hideAnimated(float64 duration, const anim::transition &func) {
 	_opacityDuration = duration;
 	a_func = func;
 	a_opacity.start(0);

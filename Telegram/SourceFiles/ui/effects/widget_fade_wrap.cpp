@@ -115,7 +115,7 @@ void FadeAnimation::updateCallback() {
 
 WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
 , TWidget *entity
-, base::lambda_unique<void()> updateCallback
+, base::lambda<void()> &&updateCallback
 , int duration) : TWidget(parent)
 , _entity(entity)
 , _duration(duration)

@@ -34,7 +34,7 @@ public:
 	void setActiveSection(int index);
 	void setActiveSectionFast(int index);
 
-	using SectionActivatedCallback = base::lambda_unique<void()>;
+	using SectionActivatedCallback = base::lambda<void()>;
 	void setSectionActivatedCallback(SectionActivatedCallback &&callback);
 
 protected:

@@ -2845,9 +2845,17 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
+	auto showAnimating = _a_show.animating(ms);
 	auto opacityAnimating = _a_opacity.animating(ms);
 	auto switching = (_slideAnimation != nullptr);
-	if (_a_show.animating(ms)) {
+	if (_showAnimation && !showAnimating) {
+		_showAnimation.reset();
+		if (!switching && !opacityAnimating) {
+			showAll();
+		}
+	}
+
+	if (showAnimating) {
 		if (auto opacity = _a_opacity.current(_hiding ? 0. : 1.)) {
 			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
 		}
@@ -2856,10 +2864,6 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(0, 0, _cache);
 	} else if ((!switching && _hiding) || isHidden()) {
 		hideFinished();
-	} else if (_showAnimation) {
-		_showAnimation->paintFrame(p, 0, 0, width(), 1., 1.);
-		_showAnimation.reset();
-		if (!switching && !opacityAnimating) showAll();
 	} else if (switching) {
 		auto slideDt = _a_slide.current(ms, 1.);
 		_slideAnimation->paintFrame(p, slideDt, _a_opacity.current(_hiding ? 0. : 1.));

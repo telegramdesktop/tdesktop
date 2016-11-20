@@ -140,7 +140,6 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	if (a_fullOpacity.current() == 0.) return;
 
 	QPainter p(this);
-
 	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
 	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);

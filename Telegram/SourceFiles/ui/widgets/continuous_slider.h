@@ -43,7 +43,7 @@ public:
 		return _disabled;
 	}
 
-	using Callback = base::lambda_unique<void(float64)>;
+	using Callback = base::lambda<void(float64)>;
 	void setChangeProgressCallback(Callback &&callback) {
 		_changeProgressCallback = std_::move(callback);
 	}

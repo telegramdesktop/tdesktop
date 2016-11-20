@@ -45,7 +45,7 @@ class Widget : public TWidget, private base::Subscriber {
 public:
 	Widget(QWidget *parent);
 
-	using CloseCallback = base::lambda_unique<void()>;
+	using CloseCallback = base::lambda<void()>;
 	void setCloseCallback(CloseCallback &&callback);
 
 	void setShadowGeometryToLeft(int x, int y, int w, int h);

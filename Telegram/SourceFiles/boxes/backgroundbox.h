@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
-#include "core/lambda_wrap.h"
 
 class BackgroundBox : public ItemListBox {
 	Q_OBJECT

@@ -69,7 +69,7 @@ QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, c
 	return _menu->addAction(text, receiver, member, icon, iconOver);
 }
 
-QAction *DropdownMenu::addAction(const QString &text, base::lambda_unique<void()> callback, const style::icon *icon, const style::icon *iconOver) {
+QAction *DropdownMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
 	return _menu->addAction(text, std_::move(callback), icon, iconOver);
 }
 

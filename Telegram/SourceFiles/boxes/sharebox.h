@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
-#include "core/lambda_wrap.h"
 #include "core/observer.h"
 #include "core/vector_of_moveable.h"
 #include "ui/effects/round_image_checkbox.h"
@@ -47,9 +46,9 @@ class ShareBox : public ItemListBox, public RPCSender {
 	Q_OBJECT
 
 public:
-	using CopyCallback = base::lambda_unique<void()>;
-	using SubmitCallback = base::lambda_unique<void(const QVector<PeerData*> &)>;
-	using FilterCallback = base::lambda_unique<bool(PeerData*)>;
+	using CopyCallback = base::lambda<void()>;
+	using SubmitCallback = base::lambda<void(const QVector<PeerData*> &)>;
+	using FilterCallback = base::lambda<bool(PeerData*)>;
 	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
 
 private slots:
@@ -119,7 +118,7 @@ class ShareBox::Inner : public TWidget, public RPCSender, private base::Subscrib
 public:
 	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
-	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
 	void peerUnselected(PeerData *peer);
 
 	QVector<PeerData*> selected() const;
@@ -157,7 +156,7 @@ private:
 	int displayedChatsCount() const;
 
 	struct Chat {
-		Chat(PeerData *peer, base::lambda_wrap<void()> updateCallback);
+		Chat(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
@@ -207,7 +206,7 @@ private:
 	using SelectedChats = OrderedSet<PeerData*>;
 	SelectedChats _selected;
 
-	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
+	base::lambda<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
 	ChatData *data(Dialogs::Row *row);
 

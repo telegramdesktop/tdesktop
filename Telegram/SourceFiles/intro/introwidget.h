@@ -20,8 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/rpc_sender.h"
-
 namespace Ui {
 class IconButton;
 class RoundButton;

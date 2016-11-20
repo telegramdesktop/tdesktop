@@ -28,7 +28,7 @@ public:
 
 	void showAnimated();
 
-	using HideFinishCallback = base::lambda_unique<void(CoverDropArea*)>;
+	using HideFinishCallback = base::lambda<void(CoverDropArea*)>;
 	void hideAnimated(HideFinishCallback &&callback);
 
 	bool hiding() const {
