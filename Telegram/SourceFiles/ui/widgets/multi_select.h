@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 class InputField;
-class IconButton;
+class CrossButton;
 class ScrollArea;
 
 class MultiSelect : public TWidget {
@@ -154,7 +154,7 @@ private:
 	int _fieldTop = 0;
 	int _fieldWidth = 0;
 	ChildWidget<Ui::InputField> _field;
-	ChildWidget<Ui::IconButton> _cancel;
+	ChildWidget<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
 	IntAnimation _height;

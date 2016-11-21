@@ -85,7 +85,6 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
-	_cancelSearch->hide();
 	if (_type == OverviewLinks || _type == OverviewFiles) {
 		_search->show();
 	} else {
@@ -1346,7 +1345,7 @@ void OverviewInner::switchType(MediaOverviewType type) {
 			_search->updatePlaceholder();
 			onSearchUpdate();
 		}
-		_cancelSearch->hide();
+		_cancelSearch->hideFast();
 
 		resizeToWidth(_width, 0, _minHeight, true);
 	}
@@ -1475,9 +1474,9 @@ void OverviewInner::onSearchUpdate() {
 		_searchQueries.clear();
 		_searchQuery = QString();
 		_searchResults.clear();
-		_cancelSearch->hide();
-	} else if (_cancelSearch->isHidden()) {
-		_cancelSearch->show();
+		_cancelSearch->hideAnimated();
+	} else {
+		_cancelSearch->showAnimated();
 	}
 
 	if (changed) {
@@ -1499,7 +1498,7 @@ void OverviewInner::onCancel() {
 bool OverviewInner::onCancelSearch() {
 	if (_search->isHidden()) return false;
 	bool clearing = !_search->text().isEmpty();
-	_cancelSearch->hide();
+	_cancelSearch->hideAnimated();
 	_search->clear();
 	_search->updatePlaceholder();
 	onSearchUpdate();

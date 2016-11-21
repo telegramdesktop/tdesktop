@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
 
 namespace Ui {
 namespace {

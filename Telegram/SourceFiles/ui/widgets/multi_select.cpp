@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/effects/cross_animation.h"
 #include "lang.h"
 
 namespace Ui {
@@ -199,54 +200,15 @@ void MultiSelect::Inner::Item::paintOnce(Painter &p, int x, int y, int outerWidt
 
 void MultiSelect::Inner::Item::paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity) {
 	p.setOpacity(overOpacity);
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+
 	p.setPen(Qt::NoPen);
 	p.setBrush(_color);
+	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	p.drawEllipse(rtlrect(x, y, _st.height, _st.height, outerWidth));
-
-	auto deleteScale = overOpacity + _st.minScale * (1. - overOpacity);
-	auto deleteSkip = deleteScale * _st.deleteLeft + (1. - deleteScale) * (_st.height / 2);
-	auto sqrt2 = sqrt(2.);
-	auto deleteLeft = rtlpoint(x + deleteSkip, 0, outerWidth).x() + 0.;
-	auto deleteTop = y + deleteSkip + 0.;
-	auto deleteWidth = _st.height - 2 * deleteSkip;
-	auto deleteHeight = _st.height - 2 * deleteSkip;
-	auto deleteStroke = _st.deleteStroke / sqrt2;
-	QPointF pathDelete[] = {
-		{ deleteLeft, deleteTop + deleteStroke },
-		{ deleteLeft + deleteStroke, deleteTop },
-		{ deleteLeft + (deleteWidth / 2.), deleteTop + (deleteHeight / 2.) - deleteStroke },
-		{ deleteLeft + deleteWidth - deleteStroke, deleteTop },
-		{ deleteLeft + deleteWidth, deleteTop + deleteStroke },
-		{ deleteLeft + (deleteWidth / 2.) + deleteStroke, deleteTop + (deleteHeight / 2.) },
-		{ deleteLeft + deleteWidth, deleteTop + deleteHeight - deleteStroke },
-		{ deleteLeft + deleteWidth - deleteStroke, deleteTop + deleteHeight },
-		{ deleteLeft + (deleteWidth / 2.), deleteTop + (deleteHeight / 2.) + deleteStroke },
-		{ deleteLeft + deleteStroke, deleteTop + deleteHeight },
-		{ deleteLeft, deleteTop + deleteHeight - deleteStroke },
-		{ deleteLeft + (deleteWidth / 2.) - deleteStroke, deleteTop + (deleteHeight / 2.) },
-	};
-	if (overOpacity < 1.) {
-		auto alpha = -(overOpacity - 1.) * M_PI_2;
-		auto cosalpha = cos(alpha);
-		auto sinalpha = sin(alpha);
-		auto shiftx = deleteLeft + (deleteWidth / 2.);
-		auto shifty = deleteTop + (deleteHeight / 2.);
-		for (auto &point : pathDelete) {
-			auto x = point.x() - shiftx;
-			auto y = point.y() - shifty;
-			point.setX(shiftx + x * cosalpha - y * sinalpha);
-			point.setY(shifty + y * cosalpha + x * sinalpha);
-		}
-	}
-	QPainterPath path;
-	path.moveTo(pathDelete[0]);
-	for (int i = 1; i != base::array_size(pathDelete); ++i) {
-		path.lineTo(pathDelete[i]);
-	}
-	p.fillPath(path, _st.deleteFg);
-
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+
+	CrossAnimation::paint(p, _st.deleteCross, _st.deleteFg, x, y, outerWidth, overOpacity);
+
 	p.setOpacity(1.);
 }
 
@@ -465,7 +427,6 @@ MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, const Q
 	connect(_field, SIGNAL(focused()), this, SLOT(onFieldFocused()));
 	connect(_field, SIGNAL(changed()), this, SLOT(onQueryChanged()));
 	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSubmitted(bool)));
-	_cancel->hide();
 	_cancel->setClickedCallback([this] {
 		clearQuery();
 		_field->setFocus();
@@ -475,7 +436,11 @@ MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, const Q
 
 void MultiSelect::Inner::onQueryChanged() {
 	auto query = getQuery();
-	_cancel->setVisible(!query.isEmpty());
+	if (query.isEmpty()) {
+		_cancel->hideAnimated();
+	} else {
+		_cancel->showAnimated();
+	}
 	updateFieldGeometry();
 	if (_queryChangedCallback) {
 		_queryChangedCallback(query);
@@ -510,7 +475,7 @@ void MultiSelect::Inner::setSubmittedCallback(base::lambda<void(bool ctrlShiftEn
 
 void MultiSelect::Inner::updateFieldGeometry() {
 	auto fieldFinalWidth = _fieldWidth;
-	if (!_cancel->isHidden()) {
+	if (_cancel->isShown()) {
 		fieldFinalWidth -= _st.fieldCancelSkip;
 	}
 	_field->resizeToWidth(fieldFinalWidth);

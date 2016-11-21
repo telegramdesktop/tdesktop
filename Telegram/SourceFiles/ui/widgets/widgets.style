@@ -339,6 +339,27 @@ RoundImageCheckbox {
 	check: RoundCheckbox;
 }
 
+CrossAnimation {
+	fg: color;
+	size: pixels;
+	skip: pixels;
+	stroke: pixels;
+	minScale: double;
+}
+
+CrossButton {
+	width: pixels;
+	height: pixels;
+
+	cross: CrossAnimation;
+	crossFg: color;
+	crossFgOver:color;
+	crossPosition: point;
+	duration: int;
+
+	ripple: RippleAnimation;
+}
+
 MultiSelectItem {
 	padding: margins;
 	maxWidth: pixels;
@@ -348,10 +369,9 @@ MultiSelectItem {
 	textFg: color;
 	textActiveBg: color;
 	textActiveFg: color;
-	deleteFg: color;
-	deleteLeft: pixels;
-	deleteStroke: pixels;
 	duration: int;
+	deleteFg: color;
+	deleteCross: CrossAnimation;
 	minScale: double;
 }
 
@@ -368,7 +388,7 @@ MultiSelect {
 	fieldMinWidth: pixels;
 	fieldIcon: icon;
 	fieldIconSkip: pixels;
-	fieldCancel: IconButton;
+	fieldCancel: CrossButton;
 	fieldCancelSkip: pixels;
 }
 

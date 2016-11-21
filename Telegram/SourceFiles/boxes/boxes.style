@@ -268,8 +268,12 @@ contactsMultiSelect: MultiSelect {
 		textActiveBg: activeButtonBg;
 		textActiveFg: activeButtonFg;
 		deleteFg: activeButtonFg;
-		deleteLeft: 10px;
-		deleteStroke: 2px;
+		deleteCross: CrossAnimation {
+			size: 32px;
+			skip: 10px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
 		duration: 150;
 		minScale: 0.3;
 	}
@@ -295,7 +299,25 @@ contactsMultiSelect: MultiSelect {
 	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: boxBlockTitleClose;
+	fieldCancel: CrossButton {
+		width: boxBlockTitleHeight;
+		height: boxBlockTitleHeight;
+
+		cross: CrossAnimation {
+			size: 40px;
+			skip: 14px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
+		crossFg: boxBlockTitleCloseFg;
+		crossFgOver: boxBlockTitleCloseFgOver;
+		crossPosition: point(4px, 4px);
+
+		duration: 150;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: windowBgOver;
+		}
+	}
 	fieldCancelSkip: 40px;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {

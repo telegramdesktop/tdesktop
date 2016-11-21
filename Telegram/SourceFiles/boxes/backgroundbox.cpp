@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/window_theme.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
 
 BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
 , _inner(this) {

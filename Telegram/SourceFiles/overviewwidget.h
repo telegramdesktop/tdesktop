@@ -37,6 +37,7 @@ class PlainShadow;
 class PopupMenu;
 class IconButton;
 class FlatInput;
+class CrossButton;
 } // namespace Ui
 
 class OverviewWidget;
@@ -182,7 +183,7 @@ private:
 	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
 	ChildWidget<Ui::FlatInput> _search;
-	ChildWidget<Ui::IconButton> _cancelSearch;
+	ChildWidget<Ui::CrossButton> _cancelSearch;
 	QVector<MsgId> _results;
 	int32 _itemsToBeLoaded;
 

@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 #include "core/single_timer.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
 #include "boxes/members_box.h"
 
 namespace Dialogs {

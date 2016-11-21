@@ -197,4 +197,35 @@ private:
 
 };
 
+class CrossButton : public RippleButton {
+public:
+	CrossButton(QWidget *parent, const style::CrossButton &st);
+
+	void showAnimated();
+	void hideAnimated();
+	void hideFast();
+
+	bool isShown() const {
+		return _shown;
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void onStateChanged(int oldState, StateChangeSource source) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	void startAnimation(bool shown);
+	void animationCallback();
+
+	const style::CrossButton &_st;
+
+	bool _shown = false;
+	FloatAnimation _a_show;
+
+};
+
 } // namespace Ui

@@ -36,6 +36,7 @@ class DropdownMenu;
 class FlatButton;
 class LinkButton;
 class FlatInput;
+class CrossButton;
 } // namespace Ui
 
 enum DialogsSearchRequestType {
@@ -334,7 +335,7 @@ private:
 	ChildWidget<Ui::IconButton> _forwardCancel = { nullptr };
 	ChildWidget<Ui::IconButton> _mainMenuToggle;
 	ChildWidget<Ui::FlatInput> _filter;
-	ChildWidget<Ui::IconButton> _cancelSearch;
+	ChildWidget<Ui::CrossButton> _cancelSearch;
 	ChildWidget<Ui::IconButton> _lockUnlock;
 	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<DialogsInner> _inner;

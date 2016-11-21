@@ -113,11 +113,21 @@ dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver }};
 	iconPosition: point(11px, 11px);
 }
-dialogsCancelSearch: IconButton(dialogsCancelSearchInPeer) {
+dialogsCancelSearch: CrossButton {
 	width: 32px;
 	height: 32px;
-	iconPosition: point(7px, 7px);
 
+	cross: CrossAnimation {
+		size: 32px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: dialogsMenuIconFg;
+	crossFgOver: dialogsMenuIconFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
 	ripple: emptyRippleAnimation;
 }
 

@@ -35,7 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "localstorage.h"
 #include "history/history_media_types.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
 
 namespace Overview {
 namespace Layout {

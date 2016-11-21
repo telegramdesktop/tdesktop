@@ -1719,7 +1719,6 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 
 	_filter->setFocusPolicy(Qt::StrongFocus);
 	_filter->customUpDown(true);
-	_cancelSearch->hide();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -1790,7 +1789,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_mainMenuToggle->hide();
 	if (_forwardCancel) _forwardCancel->hide();
 	_filter->hide();
-	_cancelSearch->hide();
+	_cancelSearch->hideFast();
 	_lockUnlock->hide();
 
 	int delta = st::slideShift;
@@ -2294,9 +2293,9 @@ void DialogsWidget::onFilterUpdate(bool force) {
 		_searchCache.clear();
 		_searchQueries.clear();
 		_searchQuery = QString();
-		_cancelSearch->hide();
-	} else if (_cancelSearch->isHidden()) {
-		_cancelSearch->show();
+		_cancelSearch->hideAnimated();
+	} else {
+		_cancelSearch->showAnimated();
 	}
 	if (filterText.size() < MinUsernameLength) {
 		_peopleCache.clear();

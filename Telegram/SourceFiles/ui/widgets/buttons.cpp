@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/cross_animation.h"
 
 namespace Ui {
 
@@ -447,6 +448,70 @@ void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 	p.setFont(_st.font);
 	p.setPen((over || down) ? _st.textFgOver : _st.textFg);
 	p.drawTextLeft(_st.padding.left(), _st.padding.top(), width(), _text, _textWidth);
+}
+
+CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : RippleButton(parent, st.ripple)
+, _st(st) {
+	resize(_st.width, _st.height);
+	setCursor(style::cur_pointer);
+	hide();
+}
+
+void CrossButton::hideAnimated() {
+	startAnimation(false);
+}
+
+void CrossButton::showAnimated() {
+	startAnimation(true);
+}
+
+void CrossButton::hideFast() {
+	hideAnimated();
+	_a_show.finish();
+}
+
+void CrossButton::startAnimation(bool shown) {
+	if (_shown == shown) return;
+	_shown = shown;
+	if (isHidden()) show();
+	_a_show.start([this] { animationCallback(); }, _shown ? 0. : 1., _shown ? 1. : 0., _st.duration);
+}
+
+void CrossButton::animationCallback() {
+	update();
+	if (!_shown && !_a_show.animating()) {
+		hide();
+	}
+}
+
+void CrossButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	auto ms = getms();
+	auto over = (_state & StateOver);
+	auto shown = _a_show.current(ms, _shown ? 1. : 0.);
+	p.setOpacity(shown);
+
+	paintRipple(p, _st.crossPosition.x(), _st.crossPosition.y(), ms);
+
+	CrossAnimation::paint(p, _st.cross, over ? _st.crossFgOver : _st.crossFg, _st.crossPosition.x(), _st.crossPosition.y(), width(), shown);
+}
+
+void CrossButton::onStateChanged(int oldState, StateChangeSource source) {
+	RippleButton::onStateChanged(oldState, source);
+
+	auto over = (_state & StateOver);
+	if (over != (oldState & StateOver)) {
+		update();
+	}
+}
+
+QPoint CrossButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _st.crossPosition;
+}
+
+QImage CrossButton::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(QSize(_st.cross.size, _st.cross.size));
 }
 
 } // namespace Ui
