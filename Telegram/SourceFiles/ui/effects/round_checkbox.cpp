@@ -97,6 +97,8 @@ void RoundCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth, f
 		p.setOpacity(fadeIn * fadeOut);
 		if (fadeOut < 1.) {
 			p.drawPixmapLeft(to, outerWidth, icon.wideCheckCache, cacheFrom);
+		} else if (fadeIn == 1.) {
+			p.drawPixmapLeft(to, outerWidth, _wideCheckFullCache, cacheFrom);
 		} else {
 			auto realDivider = ((kWideScale - 1) * _st.size / 2 + qMax(fadeIn - 0.5, 0.) * 2. * _st.size);
 			auto divider = qRound(realDivider * masterScale);
@@ -179,9 +181,11 @@ void RoundCheckbox::prepareWideCheckIconCache(Icon *icon) {
 		Painter p(&wideCache);
 		p.setCompositionMode(QPainter::CompositionMode_Source);
 		auto iconSize = kWideScale * _st.size;
-		auto divider = qRound((kWideScale - 1) * _st.size / 2 + qMax(icon->fadeIn.current(1.) - 0.5, 0.) * 2. * _st.size);
+		auto realDivider = ((kWideScale - 1) * _st.size / 2 + qMax(icon->fadeIn.current(1.) - 0.5, 0.) * 2. * _st.size);
+		auto divider = qRound(realDivider);
+		auto cacheDivider = qRound(realDivider) * cIntRetinaFactor();
 		p.drawPixmapLeft(QRect(0, 0, divider, iconSize), cacheWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
-		p.drawPixmapLeft(QRect(divider, 0, iconSize - divider, iconSize), cacheWidth, _wideCheckBgCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckBgCache.width() - divider * cIntRetinaFactor(), _wideCheckBgCache.height()));
+		p.drawPixmapLeft(QRect(divider, 0, iconSize - divider, iconSize), cacheWidth, _wideCheckBgCache, QRect(cacheDivider, 0, _wideCheckBgCache.width() - cacheDivider, _wideCheckBgCache.height()));
 	}
 	icon->wideCheckCache = App::pixmapFromImageInPlace(std_::move(wideCache));
 	icon->wideCheckCache.setDevicePixelRatio(cRetinaFactor());

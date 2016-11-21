@@ -171,7 +171,7 @@ bool loadColorScheme(const QByteArray &content, Instance *out = nullptr) {
 	auto data = base::parse::stripComments(content);
 	auto from = data.constData(), end = from + data.size();
 	while (from != end) {
-		QLatin1String name, value;
+		QLatin1String name(""), value("");
 		if (!readNameAndValue(from, end, &name, &value)) {
 			return false;
 		}

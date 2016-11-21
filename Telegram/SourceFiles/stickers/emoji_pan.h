@@ -490,6 +490,8 @@ public:
 
 	void step_icons(uint64 ms, bool timer);
 
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
+
 	void stickersInstalled(uint64 setId);
 
 	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
@@ -610,8 +612,6 @@ private:
 	};
 	void validateSelectedIcon(ValidateIconAnimations animations);
 	void updateContentHeight();
-
-	void leaveToChildEvent(QEvent *e, QWidget *child);
 
 	void updateSelected();
 	void updateIcons();

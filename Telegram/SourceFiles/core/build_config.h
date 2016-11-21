@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <cstdint>
+#include <stdint.h>
 
 // thanks Chromium
 

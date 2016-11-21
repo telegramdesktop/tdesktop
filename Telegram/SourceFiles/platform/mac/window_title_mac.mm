@@ -76,13 +76,11 @@ void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
-#ifndef OS_MAC_OLD
 	if (auto window = qobject_cast<Platform::MainWindow*>(parent)) {
 		if (auto height = window->getCustomTitleHeight()) {
 			return new TitleWidget(window, height);
 		}
 	}
-#endif // !OS_MAC_OLD
 	return nullptr;
 }
 
