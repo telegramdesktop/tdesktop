@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 
+namespace Ui {
+class RoundCheckbox;
+} // namespace Ui
+
 class BackgroundBox : public ItemListBox {
 	Q_OBJECT
 
@@ -43,6 +47,7 @@ class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Sub
 
 public:
 	Inner(QWidget *parent);
+	~Inner();
 
 signals:
 	void backgroundChosen(int index);
@@ -52,13 +57,15 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
 	void updateWallpapers();
 
-	int32 _bgCount, _rows;
-	int32 _over, _overDown;
+	int _bgCount = 0;
+	int _rows = 0;
+	int _over = -1;
+	int _overDown = -1;
+	std_::unique_ptr<Ui::RoundCheckbox> _check;
 
 };

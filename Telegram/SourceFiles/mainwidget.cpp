@@ -2082,8 +2082,8 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 			}
 		}
 	} else if (peer->isChat()) {
-		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
 		callback(lang(lng_profile_clear_and_exit), std_::move(deleteAndLeaveHandler));
+		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
 	} else if (peer->isChannel() && peer->asChannel()->amIn() && !peer->asChannel()->amCreator()) {
 		callback(lang(peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel), std_::move(deleteAndLeaveHandler));
 	}

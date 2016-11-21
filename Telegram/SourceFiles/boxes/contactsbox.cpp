@@ -1002,11 +1002,11 @@ void ContactsBox::Inner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, i
 	auto userpicBorderPen = st::contactsPhotoDisabledCheckFg->p;
 	userpicBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
-	auto iconDiameter = 2 * st::contactsPhotoCheckbox.checkRadius;
+	auto iconDiameter = st::contactsPhotoCheckbox.check.size;
 	auto iconLeft = x + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
 	auto iconTop = y + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
 	auto iconEllipse = rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
-	auto iconBorderPen = st::contactsPhotoCheckbox.checkBorder->p;
+	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
 	peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, width());
@@ -1023,7 +1023,7 @@ void ContactsBox::Inner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, i
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-	st::contactsPhotoCheckbox.checkIcon.paint(p, iconEllipse.topLeft(), outerWidth);
+	st::contactsPhotoCheckbox.check.check.paint(p, iconEllipse.topLeft(), outerWidth);
 }
 
 void ContactsBox::Inner::paintEvent(QPaintEvent *e) {

@@ -24,6 +24,47 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
+class RoundCheckbox {
+public:
+	RoundCheckbox(const style::RoundCheckbox &st, const base::lambda_copy<void()> &updateCallback);
+
+	void paint(Painter &p, uint64 ms, int x, int y, int outerWidth, float64 masterScale = 1.);
+
+	void setDisplayInactive(bool displayInactive);
+	bool checked() const {
+		return _checked;
+	}
+	enum class SetStyle {
+		Animated,
+		Fast,
+	};
+	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
+
+private:
+	struct Icon {
+		FloatAnimation fadeIn;
+		FloatAnimation fadeOut;
+		QPixmap wideCheckCache;
+	};
+	void removeFadeOutedIcons();
+	void prepareWideCheckIconCache(Icon *icon);
+	void prepareInactiveCache();
+	QRect cacheDestRect(int x, int y, float64 scale) const;
+
+	const style::RoundCheckbox &_st;
+	base::lambda_copy<void()> _updateCallback;
+
+	bool _checked = false;
+	std_::vector_of_moveable<Icon> _icons;
+
+	bool _displayInactive = false;
+	QPixmap _inactiveCacheBg, _inactiveCacheFg;
+
+	// Those pixmaps are shared among all checkboxes that have the same style.
+	QPixmap _wideCheckBgCache, _wideCheckFullCache;
+
+};
+
 class RoundImageCheckbox {
 public:
 	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
@@ -33,35 +74,22 @@ public:
 	float64 checkedAnimationRatio() const;
 
 	bool checked() const {
-		return _checked;
+		return _check.checked();
 	}
-	enum class SetStyle {
-		Animated,
-		Fast,
-	};
-	void setChecked(bool checked, SetStyle speed = SetStyle::Animated);
+	using SetStyle = RoundCheckbox::SetStyle;
+	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
 
 private:
-	struct Icon {
-		FloatAnimation fadeIn;
-		FloatAnimation fadeOut;
-		QPixmap wideCheckCache;
-	};
-	void removeFadeOutedIcons();
 	void prepareWideCache();
-	void prepareWideCheckIconCache(Icon *icon);
 
 	const style::RoundImageCheckbox &_st;
 	base::lambda_copy<void()> _updateCallback;
 	PaintRoundImage _paintRoundImage;
 
-	bool _checked = false;
 	QPixmap _wideCache;
 	FloatAnimation _selection;
-	std_::vector_of_moveable<Icon> _icons;
 
-	// Those pixmaps are shared among all checkboxes that have the same style.
-	QPixmap _wideCheckBgCache, _wideCheckFullCache;
+	RoundCheckbox _check;
 
 };
 

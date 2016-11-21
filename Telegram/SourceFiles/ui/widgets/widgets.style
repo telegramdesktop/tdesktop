@@ -319,17 +319,24 @@ FilledSlider {
 	duration: int;
 }
 
+RoundCheckbox {
+	border: color;
+	bgInactive: color;
+	bgActive: color;
+	width: pixels;
+	size: pixels;
+	sizeSmall: double;
+	duration: int;
+	check: icon;
+}
+
 RoundImageCheckbox {
 	imageRadius: pixels;
 	imageSmallRadius: pixels;
 	selectWidth: pixels;
 	selectFg: color;
 	selectDuration: int;
-	checkBorder: color;
-	checkBg: color;
-	checkRadius: pixels;
-	checkSmallRadius: pixels;
-	checkIcon: icon;
+	check: RoundCheckbox;
 }
 
 MultiSelectItem {
@@ -736,6 +743,13 @@ defaultPanelAnimation: PanelAnimation {
 	fadeOpacity: 1.0;
 	fadeBg: menuBg;
 	shadow: defaultRoundShadow;
+}
+
+defaultRoundCheckbox: RoundCheckbox {
+	border: windowBg;
+	bgActive: windowBgActive;
+	width: 2px;
+	duration: 150;
 }
 
 defaultMenuArrow: icon {{ "dropdown_submenu_arrow", #373737 }};

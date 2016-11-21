@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/window_theme.h"
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
+#include "ui/effects/round_image_checkbox.h"
 
 BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
 , _inner(this) {
@@ -50,10 +51,8 @@ void BackgroundBox::onBackgroundChosen(int index) {
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
-, _bgCount(0)
-, _rows(0)
-, _over(-1)
-, _overDown(-1) {
+, _check(std_::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
+	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&Inner::gotWallpapers));
@@ -157,9 +156,9 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 				p.drawPixmap(x, y, pix);
 
 				if (paper.id == Window::Theme::Background()->id()) {
-					int checkPosX = x + st::backgroundSize.width() - st::overviewPhotoChecked.width();
-					int checkPosY = y + st::backgroundSize.height() - st::overviewPhotoChecked.height();
-					st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width());
+					auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
+					auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
+					_check->paint(p, getms(), checkLeft, checkTop, width());
 				}
 			}
 		}
@@ -198,5 +197,4 @@ void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void BackgroundBox::Inner::resizeEvent(QResizeEvent *e) {
-}
+BackgroundBox::Inner::~Inner() = default;

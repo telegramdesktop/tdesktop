@@ -304,11 +304,11 @@ contactsPhotoCheckbox: RoundImageCheckbox {
 	selectWidth: 2px;
 	selectFg: windowBgActive;
 	selectDuration: 150;
-	checkBorder: windowBg;
-	checkBg: windowBgActive;
-	checkRadius: 10px;
-	checkSmallRadius: 3px;
-	checkIcon: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
+	check: RoundCheckbox(defaultRoundCheckbox) {
+		size: 20px;
+		sizeSmall: 0.3;
+		check: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
+	}
 }
 contactsPhotoDisabledCheckFg: #bbbbbb;
 contactsNameCheckedFg: #2b88b8;

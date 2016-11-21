@@ -24,23 +24,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 namespace {
 
-static constexpr int kWideScale = 4;
+static constexpr int kWideScale = 3;
 
-void prepareCheckCaches(const style::RoundImageCheckbox *st, QPixmap &checkBgCache, QPixmap &checkFullCache) {
-	auto size = st->checkRadius * 2;
+void prepareCheckCaches(const style::RoundCheckbox *st, bool displayInactive, QPixmap &checkBgCache, QPixmap &checkFullCache) {
+	auto size = st->size;
 	auto wideSize = size * kWideScale;
 	auto cache = QImage(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	cache.setDevicePixelRatio(cRetinaFactor());
+	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, wideSize, wideSize, Qt::transparent);
-		p.setCompositionMode(QPainter::CompositionMode_SourceOver);
 		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		auto pen = st->checkBorder->p;
-		pen.setWidth(st->selectWidth);
-		p.setPen(pen);
-		p.setBrush(st->checkBg);
+		if (displayInactive) {
+			p.setPen(Qt::NoPen);
+		} else {
+			auto pen = st->border->p;
+			pen.setWidth(st->width);
+			p.setPen(pen);
+		}
+		p.setBrush(st->bgActive);
 		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
 		p.drawEllipse(ellipse);
 	}
@@ -48,32 +50,183 @@ void prepareCheckCaches(const style::RoundImageCheckbox *st, QPixmap &checkBgCac
 	{
 		Painter p(&cacheIcon);
 		auto ellipse = QRect((wideSize - size) / 2, (wideSize - size) / 2, size, size);
-		st->checkIcon.paint(p, ellipse.topLeft(), wideSize);
+		st->check.paint(p, ellipse.topLeft(), wideSize);
 	}
 	checkBgCache = App::pixmapFromImageInPlace(std_::move(cache));
-	checkBgCache.setDevicePixelRatio(cRetinaFactor());
 	checkFullCache = App::pixmapFromImageInPlace(std_::move(cacheIcon));
-	checkFullCache.setDevicePixelRatio(cRetinaFactor());
 }
 
 } // namespace
 
-RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, const base::lambda_copy<void()> &updateCallback, PaintRoundImage &&paintRoundImage)
+RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, const base::lambda_copy<void()> &updateCallback)
 : _st(st)
-, _updateCallback(updateCallback)
-, _paintRoundImage(std_::move(paintRoundImage)) {
-	prepareCheckCaches(&_st, _wideCheckBgCache, _wideCheckFullCache);
+, _updateCallback(updateCallback) {
 }
 
-void RoundImageCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth) {
-	_selection.step(ms);
+QRect RoundCheckbox::cacheDestRect(int x, int y, float64 scale) const {
+	auto iconSizeFull = kWideScale * _st.size;
+	auto iconSize = qRound(iconSizeFull * scale);
+	if (iconSize % 2 != iconSizeFull % 2) {
+		++iconSize;
+	}
+	auto iconShift = (iconSizeFull - iconSize) / 2;
+	auto iconLeft = x - (kWideScale - 1) * _st.size / 2 + iconShift;
+	auto iconTop = y - (kWideScale - 1) * _st.size / 2 + iconShift;
+	return QRect(iconLeft, iconTop, iconSize, iconSize);
+}
+
+void RoundCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth, float64 masterScale) {
 	for (auto &icon : _icons) {
 		icon.fadeIn.step(ms);
 		icon.fadeOut.step(ms);
 	}
 	removeFadeOutedIcons();
 
-	auto selectionLevel = _selection.current(_checked ? 1. : 0.);
+	auto cacheSize = kWideScale * _st.size * cIntRetinaFactor();
+	auto cacheFrom = QRect(0, 0, cacheSize, cacheSize);
+	auto displayInactive = !_inactiveCacheBg.isNull();
+	auto inactiveTo = cacheDestRect(x, y, masterScale);
+	p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+	if (!_inactiveCacheBg.isNull()) {
+		p.drawPixmap(inactiveTo, _inactiveCacheBg, cacheFrom);
+	}
+	for (auto &icon : _icons) {
+		auto fadeIn = icon.fadeIn.current(1.);
+		auto fadeOut = icon.fadeOut.current(1.);
+		auto to = cacheDestRect(x, y, (1. - (1. - _st.sizeSmall) * (1. - fadeOut)) * masterScale);
+		p.setOpacity(fadeIn * fadeOut);
+		if (fadeOut < 1.) {
+			p.drawPixmapLeft(to, outerWidth, icon.wideCheckCache, cacheFrom);
+		} else {
+			auto realDivider = ((kWideScale - 1) * _st.size / 2 + qMax(fadeIn - 0.5, 0.) * 2. * _st.size);
+			auto divider = qRound(realDivider * masterScale);
+			auto cacheDivider = qRound(realDivider) * cIntRetinaFactor();
+			p.drawPixmapLeft(QRect(to.x(), to.y(), divider, to.height()), outerWidth, _wideCheckFullCache, QRect(0, 0, cacheDivider, cacheFrom.height()));
+			p.drawPixmapLeft(QRect(to.x() + divider, to.y(), to.width() - divider, to.height()), outerWidth, _wideCheckBgCache, QRect(cacheDivider, 0, cacheFrom.width() - cacheDivider, _wideCheckBgCache.height()));
+		}
+	}
+	p.setOpacity(1.);
+	if (!_inactiveCacheFg.isNull()) {
+		p.drawPixmap(inactiveTo, _inactiveCacheFg, cacheFrom);
+	}
+	p.setRenderHint(QPainter::SmoothPixmapTransform, false);
+}
+
+void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
+	if (_checked == newChecked) {
+		if (speed != SetStyle::Animated && !_icons.isEmpty()) {
+			_icons.back().fadeIn.finish();
+			_icons.back().fadeOut.finish();
+		}
+		return;
+	}
+	_checked = newChecked;
+	if (_checked) {
+		if (_wideCheckBgCache.isNull()) {
+			prepareCheckCaches(&_st, _displayInactive, _wideCheckBgCache, _wideCheckFullCache);
+		}
+		_icons.push_back(Icon());
+		_icons.back().fadeIn.start(_updateCallback, 0, 1, _st.duration);
+		if (speed != SetStyle::Animated) {
+			_icons.back().fadeIn.finish();
+		}
+	} else {
+		if (speed == SetStyle::Animated) {
+			prepareWideCheckIconCache(&_icons.back());
+		}
+		_icons.back().fadeOut.start(_updateCallback, 1, 0, _st.duration);
+		if (speed != SetStyle::Animated) {
+			_icons.back().fadeOut.finish();
+		}
+	}
+}
+
+void RoundCheckbox::setDisplayInactive(bool displayInactive) {
+	if (_displayInactive != displayInactive) {
+		_displayInactive = displayInactive;
+		if (_displayInactive) {
+			prepareInactiveCache();
+		} else {
+			_inactiveCacheBg = _inactiveCacheFg = QPixmap();
+		}
+		if (!_wideCheckBgCache.isNull()) {
+			prepareCheckCaches(&_st, _displayInactive, _wideCheckBgCache, _wideCheckFullCache);
+		}
+		for (auto &icon : _icons) {
+			if (!icon.wideCheckCache.isNull()) {
+				prepareWideCheckIconCache(&icon);
+			}
+		}
+	}
+}
+
+void RoundCheckbox::removeFadeOutedIcons() {
+	while (!_icons.empty() && !_icons.front().fadeIn.animating() && !_icons.front().fadeOut.animating()) {
+		if (_icons.size() > 1 || !_checked) {
+			_icons.erase(_icons.begin());
+		} else {
+			break;
+		}
+	}
+}
+
+void RoundCheckbox::prepareWideCheckIconCache(Icon *icon) {
+	auto cacheWidth = _wideCheckBgCache.width() / _wideCheckBgCache.devicePixelRatio();
+	auto cacheHeight = _wideCheckBgCache.height() / _wideCheckBgCache.devicePixelRatio();
+	auto wideCache = QImage(cacheWidth * cIntRetinaFactor(), cacheHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	wideCache.setDevicePixelRatio(cRetinaFactor());
+	{
+		Painter p(&wideCache);
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		auto iconSize = kWideScale * _st.size;
+		auto divider = qRound((kWideScale - 1) * _st.size / 2 + qMax(icon->fadeIn.current(1.) - 0.5, 0.) * 2. * _st.size);
+		p.drawPixmapLeft(QRect(0, 0, divider, iconSize), cacheWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
+		p.drawPixmapLeft(QRect(divider, 0, iconSize - divider, iconSize), cacheWidth, _wideCheckBgCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckBgCache.width() - divider * cIntRetinaFactor(), _wideCheckBgCache.height()));
+	}
+	icon->wideCheckCache = App::pixmapFromImageInPlace(std_::move(wideCache));
+	icon->wideCheckCache.setDevicePixelRatio(cRetinaFactor());
+}
+
+void RoundCheckbox::prepareInactiveCache() {
+	auto wideSize = _st.size * kWideScale;
+	auto ellipse = QRect((wideSize - _st.size) / 2, (wideSize - _st.size) / 2, _st.size, _st.size);
+
+	auto cacheBg = QImage(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	cacheBg.setDevicePixelRatio(cRetinaFactor());
+	cacheBg.fill(Qt::transparent);
+	auto cacheFg = cacheBg;
+	if (_st.bgInactive) {
+		Painter p(&cacheBg);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		p.setPen(Qt::NoPen);
+		p.setBrush(_st.bgInactive);
+		p.drawEllipse(ellipse);
+	}
+	_inactiveCacheBg = App::pixmapFromImageInPlace(std_::move(cacheBg));
+
+	{
+		Painter p(&cacheFg);
+		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		auto pen = _st.border->p;
+		pen.setWidth(_st.width);
+		p.setPen(pen);
+		p.setBrush(Qt::NoBrush);
+		p.drawEllipse(ellipse);
+	}
+	_inactiveCacheFg = App::pixmapFromImageInPlace(std_::move(cacheFg));
+}
+
+RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, const base::lambda_copy<void()> &updateCallback, PaintRoundImage &&paintRoundImage)
+: _st(st)
+, _updateCallback(updateCallback)
+, _paintRoundImage(std_::move(paintRoundImage))
+, _check(_st.check, _updateCallback) {
+}
+
+void RoundImageCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth) {
+	_selection.step(ms);
+
+	auto selectionLevel = _selection.current(checked() ? 1. : 0.);
 	if (_selection.animating()) {
 		auto userpicRadius = qRound(kWideScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
 		auto userpicShift = kWideScale * _st.imageRadius - userpicRadius;
@@ -89,7 +242,7 @@ void RoundImageCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWid
 		if (!_wideCache.isNull()) {
 			_wideCache = QPixmap();
 		}
-		auto userpicRadius = _checked ? _st.imageSmallRadius : _st.imageRadius;
+		auto userpicRadius = checked() ? _st.imageSmallRadius : _st.imageRadius;
 		auto userpicShift = _st.imageRadius - userpicRadius;
 		auto userpicLeft = x + userpicShift;
 		auto userpicTop = y + userpicShift;
@@ -108,75 +261,29 @@ void RoundImageCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWid
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	}
 
-	p.setRenderHint(QPainter::SmoothPixmapTransform, true);
-	for (auto &icon : _icons) {
-		auto fadeIn = icon.fadeIn.current(1.);
-		auto fadeOut = icon.fadeOut.current(1.);
-		auto iconRadius = qRound(kWideScale * (_st.checkSmallRadius + fadeOut * (_st.checkRadius - _st.checkSmallRadius)));
-		auto iconShift = kWideScale * _st.checkRadius - iconRadius;
-		auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - 2 * _st.checkRadius - (kWideScale - 1) * _st.checkRadius + iconShift;
-		auto iconTop = y + 2 * _st.imageRadius + _st.selectWidth - 2 * _st.checkRadius - (kWideScale - 1) * _st.checkRadius + iconShift;
-		auto to = QRect(iconLeft, iconTop, iconRadius * 2, iconRadius * 2);
-		auto from = QRect(QPoint(0, 0), _wideCheckFullCache.size());
-		auto opacity = fadeIn * fadeOut;
-		p.setOpacity(opacity);
-		if (fadeOut < 1.) {
-			p.drawPixmapLeft(to, outerWidth, icon.wideCheckCache, from);
-		} else {
-			auto divider = qRound((kWideScale - 2) * _st.checkRadius + fadeIn * 3 * _st.checkRadius);
-			p.drawPixmapLeft(QRect(iconLeft, iconTop, divider, iconRadius * 2), outerWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
-			p.drawPixmapLeft(QRect(iconLeft + divider, iconTop, iconRadius * 2 - divider, iconRadius * 2), outerWidth, _wideCheckBgCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckBgCache.width() - divider * cIntRetinaFactor(), _wideCheckBgCache.height()));
-		}
-	}
-	p.setRenderHint(QPainter::SmoothPixmapTransform, false);
-	p.setOpacity(1.);
+	auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;
+	auto iconTop = y + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;
+	_check.paint(p, ms, iconLeft, iconTop, outerWidth);
 }
 
 float64 RoundImageCheckbox::checkedAnimationRatio() const {
-	return snap(_selection.current(_checked ? 1. : 0.), 0., 1.);
+	return snap(_selection.current(checked() ? 1. : 0.), 0., 1.);
 }
 
-void RoundImageCheckbox::setChecked(bool checked, SetStyle speed) {
-	if (_checked == checked) {
+void RoundImageCheckbox::setChecked(bool newChecked, SetStyle speed) {
+	auto changed = (checked() != newChecked);
+	_check.setChecked(newChecked, speed);
+	if (!changed) {
 		if (speed != SetStyle::Animated) {
-			if (!_icons.isEmpty()) {
-				_icons.back().fadeIn.finish();
-				_icons.back().fadeOut.finish();
-			}
 			_selection.finish();
 		}
 		return;
 	}
-	_checked = checked;
-	if (_checked) {
-		_icons.push_back(Icon());
-		_icons.back().fadeIn.start(_updateCallback, 0, 1, _st.selectDuration);
-		if (speed != SetStyle::Animated) {
-			_icons.back().fadeIn.finish();
-		}
-	} else {
-		_icons.back().fadeOut.start(_updateCallback, 1, 0, _st.selectDuration);
-		if (speed == SetStyle::Animated) {
-			prepareWideCheckIconCache(&_icons.back());
-		} else {
-			_icons.back().fadeOut.finish();
-		}
-	}
 	if (speed == SetStyle::Animated) {
 		prepareWideCache();
-		_selection.start(_updateCallback, _checked ? 0 : 1, _checked ? 1 : 0, _st.selectDuration, anim::bumpy(1.25));
+		_selection.start(_updateCallback, checked() ? 0 : 1, checked() ? 1 : 0, _st.selectDuration, anim::bumpy(1.25));
 	} else {
 		_selection.finish();
-	}
-}
-
-void RoundImageCheckbox::removeFadeOutedIcons() {
-	while (!_icons.empty() && !_icons.front().fadeIn.animating() && !_icons.front().fadeOut.animating()) {
-		if (_icons.size() > 1 || !_checked) {
-			_icons.erase(_icons.begin());
-		} else {
-			break;
-		}
 	}
 }
 
@@ -195,23 +302,6 @@ void RoundImageCheckbox::prepareWideCache() {
 		}
 		_wideCache = App::pixmapFromImageInPlace(std_::move(cache));
 	}
-}
-
-void RoundImageCheckbox::prepareWideCheckIconCache(Icon *icon) {
-	auto cacheWidth = _wideCheckBgCache.width() / _wideCheckBgCache.devicePixelRatio();
-	auto cacheHeight = _wideCheckBgCache.height() / _wideCheckBgCache.devicePixelRatio();
-	auto wideCache = QImage(cacheWidth * cIntRetinaFactor(), cacheHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	wideCache.setDevicePixelRatio(cRetinaFactor());
-	{
-		Painter p(&wideCache);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		auto iconRadius = kWideScale * _st.checkRadius;
-		auto divider = qRound((kWideScale - 2) * _st.checkRadius + icon->fadeIn.current(1.) * (kWideScale - 1) * _st.checkRadius);
-		p.drawPixmapLeft(QRect(0, 0, divider, iconRadius * 2), cacheWidth, _wideCheckFullCache, QRect(0, 0, divider * cIntRetinaFactor(), _wideCheckFullCache.height()));
-		p.drawPixmapLeft(QRect(divider, 0, iconRadius * 2 - divider, iconRadius * 2), cacheWidth, _wideCheckBgCache, QRect(divider * cIntRetinaFactor(), 0, _wideCheckBgCache.width() - divider * cIntRetinaFactor(), _wideCheckBgCache.height()));
-	}
-	icon->wideCheckCache = App::pixmapFromImageInPlace(std_::move(wideCache));
-	icon->wideCheckCache.setDevicePixelRatio(cRetinaFactor());
 }
 
 } // namespace Ui

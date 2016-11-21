@@ -35,6 +35,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "localstorage.h"
 #include "history/history_media_types.h"
+#include "ui/effects/round_image_checkbox.h"
 
 namespace Overview {
 namespace Layout {
@@ -101,7 +102,7 @@ void RadialProgressItem::step_radial(uint64 ms, bool timer) {
 	}
 }
 
-void RadialProgressItem::ensureRadial() const {
+void RadialProgressItem::ensureRadial() {
 	if (!_radial) {
 		_radial = new Ui::RadialAnimation(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
 	}
@@ -118,19 +119,23 @@ RadialProgressItem::~RadialProgressItem() {
 	delete base::take(_radial);
 }
 
-void FileBase::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
-	_statusSize = newSize;
-	if (_statusSize == FileStatusSizeReady) {
-		_statusText = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeLoaded) {
-		_statusText = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
-	} else if (_statusSize == FileStatusSizeFailed) {
-		_statusText = lang(lng_attach_failed);
-	} else if (_statusSize >= 0) {
-		_statusText = formatDownloadText(_statusSize, fullSize);
+void StatusText::update(int newSize, int fullSize, int duration, int64 realDuration) {
+	setSize(newSize);
+	if (_size == FileStatusSizeReady) {
+		_text = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
+	} else if (_size == FileStatusSizeLoaded) {
+		_text = (duration >= 0) ? formatDurationText(duration) : (duration < -1 ? qsl("GIF") : formatSizeText(fullSize));
+	} else if (_size == FileStatusSizeFailed) {
+		_text = lang(lng_attach_failed);
+	} else if (_size >= 0) {
+		_text = formatDownloadText(_size, fullSize);
 	} else {
-		_statusText = formatPlayedText(-_statusSize - 1, realDuration);
+		_text = formatPlayedText(-_size - 1, realDuration);
 	}
+}
+
+void StatusText::setSize(int newSize) {
+	_size = newSize;
 }
 
 Date::Date(const QDate &date, bool month)
@@ -144,7 +149,7 @@ void Date::initDimensions() {
 	_minh = st::linksDateMargin.top() + st::normalFont->height + st::linksDateMargin.bottom() + st::linksBorder;
 }
 
-void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
+void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	if (clip.intersects(QRect(0, st::linksDateMargin.top(), _width, st::normalFont->height))) {
 		p.setPen(st::linksDateColor);
 		p.setFont(st::semiboldFont);
@@ -152,25 +157,62 @@ void Date::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 	}
 }
 
-namespace {
+class PhotoVideoCheckbox {
+public:
+	template <typename UpdateCallback>
+	PhotoVideoCheckbox(UpdateCallback callback) : _updateCallback(callback), _check(st::overviewCheck, _updateCallback) {
+	}
 
-void paintPhotoVideoCheck(Painter &p, int width, int height, bool selected) {
-	int checkPosX = width - st::overviewPhotoCheck.width();
-	int checkPosY = height - st::overviewPhotoCheck.height();
+	void paint(Painter &p, uint64 ms, int width, int height, bool selected, bool selecting);
+
+	void setActive(bool active);
+	void setPressed(bool pressed);
+
+private:
+	void startAnimation();
+
+	base::lambda_copy<void()> _updateCallback;
+	Ui::RoundCheckbox _check;
+
+	FloatAnimation _pression;
+	bool _active = false;
+	bool _pressed = false;
+
+};
+
+void PhotoVideoCheckbox::paint(Painter &p, uint64 ms, int width, int height, bool selected, bool selecting) {
 	if (selected) {
-		p.fillRect(QRect(0, 0, width, height), st::overviewPhotoSelectOverlay);
-		st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width);
-	} else {
-		st::overviewPhotoCheck.paint(p, QPoint(checkPosX, checkPosY), width);
+		p.fillRect(0, 0, width, height, st::overviewPhotoSelectOverlay);
+	}
+	_check.setDisplayInactive(selecting);
+	_check.setChecked(selected);
+	auto pression = _pression.current(ms, (_active && _pressed) ? 1. : 0.);
+	auto masterScale = 1. - (1. - st::overviewCheckPressedSize) * pression;
+	_check.paint(p, ms, width - st::overviewCheckSkip - st::overviewCheck.size, height - st::overviewCheckSkip - st::overviewCheck.size, width, masterScale);
+}
+
+void PhotoVideoCheckbox::setActive(bool active) {
+	_active = active;
+	if (_pressed) {
+		startAnimation();
 	}
 }
 
-} // namespace
+void PhotoVideoCheckbox::setPressed(bool pressed) {
+	_pressed = pressed;
+	if (_active) {
+		startAnimation();
+	}
+}
+
+void PhotoVideoCheckbox::startAnimation() {
+	auto showPressed = (_pressed && _active);
+	_pression.start(_updateCallback, showPressed ? 0. : 1., showPressed ? 1. : 0., st::overviewCheck.duration);
+}
 
 Photo::Photo(PhotoData *photo, HistoryItem *parent) : ItemBase(parent)
 , _data(photo)
-, _link(new PhotoOpenClickHandler(photo))
-, _goodLoaded(false) {
+, _link(new PhotoOpenClickHandler(photo)) {
 }
 
 void Photo::initDimensions() {
@@ -187,7 +229,7 @@ int32 Photo::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
+void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool good = _data->loaded(), selected = (selection == FullSelection);
 	if (!good) {
 		_data->medium->automaticLoad(_parent);
@@ -225,9 +267,19 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	} else {
 		p.drawPixmap(0, 0, _pix);
 	}
+
 	if (selected || context->selecting) {
-		paintPhotoVideoCheck(p, _width, _height, selected);
+		ensureCheckboxCreated();
 	}
+	if (_check) {
+		_check->paint(p, context->ms, _width, _height, selected, context->selecting);
+	}
+}
+
+void Photo::ensureCheckboxCreated() {
+	if (!_check) _check = std_::make_unique<PhotoVideoCheckbox>([this] {
+		Ui::repaintHistoryItem(_parent);
+	});
 }
 
 void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
@@ -236,7 +288,19 @@ void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 	}
 }
 
-Video::Video(DocumentData *video, HistoryItem *parent) : FileBase(parent)
+void Photo::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+	if (_check) {
+		_check->setActive(active);
+	}
+}
+
+void Photo::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
+	if (_check) {
+		_check->setPressed(pressed);
+	}
+}
+
+Video::Video(DocumentData *video, HistoryItem *parent) : RadialProgressItem(parent)
 , _data(video)
 , _duration(formatDurationText(_data->duration()))
 , _thumbLoaded(false) {
@@ -254,7 +318,7 @@ int32 Video::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
+void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection), thumbLoaded = _data->thumb->loaded();
 
 	_data->automaticLoad(_parent);
@@ -305,13 +369,13 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	if (!selected && !context->selecting && !loaded) {
 		if (clip.intersects(QRect(0, _height - st::normalFont->height, _width, st::normalFont->height))) {
 			int32 statusX = st::msgDateImgPadding.x(), statusY = _height - st::normalFont->height - st::msgDateImgPadding.y();
-			int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+			int32 statusW = st::normalFont->width(_status.text()) + 2 * st::msgDateImgPadding.x();
 			int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 			statusX = _width - statusW + statusX;
 			p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
 			p.setFont(st::normalFont);
 			p.setPen(st::msgDateImgColor);
-			p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
+			p.drawTextLeft(statusX, statusY, _width, _status.text(), statusW - 2 * st::msgDateImgPadding.x());
 		}
 	}
 	if (clip.intersects(QRect(0, 0, _width, st::normalFont->height))) {
@@ -358,8 +422,32 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
 		}
 	}
+
 	if (selected || context->selecting) {
-		paintPhotoVideoCheck(p, _width, _height, selected);
+		ensureCheckboxCreated();
+	}
+	if (_check) {
+		_check->paint(p, context->ms, _width, _height, selected, context->selecting);
+	}
+}
+
+void Video::ensureCheckboxCreated() {
+	if (!_check) _check = std_::make_unique<PhotoVideoCheckbox>([this] {
+		Ui::repaintHistoryItem(_parent);
+	});
+}
+
+void Video::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+	RadialProgressItem::clickHandlerActiveChanged(action, active);
+	if (_check) {
+		_check->setActive(active);
+	}
+}
+
+void Video::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
+	RadialProgressItem::clickHandlerPressedChanged(action, pressed);
+	if (_check) {
+		_check->setPressed(pressed);
 	}
 }
 
@@ -371,9 +459,9 @@ void Video::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 	}
 }
 
-void Video::updateStatusText() const {
+void Video::updateStatusText() {
 	bool showPause = false;
-	int32 statusSize = 0;
+	int statusSize = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = FileStatusSizeFailed;
 	} else if (_data->status == FileUploading) {
@@ -385,18 +473,18 @@ void Video::updateStatusText() const {
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
-	if (statusSize != _statusSize) {
-		int32 status = statusSize, size = _data->size;
+	if (statusSize != _status.size()) {
+		int status = statusSize, size = _data->size;
 		if (statusSize >= 0 && statusSize < 0x7F000000) {
 			size = status;
 			status = FileStatusSizeReady;
 		}
-		setStatusSize(status, size, -1, 0);
-		_statusSize = statusSize;
+		_status.update(status, size, -1, 0);
+		_status.setSize(statusSize);
 	}
 }
 
-Voice::Voice(DocumentData *voice, HistoryItem *parent) : FileBase(parent)
+Voice::Voice(DocumentData *voice, HistoryItem *parent) : RadialProgressItem(parent)
 , _data(voice)
 , _namel(new DocumentOpenClickHandler(_data)) {
 	AddComponents(Info::Bit());
@@ -417,7 +505,7 @@ void Voice::initDimensions() {
 	_minh = st::overviewFileLayout.songPadding.top() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.bottom() + st::lineWidth;
 }
 
-void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
+void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -474,7 +562,7 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		auto icon = ([showPause, this, selected] {
 			if (showPause) {
 				return &(selected ? st::historyFileInPauseSelected : st::historyFileInPause);
-			} else if (_statusSize < 0 || _statusSize == FileStatusSizeLoaded) {
+			} else if (_status.size() < 0 || _status.size() == FileStatusSizeLoaded) {
 				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
 			} else if (_data->loading()) {
 				return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
@@ -495,14 +583,14 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setFont(st::normalFont);
 		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
 		int32 unreadx = nameleft;
-		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
+		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
 			textstyleSet(&(selected ? st::mediaInStyleSelected : st::mediaInStyle));
 			_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
 			textstyleRestore();
 			unreadx += _details.maxWidth();
 		} else {
-			int32 statusw = st::normalFont->width(_statusText);
-			p.drawTextLeft(nameleft, statustop, _width, _statusText, statusw);
+			int32 statusw = st::normalFont->width(_status.text());
+			p.drawTextLeft(nameleft, statustop, _width, _status.text(), statusw);
 			unreadx += statusw;
 		}
 		if (_parent->isMediaUnread() && unreadx + st::mediaUnreadSkip + st::mediaUnreadSize <= _width) {
@@ -519,8 +607,6 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	bool loaded = _data->loaded();
 
-	bool showPause = updateStatusText();
-
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
 
 	nameleft = st::overviewFileLayout.songPadding.left() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.right();
@@ -534,7 +620,7 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 		return;
 	}
 	if (rtlrect(nameleft, statustop, _width - nameleft - nameright, st::normalFont->height, _width).contains(x, y)) {
-		if (_statusSize == FileStatusSizeLoaded || _statusSize == FileStatusSizeReady) {
+		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
 			auto textState = _details.getStateLeft(x - nameleft, y - statustop, _width, _width);
 			link = textState.link;
 			cursor = textState.uponSymbol ? HistoryInTextCursorState : HistoryDefaultCursorState;
@@ -546,7 +632,7 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 	}
 }
 
-void Voice::updateName() const {
+void Voice::updateName() {
 	int32 version = 0;
 	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
 		if (_parent->fromOriginal()->isChannel()) {
@@ -561,7 +647,7 @@ void Voice::updateName() const {
 	_nameVersion = version;
 }
 
-bool Voice::updateStatusText() const {
+bool Voice::updateStatusText() {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
@@ -580,13 +666,13 @@ bool Voice::updateStatusText() const {
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
-	if (statusSize != _statusSize) {
-		setStatusSize(statusSize, _data->size, _data->voice()->duration, realDuration);
+	if (statusSize != _status.size()) {
+		_status.update(statusSize, _data->size, _data->voice()->duration, realDuration);
 	}
 	return showPause;
 }
 
-Document::Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st) : FileBase(parent)
+Document::Document(DocumentData *document, HistoryItem *parent, const style::OverviewFileLayout &st) : RadialProgressItem(parent)
 , _data(document)
 , _msgl(goToMessageClickHandler(parent))
 , _namel(new DocumentOpenClickHandler(_data))
@@ -600,7 +686,7 @@ Document::Document(DocumentData *document, HistoryItem *parent, const style::Ove
 
 	setDocumentLinks(_data);
 
-	setStatusSize(FileStatusSizeReady, _data->size, _data->song() ? _data->song()->duration : -1, 0);
+	_status.update(FileStatusSizeReady, _data->size, _data->song() ? _data->song()->duration : -1, 0);
 
 	if (withThumb()) {
 		_data->thumb->load();
@@ -630,7 +716,7 @@ void Document::initDimensions() {
 	}
 }
 
-void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
+void Document::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	bool selected = (selection == FullSelection);
 
 	_data->automaticLoad(_parent);
@@ -786,7 +872,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	if (clip.intersects(rtlrect(nameleft, statustop, availwidth, st::normalFont->height, _width))) {
 		p.setFont(st::normalFont);
 		p.setPen(st::mediaInFg);
-		p.drawTextLeft(nameleft, statustop, _width, _statusText);
+		p.drawTextLeft(nameleft, statustop, _width, _status.text());
 	}
 	if (datetop >= 0 && clip.intersects(rtlrect(nameleft, datetop, _datew, st::normalFont->height, _width))) {
 		p.setFont(ClickHandler::showAsActive(_msgl) ? st::normalFont->underline() : st::normalFont);
@@ -797,8 +883,6 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	bool loaded = _data->loaded() || Local::willStickerImageLoad(_data->mediaKey());
-
-	bool showPause = updateStatusText();
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
 	bool wthumb = withThumb();
@@ -850,7 +934,7 @@ void Document::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x
 	}
 }
 
-bool Document::updateStatusText() const {
+bool Document::updateStatusText() {
 	bool showPause = false;
 	int32 statusSize = 0, realDuration = 0;
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
@@ -880,8 +964,8 @@ bool Document::updateStatusText() const {
 	} else {
 		statusSize = FileStatusSizeReady;
 	}
-	if (statusSize != _statusSize) {
-		setStatusSize(statusSize, _data->size, _data->song() ? _data->song()->duration : -1, realDuration);
+	if (statusSize != _status.size()) {
+		_status.update(statusSize, _data->size, _data->song() ? _data->song()->duration : -1, realDuration);
 	}
 	return showPause;
 }
@@ -1041,7 +1125,7 @@ int32 Link::resizeGetHeight(int32 width) {
 	return _height;
 }
 
-void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) const {
+void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
 	int32 left = st::linksPhotoSize + st::linksPhotoPadding, top = st::linksMargin.top() + st::linksBorder, w = _width - left;
 	if (clip.intersects(rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width))) {
 		if (_page && _page->photo) {
