@@ -396,17 +396,18 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uin
 
 	auto inWebPage = (_parent->getMedia() != this);
 	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 	QPixmap pix;
 	if (loaded) {
-		pix = _data->full->pixSingle(roundRadius, _pixw, _pixh, width, height);
+		pix = _data->full->pixSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
 	} else {
-		pix = _data->thumb->pixBlurredSingle(roundRadius, _pixw, _pixh, width, height);
+		pix = _data->thumb->pixBlurredSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
 	}
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 	p.drawPixmap(rthumb.topLeft(), pix);
 	if (selected) {
-		auto overlayCorners = inWebPage ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, overlayCorners);
+		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
 	if (radial || (!loaded && !_data->loading())) {
@@ -742,11 +743,12 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uin
 
 	auto inWebPage = (_parent->getMedia() != this);
 	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
-	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(roundRadius, _thumbw, 0, width, height));
+	p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, 0, width, height, roundRadius, roundCorners));
 	if (selected) {
-		auto overlayCorners = inWebPage ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, overlayCorners);
+		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
 	QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
@@ -1094,7 +1096,12 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		auto inWebPage = (_parent->getMedia() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, _width));
-		QPixmap thumb = loaded ? _data->thumb->pixSingle(roundRadius, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize) : _data->thumb->pixBlurredSingle(roundRadius, thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize);
+		QPixmap thumb;
+		if (loaded) {
+			thumb = _data->thumb->pixSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+		} else {
+			thumb = _data->thumb->pixBlurredSingle(thumbed->_thumbw, 0, st::msgFileThumbSize, st::msgFileThumbSize, roundRadius);
+		}
 		p.drawPixmap(rthumb.topLeft(), thumb);
 		if (selected) {
 			auto overlayCorners = inWebPage ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
@@ -1642,7 +1649,9 @@ int HistoryGif::resizeGetHeight(int width) {
 		if (!_gif->started()) {
 			auto inWebPage = (_parent->getMedia() != this);
 			auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius);
+			auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+				| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
+			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius, roundCorners);
 		}
 	} else {
 		_width = qMax(_width, gifMaxStatusWidth(_data) + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
@@ -1710,17 +1719,17 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint6
 
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 
+	auto inWebPage = (_parent->getMedia() != this);
+	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 	if (animating) {
-		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, (Ui::isLayerShown() || Ui::isMediaViewShown() || Ui::isInlineItemBeingChosen()) ? 0 : ms));
+		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, roundRadius, roundCorners, (Ui::isLayerShown() || Ui::isMediaViewShown() || Ui::isInlineItemBeingChosen()) ? 0 : ms));
 	} else {
-		auto inWebPage = (_parent->getMedia() != this);
-		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(roundRadius, _thumbw, _thumbh, width, height));
+		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height, roundRadius, roundCorners));
 	}
 	if (selected) {
-		auto inWebPage = (_parent->getMedia() != this);
-		auto overlayCorners = inWebPage ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
-		App::roundRect(p, rthumb, textstyleCurrent()->selectOverlay, overlayCorners);
+		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
 	if (radial || _gif.isBad() || (!_gif && ((!loaded && !_data->loading()) || !cAutoPlayGif()))) {
@@ -2670,9 +2679,9 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, u
 			pixw = qRound(pixw * coef);
 		}
 		if (full) {
-			pix = _data->photo->medium->pixSingle(ImageRoundRadius::Small, pixw, pixh, pw, ph);
+			pix = _data->photo->medium->pixSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		} else {
-			pix = _data->photo->thumb->pixBlurredSingle(ImageRoundRadius::Small, pixw, pixh, pw, ph);
+			pix = _data->photo->thumb->pixBlurredSingle(pixw, pixh, pw, ph, ImageRoundRadius::Small);
 		}
 		p.drawPixmapLeft(padding.left() + width - pw, tshift, _width, pix);
 		if (selected) {
@@ -3397,25 +3406,28 @@ void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 
 	_data->load();
-	QPixmap toDraw;
+	auto roundRadius = ImageRoundRadius::Large;
+	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+		| (isBubbleBottom() ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None);
+	auto rthumb = QRect(skipx, skipy, width, height);
 	if (_data && !_data->thumb->isNull()) {
 		int32 w = _data->thumb->width(), h = _data->thumb->height();
 		QPixmap pix;
 		if (width * h == height * w || (w == fullWidth() && h == fullHeight())) {
-			pix = _data->thumb->pixSingle(ImageRoundRadius::Large, width, height, width, height);
+			pix = _data->thumb->pixSingle(width, height, width, height, roundRadius, roundCorners);
 		} else if (width * h > height * w) {
 			int32 nw = height * w / h;
-			pix = _data->thumb->pixSingle(ImageRoundRadius::Large, nw, height, width, height);
+			pix = _data->thumb->pixSingle(nw, height, width, height, roundRadius, roundCorners);
 		} else {
 			int32 nh = width * h / w;
-			pix = _data->thumb->pixSingle(ImageRoundRadius::Large, width, nh, width, height);
+			pix = _data->thumb->pixSingle(width, nh, width, height, roundRadius, roundCorners);
 		}
-		p.drawPixmap(QPoint(skipx, skipy), pix);
+		p.drawPixmap(rthumb.topLeft(), pix);
 	} else {
-		App::roundRect(p, skipx, skipy, width, height, st::msgInBg, MessageInCorners);
+		App::complexLocationRect(p, rthumb, roundRadius, roundCorners);
 	}
 	if (selected) {
-		App::roundRect(p, skipx, skipy, width, height, textstyleCurrent()->selectOverlay, SelectedOverlayLargeCorners);
+		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
 	}
 
 	if (_parent->getMedia() == this) {

@@ -198,11 +198,11 @@ StorageKey PeerData::userpicUniqueKey() const {
 }
 
 void PeerData::saveUserpic(const QString &path, int size) const {
-	currentUserpic()->pixRounded(ImageRoundRadius::Small, size, size).save(path, "PNG");
+	currentUserpic()->pixRounded(size, size, ImageRoundRadius::Small).save(path, "PNG");
 }
 
 QPixmap PeerData::genUserpic(int size) const {
-	return currentUserpic()->pixRounded(ImageRoundRadius::Small, size, size);
+	return currentUserpic()->pixRounded(size, size, ImageRoundRadius::Small);
 }
 
 const Text &BotCommand::descriptionText() const {

@@ -159,7 +159,7 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	QRect r(0, 0, _width, height);
 	if (animating) {
 		if (!_thumb.isNull()) _thumb = QPixmap();
-		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, context->paused ? 0 : context->ms));
+		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, ImageRoundCorner::None, context->paused ? 0 : context->ms));
 	} else {
 		prepareThumb(_width, height, frame);
 		if (_thumb.isNull()) {
@@ -282,7 +282,7 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 		if (!document->thumb->isNull()) {
 			if (document->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 				}
 			} else {
 				document->thumb->load();
@@ -293,7 +293,7 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 		if (!thumb->isNull()) {
 			if (thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 				}
 			} else {
 				thumb->load();
@@ -338,7 +338,7 @@ void Gif::clipCallback(Media::Clip::Notification notification) {
 			} else if (_gif->ready() && !_gif->started()) {
 				int32 height = st::inlineMediaHeight;
 				QSize frame = countFrameSize();
-				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None);
+				_gif->start(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, ImageRoundCorner::None);
 			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
 				_gif.reset();
 				getShownDocument()->forget();
@@ -529,13 +529,13 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 	if (PhotoData *photo = getShownPhoto()) {
 		if (photo->medium->loaded()) {
 			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 			}
 			_thumbLoaded = true;
 		} else {
 			if (photo->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 				}
 			}
 			photo->medium->load();
@@ -544,7 +544,7 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 		ImagePtr thumb = getResultThumb();
 		if (thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixSmooth, width, height);
+				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 			}
 		} else {
 			thumb->load();
@@ -654,7 +654,7 @@ void Video::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -985,7 +985,7 @@ void Contact::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -1132,7 +1132,7 @@ void Article::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -1233,7 +1233,7 @@ void Game::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 
 		if (animating) {
 			if (!_thumb.isNull()) _thumb = QPixmap();
-			auto animationThumb = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, context->paused ? 0 : context->ms);
+			auto animationThumb = _gif->current(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, ImageRoundCorner::None, context->paused ? 0 : context->ms);
 			p.drawPixmapLeft(rthumb.topLeft(), _width, animationThumb);
 			thumbDisplayed = true;
 		}
@@ -1312,7 +1312,7 @@ void Game::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixSmooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -1347,7 +1347,7 @@ void Game::clipCallback(Media::Clip::Notification notification) {
 				_gif.setBad();
 				getResultDocument()->forget();
 			} else if (_gif->ready() && !_gif->started()) {
-				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None);
+				_gif->start(_frameSize.width(), _frameSize.height(), st::inlineThumbSize, st::inlineThumbSize, ImageRoundRadius::None, ImageRoundCorner::None);
 			} else if (_gif->autoPausedGif() && !Ui::isInlineItemVisible(this)) {
 				_gif.reset();
 				getResultDocument()->forget();

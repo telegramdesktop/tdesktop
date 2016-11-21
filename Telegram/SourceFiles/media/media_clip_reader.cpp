@@ -76,7 +76,7 @@ QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool 
 			}
 		}
 		if (request.radius != ImageRoundRadius::None) {
-			imageRound(cache, request.radius);
+			imageRound(cache, request.radius, request.corners);
 		}
 		return QPixmap::fromImage(cache, Qt::ColorOnly);
 	}
@@ -185,7 +185,7 @@ void Reader::callback(Reader *reader, int32 threadIndex, Notification notificati
 	}
 }
 
-void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius) {
+void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners) {
 	if (managers.size() <= _threadIndex) error();
 	if (_state == State::Error) return;
 
@@ -198,13 +198,14 @@ void Reader::start(int32 framew, int32 frameh, int32 outerw, int32 outerh, Image
 		request.outerw = outerw * factor;
 		request.outerh = outerh * factor;
 		request.radius = radius;
+		request.corners = corners;
 		_frames[0].request = _frames[1].request = _frames[2].request = request;
 		moveToNextShow();
 		managers.at(_threadIndex)->start(this);
 	}
 }
 
-QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, uint64 ms) {
+QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners, uint64 ms) {
 	auto frame = frameToShow();
 	t_assert(frame != nullptr);
 
@@ -223,7 +224,10 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	}
 
 	auto factor = cIntRetinaFactor();
-	if (frame->pix.width() == outerw * factor && frame->pix.height() == outerh * factor) {
+	if (frame->pix.width() == outerw * factor
+		&& frame->pix.height() == outerh * factor
+		&& frame->request.radius == radius
+		&& frame->request.corners == corners) {
 		moveToNextShow();
 		return frame->pix;
 	}
@@ -238,7 +242,7 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	frame->pix = QPixmap();
 	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
 
-	Frame *other = frameToWriteNext(true);
+	auto other = frameToWriteNext(true);
 	if (other) other->request = frame->request;
 
 	moveToNextShow();
@@ -254,7 +258,7 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 bool Reader::ready() const {
 	if (_width && _height) return true;
 
-	Frame *frame = frameToShow();
+	auto frame = frameToShow();
 	if (frame) {
 		_width = frame->original.width();
 		_height = frame->original.height();

@@ -2726,6 +2726,37 @@ namespace {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
+	void complexAdjustRect(ImageRoundCorners corners, QRect &rect, RectParts &parts) {
+		if (corners & ImageRoundCorner::TopLeft) {
+			if (!(corners & ImageRoundCorner::BottomLeft)) {
+				parts = RectPart::NoTopBottom | RectPart::TopFull;
+				rect.setHeight(rect.height() + msgRadius());
+			}
+		} else if (corners & ImageRoundCorner::BottomLeft) {
+			parts = RectPart::NoTopBottom | RectPart::BottomFull;
+			rect.setTop(rect.y() - msgRadius());
+		} else {
+			parts = RectPart::NoTopBottom;
+			rect.setTop(rect.y() - msgRadius());
+			rect.setHeight(rect.height() + msgRadius());
+		}
+	}
+
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
+		auto overlayCorners = (radius == ImageRoundRadius::Small) ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
+		auto overlayParts = RectPart::Full | RectPart::None;
+		if (radius == ImageRoundRadius::Large) {
+			complexAdjustRect(corners, rect, overlayParts);
+		}
+		roundRect(p, rect, textstyleCurrent()->selectOverlay, overlayCorners, nullptr, overlayParts);
+	}
+
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
+		auto parts = RectPart::Full | RectPart::None;
+		complexAdjustRect(corners, rect, parts);
+		roundRect(p, rect, st::msgInBg, MessageInCorners, nullptr, parts);
+	}
+
 	QImage **cornersMask(ImageRoundRadius radius) {
 		switch (radius) {
 		case ImageRoundRadius::Large: return ::cornersMaskLarge;

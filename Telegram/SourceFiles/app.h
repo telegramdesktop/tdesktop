@@ -280,6 +280,7 @@ namespace App {
 	void setProxySettings(QTcpSocket &socket);
 
 	enum class RectPart {
+		None        = 0x000,
 		TopLeft     = 0x001,
 		Top         = 0x002,
 		TopRight    = 0x004,
@@ -299,6 +300,9 @@ namespace App {
 	};
 	Q_DECLARE_FLAGS(RectParts, RectPart);
 	Q_DECLARE_OPERATORS_FOR_FLAGS(RectParts);
+
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners);
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners);
 
 	QImage **cornersMask(ImageRoundRadius radius);
 	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);

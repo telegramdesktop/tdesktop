@@ -88,7 +88,7 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 	auto pattern = anim::shifted(c);
 
 	auto resultBytesPerPixel = (src.depth() >> 3);
-	auto resultIntsPerPixel = 1;
+	constexpr auto resultIntsPerPixel = 1;
 	auto resultIntsPerLine = (outResult->bytesPerLine() >> 2);
 	auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;
 	auto resultInts = reinterpret_cast<uint32*>(outResult->bits()) + dstPoint.y() * resultIntsPerLine + dstPoint.x() * resultIntsPerPixel;
@@ -104,7 +104,7 @@ void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect
 	t_assert(src.depth() == (maskBytesPerPixel << 3));
 	for (int y = 0; y != height; ++y) {
 		for (int x = 0; x != width; ++x) {
-			auto maskOpacity = static_cast<uint64>(*maskBytes) + 1;
+			auto maskOpacity = static_cast<anim::ShiftedMultiplier>(*maskBytes) + 1;
 			*resultInts = anim::unshifted(pattern * maskOpacity);
 			maskBytes += maskBytesPerPixel;
 			resultInts += resultIntsPerPixel;

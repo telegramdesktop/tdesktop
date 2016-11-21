@@ -797,8 +797,8 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				if (_data->thumb->loaded()) {
 					if (_thumb.isNull() || loaded != _thumbForLoaded) {
 						_thumbForLoaded = loaded;
-						ImagePixOptions options = ImagePixSmooth;
-						if (!_thumbForLoaded) options |= ImagePixBlurred;
+						auto options = ImagePixOption::Smooth | ImagePixOption::None;
+						if (!_thumbForLoaded) options |= ImagePixOption::Blurred;
 						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
@@ -1131,15 +1131,15 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		if (_page && _page->photo) {
 			QPixmap pix;
 			if (_page->photo->medium->loaded()) {
-				pix = _page->photo->medium->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
+				pix = _page->photo->medium->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else if (_page->photo->loaded()) {
-				pix = _page->photo->full->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
+				pix = _page->photo->full->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			} else {
-				pix = _page->photo->thumb->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize);
+				pix = _page->photo->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small);
 			}
 			p.drawPixmapLeft(0, top, _width, pix);
 		} else if (_page && _page->document && !_page->document->thumb->isNull()) {
-			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(ImageRoundRadius::Small, _pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize));
+			p.drawPixmapLeft(0, top, _width, _page->document->thumb->pixSingle(_pixw, _pixh, st::linksPhotoSize, st::linksPhotoSize, ImageRoundRadius::Small));
 		} else {
 			int32 index = _letter.isEmpty() ? 0 : (_letter.at(0).unicode() % 4);
 			switch (index) {

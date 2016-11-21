@@ -87,7 +87,7 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 					maxH = limitH;
 				}
 			}
-			_thumb = imagePix(_file->thumb.toImage(), maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth | ImagePixBlurred, maxW, maxH);
+			_thumb = imagePix(_file->thumb.toImage(), maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixOption::Smooth | ImagePixOption::Blurred, maxW, maxH);
 		} else {
 			for (PreparedPhotoThumbs::const_iterator i = _file->photoThumbs.cbegin(), e = _file->photoThumbs.cend(); i != e; ++i) {
 				if (i->width() >= maxW && i->height() >= maxH) {
@@ -129,7 +129,8 @@ PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxW
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRoundedSmall, st::msgFileThumbSize, st::msgFileThumbSize);
+			auto options = ImagePixOption::Smooth | ImagePixOption::RoundedSmall | ImagePixOption::RoundedTopLeft | ImagePixOption::RoundedTopRight | ImagePixOption::RoundedBottomLeft | ImagePixOption::RoundedBottomRight;
+			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		_name.setText(st::semiboldFont, _file->filename, _textNameOptions);
@@ -420,7 +421,8 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, ImagePixSmooth | ImagePixRoundedSmall, st::msgFileThumbSize, st::msgFileThumbSize);
+			auto options = ImagePixOption::Smooth | ImagePixOption::RoundedSmall | ImagePixOption::RoundedTopLeft | ImagePixOption::RoundedTopRight | ImagePixOption::RoundedBottomLeft | ImagePixOption::RoundedBottomRight;
+			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		if (doc) {
@@ -451,11 +453,11 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 					maxH = limitH;
 				}
 			}
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth | ImagePixBlurred, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixOption::Smooth | ImagePixOption::Blurred, maxW, maxH);
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixSmooth, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixOption::Smooth, maxW, maxH);
 		}
 		int32 tw = _thumb.width(), th = _thumb.height();
 		if (!tw || !th) {

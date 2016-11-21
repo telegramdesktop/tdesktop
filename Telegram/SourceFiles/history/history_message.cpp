@@ -261,7 +261,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 				ImagePtr replyPreview = replyToMsg->getMedia()->replyPreview();
 				if (!replyPreview->isNull()) {
 					QRect to(rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x));
-					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(ImageRoundRadius::Small, replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height()));
+					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 					if (selected) {
 						App::roundRect(p, to, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
 					}
