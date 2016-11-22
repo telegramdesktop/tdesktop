@@ -135,6 +135,7 @@ enum class ImagePixOption {
 	RoundedTopRight    = 0x040,
 	RoundedBottomLeft  = 0x080,
 	RoundedBottomRight = 0x100,
+	Colored            = 0x200,
 };
 Q_DECLARE_FLAGS(ImagePixOptions, ImagePixOption);
 Q_DECLARE_OPERATORS_FOR_FLAGS(ImagePixOptions);
@@ -248,12 +249,7 @@ protected:
 	mutable QPixmap _data;
 
 private:
-
-	struct Size {
-		QPixmap pix;
-		ImagePixOptions options;
-	};
-	typedef QMap<uint64, Size> Sizes;
+	using Sizes = QMap<uint64, QPixmap>;
 	mutable Sizes _sizesCache;
 
 };

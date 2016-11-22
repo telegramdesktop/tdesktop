@@ -173,7 +173,7 @@ public:
 		return true;
 	}
 	bool skipBubbleTail() const override {
-		return isBubbleBottom();
+		return isBubbleBottom() && _caption.isEmpty();
 	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
@@ -263,7 +263,7 @@ public:
 		return true;
 	}
 	bool skipBubbleTail() const override {
-		return isBubbleBottom();
+		return isBubbleBottom() && _caption.isEmpty();
 	}
 
 protected:
@@ -491,7 +491,7 @@ public:
 		return true;
 	}
 	bool skipBubbleTail() const override {
-		return isBubbleBottom();
+		return isBubbleBottom() && _caption.isEmpty();
 	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
