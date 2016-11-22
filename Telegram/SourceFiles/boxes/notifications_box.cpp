@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "ui/widgets/buttons.h"
-#include "ui/widgets/discrete_slider.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"

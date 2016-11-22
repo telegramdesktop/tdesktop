@@ -26,7 +26,6 @@ class ApiWrap : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	ApiWrap(QObject *parent);
 	void init();
 
@@ -51,6 +50,7 @@ public:
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
+	void saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved);
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
@@ -67,11 +67,9 @@ public:
 	~ApiWrap();
 
 signals:
-
 	void fullPeerUpdated(PeerData *peer);
 
 public slots:
-
 	void resolveMessageDatas();
 	void resolveWebPages();
 
@@ -79,7 +77,6 @@ public slots:
 	void saveDraftsToCloud();
 
 private:
-
 	void updatesReceived(const MTPUpdates &updates);
 
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
@@ -157,5 +154,17 @@ private:
 	SingleTimer _draftsSaveTimer;
 	void saveCloudDraftDone(History *history, const MTPBool &result, mtpRequestId requestId);
 	bool saveCloudDraftFail(History *history, const RPCError &error, mtpRequestId requestId);
+
+	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
+	void stickerSetDisenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req);
+	bool stickerSetDisenableFail(const RPCError &error, mtpRequestId req);
+	Stickers::Order _stickersOrder;
+	mtpRequestId _stickersReorderRequestId = 0;
+	void stickersSaveOrder();
+	void stickersReorderDone(const MTPBool &result);
+	bool stickersReorderFail(const RPCError &result);
+	mtpRequestId _stickersClearRecentRequestId = 0;
+	void stickersClearRecentDone(const MTPBool &result);
+	bool stickersClearRecentFail(const RPCError &result);
 
 };

@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
-#include "ui/widgets/discrete_slider.h"
+#include "ui/widgets/discrete_sliders.h"
 
 namespace Settings {
 namespace {
@@ -52,7 +52,7 @@ ScaleWidget::ScaleWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 void ScaleWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSmallSkip);
 
-	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), SLOT(onAutoChosen()), (cConfigScale() == dbisAuto));
+	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), SLOT(onAutoChanged()), (cConfigScale() == dbisAuto));
 	addChildRow(_scale, style::margins(0, 0, 0, 0));
 
 	_scale->addSection(scaleLabel(dbisOne));
@@ -63,7 +63,7 @@ void ScaleWidget::createControls() {
 	_scale->setSectionActivatedCallback([this] { scaleChanged(); });
 }
 
-void ScaleWidget::onAutoChosen() {
+void ScaleWidget::onAutoChanged() {
 	auto newScale = _auto->checked() ? dbisAuto : cEvalScale(cConfigScale());
 	if (newScale == cScreenScale()) {
 		if (newScale != cScale()) {
@@ -81,6 +81,11 @@ void ScaleWidget::onAutoChosen() {
 }
 
 void ScaleWidget::setScale(DBIScale newScale) {
+	if (_inSetScale) return;
+	_inSetScale = true;
+	auto guard = base::scope_guard([this] { _inSetScale = false; });
+
+	if (newScale == cScreenScale()) newScale = dbisAuto;
 	if (newScale == dbisAuto && !_auto->checked()) {
 		_auto->setChecked(true);
 	} else if (newScale != dbisAuto && _auto->checked()) {
@@ -110,9 +115,6 @@ void ScaleWidget::scaleChanged() {
 	case 1: newScale = dbisOneAndQuarter; break;
 	case 2: newScale = dbisOneAndHalf; break;
 	case 3: newScale = dbisTwo; break;
-	}
-	if (newScale == cScreenScale()) {
-		newScale = dbisAuto;
 	}
 	setScale(newScale);
 }

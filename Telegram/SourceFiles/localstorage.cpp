@@ -3224,7 +3224,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				outOrder->push_front(setId);
 			}
 		} else if (setId == Stickers::CustomSetId) {
-			setTitle = lang(lng_custom_stickers);
+			setTitle = qsl("Custom stickers");
 			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
 		} else if (setId == Stickers::CloudRecentSetId) {
 			setTitle = lang(lng_recent_stickers);
@@ -3404,7 +3404,7 @@ void importOldRecentStickers() {
 	recent.clear();
 
 	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official | MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
-	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
+	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, qsl("Custom stickers"), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
 
 	QMap<uint64, bool> read;
 	while (!stickers.stream.atEnd()) {
@@ -3480,7 +3480,10 @@ void readFeaturedStickers() {
 			++unreadCount;
 		}
 	}
-	Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
+		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+	}
 }
 
 void readRecentStickers() {

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class RoundButton;
 class LinkButton;
-class DiscreteSlider;
+class SettingsSlider;
 } // namespace Ui
 
 class NotificationsBox : public AbstractBox {
@@ -70,7 +70,7 @@ private:
 	ScreenCorner _downCorner = ScreenCorner::TopLeft;
 
 	int _oldCount;
-	ChildWidget<Ui::DiscreteSlider> _countSlider;
+	ChildWidget<Ui::SettingsSlider> _countSlider;
 	ChildWidget<Ui::RoundButton> _done;
 
 	QVector<SampleWidget*> _cornerSamples[4];

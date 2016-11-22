@@ -100,7 +100,6 @@ dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
 
 dialogsFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
 

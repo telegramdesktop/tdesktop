@@ -692,6 +692,109 @@ void ApiWrap::requestStickerSets() {
 	}
 }
 
+void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved) {
+	for (auto requestId : base::take(_stickerSetDisenableRequests)) {
+		MTP::cancel(requestId);
+	}
+	MTP::cancel(base::take(_stickersReorderRequestId));
+	MTP::cancel(base::take(_stickersClearRecentRequestId));
+
+	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeArchived = false;
+	auto &recent = cGetRecentStickers();
+	auto &sets = Global::RefStickerSets();
+
+	_stickersOrder = localOrder;
+	for_const (auto removedSetId, localRemoved) {
+		if (removedSetId == Stickers::CloudRecentSetId) {
+			if (sets.remove(Stickers::CloudRecentSetId) != 0) {
+				writeCloudRecent = true;
+			}
+			if (sets.remove(Stickers::CustomSetId)) {
+				writeInstalled = true;
+			}
+			if (!recent.isEmpty()) {
+				recent.clear();
+				writeRecent = true;
+			}
+
+			MTPmessages_ClearRecentStickers::Flags flags = 0;
+			_stickersClearRecentRequestId = MTP::send(MTPmessages_ClearRecentStickers(MTP_flags(flags)), rpcDone(&ApiWrap::stickersClearRecentDone), rpcFail(&ApiWrap::stickersClearRecentFail));
+			continue;
+		}
+
+		auto it = sets.find(removedSetId);
+		if (it != sets.cend()) {
+			for (auto i = recent.begin(); i != recent.cend();) {
+				if (it->stickers.indexOf(i->first) >= 0) {
+					i = recent.erase(i);
+					writeRecent = true;
+				} else {
+					++i;
+				}
+			}
+			if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
+				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
+				_stickerSetDisenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&ApiWrap::stickerSetDisenableDone), rpcFail(&ApiWrap::stickerSetDisenableFail), 0, 5));
+				int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
+				if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
+				if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
+					sets.erase(it);
+				} else {
+					if (it->flags & MTPDstickerSet::Flag::f_archived) {
+						writeArchived = true;
+					}
+					it->flags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet::Flag::f_archived);
+				}
+			}
+		}
+	}
+
+	// Clear all installed flags, set only for sets from order.
+	for (auto &set : sets) {
+		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
+			set.flags &= ~MTPDstickerSet::Flag::f_installed;
+		}
+	}
+
+	auto &order(Global::RefStickerSetsOrder());
+	order.clear();
+	for_const (auto setId, _stickersOrder) {
+		auto it = sets.find(setId);
+		if (it != sets.cend()) {
+			if ((it->flags & MTPDstickerSet::Flag::f_archived) && !localRemoved.contains(it->id)) {
+				MTPInputStickerSet mtpSetId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
+				_stickerSetDisenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(mtpSetId, MTP_boolFalse()), rpcDone(&ApiWrap::stickerSetDisenableDone), rpcFail(&ApiWrap::stickerSetDisenableFail), 0, 5));
+				it->flags &= ~MTPDstickerSet::Flag::f_archived;
+				writeArchived = true;
+			}
+			order.push_back(setId);
+			it->flags |= MTPDstickerSet::Flag::f_installed;
+		}
+	}
+	for (auto it = sets.begin(); it != sets.cend();) {
+		if ((it->flags & MTPDstickerSet_ClientFlag::f_featured)
+			|| (it->flags & MTPDstickerSet::Flag::f_installed)
+			|| (it->flags & MTPDstickerSet::Flag::f_archived)
+			|| (it->flags & MTPDstickerSet_ClientFlag::f_special)) {
+			++it;
+		} else {
+			it = sets.erase(it);
+		}
+	}
+
+	if (writeInstalled) Local::writeInstalledStickers();
+	if (writeRecent) Local::writeUserSettings();
+	if (writeArchived) Local::writeArchivedStickers();
+	if (writeCloudRecent) Local::writeRecentStickers();
+	emit App::main()->stickersUpdated();
+
+	if (_stickerSetDisenableRequests.isEmpty()) {
+		stickersSaveOrder();
+	} else {
+		MTP::sendAnything();
+	}
+}
+
 void ApiWrap::joinChannel(ChannelData *channel) {
 	if (channel->amIn()) {
 		channelAmInUpdated(channel);
@@ -1179,4 +1282,58 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 
 ApiWrap::~ApiWrap() {
 	App::clearHistories();
+}
+
+
+void ApiWrap::stickerSetDisenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req) {
+	_stickerSetDisenableRequests.remove(req);
+	if (_stickerSetDisenableRequests.isEmpty()) {
+		stickersSaveOrder();
+	}
+}
+
+bool ApiWrap::stickerSetDisenableFail(const RPCError &error, mtpRequestId req) {
+	if (MTP::isDefaultHandledError(error)) return false;
+	_stickerSetDisenableRequests.remove(req);
+	if (_stickerSetDisenableRequests.isEmpty()) {
+		stickersSaveOrder();
+	}
+	return true;
+}
+
+void ApiWrap::stickersSaveOrder() {
+	if (_stickersOrder.size() > 1) {
+		QVector<MTPlong> mtpOrder;
+		mtpOrder.reserve(_stickersOrder.size());
+		for_const (auto setId, _stickersOrder) {
+			mtpOrder.push_back(MTP_long(setId));
+		}
+
+		MTPmessages_ReorderStickerSets::Flags flags = 0;
+		_stickersReorderRequestId = MTP::send(MTPmessages_ReorderStickerSets(MTP_flags(flags), MTP_vector<MTPlong>(mtpOrder)), rpcDone(&ApiWrap::stickersReorderDone), rpcFail(&ApiWrap::stickersReorderFail));
+	} else {
+		stickersReorderDone(MTP_boolTrue());
+	}
+}
+
+void ApiWrap::stickersReorderDone(const MTPBool &result) {
+	_stickersReorderRequestId = 0;
+}
+
+bool ApiWrap::stickersReorderFail(const RPCError &result) {
+	if (MTP::isDefaultHandledError(result)) return false;
+	_stickersReorderRequestId = 0;
+	Global::SetLastStickersUpdate(0);
+	App::main()->updateStickers();
+	return true;
+}
+
+void ApiWrap::stickersClearRecentDone(const MTPBool &result) {
+	_stickersClearRecentRequestId = 0;
+}
+
+bool ApiWrap::stickersClearRecentFail(const RPCError &result) {
+	if (MTP::isDefaultHandledError(result)) return false;
+	_stickersClearRecentRequestId = 0;
+	return true;
 }

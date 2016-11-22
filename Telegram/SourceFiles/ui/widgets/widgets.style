@@ -566,7 +566,7 @@ defaultSolidScroll: FlatScroll(defaultFlatScroll) {
 defaultInputFont: font(17px);
 defaultFlatInput: FlatInput {
 	textColor: #000000;
-	bgColor: #f2f2f2;
+	bgColor: windowBgOver;
 	bgActive: #ffffff;
 	width: 210px;
 	height: 40px;
@@ -575,7 +575,7 @@ defaultFlatInput: FlatInput {
 	font: defaultInputFont;
 
 	borderWidth: 2px;
-	borderColor: #f2f2f2;
+	borderColor: windowBgOver;
 	borderActive: #54c3f3;
 	borderError: #ed8080;
 
@@ -724,16 +724,47 @@ widgetFadeDuration: 200;
 fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(9px, 8px) }};
 boxFieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
 
-discreteSliderHeight: 39px;
-discreteSliderTop: 5px;
-discreteSliderSkip: 3px;
-discreteSliderThickness: 3px;
-discreteSliderActiveFg: #4bb5e7;
-discreteSliderInactiveFg: #e1eaef;
-discreteSliderLabelTop: 17px;
-discreteSliderLabelFont: normalFont;
-discreteSliderLabelFg: #1485c2;
-discreteSliderDuration: 200;
+SettingsSlider {
+	height: pixels;
+	barTop: pixels;
+	barSkip: pixels;
+	barStroke: pixels;
+	barFg: color;
+	barFgActive: color;
+	labelTop: pixels;
+	labelFont: font;
+	labelFg: color;
+	labelFgActive: color;
+	duration: int;
+}
+
+defaultSettingsSlider: SettingsSlider {
+	height: 39px;
+	barTop: 5px;
+	barSkip: 3px;
+	barStroke: 3px;
+	barFg: #e1eaef;
+	barFgActive: windowBgActive;
+	labelTop: 17px;
+	labelFont: semiboldFont;
+//	labelFont: normalFont;
+	labelFg: #999999;
+	labelFgActive: lightButtonFg;
+//	labelFg: #1485c2;
+//	labelFgActive: #1485c2;
+	duration: 150;
+}
+
+defaultTabsSlider: SettingsSlider(defaultSettingsSlider) {
+	height: 49px;
+	barTop: 46px;
+	barSkip: 0px;
+	barFg: transparent;
+	labelTop: 16px;
+	labelFont: semiboldFont;
+	labelFg: #999999;
+	labelFgActive: lightButtonFg;
+}
 
 defaultRoundShadow: Shadow {
 	left: icon {{ "round_shadow_left", windowShadowFg }};

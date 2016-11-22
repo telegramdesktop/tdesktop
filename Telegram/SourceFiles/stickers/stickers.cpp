@@ -83,6 +83,26 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	emit App::main()->stickersUpdated();
 }
 
+// For testing: Just apply random subset or your sticker sets as archived.
+bool applyArchivedResultFake() {
+	if (rand_value<uint32>() % 128 < 64) {
+		return false;
+	}
+	auto sets = QVector<MTPStickerSetCovered>();
+	for (auto &set : Global::RefStickerSets()) {
+		if ((set.flags & MTPDstickerSet::Flag::f_installed) && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
+			if (rand_value<uint32>() % 128 < 64) {
+				auto data = MTP_stickerSet(MTP_flags(set.flags | MTPDstickerSet::Flag::f_archived), MTP_long(set.id), MTP_long(set.access), MTP_string(set.title), MTP_string(set.shortName), MTP_int(set.count), MTP_int(set.hash));
+				sets.push_back(MTP_stickerSetCovered(data, MTP_documentEmpty(MTP_long(0))));
+			}
+		}
+	}
+	if (sets.size() > 3) sets = sets.mid(0, 3);
+	auto fakeResult = MTP_messages_stickerSetInstallResultArchive(MTP_vector<MTPStickerSetCovered>(sets));
+	applyArchivedResult(fakeResult.c_messages_stickerSetInstallResultArchive());
+	return true;
+}
+
 void installLocally(uint64 setId) {
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(setId);
@@ -199,7 +219,10 @@ void FeaturedReader::onReadSets() {
 
 	if (!wrappedIds.empty()) {
 		MTP::send(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds)), rpcDone(&readFeaturedDone));
-		Global::SetFeaturedStickerSetsUnreadCount(count);
+		if (Global::FeaturedStickerSetsUnreadCount() != count) {
+			Global::SetFeaturedStickerSetsUnreadCount(count);
+			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+		}
 	}
 }
 

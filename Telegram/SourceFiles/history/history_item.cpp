@@ -701,10 +701,10 @@ void HistoryItem::nextItemChanged() {
 void HistoryItem::recountAttachToPrevious() {
 	bool attach = false;
 	if (auto previous = previousItem()) {
-		if (!isPost() && !Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
-			attach = !previous->isPost()
-				&& !previous->serviceMsg()
-				&& !previous->isEmpty()
+		if (!Has<HistoryMessageDate>() && !Has<HistoryMessageUnreadBar>()) {
+			attach = !isPost() && !previous->isPost()
+				&& !serviceMsg() && !previous->serviceMsg()
+				&& !isEmpty() && !previous->isEmpty()
 				&& previous->from() == from()
 				&& (qAbs(previous->date.secsTo(date)) < kAttachMessageToPreviousSecondsDelta);
 		}

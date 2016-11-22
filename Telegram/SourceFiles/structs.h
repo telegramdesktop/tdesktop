@@ -744,7 +744,7 @@ public:
 		return flags & MTPDchannel::Flag::f_verified;
 	}
 	bool canAddMembers() const {
-		return amCreator() || amEditor() || (flags & MTPDchannel::Flag::f_democracy);
+		return amCreator() || amEditor() || (amIn() && (flags & MTPDchannel::Flag::f_democracy));
 	}
 	bool canEditPhoto() const {
 		return amCreator() || (amEditor() && isMegagroup());

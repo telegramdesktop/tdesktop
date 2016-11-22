@@ -36,7 +36,7 @@ introCountry: countryInput {
 	width: 300px;
 	height: 41px;
 	top: 33px;
-	bgColor: #f2f2f2;
+	bgColor: windowBgOver;
 	ptrSize: size(15px, 8px);
 	textMrg: margins(16px, 5px, 16px, 15px);
 	font: defaultInputFont;

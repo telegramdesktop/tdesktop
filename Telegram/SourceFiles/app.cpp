@@ -2093,7 +2093,10 @@ namespace {
 		Global::SetLastStickersUpdate(0);
 		Global::SetLastRecentStickersUpdate(0);
 		Global::SetFeaturedStickerSetsOrder(Stickers::Order());
-		Global::SetFeaturedStickerSetsUnreadCount(0);
+		if (Global::FeaturedStickerSetsUnreadCount() != 0) {
+			Global::SetFeaturedStickerSetsUnreadCount(0);
+			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+		}
 		Global::SetLastFeaturedStickersUpdate(0);
 		Global::SetArchivedStickerSetsOrder(Stickers::Order());
 		cSetSavedGifs(SavedGifs());

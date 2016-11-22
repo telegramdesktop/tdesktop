@@ -60,7 +60,7 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 
 void AboutBox::onVersion() {
 	if (cRealBetaVersion()) {
-		QString url = qsl("https://tdesktop.com/");
+		auto url = qsl("https://tdesktop.com/");
 		switch (cPlatform()) {
 		case dbipWindows: url += qsl("win/%1.zip"); break;
 		case dbipMac: url += qsl("mac/%1.zip"); break;

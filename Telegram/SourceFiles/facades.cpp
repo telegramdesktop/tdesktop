@@ -637,6 +637,7 @@ struct Data {
 	uint64 LastRecentStickersUpdate = 0;
 	Stickers::Order FeaturedStickerSetsOrder;
 	int FeaturedStickerSetsUnreadCount = 0;
+	base::Observable<void> FeaturedStickerSetsUnreadCountChanged;
 	uint64 LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
 
@@ -754,6 +755,7 @@ DefineVar(Global, uint64, LastStickersUpdate);
 DefineVar(Global, uint64, LastRecentStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
 DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
+DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
 DefineVar(Global, uint64, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 

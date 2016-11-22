@@ -41,27 +41,46 @@ stickersTrendingSubheaderTop: 20px;
 
 stickersTrendingAddTop: 3px;
 stickersTrendingAdd: RoundButton(defaultActiveButton) {
-	width: -17px;
+	width: -16px;
 	height: 26px;
 	textTop: 4px;
 }
+stickersRemove: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon {{ "stickers_remove", menuIconFg }};
+	iconOver: icon {{ "stickers_remove", menuIconFgOver }};
+
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+stickersUndoRemove: RoundButton(defaultLightButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 4px;
+}
+stickersRemoveSkip: 4px;
+stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
+stickersReorderSkip: 13px;
 
 stickerEmojiSkip: 5px;
 
-stickersAddIcon: icon {{ "stickers_add", #ffffff }};
-stickersAddSize: size(30px, 24px);
-
-stickersFeaturedHeight: 32px;
-stickersFeaturedFont: contactsNameFont;
-stickersFeaturedPosition: point(16px, 6px);
-stickersFeaturedBadgeFont: semiboldFont;
-stickersFeaturedBadgeSize: 21px;
+stickersFeaturedBadgeFont: font(12px bold);
+stickersFeaturedBadgeSize: 15px;
+stickersFeaturedBadgeTextTop: -1px;
+stickersFeaturedBadgePadding: 4px;
+stickersFeaturedBadgeSkip: 4px;
+stickersFeaturedBadgeTop: 9px;
 stickersFeaturedPen: lightButtonFg;
 stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "mediaview_save_check", lightButtonFg }};
+stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
 
 stickersMaxHeight: 440px;
 stickersPadding: margins(19px, 17px, 19px, 17px);

@@ -52,7 +52,9 @@ struct UnreadBadgeStyle {
 	bool active;
 	bool selected;
 	bool muted;
+	int textTop = 0;
 	int size;
+	int padding;
 	UnreadBadgeSize sizeId;
 	style::font font;
 };

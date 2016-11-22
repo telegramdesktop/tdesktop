@@ -2530,7 +2530,6 @@ void EmojiPan::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64 opaci
 	t_assert(started());
 	t_assert(dt >= 0.);
 
-	auto &transition = anim::easeOutCirc;
 	_frameAlpha = anim::interpolate(1, 256, opacity);
 
 	auto frameInts = _frameInts + _innerLeft + _innerTop * _frameIntsPerLine;

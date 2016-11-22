@@ -94,7 +94,7 @@ overviewLoader: size(34px, 14px);
 overviewLoaderPoint: size(4px, 4px);
 overviewLoaderSkip: 4px;
 
-playlistHoverBg: #f2f2f2;
+playlistHoverBg: windowBgOver;
 playlistPadding: 10px;
 
 linksSearchMargin: margins(20px, 20px, 20px, 0px);
@@ -121,7 +121,6 @@ overviewLinksChecked: icon {
 
 overviewFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	bgColor: #f2f2f2;
 	phColor: #949494;
 	phFocusColor: #a4a4a4;
 	icon: fieldSearchIcon;

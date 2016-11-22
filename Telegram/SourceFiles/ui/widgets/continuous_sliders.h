@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "styles/style_widgets.h"
+
 namespace Ui {
 
 class ContinuousSlider : public TWidget {
@@ -112,6 +114,42 @@ private:
 	float64 _downValue = 0.;
 
 	float64 _fadeOpacity = 1.;
+
+};
+
+class FilledSlider : public ContinuousSlider {
+public:
+	FilledSlider(QWidget *parent, const style::FilledSlider &st);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	QRect getSeekRect() const override;
+	float64 getOverDuration() const override;
+
+	const style::FilledSlider &_st;
+
+};
+
+class MediaSlider : public ContinuousSlider {
+public:
+	MediaSlider(QWidget *parent, const style::MediaSlider &st);
+
+	void setAlwaysDisplayMarker(bool alwaysDisplayMarker) {
+		_alwaysDisplayMarker = alwaysDisplayMarker;
+		update();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	QRect getSeekRect() const override;
+	float64 getOverDuration() const override;
+
+	const style::MediaSlider &_st;
+	bool _alwaysDisplayMarker = false;
 
 };
 

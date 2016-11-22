@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_widget.h"
 
 #include "ui/widgets/labels.h"
-#include "ui/widgets/filled_slider.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
 #include "media/media_audio.h"

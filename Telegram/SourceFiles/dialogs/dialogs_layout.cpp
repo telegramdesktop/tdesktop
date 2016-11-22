@@ -214,13 +214,14 @@ UnreadBadgeStyle::UnreadBadgeStyle()
 , selected(false)
 , muted(false)
 , size(st::dialogsUnreadHeight)
+, padding(st::dialogsUnreadPadding)
 , sizeId(UnreadBadgeInDialogs)
 , font(st::dialogsUnreadFont) {
 }
 
 void paintUnreadCount(Painter &p, const QString &text, int x, int y, const UnreadBadgeStyle &st, int *outUnreadWidth) {
 	int unreadWidth = st.font->width(text);
-	int unreadRectWidth = unreadWidth + 2 * st::dialogsUnreadPadding;
+	int unreadRectWidth = unreadWidth + 2 * st.padding;
 	int unreadRectHeight = st.size;
 	accumulate_max(unreadRectWidth, unreadRectHeight);
 
@@ -237,9 +238,10 @@ void paintUnreadCount(Painter &p, const QString &text, int x, int y, const Unrea
 
 	paintUnreadBadge(p, QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight), st);
 
+	auto textTop = st.textTop ? st.textTop : (unreadRectHeight - st.font->height) / 2;
 	p.setFont(st.font);
 	p.setPen(st.active ? st::dialogsUnreadFgActive : (st.selected ? st::dialogsUnreadFgOver : st::dialogsUnreadFg));
-	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + (unreadRectHeight - st.font->height) / 2 + st.font->ascent, text);
+	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + textTop + st.font->ascent, text);
 }
 
 void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
@@ -282,7 +284,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			st.active = active;
 			st.muted = history->mute();
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
-			availableWidth -= unreadWidth + st::dialogsUnreadPadding;
+			availableWidth -= unreadWidth + st.padding;
 		}
 		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
 			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height), active, selected, history->textCachedFor, history->lastItemTextCache);

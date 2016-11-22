@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/widgets/continuous_slider.h"
+#include "ui/widgets/continuous_sliders.h"
 
 struct AudioPlaybackState;
 

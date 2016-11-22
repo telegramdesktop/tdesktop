@@ -38,7 +38,7 @@ public:
 
 	void setTitleText(const QString &title);
 	void setAdditionalTitle(const QString &additionalTitle);
-	void setBlockTitle(bool block);
+	void setBlockTitle(bool block, bool withClose = true, bool withShadow = true);
 	void raiseShadow();
 
 public slots:
@@ -59,8 +59,10 @@ protected:
 	}
 
 private:
-	int _maxHeight = 0;
+	void updateBlockTitleGeometry();
 	int countHeight() const;
+
+	int _maxHeight = 0;
 
 	bool _closed = false;
 

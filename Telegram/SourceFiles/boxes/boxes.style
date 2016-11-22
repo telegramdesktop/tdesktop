@@ -470,7 +470,7 @@ confirmCaptionArea: InputArea(defaultInputArea) {
 	textMargins: margins(1px, 6px, 1px, 4px);
 	heightMax: 56px;
 }
-confirmBg: #f2f2f2;
+confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
 confirmCompressedSkip: 10px;
 

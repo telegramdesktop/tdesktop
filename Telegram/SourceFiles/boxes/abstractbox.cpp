@@ -58,13 +58,17 @@ void AbstractBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void AbstractBox::resizeEvent(QResizeEvent *e) {
+	updateBlockTitleGeometry();
+	LayerWidget::resizeEvent(e);
+}
+
+void AbstractBox::updateBlockTitleGeometry() {
 	if (_blockClose) {
 		_blockClose->moveToRight(0, 0);
 	}
 	if (_blockShadow) {
 		_blockShadow->setGeometry(0, st::boxBlockTitleHeight, width(), st::boxBlockTitleShadow.height());
 	}
-	LayerWidget::resizeEvent(e);
 }
 
 void AbstractBox::parentResized() {
@@ -143,11 +147,22 @@ void AbstractBox::onClose() {
 	emit closed(this);
 }
 
-void AbstractBox::setBlockTitle(bool block) {
+void AbstractBox::setBlockTitle(bool block, bool withClose, bool withShadow) {
 	_blockTitle = block;
-	_blockShadow.create(this, st::boxBlockTitleShadow);
-	_blockClose.create(this, st::boxBlockTitleClose);
-	_blockClose->setClickedCallback([this] { onClose(); });
+	if (withClose) {
+		_blockClose.create(this, st::boxBlockTitleClose);
+		_blockClose->setClickedCallback([this] { onClose(); });
+		_blockClose->show();
+	} else {
+		_blockClose.destroy();
+	}
+	if (withShadow) {
+		_blockShadow.create(this, st::boxBlockTitleShadow);
+		_blockShadow->show();
+	} else {
+		_blockShadow.destroy();
+	}
+	updateBlockTitleGeometry();
 }
 
 void AbstractBox::raiseShadow() {

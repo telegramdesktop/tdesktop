@@ -3992,7 +3992,10 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 			it = sets.erase(it);
 		}
 	}
-	Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
+		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+	}
 
 	if (Local::countFeaturedStickersHash() != d.vhash.v) {
 		LOG(("API Error: received featured stickers hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countFeaturedStickersHash()));

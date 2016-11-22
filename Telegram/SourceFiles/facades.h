@@ -317,6 +317,7 @@ DeclareVar(uint64, LastStickersUpdate);
 DeclareVar(uint64, LastRecentStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
 DeclareVar(int, FeaturedStickerSetsUnreadCount);
+DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
 DeclareVar(uint64, LastFeaturedStickersUpdate);
 DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 

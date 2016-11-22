@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Checkbox;
-class DiscreteSlider;
+class SettingsSlider;
 } // namespace Ui
 
 namespace Settings {
@@ -36,7 +36,7 @@ public:
 	ScaleWidget(QWidget *parent, UserData *self);
 
 private slots:
-	void onAutoChosen();
+	void onAutoChanged();
 	void onRestartNow();
 	void onCancel();
 
@@ -46,9 +46,10 @@ private:
 	void setScale(DBIScale newScale);
 
 	ChildWidget<Ui::Checkbox> _auto = { nullptr };
-	ChildWidget<Ui::DiscreteSlider> _scale = { nullptr };
+	ChildWidget<Ui::SettingsSlider> _scale = { nullptr };
 
 	DBIScale _newScale = dbisAuto;
+	bool _inSetScale = false;
 
 };
 

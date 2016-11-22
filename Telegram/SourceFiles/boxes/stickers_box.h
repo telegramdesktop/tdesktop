@@ -24,10 +24,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class ConfirmBox;
 
+namespace style {
+struct RippleAnimation;
+} // namespace style
+
 namespace Ui {
 class PlainShadow;
 class RoundButton;
 class RippleAnimation;
+class SettingsSlider;
 } // namespace Ui
 
 class StickersBox : public ItemListBox, public RPCSender {
@@ -43,16 +48,12 @@ public:
 	StickersBox(Section section = Section::Installed);
 	StickersBox(const Stickers::Order &archivedIds);
 
-	~StickersBox();
-
 public slots:
 	void onStickersUpdated();
 
 	void onCheckDraggingScroll(int localY);
 	void onNoDraggingScroll();
 	void onScrollTimer();
-
-	void onSave();
 
 private slots:
 	void onScroll();
@@ -64,30 +65,55 @@ protected:
 	void closePressed() override;
 
 private:
+	void refreshTabs();
 	void setup();
-	int32 countHeight() const;
 	void rebuildList();
+	void updateTabsGeometry();
+	void switchTab();
+	void installSet(uint64 setId);
 
-	void disenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req);
-	bool disenableFail(const RPCError &error, mtpRequestId req);
-	void reorderDone(const MTPBool &result);
-	bool reorderFail(const RPCError &result);
-	void saveOrder();
+	QPixmap grabContentCache();
+
+	void installDone(const MTPmessages_StickerSetInstallResult &result);
+	bool installFail(uint64 setId, const RPCError &error);
 
 	void updateVisibleTopBottom();
+	void preloadArchivedSets();
+	void requestArchivedSets();
 	void checkLoadMoreArchived();
 	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
+
+	ChildWidget<Ui::PlainShadow> _topShadow;
+	ChildWidget<Ui::SettingsSlider> _tabs = { nullptr };
+	QList<Section> _tabIndices;
+
+	class CounterWidget;
+	ChildWidget<CounterWidget> _unreadBadge = { nullptr };
 
 	Section _section;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::RoundButton> _save = { nullptr };
-	ChildWidget<Ui::RoundButton> _cancel = { nullptr };
-	OrderedSet<mtpRequestId> _disenableRequests;
-	mtpRequestId _reorderRequest = 0;
-	ChildWidget<Ui::PlainShadow> _topShadow = { nullptr };
+	struct Tab {
+		Tab() : widget(nullptr) {
+		}
+		template <typename ...Args>
+		Tab(int index, Args&&... args) : index(index), widget(std_::forward<Args>(args)...) {
+		}
+
+		int index = 0;
+		ChildWidget<Inner> widget = { nullptr };
+		int scrollTop = 0;
+	};
+	Tab _installed;
+	Tab _featured;
+	Tab _archived;
+	Tab *_tab = nullptr;
+	ChildWidget<Ui::RoundButton> _done = { nullptr };
 	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
+
+	FloatAnimation _a_slide;
+	bool _slideLeft = false;
+	QPixmap _leftCache, _rightCache;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;
@@ -97,14 +123,19 @@ private:
 	int _aboutHeight = 0;
 
 	mtpRequestId _archivedRequestId = 0;
+	bool _archivedLoaded = false;
 	bool _allArchivedLoaded = false;
+	bool _someArchivedLoaded = false;
+
+	Stickers::Order _localOrder;
+	Stickers::Order _localRemoved;
 
 };
 
-int32 stickerPacksCount(bool includeDisabledOfficial = false);
+int stickerPacksCount(bool includeArchivedOfficial = false);
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickersBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
+class StickersBox::Inner : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -116,14 +147,17 @@ public:
 	void updateSize();
 	void updateRows(); // refresh only pack cover stickers
 	bool appendSet(const Stickers::Set &set);
-	bool savingStart() {
-		if (_saving) return false;
-		_saving = true;
-		return true;
-	}
 
 	Stickers::Order getOrder() const;
-	Stickers::Order getDisabledSets() const;
+	Stickers::Order getFullOrder() const;
+	Stickers::Order getRemovedSets() const;
+
+	void setFullOrder(const Stickers::Order &order);
+	void setRemovedSets(const Stickers::Order &removed);
+
+	void setInstallSetCallback(base::lambda<void(uint64 setId)> &&callback) {
+		_installSetCallback = std_::move(callback);
+	}
 
 	void setVisibleScrollbar(int32 width);
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
@@ -143,37 +177,34 @@ signals:
 
 public slots:
 	void onUpdateSelected();
-	void onClearRecent();
-	void onClearBoxDestroyed(QObject *box);
-
-private slots:
-	void onImageLoaded();
 
 private:
+	template <typename Check>
+	Stickers::Order collectSets(Check check) const;
+
+	int getRowIndex(uint64 setId) const;
+	void setRowRemoved(int index, bool removed);
+
 	void setActionDown(int newActionDown);
-	void setPressed(int newPressed);
 	void setup();
-	QRect relativeAddButtonRect() const;
-	void paintButton(Painter &p, int y, bool selected, std_::unique_ptr<Ui::RippleAnimation> &ripple, const QString &text, int badgeCounter) const;
+	QRect relativeButtonRect(bool removeButton) const;
+	void ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton);
 
 	void step_shifting(uint64 ms, bool timer);
-	void paintRow(Painter &p, int32 index, uint64 ms);
+	void paintRow(Painter &p, int index, uint64 ms);
+	void paintFakeButton(Painter &p, int index, uint64 ms);
 	void clear();
 	void setActionSel(int32 actionSel);
 	float64 aboveShadowOpacity() const;
 
 	void readVisibleSets();
 
-	void installSet(uint64 setId);
-	void installDone(const MTPmessages_StickerSetInstallResult &result);
-	bool installFail(uint64 setId, const RPCError &error);
-
 	Section _section;
 	Stickers::Order _archivedIds;
 
 	int32 _rowHeight;
-	struct StickerSetRow {
-		StickerSetRow(uint64 id, DocumentData *sticker, int32 count, const QString &title, int titleWidth, bool installed, bool official, bool unread, bool disabled, bool recent, int32 pixw, int32 pixh) : id(id)
+	struct Row {
+		Row(uint64 id, DocumentData *sticker, int32 count, const QString &title, int titleWidth, bool installed, bool official, bool unread, bool archived, bool removed, int32 pixw, int32 pixh) : id(id)
 			, sticker(sticker)
 			, count(count)
 			, title(title)
@@ -181,65 +212,65 @@ private:
 			, installed(installed)
 			, official(official)
 			, unread(unread)
-			, disabled(disabled)
-			, recent(recent)
+			, archived(archived)
+			, removed(removed)
 			, pixw(pixw)
 			, pixh(pixh)
 			, yadd(0, 0) {
+		}
+		bool isRecentSet() const {
+			return (id == Stickers::CloudRecentSetId);
 		}
 		uint64 id;
 		DocumentData *sticker;
 		int32 count;
 		QString title;
 		int titleWidth;
-		bool installed, official, unread, disabled, recent;
+		bool installed, official, unread, archived, removed;
 		int32 pixw, pixh;
 		anim::ivalue yadd;
 		QSharedPointer<Ui::RippleAnimation> ripple;
 	};
-	using StickerSetRows = QList<StickerSetRow*>;
+	using Rows = QList<Row*>;
 
 	void rebuildAppendSet(const Stickers::Set &set, int maxNameWidth);
 	void fillSetCover(const Stickers::Set &set, DocumentData **outSticker, int *outWidth, int *outHeight) const;
 	int fillSetCount(const Stickers::Set &set) const;
 	QString fillSetTitle(const Stickers::Set &set, int maxNameWidth, int *outTitleWidth) const;
-	void fillSetFlags(const Stickers::Set &set, bool *outRecent, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outDisabled);
+	void fillSetFlags(const Stickers::Set &set, bool *outInstalled, bool *outOfficial, bool *outUnread, bool *outArchived);
 
 	int countMaxNameWidth() const;
 
-	StickerSetRows _rows;
+	Rows _rows;
 	QList<uint64> _animStartTimes;
 	uint64 _aboveShadowFadeStart = 0;
 	anim::fvalue _aboveShadowFadeOpacity = { 0., 0. };
 	Animation _a_shifting;
 
+	base::lambda<void(uint64 setId)> _installSetCallback;
+
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 	int _itemsTop = 0;
 
-	bool _saving = false;
-
 	int _actionSel = -1;
 	int _actionDown = -1;
 
-	int _clearWidth, _removeWidth, _returnWidth, _restoreWidth;
-
-	ConfirmBox *_clearBox = nullptr;
+	QString _addText;
+	int _addWidth = 0;
+	QString _undoText;
+	int _undoWidth = 0;
 
 	int _buttonHeight = 0;
-	bool _hasFeaturedButton = false;
-	bool _hasArchivedButton = false;
 
 	QPoint _mouse;
-	int _selected = -3; // -2 - featured stickers button, -1 - archived stickers button
-	int _pressed = -2;
+	bool _inDragArea = false;
+	int _selected = -1;
+	int _pressed = -1;
 	QPoint _dragStart;
 	int _started = -1;
 	int _dragging = -1;
 	int _above = -1;
-
-	std_::unique_ptr<Ui::RippleAnimation> _archivedRipple;
-	std_::unique_ptr<Ui::RippleAnimation> _featuredRipple;
 
 	Ui::RectShadow _aboveShadow;
 

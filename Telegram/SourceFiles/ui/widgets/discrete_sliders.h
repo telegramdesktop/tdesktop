@@ -20,6 +20,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "styles/style_widgets.h"
+
 namespace Ui {
 
 class DiscreteSlider : public TWidget {
@@ -27,46 +29,80 @@ public:
 	DiscreteSlider(QWidget *parent);
 
 	void addSection(const QString &label);
-
+	void setSections(const QStringList &labels);
 	int activeSection() const {
 		return _activeIndex;
 	}
 	void setActiveSection(int index);
 	void setActiveSectionFast(int index);
+	void setSelectOnPress(bool selectOnPress);
 
 	using SectionActivatedCallback = base::lambda<void()>;
 	void setSectionActivatedCallback(SectionActivatedCallback &&callback);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
-	int resizeGetHeight(int newWidth) override;
-
-private:
-	void resizeSections(int newWidth);
-	int getIndexFromPosition(QPoint pos);
-	void setSelectedSection(int index);
-	void step_left(float64 ms, bool timer);
+	int resizeGetHeight(int newWidth) override = 0;
 
 	struct Section {
-		Section(const QString &label);
+		Section(const QString &label, const style::font &font);
 
 		int left, width;
 		QString label;
 		int labelWidth;
 	};
+
+	int getCurrentActiveLeft(uint64 ms);
+
+	int getSectionsCount() const {
+		return _sections.size();
+	}
+
+	template <typename Lambda>
+	void enumerateSections(Lambda callback);
+
+	void stopAnimation() {
+		_a_left.finish();
+	}
+
+private:
+	virtual const style::font &getLabelFont() const = 0;
+	virtual int getAnimationDuration() const = 0;
+
+	int getIndexFromPosition(QPoint pos);
+	void setSelectedSection(int index);
+
 	QList<Section> _sections;
 	int _activeIndex = 0;
+	bool _selectOnPress = true;
 
 	SectionActivatedCallback _callback;
 
 	bool _pressed = false;
 	int _selected = 0;
-	anim::ivalue a_left = { 0 };
-	Animation _a_left;
+	FloatAnimation _a_left;
+
+};
+
+class SettingsSlider : public DiscreteSlider {
+public:
+	SettingsSlider(QWidget *parent, const style::SettingsSlider &st = st::defaultSettingsSlider);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
+
+private:
+	const style::font &getLabelFont() const override;
+	int getAnimationDuration() const override;
+
+	void resizeSections(int newWidth);
+
+	const style::SettingsSlider &_st;
 
 };
 
