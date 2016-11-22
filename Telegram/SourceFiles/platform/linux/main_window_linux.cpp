@@ -676,6 +676,16 @@ MainWindow::~MainWindow() {
 		Libs::g_object_unref(_trayMenu);
 		_trayMenu = nullptr;
 	}
+	if (_trayIndicator) {
+		Libs::g_object_unref(_trayIndicator);
+		_trayIndicator = nullptr;
+	}
+#ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
+	if (_psUnityLauncherEntry) {
+		Libs::g_object_unref(_psUnityLauncherEntry);
+		_psUnityLauncherEntry = nullptr;
+	}
+#endif
 }
 
 } // namespace Platform
