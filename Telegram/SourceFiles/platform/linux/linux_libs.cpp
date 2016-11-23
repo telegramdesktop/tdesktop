@@ -271,7 +271,7 @@ void start() {
 	}
 
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-	if (QString(getenv("XDG_CURRENT_DESKTOP")).toLower() == qstr("unity")) {
+	if (QString(getenv("XDG_CURRENT_DESKTOP")).toLower().split(':').contains(qstr("unity"))) {
 		QLibrary lib_unity(qstr("unity"), 9, 0);
 		loadLibrary(lib_unity, "unity", 9);
 
