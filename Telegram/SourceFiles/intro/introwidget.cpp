@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "localstorage.h"
+#include "langloaderplain.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"
 #include "intro/introcode.h"
@@ -31,38 +32,59 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
+#include "boxes/confirmbox.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 #include "ui/effects/widget_fade_wrap.h"
-#include "styles/style_intro.h"
+#include "ui/effects/slide_animation.h"
 #include "autoupdater.h"
-#include "window/slide_animation.h"
+#include "window/window_slide_animation.h"
 #include "styles/style_boxes.h"
+#include "styles/style_intro.h"
+#include "styles/style_window.h"
 
-IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
-, _a_stage(animation(this, &IntroWidget::step_stage))
-, _a_show(animation(this, &IntroWidget::step_show))
+namespace Intro {
+
+Widget::Widget(QWidget *parent) : TWidget(parent)
+, _a_show(animation(this, &Widget::step_show))
 , _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda<void()>(), st::introSlideDuration)
-, _settings(this, lang(lng_menu_settings), st::defaultBoxButton) {
-	_back->entity()->setClickedCallback([this] { onBack(); });
+, _settings(this, new Ui::RoundButton(this, lang(lng_menu_settings), st::defaultBoxButton), base::lambda<void()>(), st::introCoverDuration)
+, _next(this, QString(), st::introNextButton) {
+	getData()->country = psCurrentCountry();
+
+	_back->entity()->setClickedCallback([this] { historyMove(Direction::Back); });
 	_back->hideFast();
 
-	_settings->setClickedCallback([] { App::wnd()->showSettings(); });
+	_next->setClickedCallback([this] { getStep()->submit(); });
 
-	_countryForReg = psCurrentCountry();
+	_settings->entity()->setClickedCallback([] { App::wnd()->showSettings(); });
 
-	MTP::send(MTPhelp_GetNearestDc(), rpcDone(&IntroWidget::gotNearestDC));
+	if (cLang() == languageDefault) {
+		auto systemLangId = Sandbox::LangSystem();
+		if (systemLangId != languageDefault) {
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), langLoaderRequest(lng_switch_to_this));
+			QString text = loader.found().value(lng_switch_to_this);
+			if (!text.isEmpty()) {
+				_changeLanguage.create(this, new Ui::LinkButton(this, text), base::lambda<void()>(), st::introCoverDuration);
+				_changeLanguage->entity()->setClickedCallback([this, systemLangId] { changeLanguage(systemLangId); });
+			}
+		}
+	} else {
+		_changeLanguage.create(this, new Ui::LinkButton(this, langOriginal(lng_switch_to_this)), base::lambda<void()>(), st::introCoverDuration);
+		_changeLanguage->entity()->setClickedCallback([this] { changeLanguage(languageDefault); });
+	}
 
-	_stepHistory.push_back(new IntroStart(this));
-	_back->raise();
-	_settings->raise();
+	MTP::send(MTPhelp_GetNearestDc(), rpcDone(&Widget::gotNearestDC));
+
+	appendStep(new StartWidget(this, getData()));
+	fixOrder();
 
 	show();
-	setFocus();
+	showControls();
+	getStep()->showFast();
 
 	cSetPasswordRecovered(false);
-
-	_back->moveToLeft(0, 0);
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	Sandbox::connect(SIGNAL(updateLatest()), this, SLOT(onCheckUpdateStatus()));
@@ -74,12 +96,12 @@ IntroWidget::IntroWidget(QWidget *parent) : TWidget(parent)
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-void IntroWidget::onCheckUpdateStatus() {
+void Widget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_update) return;
-		_update.create(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton);
+		_update.create(this, new Ui::RoundButton(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton), base::lambda<void()>(), st::introCoverDuration);
 		if (!_a_show.animating()) _update->show();
-		_update->setClickedCallback([] {
+		_update->entity()->setClickedCallback([] {
 			checkReadyUpdate();
 			App::restart();
 		});
@@ -91,123 +113,204 @@ void IntroWidget::onCheckUpdateStatus() {
 }
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
-void IntroWidget::langChangeTo(int32 langId) {
-	_langChangeTo = langId;
-}
-
-void IntroWidget::onChangeLang() {
-	cSetLang(_langChangeTo);
+void Widget::changeLanguage(int32 languageId) {
+	cSetLang(languageId);
 	Local::writeSettings();
 	App::restart();
 }
 
-void IntroWidget::onStepSubmit() {
-	step()->onSubmit();
+void Widget::setInnerFocus() {
+	if (getStep()->animating()) {
+		setFocus();
+	} else {
+		getStep()->setInnerFocus();
+	}
 }
 
-void IntroWidget::onBack() {
-	historyMove(MoveBack);
-}
-
-void IntroWidget::historyMove(MoveType type) {
-	if (_a_stage.animating()) return;
+void Widget::historyMove(Direction direction) {
+	if (getStep()->animating()) return;
 
 	t_assert(_stepHistory.size() > 1);
 
-	if (App::app()) App::app()->mtpPause();
-
-	switch (type) {
-	case MoveBack: {
-		_cacheHide = grabStep();
-
-		IntroStep *back = step();
-		_backFrom = back->hasBack() ? 1 : 0;
+	auto wasStep = getStep((direction == Direction::Back) ? 0 : 1);
+	if (direction == Direction::Back) {
 		_stepHistory.pop_back();
-		back->cancelled();
-		delete back;
-	} break;
-
-	case MoveForward: {
-		_cacheHide = grabStep(1);
-		_backFrom = step(1)->hasBack() ? 1 : 0;
-		step(1)->finished();
-	} break;
-
-	case MoveReplace: {
-		_cacheHide = grabStep(1);
-		IntroStep *replaced = step(1);
-		_backFrom = replaced->hasBack() ? 1 : 0;
+		wasStep->cancelled();
+	} else if (direction == Direction::Replace) {
 		_stepHistory.removeAt(_stepHistory.size() - 2);
-		replaced->finished();
-		delete replaced;
-	} break;
+	}
+	getStep()->prepareShowAnimated(wasStep);
+	if (wasStep->hasCover() != getStep()->hasCover()) {
+		_nextTopFrom = wasStep->contentTop() + st::introStepHeight;
+		_controlsTopFrom = wasStep->hasCover() ? st::introCoverHeight : 0;
+		_coverShownAnimation.start([this] { updateControlsGeometry(); }, 0., 1., st::introCoverDuration, anim::easeOutCirc);
 	}
 
-	_cacheShow = grabStep();
-	_backTo = step()->hasBack() ? 1 : 0;
-
-	int32 m = (type == MoveBack) ? -1 : 1;
-	a_coordHide = anim::ivalue(0, -m * st::introSlideShift);
-	a_opacityHide = anim::fvalue(1, 0);
-	a_coordShow = anim::ivalue(m * st::introSlideShift, 0);
-	a_opacityShow = anim::fvalue(0, 1);
-	_a_stage.start();
-
-	_a_stage.step();
-	if (_backTo) {
+	if (direction == Direction::Forward || direction == Direction::Replace) {
+		wasStep->finished();
+	}
+	if (direction == Direction::Back || direction == Direction::Replace) {
+		delete base::take(wasStep);
+	}
+	if (getStep()->hasBack()) {
 		_back->fadeIn();
 	} else {
 		_back->fadeOut();
 	}
-	step()->hide();
+	if (getStep()->hasCover()) {
+		_settings->fadeOut();
+		if (_update) _update->fadeOut();
+		if (_changeLanguage) _changeLanguage->fadeIn();
+	} else {
+		_settings->fadeIn();
+		if (_update) _update->fadeIn();
+		if (_changeLanguage) _changeLanguage->fadeOut();
+	}
+	_next->setText(getStep()->nextButtonText());
+	if (_resetAccount) _resetAccount->fadeOut();
+	getStep()->showAnimated(direction);
+	fixOrder();
 }
 
-void IntroWidget::pushStep(IntroStep *step, MoveType type) {
-	_stepHistory.push_back(step);
+void Widget::fixOrder() {
+	_next->raise();
+	if (_update) _update->raise();
+	_settings->raise();
+	_back->raise();
+}
+
+void Widget::moveToStep(Step *step, Direction direction) {
+	appendStep(step);
 	_back->raise();
 	_settings->raise();
 	if (_update) {
 		_update->raise();
 	}
-	_stepHistory.back()->hide();
 
-	historyMove(type);
+	historyMove(direction);
 }
 
-void IntroWidget::gotNearestDC(const MTPNearestDc &result) {
-	const auto &nearest(result.c_nearestDc());
+void Widget::appendStep(Step *step) {
+	_stepHistory.push_back(step);
+	step->setGeometry(calculateStepRect());
+	step->setGoCallback([this](Step *step, Direction direction) {
+		if (direction == Direction::Back) {
+			historyMove(direction);
+		} else {
+			moveToStep(step, direction);
+		}
+	});
+	step->setShowResetCallback([this] {
+		showResetButton();
+	});
+}
+
+void Widget::showResetButton() {
+	if (!_resetAccount) {
+		_resetAccount.create(this, new Ui::RoundButton(this, lang(lng_signin_reset_account), st::introResetButton), base::lambda<void()>(), st::introErrorDuration);
+		_resetAccount->hideFast();
+		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
+		updateControlsGeometry();
+	}
+	_resetAccount->fadeIn();
+}
+
+void Widget::resetAccount() {
+	if (_resetRequest) return;
+
+	auto box = new ConfirmBox(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton);
+	box->setConfirmedCallback([this] { resetAccountSure(); });
+	Ui::showLayer(box);
+}
+
+void Widget::resetAccountSure() {
+	if (_resetRequest) return;
+	_resetRequest = MTP::send(MTPaccount_DeleteAccount(MTP_string("Forgot password")), rpcDone(&Widget::resetDone), rpcFail(&Widget::resetFail));
+}
+
+void Widget::resetDone(const MTPBool &result) {
+	Ui::hideLayer();
+	moveToStep(new SignupWidget(this, getData()), Direction::Replace);
+}
+
+bool Widget::resetFail(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	_resetRequest = 0;
+
+	auto type = error.type();
+	if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
+		int seconds = type.mid(qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+		int days = (seconds + 59) / 86400;
+		int hours = ((seconds + 59) % 86400) / 3600;
+		int minutes = ((seconds + 59) % 3600) / 60;
+		QString when;
+		if (days > 0) {
+			when = lng_signin_reset_in_days(lt_count_days, days, lt_count_hours, hours, lt_count_minutes, minutes);
+		} else if (hours > 0) {
+			when = lng_signin_reset_in_hours(lt_count_hours, hours, lt_count_minutes, minutes);
+		} else {
+			when = lng_signin_reset_in_minutes(lt_count_minutes, minutes);
+		}
+		Ui::showLayer(new InformBox(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
+	} else if (type == qstr("2FA_RECENT_CONFIRM")) {
+		Ui::showLayer(new InformBox(lang(lng_signin_reset_cancelled)));
+	} else {
+		Ui::hideLayer();
+		getStep()->showError(lang(lng_server_error));
+	}
+	return true;
+}
+
+void Widget::gotNearestDC(const MTPNearestDc &result) {
+	auto &nearest = result.c_nearestDc();
 	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
-	MTP::setdc(result.c_nearestDc().vnearest_dc.v, true);
-	if (_countryForReg != nearest.vcountry.c_string().v.c_str()) {
-		_countryForReg = nearest.vcountry.c_string().v.c_str();
-		emit countryChanged();
+	MTP::setdc(nearest.vnearest_dc.v, true);
+	auto nearestCountry = qs(nearest.vcountry);
+	if (getData()->country != nearestCountry) {
+		getData()->country = nearestCountry;
+		getData()->updated.notify();
 	}
 }
 
-QPixmap IntroWidget::grabStep(int skip) {
-	return myGrab(step(skip), QRect(st::introSlideShift, 0, st::introSize.width(), st::introSize.height()));
+void Widget::showControls() {
+	getStep()->show();
+	_next->show();
+	_next->setText(getStep()->nextButtonText());
+	if (getStep()->hasCover()) {
+		_settings->hideFast();
+		if (_update) _update->hideFast();
+		if (_changeLanguage) _changeLanguage->showFast();
+	} else {
+		_settings->showFast();
+		if (_update) _update->showFast();
+		if (_changeLanguage) _changeLanguage->hideFast();
+	}
+	if (getStep()->hasBack()) {
+		_back->showFast();
+	} else {
+		_back->hideFast();
+	}
 }
 
-void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
+void Widget::hideControls() {
+	getStep()->hide();
+	_next->hide();
+	_settings->hideFast();
+	if (_update) _update->hideFast();
+	if (_changeLanguage) _changeLanguage->hideFast();
+	_back->hideFast();
+}
+
+void Widget::animShow(const QPixmap &bgAnimCache, bool back) {
 	if (App::app()) App::app()->mtpPause();
 
 	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
 
 	_a_show.stop();
-	step()->show();
-	_settings->show();
-	if (_update) _update->show();
-	if (step()->hasBack()) {
-		_back->showFast();
-	} else {
-		_back->hideFast();
-	}
+	showControls();
 	(back ? _cacheUnder : _cacheOver) = myGrab(this);
-
-	step()->hide();
-	_back->hideFast();
-	_settings->hide();
-	if (_update) _update->hide();
+	hideControls();
 
 	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
 	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
@@ -217,7 +320,7 @@ void IntroWidget::animShow(const QPixmap &bgAnimCache, bool back) {
 	show();
 }
 
-void IntroWidget::step_show(float64 ms, bool timer) {
+void Widget::step_show(float64 ms, bool timer) {
 	float64 dt = ms / st::slideDuration;
 	if (dt >= 1) {
 		_a_show.stop();
@@ -228,13 +331,9 @@ void IntroWidget::step_show(float64 ms, bool timer) {
 
 		_cacheUnder = _cacheOver = QPixmap();
 
-		setFocus();
-		step()->activate();
-		if (step()->hasBack()) {
-			_back->showFast();
-		}
-		_settings->show();
-		if (_update) _update->show();
+		showControls();
+		getStep()->activate();
+
 		if (App::app()) App::app()->mtpUnpause();
 	} else {
 		a_coordUnder.update(dt, Window::SlideAnimation::transition());
@@ -244,36 +343,13 @@ void IntroWidget::step_show(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void IntroWidget::stop_show() {
-	_a_show.stop();
-}
-
-void IntroWidget::step_stage(float64 ms, bool timer) {
-	float64 fullDuration = st::introSlideDelta + st::introSlideDuration, dt = ms / fullDuration;
-	float64 dt1 = (ms > st::introSlideDuration) ? 1 : (ms / st::introSlideDuration), dt2 = (ms > st::introSlideDelta) ? (ms - st::introSlideDelta) / (st::introSlideDuration) : 0;
-	if (dt >= 1) {
-		_a_stage.stop();
-
-		a_coordShow.finish();
-		a_opacityShow.finish();
-
-		_cacheHide = _cacheShow = QPixmap();
-
-		setFocus();
-		step()->activate();
-		if (App::app()) App::app()->mtpUnpause();
-	} else {
-		a_coordShow.update(dt2, anim::easeOutCirc);
-		a_opacityShow.update(dt2, anim::easeInCirc);
-		a_coordHide.update(dt1, anim::easeInCirc);
-		a_opacityHide.update(dt1, anim::easeOutCirc);
-	}
-	if (timer) update();
-}
-
-void IntroWidget::paintEvent(QPaintEvent *e) {
+void Widget::paintEvent(QPaintEvent *e) {
 	bool trivial = (rect() == e->rect());
 	setMouseTracking(true);
+
+	if (_coverShownAnimation.animating()) {
+		_coverShownAnimation.step(getms());
+	}
 
 	QPainter p(this);
 	if (!trivial) {
@@ -290,130 +366,406 @@ void IntroWidget::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
 		p.setOpacity(a_shadow.current());
 		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
-	} else if (_a_stage.animating()) {
-		p.setOpacity(a_opacityHide.current());
-		p.drawPixmap(step()->x() + st::introSlideShift + a_coordHide.current(), step()->y(), _cacheHide);
-		p.setOpacity(a_opacityShow.current());
-		p.drawPixmap(step()->x() + st::introSlideShift + a_coordShow.current(), step()->y(), _cacheShow);
 	}
 }
 
-QRect IntroWidget::innerRect() const {
-	int innerWidth = st::introSize.width() + 2 * st::introSlideShift, innerHeight = st::introSize.height();
-	return QRect((width() - innerWidth) / 2, (height() - innerHeight) / 2, innerWidth, (height() + innerHeight) / 2);
+QRect Widget::calculateStepRect() const {
+	auto stepInnerTop = (height() - st::introHeight) / 2;
+	accumulate_max(stepInnerTop, st::introStepTopMin);
+	auto nextTop = stepInnerTop + st::introStepHeight;
+	auto additionalHeight = st::introStepHeightAdd;
+	auto stepWidth = width();
+	auto stepHeight = nextTop + additionalHeight;
+	return QRect(0, 0, stepWidth, stepHeight);
 }
 
-QString IntroWidget::currentCountry() const {
-	return _countryForReg;
-}
-
-void IntroWidget::setPhone(const QString &phone, const QString &phone_hash, bool registered) {
-	_phone = phone;
-	_phone_hash = phone_hash;
-	_registered = registered;
-}
-
-void IntroWidget::setCode(const QString &code) {
-	_code = code;
-}
-
-void IntroWidget::setPwdSalt(const QByteArray &salt) {
-	_pwdSalt = salt;
-}
-
-void IntroWidget::setHasRecovery(bool has) {
-	_hasRecovery = has;
-}
-
-void IntroWidget::setPwdHint(const QString &hint) {
-	_pwdHint = hint;
-}
-
-void IntroWidget::setCodeByTelegram(bool byTelegram) {
-	_codeByTelegram = byTelegram;
-}
-
-void IntroWidget::setCallStatus(const CallStatus &status) {
-	_callStatus = status;
-}
-
-const QString &IntroWidget::getPhone() const {
-	return _phone;
-}
-
-const QString &IntroWidget::getPhoneHash() const {
-	return _phone_hash;
-}
-
-const QString &IntroWidget::getCode() const {
-	return _code;
-}
-
-const IntroWidget::CallStatus &IntroWidget::getCallStatus() const {
-	return _callStatus;
-}
-
-const QByteArray &IntroWidget::getPwdSalt() const {
-	return _pwdSalt;
-}
-
-bool IntroWidget::getHasRecovery() const {
-	return _hasRecovery;
-}
-
-const QString &IntroWidget::getPwdHint() const {
-	return _pwdHint;
-}
-
-bool IntroWidget::codeByTelegram() const {
-	return _codeByTelegram;
-}
-
-void IntroWidget::resizeEvent(QResizeEvent *e) {
-	auto r = innerRect();
-	for (auto step : _stepHistory) {
-		step->setGeometry(r);
+void Widget::resizeEvent(QResizeEvent *e) {
+	auto stepRect = calculateStepRect();
+	for_const (auto step, _stepHistory) {
+		step->setGeometry(stepRect);
 	}
+
 	updateControlsGeometry();
 }
 
-void IntroWidget::updateControlsGeometry() {
-	_settings->moveToRight(st::boxButtonPadding.right(), st::boxButtonPadding.top());
+void Widget::moveControls() {
+}
+
+void Widget::updateControlsGeometry() {
+	auto shown = _coverShownAnimation.current(1.);
+
+	auto controlsTopTo = getStep()->hasCover() ? st::introCoverHeight : 0;
+	auto controlsTop = anim::interpolate(_controlsTopFrom, controlsTopTo, shown);
+	_settings->moveToRight(st::introSettingsSkip, controlsTop + st::introSettingsSkip);
 	if (_update) {
-		_update->moveToRight(st::boxButtonPadding.right() + _settings->width() + st::boxButtonPadding.left(), _settings->y());
+		_update->moveToRight(st::introSettingsSkip + _settings->width() + st::introSettingsSkip, _settings->y());
+	}
+	_back->moveToLeft(0, controlsTop);
+
+	auto nextTopTo = getStep()->contentTop() + st::introStepHeight;
+	auto nextTop = anim::interpolate(_nextTopFrom, nextTopTo, shown);
+	_next->moveToLeft((width() - _next->width()) / 2, nextTop);
+	if (_changeLanguage) {
+		_changeLanguage->moveToLeft((width() - _changeLanguage->width()) / 2, _next->y() + _next->height() + _changeLanguage->height());
+	}
+	if (_resetAccount) {
+		_resetAccount->moveToLeft((width() - _resetAccount->width()) / 2, height() - st::introResetBottom - _resetAccount->height());
 	}
 }
 
-void IntroWidget::finish(const MTPUser &user, const QImage &photo) {
+
+void Widget::keyPressEvent(QKeyEvent *e) {
+	if (_a_show.animating() || getStep()->animating()) return;
+
+	if (e->key() == Qt::Key_Escape) {
+		if (getStep()->hasBack()) {
+			historyMove(Direction::Back);
+		}
+	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
+		getStep()->submit();
+	}
+}
+
+Widget::~Widget() {
+	for (auto step : base::take(_stepHistory)) {
+		delete step;
+	}
+	if (App::wnd()) App::wnd()->noIntro(this);
+}
+
+QString Widget::Step::nextButtonText() const {
+	return lang(lng_intro_next);
+}
+
+void Widget::Step::finish(const MTPUser &user, QImage photo) {
 	App::wnd()->setupMain(&user);
+
+	// "this" is already deleted here by creating the main widget.
 	if (!photo.isNull()) {
 		App::app()->uploadProfilePhoto(photo, MTP::authedId());
 	}
 }
 
-void IntroWidget::keyPressEvent(QKeyEvent *e) {
-	if (_a_show.animating() || _a_stage.animating()) return;
+void Widget::Step::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	paintAnimated(p, e->rect());
+}
 
-	if (e->key() == Qt::Key_Escape) {
-		if (step()->hasBack()) {
-			onBack();
+void Widget::Step::resizeEvent(QResizeEvent *e) {
+	updateLabelsPosition();
+}
+
+void Widget::Step::updateLabelsPosition() {
+	myEnsureResized(_description->entity());
+	if (hasCover()) {
+		_title->moveToLeft((width() - _title->width()) / 2, contentTop() + st::introCoverTitleTop);
+		_description->moveToLeft((width() - _description->width()) / 2, contentTop() + st::introCoverDescriptionTop);
+	} else {
+		_title->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introTitleTop);
+		_description->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
+	}
+	if (_error) {
+		if (_errorCentered) {
+			_error->entity()->resizeToWidth(width());
 		}
-	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
-		onStepSubmit();
+		myEnsureResized(_error->entity());
+		auto errorLeft = _errorCentered ? 0 : (contentLeft() + st::buttonRadius);
+		auto errorTop = contentTop() + (_errorBelowLink ? st::introErrorBelowLinkTop : st::introErrorTop);
+		_error->moveToLeft(errorLeft, errorTop);
 	}
 }
 
-void IntroWidget::rpcClear() {
-	for (IntroStep *step : _stepHistory) {
-		step->rpcClear();
+void Widget::Step::setTitleText(QString richText) {
+	_title->setRichText(richText);
+	updateLabelsPosition();
+}
+
+void Widget::Step::setDescriptionText(QString richText) {
+	_description->entity()->setRichText(richText);
+	updateLabelsPosition();
+}
+
+void Widget::Step::showFinished() {
+	_a_show.finish();
+	_coverAnimation = CoverAnimation();
+	_slideAnimation.reset();
+	prepareCoverMask();
+	activate();
+	if (App::app()) App::app()->mtpUnpause();
+}
+
+bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
+	if (_slideAnimation) {
+		_slideAnimation->paintFrame(p, (width() - st::introStepWidth) / 2, contentTop(), width(), getms());
+		if (!_slideAnimation->animating()) {
+			showFinished();
+			return false;
+		}
+		return true;
+	}
+
+	auto guard = base::scope_guard([this, &p] {
+		if (hasCover()) paintCover(p, 0);
+	});
+
+	auto dt = _a_show.current(getms(), 1.);
+	if (!_a_show.animating()) {
+		if (_coverAnimation.title) {
+			showFinished();
+		}
+		if (!QRect(0, contentTop(), width(), st::introStepHeight).intersects(clip)) {
+			return true;
+		}
+		return false;
+	}
+
+	auto easeOut = anim::easeOutCirc(1., dt);
+	auto arrivingAlpha = easeOut;
+	auto departingAlpha = 1. - easeOut;
+	auto showCoverMethod = easeOut;
+	auto hideCoverMethod = easeOut;
+	auto coverTop = (hasCover() ? anim::interpolate(-st::introCoverHeight, 0, showCoverMethod) : anim::interpolate(0, -st::introCoverHeight, hideCoverMethod));
+
+	paintCover(p, coverTop);
+	guard.dismiss();
+
+	auto positionReady = hasCover() ? showCoverMethod : hideCoverMethod;
+	_coverAnimation.title->paintFrame(p, positionReady, departingAlpha, arrivingAlpha);
+	_coverAnimation.description->paintFrame(p, positionReady, departingAlpha, arrivingAlpha);
+
+	paintContentSnapshot(p, _coverAnimation.contentSnapshotWas, departingAlpha, showCoverMethod);
+	paintContentSnapshot(p, _coverAnimation.contentSnapshotNow, arrivingAlpha, 1. - hideCoverMethod);
+
+	return true;
+}
+
+void Widget::Step::fillSentCodeData(const MTPauth_SentCodeType &type) {
+	switch (type.type()) {
+	case mtpc_auth_sentCodeTypeApp: {
+		getData()->codeByTelegram = true;
+		getData()->codeLength = type.c_auth_sentCodeTypeApp().vlength.v;
+	} break;
+	case mtpc_auth_sentCodeTypeSms: {
+		getData()->codeByTelegram = false;
+		getData()->codeLength = type.c_auth_sentCodeTypeSms().vlength.v;
+	} break;
+	case mtpc_auth_sentCodeTypeCall: {
+		getData()->codeByTelegram = false;
+		getData()->codeLength = type.c_auth_sentCodeTypeCall().vlength.v;
+	} break;
+	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
 	}
 }
 
-IntroWidget::~IntroWidget() {
-	while (!_stepHistory.isEmpty()) {
-		IntroStep *back = _stepHistory.back();
-		_stepHistory.pop_back();
-		delete back;
-	}
-	if (App::wnd()) App::wnd()->noIntro(this);
+void Widget::Step::showDescription() {
+	_description->fadeIn();
 }
+
+void Widget::Step::hideDescription() {
+	_description->fadeOut();
+}
+
+void Widget::Step::paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
+	if (!snapshot.isNull()) {
+		auto contentTop = anim::interpolate(height() - (snapshot.height() / cIntRetinaFactor()), height(), howMuchHidden);
+		if (contentTop < height()) {
+			p.setOpacity(alpha);
+			p.drawPixmap(QPoint(contentLeft(), contentTop), snapshot, QRect(0, 0, snapshot.width(), (height() - contentTop) * cIntRetinaFactor()));
+		}
+	}
+}
+
+void Widget::Step::prepareCoverMask() {
+	if (!_coverMask.isNull()) return;
+
+	auto maskWidth = cIntRetinaFactor();
+	auto maskHeight = st::introCoverHeight * cIntRetinaFactor();
+	auto mask = QImage(maskWidth, maskHeight, QImage::Format_ARGB32_Premultiplied);
+	auto maskInts = reinterpret_cast<uint32*>(mask.bits());
+	t_assert(mask.depth() == (sizeof(uint32) << 3));
+	auto maskIntsPerLineAdded = (mask.bytesPerLine() >> 2) - maskWidth;
+	t_assert(maskIntsPerLineAdded >= 0);
+	auto realHeight = static_cast<float64>(maskHeight - 1);
+	for (auto y = 0; y != maskHeight; ++y) {
+		auto color = anim::color(st::introCoverTopBg, st::introCoverBottomBg, y / realHeight);
+		auto colorInt = anim::getPremultiplied(color);
+		for (auto x = 0; x != maskWidth; ++x) {
+			*maskInts++ = colorInt;
+		}
+		maskInts += maskIntsPerLineAdded;
+	}
+	_coverMask = App::pixmapFromImageInPlace(std_::move(mask));
+}
+
+void Widget::Step::paintCover(Painter &p, int top) {
+	auto coverHeight = top + st::introCoverHeight;
+	if (coverHeight > 0) {
+		p.drawPixmap(QRect(0, 0, width(), coverHeight), _coverMask, QRect(0, -top * cIntRetinaFactor(), _coverMask.width(), coverHeight * cIntRetinaFactor()));
+	}
+
+	auto left = 0;
+	auto right = 0;
+	if (width() < st::introCoverMaxWidth) {
+		auto iconsMaxSkip = st::introCoverMaxWidth - st::introCoverLeft.width() - st::introCoverRight.width();
+		auto iconsSkip = st::introCoverIconsMinSkip + (iconsMaxSkip - st::introCoverIconsMinSkip) * (width() - st::introStepWidth) / (st::introCoverMaxWidth - st::introStepWidth);
+		auto outside = iconsSkip + st::introCoverLeft.width() + st::introCoverRight.width() - width();
+		left = -outside / 2;
+		right = -outside - left;
+	}
+	if (top < 0) {
+		auto shown = float64(coverHeight) / st::introCoverHeight;
+		auto leftShown = qRound(shown * (left + st::introCoverLeft.width()));
+		left = leftShown - st::introCoverLeft.width();
+		auto rightShown = qRound(shown * (right + st::introCoverRight.width()));
+		right = rightShown - st::introCoverRight.width();
+	}
+	st::introCoverLeft.paint(p, left, coverHeight - st::introCoverLeft.height(), width());
+	st::introCoverRight.paint(p, width() - right - st::introCoverRight.width(), coverHeight - st::introCoverRight.height(), width());
+
+	auto planeLeft = (width() - st::introCoverIcon.width()) / 2 - st::introCoverIconLeft;
+	auto planeTop = top + st::introCoverIconTop;
+	if (top < 0 && !_hasCover) {
+		auto deltaLeft = -qRound(float64(st::introPlaneWidth / st::introPlaneHeight) * top);
+//		auto deltaTop = top;
+		planeLeft += deltaLeft;
+	//	planeTop += top;
+	}
+	st::introCoverIcon.paint(p, planeLeft, planeTop, width());
+}
+
+int Widget::Step::contentLeft() const {
+	return (width() - st::introNextButton.width) / 2;
+}
+
+int Widget::Step::contentTop() const {
+	auto result = height() - st::introStepHeight - st::introStepHeightAdd;
+	if (_hasCover) {
+		auto added = 1. - snap(float64(height() - st::windowMinHeight) / (st::introStepHeightFull - st::windowMinHeight), 0., 1.);
+		result += qRound(added * st::introStepHeightAdd);
+	}
+	return result;
+}
+
+void Widget::Step::setErrorCentered(bool centered) {
+	_errorCentered = centered;
+	_error.destroy();
+}
+
+void Widget::Step::setErrorBelowLink(bool below) {
+	_errorBelowLink = below;
+	if (_error) {
+		updateLabelsPosition();
+	}
+}
+
+void Widget::Step::showError(const QString &text) {
+	_errorText = text;
+	if (_errorText.isEmpty()) {
+		if (_error) _error->fadeOut();
+	} else {
+		if (!_error) {
+			auto &st = _errorCentered ? st::introErrorCentered : st::introError;
+			_error.create(this, new Ui::FlatLabel(this, st, st::introErrorTextStyle), base::lambda<void()>(), st::introErrorDuration);
+			_error->hideFast();
+		}
+		_error->entity()->setText(text);
+		updateLabelsPosition();
+		_error->fadeIn();
+	}
+}
+
+Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
+, _data(data)
+, _hasCover(hasCover)
+, _title(this, _hasCover ? st::introCoverTitle : st::introTitle, st::defaultTextStyle)
+, _description(this, new Ui::FlatLabel(this, _hasCover ? st::introCoverDescription : st::introDescription, _hasCover ? st::introCoverDescriptionTextStyle : st::introDescriptionTextStyle), base::lambda<void()>(), st::introErrorDuration) {
+	hide();
+}
+
+void Widget::Step::prepareShowAnimated(Step *after) {
+	if (hasCover() || after->hasCover()) {
+		_coverAnimation = prepareCoverAnimation(after);
+		prepareCoverMask();
+	} else {
+		auto leftSnapshot = after->prepareSlideAnimation();
+		auto rightSnapshot = prepareSlideAnimation();
+		_slideAnimation = std_::make_unique<Ui::SlideAnimation>();
+		_slideAnimation->setSnapshots(std_::move(leftSnapshot), std_::move(rightSnapshot));
+		_slideAnimation->setOverflowHidden(false);
+	}
+}
+
+Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
+	auto result = CoverAnimation();
+	result.title = Ui::FlatLabel::CrossFade(after->_title, _title, st::introBg);
+	result.description = Ui::FlatLabel::CrossFade(after->_description->entity(), _description->entity(), st::introBg, after->_description->pos(), _description->pos());
+	result.contentSnapshotWas = after->prepareContentSnapshot();
+	result.contentSnapshotNow = prepareContentSnapshot();
+	return std_::move(result);
+}
+
+QPixmap Widget::Step::prepareContentSnapshot() {
+	auto otherTop = _description->y() + _description->height();
+	auto otherRect = myrtlrect(contentLeft(), otherTop, st::introStepWidth, height() - otherTop);
+	return myGrab(this, otherRect);
+}
+
+QPixmap Widget::Step::prepareSlideAnimation() {
+	auto grabLeft = (width() - st::introStepWidth) / 2;
+	auto grabTop = contentTop();
+	return myGrab(this, QRect(grabLeft, grabTop, st::introStepWidth, st::introStepHeight));
+}
+
+void Widget::Step::showAnimated(Direction direction) {
+	show();
+	if (App::app()) App::app()->mtpPause();
+	hideChildren();
+	if (_slideAnimation) {
+		auto slideLeft = (direction == Direction::Back);
+		_slideAnimation->start(slideLeft, [this] { update(0, contentTop(), width(), st::introStepHeight); }, st::introSlideDuration);
+	} else {
+		_a_show.start([this] { update(); }, 0., 1., st::introCoverDuration);
+	}
+}
+
+void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback) {
+	_goCallback = std_::move(callback);
+}
+
+void Widget::Step::setShowResetCallback(base::lambda<void()> &&callback) {
+	_showResetCallback = std_::move(callback);
+}
+
+void Widget::Step::showFast() {
+	show();
+	showFinished();
+}
+
+bool Widget::Step::animating() const {
+	return (_slideAnimation && _slideAnimation->animating()) || _a_show.animating();
+}
+
+bool Widget::Step::hasCover() const {
+	return _hasCover;
+}
+
+bool Widget::Step::hasBack() const {
+	return false;
+}
+
+void Widget::Step::activate() {
+	_title->show();
+	_description->show();
+	if (!_errorText.isEmpty()) {
+		_error->showFast();
+	}
+}
+
+void Widget::Step::cancelled() {
+}
+
+void Widget::Step::finished() {
+	hide();
+}
+
+} // namespace Intro

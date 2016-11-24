@@ -173,7 +173,6 @@ class Manager : public QObject {
 	Q_OBJECT
 
 public:
-
 	Manager();
 
 	void writeMap(bool fast);
@@ -182,13 +181,11 @@ public:
 	void writingLocations();
 	void finish();
 
-	public slots:
-
+public slots:
 	void mapWriteTimeout();
 	void locationsWriteTimeout();
 
 private:
-
 	QTimer _mapWriteTimer;
 	QTimer _locationsWriteTimer;
 

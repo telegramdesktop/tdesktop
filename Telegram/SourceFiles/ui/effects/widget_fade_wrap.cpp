@@ -90,6 +90,7 @@ void FadeAnimation::fadeOut(int duration) {
 
 void FadeAnimation::startAnimation(int duration) {
 	if (_cache.isNull()) {
+		_widget->showChildren();
 		_cache = myGrab(_widget);
 		_widget->hideChildren();
 	}

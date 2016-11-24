@@ -125,8 +125,10 @@ notificationSampleTextFg: #d7d7d7 | windowSubTextFg;
 notificationSampleNameFg: #939393 | windowSubTextFg;
 
 // intro
-introHeaderFg: windowFg;
-introErrorFg: windowFg;
+introBg: windowBg;
+introTitleFg: windowBoldFg;
+introDescriptionFg: windowSubTextFg;
+introErrorFg: windowSubTextFg;
 
 // dialogs
 dialogsMenuIconFg: menuIconFg;

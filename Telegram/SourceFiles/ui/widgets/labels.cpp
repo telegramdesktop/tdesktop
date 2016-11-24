@@ -43,6 +43,57 @@ TextParseOptions _labelMarkedOptions = {
 
 } // namespace
 
+CrossFadeAnimation::CrossFadeAnimation(const style::color &bg) : _bg(bg) {
+}
+
+void CrossFadeAnimation::addLine(Part was, Part now) {
+	_lines.push_back(Line(std_::move(was), std_::move(now)));
+}
+
+void CrossFadeAnimation::paintFrame(Painter &p, float64 positionReady, float64 alphaWas, float64 alphaNow) {
+	if (_lines.isEmpty()) return;
+
+	for_const (auto &line, _lines) {
+		paintLine(p, line, positionReady, alphaWas, alphaNow);
+	}
+}
+
+void CrossFadeAnimation::paintLine(Painter &p, const Line &line, float64 positionReady, float64 alphaWas, float64 alphaNow) {
+	auto &snapshotWas = line.was.snapshot;
+	auto &snapshotNow = line.now.snapshot;
+	t_assert(!snapshotWas.isNull() || !snapshotNow.isNull());
+
+	auto positionWas = line.was.position;
+	auto positionNow = line.now.position;
+	auto left = anim::interpolate(positionWas.x(), positionNow.x(), positionReady);
+	auto topDelta = (snapshotNow.height() / cIntRetinaFactor()) - (snapshotWas.height() / cIntRetinaFactor());
+	auto widthDelta = (snapshotNow.width() / cIntRetinaFactor()) - (snapshotWas.width() / cIntRetinaFactor());
+	auto topWas = anim::interpolate(positionWas.y(), positionNow.y() + topDelta, positionReady);
+	auto topNow = topWas - topDelta;
+
+	p.setOpacity(alphaWas);
+	if (!snapshotWas.isNull()) {
+		p.drawPixmap(left, topWas, snapshotWas);
+		if (topDelta > 0) {
+			p.fillRect(left, topWas - topDelta, snapshotWas.width() / cIntRetinaFactor(), topDelta, _bg);
+		}
+	}
+	if (widthDelta > 0) {
+		p.fillRect(left + (snapshotWas.width() / cIntRetinaFactor()), topNow, widthDelta, snapshotNow.height() / cIntRetinaFactor(), _bg);
+	}
+
+	p.setOpacity(alphaNow);
+	if (!snapshotNow.isNull()) {
+		p.drawPixmap(left, topNow, snapshotNow);
+		if (topDelta < 0) {
+			p.fillRect(left, topNow + topDelta, snapshotNow.width() / cIntRetinaFactor(), -topDelta, _bg);
+		}
+	}
+	if (widthDelta < 0) {
+		p.fillRect(left + (snapshotNow.width() / cIntRetinaFactor()), topWas, -widthDelta, snapshotWas.height() / cIntRetinaFactor(), _bg);
+	}
+}
+
 LabelSimple::LabelSimple(QWidget *parent, const style::LabelSimple &st, const QString &value) : TWidget(parent)
 , _st(st) {
 	setText(value);
@@ -546,6 +597,72 @@ void FlatLabel::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool ac
 
 void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool active) {
 	update();
+}
+
+std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLabel *to, const style::color &bg, QPoint fromPosition, QPoint toPosition) {
+	auto result = std_::make_unique<CrossFadeAnimation>(bg);
+
+	struct Data {
+		QImage full;
+		QVector<int> lineWidths;
+		int lineHeight = 0;
+		int lineAddTop = 0;
+	};
+	auto prepareData = [&bg](FlatLabel *label) {
+		auto result = Data();
+		result.full = QImage(label->size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		result.full.setDevicePixelRatio(cRetinaFactor());
+		result.full.fill(bg->c);
+		Painter(&result.full).drawImage(0, 0, myGrabImage(label));
+		auto textWidth = label->width() - label->_st.margin.left() - label->_st.margin.right();
+		label->_text.countLineWidths(textWidth, &result.lineWidths);
+		result.lineHeight = label->_st.font->height;
+		auto addedHeight = (label->_tst.lineHeight - result.lineHeight);
+		if (addedHeight > 0) {
+			result.lineAddTop = addedHeight / 2;
+			result.lineHeight += addedHeight;
+		}
+		return std_::move(result);
+	};
+	auto was = prepareData(from);
+	auto now = prepareData(to);
+
+	auto maxLines = qMax(was.lineWidths.size(), now.lineWidths.size());
+	auto fillDataTill = [maxLines](Data &data) {
+		for (auto i = data.lineWidths.size(); i != maxLines; ++i) {
+			data.lineWidths.push_back(-1);
+		}
+	};
+	fillDataTill(was);
+	fillDataTill(now);
+	auto preparePart = [](FlatLabel *label, QPoint position, Data &data, int index, Data &other) {
+		auto result = CrossFadeAnimation::Part();
+		auto lineWidth = data.lineWidths[index];
+		if (lineWidth < 0) {
+			lineWidth = other.lineWidths[index];
+		}
+		auto fullWidth = data.full.width() / cIntRetinaFactor();
+		auto top = index * data.lineHeight + data.lineAddTop;
+		auto left = 0;
+		if (label->_st.align & Qt::AlignHCenter) {
+			left += (fullWidth - lineWidth) / 2;
+		} else if (label->_st.align & Qt::AlignRight) {
+			left += (fullWidth - lineWidth);
+		}
+		auto snapshotRect = data.full.rect().intersected(QRect(left * cIntRetinaFactor(), top * cIntRetinaFactor(), lineWidth * cIntRetinaFactor(), label->_st.font->height * cIntRetinaFactor()));
+		if (!snapshotRect.isEmpty()) {
+			result.snapshot = App::pixmapFromImageInPlace(data.full.copy(snapshotRect));
+			result.snapshot.setDevicePixelRatio(cRetinaFactor());
+		}
+		auto positionBase = position + label->pos();
+		result.position = positionBase + QPoint(label->_st.margin.left() + left, label->_st.margin.top() + top);
+		return std_::move(result);
+	};
+	for (int i = 0; i != maxLines; ++i) {
+		result->addLine(preparePart(from, fromPosition, was, i, now), preparePart(to, toPosition, now, i, was));
+	}
+
+	return std_::move(result);
 }
 
 Text::StateResult FlatLabel::dragActionUpdate() {

@@ -2546,7 +2546,7 @@ namespace {
 
 	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
 		QFile f(file);
-		if (!f.open(QIODevice::ReadOnly)) {
+		if (f.size() > MediaViewImageSizeLimit || !f.open(QIODevice::ReadOnly)) {
 			if (animated) *animated = false;
 			return QImage();
 		}

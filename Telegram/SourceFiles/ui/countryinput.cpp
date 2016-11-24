@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "countries.h"
 #include "styles/style_boxes.h"
+#include "styles/style_intro.h"
 
 namespace {
 
@@ -89,50 +90,33 @@ QString findValidCode(QString fullCode) {
 	return "";
 }
 
-CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWidget(parent), _st(st), _active(false), _text(lang(lng_country_code)) {
+CountryInput::CountryInput(QWidget *parent, const style::InputField &st) : TWidget(parent)
+, _st(st)
+, _text(lang(lng_country_code)) {
 	initCountries();
-
-	resize(_st.width, _st.height + _st.ptrSize.height());
-	QImage trImage(_st.ptrSize.width(), _st.ptrSize.height(), QImage::Format_ARGB32_Premultiplied);
-	{
-		static const QPoint trPoints[3] = {
-			QPoint(0, 0),
-			QPoint(_st.ptrSize.width(), 0),
-			QPoint(qCeil(trImage.width() / 2.), trImage.height())
-		};
-		QPainter p(&trImage);
-		p.setRenderHint(QPainter::Antialiasing);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, trImage.width(), trImage.height(), Qt::transparent);
-
-		p.setPen(Qt::NoPen);
-		p.setBrush(_st.bgColor);
-		p.drawPolygon(trPoints, 3);
-	}
-	_arrow = App::pixmapFromImageInPlace(std_::move(trImage));
-	_inner = QRect(0, 0, _st.width, _st.height);
-	_arrowRect = QRect((st::introCountryCode.width - _arrow.width() - 1) / 2, _st.height, _arrow.width(), _arrow.height());
+	resize(_st.width, _st.height);
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.setBrush(_st.bgColor);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(_inner, st::buttonRadius, st::buttonRadius);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	QRect r(rect().intersected(e->rect()));
+	if (_st.textBg->c.alphaF() > 0.) {
+		p.fillRect(r, _st.textBg);
+	}
+	if (_st.border) {
+		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
+	}
 
-	p.drawPixmap(_arrowRect.x(), _arrowRect.top(), _arrow);
+	st::introCountryIcon.paint(p, width() - st::introCountryIcon.width() - st::introCountryIconPosition.x(), st::introCountryIconPosition.y(), width());
 
 	p.setFont(_st.font);
-	p.setPen(st::windowFg);
-
-	p.drawText(rect().marginsRemoved(_st.textMrg), _text, QTextOption(_st.align));
+	p.setPen(_st.textFg);
+	p.drawText(rect().marginsRemoved(_st.textMargins), _text, _st.textAlign);
 }
 
 void CountryInput::mouseMoveEvent(QMouseEvent *e) {
-	bool newActive = _inner.contains(e->pos()) || _arrowRect.contains(e->pos());
+	bool newActive = rect().contains(e->pos());
 	if (_active != newActive) {
 		_active = newActive;
 		setCursor(_active ? style::cur_pointer : style::cur_default);
@@ -192,7 +176,7 @@ bool CountryInput::onChooseCountry(const QString &iso) {
 }
 
 void CountryInput::setText(const QString &newText) {
-	_text = _st.font->elided(newText, width() - _st.textMrg.left() - _st.textMrg.right());
+	_text = _st.font->elided(newText, width() - _st.textMargins.left() - _st.textMargins.right());
 }
 
 CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxWidth)

@@ -138,7 +138,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_pinned_unpin" = "Unpin";
 "lng_pinned_notify" = "Notify all members";
 
-"lng_intro" = "Welcome to the official [a href=\"https://telegram.org/\"]Telegram[/a] desktop app.\nIt's [b]fast[/b] and [b]secure[/b].";
+"lng_intro_about" = "Welcome to the official Telegram Desktop app.\nIt's fast and secure.";
 "lng_start_msgs" = "START MESSAGING";
 
 "lng_intro_next" = "NEXT";
@@ -150,7 +150,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_phone_ph" = "Your phone number";
 "lng_phone_title" = "Your Phone";
 "lng_phone_desc" = "Please confirm your country code and\nenter your phone number.";
-"lng_phone_notreg" = "Note: if you don't have a Telegram account yet,\nplease [b]sign up[/b] with your [a href=\"https://telegram.org/\"]iOS / Android[/a] or {signup_start}here »{signup_end}";
+"lng_phone_notreg" = "If you don't have a Telegram account yet,\nplease [b]sign up[/b] with {link_start}Android / iPhone{link_end} or {signup_start}here{signup_end}";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
 "lng_country_ph" = "Search";
@@ -160,7 +160,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_code_ph" = "Your code";
 "lng_code_desc" = "We have sent you a message with activation\ncode to your phone. Please enter it below.";
-"lng_code_telegram" = "Please enter the code you've just\nreceived in your previous [b]Telegram[/b] app.";
+"lng_code_telegram" = "Please enter the code you've just received\nin your previous [b]Telegram[/b] app.";
 "lng_code_no_telegram" = "Send code via SMS";
 "lng_code_call" = "Telegram will dial your number in {minutes}:{seconds}";
 "lng_code_calling" = "Requesting a call from Telegram...";
@@ -174,7 +174,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_signin_title" = "Cloud password check";
 "lng_signin_desc" = "Please enter your cloud password.";
-"lng_signin_recover_desc" = "Please enter the code from the e-mail.";
+"lng_signin_recover_desc" = "Please enter the code from the e-mail\n{email}";
 "lng_signin_password" = "Your cloud password";
 "lng_signin_code" = "Code from e-mail";
 "lng_signin_recover" = "Forgot password?";
@@ -196,7 +196,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_in_minutes" = "{count_minutes:0 minutes|# minute|# minutes}";
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
 
-"lng_signup_title" = "Information and photo";
+"lng_signup_title" = "Your Info";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
 
 "lng_signup_firstname" = "First Name";

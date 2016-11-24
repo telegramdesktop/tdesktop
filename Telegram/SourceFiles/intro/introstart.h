@@ -28,22 +28,15 @@ class LinkButton;
 class RoundButton;
 } // namespace Ui
 
-class IntroStart final : public IntroStep {
+namespace Intro {
+
+class StartWidget : public Widget::Step {
 public:
-	IntroStart(IntroWidget *parent);
+	StartWidget(QWidget *parent, Widget::Data *data);
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void onSubmit() override;
-
-private:
-	ChildWidget<Ui::FlatLabel> _intro;
-
-	ChildWidget<Ui::LinkButton> _changeLang;
-
-	ChildWidget<Ui::RoundButton> _next;
-
-	int32 _headerWidth = 0;
+	void submit() override;
+	QString nextButtonText() const override;
 
 };
+
+} // namespace Intro

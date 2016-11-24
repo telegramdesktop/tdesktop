@@ -26,6 +26,37 @@ namespace Ui {
 
 class PopupMenu;
 
+class CrossFadeAnimation {
+public:
+	CrossFadeAnimation(const style::color &bg);
+
+	struct Part {
+		QPixmap snapshot;
+		QPoint position;
+	};
+	void addLine(Part was, Part now);
+
+	void paintFrame(Painter &p, float64 dt) {
+		auto progress = anim::linear(1., dt);
+		paintFrame(p, progress, 1. - progress, progress);
+	}
+
+	void paintFrame(Painter &p, float64 positionReady, float64 alphaWas, float64 alphaNow);
+
+private:
+	struct Line {
+		Line(Part was, Part now) : was(std_::move(was)), now(std_::move(now)) {
+		}
+		Part was;
+		Part now;
+	};
+	void paintLine(Painter &p, const Line &line, float64 positionReady, float64 alphaWas, float64 alphaNow);
+
+	const style::color &_bg;
+	QList<Line> _lines;
+
+};
+
 class LabelSimple : public TWidget {
 public:
 	LabelSimple(QWidget *parent, const style::LabelSimple &st = st::defaultLabelSimple, const QString &value = QString());
@@ -80,6 +111,8 @@ public:
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
+
+	static std_::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, const style::color &bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

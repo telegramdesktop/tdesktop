@@ -213,11 +213,7 @@ void MainWindow::clearWidgets() {
 	Ui::hideLayer(true);
 	_passcode.destroyDelayed();
 	_main.destroy();
-	if (_intro) {
-		_intro->stop_show();
-		_intro->rpcClear();
-		_intro.destroyDelayed();
-	}
+	_intro.destroy();
 	if (_mediaView) {
 		hideMediaview();
 		_mediaView->rpcClear();
@@ -229,10 +225,10 @@ QPixmap MainWindow::grabInner() {
 	QPixmap result;
 	if (_intro) {
 		result = myGrab(_intro);
-	} else if (_main) {
-		result = myGrab(_main);
 	} else if (_passcode) {
 		result = myGrab(_passcode);
+	} else if (_main) {
+		result = myGrab(_main);
 	}
 	return result;
 }
@@ -240,10 +236,9 @@ QPixmap MainWindow::grabInner() {
 void MainWindow::clearPasscode() {
 	if (!_passcode) return;
 
-	QPixmap bg = grabInner();
+	auto bg = grabInner();
 
-	_passcode->stop_show();
-	_passcode.destroyDelayed();
+	_passcode.destroy();
 	if (_intro) {
 		_intro->animShow(bg, true);
 	} else {
@@ -260,10 +255,6 @@ void MainWindow::clearPasscode() {
 void MainWindow::setupPasscode() {
 	auto animated = (_main || _intro);
 	auto bg = animated ? grabInner() : QPixmap();
-	if (_passcode) {
-		_passcode->stop_show();
-		_passcode.destroyDelayed();
-	}
 	_passcode.create(bodyWidget());
 	updateControlsGeometry();
 
@@ -444,10 +435,6 @@ void MainWindow::updateConnectingStatus() {
 	} else {
 		hideConnecting();
 	}
-}
-
-IntroWidget *MainWindow::introWidget() {
-	return _intro;
 }
 
 MainWidget *MainWindow::mainWidget() {
@@ -650,6 +637,8 @@ void MainWindow::setInnerFocus() {
 		_settings->setInnerFocus();
 	} else if (_main) {
 		_main->setInnerFocus();
+	} else if (_intro) {
+		_intro->setInnerFocus();
 	}
 }
 
@@ -834,7 +823,7 @@ void MainWindow::activate() {
 	}
 }
 
-void MainWindow::noIntro(IntroWidget *was) {
+void MainWindow::noIntro(Intro::Widget *was) {
 	if (was == _intro) {
 		_intro = nullptr;
 	}

@@ -149,7 +149,6 @@ emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
-emojiPanSlideDelta: 0; // between hide start and show start
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;

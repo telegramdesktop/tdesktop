@@ -255,6 +255,7 @@ void RoundButton::updateText() {
 	_secondaryTextWidth = _secondaryText.isEmpty() ? 0 : _st.font->width(_secondaryText);
 
 	resizeToText();
+	update();
 }
 
 void RoundButton::resizeToText() {

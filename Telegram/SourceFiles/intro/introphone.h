@@ -30,35 +30,41 @@ class RoundButton;
 class FlatLabel;
 } // namespace Ui
 
-class IntroPhone final : public IntroStep {
+namespace Intro {
+
+class PhoneWidget : public Widget::Step, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	IntroPhone(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
+	PhoneWidget(QWidget *parent, Widget::Data *data);
 
 	void selectCountry(const QString &country);
 
+	void setInnerFocus() override;
 	void activate() override;
 	void finished() override;
 	void cancelled() override;
-	void onSubmit() override;
+	void submit() override;
+
+	bool hasBack() const override {
+		return true;
+	}
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
+	void onInputChange();
+	void onCheckRequest();
+
+private:
+	void updateSignupGeometry();
+	void countryChanged();
 
 	void phoneCheckDone(const MTPauth_CheckedPhone &result);
 	void phoneSubmitDone(const MTPauth_SentCode &result);
 	bool phoneSubmitFail(const RPCError &error);
 
-public slots:
-	void countryChanged();
-	void onInputChange();
-	void onSubmitPhone();
-	void onCheckRequest();
-
-private:
 	void toSignUp();
 
 	QString fullNumber() const;
@@ -66,24 +72,17 @@ private:
 	void enableAll(bool failed);
 	void stopCheck();
 
-	void showError(const QString &err, bool signUp = false);
-
-	QString _error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
+	void showPhoneError(const QString &text);
+	void hidePhoneError();
+	void showSignup();
 
 	bool _changed = false;
-	ChildWidget<Ui::RoundButton> _next;
-
-	QRect _textRect;
 
 	ChildWidget<CountryInput> _country;
-	ChildWidget<Ui::PhonePartInput> _phone;
 	ChildWidget<Ui::CountryCodeInput> _code;
+	ChildWidget<Ui::PhonePartInput> _phone;
 
-	ChildWidget<Ui::FlatLabel> _signup;
-	QPixmap _signupCache;
-	bool _showSignup = false;
+	ChildWidget<Ui::WidgetFadeWrap<Ui::FlatLabel>> _signup = { nullptr };
 
 	QString _sentPhone;
 	mtpRequestId _sentRequest = 0;
@@ -91,3 +90,5 @@ private:
 	ChildObject<QTimer> _checkRequest;
 
 };
+
+} // namespace Intro

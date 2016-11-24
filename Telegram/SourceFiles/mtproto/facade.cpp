@@ -754,7 +754,7 @@ void ping() {
 }
 
 void cancel(mtpRequestId requestId) {
-	if (!_started) return;
+	if (!_started || !requestId) return;
 
 	mtpMsgId msgId = 0;
 	requestsDelays.remove(requestId);

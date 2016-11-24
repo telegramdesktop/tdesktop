@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"
 
 namespace {
@@ -338,37 +339,12 @@ void StickersBox::paintEvent(QPaintEvent *e) {
 		_about.draw(p, st::stickersReorderPadding.top(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
 	}
 
-	if (!_leftCache.isNull()) {
-		auto slide = _a_slide.current(getms(), _slideLeft ? 0. : 1.);
-		if (!_a_slide.animating()) {
-			_leftCache = _rightCache = QPixmap();
+	if (_slideAnimation) {
+		_slideAnimation->paintFrame(p, scrollArea()->x(), scrollArea()->y() - titleHeight(), width(), getms());
+		if (!_slideAnimation->animating()) {
+			_slideAnimation.reset();
 			scrollArea()->show();
 			update();
-		} else {
-			auto easeOut = anim::easeOutCirc(1., slide);
-			auto easeIn = anim::easeInCirc(1., slide);
-			auto cacheWidth = (_leftCache.width() / cIntRetinaFactor());
-			auto arrivingCoord = anim::interpolate(cacheWidth, 0, easeOut);
-			auto departingCoord = anim::interpolate(0, cacheWidth, easeIn);
-			auto arrivingAlpha = easeIn;
-			auto departingAlpha = 1. - easeOut;
-			auto leftCoord = (_slideLeft ? arrivingCoord : departingCoord) * -1;
-			auto leftAlpha = (_slideLeft ? arrivingAlpha : departingAlpha);
-			auto rightCoord = (_slideLeft ? departingCoord : arrivingCoord);
-			auto rightAlpha = (_slideLeft ? departingAlpha : arrivingAlpha);
-
-			auto x = scrollArea()->x();
-			auto y = scrollArea()->y() - titleHeight();
-			auto leftWidth = (cacheWidth + leftCoord);
-			if (leftWidth > 0) {
-				p.setOpacity(leftAlpha);
-				p.drawPixmap(x, y, leftWidth, _leftCache.height() / cIntRetinaFactor(), _leftCache, (_leftCache.width() - leftWidth * cIntRetinaFactor()), 0, leftWidth * cIntRetinaFactor(), _leftCache.height());
-			}
-			auto rightWidth = cacheWidth - rightCoord;
-			if (rightWidth > 0) {
-				p.setOpacity(rightAlpha);
-				p.drawPixmap(x + rightCoord, y, _rightCache, 0, 0, rightWidth * cIntRetinaFactor(), _rightCache.height());
-			}
 		}
 	}
 }
@@ -430,14 +406,11 @@ void StickersBox::switchTab() {
 		auto nowCache = grabContentCache();
 		auto nowIndex = _tab->index;
 
-		_leftCache = std_::move(wasCache);
-		_rightCache = std_::move(nowCache);
-		_slideLeft = (wasIndex > nowIndex);
-		if (_slideLeft) {
-			std_::swap_moveable(_leftCache, _rightCache);
-		}
+		_slideAnimation = std_::make_unique<Ui::SlideAnimation>();
+		_slideAnimation->setSnapshots(std_::move(wasCache), std_::move(nowCache));
+		auto slideLeft = wasIndex > nowIndex;
+		_slideAnimation->start(slideLeft, [this] { update(); }, st::slideDuration);
 		scrollArea()->hide();
-		_a_slide.start([this] { update(); }, 0., 1., st::slideDuration);
 		update();
 	}
 }
@@ -601,6 +574,8 @@ void StickersBox::closePressed() {
 		api->saveStickerSets(_installed.widget->getOrder(), _installed.widget->getRemovedSets());
 	}
 }
+
+StickersBox::~StickersBox() = default;
 
 StickersBox::Inner::Inner(QWidget *parent, StickersBox::Section section) : TWidget(parent)
 , _section(section)

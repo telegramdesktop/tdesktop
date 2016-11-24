@@ -21,119 +21,135 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "ui/widgets/widgets.style";
 
-countryInput {
-	width: pixels;
-	height: pixels;
-	top: pixels;
-	bgColor: color;
-	ptrSize: size;
-	textMrg: margins;
-	font: font;
-	align: align;
-}
+introCoverHeight: 208px;
+introCoverTopBg: #0f89d0;
+introCoverBottomBg: #39b0f0;
+introCoverIconsFg: #5ec6ff;
+introCoverMaxWidth: 880px;
+introCoverIconsMinSkip: 120px;
+introCoverLeft: icon {{ "intro_left", introCoverIconsFg }};
+introCoverRight: icon {{ "intro_right", introCoverIconsFg }};
+introCoverIcon: icon {
+	{ "intro_plane_trace", #5ec6ff69 },
+	{ "intro_plane_inner", #c6d8e8 },
+	{ "intro_plane_outer", #a1bed4 },
+	{ "intro_plane_top", #ffffff },
+};
+introCoverIconLeft: 50px;
+introCoverIconTop: 46px;
 
-introCountry: countryInput {
-	width: 300px;
-	height: 41px;
-	top: 33px;
-	bgColor: windowBgOver;
-	ptrSize: size(15px, 8px);
-	textMrg: margins(16px, 5px, 16px, 15px);
-	font: defaultInputFont;
-	align: align(left);
-}
+introSettingsSkip: 10px;
 
-introIcon: icon {{ "intro_logo", #008ed5 }};
+introPhotoSize: 76px;
+introPhotoIconPosition: point(23px, 25px);
+introPhotoTop: 10px;
 
-introResetLink: LinkButton(defaultLinkButton) {
-	color: #d15948;
-	overColor: #d15948;
-	downColor: #db6352;
-}
-
-introBtnTop: 288px;
-introSkip: 25px;
-introFinishSkip: 15px;
-introPhotoSize: 98px;
-introHeaderFont: font(24px);
-introHeaderSkip: 14px;
-introIconSkip: 50px;
-introFont: font(16px);
-introLink: LinkButton(defaultLinkButton) {
-	font: introFont;
-	overFont: font(16px underline);
-}
-introLabel: FlatLabel(defaultFlatLabel) {
-	font: introFont;
+introCoverTitle: FlatLabel(defaultFlatLabel) {
+	font: font(22px semibold);
+	textFg: introTitleFg;
 	align: align(center);
 }
+introCoverTitleTop: 126px;
+introCoverDescription: FlatLabel(defaultFlatLabel) {
+	font: font(15px);
+	textFg: introDescriptionFg;
+	align: align(center);
+}
+introCoverDescriptionTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 24px;
+}
+introCoverDescriptionTop: 164px;
+introTitle: FlatLabel(defaultFlatLabel) {
+	font: font(17px semibold);
+	textFg: introTitleFg;
+}
+introTitleTop: 11px;
+introDescription: FlatLabel(defaultFlatLabel) {
+	font: normalFont;
+	textFg: introDescriptionFg;
+}
+introDescriptionTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 20px;
+}
+introDescriptionTop: 44px;
 
-introStepSize: size(400px, 200px);
-introSize: size(400px, 460px);
-introSlideShift: 500px; // intro hiding animation
+introLink: defaultLinkButton;
+
+introPlaneWidth: 48px;
+introPlaneHeight: 38px;
+introHeight: 396px;
+introStepTopMin: 86px;
+introStepWidth: 380px;
+introStepHeight: 256px;
+introStepHeightAdd: 30px;
+introStepHeightFull: 580px;
 introSlideDuration: 200;
-introSlideDelta: 0; // between hide start and show start
-introTextTop: 22px;
-introTextSize: size(400px, 93px);
-introCallSkip: 15px;
-introPwdTextSize: size(400px, 73px);
+introCoverDuration: 200;
 
 introNextButton: RoundButton(defaultActiveButton) {
 	width: 300px;
 	height: 56px;
 
-	textTop: 16px;
-
-	font: font(17px);
+	textTop: 17px;
+	font: font(17px semibold);
 }
 
-introPhoneTop: 8px;
-introCountryCode: FlatInput(defaultFlatInput) {
-	width: 70px;
+introStepFieldTop: 116px;
+introPhoneTop: 16px;
+introLinkTop: 21px;
+introCountry: InputField(defaultInputField) {
+	textMargins: margins(3px, 7px, 3px, 6px);
+	font: font(16px);
+	width: 300px;
 	height: 41px;
-	align: align(center);
 }
-introPhone: FlatInput(defaultFlatInput) {
-	textMrg: margins(12px, 5px, 12px, 6px);
+introCountryCode: InputField(introCountry) {
+	width: 64px;
+	height: 41px;
+	textAlign: align(top);
+}
+introPhone: InputField(introCountry) {
+	textMargins: margins(12px, 7px, 12px, 6px);
 	width: 225px;
 	height: 41px;
 }
-introCode: FlatInput(defaultFlatInput) {
-	textMrg: margins(12px, 5px, 12px, 6px);
-	width: 106px;
-	height: 41px;
-	align: align(center);
+introCode: introCountry;
+introName: introCountry;
+introPassword: introCountry;
+introPasswordTop: 94px;
+introPasswordHintTop: 146px;
 
-	phPos: point(0px, 0px);
-	phAlign: align(center);
-	phShift: 0px;
+introPasswordHint: FlatLabel(introDescription) {
+	textFg: windowFg;
 }
-introName: FlatInput(introPhone) {
-	width: 192px;
+introPasswordHintTextStyle: introDescriptionTextStyle;
+
+introResetButton: RoundButton(defaultLightButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	textBgOver: attentionButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
 }
-introPassword: FlatInput(introPhone) {
-	width: 300px;
-}
+introResetBottom: 20px;
+
+introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
+introCountryIconPosition: point(8px, 17px);
 
 introSelectDelta: 30px;
 
-introErrorWidth: 450px;
+introErrorTop: 225px;
+introErrorBelowLinkTop: 213px;
 introErrorDuration: 200;
-introErrorTop: 15px;
-introErrorHeight: 40px;
-introErrorFont: font(16px);
 
-introLabelTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 30px;
-}
-introErrorLabelTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 27px;
-}
-
-introErrorLabel: FlatLabel(defaultFlatLabel) {
-	font: introErrorFont;
+introError: introDescription;
+introErrorCentered: FlatLabel(introError) {
 	align: align(center);
 }
+introErrorTextStyle: introDescriptionTextStyle;
+
 introBackButton: IconButton(defaultIconButton) {
 	width: 56px;
 	height: 56px;

@@ -65,6 +65,10 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
 	_thumb = App::pixmapFromImageInPlace(img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	_thumb.setDevicePixelRatio(cRetinaFactor());
+	_mask = QImage(_thumb.size(), QImage::Format_ARGB32_Premultiplied);
+	_mask.setDevicePixelRatio(cRetinaFactor());
+	_fade = QImage(_thumb.size(), QImage::Format_ARGB32_Premultiplied);
+	_fade.setDevicePixelRatio(cRetinaFactor());
 	_thumbw = _thumb.width() / cIntRetinaFactor();
 	_thumbh = _thumb.height() / cIntRetinaFactor();
 	if (_thumbw > _thumbh) {
@@ -238,18 +242,16 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 
 	p.translate(_thumbx, _thumby);
 	p.drawPixmap(0, 0, _thumb);
-	if (_cropy > 0) {
-		p.fillRect(QRect(0, 0, _cropx + _cropw, _cropy), st::photoCropFadeBg);
+	_mask.fill(Qt::white);
+	{
+		Painter p(&_mask);
+		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		p.setPen(Qt::NoPen);
+		p.setBrush(Qt::black);
+		p.drawEllipse(_cropx, _cropy, _cropw, _cropw);
 	}
-	if (_cropx + _cropw < _thumbw) {
-		p.fillRect(QRect(_cropx + _cropw, 0, _thumbw - _cropx - _cropw, _cropy + _cropw), st::photoCropFadeBg);
-	}
-	if (_cropy + _cropw < _thumbh) {
-		p.fillRect(QRect(_cropx, _cropy + _cropw, _thumbw - _cropx, _thumbh - _cropy - _cropw), st::photoCropFadeBg);
-	}
-	if (_cropx > 0) {
-		p.fillRect(QRect(0, _cropy, _cropx, _thumbh - _cropy), st::photoCropFadeBg);
-	}
+	style::colorizeImage(_mask, st::photoCropFadeBg->c, &_fade);
+	p.drawImage(0, 0, _fade);
 
 	int delta = st::cropPointSize;
 	int mdelta = -delta / 2;

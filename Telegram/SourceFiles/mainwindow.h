@@ -27,10 +27,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class MediaView;
 class PasscodeWidget;
-class IntroWidget;
 class MainWidget;
 class LayerStackWidget;
 class LayerWidget;
+
+namespace Intro {
+class Widget;
+} // namespace Intro
 
 namespace Local {
 class ClearManager;
@@ -99,7 +102,6 @@ public:
 
 	void mtpStateChanged(int32 dc, int32 state);
 
-	IntroWidget *introWidget();
 	MainWidget *mainWidget();
 	PasscodeWidget *passcodeWidget();
 
@@ -112,7 +114,7 @@ public:
 
 	void activate();
 
-	void noIntro(IntroWidget *was);
+	void noIntro(Intro::Widget *was);
 	void noMain(MainWidget *was);
 	void noLayerStack(LayerStackWidget *was);
 	void layerFinishedHide(LayerStackWidget *was);
@@ -239,7 +241,7 @@ private:
 	mtpRequestId _serviceHistoryRequest = 0;
 
 	ChildWidget<PasscodeWidget> _passcode = { nullptr };
-	ChildWidget<IntroWidget> _intro = { nullptr };
+	ChildWidget<Intro::Widget> _intro = { nullptr };
 	ChildWidget<MainWidget> _main = { nullptr };
 	ChildWidget<Settings::Widget> _settings = { nullptr };
 	ChildWidget<LayerStackWidget> _layerBg = { nullptr };

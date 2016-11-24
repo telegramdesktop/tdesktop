@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 namespace Ui {
-class FlatInput;
+class PasswordInput;
 class LinkButton;
 class RoundButton;
 } // namespace Ui
@@ -56,7 +56,7 @@ private:
 	anim::ivalue a_coordUnder, a_coordOver;
 	anim::fvalue a_shadow;
 
-	ChildWidget<Ui::FlatInput> _passcode;
+	ChildWidget<Ui::PasswordInput> _passcode;
 	ChildWidget<Ui::RoundButton> _submit;
 	ChildWidget<Ui::LinkButton> _logout;
 	QString _error;

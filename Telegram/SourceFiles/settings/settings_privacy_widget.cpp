@@ -144,7 +144,7 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 void CloudPasswordState::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto text = st::linkFont->elided(_waitingConfirm, width() - _turnOff->width());
+	auto text = st::boxTextFont->elided(_waitingConfirm, width() - _turnOff->width() - st::boxTextFont->spacew);
 	if (!text.isEmpty()) {
 		p.setPen(st::windowFg);
 		p.setFont(st::boxTextFont);

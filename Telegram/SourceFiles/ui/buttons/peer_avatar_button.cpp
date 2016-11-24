@@ -40,7 +40,8 @@ void PeerAvatarButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-NewAvatarButton::NewAvatarButton(QWidget *parent, int size) : RippleButton(parent, st::defaultActiveButton.ripple) {
+NewAvatarButton::NewAvatarButton(QWidget *parent, int size, QPoint position) : RippleButton(parent, st::defaultActiveButton.ripple)
+, _position(position) {
 	resize(size, size);
 }
 
@@ -58,7 +59,7 @@ void NewAvatarButton::paintEvent(QPaintEvent *e) {
 
 	paintRipple(p, 0, 0, getms());
 
-	st::newGroupPhotoIcon.paint(p, st::newGroupPhotoIconPosition, width());
+	st::newGroupPhotoIcon.paint(p, _position, width());
 }
 
 void NewAvatarButton::setImage(const QImage &image) {

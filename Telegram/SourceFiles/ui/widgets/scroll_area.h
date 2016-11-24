@@ -160,7 +160,7 @@ private:
 class SplittedWidgetOther;
 class ScrollArea : public QScrollArea {
 	Q_OBJECT
-		T_WIDGET
+	T_WIDGET
 
 public:
 	ScrollArea(QWidget *parent, const style::FlatScroll &st = st::defaultFlatScroll, bool handleTouch = true);

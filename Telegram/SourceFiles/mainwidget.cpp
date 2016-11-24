@@ -2269,7 +2269,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		_topBar->hide();
 		_history->hide();
 		if (!_a_show.animating()) {
-			if (!animationParams.oldContentCache.isNull()) {
+			if (!animationParams.oldContentCache.isNull() && !App::passcoded()) {
 				_dialogs->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
 			} else {
 				_dialogs->showFast();

@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "window/slide_animation.h"
+#include "window/window_slide_animation.h"
 
 #include "styles/style_window.h"
 

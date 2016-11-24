@@ -47,7 +47,7 @@ private:
 
 class NewAvatarButton : public RippleButton {
 public:
-	NewAvatarButton(QWidget *parent, int size);
+	NewAvatarButton(QWidget *parent, int size, QPoint position);
 
 	void setImage(const QImage &image);
 
@@ -58,6 +58,7 @@ protected:
 
 private:
 	QPixmap _image;
+	QPoint _position;
 
 };
 

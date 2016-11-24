@@ -26,55 +26,63 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class RoundButton;
 class LinkButton;
+class FlatLabel;
 } // namespace Ui
 
-class CodeInput final : public Ui::FlatInput {
+namespace Intro {
+
+class CodeInput final : public Ui::MaskedInputField {
 	Q_OBJECT
 
 public:
-	CodeInput(QWidget *parent, const style::FlatInput &st, const QString &ph);
+	CodeInput(QWidget *parent, const style::InputField &st, const QString &ph);
+
+	void setDigitsCountMax(int digitsCount);
 
 signals:
 	void codeEntered();
 
 protected:
-	void correctValue(const QString &was, QString &now);
+	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+
+private:
+	int _digitsCountMax = 5;
 
 };
 
-class IntroCode final : public IntroStep {
+class CodeWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-	IntroCode(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
+	CodeWidget(QWidget *parent, Widget::Data *data);
 
 	bool hasBack() const override {
 		return true;
 	}
+	void setInnerFocus() override;
 	void activate() override;
 	void finished() override;
 	void cancelled() override;
-	void onSubmit() override;
-
-	void codeSubmitDone(const MTPauth_Authorization &result);
-	bool codeSubmitFail(const RPCError &error);
+	void submit() override;
 
 	void updateDescText();
 
-public slots:
-	void onSubmitCode();
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void onNoTelegramCode();
 	void onInputChange();
 	void onSendCall();
 	void onCheckRequest();
 
 private:
-	void showError(const QString &err);
+	void updateCallText();
+
+	void codeSubmitDone(const MTPauth_Authorization &result);
+	bool codeSubmitFail(const RPCError &error);
+
+	void showCodeError(const QString &text);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
 
@@ -83,23 +91,21 @@ private:
 
 	void stopCheck();
 
-	QString _error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
-
-	ChildWidget<Ui::RoundButton> _next;
-
-	Text _desc;
 	ChildWidget<Ui::LinkButton> _noTelegramCode;
-	mtpRequestId _noTelegramCodeRequestId;
-	QRect _textRect;
+	mtpRequestId _noTelegramCodeRequestId = 0;
 
 	ChildWidget<CodeInput> _code;
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
+
 	ChildObject<QTimer> _callTimer;
-	IntroWidget::CallStatus _callStatus;
+	Widget::Data::CallStatus _callStatus;
+	int _callTimeout;
+	mtpRequestId _callRequestId = 0;
+	ChildWidget<Ui::FlatLabel> _callLabel;
 
 	ChildObject<QTimer> _checkRequest;
 
 };
+
+} // namespace Intro

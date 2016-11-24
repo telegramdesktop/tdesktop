@@ -22,7 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/effects/rect_shadow.h"
 #include "boxes/abstractbox.h"
-#include "styles/style_intro.h"
+#include "styles/style_widgets.h"
 
 QString findValidCode(QString fullCode);
 
@@ -30,11 +30,11 @@ namespace Ui {
 class MultiSelect;
 } // namespace Ui
 
-class CountryInput : public QWidget {
+class CountryInput : public TWidget {
 	Q_OBJECT
 
 public:
-	CountryInput(QWidget *parent, const style::countryInput &st);
+	CountryInput(QWidget *parent, const style::InputField &st);
 
 public slots:
 	void onChooseCode(const QString &code);
@@ -53,10 +53,8 @@ protected:
 private:
 	void setText(const QString &newText);
 
-	QPixmap _arrow;
-	QRect _inner, _arrowRect;
-	const style::countryInput &_st;
-	bool _active;
+	const style::InputField &_st;
+	bool _active = false;
 	QString _text;
 
 };

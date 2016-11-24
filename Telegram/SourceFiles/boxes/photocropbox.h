@@ -62,6 +62,7 @@ private:
 	ChildWidget<Ui::RoundButton> _cancel;
 	QImage _img;
 	QPixmap _thumb;
+	QImage _mask, _fade;
 	PeerId _peerId;
 
 };

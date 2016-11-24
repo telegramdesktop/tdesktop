@@ -401,8 +401,7 @@ sessionTerminateAllButton: LinkButton(boxLinkButton) {
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
-passcodeInput: FlatInput(introPhone) {
-}
+passcodeInput: introPhone;
 passcodeSubmit: RoundButton(introNextButton) {
 	width: 225px;
 }
@@ -420,8 +419,6 @@ newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
 
 newGroupPhotoSize: 76px;
-newGroupPhotoBg: #4eb5f0;
-newGroupPhotoBgOver: #3fa9e7;
 newGroupPhotoIcon: icon {{ "new_chat_photo", #ffffff }};
 newGroupPhotoIconPosition: point(23px, 25px);
 newGroupPhotoDuration: 150;

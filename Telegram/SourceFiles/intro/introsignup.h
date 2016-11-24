@@ -21,64 +21,58 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "intro/introwidget.h"
+#include "ui/filedialog.h"
 
 namespace Ui {
 class RoundButton;
-class FlatInput;
+class InputField;
+class NewAvatarButton;
 } // namespace Ui
 
-class IntroSignup final : public IntroStep {
+namespace Intro {
+
+class SignupWidget : public Widget::Step, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	IntroSignup(IntroWidget *parent);
+	SignupWidget(QWidget *parent, Widget::Data *data);
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
-	void step_photo(float64 ms, bool timer);
-
+	void setInnerFocus() override;
 	void activate() override;
 	void cancelled() override;
-	void onSubmit() override;
+	void submit() override;
+	QString nextButtonText() const override;
 
-	void nameSubmitDone(const MTPauth_Authorization &result);
-	bool nameSubmitFail(const RPCError &error);
+protected:
+	void resizeEvent(QResizeEvent *e) override;
 
-public slots:
-	void onSubmitName(bool force = false);
+private slots:
 	void onInputChange();
 	void onCheckRequest();
 	void onPhotoReady(const QImage &img);
 
 private:
-	void showError(const QString &err);
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+
+	void nameSubmitDone(const MTPauth_Authorization &result);
+	bool nameSubmitFail(const RPCError &error);
+
 	void stopCheck();
 
-	QString error;
-	anim::fvalue a_errorAlpha, a_photoOver;
-	Animation _a_error;
-	Animation _a_photo;
+	QImage _photoImage;
 
-	ChildWidget<Ui::RoundButton> _next;
-
-	QRect _textRect;
-
-	bool _photoOver = false;
-	QImage _photoBig;
-	QPixmap _photoSmall;
-	int32 _phLeft, _phTop;
-
-	ChildWidget<Ui::FlatInput> _first;
-	ChildWidget<Ui::FlatInput> _last;
+	ChildWidget<Ui::NewAvatarButton> _photo;
+	ChildWidget<Ui::InputField> _first;
+	ChildWidget<Ui::InputField> _last;
 	QString _firstName, _lastName;
 	mtpRequestId _sentRequest = 0;
+
+	FileDialog::QueryId _readPhotoFileQueryId = 0;
 
 	bool _invertOrder = false;
 
 	ChildObject<QTimer> _checkRequest;
 
 };
+
+} // namespace Intro

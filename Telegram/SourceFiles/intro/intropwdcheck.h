@@ -23,26 +23,37 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "intro/introwidget.h"
 
 namespace Ui {
-class FlatInput;
+class InputField;
+class PasswordInput;
 class RoundButton;
 class LinkButton;
 } // namespace Ui
 
-class IntroPwdCheck final : public IntroStep {
+namespace Intro {
+
+class PwdCheckWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-	IntroPwdCheck(IntroWidget *parent);
+	PwdCheckWidget(QWidget *parent, Widget::Data *data);
 
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
-
+	void setInnerFocus() override;
 	void activate() override;
 	void cancelled() override;
-	void onSubmit() override;
+	void submit() override;
+	QString nextButtonText() const override;
 
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
+	void onToRecover();
+	void onToPassword();
+	void onInputChange();
+	void onCheckRequest();
+	void onToReset();
+
+private:
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool pwdSubmitFail(const RPCError &error);
 	bool codeSubmitFail(const RPCError &error);
@@ -50,46 +61,24 @@ public:
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 
-public slots:
-	void onSubmitPwd(bool force = false);
-	void onToRecover();
-	void onToPassword();
-	void onInputChange();
-	void onCheckRequest();
-	void onToReset();
-	void onReset();
-	void onResetSure();
-
-private:
-	void showError(const QString &error);
+	void updateDescriptionText();
 	void stopCheck();
-
-	void deleteDone(const MTPBool &result);
-	bool deleteFail(const RPCError &error);
-
-	QString _error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
-
-	ChildWidget<Ui::RoundButton> _next;
-
-	QRect _textRect;
 
 	QByteArray _salt;
 	bool _hasRecovery;
 	QString _hint, _emailPattern;
 
-	ChildWidget<Ui::FlatInput> _pwdField;
-	ChildWidget<Ui::FlatInput> _codeField;
+	ChildWidget<Ui::PasswordInput> _pwdField;
+	ChildWidget<Ui::FlatLabel> _pwdHint;
+	ChildWidget<Ui::InputField> _codeField;
 	ChildWidget<Ui::LinkButton> _toRecover;
 	ChildWidget<Ui::LinkButton> _toPassword;
-	ChildWidget<Ui::LinkButton> _reset;
 	mtpRequestId _sentRequest = 0;
-
-	Text _hintText;
 
 	QByteArray _pwdSalt;
 
 	ChildObject<QTimer> _checkRequest;
 
 };
+
+} // namespace Intro

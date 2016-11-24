@@ -252,7 +252,7 @@ void AddContactBox::onRetry() {
 
 GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox()
 , _creating(creating)
-, _photo(this, st::newGroupPhotoSize)
+, _photo(this, st::newGroupPhotoSize, st::newGroupPhotoIconPosition)
 , _title(this, st::defaultInputField, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name))
 , _description(this, st::newGroupDescription, lang(lng_create_group_description))
 , _next(this, lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), st::defaultBoxButton)
@@ -276,14 +276,13 @@ GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : Ab
 	connect(_next, SIGNAL(clicked()), this, SLOT(onNext()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
-
 	_photo->setClickedCallback([this] {
 		auto imgExtensions = cImgExtensions();
 		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
 		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+	});
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
 	});
 
 	prepare();
@@ -418,7 +417,7 @@ void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update)
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 		return;
 	}
-	PhotoCropBox *box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0));
+	auto box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0));
 	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
 	Ui::showLayer(box, KeepOtherLayers);
 }

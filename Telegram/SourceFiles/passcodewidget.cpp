@@ -29,14 +29,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
-#include "window/slide_animation.h"
+#include "window/window_slide_animation.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _a_show(animation(this, &PasscodeWidget::step_show))
 , _passcode(this, st::passcodeInput)
 , _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
-	_passcode->setEchoMode(QLineEdit::Password);
 	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
 	connect(_passcode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
@@ -49,12 +48,12 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 
 void PasscodeWidget::onSubmit() {
 	if (_passcode->text().isEmpty()) {
-		_passcode->notaBene();
+		_passcode->showError();
 		return;
 	}
 	if (!passcodeCanTry()) {
 		_error = lang(lng_flood_error);
-		_passcode->notaBene();
+		_passcode->showError();
 		update();
 		return;
 	}
@@ -62,7 +61,8 @@ void PasscodeWidget::onSubmit() {
 	if (App::main()) {
 		if (Local::checkPasscode(_passcode->text().toUtf8())) {
 			cSetPasscodeBadTries(0);
-			App::wnd()->clearPasscode();
+			App::wnd()->clearPasscode(); // Destroys this widget.
+			return;
 		} else {
 			cSetPasscodeBadTries(cPasscodeBadTries() + 1);
 			cSetPasscodeLastTry(getms(true));
@@ -93,7 +93,7 @@ void PasscodeWidget::onSubmit() {
 void PasscodeWidget::onError() {
 	_error = lang(lng_passcode_wrong);
 	_passcode->selectAll();
-	_passcode->notaBene();
+	_passcode->showError();
 	update();
 }
 

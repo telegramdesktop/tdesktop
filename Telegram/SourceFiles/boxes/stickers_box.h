@@ -33,6 +33,7 @@ class PlainShadow;
 class RoundButton;
 class RippleAnimation;
 class SettingsSlider;
+class SlideAnimation;
 } // namespace Ui
 
 class StickersBox : public ItemListBox, public RPCSender {
@@ -47,6 +48,8 @@ public:
 	};
 	StickersBox(Section section = Section::Installed);
 	StickersBox(const Stickers::Order &archivedIds);
+
+	~StickersBox();
 
 public slots:
 	void onStickersUpdated();
@@ -111,9 +114,7 @@ private:
 	ChildWidget<Ui::RoundButton> _done = { nullptr };
 	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
 
-	FloatAnimation _a_slide;
-	bool _slideLeft = false;
-	QPixmap _leftCache, _rightCache;
+	std_::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;

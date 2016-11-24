@@ -114,7 +114,7 @@ public:
 	};
 	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
 
-	public slots:
+public slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -267,7 +267,7 @@ public:
 		return _oldtext;
 	}
 
-	public slots:
+public slots:
 	void onTextChange(const QString &text);
 	void onTextEdited();
 
@@ -328,52 +328,6 @@ private:
 	QTimer _touchTimer;
 	bool _touchPress, _touchRightButton, _touchMove;
 	QPoint _touchStart;
-};
-
-class CountryCodeInput : public FlatInput {
-	Q_OBJECT
-
-public:
-	CountryCodeInput(QWidget *parent, const style::FlatInput &st);
-
-	public slots:
-	void startErasing(QKeyEvent *e);
-	void codeSelected(const QString &code);
-
-signals:
-	void codeChanged(const QString &code);
-	void addedToNumber(const QString &added);
-
-protected:
-	void correctValue(const QString &was, QString &now) override;
-
-private:
-	bool _nosignal;
-
-};
-
-class PhonePartInput : public FlatInput {
-	Q_OBJECT
-
-public:
-	PhonePartInput(QWidget *parent, const style::FlatInput &st);
-
-	public slots:
-	void addedToNumber(const QString &added);
-	void onChooseCode(const QString &code);
-
-signals:
-	void voidBackspace(QKeyEvent *e);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-	void correctValue(const QString &was, QString &now) override;
-
-private:
-	QVector<int> _pattern;
-
 };
 
 enum CtrlEnterSubmit {
@@ -439,7 +393,7 @@ public:
 		_inner.clearFocus();
 	}
 
-	public slots:
+public slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -610,7 +564,7 @@ public:
 		_inner.setTextCursor(c);
 	}
 
-	public slots:
+public slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -715,19 +669,10 @@ private:
 
 class MaskedInputField : public QLineEdit {
 	Q_OBJECT
-		T_WIDGET
+	T_WIDGET
 
 public:
 	MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder = QString(), const QString &val = QString());
-
-	bool event(QEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-	void paintEvent(QPaintEvent *e) override;
-	void focusInEvent(QFocusEvent *e) override;
-	void focusOutEvent(QFocusEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
 
 	void showError();
 
@@ -757,7 +702,7 @@ public:
 		updatePlaceholder();
 	}
 
-	public slots:
+public slots:
 	void onTextChange(const QString &text);
 	void onCursorPositionChanged(int oldPosition, int position);
 
@@ -773,6 +718,15 @@ signals:
 	void blurred();
 
 protected:
+	bool event(QEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+	void paintEvent(QPaintEvent *e) override;
+	void focusInEvent(QFocusEvent *e) override;
+	void focusOutEvent(QFocusEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+
 	void enterEventHook(QEvent *e) {
 		return QLineEdit::enterEvent(e);
 	}
@@ -780,7 +734,10 @@ protected:
 		return QLineEdit::leaveEvent(e);
 	}
 
-	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor);
+	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+	}
+	void setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos);
+
 	virtual void paintPlaceholder(Painter &p);
 
 	style::font phFont() {
@@ -826,6 +783,52 @@ private:
 	QTimer _touchTimer;
 	bool _touchPress, _touchRightButton, _touchMove;
 	QPoint _touchStart;
+};
+
+class CountryCodeInput : public MaskedInputField {
+	Q_OBJECT
+
+public:
+	CountryCodeInput(QWidget *parent, const style::InputField &st);
+
+public slots:
+	void startErasing(QKeyEvent *e);
+	void codeSelected(const QString &code);
+
+signals:
+	void codeChanged(const QString &code);
+	void addedToNumber(const QString &added);
+
+protected:
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
+
+private:
+	bool _nosignal;
+
+};
+
+class PhonePartInput : public MaskedInputField {
+	Q_OBJECT
+
+public:
+	PhonePartInput(QWidget *parent, const style::InputField &st);
+
+public slots:
+	void addedToNumber(const QString &added);
+	void onChooseCode(const QString &code);
+
+signals:
+	void voidBackspace(QKeyEvent *e);
+
+protected:
+	void keyPressEvent(QKeyEvent *e) override;
+
+	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
+	void paintPlaceholder(Painter &p) override;
+
+private:
+	QVector<int> _pattern;
+
 };
 
 class PasswordInput : public MaskedInputField {

@@ -1798,199 +1798,6 @@ void FlatInput::notaBene() {
 	_a_appearance.start();
 }
 
-CountryCodeInput::CountryCodeInput(QWidget *parent, const style::FlatInput &st) : FlatInput(parent, st)
-, _nosignal(false) {
-}
-
-void CountryCodeInput::startErasing(QKeyEvent *e) {
-	setFocus();
-	keyPressEvent(e);
-}
-
-void CountryCodeInput::codeSelected(const QString &code) {
-	QString wasText(getLastText()), newText = '+' + code;
-	setText(newText);
-	_nosignal = true;
-	correctValue(wasText, newText);
-	_nosignal = false;
-	emit changed();
-}
-
-void CountryCodeInput::correctValue(const QString &was, QString &now) {
-	QString newText, addToNumber;
-	int oldPos(cursorPosition()), newPos(-1), oldLen(now.length()), start = 0, digits = 5;
-	newText.reserve(oldLen + 1);
-	newText += '+';
-	if (oldLen && now[0] == '+') {
-		++start;
-	}
-	for (int i = start; i < oldLen; ++i) {
-		QChar ch(now[i]);
-		if (ch.isDigit()) {
-			if (!digits || !--digits) {
-				addToNumber += ch;
-			} else {
-				newText += ch;
-			}
-		}
-		if (i == oldPos) {
-			newPos = newText.length();
-		}
-	}
-	if (!addToNumber.isEmpty()) {
-		QString validCode = findValidCode(newText.mid(1));
-		addToNumber = newText.mid(1 + validCode.length()) + addToNumber;
-		newText = '+' + validCode;
-	}
-	if (newPos < 0 || newPos > newText.length()) {
-		newPos = newText.length();
-	}
-	if (newText != now) {
-		now = newText;
-		setText(newText);
-		updatePlaceholder();
-		if (newPos != oldPos) {
-			setCursorPosition(newPos);
-		}
-	}
-	if (!_nosignal && was != newText) {
-		emit codeChanged(newText.mid(1));
-	}
-	if (!addToNumber.isEmpty()) {
-		emit addedToNumber(addToNumber);
-	}
-}
-
-PhonePartInput::PhonePartInput(QWidget *parent, const style::FlatInput &st) : FlatInput(parent, st, lang(lng_phone_ph)) {
-}
-
-void PhonePartInput::paintEvent(QPaintEvent *e) {
-	FlatInput::paintEvent(e);
-
-	Painter p(this);
-	auto t = text();
-	if (!_pattern.isEmpty() && !t.isEmpty()) {
-		auto ph = placeholder().mid(t.size());
-		if (!ph.isEmpty()) {
-			p.setClipRect(rect());
-			auto phRect = placeholderRect();
-			int tw = phFont()->width(t);
-			if (tw < phRect.width()) {
-				phRect.setLeft(phRect.left() + tw);
-				phPrepare(p);
-				p.drawText(phRect, ph, style::al_left);
-			}
-		}
-	}
-}
-
-void PhonePartInput::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Backspace && text().isEmpty()) {
-		emit voidBackspace(e);
-	} else {
-		FlatInput::keyPressEvent(e);
-	}
-}
-
-void PhonePartInput::correctValue(const QString &was, QString &now) {
-	QString newText;
-	int oldPos(cursorPosition()), newPos(-1), oldLen(now.length()), digitCount = 0;
-	for (int i = 0; i < oldLen; ++i) {
-		if (now[i].isDigit()) {
-			++digitCount;
-		}
-	}
-	if (digitCount > MaxPhoneTailLength) digitCount = MaxPhoneTailLength;
-
-	bool inPart = !_pattern.isEmpty();
-	int curPart = -1, leftInPart = 0;
-	newText.reserve(oldLen);
-	for (int i = 0; i < oldLen; ++i) {
-		if (i == oldPos && newPos < 0) {
-			newPos = newText.length();
-		}
-
-		QChar ch(now[i]);
-		if (ch.isDigit()) {
-			if (!digitCount--) {
-				break;
-			}
-			if (inPart) {
-				if (leftInPart) {
-					--leftInPart;
-				} else {
-					newText += ' ';
-					++curPart;
-					inPart = curPart < _pattern.size();
-					leftInPart = inPart ? (_pattern.at(curPart) - 1) : 0;
-
-					++oldPos;
-				}
-			}
-			newText += ch;
-		} else if (ch == ' ' || ch == '-' || ch == '(' || ch == ')') {
-			if (inPart) {
-				if (leftInPart) {
-				} else {
-					newText += ch;
-					++curPart;
-					inPart = curPart < _pattern.size();
-					leftInPart = inPart ? _pattern.at(curPart) : 0;
-				}
-			} else {
-				newText += ch;
-			}
-		}
-	}
-	int32 newlen = newText.size();
-	while (newlen > 0 && newText.at(newlen - 1).isSpace()) {
-		--newlen;
-	}
-	if (newlen < newText.size()) newText = newText.mid(0, newlen);
-	if (newPos < 0) {
-		newPos = newText.length();
-	}
-	if (newText != now) {
-		now = newText;
-		setText(now);
-		updatePlaceholder();
-		setCursorPosition(newPos);
-	}
-}
-
-void PhonePartInput::addedToNumber(const QString &added) {
-	setFocus();
-	QString wasText(getLastText()), newText = added + wasText;
-	setText(newText);
-	setCursorPosition(added.length());
-	correctValue(wasText, newText);
-	updatePlaceholder();
-}
-
-void PhonePartInput::onChooseCode(const QString &code) {
-	_pattern = phoneNumberParse(code);
-	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
-		_pattern.pop_front();
-	} else {
-		_pattern.clear();
-	}
-	if (_pattern.isEmpty()) {
-		setPlaceholder(lang(lng_phone_ph));
-	} else {
-		QString ph;
-		ph.reserve(20);
-		for (int i = 0, l = _pattern.size(); i < l; ++i) {
-			ph.append(' ');
-			ph.append(QString(_pattern.at(i), QChar(0x2212)));
-		}
-		setPlaceholder(ph);
-	}
-	auto newText = getLastText();
-	correctValue(newText, newText);
-	setPlaceholderFast(!_pattern.isEmpty());
-	updatePlaceholder();
-}
-
 InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString &ph, const QString &val) : TWidget(parent)
 , _maxLength(-1)
 , _inner(this)
@@ -3533,6 +3340,23 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 	updatePlaceholder();
 }
 
+void MaskedInputField::setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos) {
+	if (newPos < 0 || newPos > newText.size()) {
+		newPos = newText.size();
+	}
+	auto updateText = (newText != now);
+	if (updateText) {
+		now = newText;
+		setText(now);
+		updatePlaceholder();
+	}
+	auto updateCursorPosition = (newPos != nowCursor) || updateText;
+	if (updateCursorPosition) {
+		nowCursor = newPos;
+		setCursorPosition(nowCursor);
+	}
+}
+
 void MaskedInputField::customUpDown(bool custom) {
 	_customUpDown = custom;
 }
@@ -3770,9 +3594,6 @@ QRect MaskedInputField::placeholderRect() const {
 	return rect().marginsRemoved(_st.textMargins + _st.placeholderMargins);
 }
 
-void MaskedInputField::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
-}
-
 void MaskedInputField::paintPlaceholder(Painter &p) {
 	bool drawPlaceholder = _placeholderVisible;
 	if (_a_placeholderShift.animating()) {
@@ -3860,6 +3681,195 @@ void MaskedInputField::onCursorPositionChanged(int oldPosition, int position) {
 	_oldcursor = position;
 }
 
+CountryCodeInput::CountryCodeInput(QWidget *parent, const style::InputField &st) : MaskedInputField(parent, st)
+, _nosignal(false) {
+}
+
+void CountryCodeInput::startErasing(QKeyEvent *e) {
+	setFocus();
+	keyPressEvent(e);
+}
+
+void CountryCodeInput::codeSelected(const QString &code) {
+	auto wasText = getLastText();
+	auto wasCursor = cursorPosition();
+	auto newText = '+' + code;
+	auto newCursor = newText.size();
+	setText(newText);
+	_nosignal = true;
+	correctValue(wasText, wasCursor, newText, newCursor);
+	_nosignal = false;
+	emit changed();
+}
+
+void CountryCodeInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+	QString newText, addToNumber;
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), start = 0, digits = 5;
+	newText.reserve(oldLen + 1);
+	if (oldLen && now[0] == '+') {
+		if (start == oldPos) {
+			newPos = newText.length();
+		}
+		++start;
+	}
+	newText += '+';
+	for (int i = start; i < oldLen; ++i) {
+		if (i == oldPos) {
+			newPos = newText.length();
+		}
+		auto ch = now[i];
+		if (ch.isDigit()) {
+			if (!digits || !--digits) {
+				addToNumber += ch;
+			} else {
+				newText += ch;
+			}
+		}
+	}
+	if (!addToNumber.isEmpty()) {
+		auto validCode = findValidCode(newText.mid(1));
+		addToNumber = newText.mid(1 + validCode.length()) + addToNumber;
+		newText = '+' + validCode;
+	}
+	setCorrectedText(now, nowCursor, newText, newPos);
+
+	if (!_nosignal && was != newText) {
+		emit codeChanged(newText.mid(1));
+	}
+	if (!addToNumber.isEmpty()) {
+		emit addedToNumber(addToNumber);
+	}
+}
+
+PhonePartInput::PhonePartInput(QWidget *parent, const style::InputField &st) : MaskedInputField(parent, st, lang(lng_phone_ph)) {
+}
+
+void PhonePartInput::paintPlaceholder(Painter &p) {
+	auto t = getLastText();
+	if (!_pattern.isEmpty() && !t.isEmpty()) {
+		auto ph = placeholder().mid(t.size());
+		if (!ph.isEmpty()) {
+			p.setClipRect(rect());
+			auto phRect = placeholderRect();
+			int tw = phFont()->width(t);
+			if (tw < phRect.width()) {
+				phRect.setLeft(phRect.left() + tw);
+				placeholderPreparePaint(p);
+				p.drawText(phRect, ph, style::al_topleft);
+			}
+		}
+	} else {
+		MaskedInputField::paintPlaceholder(p);
+	}
+}
+
+void PhonePartInput::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Backspace && getLastText().isEmpty()) {
+		emit voidBackspace(e);
+	} else {
+		MaskedInputField::keyPressEvent(e);
+	}
+}
+
+void PhonePartInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
+	QString newText;
+	int oldPos(nowCursor), newPos(-1), oldLen(now.length()), digitCount = 0;
+	for (int i = 0; i < oldLen; ++i) {
+		if (now[i].isDigit()) {
+			++digitCount;
+		}
+	}
+	if (digitCount > MaxPhoneTailLength) digitCount = MaxPhoneTailLength;
+
+	bool inPart = !_pattern.isEmpty();
+	int curPart = -1, leftInPart = 0;
+	newText.reserve(oldLen);
+	for (int i = 0; i < oldLen; ++i) {
+		if (i == oldPos && newPos < 0) {
+			newPos = newText.length();
+		}
+
+		auto ch = now[i];
+		if (ch.isDigit()) {
+			if (!digitCount--) {
+				break;
+			}
+			if (inPart) {
+				if (leftInPart) {
+					--leftInPart;
+				} else {
+					newText += ' ';
+					++curPart;
+					inPart = curPart < _pattern.size();
+					leftInPart = inPart ? (_pattern.at(curPart) - 1) : 0;
+
+					++oldPos;
+				}
+			}
+			newText += ch;
+		} else if (ch == ' ' || ch == '-' || ch == '(' || ch == ')') {
+			if (inPart) {
+				if (leftInPart) {
+				} else {
+					newText += ch;
+					++curPart;
+					inPart = curPart < _pattern.size();
+					leftInPart = inPart ? _pattern.at(curPart) : 0;
+				}
+			} else {
+				newText += ch;
+			}
+		}
+	}
+	auto newlen = newText.size();
+	while (newlen > 0 && newText.at(newlen - 1).isSpace()) {
+		--newlen;
+	}
+	if (newlen < newText.size()) {
+		newText = newText.mid(0, newlen);
+	}
+	setCorrectedText(now, nowCursor, newText, newPos);
+}
+
+void PhonePartInput::addedToNumber(const QString &added) {
+	setFocus();
+	auto wasText = getLastText();
+	auto wasCursor = cursorPosition();
+	auto newText = added + wasText;
+	auto newCursor = newText.size();
+	setText(newText);
+	setCursorPosition(added.length());
+	correctValue(wasText, wasCursor, newText, newCursor);
+	updatePlaceholder();
+}
+
+void PhonePartInput::onChooseCode(const QString &code) {
+	_pattern = phoneNumberParse(code);
+	if (!_pattern.isEmpty() && _pattern.at(0) == code.size()) {
+		_pattern.pop_front();
+	} else {
+		_pattern.clear();
+	}
+	if (_pattern.isEmpty()) {
+		setPlaceholder(lang(lng_phone_ph));
+	} else {
+		QString ph;
+		ph.reserve(20);
+		for (int i = 0, l = _pattern.size(); i < l; ++i) {
+			ph.append(' ');
+			ph.append(QString(_pattern.at(i), QChar(0x2212)));
+		}
+		setPlaceholder(ph);
+	}
+	auto wasText = getLastText();
+	auto wasCursor = cursorPosition();
+	auto newText = getLastText();
+	auto newCursor = newText.size();
+	correctValue(wasText, wasCursor, newText, newCursor);
+	setPlaceholderFast(!_pattern.isEmpty());
+	updatePlaceholder();
+}
+
 PasswordInput::PasswordInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : MaskedInputField(parent, st, ph, val) {
 	setEchoMode(QLineEdit::Password);
 }
@@ -3873,29 +3883,22 @@ PortInput::PortInput(QWidget *parent, const style::InputField &st, const QString
 void PortInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
 	QString newText;
 	newText.reserve(now.size());
-	int32 newCursor = nowCursor;
-	for (int32 i = 0, l = now.size(); i < l; ++i) {
+	auto newPos = nowCursor;
+	for (auto i = 0, l = now.size(); i < l; ++i) {
 		if (now.at(i).isDigit()) {
 			newText.append(now.at(i));
 		} else if (i < nowCursor) {
-			--newCursor;
+			--newPos;
 		}
 	}
 	if (!newText.toInt()) {
 		newText = QString();
-		newCursor = 0;
+		newPos = 0;
 	} else if (newText.toInt() > 65535) {
 		newText = was;
-		newCursor = wasCursor;
+		newPos = wasCursor;
 	}
-	if (newText != now) {
-		now = newText;
-		setText(newText);
-	}
-	if (newCursor != nowCursor) {
-		nowCursor = newCursor;
-		setCursorPosition(newCursor);
-	}
+	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
 UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val, bool isLink) : MaskedInputField(parent, st, ph, val),
@@ -3916,13 +3919,13 @@ void UsernameInput::paintPlaceholder(Painter &p) {
 }
 
 void UsernameInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
-	QString newText;
-	int32 newCursor = nowCursor, from, len = now.size();
-	for (from = 0; from < len; ++from) {
+	auto newPos = nowCursor;
+	auto from = 0, len = now.size();
+	for (; from < len; ++from) {
 		if (!now.at(from).isSpace()) {
 			break;
 		}
-		if (newCursor > 0) --newCursor;
+		if (newPos > 0) --newPos;
 	}
 	len -= from;
 	if (len > MaxUsernameLength) len = MaxUsernameLength + (now.at(from) == '@' ? 1 : 0);
@@ -3933,18 +3936,7 @@ void UsernameInput::correctValue(const QString &was, int32 wasCursor, QString &n
 		}
 		--len;
 	}
-	newText = now.mid(from, len);
-	if (newCursor > len) {
-		newCursor = len;
-	}
-	if (newText != now) {
-		now = newText;
-		setText(newText);
-	}
-	if (newCursor != nowCursor) {
-		nowCursor = newCursor;
-		setCursorPosition(newCursor);
-	}
+	setCorrectedText(now, nowCursor, now.mid(from, len), newPos);
 }
 
 PhoneInput::PhoneInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val) : MaskedInputField(parent, st, ph, val)
@@ -3996,7 +3988,7 @@ void PhoneInput::paintPlaceholder(Painter &p) {
 }
 
 void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
-	QString digits(now);
+	auto digits = now;
 	digits.replace(QRegularExpression(qsl("[^\\d]")), QString());
 	_pattern = phoneNumberParse(digits);
 
@@ -4075,16 +4067,10 @@ void PhoneInput::correctValue(const QString &was, int32 wasCursor, QString &now,
 	while (newlen > 0 && newText.at(newlen - 1).isSpace()) {
 		--newlen;
 	}
-	if (newlen < newText.size()) newText = newText.mid(0, newlen);
-	if (newPos < 0) {
-		newPos = newText.length();
+	if (newlen < newText.size()) {
+		newText = newText.mid(0, newlen);
 	}
-	if (newText != now) {
-		now = newText;
-		setText(newText);
-		updatePlaceholder();
-		setCursorPosition(newPos);
-	}
+	setCorrectedText(now, nowCursor, newText, newPos);
 }
 
 } // namespace Ui

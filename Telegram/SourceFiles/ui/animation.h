@@ -269,6 +269,14 @@ FORCE_INLINE Shifted shifted(QColor color) {
 	return reshifted(components * alpha);
 }
 
+FORCE_INLINE uint32 getPremultiplied(QColor color) {
+	// Make it premultiplied.
+	auto alpha = static_cast<uint32>((color.alpha() & 0xFF) + 1);
+	auto components = Shifted(static_cast<uint32>(color.blue() & 0xFF) | (static_cast<uint32>(color.green() & 0xFF) << 16),
+		static_cast<uint32>(color.red() & 0xFF) | (static_cast<uint32>(255) << 16));
+	return unshifted(components * alpha);
+}
+
 FORCE_INLINE uint32 getAlpha(Shifted components) {
 	return (components.high & 0x00FF0000U) >> 16;
 }
@@ -342,6 +350,16 @@ FORCE_INLINE Shifted shifted(QColor color) {
 		| (static_cast<uint64>(color.red() & 0xFF) << 32)
 		| (static_cast<uint64>(255) << 48);
 	return reshifted(components * alpha);
+}
+
+FORCE_INLINE uint32 getPremultiplied(QColor color) {
+	// Make it premultiplied.
+	auto alpha = static_cast<uint64>((color.alpha() & 0xFF) + 1);
+	auto components = static_cast<uint64>(color.blue() & 0xFF)
+		| (static_cast<uint64>(color.green() & 0xFF) << 16)
+		| (static_cast<uint64>(color.red() & 0xFF) << 32)
+		| (static_cast<uint64>(255) << 48);
+	return unshifted(components * alpha);
 }
 
 FORCE_INLINE uint32 getAlpha(Shifted components) {

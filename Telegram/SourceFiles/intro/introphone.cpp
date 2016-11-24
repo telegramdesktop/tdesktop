@@ -27,20 +27,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/effects/widget_fade_wrap.h"
+#include "core/click_handler_types.h"
 
-IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
-, a_errorAlpha(0)
-, _a_error(animation(this, &IntroPhone::step_error))
-, _next(this, lang(lng_intro_next), st::introNextButton)
+namespace Intro {
+
+PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _country(this, st::introCountry)
-, _phone(this, st::introPhone)
 , _code(this, st::introCountryCode)
-, _signup(this, lng_phone_notreg(lt_signup_start, textcmdStartLink(1), lt_signup_end, textcmdStopLink()), Ui::FlatLabel::InitType::Rich, st::introErrorLabel, st::introErrorLabelTextStyle)
+, _phone(this, st::introPhone)
 , _checkRequest(this) {
-	setVisible(false);
-	setGeometry(parent->innerRect());
-
-	connect(_next, SIGNAL(clicked()), this, SLOT(onSubmitPhone()));
 	connect(_phone, SIGNAL(voidBackspace(QKeyEvent*)), _code, SLOT(startErasing(QKeyEvent*)));
 	connect(_country, SIGNAL(codeChanged(const QString &)), _code, SLOT(codeSelected(const QString &)));
 	connect(_code, SIGNAL(codeChanged(const QString &)), _country, SLOT(onChooseCode(const QString &)));
@@ -49,146 +45,112 @@ IntroPhone::IntroPhone(IntroWidget *parent) : IntroStep(parent)
 	connect(_code, SIGNAL(addedToNumber(const QString &)), _phone, SLOT(addedToNumber(const QString &)));
 	connect(_phone, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
-	connect(intro(), SIGNAL(countryChanged()), this, SLOT(countryChanged()));
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_signup->setLink(1, MakeShared<LambdaClickHandler>([this] {
-		toSignUp();
-	}));
-	_signup->hide();
+	setTitleText(lang(lng_phone_title));
+	setDescriptionText(lang(lng_phone_desc));
+	subscribe(getData()->updated, [this] { countryChanged(); });
+	setErrorCentered(true);
 
-	_signupCache = myGrab(_signup);
-
-	if (!_country->onChooseCountry(intro()->currentCountry())) {
+	if (!_country->onChooseCountry(getData()->country)) {
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
 }
 
-void IntroPhone::paintEvent(QPaintEvent *e) {
-	bool trivial = (rect() == e->rect());
+void PhoneWidget::resizeEvent(QResizeEvent *e) {
+	Step::resizeEvent(e);
+	_country->moveToLeft(contentLeft(), contentTop() + st::introStepFieldTop);
+	auto phoneTop = _country->y() + _country->height() + st::introPhoneTop;
+	_code->moveToLeft(contentLeft(), phoneTop);
+	_phone->moveToLeft(contentLeft() + _country->width() - st::introPhone.width, phoneTop);
+	updateSignupGeometry();
+}
 
-	QPainter p(this);
-	if (!trivial) {
-		p.setClipRect(e->rect());
-	}
-	if (trivial || e->rect().intersects(_textRect)) {
-		p.setFont(st::introHeaderFont->f);
-		p.drawText(_textRect, lang(lng_phone_title), style::al_top);
-		p.setFont(st::introFont->f);
-		p.drawText(_textRect, lang(lng_phone_desc), style::al_bottom);
-	}
-	if (_a_error.animating() || _error.length()) {
-		int32 errorY = _showSignup ? ((_phone->y() + _phone->height() + _next->y() - st::introErrorFont->height) / 2) : (_next->y() + _next->height() + st::introErrorTop);
-		p.setOpacity(a_errorAlpha.current());
-		p.setFont(st::introErrorFont);
-		p.setPen(st::introErrorFg);
-		p.drawText(QRect(_textRect.x(), errorY, _textRect.width(), st::introErrorFont->height), _error, style::al_top);
-
-		if (_signup->isHidden() && _showSignup) {
-			p.drawPixmap(_signup->x(), _signup->y(), _signupCache);
-		}
+void PhoneWidget::updateSignupGeometry() {
+	if (_signup) {
+		_signup->moveToLeft(contentLeft() + st::buttonRadius, contentTop() + st::introDescriptionTop);
 	}
 }
 
-void IntroPhone::resizeEvent(QResizeEvent *e) {
-	if (e->oldSize().width() != width()) {
-		_next->move((width() - _next->width()) / 2, st::introBtnTop);
-		_country->move((width() - _country->width()) / 2, st::introTextTop + st::introTextSize.height() + st::introCountry.top);
-		int phoneTop = _country->y() + _country->height() + st::introPhoneTop;
-		_phone->move((width() - _country->width()) / 2 + _country->width() - st::introPhone.width, phoneTop);
-		_code->move((width() - _country->width()) / 2, phoneTop);
-	}
-	_signup->move((width() - _signup->width()) / 2, _next->y() + _next->height() + st::introErrorTop - ((st::introErrorLabelTextStyle.lineHeight - st::introErrorFont->height) / 2));
-	_textRect = QRect((width() - st::introTextSize.width()) / 2, st::introTextTop, st::introTextSize.width(), st::introTextSize.height());
+void PhoneWidget::showPhoneError(const QString &text) {
+	_phone->showError();
+	showError(text);
 }
 
-void IntroPhone::showError(const QString &error, bool signUp) {
-	if (!error.isEmpty()) {
-		_phone->notaBene();
-		_showSignup = signUp;
+void PhoneWidget::hidePhoneError() {
+	hideError();
+	if (_signup) {
+		_signup->fadeOut();
+		showDescription();
 	}
-
-	if (!_a_error.animating() && error == _error) return;
-
-	if (error.length()) {
-		_error = error;
-		a_errorAlpha.start(1);
-	} else {
-		a_errorAlpha.start(0);
-	}
-	_signup->hide();
-	_a_error.start();
 }
 
-void IntroPhone::step_error(float64 ms, bool timer) {
-	float64 dt = ms / st::introErrorDuration;
-
-	if (dt >= 1) {
-		_a_error.stop();
-		a_errorAlpha.finish();
-		if (!a_errorAlpha.current()) {
-			_error.clear();
-			_signup->hide();
-		} else if (!_error.isEmpty() && _showSignup) {
-			_signup->show();
-		}
-	} else {
-		a_errorAlpha.update(dt, anim::linear);
+void PhoneWidget::showSignup() {
+	showPhoneError(lang(lng_bad_phone_noreg));
+	if (!_signup) {
+		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
+		auto inner = new Ui::FlatLabel(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription, st::introDescriptionTextStyle);
+		_signup.create(this, inner, base::lambda<void()>(), st::introErrorDuration);
+		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
+		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
+			toSignUp();
+		}));
+		_signup->hideFast();
+		updateSignupGeometry();
 	}
-	if (timer) update();
+	_signup->fadeIn();
+	hideDescription();
 }
 
-void IntroPhone::countryChanged() {
+void PhoneWidget::countryChanged() {
 	if (!_changed) {
-		selectCountry(intro()->currentCountry());
+		selectCountry(getData()->country);
 	}
 }
 
-void IntroPhone::onInputChange() {
+void PhoneWidget::onInputChange() {
 	_changed = true;
-	showError(QString());
+	hidePhoneError();
 }
 
-void IntroPhone::disableAll() {
-	_next->setDisabled(true);
+void PhoneWidget::disableAll() {
 	_phone->setDisabled(true);
 	_country->setDisabled(true);
 	_code->setDisabled(true);
 	setFocus();
 }
 
-void IntroPhone::enableAll(bool failed) {
-	_next->setDisabled(false);
+void PhoneWidget::enableAll(bool failed) {
 	_phone->setDisabled(false);
 	_country->setDisabled(false);
 	_code->setDisabled(false);
 	if (failed) _phone->setFocus();
 }
 
-void IntroPhone::onSubmitPhone() {
+void PhoneWidget::submit() {
 	if (_sentRequest || isHidden()) return;
 
 	if (!App::isValidPhone(fullNumber())) {
-		showError(lang(lng_bad_phone));
+		showPhoneError(lang(lng_bad_phone));
 		_phone->setFocus();
 		return;
 	}
 
 	disableAll();
-	showError(QString());
+	hidePhoneError();
 
 	_checkRequest->start(1000);
 
 	_sentPhone = fullNumber();
-	_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&IntroPhone::phoneCheckDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	_sentRequest = MTP::send(MTPauth_CheckPhone(MTP_string(_sentPhone)), rpcDone(&PhoneWidget::phoneCheckDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
-void IntroPhone::stopCheck() {
+void PhoneWidget::stopCheck() {
 	_checkRequest->stop();
 }
 
-void IntroPhone::onCheckRequest() {
+void PhoneWidget::onCheckRequest() {
 	int32 status = MTP::state(_sentRequest);
 	if (status < 0) {
 		int32 leftms = -status;
@@ -202,66 +164,65 @@ void IntroPhone::onCheckRequest() {
 	}
 }
 
-void IntroPhone::phoneCheckDone(const MTPauth_CheckedPhone &result) {
+void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 	stopCheck();
 
-	const auto &d(result.c_auth_checkedPhone());
+	auto &d = result.c_auth_checkedPhone();
 	if (mtpIsTrue(d.vphone_registered)) {
 		disableAll();
-		showError(QString());
+		hidePhoneError();
 
 		_checkRequest->start(1000);
 
 		MTPauth_SendCode::Flags flags = 0;
-		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	} else {
-		showError(lang(lng_bad_phone_noreg), true);
+		showSignup();
 		enableAll(true);
 		_sentRequest = 0;
 	}
 }
 
-void IntroPhone::phoneSubmitDone(const MTPauth_SentCode &result) {
+void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
 	_sentRequest = 0;
 	enableAll(true);
 
 	if (result.type() != mtpc_auth_sentCode) {
-		showError(lang(lng_server_error));
+		showPhoneError(lang(lng_server_error));
 		return;
 	}
 
-	const auto &d(result.c_auth_sentCode());
-	switch (d.vtype.type()) {
-	case mtpc_auth_sentCodeTypeApp: intro()->setCodeByTelegram(true); break;
-	case mtpc_auth_sentCodeTypeSms:
-	case mtpc_auth_sentCodeTypeCall: intro()->setCodeByTelegram(false); break;
-	case mtpc_auth_sentCodeTypeFlashCall: LOG(("Error: should not be flashcall!")); break;
-	}
-	intro()->setPhone(_sentPhone, d.vphone_code_hash.c_string().v.c_str(), d.is_phone_registered());
+	auto &d = result.c_auth_sentCode();
+	fillSentCodeData(d.vtype);
+	getData()->phone = _sentPhone;
+	getData()->phoneHash = d.vphone_code_hash.c_string().v.c_str();
+	getData()->phoneIsRegistered = d.is_phone_registered();
 	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
-		intro()->setCallStatus({ IntroWidget::CallWaiting, d.has_timeout() ? d.vtimeout.v : 60 });
+		getData()->callStatus = Widget::Data::CallStatus::Waiting;
+		getData()->callTimeout = d.has_timeout() ? d.vtimeout.v : 60;
 	} else {
-		intro()->setCallStatus({ IntroWidget::CallDisabled, 0 });
+		getData()->callStatus = Widget::Data::CallStatus::Disabled;
+		getData()->callTimeout = 0;
 	}
-	intro()->nextStep(new IntroCode(intro()));
+	goNext(new Intro::CodeWidget(parentWidget(), getData()));
 }
 
-void IntroPhone::toSignUp() {
+void PhoneWidget::toSignUp() {
 	disableAll();
-	showError(QString());
+	hideError(); // Hide error, but leave the signup label visible.
 
 	_checkRequest->start(1000);
 
 	MTPauth_SendCode::Flags flags = 0;
-	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&IntroPhone::phoneSubmitDone), rpcFail(&IntroPhone::phoneSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
-bool IntroPhone::phoneSubmitFail(const RPCError &error) {
+bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
-		showError(lang(lng_flood_error));
+		showPhoneError(lang(lng_flood_error));
 		enableAll(true);
 		return true;
 	}
@@ -271,48 +232,50 @@ bool IntroPhone::phoneSubmitFail(const RPCError &error) {
 	_sentRequest = 0;
 	const QString &err = error.type();
 	if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
-		showError(lang(lng_bad_phone));
+		showPhoneError(lang(lng_bad_phone));
 		enableAll(true);
 		return true;
 	}
 	if (cDebug()) { // internal server error
-		showError(err + ": " + error.description());
+		showPhoneError(err + ": " + error.description());
 	} else {
-		showError(lang(lng_server_error));
+		showPhoneError(lang(lng_server_error));
 	}
 	enableAll(true);
 	return false;
 }
 
-QString IntroPhone::fullNumber() const {
-	return _code->text() + _phone->text();
+QString PhoneWidget::fullNumber() const {
+	return _code->getLastText() + _phone->getLastText();
 }
 
-void IntroPhone::selectCountry(const QString &c) {
+void PhoneWidget::selectCountry(const QString &c) {
 	_country->onChooseCountry(c);
 }
 
-void IntroPhone::activate() {
-	IntroStep::activate();
+void PhoneWidget::setInnerFocus() {
 	_phone->setFocus();
 }
 
-void IntroPhone::finished() {
-	IntroStep::finished();
+void PhoneWidget::activate() {
+	Step::activate();
+	_country->show();
+	_phone->show();
+	_code->show();
+	setInnerFocus();
+}
+
+void PhoneWidget::finished() {
+	Step::finished();
 	_checkRequest->stop();
 	rpcClear();
 
-	_error.clear();
-	a_errorAlpha = anim::fvalue(0);
+	cancelled();
 	enableAll(true);
 }
 
-void IntroPhone::cancelled() {
-	if (_sentRequest) {
-		MTP::cancel(base::take(_sentRequest));
-	}
+void PhoneWidget::cancelled() {
+	MTP::cancel(base::take(_sentRequest));
 }
 
-void IntroPhone::onSubmit() {
-	onSubmitPhone();
-}
+} // namespace Intro

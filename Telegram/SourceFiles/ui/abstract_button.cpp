@@ -73,8 +73,9 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 			_modifiers = e->modifiers();
 			if (_clickedCallback) {
 				_clickedCallback();
+			} else {
+				emit clicked();
 			}
-			emit clicked();
 		} else {
 			leaveEvent(e);
 		}

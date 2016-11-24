@@ -207,6 +207,7 @@ protected:
 
 void myEnsureResized(QWidget *target);
 QPixmap myGrab(TWidget *target, QRect rect = QRect());
+QImage myGrabImage(TWidget *target, QRect rect = QRect());
 
 class SingleDelayedCall : public QObject {
 	Q_OBJECT
