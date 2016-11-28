@@ -126,6 +126,8 @@ public:
 			showError(QString());
 		}
 
+		~Step();
+
 	protected:
 		void paintEvent(QPaintEvent *e) override;
 		void resizeEvent(QResizeEvent *e) override;
@@ -159,6 +161,11 @@ public:
 
 	private:
 		struct CoverAnimation {
+			CoverAnimation() = default;
+			CoverAnimation(CoverAnimation &&other) = default;
+			CoverAnimation &operator=(CoverAnimation &&other) = default;
+			~CoverAnimation();
+
 			std_::unique_ptr<Ui::CrossFadeAnimation> title;
 			std_::unique_ptr<Ui::CrossFadeAnimation> description;
 

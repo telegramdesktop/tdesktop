@@ -76,6 +76,7 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, cons
 
 	QPen pen(color->p), was(p.pen());
 	pen.setWidth(thickness);
+	pen.setCapStyle(Qt::RoundCap);
 	p.setPen(pen);
 
 	int32 len = MinArcLength + a_arcEnd.current();

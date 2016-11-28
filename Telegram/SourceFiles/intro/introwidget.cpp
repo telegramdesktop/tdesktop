@@ -768,4 +768,8 @@ void Widget::Step::finished() {
 	hide();
 }
 
+Widget::Step::CoverAnimation::~CoverAnimation() = default;
+
+Widget::Step::~Step() = default;
+
 } // namespace Intro

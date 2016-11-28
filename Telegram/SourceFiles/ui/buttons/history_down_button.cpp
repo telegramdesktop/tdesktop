@@ -140,7 +140,10 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	icon->paint(p, _st.iconPosition, width());
 
 	p.setOpacity(1.);
-	p.setPen(QPen(over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg, st::historyEmojiCircleLine));
+	auto pen = (over ? st::historyEmojiCircleFgOver : st::historyEmojiCircleFg)->p;
+	pen.setWidth(st::historyEmojiCircleLine);
+	pen.setCapStyle(Qt::RoundCap);
+	p.setPen(pen);
 	p.setBrush(Qt::NoBrush);
 
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
