@@ -36,7 +36,7 @@ BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
 
 	connect(_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
 
-	prepare();
+	raiseShadow();
 }
 
 void BackgroundBox::onBackgroundChosen(int index) {

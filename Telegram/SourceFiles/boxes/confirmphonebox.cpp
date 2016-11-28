@@ -124,7 +124,7 @@ void ConfirmPhoneBox::launch() {
 	connect(&_callTimer, SIGNAL(timeout()), this, SLOT(onCallStatusTimer()));
 
 	showChildren();
-	prepare();
+	raiseShadow();
 
 	Ui::showLayer(this);
 }

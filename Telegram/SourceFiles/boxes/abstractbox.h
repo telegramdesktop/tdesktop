@@ -39,7 +39,6 @@ public:
 	void setTitleText(const QString &title);
 	void setAdditionalTitle(const QString &additionalTitle);
 	void setBlockTitle(bool block, bool withClose = true, bool withShadow = true);
-	void raiseShadow();
 
 public slots:
 	void onClose();
@@ -49,7 +48,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void prepare();
+	void raiseShadow();
 	int titleHeight() const;
 	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
 	void setMaxHeight(int32 maxHeight);

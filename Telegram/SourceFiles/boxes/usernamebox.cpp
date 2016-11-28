@@ -57,7 +57,7 @@ _about(st::boxWidth - st::usernamePadding.left()) {
 
 	updateLinkText();
 
-	prepare();
+	raiseShadow();
 }
 
 void UsernameBox::doSetInnerFocus() {

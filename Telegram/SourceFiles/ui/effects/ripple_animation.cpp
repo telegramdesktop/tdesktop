@@ -72,7 +72,7 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, QPoint origin,
 	}
 	_radiusTo = qRound(sqrt(_radiusTo));
 
-	_show.start(UpdateCallback(_update), 0., 1., _st.showDuration);
+	_show.start(UpdateCallback(_update), 0., 1., _st.showDuration, anim::easeOutCirc);
 }
 
 RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update)

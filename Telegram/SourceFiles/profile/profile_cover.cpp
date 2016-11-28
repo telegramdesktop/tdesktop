@@ -37,6 +37,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
+#include "platform/platform_file_dialog.h"
 
 namespace Profile {
 namespace {
@@ -251,13 +252,12 @@ bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
 	auto &url = urls.at(0);
 	if (!url.isLocalFile()) return false;
 
-	auto file = psConvertFileUrl(url);
+	auto file = Platform::FileDialog::UrlToLocal(url);
 
 	QFileInfo info(file);
 	if (info.isDir()) return false;
 
-	quint64 s = info.size();
-	if (s >= MaxUploadDocumentSize) return false;
+	if (info.size() > App::kImageSizeLimit) return false;
 
 	for (auto &ext : cImgExtensions()) {
 		if (file.endsWith(ext, Qt::CaseInsensitive)) {
@@ -305,7 +305,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
-				img = App::readImage(psConvertFileUrl(url));
+				img = App::readImage(Platform::FileDialog::UrlToLocal(url));
 			}
 		}
 	}
@@ -483,7 +483,7 @@ void CoverWidget::onSetPhoto() {
 	QStringList imgExtensions(cImgExtensions());
 	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
-	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
 }
 
 void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {

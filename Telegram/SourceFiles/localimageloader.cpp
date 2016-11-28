@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 #include "media/media_audio.h"
 
-#include "boxes/photosendbox.h"
+#include "boxes/send_files_box.h"
 #include "media/media_clip_reader.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -172,39 +172,34 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-FileLoadTask::FileLoadTask(const QString &filepath, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(const QString &filepath, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
 , _to(to)
 , _filepath(filepath)
 , _type(type)
-, _confirm(confirm) {
+, _caption(caption) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &content, PrepareMediaType type, const FileLoadTo &to) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(const QByteArray &content, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
 , _to(to)
 , _content(content)
-, _type(type) {
-}
-
-FileLoadTask::FileLoadTask(const QImage &image, PrepareMediaType type, const FileLoadTo &to, FileLoadForceConfirmType confirm, const QString &originalText) : _id(rand_value<uint64>())
-, _to(to)
 , _image(image)
 , _type(type)
-, _confirm(confirm)
-, _originalText(originalText) {
+, _caption(caption) {
 }
 
-FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
 , _to(to)
 , _content(voice)
 , _duration(duration)
 , _waveform(waveform)
-, _type(PrepareAudio) {
+, _type(SendMediaType::Audio)
+, _caption(caption) {
 }
 
 void FileLoadTask::process() {
 	const QString stickerMime = qsl("image/webp");
 
-	_result = FileLoadResultPtr(new FileLoadResult(_id, _to, _originalText));
+	_result = MakeShared<FileLoadResult>(_id, _to, _caption);
 
 	QString filename, filemime;
 	qint64 filesize = 0;
@@ -214,8 +209,11 @@ void FileLoadTask::process() {
 	QString thumbname = "thumb.jpg";
 	QByteArray thumbdata;
 
-	bool animated = false, song = false, gif = false, voice = (_type == PrepareAudio);
-	QImage fullimage = _image;
+	auto animated = false;
+	auto song = false;
+	auto gif = false;
+	auto voice = (_type == SendMediaType::Audio);
+	auto fullimage = base::take(_image);
 
 	if (!_filepath.isEmpty()) {
 		QFileInfo info(_filepath);
@@ -226,24 +224,23 @@ void FileLoadTask::process() {
 		filesize = info.size();
 		filemime = mimeTypeForFile(info).name();
 		filename = info.fileName();
-		if (filesize <= MaxUploadPhotoSize && !voice) {
-			bool opaque = (filemime != stickerMime);
-			fullimage = App::readImage(_filepath, 0, opaque, &animated);
-		}
+		auto opaque = (filemime != stickerMime);
+		fullimage = App::readImage(_filepath, 0, opaque, &animated);
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
 		if (voice) {
 			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
 			filemime = "audio/ogg";
 		} else {
-			MimeType mimeType = mimeTypeForData(_content);
+			auto mimeType = mimeTypeForData(_content);
 			filemime = mimeType.name();
-			if (filesize <= MaxUploadPhotoSize && !voice) {
-				bool opaque = (filemime != stickerMime);
-				fullimage = App::readImage(_content, 0, opaque, &animated);
+			if (filemime != stickerMime) {
+				fullimage = Images::prepareOpaque(std_::move(fullimage));
 			}
 			if (filemime == "image/jpeg") {
-				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+				filename = filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), true);
+			} else if (filemime == "image/png") {
+				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
 			} else {
 				QString ext;
 				QStringList patterns = mimeType.globPatterns();
@@ -253,9 +250,7 @@ void FileLoadTask::process() {
 				filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
 			}
 		}
-	} else if (!_image.isNull()) {
-		_image = QImage();
-
+	} else if (!fullimage.isNull()) {
 		filemime = mimeTypeForName("image/png").name();
 		filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
 		{
@@ -264,18 +259,11 @@ void FileLoadTask::process() {
 		}
 		filesize = _content.size();
 
-		if (fullimage.hasAlphaChannel()) {
-			QImage solid(fullimage.width(), fullimage.height(), QImage::Format_ARGB32_Premultiplied);
-			solid.fill(st::imageBgTransparent->c);
-			{
-				QPainter(&solid).drawImage(0, 0, fullimage);
-			}
-			fullimage = solid;
-		}
+		fullimage = Images::prepareOpaque(std_::move(fullimage));
 	}
 	_result->filesize = (int32)qMin(filesize, qint64(INT_MAX));
 
-	if (!filesize || filesize > MaxUploadDocumentSize) {
+	if (!filesize || filesize > App::kFileSizeLimit) {
 		return;
 	}
 
@@ -359,7 +347,7 @@ void FileLoadTask::process() {
 		if (w < 20 * h && h < 20 * w) {
 			if (animated) {
 				attributes.push_back(MTP_documentAttributeAnimated());
-			} else if (_type != PrepareDocument) {
+			} else if (_type != SendMediaType::File) {
 				auto thumb = (w > 100 || h > 100) ? App::pixmapFromImageInPlace(fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
 				photoThumbs.insert('s', thumb);
 				photoSizes.push_back(MTP_photoSize(MTP_string("s"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
@@ -411,7 +399,7 @@ void FileLoadTask::process() {
 	} else {
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
 		if (photo.type() == mtpc_photoEmpty) {
-			_type = PrepareDocument;
+			_type = SendMediaType::File;
 		}
 	}
 
@@ -435,29 +423,12 @@ void FileLoadTask::process() {
 
 void FileLoadTask::finish() {
 	if (!_result || !_result->filesize) {
-		if (_result) App::main()->onSendFileCancel(_result);
-		Ui::showLayer(new InformBox(lang(lng_send_image_empty)), KeepOtherLayers);
-		return;
-	}
-	if (_result->filesize == -1) { // dir
-		App::main()->onSendFileCancel(_result);
+		Ui::showLayer(new InformBox(lng_send_image_empty(lt_name, _filepath)), KeepOtherLayers);
+	} else if (_result->filesize == -1) { // dir
 		Ui::showLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())), KeepOtherLayers);
-		return;
-	}
-	if (_result->filesize > MaxUploadDocumentSize) {
-		App::main()->onSendFileCancel(_result);
-		Ui::showLayer(new InformBox(lang(lng_send_image_too_large)), KeepOtherLayers);
-		return;
-	}
-	if (App::main()) {
-		bool confirm = (_confirm == FileLoadAlwaysConfirm) || (_result->photo.type() != mtpc_photoEmpty && _confirm != FileLoadNeverConfirm);
-		if (confirm) {
-			Ui::showLayer(new PhotoSendBox(_result), ShowAfterOtherLayers);
-		} else {
-			if (_result->type == PrepareAuto) {
-				_result->type = (_result->photo.type() != mtpc_photoEmpty) ? PreparePhoto : PrepareDocument;
-			}
-			App::main()->onSendFileConfirm(_result, false);
-		}
+	} else if (_result->filesize > App::kFileSizeLimit) {
+		Ui::showLayer(new InformBox(lng_send_image_too_large(lt_name, _filepath)), KeepOtherLayers);
+	} else if (App::main()) {
+		App::main()->onSendFileConfirm(_result);
 	}
 }

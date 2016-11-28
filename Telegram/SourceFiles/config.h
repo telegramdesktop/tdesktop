@@ -120,7 +120,6 @@ enum {
 
 	AnimationInMemory = 10 * 1024 * 1024, // 10 Mb gif and mp4 animations held in memory while playing
 
-	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
 
@@ -351,8 +350,6 @@ enum {
 
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
-	MaxUploadPhotoSize = 256 * 1024 * 1024, // 256mb photos max
-    MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
 	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time

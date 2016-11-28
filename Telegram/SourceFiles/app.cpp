@@ -2533,20 +2533,15 @@ namespace {
 				exif_data_free(exifData);
 			}
 #endif // OS_MAC_OLD
-		} else if (opaque && result.hasAlphaChannel()) {
-			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
-			solid.fill(st::imageBgTransparent->c);
-			{
-				QPainter(&solid).drawImage(0, 0, result);
-			}
-			result = solid;
+		} else if (opaque) {
+			result = Images::prepareOpaque(std_::move(result));
 		}
 		return result;
 	}
 
 	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
 		QFile f(file);
-		if (f.size() > MediaViewImageSizeLimit || !f.open(QIODevice::ReadOnly)) {
+		if (f.size() > kImageSizeLimit || !f.open(QIODevice::ReadOnly)) {
 			if (animated) *animated = false;
 			return QImage();
 		}
@@ -2557,7 +2552,7 @@ namespace {
 	}
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
-		return QPixmap::fromImage(std_::forward<QImage>(image), Qt::ColorOnly);
+		return QPixmap::fromImage(std_::move(image), Qt::ColorOnly);
 	}
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item) {

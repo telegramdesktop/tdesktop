@@ -158,14 +158,9 @@ template <typename T>
 struct add_const {
 	using type = const T;
 };
+
 template <typename T>
 using add_const_t = typename add_const<T>::type;
-template <typename T>
-constexpr add_const_t<T> &as_const(T& t) noexcept {
-	return t;
-}
-template <typename T>
-void as_const(const T&&) = delete;
 
 // This is not full unique_ptr, but at least with std interface.
 template <typename T>

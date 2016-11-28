@@ -38,10 +38,6 @@ enum class ImageRoundCorner {
 Q_DECLARE_FLAGS(ImageRoundCorners, ImageRoundCorner);
 Q_DECLARE_OPERATORS_FOR_FLAGS(ImageRoundCorners);
 
-QImage imageBlur(QImage image);
-void imageRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All);
-void imageCircle(QImage &image);
-
 inline uint32 packInt(int32 a) {
 	return (a < 0) ? uint32(int64(a) + 0x100000000LL) : uint32(a);
 }
@@ -124,29 +120,43 @@ inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation
 	return !(a == b);
 }
 
-enum class ImagePixOption {
-	None               = 0x000,
-	Smooth             = 0x001,
-	Blurred            = 0x002,
-	Circled            = 0x004,
-	RoundedLarge       = 0x008,
-	RoundedSmall       = 0x010,
-	RoundedTopLeft     = 0x020,
-	RoundedTopRight    = 0x040,
-	RoundedBottomLeft  = 0x080,
+namespace Images {
+
+QImage prepareBlur(QImage image);
+void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All);
+void prepareCircle(QImage &image);
+QImage prepareColored(const style::color &add, QImage image);
+QImage prepareOpaque(QImage image);
+
+enum class Option {
+	None = 0x000,
+	Smooth = 0x001,
+	Blurred = 0x002,
+	Circled = 0x004,
+	RoundedLarge = 0x008,
+	RoundedSmall = 0x010,
+	RoundedTopLeft = 0x020,
+	RoundedTopRight = 0x040,
+	RoundedBottomLeft = 0x080,
 	RoundedBottomRight = 0x100,
-	Colored            = 0x200,
+	Colored = 0x200,
 };
-Q_DECLARE_FLAGS(ImagePixOptions, ImagePixOption);
-Q_DECLARE_OPERATORS_FOR_FLAGS(ImagePixOptions);
-QPixmap imagePix(QImage img, int w, int h, ImagePixOptions options, int outerw, int outerh);
+Q_DECLARE_FLAGS(Options, Option);
+Q_DECLARE_OPERATORS_FOR_FLAGS(Options);
+
+QImage prepare(QImage img, int w, int h, Options options, int outerw, int outerh);
+
+inline QPixmap pixmap(QImage img, int w, int h, Options options, int outerw, int outerh) {
+	return QPixmap::fromImage(prepare(img, w, h, options, outerw, outerh), Qt::ColorOnly);
+}
+
+} // namespace Images
 
 class DelayedStorageImage;
 
 class HistoryItem;
 class Image {
 public:
-
 	Image(const QString &file, QByteArray format = QByteArray());
 	Image(const QByteArray &filecontent, QByteArray format = QByteArray());
 	Image(const QPixmap &pixmap, QByteArray format = QByteArray());
@@ -183,7 +193,7 @@ public:
 	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
 	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
-	QPixmap pixNoCache(int w = 0, int h = 0, ImagePixOptions options = 0, int outerw = -1, int outerh = -1) const;
+	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1) const;
 	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
 	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
 

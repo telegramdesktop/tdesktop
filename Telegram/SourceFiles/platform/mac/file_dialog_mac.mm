@@ -18,22 +18,27 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
-#pragma once
+#include "stdafx.h"
+#include "platform/mac/file_dialog_mac.h"
 
-#include "window/window_title.h"
+#include "platform/mac/mac_utilities.h"
 
-#ifdef Q_OS_MAC
-#include "platform/mac/window_title_mac.h"
-#elif defined Q_OS_WIN // Q_OS_MAC
-#include "platform/win/window_title_win.h"
-#elif defined Q_OS_WINRT || defined Q_OS_LINUX // Q_OS_MAC || Q_OS_WIN
+#include <Cocoa/Cocoa.h>
+#include <CoreFoundation/CFURL.h>
 
 namespace Platform {
+namespace FileDialog {
 
-inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
-	return nullptr;
+QString UrlToLocal(const QUrl &url) {
+	auto result = url.toLocalFile();
+	if (result.startsWith(qsl("/.file/id="))) {
+		NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + result).toUtf8().constData()]] filePathURL] path];
+		if (!nsurl) return QString();
+
+		return NS2QString(nsurl);
+	}
+	return result;
 }
 
+} // namespace FileDialog
 } // namespace Platform
-
-#endif // Q_OS_MAC || Q_OS_WIN || Q_OS_WINRT || Q_OS_LINUX

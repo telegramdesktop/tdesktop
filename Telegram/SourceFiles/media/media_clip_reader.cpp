@@ -76,7 +76,7 @@ QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool 
 			}
 		}
 		if (request.radius != ImageRoundRadius::None) {
-			imageRound(cache, request.radius, request.corners);
+			Images::prepareRound(cache, request.radius, request.corners);
 		}
 		return QPixmap::fromImage(cache, Qt::ColorOnly);
 	}

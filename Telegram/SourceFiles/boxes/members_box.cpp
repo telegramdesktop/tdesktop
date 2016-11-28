@@ -75,7 +75,7 @@ MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox
 
 	connect(&_loadTimer, SIGNAL(timeout()), _inner, SLOT(load()));
 
-	prepare();
+	raiseShadow();
 }
 
 void MembersBox::keyPressEvent(QKeyEvent *e) {

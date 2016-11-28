@@ -120,7 +120,7 @@ public:
 		if (!_data) {
 			_data = MakeShared<ObservableData<EventType, Handler>>(this);
 		}
-		return _data->append(std_::forward<Handler>(handler));
+		return _data->append(std_::move(handler));
 	}
 
 private:
@@ -169,7 +169,7 @@ public:
 	}
 
 	Subscription append(Handler &&handler) {
-		auto node = new Node(_observable->_data, std_::forward<Handler>(handler));
+		auto node = new Node(_observable->_data, std_::move(handler));
 		if (_begin) {
 			_end->next = node;
 			node->prev = _end;

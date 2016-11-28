@@ -1033,7 +1033,7 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 				psOpenFile(filepath);
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
-		} else if (data->size < MediaViewImageSizeLimit) {
+		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
 				if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
 					context->getMedia()->playInline(context);
@@ -1284,7 +1284,7 @@ void DocumentData::performActionOnLoad() {
 	auto loc = location(true);
 	auto already = loc.name();
 	auto item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
-	bool showImage = !isVideo() && (size < MediaViewImageSizeLimit);
+	bool showImage = !isVideo() && (size < App::kImageSizeLimit);
 	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();

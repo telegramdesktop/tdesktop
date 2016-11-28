@@ -99,7 +99,7 @@ QString ReplyMarkupClickHandler::buttonText() const {
 ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 	: _item(item)
 	, _a_selected(animation(this, &ReplyKeyboard::step_selected))
-	, _st(std_::forward<StylePtr>(s)) {
+	, _st(std_::move(s)) {
 	if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 		_rows.reserve(markup->rows.size());
 		for (int i = 0, l = markup->rows.size(); i != l; ++i) {

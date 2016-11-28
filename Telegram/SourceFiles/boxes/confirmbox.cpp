@@ -66,8 +66,6 @@ void ConfirmBox::init(const QString &text) {
 		connect(this, SIGNAL(confirmed()), this, SLOT(onCancel()));
 	}
 	onTextUpdated();
-
-	prepare();
 }
 
 void ConfirmBox::onConfirmPressed() {
@@ -217,8 +215,6 @@ MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
 	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
 
 	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	prepare();
 }
 
 void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
@@ -312,8 +308,6 @@ ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st:
 
 	connect(_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	prepare();
 }
 
 void ConvertToSupergroupBox::onConvert() {

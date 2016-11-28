@@ -102,7 +102,6 @@ struct TWindowPos {
 DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SupportTray);
 DeclareSetting(DBIWorkMode, WorkMode);
-DeclareSetting(DBIDefaultAttach, DefaultAttach);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);

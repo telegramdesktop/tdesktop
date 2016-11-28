@@ -212,10 +212,7 @@ public:
 	QRect historyRect() const;
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params);
 
-	void onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter);
-	void onSendFileCancel(const FileLoadResultPtr &file);
-	void onShareContactConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
-	void onShareContactCancel();
+	void onSendFileConfirm(const FileLoadResultPtr &file);
 	bool onSendSticker(DocumentData *sticker);
 
 	void destroyData();
@@ -243,7 +240,7 @@ public:
 	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
 	bool onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery);
 	void onShareContact(const PeerId &peer, UserData *contact);
-	void onSendPaths(const PeerId &peer);
+	bool onSendPaths(const PeerId &peer);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer(bool withConfirm = false);
 	bool selectingPeerForInlineSwitch();

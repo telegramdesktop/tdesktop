@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 #include "boxes/confirmbox.h"
-#include "boxes/photosendbox.h"
+#include "boxes/send_files_box.h"
 #include "boxes/sharebox.h"
 #include "ui/filedialog.h"
 #include "ui/toast/toast.h"
@@ -57,6 +57,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "core/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
+#include "platform/platform_file_dialog.h"
 
 namespace {
 
@@ -2392,28 +2393,8 @@ bool MessageField::canInsertFromMimeData(const QMimeData *source) const {
 }
 
 void MessageField::insertFromMimeData(const QMimeData *source) {
-	if (source->hasUrls()) {
-		int32 files = 0;
-		QUrl url;
-		for (int32 i = 0; i < source->urls().size(); ++i) {
-			if (source->urls().at(i).isLocalFile()) {
-				url = source->urls().at(i);
-				++files;
-			}
-		}
-		if (files == 1) {
-			history->uploadFile(url.toLocalFile(), PrepareAuto, FileLoadAlwaysConfirm);
-			return;
-		}
-		if (files > 1) return;
-		//if (files > 1) return uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
-	}
-	if (source->hasImage()) {
-		QImage img = qvariant_cast<QImage>(source->imageData());
-		if (!img.isNull()) {
-			history->uploadImage(img, PrepareAuto, FileLoadAlwaysConfirm, source->text());
-			return;
-		}
+	if (history->confirmSendingFiles(source, CompressConfirm::Auto, source->text())) {
+		return;
 	}
 	FlatTextarea::insertFromMimeData(source);
 }
@@ -2896,33 +2877,30 @@ bool HistoryHider::offerPeer(PeerId peer) {
 	if (_sharedContact) {
 		phrase = lng_forward_share_contact(lt_recipient, recipient);
 	} else if (_sendPath) {
-		if (cSendPaths().size() > 1) {
-			phrase = lng_forward_send_files_confirm(lt_recipient, recipient);
-		} else {
-			QString name(QFileInfo(cSendPaths().front()).fileName());
-			if (name.size() > 10) {
-				name = name.mid(0, 8) + '.' + '.';
-			}
-			phrase = lng_forward_send_file_confirm(lt_name, name, lt_recipient, recipient);
-		}
-	} else if (!_shareUrl.isEmpty()) {
-		PeerId to = _offered->id;
+		auto toId = _offered->id;
 		_offered = nullptr;
-		if (parent()->onShareUrl(to, _shareUrl, _shareText)) {
+		if (parent()->onSendPaths(toId)) {
+			startHide();
+		}
+		return false;
+	} else if (!_shareUrl.isEmpty()) {
+		auto toId = _offered->id;
+		_offered = nullptr;
+		if (parent()->onShareUrl(toId, _shareUrl, _shareText)) {
 			startHide();
 		}
 		return false;
 	} else if (!_botAndQuery.isEmpty()) {
-		PeerId to = _offered->id;
+		auto toId = _offered->id;
 		_offered = nullptr;
-		if (parent()->onInlineSwitchChosen(to, _botAndQuery)) {
+		if (parent()->onInlineSwitchChosen(toId, _botAndQuery)) {
 			startHide();
 		}
 		return false;
 	} else {
-		PeerId to = _offered->id;
+		auto toId = _offered->id;
 		_offered = nullptr;
-		if (parent()->onForward(to, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage)) {
+		if (parent()->onForward(toId, _forwardSelected ? ForwardSelectedMessages : ForwardContextMessage)) {
 			startHide();
 		}
 		return false;
@@ -3079,7 +3057,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _kbScroll(this, st::botKbScroll)
 , _keyboard(this)
-, _attachType(this, st::historyAttachDropdownMenu)
 , _emojiPan(this)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
@@ -3101,18 +3078,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_joinChannel, SIGNAL(clicked()), this, SLOT(onJoinChannel()));
 	connect(_muteUnmute, SIGNAL(clicked()), this, SLOT(onMuteUnmute()));
 	connect(_silent, SIGNAL(clicked()), this, SLOT(onBroadcastSilentChange()));
-	_attachToggle->setClickedCallback([this] {
-		if (cDefaultAttach() == dbidaPhoto) {
-			onPhotoSelect();
-		} else {
-			onDocumentSelect();
-		}
-	});
-	if (cDefaultAttach() == dbidaPhoto) {
-		_attachToggle->setIcon(&st::historyAttachPhotoIcon, &st::historyAttachPhotoIconOver);
-	} else {
-		_attachToggle->setIcon(&st::historyAttachFileIcon, &st::historyAttachFileIconOver);
-	}
 	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 	connect(_field, SIGNAL(cancelled()), this, SLOT(onCancel()));
 	connect(_field, SIGNAL(tabbed()), this, SLOT(onFieldTabbed()));
@@ -3135,6 +3100,11 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 		connect(audioCapture(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
 		connect(audioCapture(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
 	}
+
+	_attachToggle->setClickedCallback([this] { chooseAttach(); });
+	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
+		notifyFileQueryUpdated(update);
+	});
 
 	_updateHistoryItems.setSingleShot(true);
 	connect(&_updateHistoryItems, SIGNAL(timeout()), this, SLOT(onUpdateHistoryItems()));
@@ -3195,25 +3165,20 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_silent->hide();
 	_botCommandStart->hide();
 
-	_attachType->setOrigin(Ui::PanelAnimation::Origin::BottomLeft);
-	_attachToggle->installEventFilter(_attachType);
 	_attachEmoji->installEventFilter(_emojiPan);
 
 	connect(_botKeyboardShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botKeyboardHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botCommandStart, SIGNAL(clicked()), this, SLOT(onCmdStart()));
 
-	_attachType->addAction(lang(lng_attach_file), this, SLOT(onDocumentSelect()), &st::historyMediaTypeFile, &st::historyMediaTypeFileOver);
-	_attachType->addAction(lang(lng_attach_photo), this, SLOT(onPhotoSelect()), &st::historyMediaTypePhoto, &st::historyMediaTypePhotoOver);
-	_attachType->hide();
 	_emojiPan->hide();
 	_attachDragDocument->hide();
 	_attachDragPhoto->hide();
 
 	_topShadow->hide();
 
-	connect(_attachDragDocument, SIGNAL(dropped(const QMimeData*)), this, SLOT(onDocumentDrop(const QMimeData*)));
-	connect(_attachDragPhoto, SIGNAL(dropped(const QMimeData*)), this, SLOT(onPhotoDrop(const QMimeData*)));
+	_attachDragDocument->setDroppedCallback([this](const QMimeData *data) { confirmSendingFiles(data, CompressConfirm::No); });
+	_attachDragPhoto->setDroppedCallback([this](const QMimeData *data) { confirmSendingFiles(data, CompressConfirm::Yes); });
 
 	connect(&_updateEditTimeLeftDisplay, SIGNAL(timeout()), this, SLOT(updateField()));
 
@@ -3567,11 +3532,13 @@ void HistoryWidget::onRecordError() {
 }
 
 void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint32 samples) {
-	if (!_peer || result.isEmpty()) return;
+	if (!canWriteMessage() || result.isEmpty()) return;
 
 	App::wnd()->activateWindow();
-	int32 duration = samples / AudioVoiceMsgFrequency;
-	_fileLoader.addTask(new FileLoadTask(result, duration, waveform, FileLoadTo(_peer->id, _silent->checked(), replyToId())));
+	auto duration = samples / AudioVoiceMsgFrequency;
+	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
+	auto caption = QString();
+	_fileLoader.addTask(MakeShared<FileLoadTask>(result, duration, waveform, to, caption));
 	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }
 
@@ -4460,7 +4427,6 @@ void HistoryWidget::updateNotifySettings() {
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
 	return (_attachDragDocument->overlaps(globalRect) ||
 			_attachDragPhoto->overlaps(globalRect) ||
-			_attachType->overlaps(globalRect) ||
 			_fieldAutocomplete->overlaps(globalRect) ||
 			_emojiPan->overlaps(globalRect));
 }
@@ -4563,9 +4529,8 @@ bool HistoryWidget::reportSpamSettingFail(const RPCError &error, mtpRequestId re
 }
 
 bool HistoryWidget::canWriteMessage() const {
-	if (!_history || _a_show.animating()) return false;
+	if (!_history || !_canSendMessages) return false;
 	if (isBlocked() || isJoinChannel() || isMuteUnmute() || isBotStart()) return false;
-	if (!_canSendMessages) return false;
 	return true;
 }
 
@@ -4594,7 +4559,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_attachType->hide();
 		_emojiPan->hide();
 		if (_pinnedBar) {
 			_pinnedBar->cancel->hide();
@@ -4654,7 +4618,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_attachType->hide();
 		_emojiPan->hide();
 		if (!_field->isHidden()) {
 			_field->hide();
@@ -4779,7 +4742,6 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
-		_attachType->hide();
 		_emojiPan->hide();
 		_kbScroll->hide();
 		if (!_field->isHidden()) {
@@ -5297,7 +5259,6 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 
 void HistoryWidget::hideSelectorControlsAnimated() {
 	_fieldAutocomplete->hideAnimated();
-	_attachType->hideAnimated();
 	_emojiPan->hideAnimated();
 }
 
@@ -5481,17 +5442,6 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	cancelReplyAfterMediaSend(lastKeyboardUsed);
 }
 
-void HistoryWidget::onSendPaths(const PeerId &peer) {
-	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-	if (!_history) return;
-
-	if (cSendPaths().size() == 1) {
-		uploadFile(cSendPaths().at(0), PrepareAuto);
-	} else {
-		uploadFiles(cSendPaths(), PrepareDocument);
-	}
-}
-
 History *HistoryWidget::history() const {
 	return _history;
 }
@@ -5645,62 +5595,49 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 	if (timer) update(_attachToggle->geometry());
 }
 
-void HistoryWidget::onPhotoSelect() {
+void HistoryWidget::chooseAttach() {
 	if (!_history) return;
 
-	_attachToggle->setIcon(&st::historyAttachPhotoIcon, &st::historyAttachPhotoIconOver);
-	_attachType->hideFast();
+	auto photoExtensions = cPhotoExtensions();
+	auto imageExtensions = cImgExtensions();
+	auto filter = filedialogAllFilesFilter() + qsl(";;Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")");
 
-	if (cDefaultAttach() != dbidaPhoto) {
-		cSetDefaultAttach(dbidaPhoto);
-		Local::writeUserSettings();
-	}
-
-	QStringList photoExtensions(cPhotoExtensions());
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
-
-	QStringList files;
-	QByteArray content;
-	if (filedialogGetOpenFiles(files, content, lang(lng_choose_images), filter)) {
-		if (!content.isEmpty()) {
-			uploadFileContent(content, PreparePhoto);
-		} else {
-			uploadFiles(files, PreparePhoto);
-		}
-	}
+	_attachFilesQueryId = FileDialog::queryReadFiles(lang(lng_choose_files), filter);
 }
 
-void HistoryWidget::onDocumentSelect() {
-	if (!_history) return;
+void HistoryWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
+	if (_attachFilesQueryId != update.queryId) {
+		return;
+	}
+	_attachFilesQueryId = 0;
 
-	_attachToggle->setIcon(&st::historyAttachFileIcon, &st::historyAttachFileIconOver);
-	_attachType->hideFast();
-
-	if (cDefaultAttach() != dbidaDocument) {
-		cSetDefaultAttach(dbidaDocument);
-		Local::writeUserSettings();
+	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
+		return;
 	}
 
-	QStringList photoExtensions(cPhotoExtensions());
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(filedialogAllFilesFilter() + qsl(";;Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")"));
-
-	QStringList files;
-	QByteArray content;
-	if (filedialogGetOpenFiles(files, content, lang(lng_choose_images), filter)) {
-		if (!content.isEmpty()) {
-			uploadFileContent(content, PrepareDocument);
+	if (!update.remoteContent.isEmpty()) {
+		auto animated = false;
+		auto image = App::readImage(update.remoteContent, nullptr, false, &animated);
+		if (!image.isNull() && !animated) {
+			confirmSendingFiles(image, update.remoteContent);
 		} else {
-			uploadFiles(files, PrepareDocument);
+			uploadFile(update.remoteContent, SendMediaType::File);
+		}
+	} else {
+		auto lists = getSendingFilesLists(update.filePaths);
+		if (lists.allFilesArePhotos) {
+			confirmSendingFiles(lists);
+		} else {
+			validateSendingFiles(lists, [this](const QStringList &files) {
+				uploadFiles(files, SendMediaType::File);
+				return true;
+			});
 		}
 	}
 }
 
 void HistoryWidget::dragEnterEvent(QDragEnterEvent *e) {
-	if (!_history) return;
-
-	if (_peer && !_canSendMessages) return;
+	if (!_history || !_canSendMessages) return;
 
 	_attachDrag = getDragState(e->mimeData());
 	updateDragAreas();
@@ -5926,7 +5863,7 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 }
 
 bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
-	if (!_history || !canWriteMessage()) return false;
+	if (!canWriteMessage()) return false;
 
 	bool insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	QString toInsert = cmd;
@@ -6002,17 +5939,17 @@ DragState HistoryWidget::getDragState(const QMimeData *d) {
 	for (QList<QUrl>::const_iterator i = urls.cbegin(), en = urls.cend(); i != en; ++i) {
 		if (!i->isLocalFile()) return DragStateNone;
 
-		auto file = psConvertFileUrl(*i);
+		auto file = Platform::FileDialog::UrlToLocal(*i);
 
 		QFileInfo info(file);
 		if (info.isDir()) return DragStateNone;
 
 		quint64 s = info.size();
-		if (s >= MaxUploadDocumentSize) {
+		if (s > App::kFileSizeLimit) {
 			return DragStateNone;
 		}
 		if (allAreSmallImages) {
-			if (s >= MaxUploadPhotoSize) {
+			if (s > App::kImageSizeLimit) {
 				allAreSmallImages = false;
 			} else {
 				bool foundImageExtension = false;
@@ -6156,57 +6093,8 @@ void HistoryWidget::dropEvent(QDropEvent *e) {
 	e->acceptProposedAction();
 }
 
-void HistoryWidget::onPhotoDrop(const QMimeData *data) {
-	if (!_history) return;
-
-	QStringList files = getMediasFromMime(data);
-	if (files.isEmpty()) {
-		if (data->hasImage()) {
-			QImage image = qvariant_cast<QImage>(data->imageData());
-			if (image.isNull()) return;
-
-			uploadImage(image, PreparePhoto, FileLoadNoForceConfirm, data->text());
-		}
-		return;
-	}
-
-	uploadFiles(files, PreparePhoto);
-}
-
-void HistoryWidget::onDocumentDrop(const QMimeData *data) {
-	if (!_history) return;
-
-	if (_peer && !_canSendMessages) return;
-
-	QStringList files = getMediasFromMime(data);
-	if (files.isEmpty()) return;
-
-	uploadFiles(files, PrepareDocument);
-}
-
-void HistoryWidget::onFilesDrop(const QMimeData *data) {
-
-	if (_peer && !_canSendMessages) return;
-
-	QStringList files = getMediasFromMime(data);
-	if (files.isEmpty()) {
-		if (data->hasImage()) {
-			QImage image = qvariant_cast<QImage>(data->imageData());
-			if (image.isNull()) return;
-
-			uploadImage(image, PrepareAuto, FileLoadNoForceConfirm, data->text());
-		}
-		return;
-	}
-
-	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) {
-		uploadFile(files.at(0), PrepareAuto);
-	}
-//  uploadFiles(files, PrepareAuto); // multiple confirm with "compressed" checkbox
-}
-
 void HistoryWidget::onKbToggle(bool manual) {
-	auto fieldEnabled = canWriteMessage();
+	auto fieldEnabled = canWriteMessage() && !_a_show.animating();
 	if (_kbShown || _kbReplyTo) {
 		_botKeyboardHide->hide();
 		if (_kbShown) {
@@ -6276,7 +6164,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		}
 	}
 	resizeEvent(0);
-	if (_botKeyboardHide->isHidden() && canWriteMessage()) {
+	if (_botKeyboardHide->isHidden() && canWriteMessage() && !_a_show.animating()) {
 		_attachEmoji->show();
 	} else {
 		_attachEmoji->hide();
@@ -6525,7 +6413,6 @@ void HistoryWidget::moveFieldControls() {
 	_silent->moveToRight(right, buttonsBottom);
 
 	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
-	_attachType->moveToLeft(0, _attachToggle->y() - _attachType->height());
 	_emojiPan->moveBottom(_attachEmoji->y());
 
 	auto fullWidthButtonRect = QRect(0, bottom - _botStart->height(), width(), _botStart->height());
@@ -6616,69 +6503,240 @@ void HistoryWidget::updateFieldPlaceholder() {
 	}
 }
 
-void HistoryWidget::uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm, const QString &source, bool withText) {
-	if (!_history) return;
-
+template <typename SendCallback>
+bool HistoryWidget::showSendFilesBox(SendFilesBox *box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback) {
 	App::wnd()->activateWindow();
-	auto task = new FileLoadTask(img, type, FileLoadTo(_peer->id, _silent->checked(), replyToId()), confirm, source);
-	if (withText) {
-		_confirmWithTextId = task->fileid();
+
+	auto withComment = (addedComment != nullptr);
+	box->setConfirmedCallback(base::lambda_guarded(this, [this, withComment, sendCallback = std_::move(callback)](const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter) {
+		if (!canWriteMessage()) return;
+
+		auto replyTo = replyToId();
+		if (withComment) {
+			onSend(ctrlShiftEnter, replyTo);
+		}
+		sendCallback(files, compressed, caption, replyTo);
+	}));
+
+	if (withComment) {
+		auto was = _field->getTextWithTags();
+		setFieldText({ *addedComment, TextWithTags::Tags() });
+		box->setCancelledCallback(base::lambda_guarded(this, [this, was] {
+			setFieldText(was);
+		}));
+	} else if (!insertTextOnCancel.isEmpty()) {
+		box->setCancelledCallback(base::lambda_guarded(this, [this, insertTextOnCancel] {
+			_field->textCursor().insertText(insertTextOnCancel);
+		}));
 	}
-	_fileLoader.addTask(task);
+
+	Ui::showLayer(box);
+	return true;
 }
 
-void HistoryWidget::uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm, bool withText) {
-	if (!_history) return;
+template <typename Callback>
+bool HistoryWidget::validateSendingFiles(const SendingFilesLists &lists, Callback callback) {
+	if (!canWriteMessage()) return false;
 
 	App::wnd()->activateWindow();
-	FileLoadTask *task = new FileLoadTask(file, type, FileLoadTo(_peer->id, _silent->checked(), replyToId()), confirm);
-	if (withText) {
-		_confirmWithTextId = task->fileid();
+	if (!lists.nonLocalUrls.isEmpty()) {
+		Ui::showLayer(new InformBox(lng_send_image_non_local(lt_name, lists.nonLocalUrls.front().toDisplayString())));
+	} else if (!lists.emptyFiles.isEmpty()) {
+		Ui::showLayer(new InformBox(lng_send_image_empty(lt_name, lists.emptyFiles.front())));
+	} else if (!lists.tooLargeFiles.isEmpty()) {
+		Ui::showLayer(new InformBox(lng_send_image_too_large(lt_name, lists.tooLargeFiles.front())));
+	} else if (!lists.filesToSend.isEmpty()) {
+		return callback(lists.filesToSend);
 	}
-	_fileLoader.addTask(task);
+	return false;
 }
 
-void HistoryWidget::uploadFiles(const QStringList &files, PrepareMediaType type) {
-	if (!_history || files.isEmpty()) return;
+bool HistoryWidget::confirmSendingFiles(const QList<QUrl> &files, CompressConfirm compressed, const QString *addedComment) {
+	return confirmSendingFiles(getSendingFilesLists(files), compressed, addedComment);
+}
 
-	if (files.size() == 1 && !QFileInfo(files.at(0)).isDir()) return uploadFile(files.at(0), type);
+bool HistoryWidget::confirmSendingFiles(const QStringList &files, CompressConfirm compressed, const QString *addedComment) {
+	return confirmSendingFiles(getSendingFilesLists(files), compressed, addedComment);
+}
+
+bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed, const QString *addedComment) {
+	return validateSendingFiles(lists, [this, &lists, compressed, addedComment](const QStringList &files) {
+		auto image = QImage();
+		auto insertTextOnCancel = QString();
+		auto prepareBox = [this, &files, &lists, compressed, &image] {
+			if (files.size() > 1) {
+				return new SendFilesBox(files, lists.allFilesArePhotos ? compressed : CompressConfirm::None);
+			}
+			auto filepath = files.front();
+			auto animated = false;
+			image = App::readImage(filepath, nullptr, false, &animated);
+			return new SendFilesBox(filepath, image, imageCompressConfirm(image, compressed, animated), animated);
+		};
+		auto sendCallback = [this, image](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
+			auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
+			uploadFilesAfterConfirmation(files, image, QByteArray(), type, caption);
+		};
+		return showSendFilesBox(prepareBox(), insertTextOnCancel, addedComment, std_::move(sendCallback));
+	});
+}
+
+bool HistoryWidget::confirmSendingFiles(const QImage &image, const QByteArray &content, CompressConfirm compressed, const QString &insertTextOnCancel) {
+	if (!canWriteMessage() || image.isNull()) return false;
 
 	App::wnd()->activateWindow();
+	auto animated = false;
+	auto box = new SendFilesBox(QString(), image, imageCompressConfirm(image, compressed), animated);
+	auto sendCallback = [this, content, image](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
+		auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
+		uploadFilesAfterConfirmation(files, image, content, type, caption);
+	};
+	return showSendFilesBox(box, insertTextOnCancel, nullptr, std_::move(sendCallback));
+}
 
-	FileLoadTo to(_peer->id, _silent->checked(), replyToId());
+bool HistoryWidget::confirmSendingFiles(const QMimeData *data, CompressConfirm compressed, const QString &insertTextOnCancel) {
+	if (!canWriteMessage()) {
+		return false;
+	}
 
-	TasksList tasks;
+	auto &urls = data->urls();
+	if (!urls.isEmpty()) {
+		for_const (auto &url, urls) {
+			if (url.isLocalFile()) {
+				confirmSendingFiles(urls, compressed);
+				return true;
+			}
+		}
+	}
+	if (data->hasImage()) {
+		auto image = qvariant_cast<QImage>(data->imageData());
+		if (!image.isNull()) {
+			confirmSendingFiles(image, QByteArray(), compressed, insertTextOnCancel);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname, const QString *addedComment) {
+	if (!canWriteMessage()) return false;
+
+	auto box = new SendFilesBox(phone, fname, lname);
+	auto sendCallback = [this, phone, fname, lname](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
+		shareContact(_peer->id, phone, fname, lname, replyTo);
+	};
+	auto insertTextOnCancel = QString();
+	return showSendFilesBox(box, insertTextOnCancel, addedComment, std_::move(sendCallback));
+}
+
+HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QList<QUrl> &files) {
+	auto result = SendingFilesLists();
+	for_const (auto &url, files) {
+		if (!url.isLocalFile()) {
+			result.nonLocalUrls.push_back(url);
+		} else {
+			auto filepath = Platform::FileDialog::UrlToLocal(url);
+			getSendingLocalFileInfo(result, filepath);
+		}
+	}
+	return result;
+}
+
+HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QStringList &files) {
+	auto result = SendingFilesLists();
+	for_const (auto &filepath, files) {
+		getSendingLocalFileInfo(result, filepath);
+	}
+	return result;
+}
+
+void HistoryWidget::getSendingLocalFileInfo(SendingFilesLists &result, const QString &filepath) {
+	auto hasPhotoExtension = [](const QString &filepath) {
+		for_const (auto extension, cPhotoExtensions()) {
+			if (filepath.right(extension.size()).compare(extension, Qt::CaseInsensitive) == 0) {
+				return true;
+			}
+		}
+		return false;
+	};
+	auto fileinfo = QFileInfo(filepath);
+	if (fileinfo.isDir()) {
+		result.directories.push_back(filepath);
+	} else {
+		auto filesize = fileinfo.size();
+		if (filesize <= 0) {
+			result.emptyFiles.push_back(filepath);
+		} else if (filesize > App::kFileSizeLimit) {
+			result.tooLargeFiles.push_back(filepath);
+		} else {
+			result.filesToSend.push_back(filepath);
+			if (result.allFilesArePhotos) {
+				if (filesize > App::kImageSizeLimit || !hasPhotoExtension(filepath)) {
+					result.allFilesArePhotos = false;
+				}
+			}
+		}
+	}
+}
+
+CompressConfirm HistoryWidget::imageCompressConfirm(const QImage &image, CompressConfirm compressed, bool animated) {
+	if (animated || image.isNull()) {
+		return CompressConfirm::None;
+	}
+	auto imageWidth = image.width();
+	auto imageHeight = image.height();
+	if (imageWidth >= 20 * imageHeight || imageHeight >= 20 * imageWidth) {
+		return CompressConfirm::None;
+	}
+	return compressed;
+}
+
+void HistoryWidget::uploadFiles(const QStringList &files, SendMediaType type) {
+	if (!canWriteMessage()) return;
+
+	auto caption = QString();
+	uploadFilesAfterConfirmation(files, QImage(), QByteArray(), type, caption);
+}
+
+void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const QImage &image, const QByteArray &content, SendMediaType type, QString caption) {
+	t_assert(canWriteMessage());
+
+	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
+	if (files.size() > 1 && !caption.isEmpty()) {
+		MainWidget::MessageToSend message;
+		message.history = _history;
+		message.textWithTags = { caption, TextWithTags::Tags() };
+		message.replyTo = to.replyTo;
+		message.silent = to.silent;
+		message.clearDraft = false;
+		App::main()->sendMessage(message);
+		caption = QString();
+	}
+	auto tasks = TasksList();
 	tasks.reserve(files.size());
-	for (int32 i = 0, l = files.size(); i < l; ++i) {
-		tasks.push_back(TaskPtr(new FileLoadTask(files.at(i), type, to, FileLoadNeverConfirm)));
+	for_const (auto &filepath, files) {
+		if (filepath.isEmpty() && (!image.isNull() || !content.isNull())) {
+			tasks.push_back(MakeShared<FileLoadTask>(content, image, type, to, caption));
+		} else {
+			tasks.push_back(MakeShared<FileLoadTask>(filepath, type, to, caption));
+		}
 	}
 	_fileLoader.addTasks(tasks);
 
 	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }
 
-void HistoryWidget::uploadFileContent(const QByteArray &fileContent, PrepareMediaType type) {
-	if (!_history) return;
+void HistoryWidget::uploadFile(const QByteArray &fileContent, SendMediaType type) {
+	if (!canWriteMessage()) return;
 
-	App::wnd()->activateWindow();
-	_fileLoader.addTask(new FileLoadTask(fileContent, type, FileLoadTo(_peer->id, _silent->checked(), replyToId())));
+	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
+	auto caption = QString();
+	_fileLoader.addTask(MakeShared<FileLoadTask>(fileContent, type, to, caption));
+
 	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }
 
-void HistoryWidget::shareContactWithConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText) {
-	if (!_history) return;
-
-	App::wnd()->activateWindow();
-	_confirmWithTextId = 0xFFFFFFFFFFFFFFFFL;
-	Ui::showLayer(new PhotoSendBox(phone, fname, lname, replyTo));
-}
-
-void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
+void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(peerToChannel(file->to.peer), file->to.replyTo));
-	if (_confirmWithTextId && _confirmWithTextId == file->id) {
-		onSend(ctrlShiftEnter, file->to.replyTo);
-		_confirmWithTextId = 0;
-	}
 
 	FullMsgId newId(peerToChannel(file->to.peer), clientMsgId());
 
@@ -6711,11 +6769,11 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 	if (silentPost) {
 		flags |= MTPDmessage::Flag::f_silent;
 	}
-	if (file->type == PreparePhoto) {
+	if (file->type == SendMediaType::Photo) {
 		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaPhoto(file->photo, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
-	} else if (file->type == PrepareDocument) {
+	} else if (file->type == SendMediaType::File) {
 		h->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(file->to.peer), MTPnullFwdHeader, MTPint(), MTP_int(file->to.replyTo), MTP_int(unixtime()), MTP_string(""), MTP_messageMediaDocument(file->document, MTP_string(file->caption)), MTPnullMarkup, MTPnullEntities, MTP_int(1), MTPint()), NewMessageUnread);
-	} else if (file->type == PrepareAudio) {
+	} else if (file->type == SendMediaType::Audio) {
 		if (!h->peer->isChannel()) {
 			flags |= MTPDmessage::Flag::f_media_unread;
 		}
@@ -6729,34 +6787,6 @@ void HistoryWidget::confirmSendFile(const FileLoadResultPtr &file, bool ctrlShif
 	peerMessagesUpdated(file->to.peer);
 
 	cancelReplyAfterMediaSend(lastKeyboardUsed);
-}
-
-void HistoryWidget::cancelSendFile(const FileLoadResultPtr &file) {
-	if (_confirmWithTextId && file->id == _confirmWithTextId) {
-		clearFieldText();
-		_confirmWithTextId = 0;
-	}
-	if (!file->originalText.isEmpty()) {
-		_field->textCursor().insertText(file->originalText);
-	}
-}
-
-void HistoryWidget::confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter) {
-	if (!_peer) return;
-
-	PeerId shareToId = _peer->id;
-	if (_confirmWithTextId == 0xFFFFFFFFFFFFFFFFL) {
-		onSend(ctrlShiftEnter, replyTo);
-		_confirmWithTextId = 0;
-	}
-	shareContact(shareToId, phone, fname, lname, replyTo);
-}
-
-void HistoryWidget::cancelShareContact() {
-	if (_confirmWithTextId == 0xFFFFFFFFFFFFFFFFL) {
-		clearFieldText();
-		_confirmWithTextId = 0;
-	}
 }
 
 void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const MTPInputFile &file) {
@@ -7688,7 +7718,6 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 			if (_membersDropdown) {
 				_membersDropdown->raise();
 			}
-			_attachType->raise();
 			_emojiPan->raise();
 			_attachDragDocument->raise();
 			_attachDragPhoto->raise();
@@ -8866,42 +8895,6 @@ QRect HistoryWidget::historyRect() const {
 
 void HistoryWidget::destroyData() {
 	showHistory(0, 0);
-}
-
-QStringList HistoryWidget::getMediasFromMime(const QMimeData *d) {
-	QString uriListFormat(qsl("text/uri-list"));
-	QStringList photoExtensions(cPhotoExtensions()), files;
-	if (!d->hasFormat(uriListFormat)) return QStringList();
-
-	const QList<QUrl> &urls(d->urls());
-	if (urls.isEmpty()) return QStringList();
-
-	files.reserve(urls.size());
-	for (QList<QUrl>::const_iterator i = urls.cbegin(), en = urls.cend(); i != en; ++i) {
-		if (!i->isLocalFile()) return QStringList();
-
-		auto file = psConvertFileUrl(*i);
-
-		QFileInfo info(file);
-		uint64 s = info.size();
-		if (s >= MaxUploadDocumentSize) {
-			if (s >= MaxUploadPhotoSize) {
-				continue;
-			} else {
-				bool foundGoodExtension = false;
-				for (QStringList::const_iterator j = photoExtensions.cbegin(), end = photoExtensions.cend(); j != end; ++j) {
-					if (file.right(j->size()).toLower() == (*j).toLower()) {
-						foundGoodExtension = true;
-					}
-				}
-				if (!foundGoodExtension) {
-					continue;
-				}
-			}
-		}
-		files.push_back(file);
-	}
-	return files;
 }
 
 QPoint HistoryWidget::clampMousePosition(QPoint point) {

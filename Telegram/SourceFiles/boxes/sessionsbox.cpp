@@ -52,7 +52,7 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 
 	setLoading(true);
 
-	prepare();
+	raiseShadow();
 
 	MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
 }

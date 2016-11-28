@@ -240,9 +240,9 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		int32 size = _width * cIntRetinaFactor();
 		if (_goodLoaded || _data->thumb->loaded()) {
-			QImage img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
+			auto img = (_data->loaded() ? _data->full : (_data->medium->loaded() ? _data->medium : _data->thumb))->pix().toImage();
 			if (!_goodLoaded) {
-				img = imageBlur(img);
+				img = Images::prepareBlur(img);
 			}
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
@@ -337,7 +337,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		if (_thumbLoaded && !_data->thumb->isNull()) {
 			int32 size = _width * cIntRetinaFactor();
-			QImage img = imageBlur(_data->thumb->pix().toImage());
+			auto img = Images::prepareBlur(_data->thumb->pix().toImage());
 			if (img.width() == img.height()) {
 				if (img.width() != size) {
 					img = img.scaled(size, size, Qt::KeepAspectRatioByExpanding, Qt::SmoothTransformation);
@@ -797,8 +797,8 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				if (_data->thumb->loaded()) {
 					if (_thumb.isNull() || loaded != _thumbForLoaded) {
 						_thumbForLoaded = loaded;
-						auto options = ImagePixOption::Smooth | ImagePixOption::None;
-						if (!_thumbForLoaded) options |= ImagePixOption::Blurred;
+						auto options = Images::Option::Smooth | Images::Option::None;
+						if (!_thumbForLoaded) options |= Images::Option::Blurred;
 						_thumb = _data->thumb->pixNoCache(_thumbw * cIntRetinaFactor(), 0, options, _st.fileThumbSize, _st.fileThumbSize);
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);

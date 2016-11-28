@@ -235,10 +235,6 @@ historyAttach: IconButton(historySend) {
 		color: windowBgOver;
 	}
 }
-historyAttachFileIcon: icon {{ "media_type_file", historyComposeIconFg }};
-historyAttachFileIconOver: icon {{ "media_type_file", historyComposeIconFgOver }};
-historyAttachPhotoIcon: icon {{ "media_type_photo", historyComposeIconFg }};
-historyAttachPhotoIconOver: icon {{ "media_type_photo", historyComposeIconFgOver }};
 
 historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
@@ -282,17 +278,6 @@ historyRecordCancelActive: #ec6466;
 historyRecordFont: font(13px);
 historyRecordDurationFg: #000000;
 historyRecordTextTop: 14px;
-
-historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
-	menu: Menu(defaultMenu) {
-		itemIconPosition: point(13px, 6px);
-		itemPadding: margins(54px, 11px, 54px, 11px);
-	}
-}
-historyMediaTypeFile: icon {{ "media_type_file", menuIconFg, point(2px, 2px) }};
-historyMediaTypeFileOver: icon {{ "media_type_file", menuIconFgOver, point(2px, 2px) }};
-historyMediaTypePhoto: icon {{ "media_type_photo", menuIconFg, point(2px, 2px) }};
-historyMediaTypePhotoOver: icon {{ "media_type_photo", menuIconFgOver, point(2px, 2px) }};
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};

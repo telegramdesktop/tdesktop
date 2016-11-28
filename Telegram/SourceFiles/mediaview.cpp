@@ -491,7 +491,7 @@ void MediaView::step_radial(uint64 ms, bool timer) {
 	if (timer && (wasAnimating || _radial.animating())) {
 		update(radialRect());
 	}
-	if (_doc && _doc->loaded() && _doc->size < MediaViewImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideo())) {
+	if (_doc && _doc->loaded() && _doc->size < App::kImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideo())) {
 		if (_doc->isVideo()) {
 			_autoplayVideoDocument = _doc;
 		}
@@ -1329,10 +1329,10 @@ void MediaView::initAnimation() {
 	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(w, h, ImagePixOption::Smooth | ImagePixOption::Blurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = _doc->thumb->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixOption::Smooth | ImagePixOption::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), Images::Option::Smooth | Images::Option::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1345,10 +1345,10 @@ void MediaView::createClipReader() {
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(w, h, ImagePixOption::Smooth | ImagePixOption::Blurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = _doc->thumb->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), ImagePixOption::Smooth | ImagePixOption::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), Images::Option::Smooth | Images::Option::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
 	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
@@ -1543,17 +1543,17 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		int32 w = _width * cIntRetinaFactor();
 		if (_full <= 0 && _photo->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->full->pixNoCache(w, h, ImagePixOption::Smooth);
+			_current = _photo->full->pixNoCache(w, h, Images::Option::Smooth);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 			_full = 1;
 		} else if (_full < 0 && _photo->medium->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->medium->pixNoCache(w, h, ImagePixOption::Smooth | ImagePixOption::Blurred);
+			_current = _photo->medium->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 			_full = 0;
 		} else if (_current.isNull() && _photo->thumb->loaded()) {
 			int32 h = int((_photo->full->height() * (qreal(w) / qreal(_photo->full->width()))) + 0.9999);
-			_current = _photo->thumb->pixNoCache(w, h, ImagePixOption::Smooth | ImagePixOption::Blurred);
+			_current = _photo->thumb->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred);
 			if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 		} else if (_current.isNull()) {
 			_current = _photo->thumb->pix();

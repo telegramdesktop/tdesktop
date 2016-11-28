@@ -265,7 +265,7 @@ void StickersBox::setup() {
 
 	rebuildList();
 
-	prepare();
+	raiseShadow();
 }
 
 void StickersBox::refreshTabs() {

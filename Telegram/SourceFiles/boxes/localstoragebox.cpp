@@ -43,7 +43,6 @@ LocalStorageBox::LocalStorageBox() : AbstractBox()
 	updateControls();
 
 	checkLocalStoredCounts();
-	prepare();
 }
 
 void LocalStorageBox::updateControls() {

@@ -48,6 +48,10 @@ public:
 
 	void hideFast();
 
+	void setDroppedCallback(base::lambda<void(const QMimeData *data)> &&callback) {
+		_droppedCallback = std_::move(callback);
+	}
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
@@ -55,9 +59,6 @@ protected:
 	void dragLeaveEvent(QDragLeaveEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
 	void dragMoveEvent(QDragMoveEvent *e) override;
-
-signals:
-	void dropped(const QMimeData *data);
 
 public slots:
 	void hideStart();
@@ -67,6 +68,7 @@ public slots:
 
 private:
 	bool _hiding, _in;
+	base::lambda<void(const QMimeData *data)> _droppedCallback;
 
 	anim::fvalue a_opacity;
 	anim::fvalue a_colorDrop;

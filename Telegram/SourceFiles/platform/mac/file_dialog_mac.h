@@ -20,20 +20,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/window_title.h"
-
-#ifdef Q_OS_MAC
-#include "platform/mac/window_title_mac.h"
-#elif defined Q_OS_WIN // Q_OS_MAC
-#include "platform/win/window_title_win.h"
-#elif defined Q_OS_WINRT || defined Q_OS_LINUX // Q_OS_MAC || Q_OS_WIN
-
 namespace Platform {
+namespace FileDialog {
 
-inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
-	return nullptr;
+inline bool Supported() {
+	return false;
 }
 
-} // namespace Platform
+inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
+	return false;
+}
 
-#endif // Q_OS_MAC || Q_OS_WIN || Q_OS_WINRT || Q_OS_LINUX
+QString UrlToLocal(const QUrl &url);
+
+} // namespace FileDialog
+} // namespace Platform

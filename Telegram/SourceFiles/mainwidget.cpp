@@ -450,8 +450,9 @@ void MainWidget::onShareContact(const PeerId &peer, UserData *contact) {
 	_history->onShareContact(peer, contact);
 }
 
-void MainWidget::onSendPaths(const PeerId &peer) {
-	_history->onSendPaths(peer);
+bool MainWidget::onSendPaths(const PeerId &peer) {
+	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
+	return _history->confirmSendingFiles(cSendPaths());
 }
 
 void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data) {
@@ -463,7 +464,7 @@ void MainWidget::onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data)
 		onForward(peer, ForwardPressedMessage);
 	} else {
 		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-		_history->onFilesDrop(data);
+		_history->confirmSendingFiles(data);
 	}
 }
 
@@ -1779,20 +1780,8 @@ void MainWidget::updateOnlineDisplay() {
 	_history->updateOnlineDisplay();
 }
 
-void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file, bool ctrlShiftEnter) {
-	_history->confirmSendFile(file, ctrlShiftEnter);
-}
-
-void MainWidget::onSendFileCancel(const FileLoadResultPtr &file) {
-	_history->cancelSendFile(file);
-}
-
-void MainWidget::onShareContactConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter) {
-	_history->confirmShareContact(phone, fname, lname, replyTo, ctrlShiftEnter);
-}
-
-void MainWidget::onShareContactCancel() {
-	_history->cancelShareContact();
+void MainWidget::onSendFileConfirm(const FileLoadResultPtr &file) {
+	_history->sendFileConfirmed(file);
 }
 
 bool MainWidget::onSendSticker(DocumentData *document) {

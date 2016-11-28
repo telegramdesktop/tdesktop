@@ -49,8 +49,6 @@ ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
 	connect(_reasonOther, SIGNAL(changed()), this, SLOT(onChange()));
 
 	updateMaxHeight();
-
-	prepare();
 }
 
 void ReportBox::resizeEvent(QResizeEvent *e) {

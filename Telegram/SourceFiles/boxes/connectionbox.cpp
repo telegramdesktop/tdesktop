@@ -56,8 +56,6 @@ ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth, lang(lng_connection_h
 	connect(_passwordInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
 	updateControlsVisibility();
-
-	prepare();
 }
 
 void ConnectionBox::updateControlsVisibility() {
@@ -218,8 +216,6 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 
 	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	prepare();
 }
 
 void AutoDownloadBox::paintEvent(QPaintEvent *e) {

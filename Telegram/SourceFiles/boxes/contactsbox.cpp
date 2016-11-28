@@ -172,7 +172,7 @@ void ContactsBox::init() {
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
 
-	prepare();
+	raiseShadow();
 }
 
 bool ContactsBox::onSearchByUsername(bool searchCache) {

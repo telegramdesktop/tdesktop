@@ -81,7 +81,7 @@ EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
 
 	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, titleHeight() + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
 
-	prepare();
+	raiseShadow();
 }
 
 void EmojiBox::fillBlocks() {

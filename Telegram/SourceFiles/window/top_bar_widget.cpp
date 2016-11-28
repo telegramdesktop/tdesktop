@@ -101,30 +101,23 @@ void TopBarWidget::showMenu() {
 		if (auto peer = main->peer()) {
 			if (!_menu) {
 				_menu.create(App::main());
-				struct Data {
-					Ui::DropdownMenu *menu = nullptr;
-					QPointer<TWidget> that;
-				};
-				auto data = MakeShared<Data>();
-				data->that = weakThis();
-				data->menu = _menu.ptr();
-				_menu->setHiddenCallback([this, data] {
-					data->menu->deleteLater();
-					if (data->that && _menu == data->menu) {
-						_menu = nullptr;
-						_menuToggle->setForceRippled(false);
+				_menu->setHiddenCallback([that = weak(), menu = _menu.ptr()] {
+					menu->deleteLater();
+					if (that && that->_menu == menu) {
+						that->_menu = nullptr;
+						that->_menuToggle->setForceRippled(false);
 					}
 				});
-				_menu->setShowStartCallback([this, data] {
-					if (data->that && _menu == data->menu) {
+				_menu->setShowStartCallback(base::lambda_guarded(this, [this, menu = _menu.ptr()] {
+					if (_menu == menu) {
 						_menuToggle->setForceRippled(true);
 					}
-				});
-				_menu->setHideStartCallback([this, data] {
-					if (data->that && _menu == data->menu) {
+				}));
+				_menu->setHideStartCallback(base::lambda_guarded(this, [this, menu = _menu.ptr()] {
+					if (_menu == menu) {
 						_menuToggle->setForceRippled(false);
 					}
-				});
+				}));
 				_menuToggle->installEventFilter(_menu);
 				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda<void()> &&callback) {
 					return _menu->addAction(text, std_::move(callback));

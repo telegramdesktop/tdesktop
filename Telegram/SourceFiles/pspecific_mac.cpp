@@ -443,14 +443,6 @@ void psSendToMenu(bool send, bool silent) {
 void psUpdateOverlayed(QWidget *widget) {
 }
 
-QString psConvertFileUrl(const QUrl &url) {
-	auto urlString = url.toLocalFile();
-	if (urlString.startsWith(qsl("/.file/id="))) {
-		return objc_convertFileUrl(urlString);
-	}
-	return urlString;
-}
-
 void psDownloadPathEnableAccess() {
 	objc_downloadPathEnableAccess(Global::DownloadPathBookmark());
 }

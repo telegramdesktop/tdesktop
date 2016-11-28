@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
+#include "platform/platform_file_dialog.h"
 
 AboutBox::AboutBox() : AbstractBox(st::aboutWidth, qsl("Telegram Desktop"))
 , _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
@@ -43,8 +44,6 @@ AboutBox::AboutBox() : AbstractBox(st::aboutWidth, qsl("Telegram Desktop"))
 
 	connect(_version, SIGNAL(clicked()), this, SLOT(onVersion()));
 	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	prepare();
 
 	setAcceptDrops(true);
 }
@@ -90,7 +89,7 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 QString _getCrashReportFile(const QMimeData *m) {
 	if (!m || m->urls().size() != 1 || !m->urls().at(0).isLocalFile()) return QString();
 
-	auto file = psConvertFileUrl(m->urls().at(0));
+	auto file = Platform::FileDialog::UrlToLocal(m->urls().at(0));
 
 	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
 }

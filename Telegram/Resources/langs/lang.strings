@@ -829,7 +829,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_duration_and_size" = "{duration}, {size}";
 "lng_duration_played" = "{played} / {duration}";
 "lng_date_and_duration" = "{date}, {duration}";
-"lng_choose_images" = "Choose images";
+"lng_choose_image" = "Choose an image";
+"lng_choose_files" = "Choose files";
 "lng_game_tag" = "Game";
 
 "lng_context_view_profile" = "View profile";
@@ -876,10 +877,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_really_send_image" = "Do you want to send this image?";
 "lng_really_send_file" = "Do you want to send this file?";
 "lng_really_share_contact" = "Do you want to share this contact?";
-"lng_send_image_compressed" = "Send compressed image";
-"lng_send_image_empty" = "Could not send an empty file :(";
-"lng_send_image_too_large" = "Could not send a file, because it is larger than 1.5 GB :(";
+"lng_send_images_compress" = "Compressed {count:_not_used_|image|images}";
+"lng_send_image_non_local" = "Could not send a non local file: {name}";
+"lng_send_image_empty" = "Could not send an empty file: {name}";
+"lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
 "lng_send_folder" = "Could not send «{name}» because it is a directory :(";
+"lng_send_images_selected" = "{count:_not_used_|# image|# images} selected";
+"lng_send_photos" = "Send {count:_not_used_|# photo|# photos}";
+"lng_send_files_selected" = "{count:_not_used_|# file|# files} selected";
+"lng_send_files" = "Send {count:_not_used_|# file|# files}";
 
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";

@@ -193,7 +193,7 @@ CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxW
 	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
 	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
 
-	prepare();
+	raiseShadow();
 }
 
 void CountrySelectBox::onSubmit() {

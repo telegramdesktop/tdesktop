@@ -29,10 +29,10 @@ FileUploader::FileUploader() : sentSize(0) {
 	connect(&killSessionsTimer, SIGNAL(timeout()), this, SLOT(killSessions()));
 }
 
-void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &media) {
-	if (media.type == PreparePhoto) {
+void FileUploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &media) {
+	if (media.type == SendMediaType::Photo) {
 		App::feedPhoto(media.photo, media.photoThumbs);
-	} else if (media.type == PrepareDocument || media.type == PrepareAudio) {
+	} else if (media.type == SendMediaType::File || media.type == SendMediaType::Audio) {
 		DocumentData *document;
 		if (media.photoThumbs.isEmpty()) {
 			document = App::feedDocument(media.document);
@@ -52,10 +52,10 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &me
 }
 
 void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
-	if (file->type == PreparePhoto) {
+	if (file->type == SendMediaType::Photo) {
 		PhotoData *photo = App::feedPhoto(file->photo, file->photoThumbs);
 		photo->uploadingData = new PhotoData::UploadingData(file->partssize);
-	} else if (file->type == PrepareDocument || file->type == PrepareAudio) {
+	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
 		DocumentData *document;
 		if (file->thumb.isNull()) {
 			document = App::feedDocument(file->document);
@@ -77,9 +77,9 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 void FileUploader::currentFailed() {
 	Queue::iterator j = queue.find(uploading);
 	if (j != queue.end()) {
-		if (j->type() == PreparePhoto) {
+		if (j->type() == SendMediaType::Photo) {
 			emit photoFailed(j.key());
-		} else if (j->type() == PrepareDocument) {
+		} else if (j->type() == SendMediaType::File) {
 			DocumentData *doc = App::document(j->id());
 			if (doc->status == FileUploading) {
 				doc->status = FileUploadFailed;
@@ -135,15 +135,15 @@ void FileUploader::sendNext() {
 		}
 	}
 
-	UploadFileParts &parts(i->file ? (i->type() == PreparePhoto ? i->file->fileparts : i->file->thumbparts) : i->media.parts);
-	uint64 partsOfId(i->file ? (i->type() == PreparePhoto ? i->file->id : i->file->thumbId) : i->media.thumbId);
+	UploadFileParts &parts(i->file ? (i->type() == SendMediaType::Photo ? i->file->fileparts : i->file->thumbparts) : i->media.parts);
+	uint64 partsOfId(i->file ? (i->type() == SendMediaType::Photo ? i->file->id : i->file->thumbId) : i->media.thumbId);
 	if (parts.isEmpty()) {
 		if (i->docSentParts >= i->docPartsCount) {
 			if (requestsSent.isEmpty() && docRequestsSent.isEmpty()) {
 				bool silent = i->file && i->file->to.silent;
-				if (i->type() == PreparePhoto) {
+				if (i->type() == SendMediaType::Photo) {
 					emit photoReady(uploading, silent, MTP_inputFile(MTP_long(i->id()), MTP_int(i->partsCount), MTP_string(i->filename()), MTP_bytes(i->file ? i->file->filemd5 : i->media.jpeg_md5)));
-				} else if (i->type() == PrepareDocument || i->type() == PrepareAudio) {
+				} else if (i->type() == SendMediaType::File || i->type() == SendMediaType::Audio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(i->md5Hash.result(), docMd5.data());
 
@@ -177,7 +177,7 @@ void FileUploader::sendNext() {
 			}
 		} else {
 			toSend = content.mid(i->docSentParts * i->docPartSize, i->docPartSize);
-			if ((i->type() == PrepareDocument || i->type() == PrepareAudio) && i->docSentParts <= UseBigFilesFrom) {
+			if ((i->type() == SendMediaType::File || i->type() == SendMediaType::Audio) && i->docSentParts <= UseBigFilesFrom) {
 				i->md5Hash.feed(toSend.constData(), toSend.size());
 			}
 		}
@@ -282,7 +282,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			}
 			sentSize -= sentPartSize;
 			sentSizes[dc] -= sentPartSize;
-			if (k->type() == PreparePhoto) {
+			if (k->type() == SendMediaType::Photo) {
 				k->fileSentSize += sentPartSize;
 				PhotoData *photo = App::photo(k->id());
 				if (photo->uploading() && k->file) {
@@ -290,7 +290,7 @@ void FileUploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 					photo->uploadingData->offset = k->fileSentSize;
 				}
 				emit photoProgress(k.key());
-			} else if (k->type() == PrepareDocument || k->type() == PrepareAudio) {
+			} else if (k->type() == SendMediaType::File || k->type() == SendMediaType::Audio) {
 				DocumentData *doc = App::document(k->id());
 				if (doc->uploading()) {
 					doc->uploadOffset = (k->docSentParts - docRequestsSent.size()) * k->docPartSize;

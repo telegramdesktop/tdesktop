@@ -47,6 +47,11 @@ inline constexpr D up_cast_helper(std_::false_type, T object) {
 	return nullptr;
 }
 
+template <typename T>
+constexpr std_::add_const_t<T> &any_as_const(T &&value) noexcept {
+	return value;
+}
+
 } // namespace internal
 
 template <typename D, typename T>
@@ -82,6 +87,12 @@ scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
 }
 
 } // namespace base
+
+// using for_const instead of plain range-based for loop to ensure usage of const_iterator
+// it is important for the copy-on-write Qt containers
+// if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
+// while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
+#define for_const(range_declaration, range_expression) for (range_declaration : base::internal::any_as_const(range_expression))
 
 template <typename Enum>
 inline QFlags<Enum> qFlags(Enum v) {
@@ -350,11 +361,6 @@ enum DBIConnectionType {
 	dbictHttpAuto = 1, // not used
 	dbictHttpProxy = 2,
 	dbictTcpProxy = 3,
-};
-
-enum DBIDefaultAttach {
-	dbidaDocument = 0,
-	dbidaPhoto = 1,
 };
 
 struct ProxyData {

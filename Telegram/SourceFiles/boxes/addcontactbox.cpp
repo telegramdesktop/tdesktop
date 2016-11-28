@@ -87,8 +87,6 @@ void AddContactBox::initBox() {
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_phone, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
-
-	prepare();
 }
 
 void AddContactBox::doSetInnerFocus() {
@@ -279,13 +277,11 @@ GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : Ab
 	_photo->setClickedCallback([this] {
 		auto imgExtensions = cImgExtensions();
 		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
 	});
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
-
-	prepare();
 }
 
 void GroupInfoBox::doSetInnerFocus() {
@@ -459,8 +455,6 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 
 	connect(_public, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
 	connect(_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
-
-	prepare();
 }
 
 void SetupChannelBox::doSetInnerFocus() {
@@ -673,12 +667,11 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public->checked()) {
 		if (_tooMuchUsernames) {
 			_private->setChecked(true);
-			Ui::showLayer(new RevokePublicLinkBox([this, weak_this = weakThis()]() {
-				if (!weak_this) return;
+			Ui::showLayer(new RevokePublicLinkBox(base::lambda_guarded(this, [this] {
 				_tooMuchUsernames = false;
 				_public->setChecked(true);
 				onCheck();
-			}), KeepOtherLayers);
+			})), KeepOtherLayers);
 			return;
 		}
 		_link->show();
@@ -825,8 +818,6 @@ _invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	_last->setVisible(!_peer->isChat());
-
-	prepare();
 }
 
 void EditNameTitleBox::doSetInnerFocus() {
@@ -983,8 +974,6 @@ EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
 	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
 	_publicLink->setVisible(_channel->canEditUsername());
 	_sign->setVisible(!_channel->isMegagroup());
-
-	prepare();
 }
 
 void EditChannelBox::doSetInnerFocus() {
@@ -1163,8 +1152,6 @@ RevokePublicLinkBox::RevokePublicLinkBox(base::lambda<void()> &&revokeCallback) 
 
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
-
-	prepare();
 }
 
 void RevokePublicLinkBox::updateMaxHeight() {
@@ -1215,11 +1202,10 @@ void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 			QPointer<TWidget> weakThis;
 			PeerData *pressed;
 		};
-		weakRevokeConfirmBox->setConfirmedCallback([this, data = std_::make_unique<Data>(weakThis(), pressed)]() {
-			if (!data->weakThis) return;
+		weakRevokeConfirmBox->setConfirmedCallback(base::lambda_guarded(this, [this, pressed]() {
 			if (_revokeRequestId) return;
-			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(data->pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
-		});
+			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
+		}));
 		Ui::showLayer(weakRevokeConfirmBox, KeepOtherLayers);
 	}
 }

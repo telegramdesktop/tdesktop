@@ -52,8 +52,6 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 		setPathText(QDir::toNativeSeparators(_path));
 	}
 	updateControlsVisibility();
-
-	prepare();
 }
 
 void DownloadPathBox::updateControlsVisibility() {

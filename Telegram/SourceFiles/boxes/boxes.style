@@ -142,8 +142,11 @@ boxTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 22px;
 }
 
-boxPhotoPadding: margins(28px, 28px, 28px, 18px);
-boxPhotoCompressedPadding: margins(0px, 2px, 0px, 22px);
+boxPhotoTitleFont: font(16px semibold);
+boxPhotoTitlePosition: point(28px, 26px);
+boxPhotoPadding: margins(28px, 28px, 28px, 0px);
+boxPhotoCompressedSkip: 20px;
+boxPhotoCaptionSkip: 22px;
 boxPhotoTextFg: #808080;
 
 cropPointSize: 10px;

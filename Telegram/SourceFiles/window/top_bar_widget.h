@@ -31,7 +31,7 @@ class DropdownMenu;
 
 namespace Window {
 
-class TopBarWidget : public TWidget, private base::Subscriber {
+class TopBarWidget : public TWidget, private base::Subscriber, public WeakPointed<TopBarWidget> {
 	Q_OBJECT
 
 public:

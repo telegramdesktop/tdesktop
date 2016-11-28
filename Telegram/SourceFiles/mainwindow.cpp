@@ -413,6 +413,9 @@ void MainWindow::showMainMenu() {
 void MainWindow::ui_hideSettingsAndLayer(ShowLayerOptions options) {
 	if (_layerBg) {
 		_layerBg->hideAll();
+		if (options.testFlag(ForceFastShowLayer)) {
+			_layerBg.destroyDelayed();
+		}
 	}
 }
 
@@ -1412,7 +1415,7 @@ QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, 
 void MainWindow::sendPaths() {
 	if (App::passcoded()) return;
 	hideMediaview();
-	Ui::hideSettingsAndLayer();
+	Ui::hideSettingsAndLayer(true);
 	if (_main) {
 		_main->activate();
 	}

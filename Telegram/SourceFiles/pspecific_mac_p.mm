@@ -203,7 +203,7 @@ void objc_activateWnd(WId winId) {
 
 bool objc_handleMediaKeyEvent(void *ev) {
 	auto e = reinterpret_cast<NSEvent*>(ev);
-	
+
 	int keyCode = (([e data1] & 0xFFFF0000) >> 16);
 	int keyFlags = ([e data1] & 0x0000FFFF);
 	int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
@@ -997,13 +997,6 @@ QString objc_currentLang() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *currentLang = [currentLocale objectForKey:NSLocaleLanguageCode];
 	return currentLang ? NS2QString(currentLang) : QString();
-}
-
-QString objc_convertFileUrl(const QString &url) {
-	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] path];
-	if (!nsurl) return QString();
-
-	return NS2QString(nsurl);
 }
 
 QByteArray objc_downloadPathBookmark(const QString &path) {

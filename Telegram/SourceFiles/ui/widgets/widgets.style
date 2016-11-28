@@ -488,7 +488,7 @@ defaultLinkButton: LinkButton {
 
 defaultRippleAnimation: RippleAnimation {
 	color: windowBgRipple;
-	showDuration: 200;
+	showDuration: 450;
 	hideDuration: 200;
 }
 

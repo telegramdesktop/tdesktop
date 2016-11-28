@@ -63,7 +63,7 @@ StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::
 
 	onScroll();
 
-	prepare();
+	raiseShadow();
 }
 
 void StickerSetBox::onInstalled(uint64 setId) {

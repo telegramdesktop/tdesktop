@@ -160,13 +160,6 @@ public:
 		}
 	}
 
-	QPointer<TWidget> weakThis() {
-		return QPointer<TWidget>(this);
-	}
-	QPointer<const TWidget> weakThis() const {
-		return QPointer<const TWidget>(this);
-	}
-
 	// Get the size of the widget as it should be.
 	// Negative return value means no default width.
 	virtual int naturalWidth() const {
@@ -201,6 +194,18 @@ protected:
 	// Resizes content and counts natural widget height for the desired width.
 	virtual int resizeGetHeight(int newWidth) {
 		return height();
+	}
+
+};
+
+template <typename Widget>
+class WeakPointed {
+public:
+	QPointer<Widget> weak() {
+		return QPointer<Widget>(static_cast<Widget*>(this));
+	}
+	QPointer<const Widget> weak() const {
+		return QPointer<const Widget>(static_cast<const Widget*>(this));
 	}
 
 };

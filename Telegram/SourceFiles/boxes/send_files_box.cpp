@@ -19,199 +19,201 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "boxes/photosendbox.h"
+#include "boxes/send_files_box.h"
 
 #include "lang.h"
 #include "localstorage.h"
 #include "mainwidget.h"
-#include "photosendbox.h"
 #include "history/history_media_types.h"
+#include "ui/filedialog.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 
-PhotoSendBox::PhotoSendBox(const FileLoadResultPtr &file) : AbstractBox(st::boxWideWidth)
-, _file(file)
-, _animated(false)
+namespace {
+
+constexpr auto kMinPreviewWidth = 20;
+
+} // namespace
+
+SendFilesBox::SendFilesBox(const QString &filepath, QImage image, CompressConfirm compressed, bool animated) : AbstractBox(st::boxWideWidth)
+, _files(filepath)
+, _image(image)
+, _compressConfirm(compressed)
+, _animated(image.isNull() ? false : animated)
 , _caption(this, st::confirmCaptionArea, lang(lng_photo_caption))
-, _compressedFromSettings(_file->type == PrepareAuto)
-, _compressed(this, lang(lng_send_image_compressed), _compressedFromSettings ? cCompressPastedImage() : true, st::defaultBoxCheckbox)
 , _send(this, lang(lng_send_button), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _thumbx(0)
-, _thumby(0)
-, _thumbw(0)
-, _thumbh(0)
-, _statusw(0)
-, _isImage(false)
-, _replyTo(_file->to.replyTo)
-, _confirmed(false) {
-	connect(_send, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	_animated = false;
-	QSize dimensions;
-	if (_file->photo.type() != mtpc_photoEmpty) {
-		_file->type = PreparePhoto;
-	} else if (_file->document.type() == mtpc_document) {
-		const auto &document(_file->document.c_document());
-		const auto &attributes(document.vattributes.c_vector().v);
-		for (int32 i = 0, l = attributes.size(); i < l; ++i) {
-			if (attributes.at(i).type() == mtpc_documentAttributeAnimated) {
-				_animated = true;
-			} else if (attributes.at(i).type() == mtpc_documentAttributeImageSize) {
-				dimensions = QSize(attributes.at(i).c_documentAttributeImageSize().vw.v, attributes.at(i).c_documentAttributeImageSize().vh.v);
-			} else if (attributes.at(i).type() == mtpc_documentAttributeVideo) {
-				dimensions = QSize(attributes.at(i).c_documentAttributeVideo().vw.v, attributes.at(i).c_documentAttributeVideo().vh.v);
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	if (!image.isNull()) {
+		if (!_animated && _compressConfirm == CompressConfirm::None) {
+			auto originalWidth = image.width();
+			auto originalHeight = image.height();
+			auto thumbWidth = st::msgFileThumbSize;
+			if (originalWidth > originalHeight) {
+				thumbWidth = (originalWidth * st::msgFileThumbSize) / originalHeight;
 			}
-		}
-		if (dimensions.isEmpty()) _animated = false;
-	}
-	if (_file->type == PreparePhoto || _animated) {
-		int32 maxW = 0, maxH = 0;
-		if (_animated) {
-			int32 limitW = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-			int32 limitH = st::confirmMaxHeight;
-			maxW = qMax(dimensions.width(), 1);
-			maxH = qMax(dimensions.height(), 1);
-			if (maxW * limitH > maxH * limitW) {
-				if (maxW < limitW) {
-					maxH = maxH * limitW / maxW;
-					maxW = limitW;
-				}
-			} else {
-				if (maxH < limitH) {
-					maxW = maxW * limitH / maxH;
-					maxH = limitH;
-				}
-			}
-			_thumb = imagePix(_file->thumb.toImage(), maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixOption::Smooth | ImagePixOption::Blurred, maxW, maxH);
+			auto options = Images::Option::Smooth | Images::Option::RoundedSmall | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::RoundedBottomLeft | Images::Option::RoundedBottomRight;
+			_fileThumb = Images::pixmap(image, thumbWidth * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
 		} else {
-			for (PreparedPhotoThumbs::const_iterator i = _file->photoThumbs.cbegin(), e = _file->photoThumbs.cend(); i != e; ++i) {
-				if (i->width() >= maxW && i->height() >= maxH) {
-					_thumb = *i;
-					maxW = _thumb.width();
-					maxH = _thumb.height();
+			auto maxW = 0;
+			auto maxH = 0;
+			if (_animated) {
+				auto limitW = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+				auto limitH = st::confirmMaxHeight;
+				maxW = qMax(image.width(), 1);
+				maxH = qMax(image.height(), 1);
+				if (maxW * limitH > maxH * limitW) {
+					if (maxW < limitW) {
+						maxH = maxH * limitW / maxW;
+						maxW = limitW;
+					}
+				} else {
+					if (maxH < limitH) {
+						maxW = maxW * limitH / maxH;
+						maxH = limitH;
+					}
 				}
+				image = Images::prepare(image, maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth | Images::Option::Blurred, maxW, maxH);
 			}
-		}
-		int32 tw = _thumb.width(), th = _thumb.height();
-		if (!tw || !th) {
-			tw = th = 1;
-		}
-		_thumbw = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-		if (_thumb.width() < _thumbw) {
-			_thumbw = (_thumb.width() > 20) ? _thumb.width() : 20;
-		}
-		int32 maxthumbh = qMin(qRound(1.5 * _thumbw), int(st::confirmMaxHeight));
-		_thumbh = qRound(th * float64(_thumbw) / tw);
-		if (_thumbh > maxthumbh) {
-			_thumbw = qRound(_thumbw * float64(maxthumbh) / _thumbh);
-			_thumbh = maxthumbh;
-			if (_thumbw < 10) {
-				_thumbw = 10;
+			auto originalWidth = image.width();
+			auto originalHeight = image.height();
+			if (!originalWidth || !originalHeight) {
+				originalWidth = originalHeight = 1;
 			}
-		}
-		_thumbx = (width() - _thumbw) / 2;
+			_previewWidth = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+			if (image.width() < _previewWidth) {
+				_previewWidth = qMax(image.width(), kMinPreviewWidth);
+			}
+			auto maxthumbh = qMin(qRound(1.5 * _previewWidth), st::confirmMaxHeight);
+			_previewHeight = qRound(originalHeight * float64(_previewWidth) / originalWidth);
+			if (_previewHeight > maxthumbh) {
+				_previewWidth = qRound(_previewWidth * float64(maxthumbh) / _previewHeight);
+				accumulate_max(_previewWidth, kMinPreviewWidth);
+				_previewHeight = maxthumbh;
+			}
+			_previewLeft = (width() - _previewWidth) / 2;
 
-		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
-		_thumb.setDevicePixelRatio(cRetinaFactor());
-	} else {
-		if (_file->thumb.isNull()) {
-			_thumbw = 0;
+			image = std_::move(image).scaled(_previewWidth * cIntRetinaFactor(), _previewHeight * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			image = Images::prepareOpaque(std_::move(image));
+			_preview = App::pixmapFromImageInPlace(std_::move(image));
+			_preview.setDevicePixelRatio(cRetinaFactor());
+		}
+	}
+	if (_preview.isNull()) {
+		if (filepath.isEmpty()) {
+			auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+			_nameText.setText(st::semiboldFont, filename, _textNameOptions);
+			_statusText = qsl("%1x%2").arg(_image.width()).arg(_image.height());
+			_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+			_fileIsImage = true;
 		} else {
-			_thumb = _file->thumb;
-			int32 tw = _thumb.width(), th = _thumb.height();
-			if (tw > th) {
-				_thumbw = (tw * st::msgFileThumbSize) / th;
-			} else {
-				_thumbw = st::msgFileThumbSize;
-			}
-			auto options = ImagePixOption::Smooth | ImagePixOption::RoundedSmall | ImagePixOption::RoundedTopLeft | ImagePixOption::RoundedTopRight | ImagePixOption::RoundedBottomLeft | ImagePixOption::RoundedBottomRight;
-			_thumb = imagePix(_thumb.toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
+			auto fileinfo = QFileInfo(filepath);
+			auto filename = fileinfo.fileName();
+			_nameText.setText(st::semiboldFont, filename, _textNameOptions);
+			_statusText = formatSizeText(fileinfo.size());
+			_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+			_fileIsImage = fileIsImage(filename, mimeTypeForFile(fileinfo).name());
 		}
-
-		_name.setText(st::semiboldFont, _file->filename, _textNameOptions);
-		_status = formatSizeText(_file->filesize);
-		_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
-		_isImage = fileIsImage(_file->filename, _file->filemime);
 	}
 
-	if (_file->type != PreparePhoto) {
-		_compressed->hide();
-	}
-
-	updateBoxSize();
-	_caption->setMaxLength(MaxPhotoCaption);
-	_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
-	connect(_compressed, SIGNAL(changed()), this, SLOT(onCompressedChange()));
-	connect(_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
-	connect(_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
-	connect(_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
-
-	prepare();
+	setup();
 }
 
-PhotoSendBox::PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo) : AbstractBox(st::boxWideWidth)
+SendFilesBox::SendFilesBox(const QStringList &files, CompressConfirm compressed) : AbstractBox(st::boxWideWidth)
+, _files(files)
+, _compressConfirm(compressed)
 , _caption(this, st::confirmCaptionArea, lang(lng_photo_caption))
-, _compressed(this, lang(lng_send_image_compressed), true)
 , _send(this, lang(lng_send_button), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _thumbx(0)
-, _thumby(0)
-, _thumbw(0)
-, _thumbh(0)
-, _statusw(0)
-, _isImage(false)
-, _phone(phone)
-, _fname(fname)
-, _lname(lname)
-, _replyTo(replyTo)
-, _confirmed(false) {
-	connect(_send, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	updateTitleText();
 
-	_compressed->hide();
-	_caption->hide();
-
-	_name.setText(st::semiboldFont, lng_full_name(lt_first_name, _fname, lt_last_name, _lname), _textNameOptions);
-	_status = _phone;
-	_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
-
-	updateBoxSize();
-	prepare();
+	setup();
 }
 
-void PhotoSendBox::onCompressedChange() {
-	if (_caption->isHidden()) {
-		setFocus();
-	} else {
-		_caption->setFocus();
+SendFilesBox::SendFilesBox(const QString &phone, const QString &firstname, const QString &lastname) : AbstractBox(st::boxWideWidth)
+, _contactPhone(phone)
+, _contactFirstName(firstname)
+, _contactLastName(lastname)
+, _send(this, lang(lng_send_button), st::defaultBoxButton)
+, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+	_nameText.setText(st::semiboldFont, lng_full_name(lt_first_name, _contactFirstName, lt_last_name, _contactLastName), _textNameOptions);
+	_statusText = _contactPhone;
+	_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+
+	setup();
+}
+
+void SendFilesBox::setup() {
+	_send->setClickedCallback([this] { onSend(); });
+	_cancel->setClickedCallback([this] { onClose(); });
+
+	if (_compressConfirm != CompressConfirm::None) {
+		auto compressed = (_compressConfirm == CompressConfirm::Auto) ? cCompressPastedImage() : (_compressConfirm == CompressConfirm::Yes);
+		auto text = lng_send_images_compress(lt_count, _files.size());
+		_compressed.create(this, text, compressed, st::defaultBoxCheckbox);
+		connect(_compressed, SIGNAL(changed()), this, SLOT(onCompressedChange()));
 	}
+	if (_caption) {
+		_caption->setMaxLength(MaxPhotoCaption);
+		_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
+		connect(_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
+		connect(_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
+		connect(_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
+	}
+	_send->setText(getSendButtonText());
 	updateBoxSize();
-	resizeEvent(0);
+}
+
+QString SendFilesBox::getSendButtonText() const {
+	if (!_contactPhone.isEmpty()) {
+		return lang(lng_send_button);
+	} else if (_compressed && _compressed->checked()) {
+		return lng_send_photos(lt_count, _files.size());
+	}
+	return lng_send_files(lt_count, _files.size());
+}
+
+void SendFilesBox::onCompressedChange() {
+	doSetInnerFocus();
+	_send->setText(getSendButtonText());
+	updateControlsGeometry();
+}
+
+void SendFilesBox::onCaptionResized() {
+	updateBoxSize();
+	updateControlsGeometry();
 	update();
 }
 
-void PhotoSendBox::onCaptionResized() {
-	updateBoxSize();
-	resizeEvent(0);
+void SendFilesBox::updateTitleText() {
+	_titleText = (_compressConfirm == CompressConfirm::None) ? lng_send_files_selected(lt_count, _files.size()) : lng_send_images_selected(lt_count, _files.size());
 	update();
 }
 
-void PhotoSendBox::updateBoxSize() {
-	if (_file && (_file->type == PreparePhoto || _animated)) {
-		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + (_animated ? 0 : (st::boxPhotoCompressedPadding.top() + _compressed->height())) + st::boxPhotoCompressedPadding.bottom() + _caption->height() + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom());
-	} else if (_thumbw) {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption->height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom());
+void SendFilesBox::updateBoxSize() {
+	auto newHeight = 0;
+	if (!_preview.isNull()) {
+		newHeight += st::boxPhotoPadding.top() + _previewHeight;
+	} else if (!_fileThumb.isNull()) {
+		newHeight += st::boxPhotoPadding.top() + st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom();
+	} else if (_files.size() > 1) {
+		newHeight += titleHeight();
 	} else {
-		setMaxHeight(st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() + (_file ? (st::boxPhotoCompressedPadding.bottom() + _caption->height()) : 0) + st::boxPhotoPadding.bottom() + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom());
+		newHeight += st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
+	if (_compressed) {
+		newHeight += st::boxPhotoCompressedSkip + _compressed->height();
+	}
+	if (_caption) {
+		newHeight += st::boxPhotoCaptionSkip + _caption->height();
+	}
+	newHeight += st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom();
+	setMaxHeight(newHeight);
 }
 
-void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
+void SendFilesBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
 		onSend((e->modifiers().testFlag(Qt::ControlModifier) || e->modifiers().testFlag(Qt::MetaModifier)) && e->modifiers().testFlag(Qt::ShiftModifier));
 	} else {
@@ -219,21 +221,27 @@ void PhotoSendBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void PhotoSendBox::paintEvent(QPaintEvent *e) {
+void SendFilesBox::paintEvent(QPaintEvent *e) {
 	AbstractBox::paintEvent(e);
 
 	Painter p(this);
 
-	if (_file && (_file->type == PreparePhoto || _animated)) {
-		if (_thumbx > st::boxPhotoPadding.left()) {
-			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _thumbx - st::boxPhotoPadding.left(), _thumbh, st::confirmBg->b);
+	if (!_titleText.isEmpty()) {
+		p.setFont(st::boxPhotoTitleFont);
+		p.setPen(st::boxTitleFg);
+		p.drawTextLeft(st::boxPhotoTitlePosition.x(), st::boxPhotoTitlePosition.y(), width(), _titleText);
+	}
+
+	if (!_preview.isNull()) {
+		if (_previewLeft > st::boxPhotoPadding.left()) {
+			p.fillRect(st::boxPhotoPadding.left(), st::boxPhotoPadding.top(), _previewLeft - st::boxPhotoPadding.left(), _previewHeight, st::confirmBg);
 		}
-		if (_thumbx + _thumbw < width() - st::boxPhotoPadding.right()) {
-			p.fillRect(_thumbx + _thumbw, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _thumbx - _thumbw, _thumbh, st::confirmBg->b);
+		if (_previewLeft + _previewWidth < width() - st::boxPhotoPadding.right()) {
+			p.fillRect(_previewLeft + _previewWidth, st::boxPhotoPadding.top(), width() - st::boxPhotoPadding.right() - _previewLeft - _previewWidth, _previewHeight, st::confirmBg);
 		}
-		p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), _thumb);
+		p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
 		if (_animated) {
-			QRect inner(_thumbx + (_thumbw - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_thumbh - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
+			auto inner = QRect(_previewLeft + (_previewWidth - st::msgFileSize) / 2, st::boxPhotoPadding.top() + (_previewHeight - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgDateImgBg);
 
@@ -244,114 +252,103 @@ void PhotoSendBox::paintEvent(QPaintEvent *e) {
 			auto icon = &st::historyFileInPlay;
 			icon->paintInCenter(p, inner);
 		}
-	} else {
-		int32 w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-		int32 h = _thumbw ? (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom()) : (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom());
-		int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
-		if (_thumbw) {
+	} else if (_files.size() < 2) {
+		auto w = width() - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
+		auto h = _fileThumb.isNull() ? (st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom()) : (st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom());
+		auto nameleft = 0, nametop = 0, nameright = 0, statustop = 0, linktop = 0;
+		if (_fileThumb.isNull()) {
+			nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+			nametop = st::msgFileNameTop;
+			nameright = st::msgFilePadding.left();
+			statustop = st::msgFileStatusTop;
+		} else {
 			nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
 			nametop = st::msgFileThumbNameTop;
 			nameright = st::msgFileThumbPadding.left();
 			statustop = st::msgFileThumbStatusTop;
 			linktop = st::msgFileThumbLinkTop;
-		} else {
-			nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
-			nametop = st::msgFileNameTop;
-			nameright = st::msgFilePadding.left();
-			statustop = st::msgFileStatusTop;
 		}
-		int32 namewidth = w - nameleft - (_thumbw ? st::msgFileThumbPadding.left() : st::msgFilePadding.left());
-		if (namewidth > _statusw) {
-			w -= (namewidth - _statusw);
-			namewidth = _statusw;
-		}
+		auto namewidth = w - nameleft - (_fileThumb.isNull() ? st::msgFilePadding.left() : st::msgFileThumbPadding.left());
 		int32 x = (width() - w) / 2, y = st::boxPhotoPadding.top();
 
 		App::roundRect(p, x, y, w, h, st::msgOutBg, MessageOutCorners, &st::msgOutShadow);
 
-		if (_thumbw) {
-			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
-			p.drawPixmap(rthumb.topLeft(), _thumb);
-		} else if (_file) {
-			QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
-			p.setPen(Qt::NoPen);
-			p.setBrush(st::msgFileOutBg);
+		if (_fileThumb.isNull()) {
+			if (_contactPhone.isNull()) {
+				QRect inner(rtlrect(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), st::msgFileSize, st::msgFileSize, width()));
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::msgFileOutBg);
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.drawEllipse(inner);
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+				p.setRenderHint(QPainter::HighQualityAntialiasing);
+				p.drawEllipse(inner);
+				p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-			auto icon = &(_isImage ? st::historyFileOutImage : st::historyFileOutDocument);
-			icon->paintInCenter(p, inner);
+				auto &icon = _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
+				icon.paintInCenter(p, inner);
+			} else {
+				p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixCircled(st::msgFileSize));
+			}
 		} else {
-			p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixCircled(st::msgFileSize));
+			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));
+			p.drawPixmap(rthumb.topLeft(), _fileThumb);
 		}
 		p.setFont(st::semiboldFont);
 		p.setPen(st::historyFileNameOutFg);
-		_name.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
+		_nameText.drawLeftElided(p, x + nameleft, y + nametop, namewidth, width());
 
 		auto &status = st::mediaOutFg;
 		p.setFont(st::normalFont);
 		p.setPen(status);
-		p.drawTextLeft(x + nameleft, y + statustop, width(), _status);
+		p.drawTextLeft(x + nameleft, y + statustop, width(), _statusText);
 	}
 }
 
-void PhotoSendBox::resizeEvent(QResizeEvent *e) {
-	_send->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _send->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _send->width() + st::boxButtonPadding.left(), _send->y());
-	_caption->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _caption->height());
-	_caption->moveToLeft(st::boxPhotoPadding.left(), _send->y() - st::boxButtonPadding.top() - _caption->height());
-	_compressed->moveToLeft(st::boxPhotoPadding.left(), st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxPhotoCompressedPadding.top());
+void SendFilesBox::resizeEvent(QResizeEvent *e) {
+	updateControlsGeometry();
 	AbstractBox::resizeEvent(e);
 }
 
-void PhotoSendBox::closePressed() {
-	if (!_confirmed && App::main()) {
-		if (_file) {
-			App::main()->onSendFileCancel(_file);
-		} else {
-			App::main()->onShareContactCancel();
-		}
+void SendFilesBox::updateControlsGeometry() {
+	_send->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _send->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _send->width() + st::boxButtonPadding.left(), _send->y());
+	auto bottom = _send->y() - st::boxButtonPadding.top();
+	if (_caption) {
+		_caption->resize(st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right(), _caption->height());
+		_caption->moveToLeft(st::boxPhotoPadding.left(), bottom - _caption->height());
+		bottom -= st::boxPhotoCaptionSkip + _caption->height();
+	}
+	if (_compressed) {
+		_compressed->moveToLeft(st::boxPhotoPadding.left(), bottom - _compressed->height());
+		bottom -= st::boxPhotoCompressedSkip + _compressed->height();
 	}
 }
 
-void PhotoSendBox::doSetInnerFocus() {
-	if (_caption->isHidden()) {
+void SendFilesBox::doSetInnerFocus() {
+	if (!_caption || _caption->isHidden()) {
 		setFocus();
 	} else {
 		_caption->setFocus();
 	}
 }
 
-void PhotoSendBox::onSend(bool ctrlShiftEnter) {
-	if (App::main()) {
-		if (_file) {
-			if (_compressed->isHidden()) {
-				if (_file->type == PrepareAuto) {
-					_file->type = PrepareDocument;
-				}
-			} else {
-				if (_compressedFromSettings && _compressed->checked() != cCompressPastedImage()) {
-					cSetCompressPastedImage(_compressed->checked());
-					Local::writeUserSettings();
-				}
-				if (_compressed->checked()) {
-					_file->type = PreparePhoto;
-				} else {
-					_file->type = PrepareDocument;
-				}
-			}
-			if (!_caption->isHidden()) {
-				_file->caption = prepareText(_caption->getLastText(), true);
-			}
-			App::main()->onSendFileConfirm(_file, ctrlShiftEnter);
-		} else {
-			App::main()->onShareContactConfirm(_phone, _fname, _lname, _replyTo, ctrlShiftEnter);
-		}
+void SendFilesBox::onSend(bool ctrlShiftEnter) {
+	if (_compressed && _compressConfirm == CompressConfirm::Auto && _compressed->checked() != cCompressPastedImage()) {
+		cSetCompressPastedImage(_compressed->checked());
+		Local::writeUserSettings();
 	}
 	_confirmed = true;
+	if (_confirmedCallback) {
+		auto compressed = _compressed ? _compressed->checked() : false;
+		auto caption = _caption ? prepareText(_caption->getLastText(), true) : QString();
+		_confirmedCallback(_files, compressed, caption, ctrlShiftEnter);
+	}
 	onClose();
+}
+
+void SendFilesBox::closePressed() {
+	if (!_confirmed && _cancelledCallback) {
+		_cancelledCallback();
+	}
 }
 
 EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
@@ -421,8 +418,8 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 			} else {
 				_thumbw = st::msgFileThumbSize;
 			}
-			auto options = ImagePixOption::Smooth | ImagePixOption::RoundedSmall | ImagePixOption::RoundedTopLeft | ImagePixOption::RoundedTopRight | ImagePixOption::RoundedBottomLeft | ImagePixOption::RoundedBottomRight;
-			_thumb = imagePix(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
+			auto options = Images::Option::Smooth | Images::Option::RoundedSmall | Images::Option::RoundedTopLeft | Images::Option::RoundedTopRight | Images::Option::RoundedBottomLeft | Images::Option::RoundedBottomRight;
+			_thumb = Images::pixmap(image->pix().toImage(), _thumbw * cIntRetinaFactor(), 0, options, st::msgFileThumbSize, st::msgFileThumbSize);
 		}
 
 		if (doc) {
@@ -453,11 +450,11 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 					maxH = limitH;
 				}
 			}
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixOption::Smooth | ImagePixOption::Blurred, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth | Images::Option::Blurred, maxW, maxH);
 		} else {
 			maxW = dimensions.width();
 			maxH = dimensions.height();
-			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), ImagePixOption::Smooth, maxW, maxH);
+			_thumb = image->pixNoCache(maxW * cIntRetinaFactor(), maxH * cIntRetinaFactor(), Images::Option::Smooth, maxW, maxH);
 		}
 		int32 tw = _thumb.width(), th = _thumb.height();
 		if (!tw || !th) {
@@ -501,8 +498,6 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 	QTextCursor c(_field->textCursor());
 	c.movePosition(QTextCursor::End);
 	_field->setTextCursor(c);
-
-	prepare();
 }
 
 bool EditCaptionBox::captionFound() const {
@@ -516,7 +511,7 @@ void EditCaptionBox::onCaptionResized() {
 }
 
 void EditCaptionBox::updateBoxSize() {
-	int32 bottomh = st::boxPhotoCompressedPadding.bottom() + _field->height() + st::normalFont->height + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
+	auto bottomh = st::boxPhotoCaptionSkip + _field->height() + st::normalFont->height + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	if (_photo || _animated) {
 		setMaxHeight(st::boxPhotoPadding.top() + _thumbh + bottomh);
 	} else if (_thumbw) {

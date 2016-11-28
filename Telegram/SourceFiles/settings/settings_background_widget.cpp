@@ -151,7 +151,7 @@ void BackgroundRow::updateImage() {
 		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, sx, sy, s, s);
 	}
-	imageRound(back, ImageRoundRadius::Small);
+	Images::prepareRound(back, ImageRoundRadius::Small);
 	_background = App::pixmapFromImageInPlace(std_::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
 
@@ -215,7 +215,7 @@ void BackgroundWidget::onChooseFromFile() {
 	filters.push_back(qsl("Theme files (*.tdesktop-theme)"));
 	filters.push_back(filedialogAllFilesFilter());
 
-	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filters.join(qsl(";;")));
+	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
 }
 
 void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {

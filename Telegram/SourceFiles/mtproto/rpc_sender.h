@@ -827,17 +827,6 @@ protected:
 typedef void (*MTPStateChangedHandler)(int32 dcId, int32 state);
 typedef void(*MTPSessionResetHandler)(int32 dcId);
 
-template <typename FunctionType>
-struct LambdaUniqueHelper;
-
-template <typename Lambda, typename R, typename ...Args>
-struct LambdaUniqueHelper<R(Lambda::*)(Args...) const> {
-	using UniqueType = base::lambda<R(Args...)>;
-};
-
-template <typename FunctionType>
-using LambdaGetUnique = typename LambdaUniqueHelper<FunctionType>::UniqueType;
-
 template <typename Base, typename FunctionType>
 class RPCHandlerImplementation : public Base {
 protected:
@@ -948,7 +937,7 @@ inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(mtpRequestId)
 
 template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
 RPCDoneHandlerPtr rpcDone(Lambda &&lambda) {
-	return rpcDone_lambda_wrap_helper(LambdaGetUnique<decltype(&Lambda::operator())>(std_::move(lambda)));
+	return rpcDone_lambda_wrap_helper(base::lambda_type<Lambda>(std_::move(lambda)));
 }
 
 template <typename FunctionType>
@@ -1008,5 +997,5 @@ inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(mtpRequest
 
 template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
 RPCFailHandlerPtr rpcFail(Lambda &&lambda) {
-	return rpcFail_lambda_wrap_helper(LambdaGetUnique<decltype(&Lambda::operator())>(std_::move(lambda)));
+	return rpcFail_lambda_wrap_helper(base::lambda_type<Lambda>(std_::move(lambda)));
 }

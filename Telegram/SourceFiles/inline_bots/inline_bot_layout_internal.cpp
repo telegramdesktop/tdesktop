@@ -282,7 +282,7 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 		if (!document->thumb->isNull()) {
 			if (document->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+					_thumb = document->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			} else {
 				document->thumb->load();
@@ -293,7 +293,7 @@ void Gif::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 		if (!thumb->isNull()) {
 			if (thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+					_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			} else {
 				thumb->load();
@@ -529,13 +529,13 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 	if (PhotoData *photo = getShownPhoto()) {
 		if (photo->medium->loaded()) {
 			if (!_thumbLoaded || _thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+				_thumb = photo->medium->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 			}
 			_thumbLoaded = true;
 		} else {
 			if (photo->thumb->loaded()) {
 				if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+					_thumb = photo->thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 				}
 			}
 			photo->medium->load();
@@ -544,7 +544,7 @@ void Photo::prepareThumb(int32 width, int32 height, const QSize &frame) const {
 		ImagePtr thumb = getResultThumb();
 		if (thumb->loaded()) {
 			if (_thumb.width() != width * cIntRetinaFactor() || _thumb.height() != height * cIntRetinaFactor()) {
-				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+				_thumb = thumb->pixNoCache(frame.width() * cIntRetinaFactor(), frame.height() * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 			}
 		} else {
 			thumb->load();
@@ -654,7 +654,7 @@ void Video::prepareThumb(int32 width, int32 height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -985,7 +985,7 @@ void Contact::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -1132,7 +1132,7 @@ void Article::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
 		thumb->load();
@@ -1312,7 +1312,7 @@ void Game::prepareThumb(int width, int height) const {
 					w = width;
 				}
 			}
-			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), ImagePixOption::Smooth, width, height);
+			_thumb = thumb->pixNoCache(w * cIntRetinaFactor(), h * cIntRetinaFactor(), Images::Option::Smooth, width, height);
 		}
 	} else {
 		thumb->load();

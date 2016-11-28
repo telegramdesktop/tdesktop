@@ -52,7 +52,6 @@ AutoLockBox::AutoLockBox() : _close(this, lang(lng_box_ok), st::defaultBoxButton
 	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
-	prepare();
 }
 
 void AutoLockBox::onChange() {

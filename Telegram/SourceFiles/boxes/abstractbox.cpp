@@ -45,10 +45,6 @@ void AbstractBox::setAdditionalTitle(const QString &additionalTitle) {
 	update();
 }
 
-void AbstractBox::prepare() {
-	raiseShadow();
-}
-
 void AbstractBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		onClose();

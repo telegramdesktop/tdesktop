@@ -25,222 +25,222 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace base {
 namespace internal {
 
-template <typename Return, typename ...Args>
-struct lambda_wrap_helper_base {
-	using construct_copy_other_type = void(*)(void *, const void *); // dst, src
-	using construct_move_other_type = void(*)(void *, void *); // dst, src
-	using call_type = Return(*)(const void *, Args...);
-	using destruct_type = void(*)(const void *);
+	template <typename Return, typename ...Args>
+	struct lambda_wrap_helper_base {
+		using construct_copy_other_type = void(*)(void *, const void *); // dst, src
+		using construct_move_other_type = void(*)(void *, void *); // dst, src
+		using call_type = Return(*)(const void *, Args...);
+		using destruct_type = void(*)(const void *);
 
-	lambda_wrap_helper_base() = delete;
-	lambda_wrap_helper_base(const lambda_wrap_helper_base &other) = delete;
-	lambda_wrap_helper_base &operator=(const lambda_wrap_helper_base &other) = delete;
+		lambda_wrap_helper_base() = delete;
+		lambda_wrap_helper_base(const lambda_wrap_helper_base &other) = delete;
+		lambda_wrap_helper_base &operator=(const lambda_wrap_helper_base &other) = delete;
 
-	lambda_wrap_helper_base(
-		construct_copy_other_type construct_copy_other,
-		construct_move_other_type construct_move_other,
-		call_type call,
-		destruct_type destruct)
-		: construct_copy_other(construct_copy_other)
-		, construct_move_other(construct_move_other)
-		, call(call)
-		, destruct(destruct) {
-	}
+		lambda_wrap_helper_base(
+			construct_copy_other_type construct_copy_other,
+			construct_move_other_type construct_move_other,
+			call_type call,
+			destruct_type destruct)
+			: construct_copy_other(construct_copy_other)
+			, construct_move_other(construct_move_other)
+			, call(call)
+			, destruct(destruct) {
+		}
 
-	const construct_copy_other_type construct_copy_other;
-	const construct_move_other_type construct_move_other;
-	const call_type call;
-	const destruct_type destruct;
+		const construct_copy_other_type construct_copy_other;
+		const construct_move_other_type construct_move_other;
+		const call_type call;
+		const destruct_type destruct;
 
-	static constexpr size_t kFullStorageSize = 24U + sizeof(void*);
-	static constexpr size_t kStorageSize = kFullStorageSize - sizeof(void*);
-	using alignment = uint64;
+		static constexpr size_t kFullStorageSize = 24U + sizeof(void*);
+		static constexpr size_t kStorageSize = kFullStorageSize - sizeof(void*);
+		using alignment = uint64;
 
-	template <typename Lambda>
-	using IsLarge = std_::integral_constant<bool, !(sizeof(std_::decay_simple_t<Lambda>) <= kStorageSize)>;
+		template <typename Lambda>
+		using IsLarge = std_::integral_constant<bool, !(sizeof(std_::decay_simple_t<Lambda>) <= kStorageSize)>;
 
-protected:
-	static void bad_construct_copy(void *lambda, const void *source) {
-		t_assert(!"base::lambda bad_construct_copy() called!");
-	}
+	protected:
+		static void bad_construct_copy(void *lambda, const void *source) {
+			t_assert(!"base::lambda bad_construct_copy() called!");
+		}
 
-};
+	};
 
-template <typename Return, typename ...Args>
-struct lambda_wrap_empty : public lambda_wrap_helper_base<Return, Args...> {
-	static void construct_copy_other_method(void *lambda, const void *source) {
-	}
-	static void construct_move_other_method(void *lambda, void *source) {
-	}
-	static Return call_method(const void *lambda, Args... args) {
-		t_assert(!"base::lambda empty call_method() called!");
-		return Return();
-	}
-	static void destruct_method(const void *lambda) {
-	}
-	lambda_wrap_empty() : lambda_wrap_helper_base<Return, Args...>(
-		&lambda_wrap_empty::construct_copy_other_method,
-		&lambda_wrap_empty::construct_move_other_method,
-		&lambda_wrap_empty::call_method,
-		&lambda_wrap_empty::destruct_method) {
-	}
+	template <typename Return, typename ...Args>
+	struct lambda_wrap_empty : public lambda_wrap_helper_base<Return, Args...> {
+		static void construct_copy_other_method(void *lambda, const void *source) {
+		}
+		static void construct_move_other_method(void *lambda, void *source) {
+		}
+		static Return call_method(const void *lambda, Args... args) {
+			t_assert(!"base::lambda empty call_method() called!");
+			return Return();
+		}
+		static void destruct_method(const void *lambda) {
+		}
+		lambda_wrap_empty() : lambda_wrap_helper_base<Return, Args...>(
+			&lambda_wrap_empty::construct_copy_other_method,
+			&lambda_wrap_empty::construct_move_other_method,
+			&lambda_wrap_empty::call_method,
+			&lambda_wrap_empty::destruct_method) {
+		}
 
-	static const lambda_wrap_empty<Return, Args...> instance;
+		static const lambda_wrap_empty<Return, Args...> instance;
 
-};
+	};
 
-template <typename Return, typename ...Args>
-const lambda_wrap_empty<Return, Args...> lambda_wrap_empty<Return, Args...>::instance = {};
+	template <typename Return, typename ...Args>
+	const lambda_wrap_empty<Return, Args...> lambda_wrap_empty<Return, Args...>::instance = {};
 
-template <typename Lambda, typename IsLarge, typename Return, typename ...Args> struct lambda_wrap_helper_move_impl;
+	template <typename Lambda, typename IsLarge, typename Return, typename ...Args> struct lambda_wrap_helper_move_impl;
 
-//
-// Disable large lambda support.
-// If you really need it, just store data in some std_::unique_ptr<struct>.
-//
-//template <typename Lambda, typename Return, typename ...Args>
-//struct lambda_wrap_helper_move_impl<Lambda, std_::true_type, Return, Args...> : public lambda_wrap_helper_base<Return, Args...> {
-//	using JustLambda = std_::decay_simple_t<Lambda>;
-//	using LambdaPtr = std_::unique_ptr<JustLambda>;
-//	using Parent = lambda_wrap_helper_base<Return, Args...>;
-//	static void construct_move_other_method(void *lambda, void *source) {
-//		auto source_lambda = static_cast<LambdaPtr*>(source);
-//		new (lambda) LambdaPtr(std_::move(*source_lambda));
-//	}
-//	static void construct_move_lambda_method(void *lambda, void *source) {
-//		auto source_lambda = static_cast<JustLambda*>(source);
-//		new (lambda) LambdaPtr(std_::make_unique<JustLambda>(static_cast<JustLambda&&>(*source_lambda)));
-//	}
-//	static Return call_method(const void *lambda, Args... args) {
-//		return (**static_cast<const LambdaPtr*>(lambda))(std_::forward<Args>(args)...);
-//	}
-//	static void destruct_method(const void *lambda) {
-//		static_cast<const LambdaPtr*>(lambda)->~LambdaPtr();
-//	}
-//	lambda_wrap_helper_move_impl() : Parent(
-//		&Parent::bad_construct_copy,
-//		&lambda_wrap_helper_move_impl::construct_move_other_method,
-//		&lambda_wrap_helper_move_impl::call_method,
-//		&lambda_wrap_helper_move_impl::destruct_method) {
-//	}
-//
-//protected:
-//	lambda_wrap_helper_move_impl(
-//		typename Parent::construct_copy_other_type construct_copy_other
-//	) : Parent(
-//		construct_copy_other,
-//		&lambda_wrap_helper_move_impl::construct_move_other_method,
-//		&lambda_wrap_helper_move_impl::call_method,
-//		&lambda_wrap_helper_move_impl::destruct_method) {
-//	}
-//
-//};
+	//
+	// Disable large lambda support.
+	// If you really need it, just store data in some std_::unique_ptr<struct>.
+	//
+	//template <typename Lambda, typename Return, typename ...Args>
+	//struct lambda_wrap_helper_move_impl<Lambda, std_::true_type, Return, Args...> : public lambda_wrap_helper_base<Return, Args...> {
+	//	using JustLambda = std_::decay_simple_t<Lambda>;
+	//	using LambdaPtr = std_::unique_ptr<JustLambda>;
+	//	using Parent = lambda_wrap_helper_base<Return, Args...>;
+	//	static void construct_move_other_method(void *lambda, void *source) {
+	//		auto source_lambda = static_cast<LambdaPtr*>(source);
+	//		new (lambda) LambdaPtr(std_::move(*source_lambda));
+	//	}
+	//	static void construct_move_lambda_method(void *lambda, void *source) {
+	//		auto source_lambda = static_cast<JustLambda*>(source);
+	//		new (lambda) LambdaPtr(std_::make_unique<JustLambda>(static_cast<JustLambda&&>(*source_lambda)));
+	//	}
+	//	static Return call_method(const void *lambda, Args... args) {
+	//		return (**static_cast<const LambdaPtr*>(lambda))(std_::forward<Args>(args)...);
+	//	}
+	//	static void destruct_method(const void *lambda) {
+	//		static_cast<const LambdaPtr*>(lambda)->~LambdaPtr();
+	//	}
+	//	lambda_wrap_helper_move_impl() : Parent(
+	//		&Parent::bad_construct_copy,
+	//		&lambda_wrap_helper_move_impl::construct_move_other_method,
+	//		&lambda_wrap_helper_move_impl::call_method,
+	//		&lambda_wrap_helper_move_impl::destruct_method) {
+	//	}
+	//
+	//protected:
+	//	lambda_wrap_helper_move_impl(
+	//		typename Parent::construct_copy_other_type construct_copy_other
+	//	) : Parent(
+	//		construct_copy_other,
+	//		&lambda_wrap_helper_move_impl::construct_move_other_method,
+	//		&lambda_wrap_helper_move_impl::call_method,
+	//		&lambda_wrap_helper_move_impl::destruct_method) {
+	//	}
+	//
+	//};
 
-template <typename Lambda, typename Return, typename ...Args>
-struct lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...> : public lambda_wrap_helper_base<Return, Args...> {
-	using JustLambda = std_::decay_simple_t<Lambda>;
-	using Parent = lambda_wrap_helper_base<Return, Args...>;
-	static void construct_move_other_method(void *lambda, void *source) {
-		auto source_lambda = static_cast<JustLambda*>(source);
-		new (lambda) JustLambda(static_cast<JustLambda&&>(*source_lambda));
-	}
-	static void construct_move_lambda_method(void *lambda, void *source) {
-		static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
-		auto space = sizeof(JustLambda);
-		auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
-		t_assert(aligned == lambda);
-		auto source_lambda = static_cast<JustLambda*>(source);
-		new (lambda) JustLambda(static_cast<JustLambda&&>(*source_lambda));
-	}
-	static Return call_method(const void *lambda, Args... args) {
-		return (*static_cast<const JustLambda*>(lambda))(std_::forward<Args>(args)...);
-	}
-	static void destruct_method(const void *lambda) {
-		static_cast<const JustLambda*>(lambda)->~JustLambda();
-	}
-	lambda_wrap_helper_move_impl() : Parent(
-		&Parent::bad_construct_copy,
-		&lambda_wrap_helper_move_impl::construct_move_other_method,
-		&lambda_wrap_helper_move_impl::call_method,
-		&lambda_wrap_helper_move_impl::destruct_method) {
-	}
+	template <typename Lambda, typename Return, typename ...Args>
+	struct lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...> : public lambda_wrap_helper_base<Return, Args...> {
+		using JustLambda = std_::decay_simple_t<Lambda>;
+		using Parent = lambda_wrap_helper_base<Return, Args...>;
+		static void construct_move_other_method(void *lambda, void *source) {
+			auto source_lambda = static_cast<JustLambda*>(source);
+			new (lambda) JustLambda(static_cast<JustLambda&&>(*source_lambda));
+		}
+		static void construct_move_lambda_method(void *lambda, void *source) {
+			static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
+			auto space = sizeof(JustLambda);
+			auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
+			t_assert(aligned == lambda);
+			auto source_lambda = static_cast<JustLambda*>(source);
+			new (lambda) JustLambda(static_cast<JustLambda&&>(*source_lambda));
+		}
+		static Return call_method(const void *lambda, Args... args) {
+			return (*static_cast<const JustLambda*>(lambda))(std_::forward<Args>(args)...);
+		}
+		static void destruct_method(const void *lambda) {
+			static_cast<const JustLambda*>(lambda)->~JustLambda();
+		}
+		lambda_wrap_helper_move_impl() : Parent(
+			&Parent::bad_construct_copy,
+			&lambda_wrap_helper_move_impl::construct_move_other_method,
+			&lambda_wrap_helper_move_impl::call_method,
+			&lambda_wrap_helper_move_impl::destruct_method) {
+		}
 
-protected:
-	lambda_wrap_helper_move_impl(
-		typename Parent::construct_copy_other_type construct_copy_other
-	) : Parent(
-		construct_copy_other,
-		&lambda_wrap_helper_move_impl::construct_move_other_method,
-		&lambda_wrap_helper_move_impl::call_method,
-		&lambda_wrap_helper_move_impl::destruct_method) {
-	}
+	protected:
+		lambda_wrap_helper_move_impl(
+			typename Parent::construct_copy_other_type construct_copy_other
+		) : Parent(
+			construct_copy_other,
+			&lambda_wrap_helper_move_impl::construct_move_other_method,
+			&lambda_wrap_helper_move_impl::call_method,
+			&lambda_wrap_helper_move_impl::destruct_method) {
+		}
 
-};
+	};
 
-template <typename Lambda, typename Return, typename ...Args>
-struct lambda_wrap_helper_move : public lambda_wrap_helper_move_impl<Lambda
-	, typename lambda_wrap_helper_base<Return, Args...>::template IsLarge<Lambda>
-	, Return, Args...> {
-	static const lambda_wrap_helper_move instance;
-};
+	template <typename Lambda, typename Return, typename ...Args>
+	struct lambda_wrap_helper_move : public lambda_wrap_helper_move_impl<Lambda
+		, typename lambda_wrap_helper_base<Return, Args...>::template IsLarge<Lambda>
+		, Return, Args...> {
+		static const lambda_wrap_helper_move instance;
+	};
 
-template <typename Lambda, typename Return, typename ...Args>
-const lambda_wrap_helper_move<Lambda, Return, Args...> lambda_wrap_helper_move<Lambda, Return, Args...>::instance = {};
+	template <typename Lambda, typename Return, typename ...Args>
+	const lambda_wrap_helper_move<Lambda, Return, Args...> lambda_wrap_helper_move<Lambda, Return, Args...>::instance = {};
 
-template <typename Lambda, typename IsLarge, typename Return, typename ...Args> struct lambda_wrap_helper_copy_impl;
+	template <typename Lambda, typename IsLarge, typename Return, typename ...Args> struct lambda_wrap_helper_copy_impl;
 
-//
-// Disable large lambda support.
-// If you really need it, just store data in some QSharedPointer<struct>.
-//
-//template <typename Lambda, typename Return, typename ...Args>
-//struct lambda_wrap_helper_copy_impl<Lambda, std_::true_type, Return, Args...> : public lambda_wrap_helper_move_impl<Lambda, std_::true_type, Return, Args...> {
-//	using JustLambda = std_::decay_simple_t<Lambda>;
-//	using LambdaPtr = std_::unique_ptr<JustLambda>;
-//	using Parent = lambda_wrap_helper_move_impl<Lambda, std_::true_type, Return, Args...>;
-//	static void construct_copy_other_method(void *lambda, const void *source) {
-//		auto source_lambda = static_cast<const LambdaPtr*>(source);
-//		new (lambda) LambdaPtr(std_::make_unique<JustLambda>(*source_lambda->get()));
-//	}
-//	static void construct_copy_lambda_method(void *lambda, const void *source) {
-//		auto source_lambda = static_cast<const JustLambda*>(source);
-//		new (lambda) LambdaPtr(std_::make_unique<JustLambda>(static_cast<const JustLambda &>(*source_lambda)));
-//	}
-//	lambda_wrap_helper_copy_impl() : Parent(&lambda_wrap_helper_copy_impl::construct_copy_other_method) {
-//	}
-//
-//};
+	//
+	// Disable large lambda support.
+	// If you really need it, just store data in some QSharedPointer<struct>.
+	//
+	//template <typename Lambda, typename Return, typename ...Args>
+	//struct lambda_wrap_helper_copy_impl<Lambda, std_::true_type, Return, Args...> : public lambda_wrap_helper_move_impl<Lambda, std_::true_type, Return, Args...> {
+	//	using JustLambda = std_::decay_simple_t<Lambda>;
+	//	using LambdaPtr = std_::unique_ptr<JustLambda>;
+	//	using Parent = lambda_wrap_helper_move_impl<Lambda, std_::true_type, Return, Args...>;
+	//	static void construct_copy_other_method(void *lambda, const void *source) {
+	//		auto source_lambda = static_cast<const LambdaPtr*>(source);
+	//		new (lambda) LambdaPtr(std_::make_unique<JustLambda>(*source_lambda->get()));
+	//	}
+	//	static void construct_copy_lambda_method(void *lambda, const void *source) {
+	//		auto source_lambda = static_cast<const JustLambda*>(source);
+	//		new (lambda) LambdaPtr(std_::make_unique<JustLambda>(static_cast<const JustLambda &>(*source_lambda)));
+	//	}
+	//	lambda_wrap_helper_copy_impl() : Parent(&lambda_wrap_helper_copy_impl::construct_copy_other_method) {
+	//	}
+	//
+	//};
 
-template <typename Lambda, typename Return, typename ...Args>
-struct lambda_wrap_helper_copy_impl<Lambda, std_::false_type, Return, Args...> : public lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...> {
-	using JustLambda = std_::decay_simple_t<Lambda>;
-	using Parent = lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...>;
-	static void construct_copy_other_method(void *lambda, const void *source) {
-		auto source_lambda = static_cast<const JustLambda*>(source);
-		new (lambda) JustLambda(static_cast<const JustLambda &>(*source_lambda));
-	}
-	static void construct_copy_lambda_method(void *lambda, const void *source) {
-		static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
-		auto space = sizeof(JustLambda);
-		auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
-		t_assert(aligned == lambda);
-		auto source_lambda = static_cast<const JustLambda*>(source);
-		new (lambda) JustLambda(static_cast<const JustLambda &>(*source_lambda));
-	}
-	lambda_wrap_helper_copy_impl() : Parent(&lambda_wrap_helper_copy_impl::construct_copy_other_method) {
-	}
+	template <typename Lambda, typename Return, typename ...Args>
+	struct lambda_wrap_helper_copy_impl<Lambda, std_::false_type, Return, Args...> : public lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...> {
+		using JustLambda = std_::decay_simple_t<Lambda>;
+		using Parent = lambda_wrap_helper_move_impl<Lambda, std_::false_type, Return, Args...>;
+		static void construct_copy_other_method(void *lambda, const void *source) {
+			auto source_lambda = static_cast<const JustLambda*>(source);
+			new (lambda) JustLambda(static_cast<const JustLambda &>(*source_lambda));
+		}
+		static void construct_copy_lambda_method(void *lambda, const void *source) {
+			static_assert(alignof(JustLambda) <= alignof(typename Parent::alignment), "Bad lambda alignment.");
+			auto space = sizeof(JustLambda);
+			auto aligned = std_::align(alignof(JustLambda), space, lambda, space);
+			t_assert(aligned == lambda);
+			auto source_lambda = static_cast<const JustLambda*>(source);
+			new (lambda) JustLambda(static_cast<const JustLambda &>(*source_lambda));
+		}
+		lambda_wrap_helper_copy_impl() : Parent(&lambda_wrap_helper_copy_impl::construct_copy_other_method) {
+		}
 
-};
+	};
 
-template <typename Lambda, typename Return, typename ...Args>
-struct lambda_wrap_helper_copy : public lambda_wrap_helper_copy_impl<Lambda
-	, typename lambda_wrap_helper_base<Return, Args...>::template IsLarge<Lambda>
-	, Return, Args...> {
-	static const lambda_wrap_helper_copy instance;
-};
+	template <typename Lambda, typename Return, typename ...Args>
+	struct lambda_wrap_helper_copy : public lambda_wrap_helper_copy_impl<Lambda
+		, typename lambda_wrap_helper_base<Return, Args...>::template IsLarge<Lambda>
+		, Return, Args...> {
+		static const lambda_wrap_helper_copy instance;
+	};
 
-template <typename Lambda, typename Return, typename ...Args>
-const lambda_wrap_helper_copy<Lambda, Return, Args...> lambda_wrap_helper_copy<Lambda, Return, Args...>::instance = {};
+	template <typename Lambda, typename Return, typename ...Args>
+	const lambda_wrap_helper_copy<Lambda, Return, Args...> lambda_wrap_helper_copy<Lambda, Return, Args...>::instance = {};
 
 } // namespace internal
 
@@ -262,6 +262,8 @@ class lambda<Return(Args...)> {
 	using IsRvalue = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>;
 
 public:
+	using return_type = Return;
+
 	lambda() : helper_(&EmptyHelper::instance) {
 	}
 
@@ -386,6 +388,116 @@ public:
 	}
 
 };
+
+// Get lambda type from a lambda template parameter.
+
+namespace internal {
+
+	template <typename FunctionType>
+	struct lambda_type_helper;
+
+	template <typename Lambda, typename R, typename ...Args>
+	struct lambda_type_helper<R(Lambda::*)(Args...) const> {
+		using type = lambda<R(Args...)>;
+	};
+
+} // namespace internal
+
+template <typename FunctionType>
+using lambda_type = typename internal::lambda_type_helper<decltype(&FunctionType::operator())>::type;
+
+// Guard lambda call by one or many QObject* weak pointers.
+
+namespace internal {
+
+template <int N>
+class lambda_guard_creator;
+
+template <int N, typename Lambda>
+class lambda_guard_data {
+public:
+	using return_type = typename lambda_type<Lambda>::return_type;
+
+	template <typename ...PointersAndLambda>
+	lambda_guard_data(PointersAndLambda&&... qobjectsAndLambda) : _lambda(init(_pointers, std_::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
+	}
+
+	template <typename ...Args>
+	inline return_type operator()(Args... args) const {
+		for (int i = 0; i != N; ++i) {
+			if (!_pointers[i]) {
+				return return_type();
+			}
+		}
+		return _lambda(std_::forward<Args>(args)...);
+	}
+
+private:
+	template <typename ...PointersAndLambda>
+	Lambda init(QPointer<QObject> *pointers, QObject *qobject, PointersAndLambda&&... qobjectsAndLambda) {
+		*pointers = qobject;
+		return init(++pointers, std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
+	}
+	Lambda init(QPointer<QObject> *pointers, Lambda &&lambda) {
+		return std_::move(lambda);
+	}
+
+	QPointer<QObject> _pointers[N];
+	Lambda _lambda;
+
+};
+
+template <int N, typename Lambda>
+class lambda_guard {
+public:
+	using return_type = typename lambda_type<Lambda>::return_type;
+
+	template <typename ...PointersAndLambda>
+	lambda_guard(PointersAndLambda&&... qobjectsAndLambda) : _data(std_::make_unique<lambda_guard_data<N, Lambda>>(std_::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
+		static_assert(sizeof...(PointersAndLambda) == N + 1, "Wrong argument count!");
+	}
+
+	template <typename ...Args>
+	inline return_type operator()(Args... args) const {
+		return (*_data)(std_::forward<Args>(args)...);
+	}
+
+private:
+	std_::unique_ptr<lambda_guard_data<N, Lambda>> _data;
+
+};
+
+template <int N, int K, typename ...PointersAndLambda>
+struct lambda_guard_type;
+
+template <int N, int K, typename Pointer, typename ...PointersAndLambda>
+struct lambda_guard_type<N, K, Pointer, PointersAndLambda...> {
+	using type = typename lambda_guard_type<N, K - 1, PointersAndLambda...>::type;
+};
+
+template <int N, typename Lambda>
+struct lambda_guard_type<N, 0, Lambda> {
+	using type = lambda_guard<N, Lambda>;
+};
+
+template <typename ...PointersAndLambda>
+struct lambda_guard_type_helper {
+	static constexpr int N = sizeof...(PointersAndLambda);
+	using type = typename lambda_guard_type<N - 1, N - 1, PointersAndLambda...>::type;
+};
+
+template <typename ...PointersAndLambda>
+using lambda_guard_t = typename lambda_guard_type_helper<PointersAndLambda...>::type;
+
+} // namespace internal
+
+template <typename ...PointersAndLambda>
+inline internal::lambda_guard_t<PointersAndLambda...> lambda_guarded(PointersAndLambda&&... qobjectsAndLambda) {
+	static_assert(sizeof...(PointersAndLambda) > 0, "Lambda should be passed here.");
+	return internal::lambda_guard_t<PointersAndLambda...>(std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
+}
+
+// Pass lambda instead of a Qt void() slot.
 
 class lambda_slot_wrap : public QObject {
 	Q_OBJECT

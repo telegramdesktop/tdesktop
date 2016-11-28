@@ -53,7 +53,6 @@ QString objc_appDataPath();
 QString objc_downloadPath();
 QString objc_currentCountry();
 QString objc_currentLang();
-QString objc_convertFileUrl(const QString &url);
 QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);

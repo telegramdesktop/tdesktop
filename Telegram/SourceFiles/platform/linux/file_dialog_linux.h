@@ -36,6 +36,10 @@ bool Supported();
 
 bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile);
 
+inline QString UrlToLocal(const QUrl &url) {
+	return url.toLocalFile();
+}
+
 namespace internal {
 
 // This is a patched copy of qgtk2 theme plugin.

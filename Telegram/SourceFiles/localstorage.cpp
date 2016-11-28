@@ -1234,11 +1234,6 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
-
-		switch (v) {
-		case dbidaPhoto: cSetDefaultAttach(dbidaPhoto); break;
-		default: cSetDefaultAttach(dbidaDocument); break;
-		}
 	} break;
 
 	case dbiNotifyView: {
@@ -1631,7 +1626,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
-	data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
@@ -2738,7 +2732,7 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _imagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
+	return _localLoader->addTask(MakeShared<ImageLoadTask>(j->first, location, loader));
 }
 
 int32 hasImages() {
@@ -2797,7 +2791,7 @@ TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) 
 	if (j == _stickerImagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
+	return _localLoader->addTask(MakeShared<StickerImageLoadTask>(j->first, location, loader));
 }
 
 bool willStickerImageLoad(const StorageKey &location) {
@@ -2871,7 +2865,7 @@ TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _audiosMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
+	return _localLoader->addTask(MakeShared<AudioLoadTask>(j->first, location, loader));
 }
 
 bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
@@ -2986,7 +2980,7 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	if (j == _webFilesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new WebFileLoadTask(j->first, url, loader));
+	return _localLoader->addTask(MakeShared<WebFileLoadTask>(j->first, url, loader));
 }
 
 int32 hasWebFiles() {
@@ -3062,7 +3056,7 @@ void countVoiceWaveform(DocumentData *document) {
 		if (_localLoader) {
 			voice->waveform.resize(1 + sizeof(TaskId));
 			voice->waveform[0] = -1; // counting
-			TaskId taskId = _localLoader->addTask(new CountWaveformTask(document));
+			TaskId taskId = _localLoader->addTask(MakeShared<CountWaveformTask>(document));
 			memcpy(voice->waveform.data() + 1, &taskId, sizeof(taskId));
 		}
 	}

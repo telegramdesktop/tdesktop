@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "localimageloader.h"
+#include "ui/filedialog.h"
 #include "ui/effects/rect_shadow.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
@@ -53,6 +54,7 @@ class RoundButton;
 class DragArea;
 class EmojiPan;
 class SilentToggle;
+class SendFilesBox;
 
 class HistoryWidget;
 class HistoryInner : public TWidget, public Ui::AbstractTooltipShower, private base::Subscriber {
@@ -582,16 +584,16 @@ public:
 	void updateFieldPlaceholder();
 	void updateStickersByEmoji();
 
-	void uploadImage(const QImage &img, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, const QString &source = QString(), bool withText = false);
-	void uploadFile(const QString &file, PrepareMediaType type, FileLoadForceConfirmType confirm = FileLoadNoForceConfirm, bool withText = false); // with confirmation
-	void uploadFiles(const QStringList &files, PrepareMediaType type);
-	void uploadFileContent(const QByteArray &fileContent, PrepareMediaType type);
-	void shareContactWithConfirm(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool withText = false);
+	bool confirmSendingFiles(const QList<QUrl> &files, CompressConfirm compressed = CompressConfirm::Auto, const QString *addedComment = nullptr);
+	bool confirmSendingFiles(const QStringList &files, CompressConfirm compressed = CompressConfirm::Auto, const QString *addedComment = nullptr);
+	bool confirmSendingFiles(const QImage &image, const QByteArray &content, CompressConfirm compressed = CompressConfirm::Auto, const QString &insertTextOnCancel = QString());
+	bool confirmSendingFiles(const QMimeData *data, CompressConfirm compressed = CompressConfirm::Auto, const QString &insertTextOnCancel = QString());
+	bool confirmShareContact(const QString &phone, const QString &fname, const QString &lname, const QString *addedComment = nullptr);
 
-	void confirmSendFile(const FileLoadResultPtr &file, bool ctrlShiftEnter);
-	void cancelSendFile(const FileLoadResultPtr &file);
-	void confirmShareContact(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, bool ctrlShiftEnter);
-	void cancelShareContact();
+	void uploadFile(const QByteArray &fileContent, SendMediaType type);
+	void uploadFiles(const QStringList &files, SendMediaType type);
+
+	void sendFileConfirmed(const FileLoadResultPtr &file);
 
 	void updateControlsVisibility();
 	void updateControlsGeometry();
@@ -599,7 +601,6 @@ public:
 	void updateOnlineDisplayTimer();
 
 	void onShareContact(const PeerId &peer, UserData *contact);
-	void onSendPaths(const PeerId &peer);
 
 	void shareContact(const PeerId &peer, const QString &phone, const QString &fname, const QString &lname, MsgId replyTo, int32 userId = 0);
 
@@ -788,12 +789,6 @@ public slots:
 	void onMuteUnmute();
 	void onBroadcastSilentChange();
 
-	void onPhotoSelect();
-	void onDocumentSelect();
-	void onPhotoDrop(const QMimeData *data);
-	void onDocumentDrop(const QMimeData *data);
-	void onFilesDrop(const QMimeData *data);
-
 	void onKbToggle(bool manual = true);
 	void onCmdStart();
 
@@ -854,6 +849,29 @@ private slots:
 	void updateField();
 
 private:
+	void chooseAttach();
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+	struct SendingFilesLists {
+		QList<QUrl> nonLocalUrls;
+		QStringList directories;
+		QStringList emptyFiles;
+		QStringList tooLargeFiles;
+		QStringList filesToSend;
+		bool allFilesArePhotos = true;
+	};
+	SendingFilesLists getSendingFilesLists(const QList<QUrl> &files);
+	SendingFilesLists getSendingFilesLists(const QStringList &files);
+	void getSendingLocalFileInfo(SendingFilesLists &result, const QString &filepath);
+	bool confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed = CompressConfirm::Auto, const QString *addedComment = nullptr);
+	template <typename Callback>
+	bool validateSendingFiles(const SendingFilesLists &lists, Callback callback);
+	template <typename SendCallback>
+	bool showSendFilesBox(SendFilesBox *box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback);
+	CompressConfirm imageCompressConfirm(const QImage &image, CompressConfirm compressed, bool animated = false);
+
+	// If an empty filepath is found we upload (possible) "image" with (possible) "content".
+	void uploadFilesAfterConfirmation(const QStringList &files, const QImage &image, const QByteArray &content, SendMediaType type, QString caption);
+
 	void itemRemoved(HistoryItem *item);
 
 	// Updates position of controls around the message field,
@@ -1032,8 +1050,6 @@ private:
 		setFieldText(TextWithTags(), events, undoHistoryAction);
 	}
 
-	QStringList getMediasFromMime(const QMimeData *d);
-
 	void updateDragAreas();
 
 	// when scroll position or scroll area size changed this method
@@ -1119,6 +1135,8 @@ private:
 	anim::fvalue a_recordCancelActive;
 	int32 _recordCancelWidth;
 
+	FileDialog::QueryId _attachFilesQueryId = 0;
+
 	bool kbWasHidden() const;
 
 	bool _kbShown = false;
@@ -1129,7 +1147,6 @@ private:
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;
 
-	ChildWidget<Ui::DropdownMenu> _attachType;
 	ChildWidget<EmojiPan> _emojiPan;
 	DragState _attachDrag = DragStateNone;
 	ChildWidget<DragArea> _attachDragDocument, _attachDragPhoto;
@@ -1141,8 +1158,6 @@ private:
 
 	int64 _serviceImageCacheSize = 0;
 	QString _confirmSource;
-
-	uint64 _confirmWithTextId = 0;
 
 	QString _titlePeerText;
 	bool _titlePeerTextOnline = false;

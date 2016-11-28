@@ -29,17 +29,25 @@ class RoundButton;
 class InputArea;
 } // namespace Ui
 
-class PhotoSendBox : public AbstractBox {
+class SendFilesBox : public AbstractBox {
 	Q_OBJECT
 
 public:
-	PhotoSendBox(const FileLoadResultPtr &file);
-	PhotoSendBox(const QString &phone, const QString &fname, const QString &lname, MsgId replyTo);
+	SendFilesBox(const QString &filepath, QImage image, CompressConfirm compressed, bool animated = false);
+	SendFilesBox(const QStringList &files, CompressConfirm compressed);
+	SendFilesBox(const QString &phone, const QString &firstname, const QString &lastname);
+
+	void setConfirmedCallback(base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> &&callback) {
+		_confirmedCallback = std_::move(callback);
+	}
+	void setCancelledCallback(base::lambda<void()> &&callback) {
+		_cancelledCallback = std_::move(callback);
+	}
 
 public slots:
 	void onCompressedChange();
-	void onCaptionResized();
 	void onSend(bool ctrlShiftEnter = false);
+	void onCaptionResized();
 
 protected:
 	void keyPressEvent(QKeyEvent *e) override;
@@ -50,31 +58,43 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void setup();
+	void updateTitleText();
 	void updateBoxSize();
+	void updateControlsGeometry();
+	QString getSendButtonText() const;
 
-	FileLoadResultPtr _file;
-	bool _animated;
+	QString _titleText;
+	QStringList _files;
+	const QImage _image;
 
-	QPixmap _thumb;
+	CompressConfirm _compressConfirm = CompressConfirm::None;
+	bool _animated = false;
 
-	ChildWidget<Ui::InputArea> _caption;
-	bool _compressedFromSettings;
-	ChildWidget<Ui::Checkbox> _compressed;
+	QPixmap _preview;
+	int _previewLeft = 0;
+	int _previewWidth = 0;
+	int _previewHeight = 0;
+
+	QPixmap _fileThumb;
+	Text _nameText;
+	bool _fileIsImage = false;
+	QString _statusText;
+	int _statusWidth = 0;
+
+	QString _contactPhone;
+	QString _contactFirstName;
+	QString _contactLastName;
+
+	base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void()> _cancelledCallback;
+	bool _confirmed = false;
+
+	ChildWidget<Ui::InputArea> _caption = { nullptr };
+	ChildWidget<Ui::Checkbox> _compressed = { nullptr };
 
 	ChildWidget<Ui::RoundButton> _send;
 	ChildWidget<Ui::RoundButton> _cancel;
-
-	int32 _thumbx, _thumby, _thumbw, _thumbh;
-	Text _name;
-	QString _status;
-	int32 _statusw;
-	bool _isImage;
-
-	QString _phone, _fname, _lname;
-
-	MsgId _replyTo;
-
-	bool _confirmed;
 
 };
 

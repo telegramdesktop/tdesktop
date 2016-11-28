@@ -82,7 +82,7 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 
 	updateButtonsVisibility();
 
-	prepare();
+	raiseShadow();
 }
 
 int ShareBox::getTopScrollSkip() const {

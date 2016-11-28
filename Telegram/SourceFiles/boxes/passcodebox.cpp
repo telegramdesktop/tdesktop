@@ -114,7 +114,7 @@ void PasscodeBox::init() {
 	_passwordHint->setVisible(!_turningOff && _cloudPwd);
 	_recoverEmail->setVisible(!_turningOff && _cloudPwd && _curSalt.isEmpty());
 
-	prepare();
+	raiseShadow();
 }
 
 void PasscodeBox::onSubmit() {
@@ -463,7 +463,7 @@ RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth, lang(
 	connect(_recoverCode, SIGNAL(changed()), this, SLOT(onCodeChanged()));
 	connect(_recoverCode, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
-	prepare();
+	raiseShadow();
 }
 
 void RecoverBox::paintEvent(QPaintEvent *e) {

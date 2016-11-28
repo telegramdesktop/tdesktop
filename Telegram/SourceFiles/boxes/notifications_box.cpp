@@ -127,8 +127,6 @@ NotificationsBox::NotificationsBox() : AbstractBox()
 	prepareNotificationSampleSmall();
 	prepareNotificationSampleLarge();
 	setMaxHeight(st::notificationsBoxHeight);
-
-	prepare();
 }
 
 void NotificationsBox::paintEvent(QPaintEvent *e) {
