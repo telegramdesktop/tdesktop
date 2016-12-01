@@ -6598,7 +6598,7 @@ bool HistoryWidget::confirmSendingFiles(const QMimeData *data, CompressConfirm c
 		return false;
 	}
 
-	auto &urls = data->urls();
+	auto urls = data->urls();
 	if (!urls.isEmpty()) {
 		for_const (auto &url, urls) {
 			if (url.isLocalFile()) {
