@@ -633,12 +633,12 @@ struct Data {
 
 	Stickers::Sets StickerSets;
 	Stickers::Order StickerSetsOrder;
-	uint64 LastStickersUpdate = 0;
-	uint64 LastRecentStickersUpdate = 0;
+	TimeMs LastStickersUpdate = 0;
+	TimeMs LastRecentStickersUpdate = 0;
 	Stickers::Order FeaturedStickerSetsOrder;
 	int FeaturedStickerSetsUnreadCount = 0;
 	base::Observable<void> FeaturedStickerSetsUnreadCountChanged;
-	uint64 LastFeaturedStickersUpdate = 0;
+	TimeMs LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
 
 	MTP::DcOptions DcOptions;
@@ -751,12 +751,12 @@ DefineRefVar(Global, PendingItemsMap, PendingRepaintItems);
 
 DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);
-DefineVar(Global, uint64, LastStickersUpdate);
-DefineVar(Global, uint64, LastRecentStickersUpdate);
+DefineVar(Global, TimeMs, LastStickersUpdate);
+DefineVar(Global, TimeMs, LastRecentStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
 DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
-DefineVar(Global, uint64, LastFeaturedStickersUpdate);
+DefineVar(Global, TimeMs, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 
 DefineVar(Global, MTP::DcOptions, DcOptions);

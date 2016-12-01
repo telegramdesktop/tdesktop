@@ -1236,7 +1236,7 @@ void HistoryMessage::setId(MsgId newId) {
 	}
 }
 
-void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	bool outbg = out() && !isPost(), bubble = drawBubble(), selected = (selection == FullSelection);
 
 	int left = 0, width = 0, height = _height;
@@ -1256,7 +1256,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, u
 		}
 	}
 
-	uint64 fullAnimMs = App::main() ? App::main()->animActiveTimeStart(this) : 0;
+	auto fullAnimMs = App::main() ? App::main()->animActiveTimeStart(this) : 0LL;
 	if (fullAnimMs > 0 && fullAnimMs <= ms) {
 		int animms = ms - fullAnimMs;
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
@@ -2111,7 +2111,7 @@ void HistoryService::setServiceText(const QString &text, const Links &links) {
 	_textHeight = 0;
 }
 
-void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryService::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	int height = _height - st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
 
 	QRect clip(r);

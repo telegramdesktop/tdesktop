@@ -62,7 +62,7 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 void Controller::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		refreshTimeTexts();
@@ -73,7 +73,7 @@ void Controller::handleSeekProgress(float64 progress) {
 void Controller::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 	emit seekFinished(positionMs);
 	refreshTimeTexts();

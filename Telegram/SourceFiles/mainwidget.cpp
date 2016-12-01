@@ -1292,7 +1292,7 @@ void MainWidget::unreadCountChanged(History *history) {
 	_history->unreadCountChanged(history);
 }
 
-uint64 MainWidget::animActiveTimeStart(const HistoryItem *msg) const {
+TimeMs MainWidget::animActiveTimeStart(const HistoryItem *msg) const {
 	return _history->animActiveTimeStart(msg);
 }
 
@@ -1449,7 +1449,7 @@ void MainWidget::loadMediaBack(PeerData *peer, MediaOverviewType type, bool many
 }
 
 void MainWidget::checkLastUpdate(bool afterSleep) {
-	uint64 n = getms(true);
+	auto n = getms(true);
 	if (_lastUpdateTime && n > _lastUpdateTime + (afterSleep ? NoUpdatesAfterSleepTimeout : NoUpdatesTimeout)) {
 		_lastUpdateTime = n;
 		MTP::ping();
@@ -2969,11 +2969,11 @@ bool MainWidget::needBackButton() {
 	return _overview || _wideSection || _history->peer();
 }
 
-bool MainWidget::paintTopBar(Painter &p, int decreaseWidth) {
+bool MainWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
 	if (_overview) {
 		return _overview->paintTopBar(p, decreaseWidth);
 	} else if (!_wideSection) {
-		return _history->paintTopBar(p, decreaseWidth);
+		return _history->paintTopBar(p, decreaseWidth, ms);
 	}
 	return false;
 }
@@ -3325,7 +3325,7 @@ void MainWidget::gotDifference(const MTPupdates_Difference &diff) {
 	};
 }
 
-bool MainWidget::getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, uint64 &curTime) {
+bool MainWidget::getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime) {
 	if (channel) {
 		if (ms <= 0) {
 			ChannelGetDifferenceTime::iterator i = channelCurTime.find(channel);
@@ -3335,7 +3335,7 @@ bool MainWidget::getDifferenceTimeChanged(ChannelData *channel, int32 ms, Channe
 				return false;
 			}
 		} else {
-			uint64 when = getms(true) + ms;
+			auto when = getms(true) + ms;
 			ChannelGetDifferenceTime::iterator i = channelCurTime.find(channel);
 			if (i != channelCurTime.cend()) {
 				if (i.value() > when) {
@@ -3355,7 +3355,7 @@ bool MainWidget::getDifferenceTimeChanged(ChannelData *channel, int32 ms, Channe
 				return false;
 			}
 		} else {
-			uint64 when = getms(true) + ms;
+			auto when = getms(true) + ms;
 			if (!curTime || curTime > when) {
 				curTime = when;
 			} else {
@@ -3431,7 +3431,7 @@ bool MainWidget::failDifference(const RPCError &error) {
 void MainWidget::onGetDifferenceTimeByPts() {
 	if (!MTP::authedId()) return;
 
-	uint64 now = getms(true), wait = 0;
+	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeByPts) {
 		if (_getDifferenceTimeByPts > now) {
 			wait = _getDifferenceTimeByPts - now;
@@ -3458,7 +3458,7 @@ void MainWidget::onGetDifferenceTimeByPts() {
 void MainWidget::onGetDifferenceTimeAfterFail() {
 	if (!MTP::authedId()) return;
 
-	uint64 now = getms(true), wait = 0;
+	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeAfterFail) {
 		if (_getDifferenceTimeAfterFail > now) {
 			wait = _getDifferenceTimeAfterFail - now;
@@ -3468,7 +3468,7 @@ void MainWidget::onGetDifferenceTimeAfterFail() {
 			getDifference();
 		}
 	}
-	for (ChannelGetDifferenceTime::iterator i = _channelGetDifferenceTimeAfterFail.begin(); i != _channelGetDifferenceTimeAfterFail.cend();) {
+	for (auto i = _channelGetDifferenceTimeAfterFail.begin(); i != _channelGetDifferenceTimeAfterFail.cend();) {
 		if (i.value() > now) {
 			wait = wait ? qMin(wait, i.value() - now) : (i.value() - now);
 			++i;
@@ -4054,7 +4054,7 @@ bool MainWidget::lastWasOnline() const {
 	return _lastWasOnline;
 }
 
-uint64 MainWidget::lastSetOnline() const {
+TimeMs MainWidget::lastSetOnline() const {
 	return _lastSetOnline;
 }
 
@@ -4081,8 +4081,8 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 	bool isOnline = App::wnd()->isActive();
 	int updateIn = Global::OnlineUpdatePeriod();
 	if (isOnline) {
-		uint64 idle = psIdleTime();
-		if (idle >= uint64(Global::OfflineIdleTimeout())) {
+		auto idle = psIdleTime();
+		if (idle >= Global::OfflineIdleTimeout()) {
 			isOnline = false;
 			if (!_isIdle) {
 				_isIdle = true;
@@ -4092,7 +4092,7 @@ void MainWidget::updateOnline(bool gotOtherOffline) {
 			updateIn = qMin(updateIn, int(Global::OfflineIdleTimeout() - idle));
 		}
 	}
-	uint64 ms = getms(true);
+	auto ms = getms(true);
 	if (isOnline != _lastWasOnline || (isOnline && _lastSetOnline + Global::OnlineUpdatePeriod() <= ms) || (isOnline && gotOtherOffline)) {
 		if (_onlineRequest) {
 			MTP::cancel(_onlineRequest);
@@ -4158,7 +4158,7 @@ void MainWidget::writeDrafts(History *history) {
 
 void MainWidget::checkIdleFinish() {
 	if (this != App::main()) return;
-	if (psIdleTime() < uint64(Global::OfflineIdleTimeout())) {
+	if (psIdleTime() < Global::OfflineIdleTimeout()) {
 		_idleFinishTimer.stop();
 		_isIdle = false;
 		updateOnline();
@@ -4481,7 +4481,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					if (App::wnd()) App::wnd()->changingMsgId(msgRow, d.vid.v);
 					msgRow->setId(d.vid.v);
 					if (msgRow->history()->peer->isSelf()) {
-						msgRow->history()->unregTyping(App::self());
+						msgRow->history()->unregSendAction(App::self());
 					}
 					App::historyRegItem(msgRow);
 					Ui::repaintHistoryItem(msgRow);

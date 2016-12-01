@@ -92,9 +92,9 @@ bool documentIsValidMediaFile(const QString &filepath);
 
 class PaintContextBase {
 public:
-	PaintContextBase(uint64 ms, bool selecting) : ms(ms), selecting(selecting) {
+	PaintContextBase(TimeMs ms, bool selecting) : ms(ms), selecting(selecting) {
 	}
-	uint64 ms;
+	TimeMs ms;
 	bool selecting;
 
 };

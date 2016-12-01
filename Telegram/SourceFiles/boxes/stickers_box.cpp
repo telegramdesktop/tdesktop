@@ -661,7 +661,7 @@ QRect StickersBox::Inner::relativeButtonRect(bool removeButton) const {
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
-void StickersBox::Inner::paintRow(Painter &p, int index, uint64 ms) {
+void StickersBox::Inner::paintRow(Painter &p, int index, TimeMs ms) {
 	auto s = _rows.at(index);
 
 	auto xadd = 0, yadd = s->yadd.current();
@@ -734,7 +734,7 @@ void StickersBox::Inner::paintRow(Painter &p, int index, uint64 ms) {
 	if (xadd || yadd) p.translate(-xadd, -yadd);
 }
 
-void StickersBox::Inner::paintFakeButton(Painter &p, int index, uint64 ms) {
+void StickersBox::Inner::paintFakeButton(Painter &p, int index, TimeMs ms) {
 	auto set = _rows[index];
 	auto removeButton = (_section == Section::Installed && !set->removed);
 	auto rect = relativeButtonRect(removeButton);
@@ -846,10 +846,10 @@ void StickersBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void StickersBox::Inner::onUpdateSelected() {
-	QPoint local(mapFromGlobal(_mouse));
+	auto local = mapFromGlobal(_mouse);
 	if (_dragging >= 0) {
-		int32 shift = 0;
-		uint64 ms = getms();
+		auto shift = 0;
+		auto ms = getms();
 		int firstSetIndex = 0;
 		if (_rows.at(firstSetIndex)->isRecentSet()) {
 			++firstSetIndex;
@@ -984,11 +984,12 @@ void StickersBox::Inner::leaveEvent(QEvent *e) {
 	onUpdateSelected();
 }
 
-void StickersBox::Inner::step_shifting(uint64 ms, bool timer) {
-	bool animating = false;
-	int32 updateMin = -1, updateMax = 0;
-	for (int32 i = 0, l = _animStartTimes.size(); i < l; ++i) {
-		uint64 start = _animStartTimes.at(i);
+void StickersBox::Inner::step_shifting(TimeMs ms, bool timer) {
+	auto animating = false;
+	auto updateMin = -1;
+	auto updateMax = 0;
+	for (auto i = 0, l = _animStartTimes.size(); i < l; ++i) {
+		auto start = _animStartTimes.at(i);
 		if (start) {
 			if (updateMin < 0) updateMin = i;
 			updateMax = i;

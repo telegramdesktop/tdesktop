@@ -28,7 +28,7 @@ public:
 	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, const UpdateCallback &update);
 	Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update);
 
-	void paint(QPainter &p, const QPixmap &mask, uint64 ms);
+	void paint(QPainter &p, const QPixmap &mask, TimeMs ms);
 
 	void stop();
 	void unstop();
@@ -86,7 +86,7 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap 
 	_hide.start(UpdateCallback(_update), 0., 1., _st.hideDuration);
 }
 
-void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, uint64 ms) {
+void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms) {
 	auto opacity = _hide.current(ms, _hiding ? 0. : 1.);
 	if (opacity == 0.) {
 		return;
@@ -176,7 +176,7 @@ void RippleAnimation::lastFinish() {
 	}
 }
 
-void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, uint64 ms) {
+void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms) {
 	if (_ripples.isEmpty()) {
 		return;
 	}

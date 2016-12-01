@@ -144,7 +144,7 @@ public:
 	bool needBackButton();
 
 	// Temporary methods, while top bar was not done inside HistoryWidget / OverviewWidget.
-	bool paintTopBar(Painter &, int decreaseWidth);
+	bool paintTopBar(Painter &, int decreaseWidth, TimeMs ms);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
 	Window::TopBarWidget *topBar();
@@ -221,7 +221,7 @@ public:
 	bool isActive() const;
 	bool doWeReadServerHistory() const;
 	bool lastWasOnline() const;
-	uint64 lastSetOnline() const;
+	TimeMs lastSetOnline() const;
 
 	void saveDraftToCloud();
 	void applyCloudDraft(History *history);
@@ -293,7 +293,7 @@ public:
     void readServerHistory(History *history, ReadServerHistoryChecks checks = ReadServerHistoryChecks::OnlyIfUnread);
 	void unreadCountChanged(History *history);
 
-	uint64 animActiveTimeStart(const HistoryItem *msg) const;
+	TimeMs animActiveTimeStart(const HistoryItem *msg) const;
 	void stopAnimActive();
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
@@ -633,12 +633,12 @@ private:
 		return _ptsWaiter.requesting();
 	}
 
-	typedef QMap<ChannelData*, uint64> ChannelGetDifferenceTime;
+	typedef QMap<ChannelData*, TimeMs> ChannelGetDifferenceTime;
 	ChannelGetDifferenceTime _channelGetDifferenceTimeByPts, _channelGetDifferenceTimeAfterFail;
-	uint64 _getDifferenceTimeByPts = 0;
-	uint64 _getDifferenceTimeAfterFail = 0;
+	TimeMs _getDifferenceTimeByPts = 0;
+	TimeMs _getDifferenceTimeAfterFail = 0;
 
-	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, uint64 &curTime);
+	bool getDifferenceTimeChanged(ChannelData *channel, int32 ms, ChannelGetDifferenceTime &channelCurTime, TimeMs &curTime);
 
 	SingleTimer _byPtsTimer;
 
@@ -650,7 +650,7 @@ private:
 	mtpRequestId _onlineRequest = 0;
 	SingleTimer _onlineTimer, _onlineUpdater, _idleFinishTimer;
 	bool _lastWasOnline = false;
-	uint64 _lastSetOnline = 0;
+	TimeMs _lastSetOnline = 0;
 	bool _isIdle = false;
 
 	QSet<PeerData*> updateNotifySettingPeers;
@@ -669,7 +669,7 @@ private:
 	ChannelFailDifferenceTimeout _channelFailDifferenceTimeout; // growing timeout for getChannelDifference calls, if it fails
 	SingleTimer _failDifferenceTimer;
 
-	uint64 _lastUpdateTime = 0;
+	TimeMs _lastUpdateTime = 0;
 	bool _handlingChannelDifference = false;
 
 	QPixmap _cachedBackground;

@@ -57,7 +57,7 @@ void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
 	connect(widget, SIGNAL(destroyed(QObject*)), this, SLOT(onToastWidgetDestroyed(QObject*)));
 	connect(widget->parentWidget(), SIGNAL(resized(QSize)), this, SLOT(onToastWidgetParentResized()), Qt::UniqueConnection);
 
-	uint64 oldHideNearestMs = _toastByHideTime.isEmpty() ? 0 : _toastByHideTime.firstKey();
+	auto oldHideNearestMs = _toastByHideTime.isEmpty() ? 0LL : _toastByHideTime.firstKey();
 	_toastByHideTime.insert(t->_hideAtMs, t);
 	if (!oldHideNearestMs || _toastByHideTime.firstKey() < oldHideNearestMs) {
 		startNextHideTimer();
@@ -65,7 +65,7 @@ void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
 }
 
 void Manager::onHideTimeout() {
-	uint64 now = getms(true);
+	auto now = getms(true);
 	for (auto i = _toastByHideTime.begin(); i != _toastByHideTime.cend();) {
 		if (i.key() <= now) {
 			Instance *toast = i.value();
@@ -107,7 +107,7 @@ void Manager::onToastWidgetParentResized() {
 void Manager::startNextHideTimer() {
 	if (_toastByHideTime.isEmpty()) return;
 
-	uint64 ms = getms(true);
+	auto ms = getms(true);
 	if (ms >= _toastByHideTime.firstKey()) {
 		QMetaObject::invokeMethod(this, SLOT("onHideTimeout"), Qt::QueuedConnection);
 	} else {

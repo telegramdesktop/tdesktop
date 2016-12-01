@@ -72,18 +72,18 @@ protected:
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
 
 	void step_thumbOver(float64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void step_radial(TimeMs ms, bool timer);
 
 	void ensureAnimation() const;
 	void checkAnimationFinished();
 
-	bool isRadialAnimation(uint64 ms) const {
+	bool isRadialAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
 
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
-	bool isThumbAnimation(uint64 ms) const {
+	bool isThumbAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
 
 		_animation->_a_thumbOver.step(ms);
@@ -125,7 +125,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -212,7 +212,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -336,7 +336,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -433,7 +433,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -530,7 +530,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
@@ -593,7 +593,7 @@ public:
 
 	void initDimensions() override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
@@ -656,7 +656,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
@@ -756,7 +756,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
@@ -859,7 +859,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int32 width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;

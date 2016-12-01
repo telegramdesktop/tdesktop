@@ -41,10 +41,10 @@ private slots:
 
 private:
 	void clearInMs(int ms);
-	uint64 clear(uint64 ms);
+	TimeMs clear(TimeMs ms);
 
 	struct Image {
-		uint64 until;
+		TimeMs until;
 		QString path;
 	};
 	using Images = QMap<StorageKey, Image>;

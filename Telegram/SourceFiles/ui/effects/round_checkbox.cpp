@@ -75,7 +75,7 @@ QRect RoundCheckbox::cacheDestRect(int x, int y, float64 scale) const {
 	return QRect(iconLeft, iconTop, iconSize, iconSize);
 }
 
-void RoundCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth, float64 masterScale) {
+void RoundCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, float64 masterScale) {
 	for (auto &icon : _icons) {
 		icon.fadeIn.step(ms);
 		icon.fadeOut.step(ms);
@@ -227,7 +227,7 @@ RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, cons
 , _check(_st.check, _updateCallback) {
 }
 
-void RoundImageCheckbox::paint(Painter &p, uint64 ms, int x, int y, int outerWidth) {
+void RoundImageCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth) {
 	_selection.step(ms);
 
 	auto selectionLevel = _selection.current(checked() ? 1. : 0.);

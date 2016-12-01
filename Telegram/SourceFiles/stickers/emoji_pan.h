@@ -364,7 +364,7 @@ private:
 	bool _setGifCommand = false;
 	UserData *_inlineBot;
 	QString _inlineBotTitle;
-	uint64 _lastScrolled = 0;
+	TimeMs _lastScrolled = 0;
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
@@ -488,7 +488,7 @@ public:
 		return _hiding || _hideTimer.isActive();
 	}
 
-	void step_icons(uint64 ms, bool timer);
+	void step_icons(TimeMs ms, bool timer);
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
@@ -663,7 +663,7 @@ private:
 	int _iconsMax = 0;
 	anim::ivalue _iconsX = { 0, 0 };
 	anim::ivalue _iconSelX = { 0, 0 };
-	uint64 _iconsStartAnim = 0;
+	TimeMs _iconsStartAnim = 0;
 
 	bool _emojiShown = true;
 	bool _shownFromInlineQuery = false;

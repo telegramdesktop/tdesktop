@@ -32,7 +32,7 @@ void SlideAnimation::setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot) {
 	_rightSnapshot.setDevicePixelRatio(cRetinaFactor());
 }
 
-void SlideAnimation::paintFrame(Painter &p, int x, int y, int outerWidth, uint64 ms) {
+void SlideAnimation::paintFrame(Painter &p, int x, int y, int outerWidth, TimeMs ms) {
 	auto dt = _animation.current(ms, 1.);
 	if (!animating()) return;
 

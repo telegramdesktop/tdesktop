@@ -478,12 +478,12 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 	}
 
 	connect(this, SIGNAL(needToSendAsync()), sessionData->owner(), SLOT(needToResumeAndSend()), Qt::QueuedConnection);
-	connect(this, SIGNAL(sendAnythingAsync(quint64)), sessionData->owner(), SLOT(sendAnything(quint64)), Qt::QueuedConnection);
+	connect(this, SIGNAL(sendAnythingAsync(qint64)), sessionData->owner(), SLOT(sendAnything(qint64)), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendHttpWaitAsync()), sessionData->owner(), SLOT(sendAnything()), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendPongAsync(quint64,quint64)), sessionData->owner(), SLOT(sendPong(quint64,quint64)), Qt::QueuedConnection);
 	connect(this, SIGNAL(sendMsgsStateInfoAsync(quint64, QByteArray)), sessionData->owner(), SLOT(sendMsgsStateInfo(quint64,QByteArray)), Qt::QueuedConnection);
-	connect(this, SIGNAL(resendAsync(quint64,quint64,bool,bool)), sessionData->owner(), SLOT(resend(quint64,quint64,bool,bool)), Qt::QueuedConnection);
-	connect(this, SIGNAL(resendManyAsync(QVector<quint64>,quint64,bool,bool)), sessionData->owner(), SLOT(resendMany(QVector<quint64>,quint64,bool,bool)), Qt::QueuedConnection);
+	connect(this, SIGNAL(resendAsync(quint64,qint64,bool,bool)), sessionData->owner(), SLOT(resend(quint64,qint64,bool,bool)), Qt::QueuedConnection);
+	connect(this, SIGNAL(resendManyAsync(QVector<quint64>,qint64,bool,bool)), sessionData->owner(), SLOT(resendMany(QVector<quint64>,qint64,bool,bool)), Qt::QueuedConnection);
 	connect(this, SIGNAL(resendAllAsync()), sessionData->owner(), SLOT(resendAll()));
 }
 
@@ -780,7 +780,7 @@ void ConnectionPrivate::tryToSend() {
 		}
 
 		pingRequest->msDate = getms(true); // > 0 - can send without container
-		_pingSendAt = pingRequest->msDate + (MTPPingSendAfterAuto * 1000ULL);
+		_pingSendAt = pingRequest->msDate + (MTPPingSendAfterAuto * 1000LL);
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
 		if (dc == bareDcId(dc) && !prependOnly) { // main session
@@ -1255,11 +1255,11 @@ void ConnectionPrivate::onOldConnection() {
 
 void ConnectionPrivate::onPingSender() {
 	if (_pingId) {
-			if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000ULL < getms(true)) {
+			if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000LL < getms(true)) {
 			LOG(("Could not send ping for MTPPingSendAfter seconds, restarting..."));
 			return restart();
 		} else {
-			_pingSender.start(_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto) * 1000ULL - getms(true));
+			_pingSender.start(_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto) * 1000LL - getms(true));
 		}
 	} else {
 		emit needToSendAsync();
@@ -2257,12 +2257,12 @@ void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const stri
 	}
 }
 
-void ConnectionPrivate::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void ConnectionPrivate::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	if (msgId == _pingMsgId) return;
 	emit resendAsync(msgId, msCanWait, forceContainer, sendMsgStateInfo);
 }
 
-void ConnectionPrivate::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void ConnectionPrivate::resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
 		if (msgIds.at(i) == _pingMsgId) {
 			msgIds.remove(i);

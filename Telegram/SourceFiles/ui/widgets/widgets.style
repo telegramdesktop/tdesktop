@@ -746,12 +746,9 @@ defaultSettingsSlider: SettingsSlider {
 	barFg: #e1eaef;
 	barFgActive: windowBgActive;
 	labelTop: 17px;
-	labelFont: semiboldFont;
-//	labelFont: normalFont;
-	labelFg: #999999;
-	labelFgActive: lightButtonFg;
-//	labelFg: #1485c2;
-//	labelFgActive: #1485c2;
+	labelFont: normalFont;
+	labelFg: #1485c2;
+	labelFgActive: #1485c2;
 	duration: 150;
 }
 
@@ -898,3 +895,25 @@ TwoIconButton {
 	rippleAreaSize: pixels;
 	ripple: RippleAnimation;
 }
+
+historySendActionTypingDuration: 800;
+historySendActionTypingHalfPeriod: 320;
+historySendActionTypingDeltaTime: 150;
+historySendActionTypingPosition: point(4px, -4px);
+historySendActionTypingDelta: 7px;
+historySendActionTypingLargeNumerator: 28px;
+historySendActionTypingSmallNumerator: 16px;
+historySendActionTypingDenominator: 12.;
+
+historySendActionRecordDuration: 300;
+historySendActionRecordPosition: point(1px, -4px);
+historySendActionRecordDelta: 3px;
+historySendActionRecordStrokeNumerator: 12px;
+historySendActionRecordDenominator: 8.;
+
+historySendActionUploadDuration: 500;
+historySendActionUploadPosition: point(0px, -4px);
+historySendActionUploadDelta: 5px;
+historySendActionUploadStrokeNumerator: 12px;
+historySendActionUploadSizeNumerator: 28px;
+historySendActionUploadDenominator: 8.;

@@ -952,8 +952,8 @@ void AppClass::call_handleObservables() {
 }
 
 void AppClass::killDownloadSessions() {
-	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
-	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
+	auto ms = getms(), left = static_cast<TimeMs>(MTPAckSendWaiting) + MTPKillFileSessionTimeout;
+	for (auto i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
 				MTP::stopSession(MTP::dldDcId(i.key(), j));

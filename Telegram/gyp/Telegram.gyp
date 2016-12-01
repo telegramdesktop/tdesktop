@@ -468,6 +468,8 @@
       '<(src_loc)/ui/effects/ripple_animation.h',
       '<(src_loc)/ui/effects/round_checkbox.cpp',
       '<(src_loc)/ui/effects/round_checkbox.h',
+      '<(src_loc)/ui/effects/send_action_animations.cpp',
+      '<(src_loc)/ui/effects/send_action_animations.h',
       '<(src_loc)/ui/effects/slide_animation.cpp',
       '<(src_loc)/ui/effects/slide_animation.h',
       '<(src_loc)/ui/effects/widget_fade_wrap.cpp',

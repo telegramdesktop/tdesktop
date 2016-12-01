@@ -191,9 +191,9 @@ private:
 	QRect relativeButtonRect(bool removeButton) const;
 	void ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton);
 
-	void step_shifting(uint64 ms, bool timer);
-	void paintRow(Painter &p, int index, uint64 ms);
-	void paintFakeButton(Painter &p, int index, uint64 ms);
+	void step_shifting(TimeMs ms, bool timer);
+	void paintRow(Painter &p, int index, TimeMs ms);
+	void paintFakeButton(Painter &p, int index, TimeMs ms);
 	void clear();
 	void setActionSel(int32 actionSel);
 	float64 aboveShadowOpacity() const;
@@ -243,8 +243,8 @@ private:
 	int countMaxNameWidth() const;
 
 	Rows _rows;
-	QList<uint64> _animStartTimes;
-	uint64 _aboveShadowFadeStart = 0;
+	QList<TimeMs> _animStartTimes;
+	TimeMs _aboveShadowFadeStart = 0;
 	anim::fvalue _aboveShadowFadeOpacity = { 0., 0. };
 	Animation _a_shifting;
 

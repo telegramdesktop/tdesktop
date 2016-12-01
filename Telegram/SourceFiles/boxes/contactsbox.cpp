@@ -923,7 +923,7 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 	return data;
 }
 
-void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, ContactData *data, bool sel) {
+void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool sel) {
 	UserData *user = peer->asUser();
 
 	if (_chat && _membersFilter == MembersFilter::Admins) {
@@ -1034,7 +1034,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 	_time = unixtime();
 	p.fillRect(r, st::contactsBg);
 
-	uint64 ms = getms();
+	auto ms = getms();
 	int32 yFrom = r.y(), yTo = r.y() + r.height();
 	if (_filter.isEmpty()) {
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {

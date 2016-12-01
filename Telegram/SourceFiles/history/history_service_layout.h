@@ -23,12 +23,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace HistoryLayout {
 
 struct PaintContext {
-	PaintContext(uint64 ms, const QRect &clip, TextSelection selection)
+	PaintContext(TimeMs ms, const QRect &clip, TextSelection selection)
 		: ms(ms)
 		, clip(clip)
 		, selection(selection) {
 	}
-	uint64 ms;
+	TimeMs ms;
 	const QRect &clip;
 	TextSelection selection;
 };

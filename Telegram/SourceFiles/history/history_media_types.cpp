@@ -203,7 +203,7 @@ void HistoryFileMedia::step_thumbOver(float64 ms, bool timer) {
 	}
 }
 
-void HistoryFileMedia::step_radial(uint64 ms, bool timer) {
+void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		Ui::repaintHistoryItem(_parent);
 	} else {
@@ -356,7 +356,7 @@ int HistoryPhoto::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->automaticLoad(_parent);
@@ -703,7 +703,7 @@ int HistoryVideo::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->automaticLoad(_parent);
@@ -1064,7 +1064,7 @@ int HistoryDocument::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->automaticLoad(_parent);
@@ -1671,7 +1671,7 @@ int HistoryGif::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	_data->automaticLoad(_parent);
@@ -2001,7 +2001,7 @@ int HistorySticker::resizeGetHeight(int width) { // return new height
 	return _height;
 }
 
-void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	auto sticker = _data->sticker();
 	if (!sticker) return;
 
@@ -2270,7 +2270,7 @@ void HistoryContact::initDimensions() {
 	_height = _minh;
 }
 
-void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 
@@ -2643,7 +2643,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 
@@ -3042,7 +3042,7 @@ int HistoryGame::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 width = _width, height = _height;
 
@@ -3367,7 +3367,7 @@ int HistoryLocation::resizeGetHeight(int width) {
 	return _height;
 }
 
-void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const {
+void HistoryLocation::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
 	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 	int32 skipx = 0, skipy = 0, width = _width, height = _height;
 	bool bubble = _parent->hasBubble();

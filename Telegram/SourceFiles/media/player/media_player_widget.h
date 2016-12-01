@@ -86,8 +86,8 @@ private:
 	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
 	void updateTimeLabel();
 
-	int64 _seekPositionMs = -1;
-	int64 _lastDurationMs = 0;
+	TimeMs _seekPositionMs = -1;
+	TimeMs _lastDurationMs = 0;
 	QString _time;
 
 	class PlayButton;

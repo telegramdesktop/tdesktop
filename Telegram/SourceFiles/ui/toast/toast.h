@@ -53,7 +53,7 @@ private:
 	bool _fadingOut = false;
 	Animation _a_fade;
 
-	const uint64 _hideAtMs;
+	const TimeMs _hideAtMs;
 
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;

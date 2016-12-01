@@ -105,7 +105,7 @@ bool OverviewInner::event(QEvent *e) {
 }
 
 void OverviewInner::touchUpdateSpeed() {
-	const uint64 nowTime = getms();
+	const auto nowTime = getms();
 	if (_touchPrevPosValid) {
 		const int elapsed = nowTime - _touchSpeedTime;
 		if (elapsed) {
@@ -781,7 +781,7 @@ void OverviewInner::paintEvent(QPaintEvent *e) {
 	if (!trivial) {
 		p.setClipRect(r);
 	}
-	uint64 ms = getms();
+	auto ms = getms();
 	Overview::Layout::PaintContext context(ms, _selMode);
 
 	if (_history->overview[_type].isEmpty() && (!_migrated || !_history->overviewLoaded(_type) || _migrated->overview[_type].isEmpty())) {
@@ -1560,7 +1560,7 @@ void OverviewInner::onTouchSelect() {
 }
 
 void OverviewInner::onTouchScrollTimer() {
-	uint64 nowTime = getms();
+	auto nowTime = getms();
 	if (_touchScrollState == Ui::TouchScrollState::Acceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
 		_touchScrollState = Ui::TouchScrollState::Manual;
 		touchResetSpeed();

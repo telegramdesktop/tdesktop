@@ -263,9 +263,9 @@ private:
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime = 0;
-	uint64 _touchAccelerationTime = 0;
-	uint64 _touchTime = 0;
+	TimeMs _touchSpeedTime = 0;
+	TimeMs _touchAccelerationTime = 0;
+	TimeMs _touchTime = 0;
 	QTimer _touchScrollTimer;
 
 	Ui::PopupMenu *_menu = nullptr;

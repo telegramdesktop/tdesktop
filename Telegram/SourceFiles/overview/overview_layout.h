@@ -30,7 +30,7 @@ namespace Layout {
 
 class PaintContext : public PaintContextBase {
 public:
-	PaintContext(uint64 ms, bool selecting) : PaintContextBase(ms, selecting), isAfterDate(false) {
+	PaintContext(TimeMs ms, bool selecting) : PaintContextBase(ms, selecting), isAfterDate(false) {
 	}
 	bool isAfterDate;
 
@@ -112,12 +112,12 @@ protected:
 	}
 
 	void step_iconOver(float64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void step_radial(TimeMs ms, bool timer);
 
 	void ensureRadial();
 	void checkRadialFinished();
 
-	bool isRadialAnimation(uint64 ms) const {
+	bool isRadialAnimation(TimeMs ms) const {
 		if (!_radial || !_radial->animating()) return false;
 
 		_radial->step(ms);
@@ -140,7 +140,7 @@ protected:
 class StatusText {
 public:
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
-	void update(int newSize, int fullSize, int duration, int64 realDuration);
+	void update(int newSize, int fullSize, int duration, TimeMs realDuration);
 	void setSize(int newSize);
 
 	int size() const {

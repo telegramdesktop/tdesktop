@@ -175,7 +175,7 @@ void ScrollBar::step_appearance(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void ScrollBar::hideTimeout(int64 dt) {
+void ScrollBar::hideTimeout(TimeMs dt) {
 	if (_hideIn < 0) {
 		a_bgOver.start(_over ? 1. : 0.);
 		a_barOver.start(_over ? 1. : 0.);
@@ -330,7 +330,7 @@ void SplittedWidget::update(const QRegion &r) {
 
 void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	SplittedWidget *s = static_cast<SplittedWidget*>(static_cast<ScrollArea*>(parentWidget())->widget());
+	auto s = static_cast<SplittedWidget*>(static_cast<ScrollArea*>(parentWidget())->widget());
 	if (rtl()) {
 		s->paintRegion(p, e->region(), true);
 	} else {
@@ -444,7 +444,7 @@ void ScrollArea::onTouchTimer() {
 }
 
 void ScrollArea::onTouchScrollTimer() {
-	uint64 nowTime = getms();
+	auto nowTime = getms();
 	if (_touchScrollState == TouchScrollState::Acceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
 		_touchScrollState = TouchScrollState::Manual;
 		touchResetSpeed();
@@ -465,7 +465,7 @@ void ScrollArea::onTouchScrollTimer() {
 }
 
 void ScrollArea::touchUpdateSpeed() {
-	const uint64 nowTime = getms();
+	const auto nowTime = getms();
 	if (_touchPrevPosValid) {
 		const int elapsed = nowTime - _touchSpeedTime;
 		if (elapsed) {

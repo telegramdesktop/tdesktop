@@ -81,7 +81,7 @@ private:
 	int _psCheckStatusIconLeft = 100;
 
 	QTimer _psUpdateIndicatorTimer;
-	uint64 _psLastIndicatorUpdate = 0;
+	TimeMs _psLastIndicatorUpdate = 0;
 
 };
 

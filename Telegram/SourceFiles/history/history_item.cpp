@@ -222,7 +222,7 @@ int ReplyKeyboard::naturalHeight() const {
 	return (_rows.size() - 1) * _st->buttonSkip() + _rows.size() * _st->buttonHeight();
 }
 
-void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, uint64 ms) const {
+void ReplyKeyboard::paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const {
 	t_assert(_st != nullptr);
 	t_assert(_width > 0);
 
@@ -322,7 +322,7 @@ void ReplyKeyboard::startAnimation(int i, int j, int direction) {
 	}
 }
 
-void ReplyKeyboard::step_selected(uint64 ms, bool timer) {
+void ReplyKeyboard::step_selected(TimeMs ms, bool timer) {
 	for (Animations::iterator i = _animations.begin(); i != _animations.end();) {
 		int index = qAbs(i.key()) - 1, row = (index / MatrixRowShift), col = index % MatrixRowShift;
 		float64 dt = float64(ms - i.value()) / st::botKbDuration;
@@ -361,7 +361,7 @@ int ReplyKeyboard::Style::buttonHeight() const {
 	return _st->height;
 }
 
-void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, uint64 ms) const {
+void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, TimeMs ms) const {
 	const QRect &rect = button.rect;
 	paintButtonBg(p, rect, button.howMuchOver);
 	if (button.ripple) {

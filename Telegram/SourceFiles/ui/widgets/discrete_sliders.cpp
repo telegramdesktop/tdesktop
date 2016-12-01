@@ -75,7 +75,7 @@ void DiscreteSlider::setSections(const QStringList &labels) {
 	resizeToWidth(width());
 }
 
-int DiscreteSlider::getCurrentActiveLeft(uint64 ms) {
+int DiscreteSlider::getCurrentActiveLeft(TimeMs ms) {
 	return _a_left.current(ms, _sections.isEmpty() ? 0 : _sections[_selected].left);
 }
 

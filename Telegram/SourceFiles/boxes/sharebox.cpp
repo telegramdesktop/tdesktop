@@ -496,7 +496,7 @@ void ShareBox::Inner::setActive(int active) {
 	emit mustScrollTo(y, y + _rowHeight);
 }
 
-void ShareBox::Inner::paintChat(Painter &p, uint64 ms, Chat *chat, int index) {
+void ShareBox::Inner::paintChat(Painter &p, TimeMs ms, Chat *chat, int index) {
 	auto x = _rowsLeft + qFloor((index % _columnCount) * _rowWidthReal);
 	auto y = _rowsTop + (index / _columnCount) * _rowHeight;
 

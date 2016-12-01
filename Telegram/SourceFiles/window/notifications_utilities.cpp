@@ -40,7 +40,7 @@ CachedUserpics::CachedUserpics() {
 }
 
 QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
-	uint64 ms = getms(true);
+	auto ms = getms(true);
 	auto i = _images.find(key);
 	if (i != _images.cend()) {
 		if (i->until) {
@@ -67,8 +67,8 @@ QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
 	return i->path;
 }
 
-uint64 CachedUserpics::clear(uint64 ms) {
-	uint64 result = 0;
+TimeMs CachedUserpics::clear(TimeMs ms) {
+	TimeMs result = 0;
 	for (auto i = _images.begin(); i != _images.end();) {
 		if (!i->until) {
 			++i;

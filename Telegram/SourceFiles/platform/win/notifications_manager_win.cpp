@@ -576,7 +576,7 @@ void queryUserNotificationState() {
 }
 
 static constexpr int QuerySettingsEachMs = 1000;
-uint64 LastSettingsQueryMs = 0;
+TimeMs LastSettingsQueryMs = 0;
 
 void querySystemNotificationSettings() {
 	auto ms = getms(true);

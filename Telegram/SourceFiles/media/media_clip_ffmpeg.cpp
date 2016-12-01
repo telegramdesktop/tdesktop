@@ -127,7 +127,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 void FFMpegReaderImplementation::processReadFrame() {
 	int64 duration = av_frame_get_pkt_duration(_frame);
 	int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
-	int64 frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
+	TimeMs frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	_currentFrameDelay = _nextFrameDelay;
 	if (_frameMs + _currentFrameDelay < frameMs) {
 		_currentFrameDelay = int32(frameMs - _frameMs);
@@ -146,7 +146,7 @@ void FFMpegReaderImplementation::processReadFrame() {
 	_frameTime += _currentFrameDelay;
 }
 
-ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int64 frameMs, uint64 systemMs) {
+ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(TimeMs frameMs, TimeMs systemMs) {
 	if (_audioStreamId < 0) { // just keep up
 		if (_frameRead && _frameTime > frameMs) {
 			return ReadResult::Success;
@@ -182,15 +182,15 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(int6
 	return ReadResult::Success;
 }
 
-int64 FFMpegReaderImplementation::frameRealTime() const {
+TimeMs FFMpegReaderImplementation::frameRealTime() const {
 	return _frameMs;
 }
 
-uint64 FFMpegReaderImplementation::framePresentationTime() const {
-	return static_cast<uint64>(qMax(_frameTime + _frameTimeCorrection, 0LL));
+TimeMs FFMpegReaderImplementation::framePresentationTime() const {
+	return qMax(_frameTime + _frameTimeCorrection, 0LL);
 }
 
-int64 FFMpegReaderImplementation::durationMs() const {
+TimeMs FFMpegReaderImplementation::durationMs() const {
 	if (_fmtContext->streams[_streamId]->duration == AV_NOPTS_VALUE) return 0;
 	return (_fmtContext->streams[_streamId]->duration * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 }
@@ -280,7 +280,7 @@ FFMpegReaderImplementation::Rotation FFMpegReaderImplementation::rotationFromDeg
 	return Rotation::None;
 }
 
-bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
+bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	_mode = mode;
 
 	initDevice();
@@ -498,9 +498,9 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 	}
 }
 
-int64 FFMpegReaderImplementation::countPacketMs(AVPacket *packet) const {
+TimeMs FFMpegReaderImplementation::countPacketMs(AVPacket *packet) const {
 	int64 packetPts = (packet->pts == AV_NOPTS_VALUE) ? packet->dts : packet->pts;
-	int64 packetMs = (packetPts * 1000LL * _fmtContext->streams[packet->stream_index]->time_base.num) / _fmtContext->streams[packet->stream_index]->time_base.den;
+	TimeMs packetMs = (packetPts * 1000LL * _fmtContext->streams[packet->stream_index]->time_base.num) / _fmtContext->streams[packet->stream_index]->time_base.den;
 	return packetMs;
 }
 

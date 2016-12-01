@@ -48,8 +48,8 @@ private:
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	uint64 radialTimeShift() const;
-	void step_radial(uint64 ms, bool timer);
+	TimeMs radialTimeShift() const;
+	void step_radial(TimeMs ms, bool timer);
 
 	QPixmap _background;
 	ChildWidget<Ui::LinkButton> _chooseFromGallery;

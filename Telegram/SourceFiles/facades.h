@@ -313,12 +313,12 @@ DeclareRefVar(PendingItemsMap, PendingRepaintItems);
 
 DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
-DeclareVar(uint64, LastStickersUpdate);
-DeclareVar(uint64, LastRecentStickersUpdate);
+DeclareVar(TimeMs, LastStickersUpdate);
+DeclareVar(TimeMs, LastRecentStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
 DeclareVar(int, FeaturedStickerSetsUnreadCount);
 DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
-DeclareVar(uint64, LastFeaturedStickersUpdate);
+DeclareVar(TimeMs, LastFeaturedStickersUpdate);
 DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 
 DeclareVar(MTP::DcOptions, DcOptions);

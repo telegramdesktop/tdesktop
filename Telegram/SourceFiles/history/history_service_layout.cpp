@@ -188,7 +188,7 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 	message->countPositionAndSize(left, width);
 	if (width < 1) return;
 
-	uint64 fullAnimMs = App::main() ? App::main()->animActiveTimeStart(message) : 0;
+	auto fullAnimMs = App::main() ? App::main()->animActiveTimeStart(message) : 0LL;
 	if (fullAnimMs > 0 && fullAnimMs <= context.ms) {
 		int animms = context.ms - fullAnimMs;
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {

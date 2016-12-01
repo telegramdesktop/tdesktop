@@ -314,7 +314,7 @@ public:
 	private:
 		const style::BotKeyboardButton *_st;
 
-		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, uint64 ms) const;
+		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, TimeMs ms) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -332,7 +332,7 @@ public:
 	int naturalWidth() const;
 	int naturalHeight() const;
 
-	void paint(Painter &p, int outerWidth, const QRect &clip, uint64 ms) const;
+	void paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const;
 	ClickHandlerPtr getState(int x, int y) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
@@ -363,8 +363,8 @@ private:
 	};
 	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
 
-	using Animations = QMap<int, uint64>;
-	void step_selected(uint64 ms, bool timer);
+	using Animations = QMap<int, TimeMs>;
+	void step_selected(TimeMs ms, bool timer);
 
 	const HistoryItem *_item;
 	int _width = 0;
@@ -473,7 +473,7 @@ public:
 		}
 		return resizeGetHeight_(width);
 	}
-	virtual void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const = 0;
+	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
 
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}

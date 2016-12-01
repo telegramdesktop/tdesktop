@@ -308,14 +308,14 @@ void Gif::ensureAnimation() const {
 	}
 }
 
-bool Gif::isRadialAnimation(uint64 ms) const {
+bool Gif::isRadialAnimation(TimeMs ms) const {
 	if (!_animation || !_animation->radial.animating()) return false;
 
 	_animation->radial.step(ms);
 	return _animation && _animation->radial.animating();
 }
 
-void Gif::step_radial(uint64 ms, bool timer) {
+void Gif::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		update();
 	} else {
@@ -811,7 +811,7 @@ void File::step_thumbOver(float64 ms, bool timer) {
 	}
 }
 
-void File::step_radial(uint64 ms, bool timer) {
+void File::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		Ui::repaintInlineItem(this);
 	} else {
@@ -1319,14 +1319,14 @@ void Game::prepareThumb(int width, int height) const {
 	}
 }
 
-bool Game::isRadialAnimation(uint64 ms) const {
+bool Game::isRadialAnimation(TimeMs ms) const {
 	if (!_radial || !_radial->animating()) return false;
 
 	_radial->step(ms);
 	return _radial && _radial->animating();
 }
 
-void Game::step_radial(uint64 ms, bool timer) {
+void Game::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		update();
 	} else {

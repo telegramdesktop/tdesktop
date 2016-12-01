@@ -162,7 +162,8 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}
-		auto paintCounter = main()->paintTopBar(p, decreaseWidth);
+		auto ms = getms();
+		auto paintCounter = main()->paintTopBar(p, decreaseWidth, ms);
 		p.restore();
 
 		if (paintCounter) {

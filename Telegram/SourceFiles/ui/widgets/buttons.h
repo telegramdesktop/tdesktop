@@ -64,7 +64,7 @@ public:
 	~RippleButton();
 
 protected:
-	void paintRipple(QPainter &p, int x, int y, uint64 ms);
+	void paintRipple(QPainter &p, int x, int y, TimeMs ms);
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
 

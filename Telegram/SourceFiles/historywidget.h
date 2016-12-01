@@ -261,9 +261,9 @@ private:
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime = 0;
-	uint64 _touchAccelerationTime = 0;
-	uint64 _touchTime = 0;
+	TimeMs _touchSpeedTime = 0;
+	TimeMs _touchAccelerationTime = 0;
+	TimeMs _touchTime = 0;
 	QTimer _touchScrollTimer;
 
 	// context menu
@@ -385,7 +385,7 @@ public:
 	bool hasMarkup() const;
 	bool forceReply() const;
 
-	void step_selected(uint64 ms, bool timer);
+	void step_selected(TimeMs ms, bool timer);
 	void resizeToWidth(int newWidth, int maxOuterHeight) {
 		_maxOuterHeight = maxOuterHeight;
 		return TWidget::resizeToWidth(newWidth);
@@ -552,7 +552,7 @@ public:
 
 	void updateTopBarSelection();
 
-	bool paintTopBar(Painter &p, int decreaseWidth);
+	bool paintTopBar(Painter &p, int decreaseWidth, TimeMs ms);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
 	void topBarClick();
@@ -572,8 +572,8 @@ public:
 
 	QRect historyRect() const;
 
-	void updateSendAction(History *history, SendActionType type, int32 progress = 0);
-	void cancelSendAction(History *history, SendActionType type);
+	void updateSendAction(History *history, SendAction::Type type, int32 progress = 0);
+	void cancelSendAction(History *history, SendAction::Type type);
 
 	void updateRecentStickers();
 	void stickersInstalled(uint64 setId);
@@ -1085,7 +1085,7 @@ private:
 	int _addToScroll = 0;
 
 	int _lastScroll = 0;// gifs optimization
-	uint64 _lastScrolled = 0;
+	TimeMs _lastScrolled = 0;
 	QTimer _updateHistoryItems;
 
 	ChildWidget<Ui::HistoryDownButton> _historyToEnd;
@@ -1174,10 +1174,10 @@ private:
 	QTimer _animActiveTimer;
 	float64 _animActiveStart = 0;
 
-	QMap<QPair<History*, SendActionType>, mtpRequestId> _sendActionRequests;
+	QMap<QPair<History*, SendAction::Type>, mtpRequestId> _sendActionRequests;
 	QTimer _sendActionStopTimer;
 
-	uint64 _saveDraftStart = 0;
+	TimeMs _saveDraftStart = 0;
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 

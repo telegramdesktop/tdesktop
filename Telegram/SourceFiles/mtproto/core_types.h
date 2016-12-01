@@ -59,7 +59,7 @@ class mtpRequestData : public mtpBuffer {
 public:
 	// in toSend: = 0 - must send in container, > 0 - can send without container
 	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
-	uint64 msDate;
+	TimeMs msDate;
 
 	mtpRequestId requestId;
 	mtpRequest after;

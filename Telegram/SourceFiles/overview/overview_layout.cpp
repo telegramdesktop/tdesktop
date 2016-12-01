@@ -91,7 +91,7 @@ void RadialProgressItem::step_iconOver(float64 ms, bool timer) {
 	}
 }
 
-void RadialProgressItem::step_radial(uint64 ms, bool timer) {
+void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		Ui::repaintHistoryItem(_parent);
 	} else {
@@ -119,7 +119,7 @@ RadialProgressItem::~RadialProgressItem() {
 	delete base::take(_radial);
 }
 
-void StatusText::update(int newSize, int fullSize, int duration, int64 realDuration) {
+void StatusText::update(int newSize, int fullSize, int duration, TimeMs realDuration) {
 	setSize(newSize);
 	if (_size == FileStatusSizeReady) {
 		_text = (duration >= 0) ? formatDurationAndSizeText(duration, fullSize) : (duration < -1 ? formatGifAndSizeText(fullSize) : formatSizeText(fullSize));
@@ -163,7 +163,7 @@ public:
 	PhotoVideoCheckbox(UpdateCallback callback) : _updateCallback(callback), _check(st::overviewCheck, _updateCallback) {
 	}
 
-	void paint(Painter &p, uint64 ms, int width, int height, bool selected, bool selecting);
+	void paint(Painter &p, TimeMs ms, int width, int height, bool selected, bool selecting);
 
 	void setActive(bool active);
 	void setPressed(bool pressed);
@@ -180,7 +180,7 @@ private:
 
 };
 
-void PhotoVideoCheckbox::paint(Painter &p, uint64 ms, int width, int height, bool selected, bool selecting) {
+void PhotoVideoCheckbox::paint(Painter &p, TimeMs ms, int width, int height, bool selected, bool selecting) {
 	if (selected) {
 		p.fillRect(0, 0, width, height, st::overviewPhotoSelectOverlay);
 	}

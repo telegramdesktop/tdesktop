@@ -1748,7 +1748,7 @@ void _readMtpData() {
 }
 
 ReadMapState _readMap(const QByteArray &pass) {
-	uint64 ms = getms();
+	auto ms = getms();
 	QByteArray dataNameUtf8 = (cDataFile() + (cTestMode() ? qsl(":/test/") : QString())).toUtf8();
 	FileKey dataNameHash[2];
 	hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);

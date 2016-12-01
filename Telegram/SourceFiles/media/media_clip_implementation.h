@@ -44,21 +44,21 @@ public:
 		EndOfFile,
 	};
 	// Read frames till current frame will have presentation time > frameMs, systemMs = getms().
-	virtual ReadResult readFramesTill(int64 frameMs, uint64 systemMs) = 0;
+	virtual ReadResult readFramesTill(TimeMs frameMs, TimeMs systemMs) = 0;
 
 	// Get current frame real and presentation time.
-	virtual int64 frameRealTime() const = 0;
-	virtual uint64 framePresentationTime() const = 0;
+	virtual TimeMs frameRealTime() const = 0;
+	virtual TimeMs framePresentationTime() const = 0;
 
 	// Render current frame to an image with specific size.
 	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
 
-	virtual int64 durationMs() const = 0;
+	virtual TimeMs durationMs() const = 0;
 	virtual bool hasAudio() const = 0;
 	virtual void pauseAudio() = 0;
 	virtual void resumeAudio() = 0;
 
-	virtual bool start(Mode mode, int64 &positionMs) = 0;
+	virtual bool start(Mode mode, TimeMs &positionMs) = 0;
 	virtual ~ReaderImplementation() {
 	}
 	int64 dataSize() const {

@@ -37,7 +37,7 @@ public:
 	void lastUnstop();
 	void lastFinish();
 
-	void paint(QPainter &p, int x, int y, int outerWidth, uint64 ms);
+	void paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms);
 
 	bool empty() const {
 		return _ripples.isEmpty();

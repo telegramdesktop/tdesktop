@@ -181,7 +181,7 @@ void Widget::volumeWidgetCreated(VolumeWidget *widget) {
 void Widget::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
@@ -194,7 +194,7 @@ void Widget::handleSeekProgress(float64 progress) {
 void Widget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 
 	AudioMsgId playing;

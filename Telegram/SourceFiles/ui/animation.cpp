@@ -165,7 +165,7 @@ void AnimationManager::stop(Animation *obj) {
 
 void AnimationManager::timeout() {
 	_iterating = true;
-	uint64 ms = getms();
+	auto ms = getms();
 	for_const (auto object, _objects) {
 		if (!_stopping.contains(object)) {
 			object->step(ms, true);

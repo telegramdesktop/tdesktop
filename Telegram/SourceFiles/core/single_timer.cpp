@@ -41,7 +41,7 @@ void SingleTimer::setTimeoutHandler(base::lambda<void()> &&handler) {
 }
 
 void SingleTimer::adjust() {
-	uint64 n = getms(true);
+	auto n = getms(true);
 	if (isActive()) {
 		if (n >= _finishing) {
 			start(0);
@@ -58,7 +58,7 @@ void SingleTimer::onTimeout() {
 }
 
 void SingleTimer::start(int msec) {
-	_finishing = getms(true) + (msec < 0 ? 0 : uint64(msec));
+	_finishing = getms(true) + (msec < 0 ? 0 : msec);
 	if (!_inited && App::app()) {
 		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
 		_inited = true;

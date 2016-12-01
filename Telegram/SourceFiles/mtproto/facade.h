@@ -150,18 +150,18 @@ int32 dcstate(int32 dc = 0);
 QString dctransport(int32 dc = 0);
 
 template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
+inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
 	if (internal::Session *session = internal::getSession(dc)) {
 		return session->send(request, callbacks, msCanWait, true, !dc, after);
 	}
 	return 0;
 }
 template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
+inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
 	return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 }
-inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
-	if (internal::Session *session = internal::getSession(dc)) {
+inline void sendAnything(int32 dc = 0, TimeMs msCanWait = 0) {
+	if (auto session = internal::getSession(dc)) {
 		return session->sendAnything(msCanWait);
 	}
 }
@@ -210,7 +210,7 @@ typedef QMap<int, DcOption> DcOptions;
 namespace internal {
 
 	template <typename TRequest>
-	mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, uint64 msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
+	mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, TimeMs msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
 		mtpRequestId requestId = 0;
 		try {
 			uint32 requestSize = request.innerLength() >> 2;

@@ -59,7 +59,7 @@ void paintRowDate(Painter &p, const QDateTime &date, QRect &rectForName, bool ac
 }
 
 template <typename PaintItemCallback>
-void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draft, QDateTime date, int w, bool active, bool selected, bool onlyBackground, PaintItemCallback paintItemCallback) {
+void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draft, QDateTime date, int w, bool active, bool selected, bool onlyBackground, TimeMs ms, PaintItemCallback paintItemCallback) {
 	QRect fullRect(0, 0, w, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
 	if (onlyBackground) return;
@@ -81,7 +81,8 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 		paintRowDate(p, date, rectForName, active, selected);
 
 		p.setFont(st::dialogsTextFont);
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
+		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
+		if (!history->paintSendAction(p, nameleft, texttop, namewidth, w, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
 				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, textClean(draft->textWithTags.text));
@@ -91,17 +92,13 @@ void paintRow(Painter &p, History *history, HistoryItem *item, Data::Draft *draf
 			textstyleSet(&(active ? st::dialogsTextStyleDraftActive : (selected ? st::dialogsTextStyleDraftOver : st::dialogsTextStyleDraft)));
 			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, namewidth, 1);
 			textstyleRestore();
-		} else {
-			p.setPen(active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService));
-			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
 	} else if (!item) {
+		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		p.setPen(active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService));
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
+		if (!history->paintSendAction(p, nameleft, texttop, namewidth, w, color, ms)) {
+			p.setPen(color);
 			p.drawText(nameleft, texttop + st::msgNameFont->ascent, lang(lng_empty_history));
-		} else {
-			history->typingText.drawElided(p, nameleft, texttop, namewidth);
 		}
 	} else if (!item->isEmpty()) {
 		paintRowDate(p, date, rectForName, active, selected);
@@ -244,7 +241,7 @@ void paintUnreadCount(Painter &p, const QString &text, int x, int y, const Unrea
 	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + textTop + st.font->ascent, text);
 }
 
-void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground) {
+void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground, TimeMs ms) {
 	auto history = row->history();
 	auto item = history->lastMsg;
 	auto cloudDraft = history->cloudDraft();
@@ -270,7 +267,7 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 	if (item && cloudDraft && unreadCount > 0) {
 		cloudDraft = nullptr; // Draw item, if draft is older.
 	}
-	paintRow(p, history, item, cloudDraft, displayDate(), w, active, selected, onlyBackground, [&p, w, active, selected, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
+	paintRow(p, history, item, cloudDraft, displayDate(), w, active, selected, onlyBackground, ms, [&p, w, active, selected, ms, history, unreadCount](int nameleft, int namewidth, HistoryItem *item) {
 		int availableWidth = namewidth;
 		int texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		if (unreadCount) {
@@ -286,19 +283,17 @@ void RowPainter::paint(Painter &p, const Row *row, int w, bool active, bool sele
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 			availableWidth -= unreadWidth + st.padding;
 		}
-		if (history->typing.isEmpty() && history->sendActions.isEmpty()) {
+		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
+		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, w, color, ms)) {
 			item->drawInDialog(p, QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height), active, selected, history->textCachedFor, history->lastItemTextCache);
-		} else {
-			p.setPen(active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService));
-			history->typingText.drawElided(p, nameleft, texttop, availableWidth);
 		}
 	});
 }
 
-void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground) {
+void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground, TimeMs ms) {
 	auto item = row->item();
 	auto history = item->history();
-	paintRow(p, history, item, nullptr, item->date, w, active, selected, onlyBackground, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
+	paintRow(p, history, item, nullptr, item->date, w, active, selected, onlyBackground, ms, [&p, row, active, selected](int nameleft, int namewidth, HistoryItem *item) {
 		int lastWidth = namewidth, texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
 		item->drawInDialog(p, QRect(nameleft, texttop, lastWidth, st::dialogsTextFont->height), active, selected, row->_cacheFor, row->_cache);
 	});

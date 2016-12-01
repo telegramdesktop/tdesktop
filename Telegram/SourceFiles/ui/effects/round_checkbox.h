@@ -28,7 +28,7 @@ class RoundCheckbox {
 public:
 	RoundCheckbox(const style::RoundCheckbox &st, const base::lambda_copy<void()> &updateCallback);
 
-	void paint(Painter &p, uint64 ms, int x, int y, int outerWidth, float64 masterScale = 1.);
+	void paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, float64 masterScale = 1.);
 
 	void setDisplayInactive(bool displayInactive);
 	bool checked() const {
@@ -70,7 +70,7 @@ public:
 	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	RoundImageCheckbox(const style::RoundImageCheckbox &st, const base::lambda_copy<void()> &updateCallback, PaintRoundImage &&paintRoundImage);
 
-	void paint(Painter &p, uint64 ms, int x, int y, int outerWidth);
+	void paint(Painter &p, TimeMs ms, int x, int y, int outerWidth);
 	float64 checkedAnimationRatio() const;
 
 	bool checked() const {

@@ -243,7 +243,7 @@ public:
 	void notifyLayerInited(bool wasInited);
 
 	template <typename TRequest>
-	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), uint64 msCanWait = 0, bool needsLayer = false, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
+	mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), TimeMs msCanWait = 0, bool needsLayer = false, bool toMainDC = false, mtpRequestId after = 0); // send mtp request
 
 	void ping();
 	void cancel(mtpRequestId requestId, mtpMsgId msgId);
@@ -251,7 +251,7 @@ public:
 	int32 getState() const;
 	QString transport() const;
 
-	void sendPrepared(const mtpRequest &request, uint64 msCanWait = 0, bool newRequest = true); // nulls msgId and seqNo in request, if newRequest = true
+	void sendPrepared(const mtpRequest &request, TimeMs msCanWait = 0, bool newRequest = true); // nulls msgId and seqNo in request, if newRequest = true
 
 	~Session();
 
@@ -264,8 +264,8 @@ signals:
 public slots:
 	void needToResumeAndSend();
 
-	mtpRequestId resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	mtpRequestId resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAll(); // after connection restart
 
 	void authKeyCreatedForDC();
@@ -276,7 +276,7 @@ public slots:
 	void onConnectionStateChange(qint32 newState);
 	void onResetDone();
 
-	void sendAnything(quint64 msCanWait = 0);
+	void sendAnything(qint64 msCanWait = 0);
 	void sendPong(quint64 msgId, quint64 pingId);
 	void sendMsgsStateInfo(quint64 msgId, QByteArray data);
 
@@ -293,7 +293,7 @@ private:
 	int32 dcWithShift;
 	DcenterPtr dc;
 
-	uint64 msSendCall, msWait;
+	TimeMs msSendCall, msWait;
 
 	bool _ping;
 

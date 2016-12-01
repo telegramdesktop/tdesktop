@@ -96,8 +96,8 @@ private:
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
 	void ensureAnimation() const;
-	bool isRadialAnimation(uint64 ms) const;
-	void step_radial(uint64 ms, bool timer);
+	bool isRadialAnimation(TimeMs ms) const;
+	void step_radial(TimeMs ms, bool timer);
 
 	void clipCallback(Media::Clip::Notification notification);
 
@@ -243,19 +243,19 @@ public:
 
 private:
 	void step_thumbOver(float64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void step_radial(TimeMs ms, bool timer);
 
 	void ensureAnimation() const;
 	void checkAnimationFinished();
 	bool updateStatusText() const;
 
-	bool isRadialAnimation(uint64 ms) const {
+	bool isRadialAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
 
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
-	bool isThumbAnimation(uint64 ms) const {
+	bool isThumbAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
 
 		_animation->_a_thumbOver.step(ms);
@@ -348,8 +348,8 @@ private:
 
 	void prepareThumb(int32 width, int32 height) const;
 
-	bool isRadialAnimation(uint64 ms) const;
-	void step_radial(uint64 ms, bool timer);
+	bool isRadialAnimation(TimeMs ms) const;
+	void step_radial(TimeMs ms, bool timer);
 
 	void clipCallback(Media::Clip::Notification notification);
 

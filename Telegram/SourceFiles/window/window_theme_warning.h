@@ -57,7 +57,7 @@ private:
 	QRect _inner, _outer;
 
 	SingleTimer _timer;
-	uint64 _started = 0;
+	TimeMs _started = 0;
 	int _secondsLeft = 0;
 	QString _text;
 

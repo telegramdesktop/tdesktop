@@ -81,7 +81,7 @@ private:
 	FloatAnimation a_loading;
 	Animation _a_loading;
 
-	void step_loading(uint64 ms, bool timer) {
+	void step_loading(TimeMs ms, bool timer) {
 		if (timer) {
 			update();
 		}

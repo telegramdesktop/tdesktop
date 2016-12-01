@@ -29,7 +29,7 @@ void objc_activateWnd(WId winId);
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);
 bool objc_idleSupported();
-bool objc_idleTime(int64 &idleTime);
+bool objc_idleTime(TimeMs &idleTime);
 
 bool objc_showOpenWithMenu(int x, int y, const QString &file);
 

@@ -37,7 +37,7 @@ void psDeleteDir(const QString &dir);
 
 void psUserActionDone();
 bool psIdleSupported();
-uint64 psIdleTime();
+TimeMs psIdleTime();
 
 QStringList psInitLogs();
 void psClearInitLogs();

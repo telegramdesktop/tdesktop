@@ -60,7 +60,7 @@ namespace {
 	ALuint notifySource = 0;
 	ALuint notifyBuffer = 0;
 
-	uint64 notifyLengthMs = 0;
+	TimeMs notifyLengthMs = 0;
 
 	QMutex playerMutex;
 	AudioPlayer *player = 0;
@@ -669,12 +669,12 @@ void AudioPlayer::feedFromVideo(VideoSoundPart &&part) {
 	_loader->feedFromVideo(std_::move(part));
 }
 
-int64 AudioPlayer::getVideoCorrectedTime(uint64 playId, int64 frameMs, uint64 systemMs) {
-	int64 result = frameMs;
+TimeMs AudioPlayer::getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs) {
+	auto result = frameMs;
 
 	QMutexLocker videoLock(&_lastVideoMutex);
 	if (_lastVideoPlayId == playId && _lastVideoPlaybackWhen > 0) {
-		result = static_cast<int64>(_lastVideoPlaybackCorrectedMs);
+		result = static_cast<TimeMs>(_lastVideoPlaybackCorrectedMs);
 		if (systemMs > _lastVideoPlaybackWhen) {
 			result += (systemMs - _lastVideoPlaybackWhen);
 		}
@@ -985,7 +985,7 @@ void AudioPlayerFader::onTimer() {
 
 	bool suppressAudioChanged = false, suppressSongChanged = false;
 	if (_suppressAll || _suppressSongAnim) {
-		uint64 ms = getms();
+		auto ms = getms();
 		float64 wasSong = suppressSongGain;
 		if (_suppressAll) {
 			float64 wasAudio = suppressAllGain;

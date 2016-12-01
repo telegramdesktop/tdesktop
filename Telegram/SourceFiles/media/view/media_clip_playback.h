@@ -66,7 +66,7 @@ private:
 	Ui::ContinuousSlider *_slider;
 
 	int64 _position = 0;
-	int64 _duration = 0;
+	TimeMs _duration = 0;
 
 	bool _playing = false;
 

@@ -156,8 +156,10 @@ namespace {
 }
 
 namespace {
-	uint64 _lastUserAction = 0;
-}
+
+TimeMs _lastUserAction = 0;
+
+} // namespace
 
 void psUserActionDone() {
 	_lastUserAction = getms(true);
@@ -170,7 +172,7 @@ bool psIdleSupported() {
 	return GetLastInputInfo(&lii);
 }
 
-uint64 psIdleTime() {
+TimeMs psIdleTime() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (getms(true) - _lastUserAction);
@@ -417,13 +419,15 @@ void psDoCleanup() {
 }
 
 namespace {
+
 QRect _monitorRect;
-uint64 _monitorLastGot = 0;
-}
+TimeMs _monitorLastGot = 0;
+
+} // namespace
 
 QRect psDesktopRect() {
-	uint64 tnow = getms();
-	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
+	auto tnow = getms();
+	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		HMONITOR hMonitor = MonitorFromWindow(App::wnd()->psHwnd(), MONITOR_DEFAULTTONEAREST);
 		if (hMonitor) {

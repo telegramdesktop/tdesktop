@@ -127,11 +127,11 @@ void BackgroundRow::radialStart() {
 	}
 }
 
-uint64 BackgroundRow::radialTimeShift() const {
+TimeMs BackgroundRow::radialTimeShift() const {
 	return st::radialDuration;
 }
 
-void BackgroundRow::step_radial(uint64 ms, bool timer) {
+void BackgroundRow::step_radial(TimeMs ms, bool timer) {
 	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
 	if (timer && _radial.animating()) {
 		rtlupdate(radialRect());

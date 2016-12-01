@@ -70,7 +70,7 @@ public:
 
 	void step_appearance(float64 ms, bool timer);
 
-	void hideTimeout(int64 dt);
+	void hideTimeout(TimeMs dt);
 
 public slots:
 
@@ -97,7 +97,7 @@ private:
 
 	int32 _startFrom, _scrollMax;
 
-	int64 _hideIn;
+	TimeMs _hideIn;
 	QTimer _hideTimer;
 
 	anim::fvalue a_bgOver, a_barOver, a_fullOpacity;
@@ -249,9 +249,9 @@ private:
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime = 0;
-	uint64 _touchAccelerationTime = 0;
-	uint64 _touchTime = 0;
+	TimeMs _touchSpeedTime = 0;
+	TimeMs _touchAccelerationTime = 0;
+	TimeMs _touchTime = 0;
 	QTimer _touchScrollTimer;
 
 	bool _widgetAcceptsTouch = false;

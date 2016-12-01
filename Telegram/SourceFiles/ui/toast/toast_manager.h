@@ -51,9 +51,9 @@ private:
 	void startNextHideTimer();
 
 	SingleTimer _hideTimer;
-	uint64 _nextHide = 0;
+	TimeMs _nextHide = 0;
 
-	QMultiMap<uint64, Instance*> _toastByHideTime;
+	QMultiMap<TimeMs, Instance*> _toastByHideTime;
 	QMap<Widget*, Instance*> _toastByWidget;
 	QList<Instance*> _toasts;
 

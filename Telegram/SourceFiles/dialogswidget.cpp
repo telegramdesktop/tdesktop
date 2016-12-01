@@ -96,7 +96,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 	if (!paintingOther) {
 		p.setClipRect(r);
 	}
-
+	auto ms = paintingOther ? TimeMs(0) : getms();
 	if (_state == DefaultState) {
 		QRect dialogsClip = r;
 		if (importantDialogs) {
@@ -105,9 +105,9 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			p.translate(0, st::dialogsImportantBarHeight);
 		}
 		int32 otherStart = shownDialogs()->size() * st::dialogsRowHeight;
-		PeerData *active = App::main()->activePeer(), *selected = _menuPeer ? _menuPeer : (_sel ? _sel->history()->peer : 0);
+		auto active = App::main()->activePeer(), selected = _menuPeer ? _menuPeer : (_sel ? _sel->history()->peer : nullptr);
 		if (otherStart) {
-			shownDialogs()->all().paint(p, fullWidth(), dialogsClip.top(), dialogsClip.top() + dialogsClip.height(), active, selected, paintingOther);
+			shownDialogs()->all().paint(p, fullWidth(), dialogsClip.top(), dialogsClip.top() + dialogsClip.height(), active, selected, paintingOther, ms);
 		}
 		if (!otherStart) {
 			p.fillRect(dialogsClip, st::dialogsBg);
@@ -171,7 +171,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 				for (; from < to; ++from) {
 					bool active = ((_filterResults[from]->history()->peer == act) || (_filterResults[from]->history()->peer->migrateTo() && _filterResults[from]->history()->peer->migrateTo() == act)) && !actId;
 					bool selected = (from == _filteredSel) || (_filterResults[from]->history()->peer == _menuPeer);
-					Dialogs::Layout::RowPainter::paint(p, _filterResults[from], w, active, selected, paintingOther);
+					Dialogs::Layout::RowPainter::paint(p, _filterResults[from], w, active, selected, paintingOther, ms);
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -241,7 +241,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					auto history = item->history();
 					bool active = (history->peer == act && item->id == actId) || (history->peer->migrateTo() && history->peer->migrateTo() == act && item->id == -actId);
 					bool selected = (from == _searchedSel);
-					Dialogs::Layout::RowPainter::paint(p, result, w, active, selected, paintingOther);
+					Dialogs::Layout::RowPainter::paint(p, result, w, active, selected, paintingOther, ms);
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}

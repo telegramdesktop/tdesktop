@@ -165,12 +165,12 @@ void Session::unpaused() {
 	}
 }
 
-void Session::sendAnything(quint64 msCanWait) {
+void Session::sendAnything(qint64 msCanWait) {
 	if (_killed) {
 		DEBUG_LOG(("Session Error: can't send anything in a killed session"));
 		return;
 	}
-	uint64 ms = getms(true);
+	auto ms = getms(true);
 	if (msSendCall) {
 		if (ms > msSendCall + msWait) {
 			msWait = 0;
@@ -246,7 +246,7 @@ void Session::checkRequestsByTimer() {
 		QReadLocker locker(data.haveSentMutex());
 		mtpRequestMap &haveSent(data.haveSentMap());
 		uint32 haveSentCount(haveSent.size());
-		uint64 ms = getms(true);
+		auto ms = getms(true);
 		for (mtpRequestMap::iterator i = haveSent.begin(), e = haveSent.end(); i != e; ++i) {
 			mtpRequest &req(i.value());
 			if (req->msDate > 0) {
@@ -386,7 +386,7 @@ QString Session::transport() const {
 	return _connection ? _connection->transport() : QString();
 }
 
-mtpRequestId Session::resend(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+mtpRequestId Session::resend(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	mtpRequest request;
 	{
 		QWriteLocker locker(data.haveSentMutex());
@@ -426,7 +426,7 @@ mtpRequestId Session::resend(quint64 msgId, quint64 msCanWait, bool forceContain
 	}
 }
 
-void Session::resendMany(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
+void Session::resendMany(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo) {
 	for (int32 i = 0, l = msgIds.size(); i < l; ++i) {
 		resend(msgIds.at(i), msCanWait, forceContainer, sendMsgStateInfo);
 	}
@@ -447,7 +447,7 @@ void Session::resendAll() {
 	}
 }
 
-void Session::sendPrepared(const mtpRequest &request, uint64 msCanWait, bool newRequest) { // returns true, if emit of needToSend() is needed
+void Session::sendPrepared(const mtpRequest &request, TimeMs msCanWait, bool newRequest) { // returns true, if emit of needToSend() is needed
 	{
 		QWriteLocker locker(data.toSendMutex());
 		data.toSendMap().insert(request->requestId, request);

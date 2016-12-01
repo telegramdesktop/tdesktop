@@ -36,7 +36,7 @@ void RadialAnimation::start(float64 prg) {
 	_animation.start();
 }
 
-void RadialAnimation::update(float64 prg, bool finished, uint64 ms) {
+void RadialAnimation::update(float64 prg, bool finished, TimeMs ms) {
 	int32 iprg = qRound(qMax(prg, 0.0001) * AlmostFullArcLength);
 	if (iprg != a_arcEnd.to()) {
 		a_arcEnd.start(iprg);
@@ -66,7 +66,7 @@ void RadialAnimation::stop() {
 	_animation.stop();
 }
 
-void RadialAnimation::step(uint64 ms) {
+void RadialAnimation::step(TimeMs ms) {
 	_animation.step(ms);
 }
 

@@ -96,12 +96,12 @@ signals:
 	void sessionResetDone();
 
 	void needToSendAsync();
-	void sendAnythingAsync(quint64 msWait);
+	void sendAnythingAsync(qint64 msWait);
 	void sendHttpWaitAsync();
 	void sendPongAsync(quint64 msgId, quint64 pingId);
 	void sendMsgsStateInfoAsync(quint64 msgId, QByteArray data);
-	void resendAsync(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
-	void resendManyAsync(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendAsync(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendManyAsync(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
 	void finished(Connection *connection);
@@ -183,14 +183,14 @@ private:
 
 	SingleTimer retryTimer; // exp retry timer
 	int retryTimeout;
-	quint64 retryWillFinish;
+	qint64 retryWillFinish;
 
 	SingleTimer oldConnectionTimer;
 	bool oldConnection;
 
 	SingleTimer _waitForConnectedTimer, _waitForReceivedTimer, _waitForIPv4Timer;
 	uint32 _waitForReceived, _waitForConnected;
-	int64 firstSentAt;
+	TimeMs firstSentAt;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;
 
@@ -201,12 +201,12 @@ private:
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
 	mtpPingId _pingId, _pingIdToSend;
-	uint64 _pingSendAt;
+	TimeMs _pingSendAt;
 	mtpMsgId _pingMsgId;
 	SingleTimer _pingSender;
 
-	void resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendMany(QVector<quint64> msgIds, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resendMany(QVector<quint64> msgIds, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 
 	template <typename TRequest>
 	void sendRequestNotSecure(const TRequest &request);

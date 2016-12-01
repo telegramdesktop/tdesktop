@@ -220,8 +220,9 @@ void finish();
 
 }
 
+using TimeMs = int64;
 bool checkms(); // returns true if time has changed
-uint64 getms(bool checked = false);
+TimeMs getms(bool checked = false);
 
 const static uint32 _md5_block_size = 64;
 class HashMd5 {

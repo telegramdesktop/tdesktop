@@ -438,7 +438,7 @@ class Animation;
 class AnimationImplementation {
 public:
 	virtual void start() {}
-	virtual void step(Animation *a, uint64 ms, bool timer) = 0;
+	virtual void step(Animation *a, TimeMs ms, bool timer) = 0;
 	virtual ~AnimationImplementation() {}
 
 };
@@ -457,7 +457,7 @@ public:
 	}
 
 	void start() { _implementation->start();  }
-	void step(Animation *a, uint64 ms, bool timer) { _implementation->step(a, ms, timer); }
+	void step(Animation *a, TimeMs ms, bool timer) { _implementation->step(a, ms, timer); }
 	~AnimationCallbacks() { delete base::take(_implementation); }
 
 private:
@@ -475,7 +475,7 @@ public:
 	void start();
 	void stop();
 
-	void step(uint64 ms, bool timer = false) {
+	void step(TimeMs ms, bool timer = false) {
 		_callbacks.step(this, ms, timer);
 	}
 
@@ -509,7 +509,7 @@ public:
 		_started = float64(getms());
 	}
 
-	void step(Animation *a, uint64 ms, bool timer) {
+	void step(Animation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(ms - _started, timer);
 	}
 
@@ -527,12 +527,12 @@ AnimationCallbacks animation(Type *obj, typename AnimationCallbacksRelative<Type
 template <typename Type>
 class AnimationCallbacksAbsolute : public AnimationImplementation {
 public:
-	typedef void (Type::*Method)(uint64, bool);
+	typedef void (Type::*Method)(TimeMs, bool);
 
 	AnimationCallbacksAbsolute(Type *obj, Method method) : _obj(obj), _method(method) {
 	}
 
-	void step(Animation *a, uint64 ms, bool timer) {
+	void step(Animation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(ms, timer);
 	}
 
@@ -558,7 +558,7 @@ public:
 		_started = float64(getms());
 	}
 
-	void step(Animation *a, uint64 ms, bool timer) {
+	void step(Animation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(_param, ms - _started, timer);
 	}
 
@@ -577,12 +577,12 @@ AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacks
 template <typename Type, typename Param>
 class AnimationCallbacksAbsoluteWithParam : public AnimationImplementation {
 public:
-	typedef void (Type::*Method)(Param, uint64, bool);
+	typedef void (Type::*Method)(Param, TimeMs, bool);
 
 	AnimationCallbacksAbsoluteWithParam(Param param, Type *obj, Method method) : _param(param), _obj(obj), _method(method) {
 	}
 
-	void step(Animation *a, uint64 ms, bool timer) {
+	void step(Animation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(_param, ms, timer);
 	}
 
@@ -603,7 +603,7 @@ public:
 	using ValueType = typename AnimType::ValueType;
 	using Callback = base::lambda<void()>;
 
-	void step(uint64 ms) {
+	void step(TimeMs ms) {
 		if (_data) {
 			_data->a_animation.step(ms);
 			if (_data && !_data->a_animation.animating()) {
@@ -621,7 +621,7 @@ public:
 		}
 		return false;
 	}
-	bool animating(uint64 ms) {
+	bool animating(TimeMs ms) {
 		step(ms);
 		return animating();
 	}
@@ -633,7 +633,7 @@ public:
 	ValueType current(const ValueType &def) const {
 		return _data ? current() : def;
 	}
-	ValueType current(uint64 ms, const ValueType &def) {
+	ValueType current(TimeMs ms, const ValueType &def) {
 		return animating(ms) ? current() : def;
 	}
 

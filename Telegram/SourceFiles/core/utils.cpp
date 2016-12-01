@@ -206,7 +206,7 @@ namespace {
 
 	float64 _msFreq;
 	float64 _msgIdCoef;
-    int64 _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
+	TimeMs _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
 	int32 _timeStart = 0;
 
 	class _MsInitializer {
@@ -235,7 +235,7 @@ namespace {
             clock_gettime(CLOCK_MONOTONIC, &ts);
             //_msFreq = 1 / 1000000.;
             _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
-            _msStart = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
+            _msStart = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
 #endif
 			_timeStart = myunixtime();
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
@@ -312,8 +312,8 @@ namespace ThirdParty {
 }
 
 bool checkms() {
-	int64 unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
-	int64 ms = int64(getms(true));
+	auto unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
+	auto ms = getms(true);
 	if (ms > unixms + 1000LL) {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
 	} else if (unixms > ms + 1000LL) {
@@ -324,24 +324,23 @@ bool checkms() {
 	return false;
 }
 
-uint64 getms(bool checked) {
+TimeMs getms(bool checked) {
     _msInitialize();
 #ifdef Q_OS_WIN
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
-	return (uint64)((li.QuadPart - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0);
+	return ((li.QuadPart - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
 #elif defined Q_OS_MAC
-   uint64 msCount = mach_absolute_time();
-   return (uint64)((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0);
+	auto msCount = static_cast<TimeMs>(mach_absolute_time());
+	return ((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
 #else
     timespec ts;
-    int res = clock_gettime(CLOCK_MONOTONIC, &ts);
-    if (res != 0) {
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
         LOG(("Bad clock_gettime result: %1").arg(res));
         return 0;
     }
-    uint64 msCount = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
-    return (uint64)(msCount - _msStart) + (checked ? _msAddToMsStart : 0);
+    auto msCount = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
+    return (msCount - _msStart) + (checked ? _msAddToMsStart : 0LL);
 #endif
 }
 

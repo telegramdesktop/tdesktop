@@ -394,10 +394,10 @@ void MediaView::updateActions() {
 	}
 }
 
-void MediaView::step_state(uint64 ms, bool timer) {
+void MediaView::step_state(TimeMs ms, bool timer) {
 	bool result = false;
 	for (Showing::iterator i = _animations.begin(); i != _animations.end();) {
-		int64 start = i.value();
+		TimeMs start = i.value();
 		switch (i.key()) {
 		case OverLeftNav: update(_leftNav); break;
 		case OverRightNav: update(_rightNav); break;
@@ -477,11 +477,11 @@ void MediaView::radialStart() {
 	}
 }
 
-uint64 MediaView::radialTimeShift() const {
+TimeMs MediaView::radialTimeShift() const {
 	return _photo ? st::radialDuration : 0;
 }
 
-void MediaView::step_radial(uint64 ms, bool timer) {
+void MediaView::step_radial(TimeMs ms, bool timer) {
 	if (!_doc && !_photo) {
 		_radial.stop();
 		return;
@@ -1373,8 +1373,8 @@ void MediaView::createClipController() {
 
 	connect(_clipController, SIGNAL(playPressed()), this, SLOT(onVideoPauseResume()));
 	connect(_clipController, SIGNAL(pausePressed()), this, SLOT(onVideoPauseResume()));
-	connect(_clipController, SIGNAL(seekProgress(int64)), this, SLOT(onVideoSeekProgress(int64)));
-	connect(_clipController, SIGNAL(seekFinished(int64)), this, SLOT(onVideoSeekFinished(int64)));
+	connect(_clipController, SIGNAL(seekProgress(TimeMs)), this, SLOT(onVideoSeekProgress(TimeMs)));
+	connect(_clipController, SIGNAL(seekFinished(TimeMs)), this, SLOT(onVideoSeekFinished(TimeMs)));
 	connect(_clipController, SIGNAL(volumeChanged(float64)), this, SLOT(onVideoVolumeChanged(float64)));
 	connect(_clipController, SIGNAL(toFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 	connect(_clipController, SIGNAL(fromFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
@@ -1418,7 +1418,7 @@ void MediaView::onVideoPauseResume() {
 	}
 }
 
-void MediaView::restartVideoAtSeekPosition(int64 positionMs) {
+void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	_autoplayVideoDocument = _doc;
 
 	if (_current.isNull()) {
@@ -1440,13 +1440,13 @@ void MediaView::restartVideoAtSeekPosition(int64 positionMs) {
 	updateVideoPlaybackState(state);
 }
 
-void MediaView::onVideoSeekProgress(int64 positionMs) {
+void MediaView::onVideoSeekProgress(TimeMs positionMs) {
 	if (!_videoPaused && !_videoStopped) {
 		onVideoPauseResume();
 	}
 }
 
-void MediaView::onVideoSeekFinished(int64 positionMs) {
+void MediaView::onVideoSeekFinished(TimeMs positionMs) {
 	restartVideoAtSeekPosition(positionMs);
 }
 
@@ -1516,7 +1516,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	QRegion region(e->region());
 	QVector<QRect> rs(region.rects());
 
-	uint64 ms = getms();
+	auto ms = getms();
 
 	Painter p(this);
 
@@ -1624,7 +1624,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 						p.setOpacity(1);
 					}
 					if (_full >= 1) {
-                        uint64 nextFrame = (dt < st::medviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::medviewSaveMsgShowing + st::medviewSaveMsgShown + 1 - dt);
+                        auto nextFrame = (dt < st::medviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::medviewSaveMsgShowing + st::medviewSaveMsgShown + 1 - dt);
 						_saveMsgUpdater.start(nextFrame);
 					}
 				} else {

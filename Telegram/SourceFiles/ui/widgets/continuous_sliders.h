@@ -69,11 +69,11 @@ protected:
 	float64 fadeOpacity() const {
 		return _fadeOpacity;
 	}
-	float64 getCurrentValue(uint64 ms) {
+	float64 getCurrentValue(TimeMs ms) {
 		_a_value.step(ms);
 		return _mouseDown ? _downValue : a_value.current();
 	}
-	float64 getCurrentOverFactor(uint64 ms) {
+	float64 getCurrentOverFactor(TimeMs ms) {
 		return _disabled ? 0. : _a_over.current(ms, _over ? 1. : 0.);
 	}
 	Direction getDirection() const {

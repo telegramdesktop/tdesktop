@@ -49,12 +49,14 @@ namespace {
 };
 
 namespace {
-	QRect _monitorRect;
-	uint64 _monitorLastGot = 0;
-}
+
+QRect _monitorRect;
+TimeMs _monitorLastGot = 0;
+
+} // namespace
 
 QRect psDesktopRect() {
-	uint64 tnow = getms(true);
+	auto tnow = getms(true);
 	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
@@ -286,8 +288,10 @@ void psDeleteDir(const QString &dir) {
 }
 
 namespace {
-	uint64 _lastUserAction = 0;
-}
+
+auto _lastUserAction = 0LL;
+
+} // namespace
 
 void psUserActionDone() {
 	_lastUserAction = getms(true);
@@ -297,8 +301,8 @@ bool psIdleSupported() {
 	return objc_idleSupported();
 }
 
-uint64 psIdleTime() {
-	int64 idleTime = 0;
+TimeMs psIdleTime() {
+	auto idleTime = 0LL;
 	return objc_idleTime(idleTime) ? idleTime : (getms(true) - _lastUserAction);
 }
 

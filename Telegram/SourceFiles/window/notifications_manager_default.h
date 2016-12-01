@@ -238,7 +238,7 @@ private:
 	QPixmap _buttonsCache;
 
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
-	uint64 _started;
+	TimeMs _started;
 #endif // Q_OS_WIN && !Q_OS_WINRT
 
 	History *_history;

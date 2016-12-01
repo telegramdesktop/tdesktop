@@ -285,7 +285,7 @@ void MainWindow::checkAutoLock() {
 	if (!Global::LocalPasscode() || App::passcoded()) return;
 
 	App::app()->checkLocalTime();
-	uint64 ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000ULL;
+	auto ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000LL;
 	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000ULL)) {
 		setupPasscode();
 	} else {
@@ -1043,16 +1043,16 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 	}
 
 	int delay = item->Has<HistoryMessageForwarded>() ? 500 : 100, t = unixtime();
-	uint64 ms = getms(true);
-	bool isOnline = _main->lastWasOnline(), otherNotOld = ((cOtherOnline() * uint64(1000)) + Global::OnlineCloudTimeout() > t * uint64(1000));
-	bool otherLaterThanMe = (cOtherOnline() * uint64(1000) + (ms - _main->lastSetOnline()) > t * uint64(1000));
+	auto ms = getms(true);
+	bool isOnline = _main->lastWasOnline(), otherNotOld = ((cOtherOnline() * 1000LL) + Global::OnlineCloudTimeout() > t * 1000LL);
+	bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - _main->lastSetOnline()) > t * 1000LL);
 	if (!isOnline && otherNotOld && otherLaterThanMe) {
 		delay = Global::NotifyCloudDelay();
 	} else if (cOtherOnline() >= t) {
 		delay = Global::NotifyDefaultDelay();
 	}
 
-	uint64 when = ms + delay;
+	auto when = ms + delay;
 	_notifyWhenAlerts[history].insert(when, notifyByFrom);
 	if (Global::DesktopNotify() && !Platform::Notifications::skipToast()) {
 		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
@@ -1155,7 +1155,7 @@ void MainWindow::notifySettingGot() {
 void MainWindow::notifyShowNext() {
 	if (App::quitting()) return;
 
-	uint64 ms = getms(true), nextAlert = 0;
+	auto ms = getms(true), nextAlert = 0LL;
 	bool alert = false;
 	int32 now = unixtime();
 	for (NotifyWhenAlerts::iterator i = _notifyWhenAlerts.begin(); i != _notifyWhenAlerts.end();) {
@@ -1192,7 +1192,7 @@ void MainWindow::notifyShowNext() {
 	}
 
 	while (true) {
-		uint64 next = 0;
+		auto next = 0LL;
 		HistoryItem *notifyItem = 0;
 		History *notifyHistory = 0;
 		for (NotifyWaiters::iterator i = _notifyWaiters.begin(); i != _notifyWaiters.end();) {
@@ -1219,7 +1219,7 @@ void MainWindow::notifyShowNext() {
 				i = _notifyWaiters.erase(i);
 				continue;
 			}
-			uint64 when = i.value().when;
+			auto when = i.value().when;
 			if (!notifyItem || next > when) {
 				next = when;
 				notifyItem = history->currentNotification();
@@ -1239,7 +1239,7 @@ void MainWindow::notifyShowNext() {
 				HistoryItem *fwd = notifyItem->Has<HistoryMessageForwarded>() ? notifyItem : nullptr; // forwarded notify grouping
 				int32 fwdCount = 1;
 
-				uint64 ms = getms(true);
+				auto ms = getms(true);
 				History *history = notifyItem->history();
 				NotifyWhenMaps::iterator j = _notifyWhenMaps.find(history);
 				if (j == _notifyWhenMaps.cend()) {

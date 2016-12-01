@@ -261,11 +261,11 @@ void objc_outputDebugString(const QString &str) {
 }
 
 bool objc_idleSupported() {
-	int64 idleTime = 0;
+	auto idleTime = 0LL;
 	return objc_idleTime(idleTime);
 }
 
-bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
+bool objc_idleTime(TimeMs &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
 	CFMutableDictionaryRef properties = 0;
 	CFTypeRef obj;
 	mach_port_t masterPort;
@@ -314,7 +314,7 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
 	IOObjectRelease(iter);
 	if (result == err) return false;
 
-	idleTime = int64(result);
+	idleTime = static_cast<TimeMs>(result);
 	return true;
 }
 

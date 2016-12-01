@@ -54,8 +54,8 @@ public:
 signals:
 	void playPressed();
 	void pausePressed();
-	void seekProgress(int64 positionMs);
-	void seekFinished(int64 positionMs);
+	void seekProgress(TimeMs positionMs);
+	void seekFinished(TimeMs positionMs);
 	void volumeChanged(float64 volume);
 	void toFullScreenPressed();
 	void fromFullScreenPressed();
@@ -80,8 +80,8 @@ private:
 
 	bool _showPause = false;
 	QString _timeAlready, _timeLeft;
-	int64 _seekPositionMs = -1;
-	int64 _lastDurationMs = 0;
+	TimeMs _seekPositionMs = -1;
+	TimeMs _lastDurationMs = 0;
 
 	ChildWidget<Ui::IconButton> _playPauseResume;
 	ChildWidget<Playback> _playback;

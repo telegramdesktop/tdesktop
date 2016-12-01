@@ -38,7 +38,7 @@ public:
 
 	bool open(qint64 &position) override;
 
-	int64 duration() override {
+	TimeMs duration() override {
 		return len;
 	}
 
@@ -50,7 +50,7 @@ public:
 
 protected:
 	int32 freq = AudioVoiceMsgFrequency;
-	int64 len = 0;
+	TimeMs len = 0;
 
 	uchar *ioBuffer = nullptr;
 	AVIOContext *ioContext = nullptr;

@@ -810,7 +810,7 @@ public:
 
 private:
 	PtsWaiter _ptsWaiter;
-	uint64 _lastFullUpdate = 0;
+	TimeMs _lastFullUpdate = 0;
 
 	int _membersCount = 1;
 	int _adminsCount = 1;
@@ -1410,3 +1410,23 @@ struct MessageCursor {
 inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
 	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
 }
+
+struct SendAction {
+	enum class Type {
+		Typing,
+		RecordVideo,
+		UploadVideo,
+		RecordVoice,
+		UploadVoice,
+		UploadPhoto,
+		UploadFile,
+		ChooseLocation,
+		ChooseContact,
+		PlayGame,
+	};
+	SendAction(Type type, TimeMs until, int progress = 0) : type(type), until(until), progress(progress) {
+	}
+	Type type;
+	TimeMs until;
+	int progress;
+};

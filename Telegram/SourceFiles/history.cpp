@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace {
 
+constexpr int kStatusShowClientsideTyping = 6000;
 constexpr int kStatusShowClientsideRecordVideo = 6000;
 constexpr int kStatusShowClientsideUploadVideo = 6000;
 constexpr int kStatusShowClientsideRecordVoice = 6000;
@@ -43,6 +44,7 @@ constexpr int kStatusShowClientsideUploadFile = 6000;
 constexpr int kStatusShowClientsideChooseLocation = 6000;
 constexpr int kStatusShowClientsideChooseContact = 6000;
 constexpr int kStatusShowClientsidePlayGame = 10000;
+constexpr int kSetMyActionForMs = 10000;
 
 } // namespace
 
@@ -54,7 +56,7 @@ void historyInit() {
 History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
 , lastItemTextCache(st::dialogsTextWidthMin)
-, typingText(st::dialogsTextWidthMin)
+, _sendActionText(st::dialogsTextWidthMin)
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _mute(isNotifyMuted(peer->notify)) {
 	if (peer->isUser() && peer->asUser()->botInfo) {
@@ -183,87 +185,165 @@ void History::draftSavedToCloud() {
 	if (App::main()) App::main()->writeDrafts(this);
 }
 
-bool History::updateTyping(uint64 ms, bool force) {
-	bool changed = force;
-	for (auto i = typing.begin(), e = typing.end(); i != e;) {
+bool History::updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action) {
+	using Type = SendAction::Type;
+	if (action.type() == mtpc_sendMessageCancelAction) {
+		unregSendAction(user);
+		return false;
+	} else if (action.type() == mtpc_sendMessageGameStopAction) {
+		auto it = _sendActions.find(user);
+		if (it != _sendActions.end() && it->type == Type::PlayGame) {
+			unregSendAction(user);
+		}
+		return false;
+	}
+
+	auto ms = getms();
+	switch (action.type()) {
+	case mtpc_sendMessageTypingAction: _typing.insert(user, ms + kStatusShowClientsideTyping); break;
+	case mtpc_sendMessageRecordVideoAction: _sendActions.insert(user, { Type::RecordVideo, ms + kStatusShowClientsideRecordVideo }); break;
+	case mtpc_sendMessageUploadVideoAction: _sendActions.insert(user, { Type::UploadVideo, ms + kStatusShowClientsideUploadVideo, action.c_sendMessageUploadVideoAction().vprogress.v }); break;
+	case mtpc_sendMessageRecordAudioAction: _sendActions.insert(user, { Type::RecordVoice, ms + kStatusShowClientsideRecordVoice }); break;
+	case mtpc_sendMessageUploadAudioAction: _sendActions.insert(user, { Type::UploadVoice, ms + kStatusShowClientsideUploadVoice, action.c_sendMessageUploadAudioAction().vprogress.v }); break;
+	case mtpc_sendMessageUploadPhotoAction: _sendActions.insert(user, { Type::UploadPhoto, ms + kStatusShowClientsideUploadPhoto, action.c_sendMessageUploadPhotoAction().vprogress.v }); break;
+	case mtpc_sendMessageUploadDocumentAction: _sendActions.insert(user, { Type::UploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v }); break;
+	case mtpc_sendMessageGeoLocationAction: _sendActions.insert(user, { Type::ChooseLocation, ms + kStatusShowClientsideChooseLocation }); break;
+	case mtpc_sendMessageChooseContactAction: _sendActions.insert(user, { Type::ChooseContact, ms + kStatusShowClientsideChooseContact }); break;
+	case mtpc_sendMessageGamePlayAction: {
+		auto it = _sendActions.find(user);
+		if (it == _sendActions.end() || it->type == Type::PlayGame || it->until <= ms) {
+			_sendActions.insert(user, { Type::PlayGame, ms + kStatusShowClientsidePlayGame });
+		}
+	} break;
+	default: return false;
+	}
+	return updateSendActionNeedsAnimating(ms, true);
+}
+
+bool History::mySendActionUpdated(SendAction::Type type, bool doing) {
+	auto ms = getms(true);
+	auto i = _mySendActions.find(type);
+	if (doing) {
+		if (i == _mySendActions.cend()) {
+			_mySendActions.insert(type, ms + kSetMyActionForMs);
+		} else if (i.value() > ms + (kSetMyActionForMs / 2)) {
+			return false;
+		} else {
+			i.value() = ms + kSetMyActionForMs;
+		}
+	} else {
+		if (i == _mySendActions.cend()) {
+			return false;
+		} else if (i.value() <= ms) {
+			return false;
+		} else {
+			_mySendActions.erase(i);
+		}
+	}
+	return true;
+}
+
+bool History::paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, const style::color &color, TimeMs ms) {
+	if (_sendActionAnimation) {
+		_sendActionAnimation.paint(p, color, x, y + st::normalFont->ascent, outerWidth, ms);
+		auto animationWidth = _sendActionAnimation.width();
+		x += animationWidth;
+		availableWidth -= animationWidth;
+		p.setPen(color);
+		_sendActionText.drawElided(p, x, y, availableWidth);
+		updateSendActionAnimationAreas();
+		return true;
+	}
+	return false;
+}
+
+bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
+	auto changed = force;
+	for (auto i = _typing.begin(), e = _typing.end(); i != e;) {
 		if (ms >= i.value()) {
-			i = typing.erase(i);
+			i = _typing.erase(i);
 			changed = true;
 		} else {
 			++i;
 		}
 	}
-	for (auto i = sendActions.begin(); i != sendActions.cend();) {
+	for (auto i = _sendActions.begin(); i != _sendActions.cend();) {
 		if (ms >= i.value().until) {
-			i = sendActions.erase(i);
+			i = _sendActions.erase(i);
 			changed = true;
 		} else {
 			++i;
 		}
 	}
 	if (changed) {
-		QString newTypingStr;
-		int typingCount = typing.size();
+		QString newTypingString;
+		auto typingCount = _typing.size();
 		if (typingCount > 2) {
-			newTypingStr = lng_many_typing(lt_count, typingCount);
+			newTypingString = lng_many_typing(lt_count, typingCount);
 		} else if (typingCount > 1) {
-			newTypingStr = lng_users_typing(lt_user, typing.begin().key()->firstName, lt_second_user, (typing.end() - 1).key()->firstName);
+			newTypingString = lng_users_typing(lt_user, _typing.begin().key()->firstName, lt_second_user, (_typing.end() - 1).key()->firstName);
 		} else if (typingCount) {
-			newTypingStr = peer->isUser() ? lang(lng_typing) : lng_user_typing(lt_user, typing.begin().key()->firstName);
-		} else if (!sendActions.isEmpty()) {
+			newTypingString = peer->isUser() ? lang(lng_typing) : lng_user_typing(lt_user, _typing.begin().key()->firstName);
+		} else if (!_sendActions.isEmpty()) {
 			// Handles all actions except game playing.
-			auto sendActionString = [](SendActionType type, const QString &name) -> QString {
+			using Type = SendAction::Type;
+			auto sendActionString = [](Type type, const QString &name) -> QString {
 				switch (type) {
-				case SendActionRecordVideo: return name.isEmpty() ? lang(lng_send_action_record_video) : lng_user_action_record_video(lt_user, name);
-				case SendActionUploadVideo: return name.isEmpty() ? lang(lng_send_action_upload_video) : lng_user_action_upload_video(lt_user, name);
-				case SendActionRecordVoice: return name.isEmpty() ? lang(lng_send_action_record_audio) : lng_user_action_record_audio(lt_user, name);
-				case SendActionUploadVoice: return name.isEmpty() ? lang(lng_send_action_upload_audio) : lng_user_action_upload_audio(lt_user, name);
-				case SendActionUploadPhoto: return name.isEmpty() ? lang(lng_send_action_upload_photo) : lng_user_action_upload_photo(lt_user, name);
-				case SendActionUploadFile: return name.isEmpty() ? lang(lng_send_action_upload_file) : lng_user_action_upload_file(lt_user, name);
-				case SendActionChooseLocation: return name.isEmpty() ? lang(lng_send_action_geo_location) : lng_user_action_geo_location(lt_user, name);
-				case SendActionChooseContact: return name.isEmpty() ? lang(lng_send_action_choose_contact) : lng_user_action_choose_contact(lt_user, name);
+				case Type::RecordVideo: return name.isEmpty() ? lang(lng_send_action_record_video) : lng_user_action_record_video(lt_user, name);
+				case Type::UploadVideo: return name.isEmpty() ? lang(lng_send_action_upload_video) : lng_user_action_upload_video(lt_user, name);
+				case Type::RecordVoice: return name.isEmpty() ? lang(lng_send_action_record_audio) : lng_user_action_record_audio(lt_user, name);
+				case Type::UploadVoice: return name.isEmpty() ? lang(lng_send_action_upload_audio) : lng_user_action_upload_audio(lt_user, name);
+				case Type::UploadPhoto: return name.isEmpty() ? lang(lng_send_action_upload_photo) : lng_user_action_upload_photo(lt_user, name);
+				case Type::UploadFile: return name.isEmpty() ? lang(lng_send_action_upload_file) : lng_user_action_upload_file(lt_user, name);
+				case Type::ChooseLocation: return name.isEmpty() ? lang(lng_send_action_geo_location) : lng_user_action_geo_location(lt_user, name);
+				case Type::ChooseContact: return name.isEmpty() ? lang(lng_send_action_choose_contact) : lng_user_action_choose_contact(lt_user, name);
 				default: break;
 				};
 				return QString();
 			};
-			for (auto i = sendActions.cbegin(), e = sendActions.cend(); i != e; ++i) {
-				newTypingStr = sendActionString(i->type, peer->isUser() ? QString() : i.key()->firstName);
-				if (!newTypingStr.isEmpty()) {
+			for (auto i = _sendActions.cbegin(), e = _sendActions.cend(); i != e; ++i) {
+				newTypingString = sendActionString(i->type, peer->isUser() ? QString() : i.key()->firstName);
+				if (!newTypingString.isEmpty()) {
+					_sendActionAnimation.start(i->type);
 					break;
 				}
 			}
 
 			// Everyone in sendActions are playing a game.
-			if (newTypingStr.isEmpty()) {
-				int playingCount = sendActions.size();
+			if (newTypingString.isEmpty()) {
+				int playingCount = _sendActions.size();
 				if (playingCount > 2) {
-					newTypingStr = lng_many_playing_game(lt_count, playingCount);
+					newTypingString = lng_many_playing_game(lt_count, playingCount);
 				} else if (playingCount > 1) {
-					newTypingStr = lng_users_playing_game(lt_user, sendActions.begin().key()->firstName, lt_second_user, (sendActions.end() - 1).key()->firstName);
+					newTypingString = lng_users_playing_game(lt_user, _sendActions.begin().key()->firstName, lt_second_user, (_sendActions.end() - 1).key()->firstName);
 				} else {
-					newTypingStr = peer->isUser() ? lang(lng_playing_game) : lng_user_playing_game(lt_user, sendActions.begin().key()->firstName);
+					newTypingString = peer->isUser() ? lang(lng_playing_game) : lng_user_playing_game(lt_user, _sendActions.begin().key()->firstName);
 				}
+				_sendActionAnimation.start(Type::PlayGame);
 			}
 		}
-		if (!newTypingStr.isEmpty()) {
-			newTypingStr += qsl("...");
+		if (typingCount > 0) {
+			_sendActionAnimation.start(SendAction::Type::Typing);
+		} else if (newTypingString.isEmpty()) {
+			_sendActionAnimation.stop();
 		}
-		if (typingStr != newTypingStr) {
-			typingText.setText(st::dialogsTextFont, (typingStr = newTypingStr), _textNameOptions);
-		}
-	}
-	if (!typingStr.isEmpty()) {
-		if (typingText.lastDots(typingDots % 4)) {
-			changed = true;
+		if (_sendActionString != newTypingString) {
+			_sendActionString = newTypingString;
+			_sendActionText.setText(st::dialogsTextFont, _sendActionString, _textNameOptions);
 		}
 	}
-	if (changed && App::main()) {
-		updateChatListEntry();
-		if (App::main()->historyPeer() == peer) {
-			App::main()->topBar()->update();
-		}
+	auto result = (!_typing.isEmpty() || !_sendActions.isEmpty());
+	if (changed || result) {
+		updateSendActionAnimationAreas();
 	}
-	return changed;
+	return result;
+}
+
+void History::updateSendActionAnimationAreas() {
+	updateChatListEntry();
+	if (App::main()->historyPeer() == peer) {
+		App::main()->topBar()->update();
+	}
 }
 
 ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer)
@@ -561,56 +641,23 @@ void Histories::clear() {
 }
 
 void Histories::regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when) {
-	if (action.type() == mtpc_sendMessageCancelAction) {
-		history->unregTyping(user);
-		return;
-	} else if (action.type() == mtpc_sendMessageGameStopAction) {
-		auto it = history->sendActions.find(user);
-		if (it != history->sendActions.end() && it->type == SendActionPlayGame) {
-			history->unregTyping(user);
+	if (history->updateSendActionNeedsAnimating(user, action)) {
+		user->madeAction(when);
+
+		auto i = typing.find(history);
+		if (i == typing.cend()) {
+			typing.insert(history, getms());
+			_a_typings.start();
 		}
-		return;
 	}
-
-	uint64 ms = getms();
-	switch (action.type()) {
-	case mtpc_sendMessageTypingAction: history->typing[user] = ms + 6000; break;
-	case mtpc_sendMessageRecordVideoAction: history->sendActions.insert(user, SendAction(SendActionRecordVideo, ms + kStatusShowClientsideRecordVideo)); break;
-	case mtpc_sendMessageUploadVideoAction: history->sendActions.insert(user, SendAction(SendActionUploadVideo, ms + kStatusShowClientsideUploadVideo, action.c_sendMessageUploadVideoAction().vprogress.v)); break;
-	case mtpc_sendMessageRecordAudioAction: history->sendActions.insert(user, SendAction(SendActionRecordVoice, ms + kStatusShowClientsideRecordVoice)); break;
-	case mtpc_sendMessageUploadAudioAction: history->sendActions.insert(user, SendAction(SendActionUploadVoice, ms + kStatusShowClientsideUploadVoice, action.c_sendMessageUploadAudioAction().vprogress.v)); break;
-	case mtpc_sendMessageUploadPhotoAction: history->sendActions.insert(user, SendAction(SendActionUploadPhoto, ms + kStatusShowClientsideUploadPhoto, action.c_sendMessageUploadPhotoAction().vprogress.v)); break;
-	case mtpc_sendMessageUploadDocumentAction: history->sendActions.insert(user, SendAction(SendActionUploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v)); break;
-	case mtpc_sendMessageGeoLocationAction: history->sendActions.insert(user, SendAction(SendActionChooseLocation, ms + kStatusShowClientsideChooseLocation)); break;
-	case mtpc_sendMessageChooseContactAction: history->sendActions.insert(user, SendAction(SendActionChooseContact, ms + kStatusShowClientsideChooseContact)); break;
-	case mtpc_sendMessageGamePlayAction: {
-		auto it = history->sendActions.find(user);
-		if (it == history->sendActions.end() || it->type == SendActionPlayGame || it->until <= ms) {
-			history->sendActions.insert(user, SendAction(SendActionPlayGame, ms + kStatusShowClientsidePlayGame));
-		}
-	} break;
-	default: return;
-	}
-
-	user->madeAction(when);
-
-	auto i = typing.find(history);
-	if (i == typing.cend()) {
-		typing.insert(history, ms);
-		history->typingDots = 0;
-		_a_typings.start();
-	}
-	history->updateTyping(ms, true);
 }
 
-void Histories::step_typings(uint64 ms, bool timer) {
-	for (TypingHistories::iterator i = typing.begin(), e = typing.end(); i != e;) {
-		i.key()->typingDots = (ms - i.value()) / 150;
-		i.key()->updateTyping(ms);
-		if (i.key()->typing.isEmpty() && i.key()->sendActions.isEmpty()) {
-			i = typing.erase(i);
-		} else {
+void Histories::step_typings(TimeMs ms, bool timer) {
+	for (auto i = typing.begin(), e = typing.end(); i != e;) {
+		if (i.key()->updateSendActionNeedsAnimating(ms)) {
 			++i;
+		} else {
+			i = typing.erase(i);
 		}
 	}
 	if (typing.isEmpty()) {
@@ -1107,20 +1154,20 @@ HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
 	return adding;
 }
 
-void History::unregTyping(UserData *from) {
-	uint64 updateAtMs = 0;
-	auto i = typing.find(from);
-	if (i != typing.cend()) {
+void History::unregSendAction(UserData *from) {
+	auto updateAtMs = TimeMs(0);
+	auto i = _typing.find(from);
+	if (i != _typing.cend()) {
 		updateAtMs = getms();
 		i.value() = updateAtMs;
 	}
-	auto j = sendActions.find(from);
-	if (j != sendActions.cend()) {
+	auto j = _sendActions.find(from);
+	if (j != _sendActions.cend()) {
 		if (!updateAtMs) updateAtMs = getms();
 		j.value().until = updateAtMs;
 	}
 	if (updateAtMs) {
-		updateTyping(updateAtMs, true);
+		updateSendActionNeedsAnimating(updateAtMs, true);
 	}
 }
 
@@ -1128,7 +1175,7 @@ void History::newItemAdded(HistoryItem *item) {
 	App::checkImageCacheSize();
 	if (item->from() && item->from()->isUser()) {
 		if (item->from() == item->author()) {
-			unregTyping(item->from()->asUser());
+			unregSendAction(item->from()->asUser());
 		}
 		MTPint itemServerTime;
 		toServerTime(item->date.toTime_t(), itemServerTime);

@@ -64,7 +64,7 @@ public:
 		_width = qMin(width, _maxw);
 		return _height;
 	}
-	virtual void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const = 0;
+	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
 	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
 
 	// if we are in selecting items mode perhaps we want to

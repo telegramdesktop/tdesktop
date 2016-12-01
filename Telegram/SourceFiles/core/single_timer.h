@@ -42,7 +42,7 @@ private slots:
 	void onTimeout();
 
 private:
-	uint64 _finishing = 0;
+	TimeMs _finishing = 0;
 	bool _inited = false;
 	base::lambda<void()> _handler;
 

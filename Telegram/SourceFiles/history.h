@@ -20,14 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "structs.h"
+#include "dialogs/dialogs_common.h"
+#include "ui/effects/send_action_animations.h"
+
 void historyInit();
 
 class HistoryItem;
-
-typedef QMap<int32, HistoryItem*> SelectedItemSet;
-
-#include "structs.h"
-#include "dialogs/dialogs_common.h"
+using SelectedItemSet = QMap<int32, HistoryItem*>;
 
 enum NewMessageType {
 	NewMessageUnread,
@@ -45,7 +45,7 @@ public:
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when);
-	void step_typings(uint64 ms, bool timer);
+	void step_typings(TimeMs ms, bool timer);
 
 	History *find(const PeerId &peerId);
 	History *findOrInsert(const PeerId &peerId);
@@ -59,7 +59,7 @@ public:
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 
-	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
+	typedef QMap<History*, TimeMs> TypingHistories; // when typing in this history started
 	TypingHistories typing;
 	Animation _a_typings;
 
@@ -131,26 +131,6 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	}
 	return MTPMessagesFilter();
 }
-
-enum SendActionType {
-	SendActionTyping,
-	SendActionRecordVideo,
-	SendActionUploadVideo,
-	SendActionRecordVoice,
-	SendActionUploadVoice,
-	SendActionUploadPhoto,
-	SendActionUploadFile,
-	SendActionChooseLocation,
-	SendActionChooseContact,
-	SendActionPlayGame,
-};
-struct SendAction {
-	SendAction(SendActionType type, uint64 until, int32 progress = 0) : type(type), until(until), progress(progress) {
-	}
-	SendActionType type;
-	uint64 until;
-	int32 progress;
-};
 
 struct TextWithTags {
 	struct Tag {
@@ -237,7 +217,6 @@ public:
 	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 
 	void newItemAdded(HistoryItem *item);
-	void unregTyping(UserData *from);
 
 	int countUnread(MsgId upTo);
 	void updateShowFrom();
@@ -332,7 +311,13 @@ public:
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
-	bool updateTyping(uint64 ms, bool force = false);
+	bool updateSendActionNeedsAnimating(TimeMs ms, bool force = false);
+	void unregSendAction(UserData *from);
+	bool updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action);
+	void updateSendActionAnimationAreas();
+	bool mySendActionUpdated(SendAction::Type type, bool doing);
+	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, const style::color &color, TimeMs ms);
+
 	void clearLastKeyboard();
 
 	// optimization for userpics displayed on the left
@@ -424,15 +409,6 @@ public:
 
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;
-
-	using TypingUsers = QMap<UserData*, uint64>;
-	TypingUsers typing;
-	using SendActionUsers = QMap<UserData*, SendAction>;
-	SendActionUsers sendActions;
-	QString typingStr;
-	Text typingText;
-	uint32 typingDots;
-	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
 	MediaOverview overview[OverviewCount];
@@ -568,6 +544,16 @@ private:
 
 	std_::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std_::unique_ptr<Data::Draft> _editDraft;
+
+	using TypingUsers = QMap<UserData*, TimeMs>;
+	TypingUsers _typing;
+	using SendActionUsers = QMap<UserData*, SendAction>;
+	SendActionUsers _sendActions;
+	QString _sendActionString;
+	Text _sendActionText;
+	Ui::SendActionAnimation _sendActionAnimation;
+	QMap<SendAction::Type, TimeMs> _mySendActions;
+
 
  };
 

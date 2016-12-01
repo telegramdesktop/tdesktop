@@ -51,7 +51,7 @@ namespace {
 	RequestMap requestMap;
 	QReadWriteLock requestMapLock;
 
-	typedef QPair<mtpRequestId, uint64> DelayedRequest;
+	typedef QPair<mtpRequestId, TimeMs> DelayedRequest;
 	typedef QList<DelayedRequest> DelayedRequestsList;
 	DelayedRequestsList delayedRequests;
 
@@ -226,7 +226,7 @@ namespace {
 				secs = m.captured(1).toInt();
 //				if (secs >= 60) return false;
 			}
-			uint64 sendAt = getms(true) + secs * 1000 + 10;
+			auto sendAt = getms(true) + secs * 1000 + 10;
 			DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();
 			for (; i != e; ++i) {
 				if (i->first == requestId) return true;
@@ -340,7 +340,6 @@ namespace {
 						}
 					}
 				} else {
-					uint64 at = 0;
 					DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();
 					for (; i != e; ++i) {
 						if (i->first == requestId) return true;
@@ -587,7 +586,7 @@ GlobalSlotCarrier::GlobalSlotCarrier() {
 }
 
 void GlobalSlotCarrier::checkDelayed() {
-	uint64 now = getms(true);
+	auto now = getms(true);
 	while (!delayedRequests.isEmpty() && now >= delayedRequests.front().second) {
 		mtpRequestId requestId = delayedRequests.front().first;
 		delayedRequests.pop_front();

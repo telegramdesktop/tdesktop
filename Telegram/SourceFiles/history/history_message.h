@@ -71,7 +71,7 @@ public:
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
 	void setViewsCount(int32 count) override;
 	void setId(MsgId newId) override;
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
@@ -279,7 +279,7 @@ public:
 
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	bool hasPoint(int x, int y) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 

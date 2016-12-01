@@ -151,7 +151,7 @@ signals:
 	void refreshHashtags();
 
 protected:
-	void paintRegion(Painter &p, const QRegion &region, bool paintingOther);
+	void paintRegion(Painter &p, const QRegion &region, bool paintingOther) override;
 
 private:
 	void itemRemoved(HistoryItem *item);

@@ -163,7 +163,7 @@ private:
 		Text name;
 		FloatAnimation nameActive;
 	};
-	void paintChat(Painter &p, uint64 ms, Chat *chat, int index);
+	void paintChat(Painter &p, TimeMs ms, Chat *chat, int index);
 	void updateChat(PeerData *peer);
 	void updateChatName(Chat *chat, PeerData *peer);
 	void repaintChat(PeerData *peer);

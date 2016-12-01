@@ -120,8 +120,8 @@ private slots:
 	void updateImage();
 
 	void onVideoPauseResume();
-	void onVideoSeekProgress(int64 positionMs);
-	void onVideoSeekFinished(int64 positionMs);
+	void onVideoSeekProgress(TimeMs positionMs);
+	void onVideoSeekFinished(TimeMs positionMs);
 	void onVideoVolumeChanged(float64 volume);
 	void onVideoToggleFullScreen();
 	void onVideoPlayProgress(const AudioMsgId &audioId);
@@ -147,7 +147,7 @@ private:
 
 	void updateVideoPlaybackState(const AudioPlaybackState &state);
 	void updateSilentVideoPlaybackState();
-	void restartVideoAtSeekPosition(int64 positionMs);
+	void restartVideoAtSeekPosition(TimeMs positionMs);
 
 	void createClipController();
 	void setClipControllerGeometry();
@@ -160,7 +160,7 @@ private:
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	uint64 radialTimeShift() const;
+	TimeMs radialTimeShift() const;
 
 	// Computes the last OverviewChatPhotos PhotoData* from _history or _migrated.
 	struct LastChatPhoto {
@@ -178,8 +178,8 @@ private:
 	void updateHeader();
 	void snapXY();
 
-	void step_state(uint64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void step_state(TimeMs ms, bool timer);
+	void step_radial(TimeMs ms, bool timer);
 
 	void zoomIn();
 	void zoomOut();
@@ -212,7 +212,7 @@ private:
 	Text _caption;
 	QRect _captionRect;
 
-	uint64 _animStarted;
+	TimeMs _animStarted;
 
 	int _width = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
@@ -230,8 +230,8 @@ private:
 	bool _videoIsSilent = false;
 	bool _videoPaused = false;
 	bool _videoStopped = false;
-	int64 _videoPositionMs = 0;
-	int64 _videoDurationMs = 0;
+	TimeMs _videoPositionMs = 0;
+	TimeMs _videoDurationMs = 0;
 	int32 _videoFrequencyMs = 1000; // 1000 ms per second.
 
 	bool fileShown() const;
@@ -305,7 +305,7 @@ private:
 		ControlsHidden,
 	};
 	ControlsState _controlsState = ControlsShown;
-	uint64 _controlsAnimStarted = 0;
+	TimeMs _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
 	anim::fvalue a_cOpacity;
 	bool _mousePressed = false;
@@ -327,13 +327,13 @@ private:
 	QPoint _accumScroll;
 
 	QString _saveMsgFilename;
-	uint64 _saveMsgStarted = 0;
+	TimeMs _saveMsgStarted = 0;
 	anim::fvalue _saveMsgOpacity = { 0 };
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;
 
-	typedef QMap<OverState, uint64> Showing;
+	typedef QMap<OverState, TimeMs> Showing;
 	Showing _animations;
 	typedef QMap<OverState, anim::fvalue> ShowingOpacities;
 	ShowingOpacities _animOpacities;

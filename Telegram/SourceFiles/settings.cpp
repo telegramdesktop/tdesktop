@@ -85,7 +85,7 @@ RecentStickerPreload gRecentStickersPreload;
 RecentStickerPack gRecentStickers;
 
 SavedGifs gSavedGifs;
-uint64 gLastSavedGifsUpdate = 0;
+TimeMs gLastSavedGifsUpdate = 0;
 bool gShowingSavedGifs = false;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
@@ -94,7 +94,7 @@ RecentInlineBots gRecentInlineBots;
 
 bool gPasswordRecovered = false;
 int32 gPasscodeBadTries = 0;
-uint64 gPasscodeLastTry = 0;
+TimeMs gPasscodeLastTry = 0;
 
 int32 gLang = -2; // auto
 QString gLangFile;

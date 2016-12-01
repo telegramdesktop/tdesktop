@@ -169,7 +169,7 @@ public:
 	bool peerPhotoFail(PeerId peerId, const RPCError &e);
 	void peerClearPhoto(PeerId peer);
 
-	void writeUserConfigIn(uint64 ms);
+	void writeUserConfigIn(TimeMs ms);
 
 	void killDownloadSessionsStart(int32 dc);
 	void killDownloadSessionsStop(int32 dc);
@@ -208,10 +208,10 @@ private:
 
 	QMap<FullMsgId, PeerId> photoUpdates;
 
-	QMap<int32, uint64> killDownloadSessionTimes;
+	QMap<int32, TimeMs> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
 
-	uint64 _lastActionTime = 0;
+	TimeMs _lastActionTime = 0;
 
 	MainWindow *_window = nullptr;
 	FileUploader *_uploader = nullptr;

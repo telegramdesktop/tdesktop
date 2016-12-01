@@ -1779,7 +1779,7 @@ void StickerPanInner::notify_inlineItemLayoutChanged(const InlineItem *layout) {
 }
 
 void StickerPanInner::ui_repaintInlineItem(const InlineItem *layout) {
-	uint64 ms = getms();
+	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
@@ -2186,7 +2186,7 @@ void StickerPanInner::onPreview() {
 void StickerPanInner::onUpdateInlineItems() {
 	if (!showingInlineItems()) return;
 
-	uint64 ms = getms();
+	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
 	} else {
@@ -3198,7 +3198,7 @@ void EmojiPan::updateIcons() {
 	update(r.left(), _iconsTop, r.width(), st::emojiCategory.height);
 }
 
-void EmojiPan::step_icons(uint64 ms, bool timer) {
+void EmojiPan::step_icons(TimeMs ms, bool timer) {
 	if (_emojiShown) {
 		_a_icons.stop();
 		return;

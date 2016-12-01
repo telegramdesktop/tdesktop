@@ -55,7 +55,7 @@ protected:
 		int labelWidth;
 	};
 
-	int getCurrentActiveLeft(uint64 ms);
+	int getCurrentActiveLeft(TimeMs ms);
 
 	int getSectionsCount() const {
 		return _sections.size();

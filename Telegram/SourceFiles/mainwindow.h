@@ -261,19 +261,19 @@ private:
 	QTimer _inactiveTimer;
 
 	SingleTimer _autoLockTimer;
-	uint64 _shouldLockAt = 0;
+	TimeMs _shouldLockAt = 0;
 
-	using NotifyWhenMap = QMap<MsgId, uint64>;
+	using NotifyWhenMap = QMap<MsgId, TimeMs>;
 	using NotifyWhenMaps = QMap<History*, NotifyWhenMap>;
 	NotifyWhenMaps _notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom)
+		NotifyWaiter(MsgId msg, TimeMs when, PeerData *notifyByFrom)
 		: msg(msg)
 		, when(when)
 		, notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
-		uint64 when;
+		TimeMs when;
 		PeerData *notifyByFrom;
 	};
 	using NotifyWaiters = QMap<History*, NotifyWaiter>;
@@ -281,7 +281,7 @@ private:
 	NotifyWaiters _notifySettingWaiters;
 	SingleTimer _notifyWaitTimer;
 
-	using NotifyWhenAlert = QMap<uint64, PeerData*>;
+	using NotifyWhenAlert = QMap<TimeMs, PeerData*>;
 	using NotifyWhenAlerts = QMap<History*, NotifyWhenAlert>;
 	NotifyWhenAlerts _notifyWhenAlerts;
 

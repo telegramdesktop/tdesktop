@@ -33,7 +33,7 @@ public:
 	template <typename Lambda>
 	void start(bool slideLeft, Lambda &&updateCallback, float64 duration);
 
-	void paintFrame(Painter &p, int x, int y, int outerWidth, uint64 ms);
+	void paintFrame(Painter &p, int x, int y, int outerWidth, TimeMs ms);
 
 	bool animating() const {
 		return _animation.animating();

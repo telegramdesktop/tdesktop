@@ -86,7 +86,7 @@ void RippleButton::setForceRippled(bool rippled, SetForceRippledWay way) {
 	update();
 }
 
-void RippleButton::paintRipple(QPainter &p, int x, int y, uint64 ms) {
+void RippleButton::paintRipple(QPainter &p, int x, int y, TimeMs ms) {
 	if (_ripple) {
 		_ripple->paint(p, x, y, width(), ms);
 		if (_ripple->empty()) {

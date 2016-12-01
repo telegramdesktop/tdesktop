@@ -61,7 +61,7 @@ public:
 		_updateCallback = updateCallback;
 	}
 	void setText(const QString &text);
-	void paint(Painter &p, int outerWidth, uint64 ms);
+	void paint(Painter &p, int outerWidth, TimeMs ms);
 
 	void mouseMoveEvent(QPoint point);
 	void leaveEvent();
@@ -79,7 +79,7 @@ public:
 
 private:
 	void setOver(bool over);
-	void paintOnce(Painter &p, int x, int y, int outerWidth, uint64 ms);
+	void paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms);
 	void paintDeleteButton(Painter &p, int x, int y, int outerWidth, float64 overOpacity);
 	bool paintCached(Painter &p, int x, int y, int outerWidth);
 	void prepareCache();
@@ -131,7 +131,7 @@ void MultiSelect::Inner::Item::setText(const QString &text) {
 	accumulate_min(_width, _st.maxWidth);
 }
 
-void MultiSelect::Inner::Item::paint(Painter &p, int outerWidth, uint64 ms) {
+void MultiSelect::Inner::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
 	if (!_cache.isNull() && !_visibility.animating(ms)) {
 		if (_hiding) {
 			return;
@@ -159,7 +159,7 @@ void MultiSelect::Inner::Item::paint(Painter &p, int outerWidth, uint64 ms) {
 	}
 }
 
-void MultiSelect::Inner::Item::paintOnce(Painter &p, int x, int y, int outerWidth, uint64 ms) {
+void MultiSelect::Inner::Item::paintOnce(Painter &p, int x, int y, int outerWidth, TimeMs ms) {
 	if (!_cache.isNull()) {
 		paintCached(p, x, y, outerWidth);
 		return;
