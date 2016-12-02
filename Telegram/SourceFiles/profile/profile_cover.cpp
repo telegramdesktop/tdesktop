@@ -139,7 +139,7 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 	newHeight += st::profileMarginBottom;
 
 	_dividerTop = newHeight;
-	newHeight += st::profileDividerFill.height();
+	newHeight += st::profileDividerLeft.height();
 
 	newHeight += st::profileBlocksTop;
 
@@ -319,12 +319,18 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 }
 
 void CoverWidget::paintDivider(Painter &p) {
-	auto dividerLeft = (Adaptive::OneColumn() ? 0 : st::lineWidth);
-	st::profileDividerLeft.paint(p, QPoint(dividerLeft, _dividerTop), width());
-
-	int toFillLeft = dividerLeft + st::profileDividerLeft.width();
-	QRect toFill = rtlrect(toFillLeft, _dividerTop, width() - toFillLeft, st::profileDividerFill.height(), width());
-	st::profileDividerFill.fill(p, toFill);
+	auto dividerHeight = st::profileDividerLeft.height();
+	auto dividerLeft = Adaptive::OneColumn() ? 0 : st::lineWidth;
+	auto divider = rtlrect(dividerLeft, _dividerTop, width() - dividerLeft, dividerHeight, width());
+	p.fillRect(divider, st::profileDividerBg);
+	if (!Adaptive::OneColumn()) {
+		st::profileDividerLeft.paint(p, QPoint(dividerLeft, _dividerTop), width());
+	}
+	auto dividerFillLeft = Adaptive::OneColumn() ? 0 : (st::lineWidth + st::profileDividerLeft.width());
+	auto dividerFillTop = rtlrect(dividerFillLeft, _dividerTop, width() - dividerFillLeft, st::profileDividerTop.height(), width());
+	st::profileDividerTop.fill(p, dividerFillTop);
+	auto dividerFillBottom = rtlrect(dividerFillLeft, _dividerTop + dividerHeight - st::profileDividerBottom.height(), width() - dividerFillLeft, st::profileDividerBottom.height(), width());
+	st::profileDividerBottom.fill(p, dividerFillBottom);
 }
 
 void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {

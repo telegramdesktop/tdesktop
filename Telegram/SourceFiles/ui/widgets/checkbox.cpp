@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 
 #include "lang.h"
+#include "ui/effects/ripple_animation.h"
 
 namespace Ui {
 namespace {
@@ -87,32 +88,26 @@ void RadiobuttonGroup::remove(Radiobutton * const &radio) {
 	}
 }
 
-Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : AbstractButton(parent)
+Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : RippleButton(parent, st.ripple)
 , _st(st)
-, a_over(0)
-, a_checked(checked ? 1 : 0)
-, _a_over(animation(this, &Checkbox::step_over))
-, _a_checked(animation(this, &Checkbox::step_checked))
 , _text(text)
 , _fullText(text)
 , _textWidth(st.font->width(text))
 , _checked(checked) {
 	if (_st.width <= 0) {
-		resize(_textWidth - _st.width, _st.height);
+		resizeToWidth(_textWidth - _st.width);
 	} else {
 		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
 			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
 			_textWidth = _st.font->width(_text);
 		}
-		resize(_st.width, _st.height);
+		resizeToWidth(_st.width);
 	}
-	_checkRect = myrtlrect(0, 0, _st.diameter, _st.diameter);
+	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
 
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
 
 	setCursor(style::cur_pointer);
-
-	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 bool Checkbox::checked() const {
@@ -122,12 +117,7 @@ bool Checkbox::checked() const {
 void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {
 	if (_checked != checked) {
 		_checked = checked;
-		if (_checked) {
-			a_checked.start(1);
-		} else {
-			a_checked.start(0);
-		}
-		_a_checked.start();
+		_a_checked.start([this] { update(_checkRect); }, _checked ? 0. : 1., _checked ? 1. : 0., _st.duration);
 		if (notify == NotifyAboutChange::Notify) {
 			emit changed();
 		}
@@ -135,30 +125,7 @@ void Checkbox::setChecked(bool checked, NotifyAboutChange notify) {
 }
 
 void Checkbox::finishAnimations() {
-	a_checked.finish();
-	_a_checked.stop();
-}
-
-void Checkbox::step_over(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_over.stop();
-		a_over.finish();
-	} else {
-		a_over.update(dt, anim::linear);
-	}
-	if (timer) update(_checkRect);
-}
-
-void Checkbox::step_checked(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		a_checked.finish();
-		_a_checked.stop();
-	} else {
-		a_checked.update(dt, anim::linear);
-	}
-	if (timer) update(_checkRect);
+	_a_checked.finish();
 }
 
 int Checkbox::naturalWidth() const {
@@ -168,52 +135,31 @@ int Checkbox::naturalWidth() const {
 void Checkbox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	float64 over = a_over.current(), checked = a_checked.current();
-	bool cnone = (over == 0. && checked == 0.), cover = (over == 1. && checked == 0.), cchecked = (checked == 1.);
-	bool cbad = !cnone && !cover && !cchecked;
-	QColor color;
-	if (cbad) {
-		float64 onone = (1. - over) * (1. - checked), oover = over * (1. - checked), ochecked = checked;
-		color.setRedF(_st.checkFg->c.redF() * onone + _st.checkFgOver->c.redF() * oover + _st.checkFgActive->c.redF() * ochecked);
-		color.setGreenF(_st.checkFg->c.greenF() * onone + _st.checkFgOver->c.greenF() * oover + _st.checkFgActive->c.greenF() * ochecked);
-		color.setBlueF(_st.checkFg->c.blueF() * onone + _st.checkFgOver->c.blueF() * oover + _st.checkFgActive->c.blueF() * ochecked);
-	}
+	auto ms = getms();
+	auto active = _a_checked.current(ms, _checked ? 1. : 0.);
+	auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, &color);
 
-	QRect r(e->rect());
-	p.setClipRect(r);
-	p.fillRect(r, _st.textBg);
-	if (_checkRect.intersects(r)) {
+	if (_checkRect.intersects(e->rect())) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 
-		QPen pen;
-		if (cbad) {
-			pen = QPen(color);
-		} else {
-			pen = (cnone ? _st.checkFg : (cover ? _st.checkFgOver : _st.checkFgActive))->p;
-			color = (cnone ? _st.checkFg : (cover ? _st.checkFgOver : _st.checkFgActive))->c;
-		}
+		auto pen = anim::pen(_st.checkFg, _st.checkFgActive, active);
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
-		if (checked > 0) {
-			color.setRedF(color.redF() * checked + _st.checkBg->c.redF() * (1. - checked));
-			color.setGreenF(color.greenF() * checked + _st.checkBg->c.greenF() * (1. - checked));
-			color.setBlueF(color.blueF() * checked + _st.checkBg->c.blueF() * (1. - checked));
-			p.setBrush(color);
-		} else {
-			p.setBrush(_st.checkBg);
-		}
+		p.setBrush(anim::brush(_st.checkBg, anim::color(_st.checkFg, _st.checkFgActive, active), active));
+
 		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)), st::buttonRadius - (_st.thickness / 2.), st::buttonRadius - (_st.thickness / 2.));
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
-		if (checked > 0) {
-			_st.checkIcon.paint(p, QPoint(0, 0), width());
+		if (active > 0) {
+			_st.checkIcon.paint(p, QPoint(_st.margin.left(), _st.margin.top()), width());
 		}
 	}
-	if (_checkRect.contains(r)) return;
+	if (_checkRect.contains(e->rect())) return;
 
 	p.setPen(_st.textFg);
 	p.setFont(_st.font);
-	p.drawTextLeft(_st.textPosition.x(), _st.textPosition.y(), width(), _text, _textWidth);
+	p.drawTextLeft(_st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), width(), _text, _textWidth);
 }
 
 void Checkbox::onClicked() {
@@ -222,13 +168,8 @@ void Checkbox::onClicked() {
 }
 
 void Checkbox::onStateChanged(int oldState, StateChangeSource source) {
-	if ((_state & StateOver) && !(oldState & StateOver)) {
-		a_over.start(1);
-		_a_over.start();
-	} else if (!(_state & StateOver) && (oldState & StateOver)) {
-		a_over.start(0);
-		_a_over.start();
-	}
+	RippleButton::onStateChanged(oldState, source);
+
 	if ((_state & StateDisabled) && !(oldState & StateDisabled)) {
 		setCursor(style::cur_default);
 	} else if (!(_state & StateDisabled) && (oldState & StateDisabled)) {
@@ -236,12 +177,24 @@ void Checkbox::onStateChanged(int oldState, StateChangeSource source) {
 	}
 }
 
-Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Radiobutton &st) : AbstractButton(parent)
+int Checkbox::resizeGetHeight(int newWidth) {
+	return _st.height;
+}
+
+QImage Checkbox::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
+QPoint Checkbox::prepareRippleStartPosition() const {
+	auto position = mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+	if (QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize).contains(position)) {
+		return position;
+	}
+	return disabledRippleStartPosition();
+}
+
+Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Checkbox &st) : RippleButton(parent, st.ripple)
 , _st(st)
-, a_over(0)
-, a_checked(checked ? 1 : 0)
-, _a_over(animation(this, &Radiobutton::step_over))
-, _a_checked(animation(this, &Radiobutton::step_checked))
 , _text(text)
 , _fullText(text)
 , _textWidth(st.font->width(text))
@@ -249,21 +202,19 @@ Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, con
 , _group(radiobuttons.reg(group))
 , _value(value) {
 	if (_st.width <= 0) {
-		resize(_textWidth - _st.width, _st.height);
+		resizeToWidth(_textWidth - _st.width);
 	} else {
 		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
 			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
 			_textWidth = _st.font->width(_text);
 		}
-		resize(_st.width, _st.height);
+		resizeToWidth(_st.width);
 	}
-	_checkRect = myrtlrect(0, 0, _st.diameter, _st.diameter);
+	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
 
 	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
 
 	setCursor(style::cur_pointer);
-
-	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	reinterpret_cast<RadiobuttonGroup*>(_group)->insert(this, true);
 	if (_checked) onChanged();
@@ -276,66 +227,29 @@ bool Radiobutton::checked() const {
 void Radiobutton::setChecked(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
-		if (_checked) {
-			a_checked.start(1);
-		} else {
-			a_checked.start(0);
-		}
-		_a_checked.start();
+		_a_checked.start([this] { update(_checkRect); }, _checked ? 0. : 1., _checked ? 1. : 0., _st.duration);
 
 		onChanged();
 		emit changed();
 	}
 }
 
-void Radiobutton::step_over(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_over.stop();
-		a_over.finish();
-	} else {
-		a_over.update(dt, anim::linear);
-	}
-	if (timer) update(_checkRect);
-}
-
-void Radiobutton::step_checked(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		a_checked.finish();
-		_a_checked.stop();
-	} else {
-		a_checked.update(dt, anim::linear);
-	}
-	if (timer) update(_checkRect);
+int Radiobutton::naturalWidth() const {
+	return _st.textPosition.x() + _st.font->width(_fullText);
 }
 
 void Radiobutton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	float64 over = a_over.current(), checked = a_checked.current();
-	bool cnone = (over == 0. && checked == 0.), cover = (over == 1. && checked == 0.), cchecked = (checked == 1.);
-	bool cbad = !cnone && !cover && !cchecked;
-	QColor color;
-	if (cbad) {
-		float64 onone = (1. - over) * (1. - checked), oover = over * (1. - checked), ochecked = checked;
-		color.setRedF(_st.checkFg->c.redF() * onone + _st.checkFgOver->c.redF() * oover + _st.checkFgActive->c.redF() * ochecked);
-		color.setGreenF(_st.checkFg->c.greenF() * onone + _st.checkFgOver->c.greenF() * oover + _st.checkFgActive->c.greenF() * ochecked);
-		color.setBlueF(_st.checkFg->c.blueF() * onone + _st.checkFgOver->c.blueF() * oover + _st.checkFgActive->c.blueF() * ochecked);
-	}
+	auto ms = getms();
+	auto active = _a_checked.current(ms, _checked ? 1. : 0.);
+	auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, &color);
 
-	QRect r(e->rect());
-	p.setClipRect(r);
-	p.fillRect(r, _st.textBg->b);
-	if (_checkRect.intersects(r)) {
+	if (_checkRect.intersects(e->rect())) {
 		p.setRenderHint(QPainter::HighQualityAntialiasing);
 
-		QPen pen;
-		if (cbad) {
-			pen = QPen(color);
-		} else {
-			pen = (cnone ? _st.checkFg : (cover ? _st.checkFgOver : _st.checkFgActive))->p;
-		}
+		auto pen = anim::pen(_st.checkFg, _st.checkFgActive, active);
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
 		p.setBrush(_st.checkBg);
@@ -343,14 +257,11 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 		//p.drawEllipse(_checkRect.marginsRemoved(QMargins(skip, skip, skip, skip)));
 		p.drawEllipse(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)));
 
-		if (checked > 0) {
+		if (active > 0) {
 			p.setPen(Qt::NoPen);
-			if (cbad) {
-				p.setBrush(color);
-			} else {
-				p.setBrush(cnone ? _st.checkFg : (cover ? _st.checkFgOver : _st.checkFgActive));
-			}
-			float64 skip0 = _checkRect.width() / 2., skip1 = _st.checkSkip / 10., checkSkip = skip0 * (1. - checked) + skip1 * checked;
+			p.setBrush(anim::brush(_st.checkFg, _st.checkFgActive, active));
+
+			auto skip0 = _checkRect.width() / 2., skip1 = _st.radioSkip / 10., checkSkip = skip0 * (1. - active) + skip1 * active;
 			p.drawEllipse(QRectF(_checkRect).marginsRemoved(QMarginsF(checkSkip, checkSkip, checkSkip, checkSkip)));
 			//int32 fskip = qFloor(checkSkip), cskip = qCeil(checkSkip);
 			//if (2 * fskip < _checkRect.width()) {
@@ -367,11 +278,11 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 
 		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	}
-	if (_checkRect.contains(r)) return;
+	if (_checkRect.contains(e->rect())) return;
 
 	p.setPen(_st.textFg);
 	p.setFont(_st.font);
-	p.drawTextLeft(_st.textPosition.x(), _st.textPosition.y(), width(), _text, _textWidth);
+	p.drawTextLeft(_st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), width(), _text, _textWidth);
 }
 
 void Radiobutton::onClicked() {
@@ -380,18 +291,29 @@ void Radiobutton::onClicked() {
 }
 
 void Radiobutton::onStateChanged(int oldState, StateChangeSource source) {
-	if ((_state & StateOver) && !(oldState & StateOver)) {
-		a_over.start(1);
-		_a_over.start();
-	} else if (!(_state & StateOver) && (oldState & StateOver)) {
-		a_over.start(0);
-		_a_over.start();
-	}
+	RippleButton::onStateChanged(oldState, source);
+
 	if ((_state & StateDisabled) && !(oldState & StateDisabled)) {
 		setCursor(style::cur_default);
 	} else if (!(_state & StateDisabled) && (oldState & StateDisabled)) {
 		setCursor(style::cur_pointer);
 	}
+}
+
+int Radiobutton::resizeGetHeight(int newWidth) {
+	return _st.height;
+}
+
+QImage Radiobutton::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
+QPoint Radiobutton::prepareRippleStartPosition() const {
+	auto position = mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+	if (QRect(0, 0, _st.rippleAreaSize, _st.rippleAreaSize).contains(position)) {
+		return position;
+	}
+	return disabledRippleStartPosition();
 }
 
 void Radiobutton::onChanged() {

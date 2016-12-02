@@ -217,7 +217,6 @@ void StickersBox::setup() {
 		preloadArchivedSets();
 	}
 	if (_tabs) {
-		_tabs->setSelectOnPress(false);
 		_tabs->setSectionActivatedCallback([this] {
 			switchTab();
 		});

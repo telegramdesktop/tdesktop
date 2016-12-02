@@ -48,6 +48,7 @@ public:
 		return _entity;
 	}
 
+	QMargins getMargins() const override;
 	int naturalWidth() const override;
 
 protected:

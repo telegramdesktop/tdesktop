@@ -28,7 +28,7 @@ public:
 	Ripple(const style::RippleAnimation &st, QPoint origin, int startRadius, const QPixmap &mask, const UpdateCallback &update);
 	Ripple(const style::RippleAnimation &st, const QPixmap &mask, const UpdateCallback &update);
 
-	void paint(QPainter &p, const QPixmap &mask, TimeMs ms);
+	void paint(QPainter &p, const QPixmap &mask, TimeMs ms, const QColor *colorOverride);
 
 	void stop();
 	void unstop();
@@ -86,7 +86,7 @@ RippleAnimation::Ripple::Ripple(const style::RippleAnimation &st, const QPixmap 
 	_hide.start(UpdateCallback(_update), 0., 1., _st.hideDuration);
 }
 
-void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms) {
+void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms, const QColor *colorOverride) {
 	auto opacity = _hide.current(ms, _hiding ? 0. : 1.);
 	if (opacity == 0.) {
 		return;
@@ -99,7 +99,11 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms)
 			Painter p(&_frame);
 			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.setPen(Qt::NoPen);
-			p.setBrush(_st.color);
+			if (colorOverride) {
+				p.setBrush(*colorOverride);
+			} else {
+				p.setBrush(_st.color);
+			}
 			p.drawEllipse(_origin, radius, radius);
 
 			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
@@ -176,7 +180,7 @@ void RippleAnimation::lastFinish() {
 	}
 }
 
-void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms) {
+void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride) {
 	if (_ripples.isEmpty()) {
 		return;
 	}
@@ -184,7 +188,7 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms
 	if (rtl()) x = outerWidth - x - (_mask.width() / cIntRetinaFactor());
 	p.translate(x, y);
 	for (auto ripple : _ripples) {
-		ripple->paint(p, _mask, ms);
+		ripple->paint(p, _mask, ms, colorOverride);
 	}
 	p.translate(-x, -y);
 	clearFinished();

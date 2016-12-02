@@ -98,6 +98,13 @@ public:
 		return _entity;
 	}
 
+	QMargins getMargins() const override {
+		return _entity->getMargins();
+	}
+	int naturalWidth() const override {
+		return _entity->naturalWidth();
+	}
+
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 	void paintEvent(QPaintEvent *e) override;

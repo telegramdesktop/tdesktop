@@ -94,44 +94,29 @@ RoundButton {
 
 Checkbox {
 	textFg: color;
-	textBg: color;
 
 	checkBg: color;
 	checkFg: color;
-	checkFgOver: color;
 	checkFgActive: color;
 
 	width: pixels;
 	height: pixels;
+	margin: margins;
 
 	textPosition: point;
 	diameter: pixels;
 	thickness: pixels;
+	radioSkip: pixels;
 	checkIcon: icon;
 
 	font: font;
 	duration: int;
-}
 
-Radiobutton {
-	textFg: color;
-	textBg: color;
-
-	checkBg: color;
-	checkFg: color;
-	checkFgOver: color;
-	checkFgActive: color;
-
-	width: pixels;
-	height: pixels;
-
-	textPosition: point;
-	diameter: pixels;
-	thickness: pixels;
-	checkSkip: pixels;
-
-	font: font;
-	duration: int;
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	rippleBg: color;
+	rippleBgActive: color;
+	ripple: RippleAnimation;
 }
 
 FlatScroll {
@@ -674,44 +659,29 @@ defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px
 
 defaultCheckbox: Checkbox {
 	textFg: windowFg;
-	textBg: windowBg;
 
-	checkBg: #ffffff;
+	checkBg: transparent;
 	checkFg: #b3b3b3;
-	checkFgOver: #b3b3b3;
 	checkFgActive: windowBgActive;
 
 	width: -44px;
 	height: 22px;
+	margin: margins(8px, 8px, 8px, 8px);
 
 	textPosition: point(32px, 2px);
 	diameter: 22px;
 	thickness: 2px;
 	checkIcon: defaultCheckboxIcon;
+	radioSkip: 65px; // * 0.1
 
 	font: normalFont;
 	duration: 120;
-}
 
-defaultRadiobutton: Radiobutton {
-	textFg: windowFg;
-	textBg: windowBg;
-
-	checkBg: #ffffff;
-	checkFg: #b3b3b3;
-	checkFgOver: #bfbfbf;
-	checkFgActive: #4eb3ee;
-
-	width: -46px;
-	height: 22px;
-
-	textPosition: point(34px, 0px);
-	diameter: 22px;
-	thickness: 2px;
-	checkSkip: 65px; // * 0.1
-
-	font: boxTextFont;
-	duration: 120;
+	rippleAreaSize: 38px;
+	rippleAreaPosition: point(0px, 0px);
+	rippleBg: windowBgOver;
+	rippleBgActive: #e0f2fa;
+	ripple: defaultRippleAnimation;
 }
 
 defaultIconButton: IconButton {
@@ -736,6 +706,8 @@ SettingsSlider {
 	labelFg: color;
 	labelFgActive: color;
 	duration: int;
+	rippleBottomSkip: pixels;
+	ripple: RippleAnimation;
 }
 
 defaultSettingsSlider: SettingsSlider {
@@ -761,6 +733,10 @@ defaultTabsSlider: SettingsSlider(defaultSettingsSlider) {
 	labelFont: semiboldFont;
 	labelFg: #999999;
 	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 
 defaultRoundShadow: Shadow {

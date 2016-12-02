@@ -233,17 +233,12 @@ contactsNameFont: semiboldFont;
 contactsStatusTop: 23px;
 contactsStatusFont: font(fsize);
 contactsCheckPosition: point(8px, 16px);
-contactsAllAdminsTop: 18px;
-contactsAboutBg: #f7f7f7;
+contactsAllAdminsTop: 15px;
+contactsAboutBg: windowBgOver;
+contactsAboutFg: windowSubTextFgOver;
 contactsAboutShadow: #0000001F;
-contactsAdminCheckbox: Checkbox(defaultBoxCheckbox) {
-	font: semiboldFont;
-	textBg: #f7f7f7;
-	textPosition: point(34px, 1px);
-}
-contactsAboutSkip: 53px;
-contactsAboutHeight: 42px;
-contactsAboutTop: 9px;
+contactsAboutTop: 60px;
+contactsAboutBottom: 19px;
 contactsScroll: FlatScroll(boxScroll) {
 	deltab: 0px;
 }
@@ -489,7 +484,7 @@ connectionPasswordInputField: InputField(defaultInputField) {
 connectionIPv6Skip: 11px;
 
 langsWidth: 256px;
-langsButton: Radiobutton(defaultRadiobutton) {
+langsButton: Checkbox(defaultBoxCheckbox) {
 	width: 200px;
 }
 

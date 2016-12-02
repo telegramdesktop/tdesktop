@@ -42,7 +42,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	if (haveTestLang) {
 		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langsButton));
 		_langs.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
-		y += _langs.back()->height() + st::boxOptionListPadding.top();
+		y += _langs.back()->heightNoMargins() + st::boxOptionListPadding.top();
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 	for (int32 i = 0; i < languageCount; ++i) {
@@ -55,7 +55,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 		}
 		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), i, result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")), (cLang() == i), st::langsButton));
 		_langs.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
-		y += _langs.back()->height() + st::boxOptionListPadding.top();
+		y += _langs.back()->heightNoMargins() + st::boxOptionListPadding.top();
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 

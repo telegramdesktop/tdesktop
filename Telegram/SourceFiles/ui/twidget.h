@@ -90,15 +90,31 @@ public: \
 	virtual void enterFromChildEvent(QEvent *e, QWidget *child) { /* e -- from leaveEvent() of child TWidget */ \
 	} \
 	void moveToLeft(int x, int y, int outerw = 0) { \
+		auto margins = getMargins(); \
+		x -= margins.left(); \
+		y -= margins.top(); \
 		move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y); \
 	} \
 	void moveToRight(int x, int y, int outerw = 0) { \
+		auto margins = getMargins(); \
+		x -= margins.right(); \
+		y -= margins.top(); \
 		move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y); \
 	} \
 	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) { \
+		auto margins = getMargins(); \
+		x -= margins.left(); \
+		y -= margins.top(); \
+		w -= margins.left() - margins.right(); \
+		h -= margins.top() - margins.bottom(); \
 		setGeometry(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - w) : x, y, w, h); \
 	} \
 	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) { \
+		auto margins = getMargins(); \
+		x -= margins.right(); \
+		y -= margins.top(); \
+		w -= margins.left() - margins.right(); \
+		h -= margins.top() - margins.bottom(); \
 		setGeometry(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - w), y, w, h); \
 	} \
 	QPoint myrtlpoint(int x, int y) const { \
@@ -160,6 +176,10 @@ public:
 		}
 	}
 
+	virtual QMargins getMargins() const {
+		return QMargins();
+	}
+
 	// Get the size of the widget as it should be.
 	// Negative return value means no default width.
 	virtual int naturalWidth() const {
@@ -168,11 +188,35 @@ public:
 
 	// Count new height for width=newWidth and resize to it.
 	void resizeToWidth(int newWidth) {
-		auto newSize = QSize(newWidth, resizeGetHeight(newWidth));
+		auto margins = getMargins();
+		auto fullWidth = margins.left() + newWidth + margins.right();
+		auto fullHeight = margins.top() + resizeGetHeight(newWidth) + margins.bottom();
+		auto newSize = QSize(fullWidth, fullHeight);
 		if (newSize != size()) {
 			resize(newSize);
 			update();
 		}
+	}
+
+	QRect rectNoMargins() const {
+		return rect().marginsRemoved(getMargins());
+	}
+
+	int widthNoMargins() const {
+		return rectNoMargins().width();
+	}
+
+	int heightNoMargins() const {
+		return rectNoMargins().height();
+	}
+
+	int bottomNoMargins() const {
+		auto rectWithoutMargins = rectNoMargins();
+		return y() + rectWithoutMargins.y() + rectWithoutMargins.height();
+	}
+
+	QSize sizeNoMargins() const {
+		return rectNoMargins().size();
 	}
 
 	// Updates the area that is visible inside the scroll container.

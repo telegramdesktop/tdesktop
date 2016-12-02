@@ -3101,7 +3101,11 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 		connect(audioCapture(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
 	}
 
-	_attachToggle->setClickedCallback([this] { chooseAttach(); });
+	_attachToggle->setClickedCallback([this] {
+		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, base::lambda_guarded(this, [this] {
+			chooseAttach();
+		}));
+	});
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/widgets/discrete_sliders.h"
 
+#include "ui/effects/ripple_animation.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -36,11 +37,27 @@ void DiscreteSlider::setSectionActivatedCallback(SectionActivatedCallback &&call
 void DiscreteSlider::setActiveSection(int index) {
 	if (_activeIndex != index) {
 		_activeIndex = index;
+		activateCallback();
+	}
+	setSelectedSection(index);
+}
+
+void DiscreteSlider::activateCallback() {
+	if (_timerId >= 0) {
+		killTimer(_timerId);
+	}
+	auto ms = getms();
+	if (ms >= _callbackAfterMs) {
 		if (_callback) {
 			_callback();
 		}
+	} else {
+		_timerId = startTimer(_callbackAfterMs - ms, Qt::PreciseTimer);
 	}
-	setSelectedSection(index);
+}
+
+void DiscreteSlider::timerEvent(QTimerEvent *e) {
+	activateCallback();
 }
 
 void DiscreteSlider::setActiveSectionFast(int index) {
@@ -82,14 +99,18 @@ int DiscreteSlider::getCurrentActiveLeft(TimeMs ms) {
 template <typename Lambda>
 void DiscreteSlider::enumerateSections(Lambda callback) {
 	for (auto &section : _sections) {
-		callback(section);
+		if (!callback(section)) {
+			return;
+		}
 	}
 }
 
 void DiscreteSlider::mousePressEvent(QMouseEvent *e) {
+	auto index = getIndexFromPosition(e->pos());
 	if (_selectOnPress) {
-		setSelectedSection(getIndexFromPosition(e->pos()));
+		setSelectedSection(index);
 	}
+	startRipple(index);
 	_pressed = true;
 }
 
@@ -101,9 +122,14 @@ void DiscreteSlider::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
-	if (!_pressed) return;
-	_pressed = false;
-	setActiveSection(getIndexFromPosition(e->pos()));
+	if (!base::take(_pressed)) return;
+	auto index = getIndexFromPosition(e->pos());
+	if (index >= 0 && index < _sections.size()) {
+		if (_sections[index].ripple) {
+			_sections[index].ripple->lastStop();
+		}
+	}
+	setActiveSection(index);
 }
 
 void DiscreteSlider::setSelectedSection(int index) {
@@ -113,7 +139,9 @@ void DiscreteSlider::setSelectedSection(int index) {
 		auto from = _sections[_selected].left;
 		_selected = index;
 		auto to = _sections[_selected].left;
-		_a_left.start([this] { update(); }, from, to, getAnimationDuration());
+		auto duration = getAnimationDuration();
+		_a_left.start([this] { update(); }, from, to, duration);
+		_callbackAfterMs = getms() + duration;
 	}
 }
 
@@ -134,6 +162,7 @@ DiscreteSlider::Section::Section(const QString &label, const style::font &font)
 
 SettingsSlider::SettingsSlider(QWidget *parent, const style::SettingsSlider &st) : DiscreteSlider(parent)
 , _st(st) {
+	setSelectOnPress(_st.ripple.showDuration == 0);
 }
 
 const style::font &SettingsSlider::getLabelFont() const {
@@ -157,6 +186,7 @@ void SettingsSlider::resizeSections(int newWidth) {
 		x += sectionWidth;
 		section.width = qRound(x) - (section.left - skip);
 		skip += _st.barSkip;
+		return true;
 	});
 	stopAnimation();
 }
@@ -166,13 +196,35 @@ int SettingsSlider::resizeGetHeight(int newWidth) {
 	return _st.height;
 }
 
+void SettingsSlider::startRipple(int index) {
+	if (!_st.ripple.showDuration) return;
+	enumerateSections([this, &index](Section &section) {
+		if (!index--) {
+			if (!section.ripple) {
+				auto mask = RippleAnimation::rectMask(QSize(section.width, height() - _st.rippleBottomSkip));
+				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this] { update(); });
+			}
+			section.ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(section.left, 0));
+			return false;
+		}
+		return true;
+	});
+}
+
 void SettingsSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto activeLeft = getCurrentActiveLeft(getms());
+	auto ms = getms();
+	auto activeLeft = getCurrentActiveLeft(ms);
 
 	p.setFont(_st.labelFont);
-	enumerateSections([this, &p, activeLeft](Section &section) {
+	enumerateSections([this, &p, activeLeft, ms](Section &section) {
+		if (section.ripple) {
+			section.ripple->paint(p, section.left, 0, width(), ms);
+			if (section.ripple->empty()) {
+				section.ripple.reset();
+			}
+		}
 		auto from = section.left, tofill = section.width;
 		if (activeLeft > from) {
 			auto fill = qMin(tofill, activeLeft - from);
@@ -193,6 +245,7 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 		}
 		p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
 		p.drawTextLeft(section.left + (section.width - section.labelWidth) / 2, _st.labelTop, width(), section.label, section.labelWidth);
+		return true;
 	});
 }
 

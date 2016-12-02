@@ -27,13 +27,12 @@ void AbstractButton::leaveEvent(QEvent *e) {
 	if (_state & StateDown) return;
 
 	setOver(false, StateChangeSource::ByHover);
-	setMouseTracking(false);
 	return TWidget::leaveEvent(e);
 }
 
 void AbstractButton::enterEvent(QEvent *e) {
-	setOver(true, StateChangeSource::ByHover);
-	setMouseTracking(true);
+	auto over = rect().marginsRemoved(getMargins()).contains(mapFromGlobal(QCursor::pos()));
+	setOver(over, StateChangeSource::ByHover);
 	return TWidget::enterEvent(e);
 }
 
@@ -42,11 +41,8 @@ void AbstractButton::setAcceptBoth(bool acceptBoth) {
 }
 
 void AbstractButton::mousePressEvent(QMouseEvent *e) {
-	if (_acceptBoth || e->buttons() & Qt::LeftButton) {
-		if (!(_state & StateOver)) {
-			enterEvent(0);
-		}
-		if (!(_state & StateDown)) {
+	if (_acceptBoth || (e->buttons() & Qt::LeftButton)) {
+		if ((_state & StateOver) && !(_state & StateDown)) {
 			int oldState = _state;
 			_state |= StateDown;
 			onStateChanged(oldState, StateChangeSource::ByPress);
@@ -57,7 +53,7 @@ void AbstractButton::mousePressEvent(QMouseEvent *e) {
 }
 
 void AbstractButton::mouseMoveEvent(QMouseEvent *e) {
-	if (rect().contains(e->pos())) {
+	if (rect().marginsRemoved(getMargins()).contains(e->pos())) {
 		setOver(true, StateChangeSource::ByHover);
 	} else {
 		setOver(false, StateChangeSource::ByHover);
@@ -83,6 +79,7 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void AbstractButton::setOver(bool over, StateChangeSource source) {
+	setCursor(over ? style::cur_pointer : style::cur_default);
 	if (over && !(_state & StateOver)) {
 		int oldState = _state;
 		_state |= StateOver;

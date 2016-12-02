@@ -32,10 +32,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
 , _channel(channel)
-, _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true)
-, _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence))
-, _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography))
-, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other))
+, _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true, st::defaultBoxCheckbox)
+, _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence), false, st::defaultBoxCheckbox)
+, _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography), false, st::defaultBoxCheckbox)
+, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox)
 , _report(this, lang(lng_report_button), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	setTitleText(lang(_channel->isMegagroup() ? lng_report_group_title : lng_report_title));
@@ -53,12 +53,12 @@ ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
 
 void ReportBox::resizeEvent(QResizeEvent *e) {
 	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
-	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->y() + _reasonSpam->height() + st::boxOptionListPadding.top());
-	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->y() + _reasonViolence->height() + st::boxOptionListPadding.top());
-	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->y() + _reasonPornography->height() + st::boxOptionListPadding.top());
+	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListPadding.top());
+	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListPadding.top());
+	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListPadding.top());
 
 	if (_reasonOtherText) {
-		_reasonOtherText->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() - st::defaultInputField.textMargins.left(), _reasonOther->y() + _reasonOther->height() + st::newGroupDescriptionPadding.top());
+		_reasonOtherText->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() - st::defaultInputField.textMargins.left(), _reasonOther->bottomNoMargins() + st::newGroupDescriptionPadding.top());
 	}
 
 	_report->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _report->height());
@@ -138,7 +138,7 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	int32 h = titleHeight() + 4 * (st::boxOptionListPadding.top() + _reasonSpam->height()) + st::boxButtonPadding.top() + _report->height() + st::boxButtonPadding.bottom();
+	int32 h = titleHeight() + 4 * (st::boxOptionListPadding.top() + _reasonSpam->heightNoMargins()) + st::boxButtonPadding.top() + _report->height() + st::boxButtonPadding.bottom();
 	if (_reasonOtherText) {
 		h += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}

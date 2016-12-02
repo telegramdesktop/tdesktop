@@ -426,9 +426,9 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : AbstractBox()
 , _channel(channel)
 , _existing(existing)
-, _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true)
-, _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title))
-, _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultRadiobutton.textPosition.x())
+, _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true, st::defaultBoxCheckbox)
+, _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), false, st::defaultBoxCheckbox)
+, _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
 , _link(this, st::defaultInputField, QString(), channel->username, true)
@@ -467,9 +467,9 @@ void SetupChannelBox::doSetInnerFocus() {
 
 void SetupChannelBox::updateMaxHeight() {
 	if (!_channel->isMegagroup() || _public->checked()) {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->height() + _aboutPublicHeight + st::newGroupSkip + _private->height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
 	} else {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->height() + _aboutPublicHeight + st::newGroupSkip + _private->height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
 	}
 }
 
@@ -494,10 +494,10 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), st::boxBg);
 	p.setPen(st::newGroupAboutFg);
 
-	QRect aboutPublic(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _public->y() + _public->height(), _aboutPublicWidth, _aboutPublicHeight);
+	QRect aboutPublic(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultBoxCheckbox.textPosition.x(), _public->bottomNoMargins(), _aboutPublicWidth, _aboutPublicHeight);
 	_aboutPublic.drawLeft(p, aboutPublic.x(), aboutPublic.y(), aboutPublic.width(), width());
 
-	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultRadiobutton.textPosition.x(), _private->y() + _private->height(), _aboutPublicWidth, _aboutPublicHeight);
+	QRect aboutPrivate(st::boxPadding.left() + st::newGroupPadding.left() + st::defaultBoxCheckbox.textPosition.x(), _private->bottomNoMargins(), _aboutPublicWidth, _aboutPublicHeight);
 	_aboutPrivate.drawLeft(p, aboutPrivate.x(), aboutPrivate.y(), aboutPrivate.width(), width());
 
 	if (!_channel->isMegagroup() || !_link->isHidden()) {
@@ -536,10 +536,10 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
 	_public->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
-	_private->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public->y() + _public->height() + _aboutPublicHeight + st::newGroupSkip);
+	_private->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public->bottomNoMargins() + _aboutPublicHeight + st::newGroupSkip);
 
 	_link->resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - st::boxPadding.right(), _link->height());
-	_link->moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private->y() + _private->height() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
+	_link->moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private->bottomNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
 	_invitationLink = QRect(_link->x(), _link->y() + (_link->height() / 2) - st::boxTextFont->height, _link->width(), 2 * st::boxTextFont->height);
 
 	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
@@ -1006,7 +1006,7 @@ void EditChannelBox::updateMaxHeight() {
 	int32 h = titleHeight() + st::newGroupInfoPadding.top() + _title->height();
 	h += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	if (!_channel->isMegagroup()) {
-		h += st::newGroupPublicLinkPadding.top() + _sign->height() + st::newGroupPublicLinkPadding.bottom();
+		h += st::newGroupPublicLinkPadding.top() + _sign->heightNoMargins() + st::newGroupPublicLinkPadding.bottom();
 	}
 	if (_channel->canEditUsername()) {
 		h += st::newGroupPublicLinkPadding.top() + _publicLink->height() + st::newGroupPublicLinkPadding.bottom();
@@ -1026,7 +1026,7 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 	if (_channel->isMegagroup()) {
 		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	} else {
-		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign->y() + _sign->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
+		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign->bottomNoMargins() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	}
 
 	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());

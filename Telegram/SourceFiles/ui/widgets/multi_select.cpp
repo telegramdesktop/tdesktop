@@ -350,6 +350,8 @@ MultiSelect::MultiSelect(QWidget *parent, const style::MultiSelect &st, const QS
 	});
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
+	auto defaultWidth = _st.item.maxWidth + _st.fieldMinWidth + _st.fieldCancelSkip;
+	resizeToWidth(_st.padding.left() + defaultWidth + _st.padding.right());
 }
 
 bool MultiSelect::eventFilter(QObject *o, QEvent *e) {

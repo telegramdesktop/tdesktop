@@ -36,9 +36,9 @@ ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth, lang(lng_connection_h
 , _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
 , _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), Global::ConnectionProxy().user)
 , _passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), Global::ConnectionProxy().password)
-, _autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (Global::ConnectionType() == dbictAuto))
-, _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (Global::ConnectionType() == dbictHttpProxy))
-, _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (Global::ConnectionType() == dbictTcpProxy))
+, _autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (Global::ConnectionType() == dbictAuto), st::defaultBoxCheckbox)
+, _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (Global::ConnectionType() == dbictHttpProxy), st::defaultBoxCheckbox)
+, _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (Global::ConnectionType() == dbictTcpProxy), st::defaultBoxCheckbox)
 , _tryIPv6(this, lang(lng_connection_try_ipv6), Global::TryIPv6(), st::defaultBoxCheckbox)
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
@@ -59,7 +59,7 @@ ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth, lang(lng_connection_h
 }
 
 void ConnectionBox::updateControlsVisibility() {
-	int32 h = titleHeight() + st::boxOptionListPadding.top() + _autoRadio->height() + st::boxOptionListPadding.top() + _httpProxyRadio->height() + st::boxOptionListPadding.top() + _tcpProxyRadio->height() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6->height() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
+	int32 h = titleHeight() + st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListPadding.top() + _httpProxyRadio->heightNoMargins() + st::boxOptionListPadding.top() + _tcpProxyRadio->heightNoMargins() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
 		h += 2 * st::boxOptionListPadding.top() + 2 * _hostInput->height();
 		_hostInput->show();
@@ -85,27 +85,27 @@ void ConnectionBox::doSetInnerFocus() {
 
 void ConnectionBox::resizeEvent(QResizeEvent *e) {
 	_autoRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
-	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->y() + _autoRadio->height() + st::boxOptionListPadding.top());
+	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->bottomNoMargins() + st::boxOptionListPadding.top());
 
 	int32 inputy = 0;
 	if (_httpProxyRadio->checked()) {
-		inputy = _httpProxyRadio->y() + _httpProxyRadio->height() + st::boxOptionListPadding.top();
+		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionListPadding.top();
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionListPadding.top() + 2 * _hostInput->height() + st::boxOptionListPadding.top());
 	} else {
-		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _httpProxyRadio->y() + _httpProxyRadio->height() + st::boxOptionListPadding.top());
+		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _httpProxyRadio->bottomNoMargins() + st::boxOptionListPadding.top());
 		if (_tcpProxyRadio->checked()) {
-			inputy = _tcpProxyRadio->y() + _tcpProxyRadio->height() + st::boxOptionListPadding.top();
+			inputy = _tcpProxyRadio->bottomNoMargins() + st::boxOptionListPadding.top();
 		}
 	}
 
 	if (inputy) {
-		_hostInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x() - st::defaultInputField.textMargins.left(), inputy);
+		_hostInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x() - st::defaultInputField.textMargins.left(), inputy);
 		_portInput->moveToRight(st::boxPadding.right(), inputy);
-		_userInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x() - st::defaultInputField.textMargins.left(), _hostInput->y() + _hostInput->height() + st::boxOptionListPadding.top());
+		_userInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x() - st::defaultInputField.textMargins.left(), _hostInput->y() + _hostInput->height() + st::boxOptionListPadding.top());
 		_passwordInput->moveToRight(st::boxPadding.right(), _userInput->y());
 	}
 
-	int32 tryipv6y = (_tcpProxyRadio->checked() ? (_userInput->y() + _userInput->height()) : (_tcpProxyRadio->y() + _tcpProxyRadio->height())) + st::boxOptionListPadding.top() + st::connectionIPv6Skip;
+	int32 tryipv6y = (_tcpProxyRadio->checked() ? _userInput->bottomNoMargins() : _tcpProxyRadio->bottomNoMargins()) + st::boxOptionListPadding.top() + st::connectionIPv6Skip;
 	_tryIPv6->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), tryipv6y);
 
 	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
@@ -212,7 +212,7 @@ AutoDownloadBox::AutoDownloadBox() : AbstractBox(st::boxWidth)
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
-	setMaxHeight(3 * _sectionHeight + st::setLittleSkip + _gifPlay->height() + st::setLittleSkip + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(3 * _sectionHeight + st::setLittleSkip + _gifPlay->heightNoMargins() + st::setLittleSkip + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
 
 	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -232,14 +232,14 @@ void AutoDownloadBox::paintEvent(QPaintEvent *e) {
 
 void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
 	_photoPrivate->moveToLeft(st::boxTitlePosition.x(), titleHeight() + st::setLittleSkip);
-	_photoGroups->moveToLeft(st::boxTitlePosition.x(), _photoPrivate->y() + _photoPrivate->height() + st::setLittleSkip);
+	_photoGroups->moveToLeft(st::boxTitlePosition.x(), _photoPrivate->bottomNoMargins() + st::setLittleSkip);
 
 	_audioPrivate->moveToLeft(st::boxTitlePosition.x(), _sectionHeight + titleHeight() + st::setLittleSkip);
-	_audioGroups->moveToLeft(st::boxTitlePosition.x(), _audioPrivate->y() + _audioPrivate->height() + st::setLittleSkip);
+	_audioGroups->moveToLeft(st::boxTitlePosition.x(), _audioPrivate->bottomNoMargins() + st::setLittleSkip);
 
 	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + titleHeight() + st::setLittleSkip);
-	_gifGroups->moveToLeft(st::boxTitlePosition.x(), _gifPrivate->y() + _gifPrivate->height() + st::setLittleSkip);
-	_gifPlay->moveToLeft(st::boxTitlePosition.x(), _gifGroups->y() + _gifGroups->height() + st::setLittleSkip);
+	_gifGroups->moveToLeft(st::boxTitlePosition.x(), _gifPrivate->bottomNoMargins() + st::setLittleSkip);
+	_gifPlay->moveToLeft(st::boxTitlePosition.x(), _gifGroups->bottomNoMargins() + st::setLittleSkip);
 
 	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
 	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());

@@ -64,12 +64,15 @@ public:
 	~RippleButton();
 
 protected:
-	void paintRipple(QPainter &p, int x, int y, TimeMs ms);
+	void paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColor *colorOverride = nullptr);
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
 
 	virtual QImage prepareRippleMask() const;
 	virtual QPoint prepareRippleStartPosition() const;
+	QPoint disabledRippleStartPosition() const {
+		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
+	}
 
 private:
 	void ensureRipple();

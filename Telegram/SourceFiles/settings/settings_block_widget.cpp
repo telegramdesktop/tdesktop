@@ -44,14 +44,15 @@ int BlockWidget::resizeGetHeight(int newWidth) {
 	int x = contentLeft(), result = contentTop();
 	int availw = newWidth - x;
 	for_const (auto &row, _rows) {
+		auto childMargins = row.child->getMargins();
 		row.child->moveToLeft(x + row.margin.left(), result + row.margin.top(), newWidth);
 		auto availRowWidth = availw - row.margin.left() - row.margin.right() - x;
 		auto natural = row.child->naturalWidth();
 		auto rowWidth = (natural < 0) ? availRowWidth : qMin(natural, availRowWidth);
-		if (row.child->width() != rowWidth) {
+		if (row.child->widthNoMargins() != rowWidth) {
 			row.child->resizeToWidth(rowWidth);
 		}
-		result += row.child->height() + row.margin.top() + row.margin.bottom();
+		result += row.margin.top() + row.child->heightNoMargins() + row.margin.bottom();
 	}
 	result += st::settingsBlockMarginBottom;
 	return result;
@@ -91,7 +92,7 @@ void BlockWidget::createChildRow(ChildWidget<Ui::Checkbox> &child, style::margin
 }
 
 void BlockWidget::createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
-	child .create(this, group, value, text, checked, st::defaultRadiobutton);
+	child .create(this, group, value, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 

@@ -362,7 +362,7 @@ void FileLoadTask::process() {
 
 				{
 					QBuffer buffer(&filedata);
-					full.save(&buffer, "JPG", 77);
+					full.save(&buffer, "JPG", 87);
 				}
 
 				MTPDphoto::Flags photoFlags = 0;

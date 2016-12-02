@@ -34,16 +34,17 @@ WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 , _updateCallback(std_::move(updateCallback))
 , _a_height(animation(this, &WidgetSlideWrap<TWidget>::step_height)) {
 	_entity->setParent(this);
-	_entity->moveToLeft(_padding.left(), _padding.top());
-	_realSize = _entity->rect().marginsAdded(_padding).size();
+	auto margins = getMargins();
+	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());
+	_realSize = _entity->rectNoMargins().marginsAdded(_padding).size();
 	_entity->installEventFilter(this);
-	resize(_realSize);
+	resizeToWidth(_realSize.width());
 }
 
 void WidgetSlideWrap<TWidget>::slideUp() {
 	if (isHidden()) {
 		_forceHeight = 0;
-		resize(_realSize.width(), _forceHeight);
+		resizeToWidth(_realSize.width());
 		if (_updateCallback) _updateCallback();
 		return;
 	}
@@ -77,7 +78,8 @@ void WidgetSlideWrap<TWidget>::slideDown() {
 void WidgetSlideWrap<TWidget>::showFast() {
 	show();
 	_a_height.stop();
-	resize(_realSize);
+	_forceHeight = -1;
+	resizeToWidth(_realSize.width());
 	if (_updateCallback) {
 		_updateCallback();
 	}
@@ -87,11 +89,19 @@ void WidgetSlideWrap<TWidget>::hideFast() {
 	_a_height.stop();
 	a_height = anim::ivalue(0);
 	_forceHeight = 0;
-	resize(_realSize.width(), 0);
+	resizeToWidth(_realSize.width());
 	hide();
 	if (_updateCallback) {
 		_updateCallback();
 	}
+}
+
+QMargins WidgetSlideWrap<TWidget>::getMargins() const {
+	auto entityMargins = _entity->getMargins();
+	if (_forceHeight < 0) {
+		return entityMargins;
+	}
+	return QMargins(entityMargins.left(), 0, entityMargins.right(), 0);
 }
 
 int WidgetSlideWrap<TWidget>::naturalWidth() const {
@@ -101,9 +111,9 @@ int WidgetSlideWrap<TWidget>::naturalWidth() const {
 
 bool WidgetSlideWrap<TWidget>::eventFilter(QObject *object, QEvent *event) {
 	if (object == _entity && event->type() == QEvent::Resize) {
-		_realSize = _entity->rect().marginsAdded(_padding).size();
+		_realSize = _entity->rectNoMargins().marginsAdded(_padding).size();
 		if (!_inResizeToWidth) {
-			resize(_realSize.width(), (_forceHeight >= 0) ? _forceHeight : _realSize.height());
+			resizeToWidth(_realSize.width());
 			if (_updateCallback) {
 				_updateCallback();
 			}
@@ -114,9 +124,15 @@ bool WidgetSlideWrap<TWidget>::eventFilter(QObject *object, QEvent *event) {
 
 int WidgetSlideWrap<TWidget>::resizeGetHeight(int newWidth) {
 	_inResizeToWidth = true;
+	auto resized = (_forceHeight >= 0);
 	_entity->resizeToWidth(newWidth - _padding.left() - _padding.right());
+	auto margins = getMargins();
+	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());
 	_inResizeToWidth = false;
-	return (_forceHeight >= 0) ? _forceHeight : _realSize.height();
+	if (resized) {
+		return _forceHeight;
+	}
+	return _realSize.height();
 }
 
 void WidgetSlideWrap<TWidget>::step_height(float64 ms, bool timer) {
@@ -130,7 +146,7 @@ void WidgetSlideWrap<TWidget>::step_height(float64 ms, bool timer) {
 		a_height.update(dt, anim::linear);
 		_forceHeight = a_height.current();
 	}
-	resize(_realSize.width(), (_forceHeight >= 0) ? _forceHeight : _realSize.height());
+	resizeToWidth(_realSize.width());
 	if (_updateCallback) {
 		_updateCallback();
 	}

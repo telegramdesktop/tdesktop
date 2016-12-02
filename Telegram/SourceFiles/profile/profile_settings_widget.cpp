@@ -83,7 +83,7 @@ int SettingsWidget::resizeGetHeight(int newWidth) {
 	int newHeight = contentTop() + st::profileEnableNotificationsTop;
 
 	_enableNotifications->moveToLeft(st::profileBlockTitlePosition.x(), newHeight);
-	newHeight += _enableNotifications->height() + st::profileSettingsBlockSkip;
+	newHeight += _enableNotifications->heightNoMargins() + st::profileSettingsBlockSkip;
 
 	auto moveLink = [&newHeight, newWidth](Ui::LeftOutlineButton *button) {
 		if (!button) return;

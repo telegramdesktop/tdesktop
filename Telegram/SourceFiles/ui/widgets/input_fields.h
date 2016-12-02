@@ -52,8 +52,6 @@ public:
 	QRect getTextRect() const;
 	int32 fakeMargin() const;
 
-	void step_appearance(float64 ms, bool timer);
-
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
 
@@ -113,6 +111,10 @@ public:
 		}
 	};
 	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
+
+	QMargins getMargins() const {
+		return QMargins();
+	}
 
 public slots:
 	void onTouchTimer();
@@ -187,11 +189,9 @@ private:
 
 	QString _ph, _phelided;
 	int _phAfter = 0;
-	bool _phVisible;
-	anim::ivalue a_phLeft;
-	anim::fvalue a_phAlpha;
-	anim::fvalue a_phColorFocused;
-	Animation _a_appearance;
+	bool _placeholderVisible = true;
+	FloatAnimation _a_placeholderFocused;
+	FloatAnimation _a_placeholderVisible;
 
 	TextWithTags _lastTextWithTags;
 
@@ -247,8 +247,6 @@ class FlatInput : public QLineEdit {
 public:
 	FlatInput(QWidget *parent, const style::FlatInput &st, const QString &ph = QString(), const QString &val = QString());
 
-	void notaBene();
-
 	void setPlaceholder(const QString &ph);
 	void setPlaceholderFast(bool fast);
 	void updatePlaceholder();
@@ -257,14 +255,16 @@ public:
 
 	QRect getTextRect() const;
 
-	void step_appearance(float64 ms, bool timer);
-
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
 
 	void customUpDown(bool isCustom);
 	const QString &getLastText() const {
 		return _oldtext;
+	}
+
+	QMargins getMargins() const {
+		return QMargins();
 	}
 
 public slots:
@@ -303,26 +303,20 @@ protected:
 		return _st.font;
 	}
 
-	void phPrepare(Painter &p);
+	void phPrepare(Painter &p, float64 placeholderFocused);
 
 private:
 	void updatePlaceholderText();
 
 	QString _oldtext, _ph, _fullph;
-	bool _fastph;
+	bool _fastph = false;
 
-	bool _customUpDown;
+	bool _customUpDown = false;
 
-	bool _phVisible;
-	anim::ivalue a_phLeft;
-	anim::fvalue a_phAlpha;
-	anim::fvalue a_phColorFocus;
-	anim::fvalue a_borderColorActive;
-	anim::fvalue a_borderColorError;
-	anim::fvalue a_bgColorActive;
-	Animation _a_appearance;
+	bool _placeholderVisible = true;
+	FloatAnimation _a_placeholderFocused;
+	FloatAnimation _a_placeholderVisible;
 
-	int _notingBene;
 	const style::FlatInput &_st;
 
 	QTimer _touchTimer;
@@ -700,6 +694,10 @@ public:
 	void clear() {
 		QLineEdit::clear();
 		updatePlaceholder();
+	}
+
+	QMargins getMargins() const {
+		return QMargins();
 	}
 
 public slots:

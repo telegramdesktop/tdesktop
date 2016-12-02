@@ -121,7 +121,7 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 	newHeight += st::settingsMarginBottom;
 
 	_dividerTop = newHeight;
-	newHeight += st::profileDividerFill.height();
+	newHeight += st::profileDividerLeft.height();
 
 	newHeight += st::settingsBlocksTop;
 
@@ -247,11 +247,13 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 }
 
 void CoverWidget::paintDivider(Painter &p) {
-	st::profileDividerLeft.paint(p, QPoint(0, _dividerTop), width());
-
-	int toFillLeft = st::profileDividerLeft.width();
-	QRect toFill = rtlrect(toFillLeft, _dividerTop, width() - toFillLeft, st::profileDividerFill.height(), width());
-	st::profileDividerFill.fill(p, toFill);
+	auto dividerHeight = st::profileDividerLeft.height();
+	auto divider = rtlrect(0, _dividerTop, width(), dividerHeight, width());
+	p.fillRect(divider, st::profileDividerBg);
+	auto dividerFillTop = rtlrect(0, _dividerTop, width(), st::profileDividerTop.height(), width());
+	st::profileDividerTop.fill(p, dividerFillTop);
+	auto dividerFillBottom = rtlrect(0, _dividerTop + dividerHeight - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height(), width());
+	st::profileDividerBottom.fill(p, dividerFillBottom);
 }
 
 void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {

@@ -20,12 +20,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/abstract_button.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
 
-class Checkbox : public AbstractButton {
+class Checkbox : public RippleButton {
 	Q_OBJECT
 
 public:
@@ -40,12 +40,19 @@ public:
 
 	void finishAnimations();
 
+	QMargins getMargins() const override {
+		return _st.margin;
+	}
 	int naturalWidth() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
+	int resizeGetHeight(int newWidth) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 public slots:
 	void onClicked();
@@ -54,26 +61,22 @@ signals:
 	void changed();
 
 private:
-	void step_over(float64 ms, bool timer);
-	void step_checked(float64 ms, bool timer);
-
 	const style::Checkbox &_st;
-	anim::fvalue a_over, a_checked;
-	Animation _a_over, _a_checked;
 
 	QString _text, _fullText;
 	int32 _textWidth;
 	QRect _checkRect;
 
 	bool _checked;
+	FloatAnimation _a_checked;
 
 };
 
-class Radiobutton : public AbstractButton {
+class Radiobutton : public RippleButton {
 	Q_OBJECT
 
 public:
-	Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked = false, const style::Radiobutton &st = st::defaultRadiobutton);
+	Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
 
 	bool checked() const;
 	void setChecked(bool checked);
@@ -82,8 +85,10 @@ public:
 		return _value;
 	}
 
-	void step_over(float64 ms, bool timer);
-	void step_checked(float64 ms, bool timer);
+	QMargins getMargins() const override {
+		return _st.margin;
+	}
+	int naturalWidth() const override;
 
 	~Radiobutton();
 
@@ -91,6 +96,10 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	void onStateChanged(int oldState, StateChangeSource source) override;
+	int resizeGetHeight(int newWidth) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 public slots:
 	void onClicked();
@@ -101,15 +110,14 @@ signals:
 private:
 	void onChanged();
 
-	const style::Radiobutton &_st;
-	anim::fvalue a_over, a_checked;
-	Animation _a_over, _a_checked;
+	const style::Checkbox &_st;
 
 	QString _text, _fullText;
 	int32 _textWidth;
 	QRect _checkRect;
 
 	bool _checked;
+	FloatAnimation _a_checked;
 
 	void *_group;
 	int32 _value;

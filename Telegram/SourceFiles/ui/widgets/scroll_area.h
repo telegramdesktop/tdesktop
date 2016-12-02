@@ -186,6 +186,10 @@ public:
 	bool viewportEvent(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 
+	QMargins getMargins() const {
+		return QMargins();
+	}
+
 	~ScrollArea();
 
 protected:

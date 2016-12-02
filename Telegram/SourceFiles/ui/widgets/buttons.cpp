@@ -86,9 +86,9 @@ void RippleButton::setForceRippled(bool rippled, SetForceRippledWay way) {
 	update();
 }
 
-void RippleButton::paintRipple(QPainter &p, int x, int y, TimeMs ms) {
+void RippleButton::paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColor *colorOverride) {
 	if (_ripple) {
-		_ripple->paint(p, x, y, width(), ms);
+		_ripple->paint(p, x, y, width(), ms, colorOverride);
 		if (_ripple->empty()) {
 			_ripple.reset();
 		}
@@ -106,8 +106,11 @@ void RippleButton::onStateChanged(int oldState, StateChangeSource source) {
 
 	if (down && (source == StateChangeSource::ByPress)) {
 		// Start a ripple only from mouse press.
-		ensureRipple();
-		_ripple->add(prepareRippleStartPosition());
+		auto position = prepareRippleStartPosition();
+		if (position != disabledRippleStartPosition()) {
+			ensureRipple();
+			_ripple->add(position);
+		}
 	} else if (!down && _ripple) {
 		// Finish ripple anyway.
 		_ripple->lastStop();

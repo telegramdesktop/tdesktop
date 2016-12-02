@@ -170,7 +170,8 @@ private:
 	ChannelData *_channel;
 	bool _existing;
 
-	ChildWidget<Ui::Radiobutton> _public, _private;
+	ChildWidget<Ui::Radiobutton> _public;
+	ChildWidget<Ui::Radiobutton> _private;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
 	Text _aboutPublic, _aboutPrivate;
 

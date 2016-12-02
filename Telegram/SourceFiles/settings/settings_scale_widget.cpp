@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settings/settings_scale_widget.h"
 
+#include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "ui/widgets/checkbox.h"
 #include "lang.h"
@@ -126,7 +127,9 @@ void ScaleWidget::onRestartNow() {
 }
 
 void ScaleWidget::onCancel() {
-	setScale(cRealScale());
+	App::LambdaDelayed(st::boxDuration, base::lambda_guarded(this, [this] {
+		setScale(cRealScale());
+	}));
 }
 
 } // namespace Settings

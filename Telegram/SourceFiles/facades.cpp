@@ -38,6 +38,10 @@ Q_DECLARE_METATYPE(Ui::ShowWay);
 
 namespace App {
 
+void LambdaDelayed(int duration, base::lambda<void()> &&lambda) {
+	QTimer::singleShot(duration, base::lambda_slot(App::app(), std_::move(lambda)), SLOT(action()));
+}
+
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	if (auto m = main()) {
 		m->sendBotCommand(peer, bot, cmd, replyTo);

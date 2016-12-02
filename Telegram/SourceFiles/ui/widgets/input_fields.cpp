@@ -133,11 +133,7 @@ QString FlatTextarea::tagsMimeType() {
 }
 
 FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : QTextEdit(parent)
-, _phVisible(!v.length())
-, a_phLeft(_phVisible ? 0 : st.phShift)
-, a_phAlpha(_phVisible ? 1 : 0)
-, a_phColorFocused(0)
-, _a_appearance(animation(this, &FlatTextarea::step_appearance))
+, _placeholderVisible(!v.length())
 , _lastTextWithTags { v, tags }
 , _st(st) {
 	setCursor(style::cur_text);
@@ -217,12 +213,9 @@ void FlatTextarea::setTextWithTags(const TextWithTags &textWithTags, UndoHistory
 }
 
 void FlatTextarea::finishPlaceholder() {
-	if (_a_appearance.animating()) {
-		a_phLeft.finish();
-		a_phAlpha.finish();
-		_a_appearance.stop();
-		update();
-	}
+	_a_placeholderFocused.finish();
+	_a_placeholderVisible.finish();
+	update();
 }
 
 void FlatTextarea::setMaxLength(int32 maxLength) {
@@ -323,24 +316,25 @@ int32 FlatTextarea::fakeMargin() const {
 }
 
 void FlatTextarea::paintEvent(QPaintEvent *e) {
-	QPainter p(viewport());
-	QRect r(rect().intersected(e->rect()));
-	p.fillRect(r, _st.bgColor->b);
-	bool phDraw = _phVisible;
-	if (_a_appearance.animating()) {
-		p.setOpacity(a_phAlpha.current());
-		phDraw = true;
-	}
-	if (phDraw) {
+	Painter p(viewport());
+	auto ms = getms();
+	auto r = rect().intersected(e->rect());
+	p.fillRect(r, _st.bgColor);
+	auto placeholderOpacity = _a_placeholderVisible.current(ms, _placeholderVisible ? 1. : 0.);
+	if (placeholderOpacity > 0.) {
+		p.setOpacity(placeholderOpacity);
+
+		auto placeholderLeft = anim::interpolate(_st.phShift, 0, placeholderOpacity);
+
 		p.save();
 		p.setClipRect(r);
 		p.setFont(_st.font);
-		p.setPen(anim::pen(_st.phColor, _st.phFocusColor, a_phColorFocused.current()));
+		p.setPen(anim::pen(_st.phColor, _st.phFocusColor, _a_placeholderFocused.current(ms, hasFocus() ? 1. : 0.)));
 		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
 			int skipWidth = placeholderSkipWidth();
-			p.drawText(_st.textMrg.left() - _fakeMargin + a_phLeft.current() + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
+			p.drawText(_st.textMrg.left() - _fakeMargin + placeholderLeft + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
 		} else {
-			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + a_phLeft.current(), _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
+			QRect phRect(_st.textMrg.left() - _fakeMargin + _st.phPos.x() + placeholderLeft, _st.textMrg.top() - _fakeMargin + _st.phPos.y(), width() - _st.textMrg.left() - _st.textMrg.right(), height() - _st.textMrg.top() - _st.textMrg.bottom());
 			p.drawText(phRect, _ph, QTextOption(_st.phAlign));
 		}
 		p.restore();
@@ -362,14 +356,12 @@ int FlatTextarea::placeholderSkipWidth() const {
 }
 
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
-	a_phColorFocused.start(1.);
-	_a_appearance.start();
+	_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
 	QTextEdit::focusInEvent(e);
 }
 
 void FlatTextarea::focusOutEvent(QFocusEvent *e) {
-	a_phColorFocused.start(0.);
-	_a_appearance.start();
+	_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
 	QTextEdit::focusOutEvent(e);
 }
 
@@ -1313,24 +1305,6 @@ void FlatTextarea::onRedoAvailable(bool avail) {
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
 }
 
-void FlatTextarea::step_appearance(float64 ms, bool timer) {
-	float dt = ms / _st.phDuration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_phLeft.finish();
-		a_phAlpha.finish();
-		a_phColorFocused.finish();
-		a_phLeft = anim::ivalue(a_phLeft.current());
-		a_phAlpha = anim::fvalue(a_phAlpha.current());
-		a_phColorFocused = anim::fvalue(a_phColorFocused.current());
-	} else {
-		a_phLeft.update(dt, anim::linear);
-		a_phAlpha.update(dt, anim::linear);
-		a_phColorFocused.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 	_ph = ph;
 	if (_phAfter != afterSymbols) {
@@ -1339,18 +1313,15 @@ void FlatTextarea::setPlaceholder(const QString &ph, int32 afterSymbols) {
 	}
 	int skipWidth = placeholderSkipWidth();
 	_phelided = _st.font->elided(_ph, width() - _st.textMrg.left() - _st.textMrg.right() - _st.phPos.x() - 1 - skipWidth);
-	if (_phVisible) update();
+	if (_placeholderVisible) update();
 }
 
 void FlatTextarea::updatePlaceholder() {
-	bool vis = (getTextWithTags().text.size() <= _phAfter);
-	if (vis == _phVisible) return;
-
-	a_phLeft.start(vis ? 0 : _st.phShift);
-	a_phAlpha.start(vis ? 1 : 0);
-	_a_appearance.start();
-
-	_phVisible = vis;
+	auto placeholderVisible = (getTextWithTags().text.size() <= _phAfter);
+	if (_placeholderVisible != placeholderVisible) {
+		_placeholderVisible = placeholderVisible;
+		_a_placeholderVisible.start([this] { update(); }, _placeholderVisible ? 0. : 1., _placeholderVisible ? 1. : 0., _st.phDuration);
+	}
 }
 
 QMimeData *FlatTextarea::createMimeDataFromSelection() const {
@@ -1478,17 +1449,7 @@ void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
 FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent)
 , _oldtext(v)
 , _fullph(pholder)
-, _fastph(false)
-, _customUpDown(false)
-, _phVisible(!v.length())
-, a_phLeft(_phVisible ? 0 : st.phShift)
-, a_phAlpha(_phVisible ? 1 : 0)
-, a_phColorFocus(0)
-, a_borderColorActive(0)
-, a_borderColorError(0)
-, a_bgColorActive(0)
-, _a_appearance(animation(this, &FlatInput::step_appearance))
-, _notingBene(0)
+, _placeholderVisible(!v.length())
 , _st(st) {
 	setCursor(style::cur_text);
 	resize(_st.width, _st.height);
@@ -1578,12 +1539,14 @@ QRect FlatInput::getTextRect() const {
 void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
+	auto placeholderFocused = _a_placeholderFocused.current(ms, hasFocus() ? 1. : 0.);
+
 	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	auto borderColor = anim::color(_st.borderColor, _st.borderActive, a_borderColorActive.current());
-	auto pen = anim::pen(borderColor, _st.borderError, a_borderColorError.current());
+	auto pen = anim::pen(_st.borderColor, _st.borderActive, placeholderFocused);
 	pen.setWidth(_st.borderWidth);
 	p.setPen(pen);
-	p.setBrush(anim::brush(_st.bgColor, _st.bgActive, a_bgColorActive.current()));
+	p.setBrush(anim::brush(_st.bgColor, _st.bgActive, placeholderFocused));
 	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::buttonRadius - (_st.borderWidth / 2.), st::buttonRadius - (_st.borderWidth / 2.));
 	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
@@ -1591,17 +1554,17 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 		_st.icon.paint(p, 0, 0, width());
 	}
 
-	bool phDraw = _phVisible;
-	if (_a_appearance.animating()) {
-		p.setOpacity(a_phAlpha.current());
-		phDraw = true;
-	}
-	if (phDraw) {
+	auto placeholderOpacity = _a_placeholderVisible.current(ms, _placeholderVisible ? 1. : 0.);
+	if (placeholderOpacity > 0.) {
+		p.setOpacity(placeholderOpacity);
+
+		auto left = anim::interpolate(_st.phShift, 0, placeholderOpacity);
+
 		p.save();
 		p.setClipRect(rect());
 		QRect phRect(placeholderRect());
-		phRect.moveLeft(phRect.left() + a_phLeft.current());
-		phPrepare(p);
+		phRect.moveLeft(phRect.left() + left);
+		phPrepare(p, placeholderFocused);
 		p.drawText(phRect, _ph, QTextOption(_st.phAlign));
 		p.restore();
 	}
@@ -1609,21 +1572,13 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 }
 
 void FlatInput::focusInEvent(QFocusEvent *e) {
-	a_phColorFocus.start(1.);
-	a_borderColorActive.start(1.);
-	a_borderColorError.restart();
-	a_bgColorActive.start(1);
-	_a_appearance.start();
+	_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
 	QLineEdit::focusInEvent(e);
 	emit focused();
 }
 
 void FlatInput::focusOutEvent(QFocusEvent *e) {
-	a_phColorFocus.start(0.);
-	a_borderColorActive.start(0.);
-	a_borderColorError.restart();
-	a_bgColorActive.start(0);
-	_a_appearance.start();
+	_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
 	QLineEdit::focusOutEvent(e);
 	emit blurred();
 }
@@ -1645,16 +1600,6 @@ void FlatInput::updatePlaceholderText() {
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		//menu->addSeparator();
-		//auto action = menu->addAction(QString("test"));
-		//action->setMenu(new QMenu(this));
-		//action->menu()->addAction(QString("test123"));
-		//action->menu()->addAction(QString("test456"));
-		//action->menu()->addAction(QString("test678"));
-		//auto second = action->menu()->addAction(QString("test90"));
-		//second->setMenu(new QMenu(this));
-		//second->menu()->addAction(QString("testing111"));
-		//second->menu()->addAction(QString("testing222"));
 		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }
@@ -1667,35 +1612,6 @@ QSize FlatInput::minimumSizeHint() const {
 	return geometry().size();
 }
 
-void FlatInput::step_appearance(float64 ms, bool timer) {
-	float dt = ms / _st.phDuration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_phLeft.finish();
-		a_phAlpha.finish();
-		a_phColorFocus.finish();
-		a_bgColorActive.finish();
-		if (_notingBene > 0) {
-			_notingBene = -1;
-			a_borderColorActive.restart();
-			a_borderColorError.start(0);
-			_a_appearance.start();
-			return;
-		} else if (_notingBene) {
-			_notingBene = 0;
-		}
-		a_borderColorActive.finish();
-	} else {
-		a_phLeft.update(dt, anim::linear);
-		a_phAlpha.update(dt, anim::linear);
-		a_phColorFocus.update(dt, anim::linear);
-		a_bgColorActive.update(dt, anim::linear);
-		a_borderColorActive.update(dt, anim::linear);
-		a_borderColorError.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 void FlatInput::setPlaceholder(const QString &ph) {
 	_fullph = ph;
 	updatePlaceholderText();
@@ -1704,26 +1620,21 @@ void FlatInput::setPlaceholder(const QString &ph) {
 void FlatInput::setPlaceholderFast(bool fast) {
 	_fastph = fast;
 	if (_fastph) {
-		a_phLeft = anim::ivalue(_phVisible ? 0 : _st.phShift, _phVisible ? 0 : _st.phShift);
-		a_phAlpha = anim::fvalue(_phVisible ? 1 : 0, _phVisible ? 1 : 0);
+		_a_placeholderVisible.finish();
 		update();
 	}
 }
 
 void FlatInput::updatePlaceholder() {
-	bool vis = !text().length();
-	if (vis == _phVisible) return;
-
-	if (_fastph) {
-		a_phLeft = anim::ivalue(vis ? 0 : _st.phShift, vis ? 0 : _st.phShift);
-		a_phAlpha = anim::fvalue(vis ? 1 : 0, vis ? 1 : 0);
-		update();
-	} else {
-		a_phLeft.start(vis ? 0 : _st.phShift);
-		a_phAlpha.start(vis ? 1 : 0);
-		_a_appearance.start();
+	auto placeholderVisible = text().isEmpty();
+	if (_placeholderVisible != placeholderVisible) {
+		_placeholderVisible = placeholderVisible;
+		if (_fastph) {
+			update();
+		} else {
+			_a_placeholderVisible.start([this] { update(); }, _placeholderVisible ? 0. : 1., _placeholderVisible ? 1. : 0., _st.phDuration);
+		}
 	}
-	_phVisible = vis;
 }
 
 const QString &FlatInput::placeholder() const {
@@ -1737,9 +1648,9 @@ QRect FlatInput::placeholderRect() const {
 void FlatInput::correctValue(const QString &was, QString &now) {
 }
 
-void FlatInput::phPrepare(Painter &p) {
+void FlatInput::phPrepare(Painter &p, float64 placeholderFocused) {
 	p.setFont(_st.font);
-	p.setPen(anim::pen(_st.phColor, _st.phFocusColor, a_phColorFocus.current()));
+	p.setPen(anim::pen(_st.phColor, _st.phFocusColor, placeholderFocused));
 }
 
 void FlatInput::keyPressEvent(QKeyEvent *e) {
@@ -1788,14 +1699,6 @@ void FlatInput::onTextEdited() {
 void FlatInput::onTextChange(const QString &text) {
 	_oldtext = text;
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
-}
-
-void FlatInput::notaBene() {
-	_notingBene = 1;
-	setFocus();
-	a_borderColorError.start(1.);
-	a_borderColorActive.restart();
-	_a_appearance.start();
 }
 
 InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString &ph, const QString &val) : TWidget(parent)

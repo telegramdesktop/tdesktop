@@ -204,7 +204,7 @@ void SendFilesBox::updateBoxSize() {
 		newHeight += st::boxPhotoPadding.top() + st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
 	}
 	if (_compressed) {
-		newHeight += st::boxPhotoCompressedSkip + _compressed->height();
+		newHeight += st::boxPhotoCompressedSkip + _compressed->heightNoMargins();
 	}
 	if (_caption) {
 		newHeight += st::boxPhotoCaptionSkip + _caption->height();
@@ -318,8 +318,8 @@ void SendFilesBox::updateControlsGeometry() {
 		bottom -= st::boxPhotoCaptionSkip + _caption->height();
 	}
 	if (_compressed) {
-		_compressed->moveToLeft(st::boxPhotoPadding.left(), bottom - _compressed->height());
-		bottom -= st::boxPhotoCompressedSkip + _compressed->height();
+		_compressed->moveToLeft(st::boxPhotoPadding.left(), bottom - _compressed->heightNoMargins());
+		bottom -= st::boxPhotoCompressedSkip + _compressed->heightNoMargins();
 	}
 }
 

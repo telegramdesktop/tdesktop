@@ -24,6 +24,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
+class RippleAnimation;
+
 class DiscreteSlider : public TWidget {
 public:
 	DiscreteSlider(QWidget *parent);
@@ -35,12 +37,12 @@ public:
 	}
 	void setActiveSection(int index);
 	void setActiveSectionFast(int index);
-	void setSelectOnPress(bool selectOnPress);
 
 	using SectionActivatedCallback = base::lambda<void()>;
 	void setSectionActivatedCallback(SectionActivatedCallback &&callback);
 
 protected:
+	void timerEvent(QTimerEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -53,6 +55,7 @@ protected:
 		int left, width;
 		QString label;
 		int labelWidth;
+		QSharedPointer<RippleAnimation> ripple;
 	};
 
 	int getCurrentActiveLeft(TimeMs ms);
@@ -64,11 +67,17 @@ protected:
 	template <typename Lambda>
 	void enumerateSections(Lambda callback);
 
+	virtual void startRipple(int index) {
+	}
+
 	void stopAnimation() {
 		_a_left.finish();
 	}
 
+	void setSelectOnPress(bool selectOnPress);
+
 private:
+	void activateCallback();
 	virtual const style::font &getLabelFont() const = 0;
 	virtual int getAnimationDuration() const = 0;
 
@@ -85,6 +94,9 @@ private:
 	int _selected = 0;
 	FloatAnimation _a_left;
 
+	int _timerId = -1;
+	TimeMs _callbackAfterMs = 0;
+
 };
 
 class SettingsSlider : public DiscreteSlider {
@@ -96,6 +108,8 @@ protected:
 
 	int resizeGetHeight(int newWidth) override;
 
+	void startRipple(int index) override;
+
 private:
 	const style::font &getLabelFont() const override;
 	int getAnimationDuration() const override;
@@ -103,6 +117,7 @@ private:
 	void resizeSections(int newWidth);
 
 	const style::SettingsSlider &_st;
+
 
 };
 

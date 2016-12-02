@@ -380,7 +380,7 @@ PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st
 , _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->heightNoMargins() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin->height() + st::boxButtonPadding.bottom());
 
 	connect(_pin, SIGNAL(clicked()), this, SLOT(onPin()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -430,7 +430,7 @@ RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from,
 	t_assert(_channel != nullptr);
 
 	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _banUser->height() + st::boxLittleSkip + _reportSpam->height() + st::boxLittleSkip + _deleteAll->height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _delete->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _delete->height() + st::boxButtonPadding.bottom());
 
 	connect(_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -438,9 +438,9 @@ RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from,
 
 void RichDeleteMessageBox::resizeEvent(QResizeEvent *e) {
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	_banUser->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
-	_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->y() + _banUser->height() + st::boxLittleSkip);
-	_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->y() + _reportSpam->height() + st::boxLittleSkip);
+	_banUser->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+	_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->bottomNoMargins() + st::boxLittleSkip);
+	_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->bottomNoMargins() + st::boxLittleSkip);
 	_delete->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _delete->height());
 	_cancel->moveToRight(st::boxButtonPadding.right() + _delete->width() + st::boxButtonPadding.left(), _delete->y());
 	AbstractBox::resizeEvent(e);

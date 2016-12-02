@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
+#include "styles/style_profile.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "mainwidget.h"
@@ -552,7 +553,7 @@ ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_
 ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _creating(creating)
-, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
 , _contacts(App::main()->contactsList())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
@@ -564,7 +565,7 @@ ContactsBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter m
 , _membersFilter(membersFilter)
 , _creating(CreatingGroupChannel)
 , _already(already)
-, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
 , _contacts(App::main()->contactsList())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
@@ -580,16 +581,16 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _chat(chat)
 , _membersFilter(membersFilter)
-, _allAdmins(this, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::defaultBoxCheckbox)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
-, _aboutAllAdmins(st::boxTextFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
-, _aboutAdmins(st::boxTextFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
+, _aboutAllAdmins(st::normalFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
+, _aboutAdmins(st::normalFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
 , _customList((membersFilter == MembersFilter::Recent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts((membersFilter == MembersFilter::Recent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();
 	if (membersFilter == MembersFilter::Admins) {
-		_aboutHeight = st::contactsAboutSkip + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutHeight;
+		_aboutHeight = st::contactsAboutTop + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutBottom;
 		if (_contacts->isEmpty()) {
 			App::api()->requestFullPeer(_chat);
 		}
@@ -611,7 +612,7 @@ void ContactsBox::Inner::addDialogsToList(FilterCallback callback) {
 ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
-, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
 , _customList(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts(_customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
@@ -667,7 +668,7 @@ void ContactsBox::Inner::initList() {
 		others.reserve(_chat->participants.size());
 	}
 
-	for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+	for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 		if (i.key()->id == peerFromUser(_chat->creator)) continue;
 		if (!_allAdmins->checked() && _chat->admins.contains(i.key())) {
 			admins.push_back(i.key());
@@ -680,16 +681,16 @@ void ContactsBox::Inner::initList() {
 	}
 	std::sort(admins.begin(), admins.end(), _sortByName);
 	std::sort(others.begin(), others.end(), _sortByName);
-	if (UserData *creator = App::userLoaded(_chat->creator)) {
+	if (auto creator = App::userLoaded(_chat->creator)) {
 		if (_chat->participants.contains(creator)) {
 			admins.push_front(creator);
 		}
 	}
-	for (int32 i = 0, l = admins.size(); i < l; ++i) {
-		_contacts->addToEnd(App::history(admins.at(i)->id));
+	for_const (auto user, admins) {
+		_contacts->addToEnd(App::history(user->id));
 	}
-	for (int32 i = 0, l = others.size(); i < l; ++i) {
-		_contacts->addToEnd(App::history(others.at(i)->id));
+	for_const (auto user, others) {
+		_contacts->addToEnd(App::history(user->id));
 	}
 }
 
@@ -1039,12 +1040,18 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 	if (_filter.isEmpty()) {
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {
 			if (_aboutHeight) {
-				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
-				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-				p.setPen(st::boxTextFg);
-				p.drawTextLeft(st::contactsPadding.left(), st::contactsAllAdminsTop, width(), lang(lng_chat_all_members_admins));
+				auto infoTop = _allAdmins->bottomNoMargins() + st::contactsAllAdminsTop - st::lineWidth;
+
+				auto infoRect = rtlrect(0, infoTop, width(), _aboutHeight - infoTop - st::contactsPadding.bottom(), width());
+				p.fillRect(infoRect, st::contactsAboutBg);
+				auto dividerFillTop = rtlrect(0, infoRect.y(), width(), st::profileDividerTop.height(), width());
+				st::profileDividerTop.fill(p, dividerFillTop);
+				auto dividerFillBottom = rtlrect(0, infoRect.y() + infoRect.height() - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height(), width());
+				st::profileDividerBottom.fill(p, dividerFillBottom);
+
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
-				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutSkip + st::contactsAboutTop, aboutw);
+				p.setPen(st::contactsAboutFg);
+				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
 
 				yFrom -= _aboutHeight;
 				yTo -= _aboutHeight;
@@ -1090,10 +1097,9 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
 				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-				p.setPen(st::boxTextFg);
-				p.drawTextLeft(st::contactsPadding.left(), st::contactsAllAdminsTop, width(), lang(lng_chat_all_members_admins));
+
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
-				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutSkip + st::contactsAboutTop, aboutw);
+				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
 				p.translate(0, _aboutHeight);
 			} else if (cContactsReceived() && !_searching) {
 				text = lang(lng_no_contacts);
