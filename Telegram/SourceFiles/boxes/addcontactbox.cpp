@@ -275,9 +275,11 @@ GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : Ab
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
 	_photo->setClickedCallback([this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		App::CallDelayed(st::defaultActiveButton.ripple.hideDuration, base::lambda_guarded(this, [this] {
+			auto imgExtensions = cImgExtensions();
+			auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+			_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		}));
 	});
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);

@@ -58,7 +58,7 @@ private:
 const TypingAnimation::MetaData TypingAnimation::kMeta = { 0, &TypingAnimation::create };
 
 void TypingAnimation::paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) {
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
 	auto position = QPointF(x + 0.5, y - 0.5) + st::historySendActionTypingPosition;
@@ -76,7 +76,6 @@ void TypingAnimation::paintFrame(Painter &p, const style::color &color, int x, i
 		position.setX(position.x() + st::historySendActionTypingDelta);
 		frameMs = (frameMs + st::historySendActionTypingDuration - st::historySendActionTypingDeltaTime) % st::historySendActionTypingDuration;
 	}
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 class RecordAnimation : public SendActionAnimation::Impl {
@@ -104,7 +103,7 @@ private:
 const RecordAnimation::MetaData RecordAnimation::kMeta = { 0, &RecordAnimation::create };
 
 void RecordAnimation::paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) {
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	PainterHighQualityEnabler hq(p);
 	auto pen = color->p;
 	pen.setWidth(st::historySendActionRecordStrokeNumerator / st::historySendActionRecordDenominator);
 	pen.setJoinStyle(Qt::RoundJoin);
@@ -121,7 +120,6 @@ void RecordAnimation::paintFrame(Painter &p, const style::color &color, int x, i
 		size += st::historySendActionRecordDelta;
 	}
 	p.setOpacity(1.);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 class UploadAnimation : public SendActionAnimation::Impl {
@@ -149,7 +147,7 @@ private:
 const UploadAnimation::MetaData UploadAnimation::kMeta = { 0, &UploadAnimation::create };
 
 void UploadAnimation::paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) {
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	PainterHighQualityEnabler hq(p);
 	auto pen = color->p;
 	pen.setWidth(st::historySendActionUploadStrokeNumerator / st::historySendActionUploadDenominator);
 	pen.setJoinStyle(Qt::RoundJoin);
@@ -170,7 +168,6 @@ void UploadAnimation::paintFrame(Painter &p, const style::color &color, int x, i
 		p.translate(st::historySendActionUploadDelta, 0);
 	}
 	p.setOpacity(1.);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	p.translate(-position);
 }
 

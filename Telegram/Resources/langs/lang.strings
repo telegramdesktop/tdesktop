@@ -146,6 +146,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_intro_submit" = "SUBMIT";
 
 "lng_photo_caption" = "Caption";
+"lng_photos_comment" = "Comment";
 
 "lng_phone_ph" = "Your phone number";
 "lng_phone_title" = "Your Phone";

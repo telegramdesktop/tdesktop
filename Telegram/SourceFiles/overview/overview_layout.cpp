@@ -402,9 +402,10 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 		}
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
 		auto icon = ([radial, loaded, selected] {
@@ -549,9 +550,10 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 		}
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
@@ -597,9 +599,10 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			p.setPen(Qt::NoPen);
 			p.setBrush(selected ? st::msgFileInBgSelected : st::msgFileInBg);
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-			p.drawEllipse(rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(rtlrect(unreadx + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
+			}
 		}
 	}
 }
@@ -758,9 +761,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				p.setBrush(over ? _st.songOverBg : _st.songIconBg);
 			}
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.drawEllipse(inner);
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(inner);
+			}
 
 			if (radial) {
 				auto rinner = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));
@@ -834,9 +838,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 
-					p.setRenderHint(QPainter::HighQualityAntialiasing);
-					p.drawEllipse(inner);
-					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+					{
+						PainterHighQualityEnabler hq(p);
+						p.drawEllipse(inner);
+					}
 
 					p.setOpacity(radialOpacity);
 					auto icon = ([loaded, this, selected] {
@@ -1187,7 +1192,7 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		top += h;
 	}
 
-	p.setPen(st::btnYesColor);
+	p.setPen(st::windowActiveTextFg);
 	for (int32 i = 0, l = _links.size(); i < l; ++i) {
 		if (clip.intersects(rtlrect(left, top, qMin(w, _links.at(i).width), st::normalFont->height, _width))) {
 			p.setFont(ClickHandler::showAsActive(_links.at(i).lnk) ? st::normalFont->underline() : st::normalFont);

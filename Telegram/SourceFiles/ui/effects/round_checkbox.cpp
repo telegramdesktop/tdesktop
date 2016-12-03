@@ -34,7 +34,8 @@ void prepareCheckCaches(const style::RoundCheckbox *st, bool displayInactive, QP
 	cache.fill(Qt::transparent);
 	{
 		Painter p(&cache);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		PainterHighQualityEnabler hq(p);
+
 		if (displayInactive) {
 			p.setPen(Qt::NoPen);
 		} else {
@@ -86,7 +87,8 @@ void RoundCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, f
 	auto cacheFrom = QRect(0, 0, cacheSize, cacheSize);
 	auto displayInactive = !_inactiveCacheBg.isNull();
 	auto inactiveTo = cacheDestRect(x, y, masterScale);
-	p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+
+	PainterHighQualityEnabler hq(p);
 	if (!_inactiveCacheBg.isNull()) {
 		p.drawPixmap(inactiveTo, _inactiveCacheBg, cacheFrom);
 	}
@@ -111,7 +113,6 @@ void RoundCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWidth, f
 	if (!_inactiveCacheFg.isNull()) {
 		p.drawPixmap(inactiveTo, _inactiveCacheFg, cacheFrom);
 	}
-	p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 }
 
 void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
@@ -201,7 +202,8 @@ void RoundCheckbox::prepareInactiveCache() {
 	auto cacheFg = cacheBg;
 	if (_st.bgInactive) {
 		Painter p(&cacheBg);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		PainterHighQualityEnabler hq(p);
+
 		p.setPen(Qt::NoPen);
 		p.setBrush(_st.bgInactive);
 		p.drawEllipse(ellipse);
@@ -210,7 +212,8 @@ void RoundCheckbox::prepareInactiveCache() {
 
 	{
 		Painter p(&cacheFg);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		PainterHighQualityEnabler hq(p);
+
 		auto pen = _st.border->p;
 		pen.setWidth(_st.width);
 		p.setPen(pen);
@@ -239,9 +242,8 @@ void RoundImageCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWid
 		auto to = QRect(userpicLeft, userpicTop, userpicRadius * 2, userpicRadius * 2);
 		auto from = QRect(QPoint(0, 0), _wideCache.size());
 
-		p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+		PainterHighQualityEnabler hq(p);
 		p.drawPixmapLeft(to, outerWidth, _wideCache, from);
-		p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 	} else {
 		if (!_wideCache.isNull()) {
 			_wideCache = QPixmap();
@@ -254,7 +256,7 @@ void RoundImageCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWid
 	}
 
 	if (selectionLevel > 0) {
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		PainterHighQualityEnabler hq(p);
 		p.setOpacity(snap(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
 		auto pen = _st.selectFg->p;
@@ -262,7 +264,6 @@ void RoundImageCheckbox::paint(Painter &p, TimeMs ms, int x, int y, int outerWid
 		p.setPen(pen);
 		p.drawEllipse(rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
 		p.setOpacity(1.);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	}
 
 	auto iconLeft = x + 2 * _st.imageRadius + _st.selectWidth - _st.check.size;

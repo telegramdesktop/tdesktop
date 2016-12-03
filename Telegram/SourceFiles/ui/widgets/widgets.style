@@ -464,9 +464,9 @@ defaultFlatLabel: FlatLabel {
 }
 
 defaultLinkButton: LinkButton {
-	color: btnYesColor;
-	overColor: btnYesColor;
-	downColor: btnYesHover;
+	color: windowActiveTextFg;
+	overColor: windowActiveTextFg;
+	downColor: windowActiveTextFg;
 	font: linkFont;
 	overFont: linkOverFont;
 }
@@ -616,7 +616,7 @@ defaultInputArea: InputArea {
 	duration: 120;
 
 	borderFg: #e0e0e0;
-	borderFgActive: #62c0f7;
+	borderFgActive: activeLineFg;
 	borderFgError: #e48383;
 
 	border: 1px;
@@ -643,7 +643,7 @@ defaultInputField: InputField {
 	duration: 120;
 
 	borderFg: #e0e0e0;
-	borderFgActive: #62c0f7;
+	borderFgActive: activeLineFg;
 	borderFgError: #e48383;
 
 	border: 1px;
@@ -719,8 +719,8 @@ defaultSettingsSlider: SettingsSlider {
 	barFgActive: windowBgActive;
 	labelTop: 17px;
 	labelFont: normalFont;
-	labelFg: #1485c2;
-	labelFgActive: #1485c2;
+	labelFg: windowActiveTextFg;
+	labelFgActive: windowActiveTextFg;
 	duration: 150;
 }
 

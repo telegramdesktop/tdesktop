@@ -29,11 +29,11 @@ windowSubTextFg: #999999; // gray: fallback for subtext color
 windowSubTextFgOver: #919191; // gray over light blue: fallback for subtext over color
 windowBoldFg: #222222; // dark gray: fallback for bold text color
 windowBoldFgOver: #222222; // dark gray: fallback for over bold text color
-windowBgActive: #40ace3; // bright blue: fallback for blue filled active areas
+windowBgActive: #40a7e3; // bright blue: fallback for blue filled active areas
 windowFgActive: #ffffff; // text on bright blue: fallback for text on active areas
-windowActiveTextFg: #2687bf; // online blue: fallback for active color
+windowActiveTextFg: #168acd; // online blue: fallback for active color
 windowShadowFg: #000000; // black: fallback for shadow color
-windowShadowFgFallback: #cdcdcd; // gray: fallback for shadow without
+windowShadowFgFallback: #cdcdcd; // gray: fallback for shadow without opacity
 
 imageBg: #000000;
 imageBgTransparent: #ffffff;
@@ -46,11 +46,12 @@ activeButtonFg: windowFgActive;
 activeButtonFgOver: activeButtonFg;
 activeButtonSecondaryFg: #cceeff;
 activeButtonSecondaryFgOver: activeButtonSecondaryFg;
+activeLineFg: #37a1de;
 
 lightButtonBg: windowBg;
 lightButtonBgOver: #e3f1fa;
 lightButtonBgRipple: #c9e4f6;
-lightButtonFg: #2b99d5;
+lightButtonFg: windowActiveTextFg;
 lightButtonFgOver: lightButtonFg;
 
 attentionButtonFg: #d14e4e;
@@ -139,15 +140,15 @@ dialogsNameFg: windowBoldFg;
 dialogsChatIconFg: dialogsNameFg;
 dialogsDateFg: windowSubTextFg;
 dialogsTextFg: windowSubTextFg;
-dialogsTextFgService: #4981af;
+dialogsTextFgService: windowActiveTextFg;
 dialogsDraftFg: #dd4b39;
-dialogsVerifiedIconBg: #4abcf1;
-dialogsVerifiedIconFg: #ffffff;
+dialogsVerifiedIconBg: windowBgActive;
+dialogsVerifiedIconFg: windowFgActive;
 dialogsSendingIconFg: #c1c1c1;
 dialogsSentIconFg: #5dc452;
 dialogsUnreadBg: windowBgActive;
 dialogsUnreadBgMuted: #bbbbbb;
-dialogsUnreadFg: #ffffff;
+dialogsUnreadFg: windowFgActive;
 
 dialogsBgOver: windowBgOver;
 dialogsNameFgOver: windowBoldFgOver;

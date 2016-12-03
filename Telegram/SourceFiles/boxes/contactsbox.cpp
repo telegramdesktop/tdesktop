@@ -1012,17 +1012,17 @@ void ContactsBox::Inner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, i
 
 	peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, width());
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+	{
+		PainterHighQualityEnabler hq(p);
 
-	p.setPen(userpicBorderPen);
-	p.setBrush(Qt::NoBrush);
-	p.drawEllipse(userpicEllipse);
+		p.setPen(userpicBorderPen);
+		p.setBrush(Qt::NoBrush);
+		p.drawEllipse(userpicEllipse);
 
-	p.setPen(iconBorderPen);
-	p.setBrush(st::contactsPhotoDisabledCheckFg);
-	p.drawEllipse(iconEllipse);
-
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		p.setPen(iconBorderPen);
+		p.setBrush(st::contactsPhotoDisabledCheckFg);
+		p.drawEllipse(iconEllipse);
+	}
 
 	st::contactsPhotoCheckbox.check.check.paint(p, iconEllipse.topLeft(), outerWidth);
 }
@@ -1071,10 +1071,10 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				yTo -= _contacts->size() * _rowHeight;
 			}
 			if (!_byUsername.isEmpty()) {
-				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBg);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_search_global_results), style::al_center);
 
 				yFrom -= st::searchedBarHeight;
 				yTo -= st::searchedBarHeight;
@@ -1135,10 +1135,10 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (!_byUsernameFiltered.isEmpty()) {
-				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBg);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_search_global_results), style::al_center);
 				p.translate(0, st::searchedBarHeight);
 
 				yFrom -= _filtered.size() * _rowHeight + st::searchedBarHeight;

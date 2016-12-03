@@ -33,7 +33,7 @@ class ItemBase;
 
 namespace App {
 
-void LambdaDelayed(int duration, base::lambda<void()> &&lambda);
+void CallDelayed(int duration, base::lambda<void()> &&lambda);
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo = 0);
 bool insertBotCommand(const QString &cmd, bool specialGif = false);

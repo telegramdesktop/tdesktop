@@ -1568,10 +1568,8 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				p.fillRect(imgRect, _transparentBrush);
 			}
 			if (toDraw.width() != _w * cIntRetinaFactor()) {
-				bool was = (p.renderHints() & QPainter::SmoothPixmapTransform);
-				if (!was) p.setRenderHint(QPainter::SmoothPixmapTransform, true);
+				PainterHighQualityEnabler hq(p);
 				p.drawPixmap(QRect(_x, _y, _w, _h), toDraw);
-				if (!was) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 			} else {
 				p.drawPixmap(_x, _y, toDraw);
 			}
@@ -1591,9 +1589,10 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					p.setOpacity(radialOpacity);
 					p.setBrush(st::radialBg);
 
-					p.setRenderHint(QPainter::HighQualityAntialiasing);
-					p.drawEllipse(inner);
-					p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+					{
+						PainterHighQualityEnabler hq(p);
+						p.drawEllipse(inner);
+					}
 
 					p.setOpacity(1);
 					QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
@@ -1807,9 +1806,10 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 		p.setOpacity(_doc->loaded() ? radialOpacity : 1.);
 		p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, o));
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		p.setOpacity(1.);
 		auto icon = ([radial, this]() -> const style::icon* {

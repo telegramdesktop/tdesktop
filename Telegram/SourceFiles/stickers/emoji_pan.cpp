@@ -994,9 +994,10 @@ void StickerPanInner::paintStickers(Painter &p, const QRect &r) {
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::stickersFeaturedUnreadBg);
 
-				p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-				p.drawEllipse(rtlrect(st::emojiPanHeaderLeft - st::buttonRadius + titleWidth + st::stickersFeaturedUnreadSkip, y + st::stickersTrendingHeaderTop + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
-				p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+				{
+					PainterHighQualityEnabler hq(p);
+					p.drawEllipse(rtlrect(st::emojiPanHeaderLeft - st::buttonRadius + titleWidth + st::stickersFeaturedUnreadSkip, y + st::stickersTrendingHeaderTop + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
+				}
 			}
 
 			p.setFont(st::stickersTrendingSubheaderFont);

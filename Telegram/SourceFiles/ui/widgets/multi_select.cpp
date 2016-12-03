@@ -170,19 +170,20 @@ void MultiSelect::Inner::Item::paintOnce(Painter &p, int x, int y, int outerWidt
 
 	auto clipEnabled = p.hasClipping();
 	auto clip = clipEnabled ? p.clipRegion() : QRegion();
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	p.setClipRect(inner);
 
 	p.setPen(Qt::NoPen);
 	p.setBrush(_active ? _st.textActiveBg : _st.textBg);
-	p.drawRoundedRect(rtlrect(x, y, _width, _st.height, outerWidth), radius, radius);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawRoundedRect(rtlrect(x, y, _width, _st.height, outerWidth), radius, radius);
+	}
 
 	if (clipEnabled) {
 		p.setClipRegion(clip);
 	} else {
 		p.setClipping(false);
 	}
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 
 	auto overOpacity = _overOpacity.current(ms, _over ? 1. : 0.);
 	if (overOpacity < 1.) {
@@ -203,9 +204,10 @@ void MultiSelect::Inner::Item::paintDeleteButton(Painter &p, int x, int y, int o
 
 	p.setPen(Qt::NoPen);
 	p.setBrush(_color);
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.drawEllipse(rtlrect(x, y, _st.height, _st.height, outerWidth));
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(rtlrect(x, y, _st.height, _st.height, outerWidth));
+	}
 
 	CrossAnimation::paint(p, _st.deleteCross, _st.deleteFg, x, y, outerWidth, overOpacity);
 
@@ -213,15 +215,15 @@ void MultiSelect::Inner::Item::paintDeleteButton(Painter &p, int x, int y, int o
 }
 
 bool MultiSelect::Inner::Item::paintCached(Painter &p, int x, int y, int outerWidth) {
+	PainterHighQualityEnabler hq(p);
+
 	auto opacity = _visibility.current(_hiding ? 0. : 1.);
 	auto scale = opacity + _st.minScale * (1. - opacity);
 	auto height = opacity * _cache.height() / _cache.devicePixelRatio();
 	auto width = opacity * _cache.width() / _cache.devicePixelRatio();
 
 	p.setOpacity(opacity);
-	p.setRenderHint(QPainter::SmoothPixmapTransform, true);
 	p.drawPixmap(rtlrect(x + (_width - width) / 2., y + (_st.height - height) / 2., width, height, outerWidth), _cache);
-	p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 	p.setOpacity(1.);
 	return true;
 }

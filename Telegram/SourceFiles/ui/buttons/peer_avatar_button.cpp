@@ -52,10 +52,13 @@ void NewAvatarButton::paintEvent(QPaintEvent *e) {
 		p.drawPixmap(0, 0, _image);
 		return;
 	}
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+
 	p.setPen(Qt::NoPen);
 	p.setBrush((_state & StateOver) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg);
-	p.drawEllipse(rect());
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(rect());
+	}
 
 	paintRipple(p, 0, 0, getms());
 

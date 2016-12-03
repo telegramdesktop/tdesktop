@@ -1542,13 +1542,14 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 	auto placeholderFocused = _a_placeholderFocused.current(ms, hasFocus() ? 1. : 0.);
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	auto pen = anim::pen(_st.borderColor, _st.borderActive, placeholderFocused);
 	pen.setWidth(_st.borderWidth);
 	p.setPen(pen);
 	p.setBrush(anim::brush(_st.bgColor, _st.bgActive, placeholderFocused));
-	p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::buttonRadius - (_st.borderWidth / 2.), st::buttonRadius - (_st.borderWidth / 2.));
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawRoundedRect(QRectF(0, 0, width(), height()).marginsRemoved(QMarginsF(_st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2., _st.borderWidth / 2.)), st::buttonRadius - (_st.borderWidth / 2.), st::buttonRadius - (_st.borderWidth / 2.));
+	}
 
 	if (!_st.icon.empty()) {
 		_st.icon.paint(p, 0, 0, width());

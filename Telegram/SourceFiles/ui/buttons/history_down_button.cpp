@@ -146,7 +146,7 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	p.setPen(pen);
 	p.setBrush(Qt::NoBrush);
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+	PainterHighQualityEnabler hq(p);
 	QRect inner(QPoint((width() - st::historyEmojiCircle.width()) / 2, st::historyEmojiCircleTop), st::historyEmojiCircle);
 	if (loading > 0) {
 		int32 full = FullArcLength;
@@ -155,7 +155,6 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	} else {
 		p.drawEllipse(inner);
 	}
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 void EmojiButton::setLoading(bool loading) {

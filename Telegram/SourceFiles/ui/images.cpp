@@ -44,7 +44,8 @@ const QPixmap &circleMask(int width, int height) {
 		QImage mask(width, height, QImage::Format_ARGB32_Premultiplied);
 		{
 			Painter p(&mask);
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
+			PainterHighQualityEnabler hq(p);
+
 			p.setCompositionMode(QPainter::CompositionMode_Source);
 			p.fillRect(0, 0, width, height, Qt::transparent);
 			p.setBrush(Qt::white);
@@ -78,9 +79,10 @@ QImage prepareBlur(QImage img) {
 			if (withalpha) {
 				QImage imgsmall(w, h, img.format());
 				{
-					QPainter p(&imgsmall);
+					Painter p(&imgsmall);
+					PainterHighQualityEnabler hq(p);
+
 					p.setCompositionMode(QPainter::CompositionMode_Source);
-					p.setRenderHint(QPainter::SmoothPixmapTransform);
 					p.fillRect(0, 0, w, h, Qt::transparent);
 					p.drawImage(QRect(radius, radius, w - 2 * radius, h - 2 * radius), img, QRect(0, 0, w, h));
 				}
@@ -485,6 +487,29 @@ const QPixmap &Image::pixCircled(int32 w, int32 h) const {
 		h *= cIntRetinaFactor();
 	}
 	auto options = Images::Option::Smooth | Images::Option::Circled;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixNoCache(w, h, options);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixBlurredCircled(int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Smooth | Images::Option::Circled | Images::Option::Blurred;
 	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
 	if (i == _sizesCache.cend()) {

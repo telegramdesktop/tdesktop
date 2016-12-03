@@ -344,7 +344,7 @@ sharePhotoCheckbox: RoundImageCheckbox(contactsPhotoCheckbox) {
 }
 shareNameFont: font(11px);
 shareNameFg: windowFg;
-shareNameActiveFg: btnYesColor;
+shareNameActiveFg: windowActiveTextFg;
 shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareActivateDuration: 150;

@@ -69,6 +69,8 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	validatePhoto();
 
 	refreshNameText();
+
+	subscribe(Global::RefConnectionTypeChanged(), [this] { refreshStatusText(); });
 	refreshStatusText();
 }
 
@@ -290,8 +292,14 @@ void CoverWidget::refreshStatusText() {
 	}
 
 	_cancelPhotoUpload.destroy();
-	_statusText = lang(lng_status_online);
-	_statusTextIsOnline = true;
+	auto state = MTP::dcstate();
+	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || state < 0) {
+		_statusText = lang(lng_status_connecting);
+		_statusTextIsOnline = false;
+	} else {
+		_statusText = lang(lng_status_online);
+		_statusTextIsOnline = true;
+	}
 	update();
 }
 

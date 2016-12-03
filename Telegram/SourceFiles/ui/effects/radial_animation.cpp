@@ -86,9 +86,10 @@ void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, cons
 		if (from < 0) from += FullArcLength;
 	}
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.drawArc(inner, from, len);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawArc(inner, from, len);
+	}
 
 	p.setPen(was);
 	p.setOpacity(o);

@@ -70,19 +70,12 @@ slideShift: 100px;
 slideFadeOutBg: #0000003c;
 slideShadow: icon {{ "slide_shadow", windowShadowFg }};
 
-btnYesColor: #0080c0;
-btnYesHover: #0073ad;
-btnNoColor: #8b8b8b;
-btnNoHover: #777777;
-
 linkCropLimit: 360px;
 linkFont: normalFont;
 linkOverFont: font(fsize underline);
 
 dateRadius: 6px;
 buttonRadius: 3px;
-
-lnkText: #0f7dc7;
 
 setLittleSkip: 9px;
 
@@ -114,8 +107,8 @@ msgOutBg: #effdde;
 msgOutBgSelected: #b7dbdb;
 msgSelectOverlay: #358cd44c;
 msgStickerOverlay: #358cd47f;
-msgInServiceFg: #0e7acd;
-msgInServiceFgSelected: #0e7acd;
+msgInServiceFg: windowActiveTextFg;
+msgInServiceFgSelected: windowActiveTextFg;
 msgOutServiceFg: #3a8e26;
 msgOutServiceFgSelected: #367570;
 msgShadow: 2px;
@@ -132,8 +125,8 @@ msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
 msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
-msgInReplyBarColor: #2fa9e2;
-msgInReplyBarSelColor: #2fa9e2;
+msgInReplyBarColor: activeLineFg;
+msgInReplyBarSelColor: activeLineFg;
 msgOutReplyBarColor: historyOutIconFg;
 msgOutReplyBarSelColor: historyOutIconFgSelected;
 msgImgReplyBarColor: #ffffff;
@@ -146,10 +139,6 @@ msgServiceMargin: margins(10px, 10px, 80px, 2px);
 
 msgColor: #000000;
 msgDateColor: #000000;
-msgLinkColor: #2a6dc2;
-msgPressedLinkColor: #004bad;
-msgSkip: 40px;
-msgPtr: 8px;
 
 msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
@@ -165,8 +154,8 @@ msgDateImgCheckSpace: 4px;
 defaultTextStyle: TextStyle {
 	linkFlags: font(fsize);
 	linkFlagsOver: font(fsize underline);
-	linkFg: btnYesColor;
-	linkFgDown: btnYesHover;
+	linkFg: windowActiveTextFg;
+	linkFgDown: windowActiveTextFg;
 	monoFg: #777777;
 	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
@@ -214,7 +203,7 @@ medviewSaveAsTextStyle: TextStyle(defaultTextStyle) {
 	linkFgDown: #91d9ff;
 }
 
-mediaPadding: margins(0px, 0px, 0px, 0px);//1px, 1px, 1px, 1px);//2px, 2px, 2px, 2px);
+mediaPadding: margins(0px, 0px, 0px, 0px);
 mediaCaptionSkip: 5px;
 mediaInBubbleSkip: 5px;
 mediaThumbSize: 48px;
@@ -310,10 +299,11 @@ unreadBarBorder: shadowColor;
 unreadBarColor: #538bb4;
 
 searchedBarHeight: unreadBarHeight;
-searchedBarFont: unreadBarFont;
-searchedBarBG: #ebeef1;
+searchedBarFont: normalFont;
+searchedBarBg: windowBgOver;
 searchedBarBorder: unreadBarBorder;
-searchedBarColor: #a2aeb7;
+searchedBarFg: windowSubTextFgOver;
+searchedBarPosition: point(17px, 7px);
 
 simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
@@ -346,7 +336,7 @@ dragBg: #ffffff;
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
 dragColor: #777777;
-dragDropColor: btnYesColor;
+dragDropColor: windowActiveTextFg;
 
 dragMargin: margins(0px, 10px, 0px, 10px);
 dragPadding: margins(20px, 10px, 20px, 10px);

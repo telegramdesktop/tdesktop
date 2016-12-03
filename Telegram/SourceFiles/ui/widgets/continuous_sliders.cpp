@@ -186,8 +186,9 @@ float64 FilledSlider::getOverDuration() const {
 
 void FilledSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+	PainterHighQualityEnabler hq(p);
+
 	p.setPen(Qt::NoPen);
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
 
 	auto masterOpacity = fadeOpacity();
 	auto ms = getms();
@@ -233,8 +234,9 @@ float64 MediaSlider::getOverDuration() const {
 
 void MediaSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+	PainterHighQualityEnabler hq(p);
+
 	p.setPen(Qt::NoPen);
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
 	p.setOpacity(fadeOpacity());
 
 	auto horizontal = isHorizontal();

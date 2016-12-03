@@ -245,7 +245,8 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 	_mask.fill(Qt::white);
 	{
 		Painter p(&_mask);
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		PainterHighQualityEnabler hq(p);
+
 		p.setPen(Qt::NoPen);
 		p.setBrush(Qt::black);
 		p.drawEllipse(_cropx, _cropy, _cropw, _cropw);

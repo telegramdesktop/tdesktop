@@ -75,6 +75,40 @@ public:
 	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix) {
 		return drawPixmapRight(p.x(), p.y(), outerw, pix);
 	}
+
+};
+
+class PainterHighQualityEnabler {
+public:
+	PainterHighQualityEnabler(Painter &p) : _painter(p) {
+		auto hints = _painter.renderHints();
+		for_const (auto hint, Hints) {
+			if (!(hints & hint)) {
+				_hints |= hint;
+			}
+		}
+		if (_hints) {
+			_painter.setRenderHints(_hints);
+		}
+	}
+	PainterHighQualityEnabler(const PainterHighQualityEnabler &other) = delete;
+	PainterHighQualityEnabler &operator=(const PainterHighQualityEnabler &other) = delete;
+	~PainterHighQualityEnabler() {
+		if (_hints) {
+			_painter.setRenderHints(_hints, false);
+		}
+	}
+
+private:
+	Painter &_painter;
+	QPainter::RenderHints _hints = 0;
+	static constexpr QPainter::RenderHint Hints[] = {
+		QPainter::Antialiasing,
+		QPainter::SmoothPixmapTransform,
+		QPainter::TextAntialiasing,
+		QPainter::HighQualityAntialiasing
+	};
+
 };
 
 #define T_WIDGET \

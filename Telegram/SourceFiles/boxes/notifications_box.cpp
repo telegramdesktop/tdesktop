@@ -221,8 +221,9 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
+		PainterHighQualityEnabler hq(p);
+
 		p.setPen(Qt::NoPen);
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
 
 		auto padding = height / 8;
 		auto userpicSize = height - 2 * padding;

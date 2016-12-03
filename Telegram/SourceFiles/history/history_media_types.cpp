@@ -393,23 +393,30 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	} else {
 		App::roundShadow(p, 0, 0, width, height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
-
-	auto inWebPage = (_parent->getMedia() != this);
-	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
-		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
-	QPixmap pix;
-	if (loaded) {
-		pix = _data->full->pixSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
-	} else {
-		pix = _data->thumb->pixBlurredSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
-	}
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
-	p.drawPixmap(rthumb.topLeft(), pix);
-	if (selected) {
-		App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
+	QPixmap pix;
+	if (_parent->toHistoryMessage()) {
+		auto inWebPage = (_parent->getMedia() != this);
+		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+		auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+			| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
+		if (loaded) {
+			pix = _data->full->pixSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
+		} else {
+			pix = _data->thumb->pixBlurredSingle(_pixw, _pixh, width, height, roundRadius, roundCorners);
+		}
+		p.drawPixmap(rthumb.topLeft(), pix);
+		if (selected) {
+			App::complexOverlayRect(p, rthumb, roundRadius, roundCorners);
+		}
+	} else {
+		if (loaded) {
+			pix = _data->full->pixCircled(_pixw, _pixh);
+		} else {
+			pix = _data->thumb->pixBlurredCircled(_pixw, _pixh);
+		}
+		p.drawPixmap(rthumb.topLeft(), pix);
 	}
-
 	if (radial || (!loaded && !_data->loading())) {
 		float64 radialOpacity = (radial && loaded && !_data->uploading()) ? _animation->radial.opacity() : 1;
 		QRect inner(rthumb.x() + (rthumb.width() - st::msgFileSize) / 2, rthumb.y() + (rthumb.height() - st::msgFileSize) / 2, st::msgFileSize, st::msgFileSize);
@@ -426,9 +433,10 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 		p.setOpacity(radialOpacity * p.opacity());
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		p.setOpacity(radial ? _animation->radial.opacity() : 1);
 
@@ -763,9 +771,10 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
 	}
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.drawEllipse(inner);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(inner);
+	}
 
 	if (!selected && _animation) {
 		p.setOpacity(1);
@@ -1123,9 +1132,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			}
 			p.setOpacity(radialOpacity * p.opacity());
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.drawEllipse(inner);
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(inner);
+			}
 
 			p.setOpacity(radialOpacity);
 			auto icon = ([radial, this, selected] {
@@ -1170,9 +1180,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			p.setBrush(outbg ? (over ? st::msgFileOutBgOver : st::msgFileOutBg) : (over ? st::msgFileInBgOver : st::msgFileInBg));
 		}
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
@@ -1279,9 +1290,10 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			p.setPen(Qt::NoPen);
 			p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-			p.drawEllipse(rtlrect(nameleft + w + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(rtlrect(nameleft + w + st::mediaUnreadSkip, statustop + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
+			}
 		}
 	}
 
@@ -1747,9 +1759,10 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		}
 		p.setOpacity(radialOpacity * p.opacity());
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		p.setOpacity(radialOpacity);
 		auto icon = ([this, radial, selected]() -> const style::icon * {

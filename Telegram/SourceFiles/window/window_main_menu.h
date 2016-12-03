@@ -49,6 +49,7 @@ protected:
 private:
 	void checkSelf();
 	void updateControlsGeometry();
+	void updateConnectionState();
 
 	ChildWidget<Profile::UserpicButton> _userpicButton = { nullptr };
 	ChildWidget<Ui::Menu> _menu;
@@ -56,6 +57,7 @@ private:
 	ChildWidget<Ui::FlatLabel> _version;
 
 	bool _showFinished = false;
+	QString _connectionText;
 
 };
 

@@ -69,9 +69,10 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 		p.setOpacity(radialOpacity);
 		p.setBrush(st::radialBg);
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		p.setOpacity(1);
 		QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
@@ -143,12 +144,13 @@ void BackgroundRow::updateImage() {
 	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
-		QPainter p(&back);
+		Painter p(&back);
+		PainterHighQualityEnabler hq(p);
+
 		auto &pix = Window::Theme::Background()->image();
 		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
-		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, sx, sy, s, s);
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);

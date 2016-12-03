@@ -124,7 +124,7 @@ SendFilesBox::SendFilesBox(const QString &filepath, QImage image, CompressConfir
 SendFilesBox::SendFilesBox(const QStringList &files, CompressConfirm compressed) : AbstractBox(st::boxWideWidth)
 , _files(files)
 , _compressConfirm(compressed)
-, _caption(this, st::confirmCaptionArea, lang(lng_photo_caption))
+, _caption(this, st::confirmCaptionArea, lang(lng_photos_comment))
 , _send(this, lang(lng_send_button), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 	updateTitleText();
@@ -245,9 +245,10 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgDateImgBg);
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.drawEllipse(inner);
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(inner);
+			}
 
 			auto icon = &st::historyFileInPlay;
 			icon->paintInCenter(p, inner);
@@ -279,9 +280,10 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 				p.setPen(Qt::NoPen);
 				p.setBrush(st::msgFileOutBg);
 
-				p.setRenderHint(QPainter::HighQualityAntialiasing);
-				p.drawEllipse(inner);
-				p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+				{
+					PainterHighQualityEnabler hq(p);
+					p.drawEllipse(inner);
+				}
 
 				auto &icon = _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
 				icon.paintInCenter(p, inner);
@@ -541,10 +543,11 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgDateImgBg);
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.drawEllipse(inner);
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(inner);
+			}
+			
 			auto icon = &st::historyFileInPlay;
 			icon->paintInCenter(p, inner);
 		}
@@ -580,9 +583,10 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(st::msgFileInBg);
 
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.drawEllipse(inner);
-			p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(inner);
+			}
 
 			auto icon = &(_isImage ? st::historyFileInImage : st::historyFileInDocument);
 			icon->paintInCenter(p, inner);

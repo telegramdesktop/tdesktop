@@ -63,7 +63,7 @@ overviewPhotoSelectOverlay: #40ace333;
 overviewVideoBg: #000000;
 
 overviewFileThumbBg: #000000;
-overviewFileChecked: #2fa9e2;
+overviewFileChecked: windowBgActive;
 overviewFileCheck: #00000066;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;

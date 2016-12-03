@@ -1281,9 +1281,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 }
 
 ApiWrap::~ApiWrap() {
-	App::clearHistories();
 }
-
 
 void ApiWrap::stickerSetDisenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req) {
 	_stickerSetDisenableRequests.remove(req);

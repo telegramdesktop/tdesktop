@@ -3102,7 +3102,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	}
 
 	_attachToggle->setClickedCallback([this] {
-		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, base::lambda_guarded(this, [this] {
+		App::CallDelayed(st::historyAttach.ripple.hideDuration, base::lambda_guarded(this, [this] {
 			chooseAttach();
 		}));
 	});
@@ -8736,11 +8736,13 @@ void HistoryWidget::drawRecordButton(Painter &p) {
 void HistoryWidget::drawRecording(Painter &p) {
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::historyRecordSignalColor);
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+
 	float64 delta = qMin(float64(a_recordingLevel.current()) / 0x4000, 1.);
 	int32 d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
-	p.drawEllipse(_attachToggle->x() + (_attachEmoji->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(_attachToggle->x() + (_attachEmoji->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
+	}
 
 	QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
 	p.setFont(st::historyRecordFont);
@@ -8834,15 +8836,12 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 				}
 			}
 		} else {
-			bool smooth = p.renderHints().testFlag(QPainter::SmoothPixmapTransform);
-			p.setRenderHint(QPainter::SmoothPixmapTransform);
+			PainterHighQualityEnabler hq(p);
 
 			QRect to, from;
 			App::main()->backgroundParams(fill, to, from);
 			to.moveTop(to.top() + fromy);
 			p.drawPixmap(to, pix, from);
-
-			if (!smooth) p.setRenderHint(QPainter::SmoothPixmapTransform, false);
 		}
 	} else {
 		p.drawPixmap(x, fromy + y, cached);

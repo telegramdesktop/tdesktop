@@ -141,15 +141,15 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, &color);
 
 	if (_checkRect.intersects(e->rect())) {
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-
 		auto pen = anim::pen(_st.checkFg, _st.checkFgActive, active);
 		pen.setWidth(_st.thickness);
 		p.setPen(pen);
 		p.setBrush(anim::brush(_st.checkBg, anim::color(_st.checkFg, _st.checkFgActive, active), active));
 
-		p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)), st::buttonRadius - (_st.thickness / 2.), st::buttonRadius - (_st.thickness / 2.));
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawRoundedRect(QRectF(_checkRect).marginsRemoved(QMarginsF(_st.thickness / 2., _st.thickness / 2., _st.thickness / 2., _st.thickness / 2.)), st::buttonRadius - (_st.thickness / 2.), st::buttonRadius - (_st.thickness / 2.));
+		}
 
 		if (active > 0) {
 			_st.checkIcon.paint(p, QPoint(_st.margin.left(), _st.margin.top()), width());
@@ -247,7 +247,7 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, &color);
 
 	if (_checkRect.intersects(e->rect())) {
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		PainterHighQualityEnabler hq(p);
 
 		auto pen = anim::pen(_st.checkFg, _st.checkFgActive, active);
 		pen.setWidth(_st.thickness);
@@ -275,8 +275,6 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 			//	}
 			//}
 		}
-
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	}
 	if (_checkRect.contains(e->rect())) return;
 

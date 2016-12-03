@@ -72,6 +72,8 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::showLayer(new AboutBox()); }));
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(Global::RefConnectionTypeChanged(), [this] { updateConnectionState(); });
+	updateConnectionState();
 }
 
 void MainMenu::checkSelf() {
@@ -110,6 +112,16 @@ void MainMenu::updateControlsGeometry() {
 	_version->moveToLeft(st::mainMenuFooterLeft, height() - st::mainMenuVersionBottom - _version->height());
 }
 
+void MainMenu::updateConnectionState() {
+	auto state = MTP::dcstate();
+	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || state < 0) {
+		_connectionText = lang(lng_status_connecting);
+	} else {
+		_connectionText = lang(lng_status_online);
+	}
+	update();
+}
+
 void MainMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto clip = e->rect();
@@ -121,7 +133,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		if (auto self = App::self()) {
 			self->nameText.drawLeftElided(p, st::mainMenuCoverTextLeft, st::mainMenuCoverNameTop, width() - 2 * st::mainMenuCoverTextLeft, width());
 			p.setFont(st::normalFont);
-			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), qsl("online"));
+			p.drawTextLeft(st::mainMenuCoverTextLeft, st::mainMenuCoverStatusTop, width(), _connectionText);
 		}
 	}
 	auto other = QRect(0, st::mainMenuCoverHeight, width(), height() - st::mainMenuCoverHeight).intersected(clip);

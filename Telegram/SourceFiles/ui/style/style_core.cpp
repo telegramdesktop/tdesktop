@@ -126,12 +126,13 @@ QImage createCircleMask(int size, QColor bg, QColor fg) {
 	auto result = QImage(realSize, realSize, QImage::Format::Format_RGB32);
 #endif // OS_MAC_OLD
 	{
-		QPainter pcircle(&result);
-		pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		pcircle.fillRect(0, 0, realSize, realSize, bg);
-		pcircle.setPen(Qt::NoPen);
-		pcircle.setBrush(fg);
-		pcircle.drawEllipse(0, 0, realSize, realSize);
+		Painter p(&result);
+		PainterHighQualityEnabler hq(p);
+
+		p.fillRect(0, 0, realSize, realSize, bg);
+		p.setPen(Qt::NoPen);
+		p.setBrush(fg);
+		p.drawEllipse(0, 0, realSize, realSize);
 	}
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;

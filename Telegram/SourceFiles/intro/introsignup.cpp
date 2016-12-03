@@ -43,9 +43,11 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
 	_photo->setClickedCallback([this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		App::CallDelayed(st::defaultActiveButton.ripple.hideDuration, base::lambda_guarded(this, [this] {
+			auto imgExtensions = cImgExtensions();
+			auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+			_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		}));
 	});
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);

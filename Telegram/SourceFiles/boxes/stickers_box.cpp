@@ -720,9 +720,10 @@ void StickersBox::Inner::paintRow(Painter &p, int index, TimeMs ms) {
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::stickersFeaturedUnreadBg);
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		p.drawEllipse(rtlrect(namex + s->titleWidth + st::stickersFeaturedUnreadSkip, namey + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(rtlrect(namex + s->titleWidth + st::stickersFeaturedUnreadSkip, namey + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
+		}
 	}
 
 	p.setFont(st::contactsStatusFont);

@@ -139,7 +139,7 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	}
 	if (a_fullOpacity.current() == 0.) return;
 
-	QPainter p(this);
+	Painter p(this);
 	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
 	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
@@ -148,12 +148,11 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	auto bar = anim::color(_st->barColor, _st->barOverColor, a_barOver.current());
 	bar.setAlpha(anim::interpolate(0, bar.alpha(), a_fullOpacity.current()));
 	if (_st->round) {
-		p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+		PainterHighQualityEnabler hq(p);
 		p.setBrush(bg);
 		p.drawRoundedRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), _st->round, _st->round);
 		p.setBrush(bar);
 		p.drawRoundedRect(_bar, _st->round, _st->round);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 	} else {
 		p.fillRect(QRect(deltal, deltat, width() - deltal - deltar, height() - deltat - deltab), bg);
 		p.fillRect(_bar, bar);

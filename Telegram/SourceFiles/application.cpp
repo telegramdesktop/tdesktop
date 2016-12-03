@@ -1094,6 +1094,7 @@ AppClass::~AppClass() {
 	Shortcuts::finish();
 
 	delete base::take(_window);
+	App::clearHistories();
 
 	Window::Notifications::finish();
 

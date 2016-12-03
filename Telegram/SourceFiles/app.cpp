@@ -2165,11 +2165,12 @@ namespace {
 		int32 r = radius * cIntRetinaFactor(), s = st::msgShadow * cIntRetinaFactor();
 		QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied), localCors[4];
 		{
-			QPainter p(&rect);
+			Painter p(&rect);
+			PainterHighQualityEnabler hq(p);
+
 			p.setCompositionMode(QPainter::CompositionMode_Source);
 			p.fillRect(QRect(0, 0, rect.width(), rect.height()), Qt::transparent);
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.setPen(Qt::NoPen);
 			if (shadow) {
 				p.setBrush((*shadow)->b);

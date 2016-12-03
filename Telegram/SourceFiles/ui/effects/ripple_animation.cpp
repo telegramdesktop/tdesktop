@@ -97,15 +97,16 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms,
 		_frame.fill(Qt::transparent);
 		{
 			Painter p(&_frame);
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.setPen(Qt::NoPen);
 			if (colorOverride) {
 				p.setBrush(*colorOverride);
 			} else {
 				p.setBrush(_st.color);
 			}
-			p.drawEllipse(_origin, radius, radius);
-
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(_origin, radius, radius);
+			}
 			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 			p.drawPixmap(0, 0, mask);
 		}
@@ -199,7 +200,8 @@ QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(
 	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
 	if (drawer) {
 		Painter p(&result);
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
+		PainterHighQualityEnabler hq(p);
+
 		p.setPen(Qt::NoPen);
 		p.setBrush(QColor(255, 255, 255));
 		drawer(p);

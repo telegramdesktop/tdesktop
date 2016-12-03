@@ -716,9 +716,10 @@ void File::paint(Painter &p, const QRect &clip, const PaintContext *context) con
 		p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
 	}
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.drawEllipse(inner);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(inner);
+	}
 
 	if (radial) {
 		auto radialCircle = inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine));

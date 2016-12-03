@@ -23,8 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-void CrossAnimation::paint(QPainter &p, const style::CrossAnimation &st, const style::color &color, int x, int y, int outerWidth, float64 shown) {
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
+void CrossAnimation::paint(Painter &p, const style::CrossAnimation &st, const style::color &color, int x, int y, int outerWidth, float64 shown) {
+	PainterHighQualityEnabler hq(p);
 
 	auto deleteScale = shown + st.minScale * (1. - shown);
 	auto deleteSkip = deleteScale * st.skip + (1. - deleteScale) * (st.size / 2);
@@ -67,8 +67,6 @@ void CrossAnimation::paint(QPainter &p, const style::CrossAnimation &st, const s
 		path.lineTo(pathDelete[i]);
 	}
 	p.fillPath(path, color);
-
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
 }
 
 } // namespace Ui

@@ -178,11 +178,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 
 		if (!_peopleResults.isEmpty()) {
-			p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
+			p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBg);
 			if (!paintingOther) {
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, fullWidth(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_search_global_results), style::al_center);
 			}
 			p.translate(0, st::searchedBarHeight);
 
@@ -207,11 +207,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			searchInPeerPaint(p, fullWidth(), paintingOther);
 			p.translate(0, st::dialogsRowHeight);
 			if (_state == FilteredState && _searchResults.isEmpty()) {
-				p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
+				p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBg);
 				if (!paintingOther) {
-					p.setFont(st::searchedBarFont->f);
-					p.setPen(st::searchedBarColor->p);
-					p.drawText(QRect(0, 0, fullWidth(), st::searchedBarHeight), lang(lng_dlg_search_for_messages), style::al_center);
+					p.setFont(st::searchedBarFont);
+					p.setPen(st::searchedBarFg);
+					p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_dlg_search_for_messages), style::al_center);
 				}
 				p.translate(0, st::searchedBarHeight);
 			}
@@ -219,11 +219,11 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 
 		if (_state == SearchedState || !_searchResults.isEmpty()) {
 			QString text = lng_search_found_results(lt_count, _searchResults.isEmpty() ? 0 : (_searchedMigratedCount + _searchedCount));
-			p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBG->b);
+			p.fillRect(0, 0, fullWidth(), st::searchedBarHeight, st::searchedBarBg);
 			if (!paintingOther) {
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, fullWidth(), st::searchedBarHeight), text, style::al_center);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), text, style::al_center);
 			}
 			p.translate(0, st::searchedBarHeight);
 
