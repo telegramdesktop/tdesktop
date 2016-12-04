@@ -186,15 +186,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_try_password" = "Mengalami masalah saat mengakses surel Anda?";
 "lng_signin_password_removed" = "Kata sandi awan Anda dinonaktifkan.\nAnda dapat mengatur kata sandi baru di Pengaturan.";
 "lng_signin_no_email_forgot" = "Karena Anda belum memberikan surel pemulihan\nketika mengatur kata sandi Anda, opsi tersisa Anda adalah mengingat kata sandi Anda atau mengatur ulang akun Anda.";
-"lng_signin_cant_email_forgot" = "If you can't restore access to the e-mail, your remaining options are either to remember your password or to reset your account.";
-"lng_signin_reset_account" = "Reset your account";
-"lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
-"lng_signin_reset" = "Reset";
-"lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
-"lng_signin_reset_in_days" = "{count_days:0 days|# day|# days} {count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
-"lng_signin_reset_in_hours" = "{count_hours:0 hours|# hour|# hours} {count_minutes:0 minutes|# minute|# minutes}";
-"lng_signin_reset_in_minutes" = "{count_minutes:0 minutes|# minute|# minutes}";
-"lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
+"lng_signin_cant_email_forgot" = "Apabila Anda tidak dapat memulihkan akses ke surel Anda, opsi tersisa Anda adalah mengingat kata sandi Anda atau mengatur ulang akun Anda.";
+"lng_signin_reset_account" = "Pulihkan akun Anda";
+"lng_signin_sure_reset" = "Peringatan!\n\nAnda akan kehilangan semua percakapan dan pesan Anda, dan semua media dan berkas yang Anda bagikan!\n\nApakah Anda ingin memulihkan akun Anda?";
+"lng_signin_reset" = "Pulihkan";
+"lng_signin_reset_wait" = "Karena {phone_number} akun ini aktif dan dilindungi oleh kata sandi, kami akan menghapusnya dalam 1 minggu dengan alasan keamanan. Anda dapat membatalkan proses ini kapan saja.\n\nAnda dapat memulihkan akun Anda dalam:\n{when}";
+"lng_signin_reset_in_days" = "{count_days:0 hari|# hari|# hari} {count_hours:0 jam|# jam|# jam} {count_minutes:0 menit|# menit|# menit}";
+"lng_signin_reset_in_hours" = "{count_hours:0 jam|# jam|# jam} {count_minutes:0 menit|# menit|# menit}";
+"lng_signin_reset_in_minutes" = "{count_minutes:0 menit|# menit|# menit}";
+"lng_signin_reset_cancelled" = "Uji coba Anda baru-baru saja untuk memulihkan Akun ini telah dibatalkan oleh pengguna aktifnya. Silakan coba kembali dalam 7 hari.";
 
 "lng_signup_title" = "Information and photo";
 "lng_signup_desc" = "Please enter your name and\nupload a photo.";
