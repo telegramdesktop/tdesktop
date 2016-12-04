@@ -196,30 +196,30 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_signin_reset_in_minutes" = "{count_minutes:0 menit|# menit|# menit}";
 "lng_signin_reset_cancelled" = "Uji coba Anda baru-baru saja untuk memulihkan Akun ini telah dibatalkan oleh pengguna aktifnya. Silakan coba kembali dalam 7 hari.";
 
-"lng_signup_title" = "Information and photo";
-"lng_signup_desc" = "Please enter your name and\nupload a photo.";
+"lng_signup_title" = "Informasi dan foto";
+"lng_signup_desc" = "Masukkan nama Anda dan\nunggah sebuah foto.";
 
-"lng_signup_firstname" = "First Name";
-"lng_signup_lastname" = "Last Name";
+"lng_signup_firstname" = "Nama depan";
+"lng_signup_lastname" = "Nama belakang";
 
-"lng_dlg_filter" = "Search";
-"lng_dlg_new_group_name" = "Group name";
-"lng_dlg_new_channel_name" = "Channel name";
-"lng_no_contacts" = "You have no contacts";
-"lng_no_chats" = "Your chats will be here";
-"lng_contacts_loading" = "Loading...";
-"lng_contacts_not_found" = "No contacts found";
-"lng_dlg_search_chat" = "Search in this chat";
-"lng_dlg_search_channel" = "Search in this channel";
-"lng_dlg_search_for_messages" = "Search for messages";
+"lng_dlg_filter" = "Cari";
+"lng_dlg_new_group_name" = "Nama grup";
+"lng_dlg_new_channel_name" = "Nama kanal";
+"lng_no_contacts" = "Anda tidak memiliki kontak";
+"lng_no_chats" = "Percakapan Anda akan berada di sini";
+"lng_contacts_loading" = "Memuat...";
+"lng_contacts_not_found" = "Tidak ada kontak ditemukan";
+"lng_dlg_search_chat" = "Cari dalam percakapan ini";
+"lng_dlg_search_channel" = "Cari dalam kanal ini";
+"lng_dlg_search_for_messages" = "Cari pesan";
 
-"lng_settings_save" = "Save";
-"lng_settings_upload" = "Set Profile Photo";
-"lng_settings_crop_profile" = "Select a square area for your profile photo";
-"lng_settings_uploading_photo" = "Uploading photo...";
-"lng_settings_edit" = "Edit";
+"lng_settings_save" = "Simpan";
+"lng_settings_upload" = "Atur foto profil";
+"lng_settings_crop_profile" = "Pilih area kotak untuk foto profil Anda";
+"lng_settings_uploading_photo" = "Mengunggah foto...";
+"lng_settings_edit" = "Sunting";
 
-"lng_settings_drop_area_subtitle" = "to set it as your photo";
+"lng_settings_drop_area_subtitle" = "untuk mengaturnya sebagai foto Anda";
 
 "lng_username_title" = "Username";
 "lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
