@@ -121,7 +121,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_channel_admins_link" = "{count:_not_used_|# administrador|# administradores}";
 
 "lng_server_error" = "Erro interno do servidor.";
-"lng_flood_error" = "Muitas tentativas. Por favor, tente novamente mais tarde.";
+"lng_flood_error" = "Muitas tentativas. Tente novamente mais tarde.";
 "lng_gif_error" = "Um erro ocorreu com a animação do GIF :(";
 "lng_edit_error" = "Você não pode editar essa mensagem";
 "lng_join_channel_error" = "Desculpe, você já entrou em muitos canais e supergrupos. Por favor, saia de alguns antes de entrar.";
@@ -162,7 +162,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_code_desc" = "Enviamos uma SMS com um código de ativação\npara o seu telefone. Insira-o abaixo.";
 "lng_code_telegram" = "Por favor, insira o código recebido\nem seu aplicativo prévio do [b]Telegram[/b]";
 "lng_code_no_telegram" = "Enviar código via SMS";
-"lng_code_call" = "Telegram irá te ligar em {minutes}{seconds}";
+"lng_code_call" = "Telegram irá te ligar em {minutes}:{seconds}";
 "lng_code_calling" = "Aguardando a ligação do Telegram..";
 "lng_code_called" = "Telegram ligou para o seu número";
 

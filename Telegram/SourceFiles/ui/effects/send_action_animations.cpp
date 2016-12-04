@@ -217,4 +217,6 @@ std_::unique_ptr<SendActionAnimation::Impl> SendActionAnimation::createByType(Ty
 	return Implementations->value(type, &TypingAnimation::kMeta)->creator();
 }
 
+SendActionAnimation::~SendActionAnimation() = default;
+
 } // namespace Ui

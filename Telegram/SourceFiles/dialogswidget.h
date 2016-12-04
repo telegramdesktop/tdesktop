@@ -65,13 +65,6 @@ public:
 
 	void contactsReceived(const QVector<MTPContact> &contacts);
 
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void contextMenuEvent(QContextMenuEvent *e);
-
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -79,6 +72,8 @@ public:
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(History *row, MsgId msgId);
 	void removeDialog(History *history);
+
+	void dragLeft();
 
 	void loadPeerPhotos(int32 yFrom);
 	void clearFilter();
@@ -152,6 +147,12 @@ signals:
 
 protected:
 	void paintRegion(Painter &p, const QRegion &region, bool paintingOther) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 
 private:
 	void itemRemoved(HistoryItem *item);

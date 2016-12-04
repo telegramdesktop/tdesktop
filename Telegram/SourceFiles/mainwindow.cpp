@@ -287,7 +287,7 @@ void MainWindow::checkAutoLock() {
 
 	App::app()->checkLocalTime();
 	auto ms = getms(true), idle = psIdleTime(), should = Global::AutoLock() * 1000LL;
-	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000ULL)) {
+	if (idle >= should || (_shouldLockAt > 0 && ms > _shouldLockAt + 3000LL)) {
 		setupPasscode();
 	} else {
 		_shouldLockAt = ms + (should - idle);

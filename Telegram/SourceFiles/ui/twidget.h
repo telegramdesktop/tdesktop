@@ -81,6 +81,13 @@ public:
 class PainterHighQualityEnabler {
 public:
 	PainterHighQualityEnabler(Painter &p) : _painter(p) {
+		static constexpr QPainter::RenderHint Hints[] = {
+			QPainter::Antialiasing,
+			QPainter::SmoothPixmapTransform,
+			QPainter::TextAntialiasing,
+			QPainter::HighQualityAntialiasing
+		};
+
 		auto hints = _painter.renderHints();
 		for_const (auto hint, Hints) {
 			if (!(hints & hint)) {
@@ -102,12 +109,6 @@ public:
 private:
 	Painter &_painter;
 	QPainter::RenderHints _hints = 0;
-	static constexpr QPainter::RenderHint Hints[] = {
-		QPainter::Antialiasing,
-		QPainter::SmoothPixmapTransform,
-		QPainter::TextAntialiasing,
-		QPainter::HighQualityAntialiasing
-	};
 
 };
 

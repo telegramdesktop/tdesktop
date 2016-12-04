@@ -124,7 +124,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_flood_error" = "Muchos intentos. Por favor, reinténtalo más tarde.";
 "lng_gif_error" = "Ocurrió un error al leer la animación GIF :(";
 "lng_edit_error" = "No puedes editar este mensaje";
-"lng_join_channel_error" = "Lo sentimos, te has unido a demasiados canales y supergrupos. Por favor, deja algunos antes de unirte.";
+"lng_join_channel_error" = "Lo sentimos, te has unido a demasiados canales y supergrupos. Por favor, sal de algunos antes de unirte.";
 "lng_edit_deleted" = "Este mensaje fue eliminado";
 "lng_edit_too_long" = "Tu texto es demasiado largo";
 "lng_edit_message" = "Editar mensaje";
@@ -439,9 +439,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_clear_history" = "Borrar historial";
 "lng_profile_delete_conversation" = "Eliminar chat";
 "lng_profile_clear_and_exit" = "Eliminar y salir";
-"lng_profile_leave_channel" = "Dejar el canal";
+"lng_profile_leave_channel" = "Salir del canal";
 "lng_profile_delete_channel" = "Eliminar el canal";
-"lng_profile_leave_group" = "Dejar el grupo";
+"lng_profile_leave_group" = "Salir del grupo";
 "lng_profile_delete_group" = "Eliminar grupo";
 "lng_profile_report" = "Reportar";
 "lng_profile_search_messages" = "Buscar mensajes";
@@ -457,7 +457,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_add_participant" = "Añadir miembros";
 "lng_profile_view_channel" = "Ver canal";
 "lng_profile_join_channel" = "Unirme";
-"lng_profile_delete_and_exit" = "Dejar grupo";
+"lng_profile_delete_and_exit" = "Salir";
 "lng_profile_kick" = "Eliminar";
 "lng_profile_admin" = "administrador";
 "lng_profile_sure_kick" = "¿Eliminar a {user} del grupo?";
@@ -539,14 +539,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_create_channel_crop" = "Selecciona el área para la foto del canal";
 
 "lng_failed_add_participant" = "No se pudo añadir al usuario. Por favor, reinténtalo más tarde.";
-"lng_failed_add_not_mutual" = "Lo sentimos, si una persona deja el grupo, sólo un contacto mutuo puede volver a invitarlo (necesitan tener tu número y tú el suyo).";
-"lng_failed_add_not_mutual_channel" = "Lo sentimos, si una persona deja el canal, sólo un contacto mutuo puede volver a invitarlo (necesitan tener tu número y tú el suyo).";
+"lng_failed_add_not_mutual" = "Lo sentimos, si una persona sale del grupo, sólo un contacto mutuo puede volver a invitarlo (necesitan tener tu número y tú el suyo).";
+"lng_failed_add_not_mutual_channel" = "Lo sentimos, si una persona sale del canal, sólo un contacto mutuo puede volver a invitarlo (necesitan tener tu número y tú el suyo).";
 
 "lng_sure_delete_contact" = "¿Quieres eliminar a {contact} de tu lista de contactos?";
 "lng_sure_delete_history" = "¿Quieres borrar todo el historial de mensajes con {contact}?\n\nEsta acción no se puede deshacer.";
 "lng_sure_delete_group_history" = "¿Quieres borrar todo el historial en «{group}»?\n\nEsta acción no se puede deshacer.";
-"lng_sure_delete_and_exit" = "¿Quieres borrar todo el historial de mensajes y dejar el grupo «{group}»?\n\nEsta acción no se puede deshacer.";
-"lng_sure_leave_channel" = "¿Quieres dejar este canal?";
+"lng_sure_delete_and_exit" = "¿Quieres borrar todo el historial de mensajes y salir del grupo «{group}»?\n\nEsta acción no se puede deshacer.";
+"lng_sure_leave_channel" = "¿Quieres salir de este canal?";
 "lng_sure_delete_channel" = "¿Quieres eliminar este canal? Todos los miembros y mensajes se perderán.";
 "lng_sure_leave_group" = "¿Quieres salir del grupo?\nNo puedes deshacer esta acción.";
 "lng_sure_delete_group" = "¿Quieres eliminar este grupo? Todos los miembros y mensajes se perderán.";
@@ -944,7 +944,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_box_leave" = "Salir";
 
 "lng_about_version" = "versión {version}";
-"lng_about_text_1" = "Aplicación oficial y gratuita basada en la [a href=\"https://core.telegram.org/api\"]API de Telegram[/a]\npara su velocidad y seguridad.";
+"lng_about_text_1" = "Aplicación oficial y gratuita basada en la [a href=\"https://core.telegram.org/api\"]API de Telegram[/a] para su velocidad y seguridad.";
 "lng_about_text_2" = "Este software está licenciado bajo [a href=\"https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\"]GNU GPL[/a] versión 3.\nCódigo fuente disponible en [a href=\"https://github.com/telegramdesktop/tdesktop\"]GitHub[/a].";
 "lng_about_text_3" = "Conoce más en las {faq_open}preguntas frecuentes de Telegram{faq_close}.";
 "lng_about_done" = "Hecho";
@@ -972,7 +972,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "La imagen fue guardada en tu carpeta [c]Descargas[/c]";
 
-"lng_new_authorization" = "{name}:\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes > Mostrar todas las sesiones y cerrar esa sesión.\n\nSi crees que alguien inició tu sesión sin tu consentimiento, puedes activar la verificación en dos pasos en Ajustes.\n\nGracias.\nEl equipo de Telegram";
+"lng_new_authorization" = "{name}:\nDetectamos un inicio de sesión en tu cuenta desde un nuevo dispositivo el {day}, {date} a las {time}\n\nDispositivo: {device}\nUbicación: {location}\n\nSi no eras tú, puedes ir a Ajustes > Mostrar todas las sesiones, y cerrar esa sesión.\n\nSi crees que alguien inició tu sesión sin tu consentimiento, puedes activar la verificación en dos pasos en Ajustes.\n\nAtentamente,\nEl equipo de Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";

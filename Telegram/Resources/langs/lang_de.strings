@@ -150,7 +150,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_phone_ph" = "Deine Telefonnummer";
 "lng_phone_title" = "Dein Telefon";
 "lng_phone_desc" = "Bitte Land und Telefonnummer\nohne führende Null eintragen.";
-"lng_phone_notreg" = "Hinweis: Wenn du noch kein Telegram Konto haben solltest,\n[b]registriere[/b] dich bitte über unsere [a href=\"https://telegram.org/\"]iOS / Android[/a] apps oder direkt {signup_start}hier »{signup_end}";
+"lng_phone_notreg" = "Du hast noch gar kein Telegram Konto?\n[b]Registriere[/b] dich einfach über unsere\n[a href=\"https://telegram.org/\"]Apps[/a] oder direkt {signup_start}hier »{signup_end}";
 "lng_country_code" = "Ländercode";
 "lng_bad_country_code" = "Falscher Ländercode";
 "lng_country_ph" = "Suche";
@@ -476,7 +476,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_profile_files_header" = "Dateien aus dem Chat";
 "lng_profile_audios" = "{count:_not_used_|# Sprachnachricht|# Sprachnachrichten}";
 "lng_profile_audios_header" = "Sprachnachrichten aus dem Chat";
-"lng_profile_shared_links" = "{count:_not_used_|# Geteilter Link|# Geteilte Links} »";
+"lng_profile_shared_links" = "{count:_not_used_|# Geteilter Link|# Geteilte Links}";
 "lng_profile_shared_links_header" = "Links aus dem Chat";
 "lng_profile_copy_phone" = "Telefonnummer kopieren";
 "lng_profile_copy_fullname" = "Name kopieren";

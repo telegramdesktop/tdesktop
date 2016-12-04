@@ -91,7 +91,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_reconnecting_try_now" = "Prova ora";
 
 "lng_status_service_notifications" = "notifiche di servizio";
-"lng_status_support" = "supporto";
+"lng_status_support" = "assistenza";
 "lng_status_bot" = "bot";
 "lng_status_bot_reads_all" = "ha accesso ai messaggi";
 "lng_status_bot_not_reads_all" = "non ha accesso ai messaggi";
@@ -139,7 +139,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_pinned_notify" = "Notifica tutti i membri";
 
 "lng_intro" = "Benvenuti nell'app desktop ufficiale di [a href=\"https://telegram.org/\"]Telegram[/a].\nÈ [b]veloce[/b] e [b]sicura[/b].";
-"lng_start_msgs" = "INIZIA A CHATTARE";
+"lng_start_msgs" = "INIZIA A MESSAGGIARE";
 
 "lng_intro_next" = "AVANTI";
 "lng_intro_finish" = "ISCRIVITI";
@@ -148,9 +148,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_photo_caption" = "Didascalia";
 
 "lng_phone_ph" = "Il tuo numero di telefono";
-"lng_phone_title" = "Tuo telefono";
-"lng_phone_desc" = "Per favore conferma il tuo prefisso nazionale e\ninserisci il tuo numero di telefono.";
-"lng_phone_notreg" = "Nota: se non hai ancora un account Telegram,\nper favore [b]registrati[/b] con il tuo dispositivo [a href=\"https://telegram.org/\"]iOS / Android[/a] o {signup_start}qui »{signup_end}";
+"lng_phone_title" = "Il tuo telefono";
+"lng_phone_desc" = "Per favore conferma il tuo prefisso internazionale e\ninserisci il tuo numero di telefono.";
+"lng_phone_notreg" = "Se non hai ancora un account Telegram,\nper favore [b]registrati[/b] da [a href=\"https://telegram.org/\"]iOS / Android[/a] o {signup_start}qui »{signup_end}";
 "lng_country_code" = "Prefisso nazionale";
 "lng_bad_country_code" = "Prefisso nazionale non valido";
 "lng_country_ph" = "Cerca";
@@ -254,7 +254,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_notification_preview" = "Hai un nuovo messaggio";
 "lng_notification_reply" = "Rispondi";
 "lng_notification_hide_all" = "Nascondi tutte";
-"lng_notification_sample" = "Questa è un esempio di notifica";
+"lng_notification_sample" = "Questa è una notifica di esempio";
 
 "lng_settings_section_general" = "Generali";
 "lng_settings_change_lang" = "Cambia lingua";
@@ -326,10 +326,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_passcode_remove_button" = "Rimuovi";
 
-"lng_passcode_turn_on" = "Attiva codice";
-"lng_passcode_change" = "Cambia codice";
-"lng_passcode_create" = "Codice locale";
-"lng_passcode_remove" = "Rimuovi codice";
+"lng_passcode_turn_on" = "Attiva codice di blocco";
+"lng_passcode_change" = "Cambia codice di blocco";
+"lng_passcode_create" = "Codice di blocco";
+"lng_passcode_remove" = "Rimuovi codice di blocco";
 "lng_passcode_turn_off" = "Disattiva";
 "lng_passcode_autolock" = "Blocco automatico";
 "lng_passcode_autolock_away" = "Blocco automatico se lontano per:";
@@ -344,7 +344,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_passcode_differ" = "I codici sono diversi";
 "lng_passcode_wrong" = "Codice errato";
 "lng_passcode_is_same" = "Il codice non è stato cambiato";
-"lng_passcode_enter" = "Inserisci il tuo codice";
+"lng_passcode_enter" = "Inserisci il tuo codice di blocco";
 "lng_passcode_submit" = "Invia";
 "lng_passcode_logout" = "Esci";
 "lng_passcode_need_unblock" = "Devi prima sbloccarmi.";
@@ -398,7 +398,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_reset_done" = "Altre sessioni terminate";
 "lng_settings_manage_local_storage" = "Gestisci archivio locale";
 "lng_settings_ask_question" = "Fai una domanda";
-"lng_settings_ask_sure" = "Per favore nota che il supporto di Telegram è fornito da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle domande frequenti di Telegram: contengono suggerimenti importanti per risolvere i problemi e risposte a quasi tutte le domande.";
+"lng_settings_ask_sure" = "Per favore nota che l'assistenza di Telegram è fornita da volontari. Proviamo a rispondere quanto prima, ma potrebbe volerci del tempo.\n\nDai un'occhiata alle domande frequenti di Telegram: contengono suggerimenti importanti per risolvere i problemi e risposte a quasi tutte le domande.";
 "lng_settings_faq_button" = "Domande frequenti";
 "lng_settings_ask_ok" = "Chiedi";
 "lng_settings_faq" = "Domande frequenti";
@@ -642,8 +642,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_forwarded" = "Inoltrato da {user}";
 "lng_forwarded_channel" = "Inoltrato da {channel}";
-"lng_forwarded_via" = "Inoltrato da {user} tramite {inline_bot}";
-"lng_forwarded_channel_via" = "Inoltrato da {channel} tramite {inline_bot}";
+"lng_forwarded_via" = "Inoltrato da {user} via {inline_bot}";
+"lng_forwarded_channel_via" = "Inoltrato da {channel} via {inline_bot}";
 "lng_forwarded_signed" = "{channel} ({user})";
 "lng_in_reply_to" = "In risposta a";
 "lng_edited" = "modificato";
@@ -701,7 +701,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_saved_gifs" = "GIF salvate";
 "lng_inline_bot_results" = "Risultati da {inline_bot}";
 "lng_inline_bot_no_results" = "Nessun risultato";
-"lng_inline_bot_via" = "tramite {inline_bot}";
+"lng_inline_bot_via" = "via {inline_bot}";
 
 "lng_box_remove" = "Rimuovi";
 
@@ -761,7 +761,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_will_be_notified" = "I post saranno notificati ai membri";
 "lng_wont_be_notified" = "I post non saranno notificati ai membri";
 "lng_empty_history" = "";
-"lng_willbe_history" = "Seleziona una chat per iniziare a chattare";
+"lng_willbe_history" = "Seleziona una chat per iniziare a messaggiare";
 "lng_from_you" = "Tu";
 "lng_from_draft" = "Bozza";
 "lng_bot_description" = "Cosa può fare questo bot?";
@@ -972,7 +972,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "L'immagine è stata salvata nella tua cartella [c]Download[/c]";
 
-"lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo il {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare su Impostazioni – Mostra tutte le sessioni e terminare quella sessione.\n\nSe credi che qualcuno si sia collegato al tuo account contro il tuo volere, puoi attivare la verifica in due passaggi nelle Impostazioni. \n\nGrazie, \nIl Team di Telegram";
+"lng_new_authorization" = "{name},\nAbbiamo rilevato un accesso al tuo account da un nuovo dispositivo {day}, {date} alle {time}\n\nDispositivo: {device}\nPosizione: {location}\n\nSe non sei tu, puoi andare nelle Impostazioni – Mostra tutte le sessioni e terminare quella sessione.\n\nSe credi che qualcuno si sia collegato al tuo account contro il tuo volere, puoi attivare la verifica in due passaggi nelle Impostazioni. \n\nSinceramente, \nIl Team di Telegram";
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";

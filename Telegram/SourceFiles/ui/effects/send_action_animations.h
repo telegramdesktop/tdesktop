@@ -61,6 +61,8 @@ public:
 			paintFrame(p, color, x, y, outerWidth, qMax(ms - _started, 0LL) % _period);
 		}
 
+		virtual ~Impl() = default;
+
 	private:
 		virtual void paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) = 0;
 
@@ -68,6 +70,8 @@ public:
 		TimeMs _started = 0;
 
 	};
+
+	~SendActionAnimation();
 
 private:
 	std_::unique_ptr<Impl> createByType(Type type);

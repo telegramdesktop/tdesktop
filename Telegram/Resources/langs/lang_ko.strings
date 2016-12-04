@@ -150,7 +150,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_phone_ph" = "휴대폰 번호";
 "lng_phone_title" = "전화번호";
 "lng_phone_desc" = "국가번호와 전화번호를 입력하세요. \n(대한민국 국가번호: 82)";
-"lng_phone_notreg" = "확인사항: 아직 텔레그램 계정이 없으실 경우  [a href=\"https://telegram.org/\"]iOS / 안드로이드[/a] 기기로 [b]회원가입[/b]을 해주시거나  {signup_start}여기 »{signup_end} 에서 회원가입을 해주세요.";
+"lng_phone_notreg" = "아직 텔레그램 계정이 없으실 경우,\n [a href=\"https://telegram.org/\"]iOS / 안드로이드[/a]로 [b]회원가입[/b]을 해주시거나 \n{signup_start}여기 »{signup_end} 에서 회원가입을 해주세요.";
 "lng_country_code" = "국가번호";
 "lng_bad_country_code" = "올바른 국가번호가 아닙니다.";
 "lng_country_ph" = "검색";

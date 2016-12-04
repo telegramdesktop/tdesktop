@@ -56,9 +56,9 @@ void historyInit() {
 History::History(const PeerId &peerId)
 : peer(App::peer(peerId))
 , lastItemTextCache(st::dialogsTextWidthMin)
-, _sendActionText(st::dialogsTextWidthMin)
 , cloudDraftTextCache(st::dialogsTextWidthMin)
-, _mute(isNotifyMuted(peer->notify)) {
+, _mute(isNotifyMuted(peer->notify))
+, _sendActionText(st::dialogsTextWidthMin) {
 	if (peer->isUser() && peer->asUser()->botInfo) {
 		outboxReadBefore = INT_MAX;
 	}

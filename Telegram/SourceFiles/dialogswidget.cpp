@@ -605,6 +605,11 @@ void DialogsInner::leaveEvent(QEvent *e) {
 	clearSelection();
 }
 
+void DialogsInner::dragLeft() {
+	setMouseTracking(false);
+	clearSelection();
+}
+
 void DialogsInner::clearSelection() {
 	_selByMouse = false;
 	if (_importantSwitchSel || _sel || _filteredSel >= 0 || _hashtagSel >= 0 || _searchedSel >= 0 || _peopleSel >= 0) {
@@ -2233,7 +2238,7 @@ void DialogsWidget::dragMoveEvent(QDragMoveEvent *e) {
 		}
 	} else {
 		if (_dragForward) updateDragInScroll(false);
-		_inner->leaveEvent(0);
+		_inner->dragLeft();
 		e->setDropAction(Qt::IgnoreAction);
 	}
 	e->accept();
@@ -2245,7 +2250,7 @@ void DialogsWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	} else {
 		_chooseByDragTimer.stop();
 	}
-	_inner->leaveEvent(0);
+	_inner->dragLeft();
 	e->accept();
 }
 
