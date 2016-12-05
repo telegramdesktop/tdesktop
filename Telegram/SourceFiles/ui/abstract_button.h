@@ -28,34 +28,24 @@ class AbstractButton : public TWidget {
 	Q_OBJECT
 
 public:
-	enum class StateChangeSource {
-		ByUser = 0x00,
-		ByPress = 0x01,
-		ByHover = 0x02,
-	};
-
 	AbstractButton(QWidget *parent) : TWidget(parent) {
 		setMouseTracking(true);
 	}
-
-	enum {
-		StateNone = 0x00,
-		StateOver = 0x01,
-		StateDown = 0x02,
-		StateDisabled = 0x04,
-	};
 
 	Qt::KeyboardModifiers clickModifiers() const {
 		return _modifiers;
 	}
 
-	void clearState();
-	int getState() const;
-
 	void setDisabled(bool disabled = true);
-	void setOver(bool over, StateChangeSource source = StateChangeSource::ByUser);
-	bool disabled() const {
-		return (_state & StateDisabled);
+	void clearState();
+	bool isOver() const {
+		return _state & StateFlag::Over;
+	}
+	bool isDown() const {
+		return _state & StateFlag::Down;
+	}
+	bool isDisabled() {
+		return _state & StateFlag::Disabled;
 	}
 
 	void setAcceptBoth(bool acceptBoth = true);
@@ -75,15 +65,41 @@ signals:
 	void clicked();
 
 protected:
-	virtual void onStateChanged(int oldState, StateChangeSource source) {
+	enum class StateFlag {
+		None = 0x00,
+		Over = 0x01,
+		Down = 0x02,
+		Disabled = 0x04,
+	};
+	Q_DECLARE_FLAGS(State, StateFlag);
+	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(State);
+
+	State state() const {
+		return _state;
 	}
 
-	Qt::KeyboardModifiers _modifiers;
-	int _state = StateNone;
+	enum class StateChangeSource {
+		ByUser = 0x00,
+		ByPress = 0x01,
+		ByHover = 0x02,
+	};
+	void setOver(bool over, StateChangeSource source = StateChangeSource::ByUser);
+
+	virtual void onStateChanged(State was, StateChangeSource source) {
+	}
+
+private:
+	void checkIfOver(QPoint localPos);
+
+	State _state = StateFlag::None;
+
 	bool _acceptBoth = false;
+	Qt::KeyboardModifiers _modifiers;
 
 	base::lambda<void()> _clickedCallback;
 
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(AbstractButton::State);
 
 } // namespace Ui

@@ -65,7 +65,7 @@ void ContinuousSlider::setValue(float64 value, bool animated) {
 		a_value.start(value);
 		_a_value.start();
 	} else {
-		a_value = anim::fvalue(value, value);
+		a_value = anim::value(value, value);
 		_a_value.stop();
 	}
 	update();
@@ -116,7 +116,7 @@ void ContinuousSlider::mouseReleaseEvent(QMouseEvent *e) {
 		if (_changeFinishedCallback) {
 			_changeFinishedCallback(_downValue);
 		}
-		a_value = anim::fvalue(_downValue, _downValue);
+		a_value = anim::value(_downValue, _downValue);
 		_a_value.stop();
 		update();
 	}

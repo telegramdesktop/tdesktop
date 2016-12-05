@@ -99,7 +99,7 @@ protected:
 			, _a_thumbOver(std_::move(thumbOverCallbacks))
 			, radial(std_::move(radialCallbacks)) {
 		}
-		anim::fvalue a_thumbOver;
+		anim::value a_thumbOver;
 		Animation _a_thumbOver;
 
 		Ui::RadialAnimation radial;
@@ -306,7 +306,7 @@ struct HistoryDocumentVoicePlayback {
 	HistoryDocumentVoicePlayback(const HistoryDocument *that);
 
 	int32 _position;
-	anim::fvalue a_progress;
+	anim::value a_progress;
 	Animation _a_progress;
 };
 struct HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {

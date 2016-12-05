@@ -58,11 +58,15 @@ InfoWidget::InfoWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, pe
 void InfoWidget::showFinished() {
 	_showFinished = true;
 	if (_commonGroups && _commonGroups->isHidden() && getCommonGroupsCount() > 0) {
-		_commonGroups->show();
-		refreshVisibility();
-		_height.start([this] { contentSizeUpdated(); }, isHidden() ? 0 : height(), resizeGetHeight(width()), st::widgetSlideDuration);
-		contentSizeUpdated();
+		slideCommonGroupsDown();
 	}
+}
+
+void InfoWidget::slideCommonGroupsDown() {
+	_commonGroups->show();
+	refreshVisibility();
+	_height.start([this] { contentSizeUpdated(); }, isHidden() ? 0 : height(), resizeGetHeight(width()), st::widgetSlideDuration);
+	contentSizeUpdated();
 }
 
 void InfoWidget::restoreState(const SectionMemento *memento) {
@@ -152,7 +156,7 @@ int InfoWidget::resizeGetHeight(int newWidth) {
 	}
 
 	newHeight += st::profileBlockMarginBottom;
-	return _height.animating() ? _height.current() : newHeight;
+	return qRound(_height.current(newHeight));
 }
 
 void InfoWidget::leaveEvent(QEvent *e) {
@@ -258,8 +262,7 @@ void InfoWidget::refreshCommonGroups() {
 			_commonGroups->setClickedCallback([this] { onShowCommonGroups(); });
 			_commonGroups->hide();
 			if (_showFinished) {
-				_height.start([this] { contentSizeUpdated(); }, isHidden() ? 0 : height(), resizeGetHeight(width()), st::widgetSlideDuration);
-				contentSizeUpdated();
+				slideCommonGroupsDown();
 			}
 		}
 	} else if (_commonGroups) {

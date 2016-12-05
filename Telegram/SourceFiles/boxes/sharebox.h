@@ -107,7 +107,7 @@ private:
 	using PeopleQueries = QMap<mtpRequestId, QString>;
 	PeopleQueries _peopleQueries;
 
-	IntAnimation _scrollAnimation;
+	FloatAnimation _scrollAnimation;
 
 };
 

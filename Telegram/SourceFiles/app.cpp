@@ -1246,7 +1246,7 @@ namespace {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
 			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
-				if (App::main()) App::main()->dlgUpdated(history, history->lastMsg->id);
+				if (App::main()) App::main()->dlgUpdated(history->peer, history->lastMsg->id);
 			}
 			history->updateChatListEntry();
 

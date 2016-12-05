@@ -257,7 +257,7 @@ private:
 	bool _suppressSong = false;
 	bool _suppressSongAnim = false;
 	bool _songVolumeChanged, _videoVolumeChanged;
-	anim::fvalue _suppressAllGain, _suppressSongGain;
+	anim::value _suppressAllGain, _suppressSongGain;
 	TimeMs _suppressAllStart = 0;
 	TimeMs _suppressSongStart = 0;
 

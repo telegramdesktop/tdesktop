@@ -100,7 +100,7 @@ private:
 	TimeMs _hideIn;
 	QTimer _hideTimer;
 
-	anim::fvalue a_bgOver, a_barOver, a_fullOpacity;
+	anim::value a_bgOver, a_barOver, a_fullOpacity;
 	Animation _a_appearance;
 
 	QRect _bar;
@@ -131,7 +131,7 @@ public:
 
 public slots:
 	void update() {
-		update(0, 0, fullWidth(), height());
+		update(0, 0, getFullWidth(), height());
 	}
 
 signals:
@@ -142,20 +142,20 @@ signals:
 protected:
 	void paintEvent(QPaintEvent *e) override; // paintEvent done through paintRegion
 
-	int32 otherWidth() const {
+	int otherWidth() const {
 		return _otherWidth;
 	}
-	int32 fullWidth() const {
+	int getFullWidth() const {
 		return width() + otherWidth();
 	}
 	virtual void paintRegion(Painter &p, const QRegion &region, bool paintingOther) = 0;
 
 private:
-	int32 _otherWidth = 0;
-	void setOtherWidth(int32 otherWidth) {
+	int _otherWidth = 0;
+	void setOtherWidth(int otherWidth) {
 		_otherWidth = otherWidth;
 	}
-	void resize(int32 w, int32 h) {
+	void resize(int w, int h) {
 		TWidget::resize(w, h);
 	}
 	friend class ScrollArea;

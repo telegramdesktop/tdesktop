@@ -226,7 +226,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		Application::clipboard()->setText(_link);
 		_goodTextLink = lang(lng_create_channel_link_copied);
-		a_goodOpacity = anim::fvalue(1, 0);
+		a_goodOpacity = anim::value(1, 0);
 		_a_good.start();
 	}
 }

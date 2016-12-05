@@ -159,13 +159,13 @@ private:
 	bool _hiding = false;
 	bool _deleted = false;
 	float64 _opacityDuration;
-	anim::fvalue a_opacity;
+	anim::value a_opacity;
 	anim::transition a_func;
 	Animation _a_opacity;
 
 	QPoint _startPosition;
 	Direction _direction;
-	anim::ivalue a_shift;
+	anim::value a_shift;
 	Animation _a_shift;
 
 };

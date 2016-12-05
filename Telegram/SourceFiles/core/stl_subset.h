@@ -200,6 +200,7 @@ public:
 	}
 	~unique_ptr() noexcept {
 		if (_p) {
+			static_assert(sizeof(T) > 0, "can't delete an incomplete type");
 			delete _p;
 			_p = nullptr;
 		}
@@ -228,6 +229,7 @@ public:
 		auto old = _p;
 		_p = p;
 		if (old) {
+			static_assert(sizeof(T) > 0, "can't delete an incomplete type");
 			delete old;
 		}
 	}

@@ -48,7 +48,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 	int resizeGetHeight(int newWidth) override;
 
 	QImage prepareRippleMask() const override;
@@ -95,7 +95,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 	int resizeGetHeight(int newWidth) override;
 
 	QImage prepareRippleMask() const override;

@@ -68,6 +68,7 @@ private:
 	int getCommonGroupsCount() const;
 	void onForceHideCommonGroups();
 	void onShowCommonGroups();
+	void slideCommonGroupsDown();
 
 	// labelWidget may be nullptr.
 	void setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,
@@ -83,7 +84,7 @@ private:
 	ChildWidget<Ui::FlatLabel> _username = { nullptr };
 	ChildWidget<Ui::LeftOutlineButton> _commonGroups = { nullptr };
 
-	IntAnimation _height;
+	FloatAnimation _height;
 	bool _showFinished = false;
 
 	bool _forceHiddenCommonGroups = false;

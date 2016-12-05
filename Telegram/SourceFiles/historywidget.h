@@ -510,7 +510,7 @@ private:
 	ChildWidget<Ui::RoundButton> _cancel;
 	PeerData *_offered = nullptr;
 
-	anim::fvalue a_opacity;
+	anim::value a_opacity;
 	Animation _a_appearance;
 
 	QRect _box;
@@ -613,8 +613,7 @@ public:
 		return peer() != nullptr;
 	}
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
-	void step_show(float64 ms, bool timer);
-	void animStop();
+	void finishAnimation();
 
 	void doneShow();
 
@@ -650,7 +649,6 @@ public:
 	void updatePreview();
 	void previewCancel();
 
-	void step_record(float64 ms, bool timer);
 	void step_recording(float64 ms, bool timer);
 	void stopRecording(bool send);
 
@@ -849,6 +847,8 @@ private slots:
 	void updateField();
 
 private:
+	void animationCallback();
+	void recordActiveCallback();
 	void chooseAttach();
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 	struct SendingFilesLists {
@@ -931,8 +931,8 @@ private:
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
-	void drawRecordButton(Painter &p);
-	void drawRecording(Painter &p);
+	void drawRecordButton(Painter &p, float64 recordActive, TimeMs ms);
+	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
 
 	void updateMouseTracking();
@@ -1122,18 +1122,18 @@ private:
 	ChildWidget<SilentToggle> _silent;
 	bool _cmdStartShown = false;
 	ChildWidget<MessageField> _field;
-	Animation _a_record, _a_recording;
+	Animation _a_recording;
 	bool _recording = false;
 	bool _inRecord = false;
 	bool _inField = false;
 	bool _inReplyEdit = false;
 	bool _inPinnedMsg = false;
 	bool _inClickable = false;
-	anim::ivalue a_recordingLevel = { 0, 0 };
-	int32 _recordingSamples = 0;
-	anim::fvalue a_recordDown = { 0, 0 };
-	anim::fvalue a_recordCancelActive;
-	int32 _recordCancelWidth;
+	anim::value a_recordingLevel;
+	int _recordingSamples = 0;
+	FloatAnimation _a_recordActive;
+	std_::unique_ptr<Ui::RippleAnimation> _recordRipple;
+	int _recordCancelWidth;
 
 	FileDialog::QueryId _attachFilesQueryId = 0;
 
@@ -1163,10 +1163,9 @@ private:
 	bool _titlePeerTextOnline = false;
 	int _titlePeerTextWidth = 0;
 
-	Animation _a_show;
+	FloatAnimation _a_show;
+	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_progress;
 
 	QTimer _scrollTimer;
 	int32 _scrollDelta = 0;

@@ -95,7 +95,7 @@ private:
 			, y(y) {
 			x.start(updateCallback, fromX, toX, duration);
 		}
-		IntAnimation x;
+		FloatAnimation x;
 		int fromX, toX;
 		int y;
 	};
@@ -143,7 +143,7 @@ void MultiSelect::Inner::Item::paint(Painter &p, int outerWidth, TimeMs ms) {
 		paintOnce(p, _x, _y, outerWidth, ms);
 	} else {
 		for (auto i = _copies.begin(), e = _copies.end(); i != e;) {
-			auto x = i->x.current(getms(), _x);
+			auto x = qRound(i->x.current(getms(), _x));
 			auto y = i->y;
 			auto animating = i->x.animating();
 			if (animating || (y == _y)) {
@@ -748,7 +748,7 @@ void MultiSelect::Inner::updateItemsGeometry() {
 }
 
 void MultiSelect::Inner::updateHeightStep() {
-	auto newHeight = _height.current(_newHeight);
+	auto newHeight = qRound(_height.current(_newHeight));
 	if (auto heightDelta = newHeight - height()) {
 		resize(width(), newHeight);
 		if (_resizedCallback) {

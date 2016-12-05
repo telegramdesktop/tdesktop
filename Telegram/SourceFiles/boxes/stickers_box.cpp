@@ -663,7 +663,7 @@ QRect StickersBox::Inner::relativeButtonRect(bool removeButton) const {
 void StickersBox::Inner::paintRow(Painter &p, int index, TimeMs ms) {
 	auto s = _rows.at(index);
 
-	auto xadd = 0, yadd = s->yadd.current();
+	auto xadd = 0, yadd = qRound(s->yadd.current());
 	if (xadd || yadd) p.translate(xadd, yadd);
 
 	if (_section == Section::Installed) {
@@ -673,7 +673,7 @@ void StickersBox::Inner::paintRow(Painter &p, int index, TimeMs ms) {
 			if (_started >= 0) {
 				float64 o = aboveShadowOpacity();
 				if (o > current) {
-					_aboveShadowFadeOpacity = anim::fvalue(o, o);
+					_aboveShadowFadeOpacity = anim::value(o, o);
 					current = o;
 				}
 			}
@@ -858,14 +858,14 @@ void StickersBox::Inner::onUpdateSelected() {
 			shift = -floorclamp(_dragStart.y() - local.y() + (_rowHeight / 2), _rowHeight, 0, _dragging - firstSetIndex);
 			for (int32 from = _dragging, to = _dragging + shift; from > to; --from) {
 				qSwap(_rows[from], _rows[from - 1]);
-				_rows.at(from)->yadd = anim::ivalue(_rows.at(from)->yadd.current() - _rowHeight, 0);
+				_rows[from]->yadd = anim::value(_rows[from]->yadd.current() - _rowHeight, 0);
 				_animStartTimes[from] = ms;
 			}
 		} else if (_dragStart.y() < local.y() && _dragging + 1 < _rows.size()) {
 			shift = floorclamp(local.y() - _dragStart.y() + (_rowHeight / 2), _rowHeight, 0, _rows.size() - _dragging - 1);
 			for (int32 from = _dragging, to = _dragging + shift; from < to; ++from) {
 				qSwap(_rows[from], _rows[from + 1]);
-				_rows.at(from)->yadd = anim::ivalue(_rows.at(from)->yadd.current() + _rowHeight, 0);
+				_rows[from]->yadd = anim::value(_rows[from]->yadd.current() + _rowHeight, 0);
 				_animStartTimes[from] = ms;
 			}
 		}
@@ -877,7 +877,7 @@ void StickersBox::Inner::onUpdateSelected() {
 				_a_shifting.start();
 			}
 		}
-		_rows.at(_dragging)->yadd = anim::ivalue(local.y() - _dragStart.y(), local.y() - _dragStart.y());
+		_rows[_dragging]->yadd = anim::value(local.y() - _dragStart.y(), local.y() - _dragStart.y());
 		_animStartTimes[_dragging] = 0;
 		_a_shifting.step(getms(), true);
 
@@ -926,8 +926,8 @@ void StickersBox::Inner::onUpdateSelected() {
 float64 StickersBox::Inner::aboveShadowOpacity() const {
 	if (_above < 0) return 0;
 
-	int32 dx = 0;
-	int32 dy = qAbs(_above * _rowHeight + _rows.at(_above)->yadd.current() - _started * _rowHeight);
+	auto dx = 0;
+	auto dy = qAbs(_above * _rowHeight + qRound(_rows[_above]->yadd.current()) - _started * _rowHeight);
 	return qMin((dx + dy)  * 2. / _rowHeight, 1.);
 }
 
@@ -948,9 +948,9 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		}
 	} else if (_dragging >= 0) {
 		QPoint local(mapFromGlobal(_mouse));
-		_rows[_dragging]->yadd.start(0);
+		_rows[_dragging]->yadd.start(0.);
 		_aboveShadowFadeStart = _animStartTimes[_dragging] = getms();
-		_aboveShadowFadeOpacity = anim::fvalue(aboveShadowOpacity(), 0);
+		_aboveShadowFadeOpacity = anim::value(aboveShadowOpacity(), 0);
 		if (!_a_shifting.animating()) {
 			_a_shifting.start();
 		}
@@ -994,10 +994,10 @@ void StickersBox::Inner::step_shifting(TimeMs ms, bool timer) {
 			if (updateMin < 0) updateMin = i;
 			updateMax = i;
 			if (start + st::stickersRowDuration > ms && ms >= start) {
-				_rows.at(i)->yadd.update(float64(ms - start) / st::stickersRowDuration, anim::sineInOut);
+				_rows[i]->yadd.update(float64(ms - start) / st::stickersRowDuration, anim::sineInOut);
 				animating = true;
 			} else {
-				_rows.at(i)->yadd.finish();
+				_rows[i]->yadd.finish();
 				_animStartTimes[i] = 0;
 			}
 		}
@@ -1035,7 +1035,7 @@ void StickersBox::Inner::clear() {
 	_rows.clear();
 	_animStartTimes.clear();
 	_aboveShadowFadeStart = 0;
-	_aboveShadowFadeOpacity = anim::fvalue(0, 0);
+	_aboveShadowFadeOpacity = anim::value();
 	_a_shifting.stop();
 	_above = _dragging = _started = -1;
 	_selected = -1;

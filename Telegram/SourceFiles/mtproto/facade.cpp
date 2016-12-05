@@ -358,7 +358,7 @@ namespace {
 		return false;
 	}
 
-	bool _paused = false;
+int PauseLevel = 0;
 
 } // namespace
 
@@ -379,7 +379,20 @@ Session *getSession(ShiftedDcId shiftedDcId) {
 }
 
 bool paused() {
-	return _paused;
+	return PauseLevel > 0;
+}
+
+void pause() {
+	++PauseLevel;
+}
+
+void unpause() {
+	--PauseLevel;
+	if (_started) {
+		for_const (auto session, sessions) {
+			session->unpaused();
+		}
+	}
 }
 
 void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
@@ -682,19 +695,6 @@ void restart(int32 dcMask) {
 		if (bareDcId(i.value()->getDcWithShift()) == dcMask) {
 			i.value()->restart();
 		}
-	}
-}
-
-void pause() {
-	if (!_started) return;
-	_paused = true;
-}
-
-void unpause() {
-	if (!_started) return;
-	_paused = false;
-	for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
-		i.value()->unpaused();
 	}
 }
 

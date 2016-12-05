@@ -37,6 +37,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/widget_slide_wrap.h"
+#include "ui/effects/ripple_animation.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
@@ -546,9 +547,13 @@ bool ContactsBox::creationFail(const RPCError &error) {
 	return false;
 }
 
+ContactsBox::Inner::ContactData::ContactData() = default;
+
 ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
 : checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
 }
+
+ContactsBox::Inner::ContactData::~ContactData() = default;
 
 ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
@@ -924,16 +929,16 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 	return data;
 }
 
-void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool sel) {
-	UserData *user = peer->asUser();
+void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool selected) {
+	auto user = peer->asUser();
 
 	if (_chat && _membersFilter == MembersFilter::Admins) {
 		if (_allAdmins->checked() || peer->id == peerFromUser(_chat->creator) || _saving) {
-			sel = false;
+			selected = false;
 		}
 	} else {
 		if (data->disabledChecked || selectedCount() >= Global::MegagroupSizeMax()) {
-			sel = false;
+			selected = false;
 		}
 	}
 
@@ -945,7 +950,13 @@ void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, Cont
 	}
 
 	auto checkedRatio = 0.;
-	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::contactsBg);
+	p.fillRect(0, 0, width(), _rowHeight, selected ? st::contactsBgOver : st::contactsBg);
+	if (data->ripple) {
+		data->ripple->paint(p, 0, 0, width(), ms);
+		if (data->ripple->empty()) {
+			data->ripple.reset();
+		}
+	}
 	if (paintDisabledCheck) {
 		paintDisabledCheckUserpic(p, peer, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else if (usingMultiSelect()) {
@@ -979,14 +990,14 @@ void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, Cont
 			int32 secondw = st::contactsStatusFont->width(second);
 			p.setPen(st::contactsStatusFgOnline);
 			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width() - secondw, first);
-			p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
+			p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
 			p.drawTextLeft(namex + w, st::contactsPadding.top() + st::contactsStatusTop, width() + w, second);
 		}
 	} else {
 		if ((user && (uname || data->statusHasOnlineColor)) || (peer->isChannel() && uname)) {
 			p.setPen(st::contactsStatusFgOnline);
 		} else {
-			p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
+			p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
 		}
 		p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->statusText);
 	}
@@ -1064,7 +1075,8 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 					if ((*i)->pos() * _rowHeight >= yTo) {
 						break;
 					}
-					paintDialog(p, ms, (*i)->history()->peer, contactData(*i), (*i == _sel));
+					auto selected = _pressed ? (*i == _pressed) : (*i == _selected);
+					paintDialog(p, ms, (*i)->history()->peer, contactData(*i), selected);
 					p.translate(0, _rowHeight);
 				}
 				yFrom -= _contacts->size() * _rowHeight;
@@ -1080,11 +1092,12 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				yTo -= st::searchedBarHeight;
 				p.translate(0, st::searchedBarHeight);
 
-				int32 from = floorclamp(yFrom, _rowHeight, 0, _byUsername.size());
-				int32 to = ceilclamp(yTo, _rowHeight, 0, _byUsername.size());
+				auto from = floorclamp(yFrom, _rowHeight, 0, _byUsername.size());
+				auto to = ceilclamp(yTo, _rowHeight, 0, _byUsername.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, ms, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
+					auto selected = (_searchedPressed >= 0) ? (_searchedPressed == from) : (_searchedSelected == from);
+					paintDialog(p, ms, _byUsername[from], d_byUsername[from], selected);
 					p.translate(0, _rowHeight);
 				}
 			}
@@ -1130,7 +1143,8 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _filtered.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, ms, _filtered[from]->history()->peer, contactData(_filtered[from]), (_filteredSel == from));
+					auto selected = (_filteredPressed >= 0) ? (_filteredPressed == from) : (_filteredSelected == from);
+					paintDialog(p, ms, _filtered[from]->history()->peer, contactData(_filtered[from]), selected);
 					p.translate(0, _rowHeight);
 				}
 			}
@@ -1147,7 +1161,8 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _byUsernameFiltered.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, ms, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
+					auto selected = (_searchedPressed >= 0) ? (_searchedPressed == from) : (_searchedSelected == from);
+					paintDialog(p, ms, _byUsernameFiltered[from], d_byUsernameFiltered[from], selected);
 					p.translate(0, _rowHeight);
 				}
 			}
@@ -1161,16 +1176,16 @@ void ContactsBox::Inner::enterEvent(QEvent *e) {
 
 int ContactsBox::Inner::getSelectedRowTop() const {
 	if (_filter.isEmpty()) {
-		if (_sel) {
-			return _aboutHeight + (_sel->pos() * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
-			return _aboutHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_byUsernameSel * _rowHeight);
+		if (_selected) {
+			return _aboutHeight + (_selected->pos() * _rowHeight);
+		} else if (_searchedSelected >= 0) {
+			return _aboutHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_searchedSelected * _rowHeight);
 		}
 	} else {
-		if (_filteredSel >= 0) {
-			return (_filteredSel * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
-			return (_filtered.size() * _rowHeight + st::searchedBarHeight + _byUsernameSel * _rowHeight);
+		if (_filteredSelected >= 0) {
+			return (_filteredSelected * _rowHeight);
+		} else if (_searchedSelected >= 0) {
+			return (_filtered.size() * _rowHeight + st::searchedBarHeight + _searchedSelected * _rowHeight);
 		}
 	}
 	return -1;
@@ -1222,28 +1237,105 @@ void ContactsBox::Inner::updateRowWithPeer(PeerData *peer) {
 }
 
 void ContactsBox::Inner::leaveEvent(QEvent *e) {
-	_mouseSel = false;
+	_mouseSelection = false;
 	setMouseTracking(false);
-	if (_sel || _filteredSel >= 0 || _byUsernameSel >= 0) {
+	if (_selected || _filteredSelected >= 0 || _searchedSelected >= 0) {
 		updateSelectedRow();
-		_sel = 0;
-		_filteredSel = _byUsernameSel = -1;
+		_selected = nullptr;
+		_filteredSelected = _searchedSelected = -1;
 	}
 }
 
 void ContactsBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	_mouseSel = true;
+	_mouseSelection = true;
 	_lastMousePos = e->globalPos();
 	updateSelection();
 }
 
 void ContactsBox::Inner::mousePressEvent(QMouseEvent *e) {
-	_mouseSel = true;
+	_mouseSelection = true;
 	_lastMousePos = e->globalPos();
 	updateSelection();
-	if (e->button() == Qt::LeftButton) {
-		chooseParticipant();
+
+	setPressed(_selected);
+	setFilteredPressed(_filteredSelected);
+	setSearchedPressed(_searchedSelected);
+	if (_pressed) {
+		addRipple(contactData(_selected));
+	} else if (_filteredSelected >= 0 && _filteredSelected < _filtered.size()) {
+		addRipple(contactData(_filtered[_filteredSelected]));
+	} else if (_searchedSelected >= 0) {
+		if (_filter.isEmpty() && _searchedSelected < d_byUsername.size()) {
+			addRipple(d_byUsername[_searchedSelected]);
+		} else if (!_filter.isEmpty() && _searchedSelected < d_byUsernameFiltered.size()) {
+			addRipple(d_byUsernameFiltered[_searchedSelected]);
+		}
 	}
+}
+
+void ContactsBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
+	auto pressed = _pressed;
+	setPressed(nullptr);
+	auto filteredPressed = _filteredPressed;
+	setFilteredPressed(-1);
+	auto searchedPressed = _searchedPressed;
+	setSearchedPressed(-1);
+	updateSelectedRow();
+	if (e->button() == Qt::LeftButton) {
+		if (pressed && pressed == _selected) {
+			chooseParticipant();
+		} else if (filteredPressed >= 0 && filteredPressed == _filteredSelected) {
+			chooseParticipant();
+		} else if (searchedPressed >= 0 && searchedPressed == _searchedSelected) {
+			chooseParticipant();
+		}
+	}
+}
+
+void ContactsBox::Inner::addRipple(ContactData *data) {
+	auto rowTop = getSelectedRowTop();
+	if (!data->ripple) {
+		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
+		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+			updateRowWithTop(data->rippleRowTop);
+		});
+	}
+	data->rippleRowTop = rowTop;
+	data->ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(0, rowTop));
+}
+
+void ContactsBox::Inner::stopLastRipple(ContactData *data) {
+	if (data->ripple) {
+		data->ripple->lastStop();
+	}
+}
+
+void ContactsBox::Inner::setPressed(Dialogs::Row *pressed) {
+	if (_pressed != pressed) {
+		if (_pressed) {
+			stopLastRipple(contactData(_pressed));
+		}
+		_pressed = pressed;
+	}
+}
+
+void ContactsBox::Inner::setFilteredPressed(int pressed) {
+	if (_filteredPressed >= 0 && _filteredPressed < _filtered.size()) {
+		stopLastRipple(contactData(_filtered[_filteredPressed]));
+	}
+	_filteredPressed = pressed;
+}
+
+void ContactsBox::Inner::setSearchedPressed(int pressed) {
+	if (_searchedPressed >= 0) {
+		if (_searchedPressed < d_byUsername.size()) {
+			stopLastRipple(d_byUsername[_searchedPressed]);
+		}
+		if (_searchedPressed < d_byUsernameFiltered.size()) {
+			stopLastRipple(d_byUsernameFiltered[_searchedPressed]);
+		}
+	}
+	_searchedPressed = pressed;
 }
 
 void ContactsBox::Inner::chooseParticipant() {
@@ -1252,23 +1344,23 @@ void ContactsBox::Inner::chooseParticipant() {
 	if (!addingAdmin && usingMultiSelect()) {
 		_time = unixtime();
 		if (_filter.isEmpty()) {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				auto data = d_byUsername[_byUsernameSel];
-				auto peer = _byUsername[_byUsernameSel];
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsername.size()) {
+				auto data = d_byUsername[_searchedSelected];
+				auto peer = _byUsername[_searchedSelected];
 				if (data->disabledChecked) return;
 
 				changeCheckState(data, peer);
-			} else if (_sel) {
-				auto data = contactData(_sel);
-				auto peer = _sel->history()->peer;
+			} else if (_selected) {
+				auto data = contactData(_selected);
+				auto peer = _selected->history()->peer;
 				if (data->disabledChecked) return;
 
-				changeCheckState(_sel);
+				changeCheckState(_selected);
 			}
 		} else {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				auto data = d_byUsernameFiltered[_byUsernameSel];
-				auto peer = _byUsernameFiltered[_byUsernameSel];
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsernameFiltered.size()) {
+				auto data = d_byUsernameFiltered[_searchedSelected];
+				auto peer = _byUsernameFiltered[_searchedSelected];
 				if (data->disabledChecked) return;
 
 				int i = 0, l = d_byUsername.size();
@@ -1291,9 +1383,9 @@ void ContactsBox::Inner::chooseParticipant() {
 				}
 
 				changeCheckState(data, peer);
-			} else if (_filteredSel >= 0 && _filteredSel < _filtered.size()) {
-				auto data = contactData(_filtered[_filteredSel]);
-				auto peer = _filtered[_filteredSel]->history()->peer;
+			} else if (_filteredSelected >= 0 && _filteredSelected < _filtered.size()) {
+				auto data = contactData(_filtered[_filteredSelected]);
+				auto peer = _filtered[_filteredSelected]->history()->peer;
 				if (data->disabledChecked) return;
 
 				changeCheckState(data, peer);
@@ -1302,17 +1394,17 @@ void ContactsBox::Inner::chooseParticipant() {
 	} else {
 		PeerData *peer = 0;
 		if (_filter.isEmpty()) {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				peer = _byUsername[_byUsernameSel];
-			} else if (_sel) {
-				peer = _sel->history()->peer;
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsername.size()) {
+				peer = _byUsername[_searchedSelected];
+			} else if (_selected) {
+				peer = _selected->history()->peer;
 			}
 		} else {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				peer = _byUsernameFiltered[_byUsernameSel];
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsernameFiltered.size()) {
+				peer = _byUsernameFiltered[_searchedSelected];
 			} else {
-				if (_filteredSel < 0 || _filteredSel >= _filtered.size()) return;
-				peer = _filtered[_filteredSel]->history()->peer;
+				if (_filteredSelected < 0 || _filteredSelected >= _filtered.size()) return;
+				peer = _filtered[_filteredSelected]->history()->peer;
 			}
 		}
 		if (peer) {
@@ -1408,31 +1500,35 @@ int32 ContactsBox::Inner::selectedCount() const {
 }
 
 void ContactsBox::Inner::updateSelection() {
-	if (!_mouseSel) return;
+	if (!_mouseSelection) return;
 
-	QPoint p(mapFromGlobal(_lastMousePos));
+	auto p = mapFromGlobal(_lastMousePos);
 	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
 	if (_filter.isEmpty()) {
+		_filteredSelected = -1;
+		setFilteredPressed(-1);
 		if (_aboutHeight) {
 			p.setY(p.y() - _aboutHeight);
 		}
-		Dialogs::Row *newSel = (in && (p.y() >= 0) && (p.y() < _contacts->size() * _rowHeight)) ? _contacts->rowAtY(p.y(), _rowHeight) : nullptr;
-		int32 byUsernameSel = (in && p.y() >= _contacts->size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _contacts->size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
-		if (byUsernameSel >= _byUsername.size()) byUsernameSel = -1;
-		if (newSel != _sel || byUsernameSel != _byUsernameSel) {
+		auto selected = (in && (p.y() >= 0) && (p.y() < _contacts->size() * _rowHeight)) ? _contacts->rowAtY(p.y(), _rowHeight) : nullptr;
+		auto searchedSelected = (in && p.y() >= _contacts->size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _contacts->size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
+		if (searchedSelected >= _byUsername.size()) searchedSelected = -1;
+		if (_selected != selected || _searchedSelected != searchedSelected) {
 			updateSelectedRow();
-			_sel = newSel;
-			_byUsernameSel = byUsernameSel;
+			_selected = selected;
+			_searchedSelected = searchedSelected;
 			updateSelectedRow();
 		}
 	} else {
-		int32 newFilteredSel = (in && p.y() >= 0 && p.y() < _filtered.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
-		int32 byUsernameSel = (in && p.y() >= _filtered.size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _filtered.size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
-		if (byUsernameSel >= _byUsernameFiltered.size()) byUsernameSel = -1;
-		if (newFilteredSel != _filteredSel || byUsernameSel != _byUsernameSel) {
+		_selected = nullptr;
+		setPressed(nullptr);
+		auto filteredSelected = (in && p.y() >= 0 && p.y() < _filtered.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
+		auto searchedSelected = (in && p.y() >= _filtered.size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _filtered.size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
+		if (searchedSelected >= _byUsernameFiltered.size()) searchedSelected = -1;
+		if (_filteredSelected != filteredSelected || _searchedSelected != searchedSelected) {
 			updateSelectedRow();
-			_filteredSel = newFilteredSel;
-			_byUsernameSel = byUsernameSel;
+			_filteredSelected = filteredSelected;
+			_searchedSelected = searchedSelected;
 			updateSelectedRow();
 		}
 	}
@@ -1461,13 +1557,15 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 
 		_byUsernameFiltered.clear();
 		d_byUsernameFiltered.clear();
-		for (int i = 0, l = _byUsernameDatas.size(); i < l; ++i) {
-			delete _byUsernameDatas[i];
-		}
-		_byUsernameDatas.clear();
+		clearSearchedContactDatas();
 
+		_selected = nullptr;
+		setPressed(nullptr);
+		_filteredSelected = -1;
+		setFilteredPressed(-1);
+		_searchedSelected = -1;
+		setSearchedPressed(-1);
 		if (_filter.isEmpty()) {
-			_sel = 0;
 			refresh();
 		} else {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
@@ -1534,21 +1632,19 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 					}
 				}
 			}
-			_filteredSel = -1;
 			if (!_filtered.isEmpty()) {
-				for (_filteredSel = 0; (_filteredSel < _filtered.size()) && contactData(_filtered[_filteredSel])->disabledChecked;) {
-					++_filteredSel;
+				for (_filteredSelected = 0; (_filteredSelected < _filtered.size()) && contactData(_filtered[_filteredSelected])->disabledChecked;) {
+					++_filteredSelected;
 				}
-				if (_filteredSel == _filtered.size()) _filteredSel = -1;
+				if (_filteredSelected == _filtered.size()) _filteredSelected = -1;
 			}
-			_byUsernameSel = -1;
-			if (_filteredSel < 0 && !_byUsernameFiltered.isEmpty()) {
-				for (_byUsernameSel = 0; (_byUsernameSel < _byUsernameFiltered.size()) && d_byUsernameFiltered[_byUsernameSel]->disabledChecked;) {
-					++_byUsernameSel;
+			if (_filteredSelected < 0 && !_byUsernameFiltered.isEmpty()) {
+				for (_searchedSelected = 0; (_searchedSelected < _byUsernameFiltered.size()) && d_byUsernameFiltered[_searchedSelected]->disabledChecked;) {
+					++_searchedSelected;
 				}
-				if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
+				if (_searchedSelected == _byUsernameFiltered.size()) _searchedSelected = -1;
 			}
-			_mouseSel = false;
+			_mouseSelection = false;
 			refresh();
 
 			if ((!bot() || sharingBotGame()) && (!_chat || _membersFilter != MembersFilter::Admins)) {
@@ -1561,9 +1657,15 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 	}
 }
 
+void ContactsBox::Inner::clearSearchedContactDatas() {
+	for (auto data : base::take(_byUsernameDatas)) {
+		delete data;
+	}
+}
+
 void ContactsBox::Inner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
 	if (!_filter.isEmpty()) {
-		for (FilteredDialogs::iterator i = _filtered.begin(), e = _filtered.end(); i != e;) {
+		for (auto i = _filtered.begin(), e = _filtered.end(); i != e;) {
 			if (*i == oldRow) { // this row is shown in filtered and maybe is in contacts!
 				if (newRow) {
 					*i = newRow;
@@ -1575,18 +1677,21 @@ void ContactsBox::Inner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row 
 				++i;
 			}
 		}
-		if (_filteredSel >= _filtered.size()) {
-			_filteredSel = -1;
+		if (_filteredSelected >= _filtered.size()) {
+			_filteredSelected = -1;
+		}
+		if (_filteredPressed >= _filtered.size()) {
+			_filteredPressed = -1;
 		}
 	} else {
-		if (_sel == oldRow) {
-			_sel = newRow;
+		if (_selected == oldRow) {
+			_selected = newRow;
+		}
+		if (_pressed == oldRow) {
+			setPressed(newRow);
 		}
 	}
-	_mouseSel = false;
-	int cnt = (_filter.isEmpty() ? _contacts->size() : _filtered.size());
-	int newh = cnt ? (cnt * _rowHeight) : st::noContactsHeight;
-	resize(width(), newh);
+	refresh();
 }
 
 void ContactsBox::Inner::peopleReceived(const QString &query, const QVector<MTPPeer> &people) {
@@ -1707,6 +1812,10 @@ ContactsBox::Inner::~Inner() {
 	for (auto contactData : base::take(_contactsData)) {
 		delete contactData;
 	}
+	clearSearchedContactDatas();
+	for (auto data : base::take(d_byUsername)) {
+		delete data;
+	}
 	if (_bot) {
 		if (auto &info = _bot->botInfo) {
 			info->startGroupToken = QString();
@@ -1722,127 +1831,127 @@ void ContactsBox::Inner::resizeEvent(QResizeEvent *e) {
 
 void ContactsBox::Inner::selectSkip(int32 dir) {
 	_time = unixtime();
-	_mouseSel = false;
+	_mouseSelection = false;
 	if (_filter.isEmpty()) {
 		int cur = 0;
-		if (_sel) {
-			for (auto i = _contacts->cbegin(); *i != _sel; ++i) {
+		if (_selected) {
+			for (auto i = _contacts->cbegin(); *i != _selected; ++i) {
 				++cur;
 			}
-		} else if (_byUsernameSel >= 0) {
-			cur = (_contacts->size() + _byUsernameSel);
+		} else if (_searchedSelected >= 0) {
+			cur = (_contacts->size() + _searchedSelected);
 		} else {
 			cur = -1;
 		}
 		cur += dir;
 		if (cur <= 0) {
-			_sel = (!_contacts->isEmpty()) ? *_contacts->cbegin() : nullptr;
-			_byUsernameSel = (_contacts->isEmpty() && !_byUsername.isEmpty()) ? 0 : -1;
+			_selected = (!_contacts->isEmpty()) ? *_contacts->cbegin() : nullptr;
+			_searchedSelected = (_contacts->isEmpty() && !_byUsername.isEmpty()) ? 0 : -1;
 		} else if (cur >= _contacts->size()) {
 			if (_byUsername.isEmpty()) {
-				_sel = _contacts->isEmpty() ? nullptr : *(_contacts->cend() - 1);
-				_byUsernameSel = -1;
+				_selected = _contacts->isEmpty() ? nullptr : *(_contacts->cend() - 1);
+				_searchedSelected = -1;
 			} else {
-				_sel = nullptr;
-				_byUsernameSel = cur - _contacts->size();
-				if (_byUsernameSel >= _byUsername.size()) _byUsernameSel = _byUsername.size() - 1;
+				_selected = nullptr;
+				_searchedSelected = cur - _contacts->size();
+				if (_searchedSelected >= _byUsername.size()) _searchedSelected = _byUsername.size() - 1;
 			}
 		} else {
 			for (auto i = _contacts->cbegin(); ; ++i) {
-				_sel = *i;
+				_selected = *i;
 				if (!cur) {
 					break;
 				} else {
 					--cur;
 				}
 			}
-			_byUsernameSel = -1;
+			_searchedSelected = -1;
 		}
 		if (dir > 0) {
-			for (auto i = _contacts->cfind(_sel), end = _contacts->cend(); i != end && contactData(*i)->disabledChecked; ++i) {
-				_sel = *i;
+			for (auto i = _contacts->cfind(_selected), end = _contacts->cend(); i != end && contactData(*i)->disabledChecked; ++i) {
+				_selected = *i;
 			}
-			if (_sel && contactData(_sel)->disabledChecked) {
-				_sel = nullptr;
+			if (_selected && contactData(_selected)->disabledChecked) {
+				_selected = nullptr;
 			}
-			if (!_sel) {
+			if (!_selected) {
 				if (!_byUsername.isEmpty()) {
-					if (_byUsernameSel < 0) _byUsernameSel = 0;
-					for (; _byUsernameSel < _byUsername.size() && d_byUsername[_byUsernameSel]->disabledChecked;) {
-						++_byUsernameSel;
+					if (_searchedSelected < 0) _searchedSelected = 0;
+					for (; _searchedSelected < _byUsername.size() && d_byUsername[_searchedSelected]->disabledChecked;) {
+						++_searchedSelected;
 					}
-					if (_byUsernameSel == _byUsername.size()) _byUsernameSel = -1;
+					if (_searchedSelected == _byUsername.size()) _searchedSelected = -1;
 				}
 			}
 		} else {
-			while (_byUsernameSel >= 0 && d_byUsername[_byUsernameSel]->disabledChecked) {
-				--_byUsernameSel;
+			while (_searchedSelected >= 0 && d_byUsername[_searchedSelected]->disabledChecked) {
+				--_searchedSelected;
 			}
-			if (_byUsernameSel < 0) {
+			if (_searchedSelected < 0) {
 				if (!_contacts->isEmpty()) {
-					if (!_sel) _sel = *(_contacts->cend() - 1);
-					if (_sel) {
-						for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->disabledChecked; --i) {
-							_sel = *i;
+					if (!_selected) _selected = *(_contacts->cend() - 1);
+					if (_selected) {
+						for (auto i = _contacts->cfind(_selected), b = _contacts->cbegin(); i != b && contactData(*i)->disabledChecked; --i) {
+							_selected = *i;
 						}
-						if (contactData(_sel)->disabledChecked) {
-							_sel = nullptr;
+						if (contactData(_selected)->disabledChecked) {
+							_selected = nullptr;
 						}
 					}
 				}
 			}
 		}
-		if (_sel) {
-			emit mustScrollTo(_aboutHeight + _sel->pos() * _rowHeight, _aboutHeight + (_sel->pos() + 1) * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
-			emit mustScrollTo(_aboutHeight + (_contacts->size() + _byUsernameSel) * _rowHeight + st::searchedBarHeight, _aboutHeight + (_contacts->size() + _byUsernameSel + 1) * _rowHeight + st::searchedBarHeight);
+		if (_selected) {
+			emit mustScrollTo(_aboutHeight + _selected->pos() * _rowHeight, _aboutHeight + (_selected->pos() + 1) * _rowHeight);
+		} else if (_searchedSelected >= 0) {
+			emit mustScrollTo(_aboutHeight + (_contacts->size() + _searchedSelected) * _rowHeight + st::searchedBarHeight, _aboutHeight + (_contacts->size() + _searchedSelected + 1) * _rowHeight + st::searchedBarHeight);
 		}
 	} else {
-		int cur = (_filteredSel >= 0) ? _filteredSel : ((_byUsernameSel >= 0) ? (_filtered.size() + _byUsernameSel) : -1);
+		int cur = (_filteredSelected >= 0) ? _filteredSelected : ((_searchedSelected >= 0) ? (_filtered.size() + _searchedSelected) : -1);
 		cur += dir;
 		if (cur <= 0) {
-			_filteredSel = _filtered.isEmpty() ? -1 : 0;
-			_byUsernameSel = (_filtered.isEmpty() && !_byUsernameFiltered.isEmpty()) ? 0 : -1;
+			_filteredSelected = _filtered.isEmpty() ? -1 : 0;
+			_searchedSelected = (_filtered.isEmpty() && !_byUsernameFiltered.isEmpty()) ? 0 : -1;
 		} else if (cur >= _filtered.size()) {
-			_filteredSel = -1;
-			_byUsernameSel = cur - _filtered.size();
-			if (_byUsernameSel >= _byUsernameFiltered.size()) _byUsernameSel = _byUsernameFiltered.size() - 1;
+			_filteredSelected = -1;
+			_searchedSelected = cur - _filtered.size();
+			if (_searchedSelected >= _byUsernameFiltered.size()) _searchedSelected = _byUsernameFiltered.size() - 1;
 		} else {
-			_filteredSel = cur;
-			_byUsernameSel = -1;
+			_filteredSelected = cur;
+			_searchedSelected = -1;
 		}
 		if (dir > 0) {
-			while (_filteredSel >= 0 && _filteredSel < _filtered.size() && contactData(_filtered[_filteredSel])->disabledChecked) {
-				++_filteredSel;
+			while (_filteredSelected >= 0 && _filteredSelected < _filtered.size() && contactData(_filtered[_filteredSelected])->disabledChecked) {
+				++_filteredSelected;
 			}
-			if (_filteredSel < 0 || _filteredSel >= _filtered.size()) {
-				_filteredSel = -1;
+			if (_filteredSelected < 0 || _filteredSelected >= _filtered.size()) {
+				_filteredSelected = -1;
 				if (!_byUsernameFiltered.isEmpty()) {
-					if (_byUsernameSel < 0) _byUsernameSel = 0;
-					for (; _byUsernameSel < _byUsernameFiltered.size() && d_byUsernameFiltered[_byUsernameSel]->disabledChecked;) {
-						++_byUsernameSel;
+					if (_searchedSelected < 0) _searchedSelected = 0;
+					for (; _searchedSelected < _byUsernameFiltered.size() && d_byUsernameFiltered[_searchedSelected]->disabledChecked;) {
+						++_searchedSelected;
 					}
-					if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
+					if (_searchedSelected == _byUsernameFiltered.size()) _searchedSelected = -1;
 				}
 			}
 		} else {
-			while (_byUsernameSel >= 0 && d_byUsernameFiltered[_byUsernameSel]->disabledChecked) {
-				--_byUsernameSel;
+			while (_searchedSelected >= 0 && d_byUsernameFiltered[_searchedSelected]->disabledChecked) {
+				--_searchedSelected;
 			}
-			if (_byUsernameSel < 0) {
+			if (_searchedSelected < 0) {
 				if (!_filtered.isEmpty()) {
-					if (_filteredSel < 0) _filteredSel = _filtered.size() - 1;
-					for (; _filteredSel >= 0 && contactData(_filtered[_filteredSel])->disabledChecked;) {
-						--_filteredSel;
+					if (_filteredSelected < 0) _filteredSelected = _filtered.size() - 1;
+					for (; _filteredSelected >= 0 && contactData(_filtered[_filteredSelected])->disabledChecked;) {
+						--_filteredSelected;
 					}
 				}
 			}
 		}
-		if (_filteredSel >= 0) {
-			emit mustScrollTo(_filteredSel * _rowHeight, (_filteredSel + 1) * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
+		if (_filteredSelected >= 0) {
+			emit mustScrollTo(_filteredSelected * _rowHeight, (_filteredSelected + 1) * _rowHeight);
+		} else if (_searchedSelected >= 0) {
 			int skip = _filtered.size() * _rowHeight + st::searchedBarHeight;
-			emit mustScrollTo(skip + _byUsernameSel * _rowHeight, skip + (_byUsernameSel + 1) * _rowHeight);
+			emit mustScrollTo(skip + _searchedSelected * _rowHeight, skip + (_searchedSelected + 1) * _rowHeight);
 		}
 	}
 	update();

@@ -1456,7 +1456,7 @@ bool HistoryDocument::updateStatusText() const {
 							if (voice->_playback->_position < playbackState.position) {
 								voice->_playback->a_progress.start(prg);
 							} else {
-								voice->_playback->a_progress = anim::fvalue(0., prg);
+								voice->_playback->a_progress = anim::value(0., prg);
 							}
 							voice->_playback->_position = playbackState.position;
 							voice->_playback->_a_progress.start();

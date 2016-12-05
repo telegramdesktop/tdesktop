@@ -108,12 +108,11 @@ public:
 
 	void refresh();
 
+	~Inner();
+
 signals:
 	void countryChosen(const QString &iso);
 	void mustScrollTo(int ymin, int ymax);
-
-public slots:
-	void updateSel();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -121,16 +120,24 @@ protected:
 	void leaveEvent(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	void updateSelected() {
+		updateSelected(mapFromGlobal(QCursor::pos()));
+	}
+	void updateSelected(QPoint localPos);
 	void updateSelectedRow();
+	void updateRow(int index);
+	void setPressed(int pressed);
 
 	int _rowHeight;
 
-	int _sel = 0;
+	int _selected = -1;
+	int _pressed = -1;
 	QString _filter;
-	bool _mouseSel = false;
+	bool _mouseSelection = false;
 
-	QPoint _lastMousePos;
+	std_::vector_of_moveable<std_::unique_ptr<Ui::RippleAnimation>> _ripples;
 
 };

@@ -2329,7 +2329,7 @@ bool HistoryService::updateDependentText() {
 		history()->textCachedFor = 0;
 	}
 	if (App::main()) {
-		App::main()->dlgUpdated(history(), id);
+		App::main()->dlgUpdated(history()->peer, id);
 	}
 	App::historyUpdateDependent(this);
 	return result;

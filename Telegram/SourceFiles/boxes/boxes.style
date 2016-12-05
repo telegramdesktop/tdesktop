@@ -332,6 +332,7 @@ contactsPhotoCheckbox: RoundImageCheckbox {
 }
 contactsPhotoDisabledCheckFg: #bbbbbb;
 contactsNameCheckedFg: #2b88b8;
+contactsRipple: defaultRippleAnimation;
 
 localStorageBoxSkip: 10px;
 
@@ -381,15 +382,21 @@ sessionWhenFont: msgDateFont;
 sessionWhenFg: #aaaaaa;
 sessionInfoFont: msgFont;
 sessionInfoFg: #888888;
-sessionTerminateTop: 30px;
-sessionTerminateSkip: 18px;
+sessionTerminateTop: 28px;
+sessionTerminateSkip: 22px;
 sessionTerminate: IconButton {
-	width: 16px;
-	height: 16px;
+	width: 20px;
+	height: 20px;
 
 	icon: simpleCloseIcon;
 	iconOver: simpleCloseIconOver;
-	iconPosition: point(3px, 3px);
+	iconPosition: point(5px, 5px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 sessionTerminateAllButton: LinkButton(boxLinkButton) {
 	color: #d15948;

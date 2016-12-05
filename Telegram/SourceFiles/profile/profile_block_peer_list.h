@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "profile/profile_block_widget.h"
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
@@ -35,14 +39,16 @@ public:
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	struct Item {
-		explicit Item(PeerData *peer) : peer(peer) {
-		}
+		explicit Item(PeerData *peer);
+		~Item();
+
 		PeerData * const peer;
 		Text name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
 		bool hasAdminStar = false;
 		bool hasRemoveLink = false;
+		std_::unique_ptr<Ui::RippleAnimation> ripple;
 	};
 	virtual int getListTop() const {
 		return contentTop();
@@ -111,9 +117,11 @@ private:
 	void updateSelection();
 	void setSelected(int selected, bool selectedRemove);
 	void repaintSelectedRow();
+	void repaintRow(int index);
 	void preloadPhotos();
+	int rowWidth() const;
 
-	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove);
+	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove, TimeMs ms);
 
 	base::lambda<void()> _preloadMoreCallback;
 	base::lambda<void(PeerData*)> _selectedCallback;

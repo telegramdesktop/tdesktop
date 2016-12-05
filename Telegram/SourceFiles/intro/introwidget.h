@@ -39,7 +39,8 @@ class Widget : public TWidget, public RPCSender {
 public:
 	Widget(QWidget *parent);
 
-	void animShow(const QPixmap &bgAnimCache, bool back = false);
+	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+
 	void setInnerFocus();
 
 	~Widget();
@@ -205,7 +206,7 @@ public:
 	};
 
 private:
-	void step_show(float64 ms, bool timer);
+	void animationCallback();
 
 	void changeLanguage(int32 languageId);
 	void updateControlsGeometry();
@@ -225,10 +226,9 @@ private:
 	void resetDone(const MTPBool &result);
 	bool resetFail(const RPCError &error);
 
-	Animation _a_show;
+	FloatAnimation _a_show;
+	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
 
 	QVector<Step*> _stepHistory;
 	Step *getStep(int skip = 0) {

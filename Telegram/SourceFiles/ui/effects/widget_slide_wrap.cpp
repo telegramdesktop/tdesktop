@@ -51,9 +51,9 @@ void WidgetSlideWrap<TWidget>::slideUp() {
 	if (_a_height.animating()) {
 		if (_hiding) return;
 	} else {
-		a_height = anim::ivalue(_realSize.height());
+		a_height = anim::value(_realSize.height());
 	}
-	a_height.start(0);
+	a_height.start(0.);
 	_hiding = true;
 	_a_height.start();
 }
@@ -70,7 +70,7 @@ void WidgetSlideWrap<TWidget>::slideDown() {
 		if (!_hiding) return;
 	}
 	a_height.start(_realSize.height());
-	_forceHeight = a_height.current();
+	_forceHeight = qRound(a_height.current());
 	_hiding = false;
 	_a_height.start();
 }
@@ -87,7 +87,7 @@ void WidgetSlideWrap<TWidget>::showFast() {
 
 void WidgetSlideWrap<TWidget>::hideFast() {
 	_a_height.stop();
-	a_height = anim::ivalue(0);
+	a_height = anim::value();
 	_forceHeight = 0;
 	resizeToWidth(_realSize.width());
 	hide();
@@ -144,7 +144,7 @@ void WidgetSlideWrap<TWidget>::step_height(float64 ms, bool timer) {
 		if (_hiding) hide();
 	} else {
 		a_height.update(dt, anim::linear);
-		_forceHeight = a_height.current();
+		_forceHeight = qRound(a_height.current());
 	}
 	resizeToWidth(_realSize.width());
 	if (_updateCallback) {

@@ -132,7 +132,7 @@ protected:
 	}
 
 	Ui::RadialAnimation *_radial;
-	anim::fvalue a_iconOver;
+	anim::value a_iconOver;
 	Animation _a_iconOver;
 
 };

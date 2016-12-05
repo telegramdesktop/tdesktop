@@ -63,7 +63,7 @@ void CommonGroupsWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 
 int CommonGroupsWidget::resizeGetHeight(int newWidth) {
 	auto result = PeerListWidget::resizeGetHeight(newWidth);
-	return _height.animating() ? _height.current() : result;
+	return qRound(_height.current(result));
 }
 
 void CommonGroupsWidget::paintContents(Painter &p) {

@@ -311,7 +311,7 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 
 void SessionsBox::Inner::onTerminate() {
 	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
-		if (i.value()->getState() & Ui::AbstractButton::StateOver) {
+		if (i.value()->isOver()) {
 			_terminating = i.key();
 
 			if (_terminateBox) _terminateBox->deleteLater();

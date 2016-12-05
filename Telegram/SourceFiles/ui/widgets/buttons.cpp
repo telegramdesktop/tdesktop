@@ -40,8 +40,8 @@ int LinkButton::naturalWidth() const {
 
 void LinkButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	auto &font = ((_state & StateOver) ? _st.overFont : _st.font);
-	auto &pen = ((_state & StateDown) ? _st.downColor : ((_state & StateOver) ? _st.overColor : _st.color));
+	auto &font = (isOver() ? _st.overFont : _st.font);
+	auto &pen = (isDown() ? _st.downColor : (isOver() ? _st.overColor : _st.color));
 	p.setFont(font);
 	p.setPen(pen);
 	if (_textWidth > width()) {
@@ -58,7 +58,7 @@ void LinkButton::setText(const QString &text) {
 	update();
 }
 
-void LinkButton::onStateChanged(int oldState, StateChangeSource source) {
+void LinkButton::onStateChanged(State was, StateChangeSource source) {
 	update();
 }
 
@@ -95,11 +95,11 @@ void RippleButton::paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColo
 	}
 }
 
-void RippleButton::onStateChanged(int oldState, StateChangeSource source) {
+void RippleButton::onStateChanged(State was, StateChangeSource source) {
 	update();
 
-	auto wasDown = (oldState & StateDown);
-	auto down = (_state & StateDown);
+	auto wasDown = static_cast<bool>(was & StateFlag::Down);
+	auto down = isDown();
 	if (!_st.showDuration || down == wasDown || _forceRippled) {
 		return;
 	}
@@ -187,10 +187,10 @@ void FlatButton::step_appearance(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-void FlatButton::onStateChanged(int oldState, StateChangeSource source) {
-	RippleButton::onStateChanged(oldState, source);
+void FlatButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
 
-	a_over.start((_state & StateOver) ? 1. : 0.);
+	a_over.start(isOver() ? 1. : 0.);
 	if (source == StateChangeSource::ByUser || source == StateChangeSource::ByPress) {
 		_a_appearance.stop();
 		a_over.finish();
@@ -211,7 +211,7 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 	paintRipple(p, 0, 0, ms);
 
-	p.setFont((_state & StateOver) ? _st.overFont : _st.font);
+	p.setFont(isOver() ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
 	p.setPen(anim::pen(_st.color, _st.overColor, a_over.current()));
 
@@ -294,8 +294,8 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 	}
 	App::roundRect(p, myrtlrect(rounded), _st.textBg, ImageRoundRadius::Small);
 
-	auto over = (_state & StateOver);
-	auto down = (_state & StateDown);
+	auto over = isOver();
+	auto down = isDown();
 	if (over || down) {
 		App::roundRect(p, myrtlrect(rounded), _st.textBgOver, ImageRoundRadius::Small);
 	}
@@ -340,10 +340,14 @@ IconButton::IconButton(QWidget *parent, const style::IconButton &st) : RippleBut
 	setCursor(style::cur_pointer);
 }
 
-void IconButton::setIcon(const style::icon *icon, const style::icon *iconOver) {
-	_iconOverride = icon;
-	_iconOverrideOver = iconOver;
+void IconButton::setIconOverride(const style::icon *iconOverride, const style::icon *iconOverOverride) {
+	_iconOverride = iconOverride;
+	_iconOverrideOver = iconOverOverride;
 	update();
+}
+
+void IconButton::setRippleColorOverride(const style::color *colorOverride) {
+	_rippleColorOverride = colorOverride;
 }
 
 void IconButton::paintEvent(QPaintEvent *e) {
@@ -351,10 +355,10 @@ void IconButton::paintEvent(QPaintEvent *e) {
 
 	auto ms = getms();
 
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms, _rippleColorOverride ? &(*_rippleColorOverride)->c : nullptr);
 
-	auto down = (_state & StateDown);
-	auto overIconOpacity = (down || forceRippled()) ? 1. : _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
+	auto down = isDown();
+	auto overIconOpacity = (down || forceRippled()) ? 1. : _a_over.current(getms(), isOver() ? 1. : 0.);
 	auto overIcon = [this] {
 		if (_iconOverrideOver) {
 			return _iconOverrideOver;
@@ -389,11 +393,12 @@ void IconButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void IconButton::onStateChanged(int oldState, StateChangeSource source) {
-	RippleButton::onStateChanged(oldState, source);
+void IconButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
 
-	auto over = (_state & StateOver);
-	if (over != (oldState & StateOver)) {
+	auto over = isOver();
+	auto wasOver = static_cast<bool>(was & StateFlag::Over);
+	if (over != wasOver) {
 		if (_st.duration) {
 			auto from = over ? 0. : 1.;
 			auto to = over ? 1. : 0.;
@@ -443,7 +448,8 @@ int LeftOutlineButton::resizeGetHeight(int newWidth) {
 void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	bool over = (_state & StateOver), down = (_state & StateDown);
+	auto over = isOver();
+	auto down = isDown();
 	if (width() > _st.outlineWidth) {
 		p.fillRect(rtlrect(_st.outlineWidth, 0, width() - _st.outlineWidth, height(), width()), (over || down) ? _st.textBgOver : _st.textBg);
 		paintRipple(p, 0, 0, getms());
@@ -492,7 +498,7 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto over = (_state & StateOver);
+	auto over = isOver();
 	auto shown = _a_show.current(ms, _shown ? 1. : 0.);
 	p.setOpacity(shown);
 
@@ -501,11 +507,12 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 	CrossAnimation::paint(p, _st.cross, over ? _st.crossFgOver : _st.crossFg, _st.crossPosition.x(), _st.crossPosition.y(), width(), shown);
 }
 
-void CrossButton::onStateChanged(int oldState, StateChangeSource source) {
-	RippleButton::onStateChanged(oldState, source);
+void CrossButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
 
-	auto over = (_state & StateOver);
-	if (over != (oldState & StateOver)) {
+	auto over = isOver();
+	auto wasOver = static_cast<bool>(was & StateFlag::Over);
+	if (over != wasOver) {
 		update();
 	}
 }

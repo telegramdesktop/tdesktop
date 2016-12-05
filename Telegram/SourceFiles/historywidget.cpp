@@ -34,6 +34,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/dropdown_menu.h"
+#include "ui/effects/ripple_animation.h"
 #include "inline_bots/inline_bot_result.h"
 #include "data/data_drafts.h"
 #include "history/history_service_layout.h"
@@ -2971,7 +2972,7 @@ void SilentToggle::mouseMoveEvent(QMouseEvent *e) {
 void SilentToggle::setChecked(bool checked) {
 	if (_checked != checked) {
 		_checked = checked;
-		setIcon(_checked ? &st::historySilentToggleOn : nullptr, _checked ? &st::historySilentToggleOnOver : nullptr);
+		setIconOverride(_checked ? &st::historySilentToggleOn : nullptr, _checked ? &st::historySilentToggleOnOver : nullptr);
 	}
 }
 
@@ -3051,9 +3052,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _botCommandStart(this, st::historyBotCommandStart)
 , _silent(this)
 , _field(this, st::historyComposeField, lang(lng_message_ph))
-, _a_record(animation(this, &HistoryWidget::step_record))
 , _a_recording(animation(this, &HistoryWidget::step_recording))
-, a_recordCancelActive(0, 0)
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
 , _kbScroll(this, st::botKbScroll)
 , _keyboard(this)
@@ -3061,7 +3060,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
-, _a_show(animation(this, &HistoryWidget::step_show))
 , _topShadow(this, st::shadowColor) {
 	setAcceptDrops(true);
 
@@ -3318,10 +3316,8 @@ void HistoryWidget::onTextChange() {
 				_send->show();
 			}
 			updateMouseTracking();
-			_a_record.stop();
+			_a_recordActive.finish();
 			_inRecord = _inField = false;
-			a_recordDown = anim::fvalue(0, 0);
-			a_recordCancelActive = anim::fvalue(0, 0);
 		}
 	}
 	if (updateCmdStartShown()) {
@@ -4197,7 +4193,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 				historyLoaded();
 			}
-			App::main()->dlgUpdated(wasHistory, wasMsgId);
+			App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
 			emit historyShown(_history, _showAtMsgId);
 
 			App::main()->topBar()->update();
@@ -4358,7 +4354,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 
 	if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 
-	App::main()->dlgUpdated(wasHistory, wasMsgId);
+	App::main()->dlgUpdated(wasHistory ? wasHistory->peer : nullptr, wasMsgId);
 	emit historyShown(_history, _showAtMsgId);
 
 	App::main()->historyPeerChanged().notify(_peer, true);
@@ -4650,7 +4646,7 @@ void HistoryWidget::updateControlsVisibility() {
 				} else {
 					_send->show();
 				}
-				_a_record.stop();
+				_a_recordActive.finish();
 				_inRecord = _inField = false;
 			}
 			if (_recording) {
@@ -5441,9 +5437,9 @@ PeerData *HistoryWidget::peer() const {
 
 void HistoryWidget::setMsgId(MsgId showAtMsgId) { // sometimes _showAtMsgId is set directly
 	if (_showAtMsgId != showAtMsgId) {
-		MsgId wasMsgId = _showAtMsgId;
+		auto wasMsgId = _showAtMsgId;
 		_showAtMsgId = showAtMsgId;
-		App::main()->dlgUpdated(_history, wasMsgId);
+		App::main()->dlgUpdated(_history ? _history->peer : nullptr, wasMsgId);
 		emit historyShown(_history, _showAtMsgId);
 	}
 }
@@ -5453,7 +5449,9 @@ MsgId HistoryWidget::msgId() const {
 }
 
 void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
-	if (App::app()) App::app()->mtpPause();
+	_showDirection = direction;
+
+	_a_show.finish();
 
 	_cacheUnder = params.oldContentCache;
 	show();
@@ -5487,47 +5485,26 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 		_pinnedBar->cancel->hide();
 	}
 
-	int delta = st::slideShift;
-	if (direction == Window::SlideDirection::FromLeft) {
-		a_progress = anim::fvalue(1, 0);
+	if (_showDirection == Window::SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
-		a_coordUnder = anim::ivalue(-delta, 0);
-		a_coordOver = anim::ivalue(0, width());
-	} else {
-		a_progress = anim::fvalue(0, 1);
-		a_coordUnder = anim::ivalue(0, -delta);
-		a_coordOver = anim::ivalue(width(), 0);
 	}
-	_a_show.start();
+	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 
 	App::main()->topBar()->update();
 
 	activate();
 }
 
-void HistoryWidget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
-	if (dt >= 1) {
-		_a_show.stop();
+void HistoryWidget::animationCallback() {
+	update();
+	App::main()->topBar()->update();
+	if (!_a_show.animating()) {
 		_topShadow->setVisible(_peer ? true : false);
 		_historyToEnd->finishAnimation();
 
-		a_coordUnder.finish();
-		a_coordOver.finish();
-		a_progress.finish();
 		_cacheUnder = _cacheOver = QPixmap();
 		App::main()->topBar()->stopAnim();
 		doneShow();
-
-		if (App::app()) App::app()->mtpUnpause();
-	} else {
-		a_coordUnder.update(dt, Window::SlideAnimation::transition());
-		a_coordOver.update(dt, Window::SlideAnimation::transition());
-		a_progress.update(dt, Window::SlideAnimation::transition());
-	}
-	if (timer) {
-		update();
-		App::main()->topBar()->update();
 	}
 }
 
@@ -5547,29 +5524,21 @@ void HistoryWidget::doneShow() {
 	}
 }
 
-void HistoryWidget::animStop() {
+void HistoryWidget::finishAnimation() {
 	if (!_a_show.animating()) return;
-	_a_show.stop();
+	_a_show.finish();
 	_topShadow->setVisible(_peer ? true : false);
 	_historyToEnd->finishAnimation();
 }
 
-void HistoryWidget::step_record(float64 ms, bool timer) {
-	float64 dt = ms / st::historyComposeButton.duration;
-	if (dt >= 1 || !_send->isHidden() || (_inlineBotCancel && !_inlineBotCancel->isHidden()) || isBotStart() || isBlocked()) {
-		_a_record.stop();
-		a_recordDown.finish();
-		a_recordCancelActive.finish();
+void HistoryWidget::recordActiveCallback() {
+	if (_recording) {
+		updateField();
 	} else {
-		a_recordDown.update(dt, anim::linear);
-		a_recordCancelActive.update(dt, anim::linear);
+		update(_send->geometry());
 	}
-	if (timer) {
-		if (_recording) {
-			updateField();
-		} else {
-			update(_send->geometry());
-		}
+	if (!_send->isHidden() || (_inlineBotCancel && !_inlineBotCancel->isHidden()) || isBotStart() || isBlocked()) {
+		_a_recordActive.finish();
 	}
 }
 
@@ -5665,9 +5634,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	}
 	if (inField != _inField && _recording) {
 		_inField = inField;
-		a_recordDown.start(_inField ? 1 : 0);
-		a_recordCancelActive.start(_inField ? 0. : 1.);
-		_a_record.start();
+		_a_recordActive.start([this] { recordActiveCallback(); }, _inField ? 0. : 1., _inField ? 1. : 0., st::historyComposeButton.duration);
 	}
 	_inReplyEdit = inReplyEdit;
 	_inPinnedMsg = inPinnedMsg;
@@ -5698,7 +5665,7 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 void HistoryWidget::stopRecording(bool send) {
 	emit audioCapture()->stop(send);
 
-	a_recordingLevel = anim::ivalue(0, 0);
+	a_recordingLevel = anim::value();
 	_a_recording.stop();
 
 	_recording = false;
@@ -5712,9 +5679,13 @@ void HistoryWidget::stopRecording(bool send) {
 
 	updateField();
 
-	a_recordDown.start(0);
-	a_recordCancelActive = anim::fvalue(0., 0.);
-	_a_record.start();
+	if (_inField) {
+		_a_recordActive.start([this] { recordActiveCallback(); }, 1., 0., st::historyComposeButton.duration);
+	}
+
+	if (_recordRipple) {
+		_recordRipple->lastStop();
+	}
 }
 
 void HistoryWidget::sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) { // replyTo != 0 from ReplyKeyboardMarkup, == 0 from cmd links
@@ -6202,16 +6173,21 @@ void HistoryWidget::onForwardHere() {
 
 bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
 	if (_a_show.animating()) {
-		int retina = cIntRetinaFactor();
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), st::topBarHeight), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, st::topBarHeight * retina));
-			p.setOpacity(a_progress.current());
-			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::slideFadeOutBg);
+		auto progress = _a_show.current(1.);
+		auto retina = cIntRetinaFactor();
+		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
+		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = fromLeft ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, st::topBarHeight), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, st::topBarHeight * retina));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, st::topBarHeight, st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
-		p.setOpacity(a_progress.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
+		p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
 		return false;
 	}
 
@@ -6481,14 +6457,14 @@ void HistoryWidget::onCheckFieldAutocomplete() {
 void HistoryWidget::updateFieldPlaceholder() {
 	if (_editMsgId) {
 		_field->setPlaceholder(lang(lng_edit_message_text));
-		_send->setIcon(&st::historyEditSaveIcon, &st::historyEditSaveIconOver);
+		_send->setIconOverride(&st::historyEditSaveIcon, &st::historyEditSaveIconOver);
 	} else {
 		if (_inlineBot && _inlineBot != Ui::LookingUpInlineBot) {
 			_field->setPlaceholder(_inlineBot->botInfo->inlinePlaceholder.mid(1), _inlineBot->username.size() + 2);
 		} else {
 			_field->setPlaceholder(lang((_history && _history->isChannel() && !_history->isMegagroup()) ? (_silent->checked() ? lng_broadcast_silent_ph : lng_broadcast_ph) : lng_message_ph));
 		}
-		_send->setIcon(nullptr);
+		_send->setIconOverride(nullptr);
 	}
 }
 
@@ -7511,8 +7487,13 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 
 		updateField();
 
-		a_recordDown.start(1);
-		_a_record.start();
+		_a_recordActive.start([this] { recordActiveCallback(); }, 0., 1., st::historyComposeButton.duration);
+
+		if (!_recordRipple) {
+			auto mask = Ui::RippleAnimation::ellipseMask(QSize(st::historyAttachEmoji.rippleAreaSize, st::historyAttachEmoji.rippleAreaSize));
+			_recordRipple = std_::make_unique<Ui::RippleAnimation>(st::historyAttachEmoji.ripple, std_::move(mask), [this] { update(_send->geometry()); });
+		}
+		_recordRipple->add(mapFromGlobal(QCursor::pos()) - QPoint(_send->x() + (_send->width() - st::historyAttachEmoji.rippleAreaSize) / 2, _send->y() + st::historyAttachEmoji.rippleAreaPosition.y()));
 	} else if (_inReplyEdit) {
 		Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
 	} else if (_inPinnedMsg) {
@@ -8582,7 +8563,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 	Text *from = 0, *text = 0;
 	bool serviceColor = false, hasForward = readyToForward();
 	ImagePtr preview;
-	HistoryItem *drawMsgText = (_editMsgId || _replyToId) ? _replyEditMsg : _kbReplyTo;
+	auto drawMsgText = (_editMsgId || _replyToId) ? _replyEditMsg : _kbReplyTo;
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		if (!_editMsgId && drawMsgText && drawMsgText->author()->nameVersion > _replyToNameVersion) {
 			updateReplyToName();
@@ -8718,10 +8699,16 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	}
 }
 
-void HistoryWidget::drawRecordButton(Painter &p) {
-	auto down = a_recordDown.current();
-	auto fastIcon = [down, this] {
-		if (down == 1.) {
+void HistoryWidget::drawRecordButton(Painter &p, float64 recordActive, TimeMs ms) {
+	if (_recordRipple) {
+		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
+		_recordRipple->paint(p, _send->x() + (_send->width() - st::historyAttachEmoji.rippleAreaSize) / 2, _send->y() + st::historyAttachEmoji.rippleAreaPosition.y(), width(), ms, &rippleColor);
+		if (_recordRipple->empty()) {
+			_recordRipple.reset();
+		}
+	}
+	auto fastIcon = [recordActive, this] {
+		if (recordActive == 1.) {
 			return &st::historyRecordVoiceActive;
 		} else if (_inRecord) {
 			return &st::historyRecordVoiceOver;
@@ -8729,19 +8716,19 @@ void HistoryWidget::drawRecordButton(Painter &p) {
 		return &st::historyRecordVoice;
 	};
 	fastIcon()->paintInCenter(p, _send->geometry());
-	if (down > 0. && down < 1.) {
-		p.setOpacity(down);
+	if (recordActive > 0. && recordActive < 1.) {
+		p.setOpacity(recordActive);
 		st::historyRecordVoiceActive.paintInCenter(p, _send->geometry());
 		p.setOpacity(1.);
 	}
 }
 
-void HistoryWidget::drawRecording(Painter &p) {
+void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::historyRecordSignalColor);
 
-	float64 delta = qMin(float64(a_recordingLevel.current()) / 0x4000, 1.);
-	int32 d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
+	auto delta = qMin(a_recordingLevel.current() / 0x4000, 1.);
+	auto d = 2 * qRound(st::historyRecordSignalMin + (delta * (st::historyRecordSignalMax - st::historyRecordSignalMin)));
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(_attachToggle->x() + (_attachEmoji->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
@@ -8756,7 +8743,7 @@ void HistoryWidget::drawRecording(Painter &p) {
 	int32 left = _attachToggle->x() + _attachEmoji->width() + st::historyRecordFont->width(duration) + ((_send->width() - st::historyRecordVoice.width()) / 2);
 	int32 right = width() - _send->width();
 
-	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, a_recordCancelActive.current()));
+	p.setPen(anim::pen(st::historyRecordCancel, st::historyRecordCancelActive, 1. - recordActive));
 	p.drawText(left + (right - left - _recordCancelWidth) / 2, _attachToggle->y() + st::historyRecordTextTop + st::historyRecordFont->ascent, lang(lng_record_cancel));
 }
 
@@ -8809,18 +8796,24 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	}
 	bool hasTopBar = !App::main()->topBar()->isHidden();
 
+	auto ms = getms();
+	auto progress = _a_show.current(ms, 1.);
 	if (_a_show.animating()) {
-		int retina = cIntRetinaFactor();
-		int inCacheTop = hasTopBar ? st::topBarHeight : 0;
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * retina, inCacheTop * retina, a_coordOver.current() * retina, height() * retina));
-			p.setOpacity(a_progress.current());
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
+		auto retina = cIntRetinaFactor();
+		auto inCacheTop = hasTopBar ? st::topBarHeight : 0;
+		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
+		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = fromLeft ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * retina, inCacheTop * retina, coordOver * retina, height() * retina));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
-		p.setOpacity(a_progress.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+		p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 		return;
 	}
 
@@ -8854,8 +8847,9 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		if (!_field->isHidden() || _recording) {
 			drawField(p, r);
 			if (_send->isHidden() && (!_inlineBotCancel || _inlineBotCancel->isHidden())) {
-				drawRecordButton(p);
-				if (_recording) drawRecording(p);
+				auto recordActive = _a_recordActive.current(ms, _inField ? 1. : 0.);
+				drawRecordButton(p, recordActive, ms);
+				if (_recording) drawRecording(p, recordActive);
 			}
 		}
 		if (_pinnedBar && !_pinnedBar->cancel->isHidden()) {

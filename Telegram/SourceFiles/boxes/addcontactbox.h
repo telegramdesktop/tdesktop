@@ -190,7 +190,7 @@ private:
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	QString _goodTextLink;
-	anim::fvalue a_goodOpacity;
+	anim::value a_goodOpacity;
 	Animation _a_goodFade;
 
 	QTimer _checkTimer;

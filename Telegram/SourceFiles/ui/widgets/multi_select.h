@@ -157,7 +157,7 @@ private:
 	ChildWidget<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
-	IntAnimation _height;
+	FloatAnimation _height;
 
 	base::lambda<void(const QString &query)> _queryChangedCallback;
 	base::lambda<void(bool ctrlShiftEnter)> _submittedCallback;

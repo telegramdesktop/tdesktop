@@ -307,7 +307,7 @@ private:
 	ControlsState _controlsState = ControlsShown;
 	TimeMs _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
-	anim::fvalue a_cOpacity;
+	anim::value a_cOpacity;
 	bool _mousePressed = false;
 
 	Ui::PopupMenu *_menu = nullptr;
@@ -328,14 +328,14 @@ private:
 
 	QString _saveMsgFilename;
 	TimeMs _saveMsgStarted = 0;
-	anim::fvalue _saveMsgOpacity = { 0 };
+	anim::value _saveMsgOpacity;
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;
 
 	typedef QMap<OverState, TimeMs> Showing;
 	Showing _animations;
-	typedef QMap<OverState, anim::fvalue> ShowingOpacities;
+	typedef QMap<OverState, anim::value> ShowingOpacities;
 	ShowingOpacities _animOpacities;
 
 	int _verticalWheelDelta = 0;

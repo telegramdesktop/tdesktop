@@ -27,6 +27,10 @@ dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
 
+dialogsRipple: defaultRippleAnimation;
+dialogsRippleBg: windowBgRipple;
+dialogsRippleBgActive: activeButtonBgRipple;
+
 dialogsTextFont: font(fsize);
 dialogsDateFont: font(13px);
 dialogsDateSkip: 5px;

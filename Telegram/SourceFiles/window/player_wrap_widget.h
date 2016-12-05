@@ -25,7 +25,7 @@ public:
 		entity()->hideShadow();
 	}
 	int contentHeight() const {
-		return height() - st::lineWidth;
+		return qMax(height() - st::lineWidth, 0);
 	}
 
 protected:

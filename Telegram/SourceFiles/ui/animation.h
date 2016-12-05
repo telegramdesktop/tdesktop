@@ -158,56 +158,6 @@ private:
 
 };
 
-using fvalue = value;
-
-class ivalue { // int animated value
-public:
-	using ValueType = int;
-
-	ivalue() = default;
-	ivalue(int from) : _cur(from), _from(float64(from)) {
-	}
-	ivalue(int from, int to) : _cur(from), _from(float64(from)), _delta(float64(to - from)) {
-	}
-	void start(int32 to) {
-		_from = float64(_cur);
-		_delta = float64(to) - _from;
-	}
-	void restart() {
-		_delta = _from + _delta - float64(_cur);
-		_from = float64(_cur);
-	}
-
-	int from() const {
-		return _from;
-	}
-	int current() const {
-		return _cur;
-	}
-	int to() const {
-		return qRound(_from + _delta);
-	}
-	void add(int delta) {
-		_from += delta;
-		_cur += delta;
-	}
-	ivalue &update(float64 dt, const transition &func) {
-		_cur = qRound(_from + func(_delta, dt));
-		return *this;
-	}
-	void finish() {
-		_cur = qRound(_from + _delta);
-		_from = _cur;
-		_delta = 0;
-	}
-
-private:
-	int _cur = 0;
-	float64 _from = 0.;
-	float64 _delta = 0.;
-
-};
-
 void startManager();
 void stopManager();
 void registerClipManager(Media::Clip::Manager *manager);
@@ -639,7 +589,9 @@ public:
 
 	template <typename Lambda>
 	void start(Lambda &&updateCallback, const ValueType &from, const ValueType &to, float64 duration, const anim::transition &transition = anim::linear) {
-		if (!_data) {
+		if (_data) {
+			_data->pause.restart();
+		} else {
 			_data = std_::make_unique<Data>(from, std_::forward<Lambda>(updateCallback));
 		}
 		_data->value.start(to);
@@ -674,6 +626,7 @@ private:
 			if (dt >= 1) {
 				value.finish();
 				a_animation.stop();
+				pause.release();
 			} else {
 				value.update(dt, transition);
 			}
@@ -685,13 +638,13 @@ private:
 		Callback updateCallback;
 		float64 duration = 0.;
 		anim::transition transition = anim::linear;
+		MTP::PauseHolder pause;
 	};
 	mutable std_::unique_ptr<Data> _data;
 
 };
 
-using FloatAnimation = SimpleAnimation<anim::fvalue>;
-using IntAnimation = SimpleAnimation<anim::ivalue>;
+using FloatAnimation = SimpleAnimation<anim::value>;
 
 class AnimationManager : public QObject {
 	Q_OBJECT

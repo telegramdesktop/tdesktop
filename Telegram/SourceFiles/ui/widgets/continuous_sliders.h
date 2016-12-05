@@ -107,7 +107,7 @@ private:
 	bool _over = false;
 	FloatAnimation _a_over;
 
-	anim::fvalue a_value = { 0., 0. };
+	anim::value a_value;
 	Animation _a_value;
 
 	bool _mouseDown = false;

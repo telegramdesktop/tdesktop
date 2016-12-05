@@ -108,7 +108,7 @@ private:
 	bool _hiding = false;
 	QPixmap _cache;
 
-	anim::fvalue a_opacity;
+	anim::value a_opacity;
 	Animation _a_appearance;
 
 	QTimer _hideTimer;
@@ -661,8 +661,8 @@ private:
 	int _iconsTop = 0;
 	int _iconsStartX = 0;
 	int _iconsMax = 0;
-	anim::ivalue _iconsX = { 0, 0 };
-	anim::ivalue _iconSelX = { 0, 0 };
+	anim::value _iconsX;
+	anim::value _iconSelX;
 	TimeMs _iconsStartAnim = 0;
 
 	bool _emojiShown = true;

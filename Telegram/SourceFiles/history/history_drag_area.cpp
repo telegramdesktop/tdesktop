@@ -133,14 +133,14 @@ void DragArea::hideFast() {
 	if (_a_appearance.animating()) {
 		_a_appearance.stop();
 	}
-	a_opacity = anim::fvalue(0, 0);
+	a_opacity = anim::value();
 	hide();
 }
 
 void DragArea::hideStart() {
 	_hiding = true;
 	_in = false;
-	a_opacity.start(0);
+	a_opacity.start(0.);
 	a_colorDrop.start(_in ? 1. : 0.);
 	_a_appearance.start();
 }
@@ -148,7 +148,7 @@ void DragArea::hideStart() {
 void DragArea::hideFinish() {
 	hide();
 	_in = false;
-	a_colorDrop = anim::fvalue(0.);
+	a_colorDrop = anim::value();
 }
 
 void DragArea::showStart() {

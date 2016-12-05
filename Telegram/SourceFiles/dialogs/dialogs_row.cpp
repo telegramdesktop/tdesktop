@@ -22,8 +22,36 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_row.h"
 
 #include "styles/style_dialogs.h"
+#include "ui/effects/ripple_animation.h"
+#include "mainwidget.h"
 
 namespace Dialogs {
+
+RippleRow::RippleRow() = default;
+RippleRow::~RippleRow() = default;
+
+void RippleRow::addRipple(QPoint origin, QSize size, base::lambda_copy<void()> &&updateCallback) {
+	if (!_ripple) {
+		auto mask = Ui::RippleAnimation::rectMask(size);
+		_ripple = std_::make_unique<Ui::RippleAnimation>(st::dialogsRipple, std_::move(mask), std_::move(updateCallback));
+	}
+	_ripple->add(origin);
+}
+
+void RippleRow::stopLastRipple() {
+	if (_ripple) {
+		_ripple->lastStop();
+	}
+}
+
+void RippleRow::paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride) const {
+	if (_ripple) {
+		_ripple->paint(p, x, y, outerWidth, ms, colorOverride);
+		if (_ripple->empty()) {
+			_ripple.reset();
+		}
+	}
+}
 
 FakeRow::FakeRow(HistoryItem *item) : _item(item), _cache(st::dialogsTextWidthMin) {
 }

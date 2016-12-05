@@ -49,7 +49,8 @@ private:
 	TimeMs _lastStart = 0;
 	TimeMs _lastTime = 0;
 	float64 _opacity = 0.;
-	anim::ivalue a_arcEnd, a_arcStart;
+	anim::value a_arcEnd;
+	anim::value a_arcStart;
 	Animation _animation;
 
 };

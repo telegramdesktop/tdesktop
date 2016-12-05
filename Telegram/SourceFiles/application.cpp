@@ -711,8 +711,6 @@ AppClass::AppClass() : QObject() {
 
 	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
 
-	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
-
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
 	DEBUG_LOG(("Application Info: starting app..."));
@@ -830,19 +828,6 @@ void AppClass::cancelPhotoUpdate(const PeerId &peer) {
 			++i;
 		}
 	}
-}
-
-void AppClass::mtpPause() {
-	MTP::pause();
-	_mtpUnpauseTimer.start(st::slideDuration * 2);
-}
-
-void AppClass::mtpUnpause() {
-	_mtpUnpauseTimer.start(1);
-}
-
-void AppClass::doMtpUnpause() {
-	MTP::unpause();
 }
 
 void AppClass::selfPhotoCleared(const MTPUserProfilePhoto &result) {

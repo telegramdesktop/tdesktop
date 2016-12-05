@@ -178,7 +178,7 @@ private:
 	QPoint _lastMousePos;
 
 	QString _goodTextLink;
-	anim::fvalue a_goodOpacity;
+	anim::value a_goodOpacity;
 	Animation _a_good;
 
 };

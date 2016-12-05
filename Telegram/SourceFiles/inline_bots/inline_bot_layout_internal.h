@@ -267,7 +267,7 @@ private:
 			, _a_thumbOver(std_::move(thumbOverCallbacks))
 			, radial(std_::move(radialCallbacks)) {
 		}
-		anim::fvalue a_thumbOver;
+		anim::value a_thumbOver;
 		Animation _a_thumbOver;
 
 		Ui::RadialAnimation radial;

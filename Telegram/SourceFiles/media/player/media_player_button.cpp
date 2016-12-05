@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_button.h"
 
+#include "styles/style_widgets.h"
+
 namespace Media {
 namespace Player {
 namespace {

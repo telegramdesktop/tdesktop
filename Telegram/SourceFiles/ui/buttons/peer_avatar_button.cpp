@@ -54,7 +54,7 @@ void NewAvatarButton::paintEvent(QPaintEvent *e) {
 	}
 
 	p.setPen(Qt::NoPen);
-	p.setBrush((_state & StateOver) ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg);
+	p.setBrush(isOver() ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg);
 	{
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(rect());

@@ -55,7 +55,7 @@ private:
 
 	bool _shown = false;
 
-	anim::fvalue a_arrowOpacity;
+	anim::value a_arrowOpacity;
 	Animation _a_arrowOver;
 
 	FloatAnimation _a_show;
@@ -64,7 +64,7 @@ private:
 
 };
 
-class EmojiButton : public AbstractButton {
+class EmojiButton : public RippleButton {
 public:
 	EmojiButton(QWidget *parent, const style::IconButton &st);
 
@@ -72,7 +72,10 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
 	const style::IconButton &_st;

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/effects/ripple_animation.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
 #include "media/player/media_player_button.h"
@@ -38,7 +39,7 @@ namespace Player {
 
 using State = PlayButtonLayout::State;
 
-class Widget::PlayButton : public Ui::AbstractButton {
+class Widget::PlayButton : public Ui::RippleButton {
 public:
 	PlayButton(QWidget *parent);
 
@@ -52,12 +53,15 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
 private:
 	PlayButtonLayout _layout;
 
 };
 
-Widget::PlayButton::PlayButton(QWidget *parent) : Ui::AbstractButton(parent)
+Widget::PlayButton::PlayButton(QWidget *parent) : Ui::RippleButton(parent, st::mediaPlayerButton.ripple)
 , _layout(st::mediaPlayerButton, [this] { update(); }) {
 	resize(st::mediaPlayerButtonSize);
 	setCursor(style::cur_pointer);
@@ -66,8 +70,18 @@ Widget::PlayButton::PlayButton(QWidget *parent) : Ui::AbstractButton(parent)
 void Widget::PlayButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	paintRipple(p, st::mediaPlayerButton.rippleAreaPosition.x(), st::mediaPlayerButton.rippleAreaPosition.y(), getms());
 	p.translate(st::mediaPlayerButtonPosition.x(), st::mediaPlayerButtonPosition.y());
 	_layout.paint(p, st::mediaPlayerActiveFg);
+}
+
+QImage Widget::PlayButton::prepareRippleMask() const {
+	auto size = QSize(st::mediaPlayerButton.rippleAreaSize, st::mediaPlayerButton.rippleAreaSize);
+	return Ui::RippleAnimation::ellipseMask(size);
+}
+
+QPoint Widget::PlayButton::prepareRippleStartPosition() const {
+	return QPoint(mapFromGlobal(QCursor::pos()) - st::mediaPlayerButton.rippleAreaPosition);
 }
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
@@ -146,7 +160,7 @@ void Widget::updateVolumeToggleIcon() {
 		}
 		return nullptr;
 	};
-	_volumeToggle->setIcon(icon());
+	_volumeToggle->setIconOverride(icon());
 }
 
 void Widget::setCloseCallback(CloseCallback &&callback) {
@@ -223,7 +237,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto fill = e->rect().intersected(QRect(0, 0, width(), st::mediaPlayerHeight));
 	if (!fill.isEmpty()) {
-		p.fillRect(fill, st::windowBg);
+		p.fillRect(fill, st::mediaPlayerBg);
 	}
 }
 
@@ -290,7 +304,9 @@ void Widget::updateLabelsGeometry() {
 }
 
 void Widget::updateRepeatTrackIcon() {
-	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatDisabledIcon);
+	auto repeating = instance()->repeatEnabled();
+	_repeatTrack->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
+	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
 void Widget::handleSongUpdate(const UpdatedEvent &e) {
@@ -393,9 +409,11 @@ void Widget::handlePlaylistUpdate() {
 		createPrevNextButtons();
 		auto previousEnabled = (index > 0);
 		auto nextEnabled = (index + 1 < playlist.size());
-		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
+		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
+		_previousTrack->setRippleColorOverride(previousEnabled ? nullptr : &st::mediaPlayerBg);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
-		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
+		_nextTrack->setIconOverride(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
+		_nextTrack->setRippleColorOverride(nextEnabled ? nullptr : &st::mediaPlayerBg);
 		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
 	}
 }

@@ -159,9 +159,6 @@ public:
 	bool isPhotoUpdating(const PeerId &peer);
 	void cancelPhotoUpdate(const PeerId &peer);
 
-	void mtpPause();
-	void mtpUnpause();
-
 	void selfPhotoCleared(const MTPUserProfilePhoto &result);
 	void chatPhotoCleared(PeerId peer, const MTPUpdates &updates);
 	void selfPhotoDone(const MTPphotos_Photo &result);
@@ -185,9 +182,6 @@ signals:
 	void adjustSingleTimers();
 
 public slots:
-
-	void doMtpUnpause();
-
 	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
@@ -216,7 +210,5 @@ private:
 	MainWindow *_window = nullptr;
 	FileUploader *_uploader = nullptr;
 	Translator *_translator = nullptr;
-
-	SingleTimer _mtpUnpauseTimer;
 
 };

@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "ui/widgets/widgets.style";
 
+countryRipple: defaultRippleAnimation;
+
 introCoverHeight: 208px;
 introCoverTopBg: #0f89d0;
 introCoverBottomBg: #39b0f0;
@@ -84,7 +86,7 @@ introStepHeight: 256px;
 introStepHeightAdd: 30px;
 introStepHeightFull: 580px;
 introSlideDuration: 200;
-introCoverDuration: 200;
+introCoverDuration: 300;
 
 introNextButton: RoundButton(defaultActiveButton) {
 	width: 300px;

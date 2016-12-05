@@ -47,7 +47,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Intro {
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
-, _a_show(animation(this, &Widget::step_show))
 , _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda<void()>(), st::introSlideDuration)
 , _settings(this, new Ui::RoundButton(this, lang(lng_menu_settings), st::defaultBoxButton), base::lambda<void()>(), st::introCoverDuration)
 , _next(this, QString(), st::introNextButton) {
@@ -143,7 +142,7 @@ void Widget::historyMove(Direction direction) {
 	if (wasStep->hasCover() != getStep()->hasCover()) {
 		_nextTopFrom = wasStep->contentTop() + st::introStepHeight;
 		_controlsTopFrom = wasStep->hasCover() ? st::introCoverHeight : 0;
-		_coverShownAnimation.start([this] { updateControlsGeometry(); }, 0., 1., st::introCoverDuration, anim::easeOutCirc);
+		_coverShownAnimation.start([this] { updateControlsGeometry(); }, 0., 1., st::introCoverDuration, wasStep->hasCover() ? anim::linear : anim::easeOutCirc);
 	}
 
 	if (direction == Direction::Forward || direction == Direction::Replace) {
@@ -302,45 +301,29 @@ void Widget::hideControls() {
 	_back->hideFast();
 }
 
-void Widget::animShow(const QPixmap &bgAnimCache, bool back) {
-	if (App::app()) App::app()->mtpPause();
+void Widget::showAnimated(const QPixmap &bgAnimCache, bool back) {
+	_showBack = back;
 
-	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
+	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
 
-	_a_show.stop();
+	_a_show.finish();
 	showControls();
-	(back ? _cacheUnder : _cacheOver) = myGrab(this);
+	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideControls();
 
-	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
-	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
-	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
-	_a_show.start();
+	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 
 	show();
 }
 
-void Widget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
-	if (dt >= 1) {
-		_a_show.stop();
-
-		a_coordUnder.finish();
-		a_coordOver.finish();
-		a_shadow.finish();
-
+void Widget::animationCallback() {
+	update();
+	if (!_a_show.animating()) {
 		_cacheUnder = _cacheOver = QPixmap();
 
 		showControls();
 		getStep()->activate();
-
-		if (App::app()) App::app()->mtpUnpause();
-	} else {
-		a_coordUnder.update(dt, Window::SlideAnimation::transition());
-		a_coordOver.update(dt, Window::SlideAnimation::transition());
-		a_shadow.update(dt, Window::SlideAnimation::transition());
 	}
-	if (timer) update();
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
@@ -356,16 +339,20 @@ void Widget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 	p.fillRect(e->rect(), st::windowBg);
+	auto progress = _a_show.current(getms(), 1.);
 	if (_a_show.animating()) {
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current());
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
+		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = _showBack ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * cRetinaFactor(), 0, coordOver * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
-		p.setOpacity(a_shadow.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+		p.drawPixmap(coordOver, 0, _cacheOver);
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 	}
 }
 
@@ -491,7 +478,6 @@ void Widget::Step::showFinished() {
 	_slideAnimation.reset();
 	prepareCoverMask();
 	activate();
-	if (App::app()) App::app()->mtpUnpause();
 }
 
 bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
@@ -519,11 +505,11 @@ bool Widget::Step::paintAnimated(Painter &p, QRect clip) {
 		return false;
 	}
 
-	auto easeOut = anim::easeOutCirc(1., dt);
-	auto arrivingAlpha = easeOut;
-	auto departingAlpha = 1. - easeOut;
-	auto showCoverMethod = easeOut;
-	auto hideCoverMethod = easeOut;
+	auto progress = (hasCover() ? anim::easeOutCirc(1., dt) : anim::linear(1., dt));
+	auto arrivingAlpha = progress;
+	auto departingAlpha = 1. - progress;
+	auto showCoverMethod = progress;
+	auto hideCoverMethod = progress;
 	auto coverTop = (hasCover() ? anim::interpolate(-st::introCoverHeight, 0, showCoverMethod) : anim::interpolate(0, -st::introCoverHeight, hideCoverMethod));
 
 	paintCover(p, coverTop);
@@ -718,7 +704,6 @@ QPixmap Widget::Step::prepareSlideAnimation() {
 
 void Widget::Step::showAnimated(Direction direction) {
 	show();
-	if (App::app()) App::app()->mtpPause();
 	hideChildren();
 	if (_slideAnimation) {
 		auto slideLeft = (direction == Direction::Back);

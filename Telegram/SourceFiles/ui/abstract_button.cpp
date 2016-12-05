@@ -24,15 +24,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 void AbstractButton::leaveEvent(QEvent *e) {
-	if (_state & StateDown) return;
+	if (_state & StateFlag::Down) return;
 
 	setOver(false, StateChangeSource::ByHover);
 	return TWidget::leaveEvent(e);
 }
 
 void AbstractButton::enterEvent(QEvent *e) {
-	auto over = rect().marginsRemoved(getMargins()).contains(mapFromGlobal(QCursor::pos()));
-	setOver(over, StateChangeSource::ByHover);
+	checkIfOver(mapFromGlobal(QCursor::pos()));
 	return TWidget::enterEvent(e);
 }
 
@@ -40,12 +39,18 @@ void AbstractButton::setAcceptBoth(bool acceptBoth) {
 	_acceptBoth = acceptBoth;
 }
 
+void AbstractButton::checkIfOver(QPoint localPos) {
+	auto over = rect().marginsRemoved(getMargins()).contains(localPos);
+	setOver(over, StateChangeSource::ByHover);
+}
+
 void AbstractButton::mousePressEvent(QMouseEvent *e) {
+	checkIfOver(e->pos());
 	if (_acceptBoth || (e->buttons() & Qt::LeftButton)) {
-		if ((_state & StateOver) && !(_state & StateDown)) {
-			int oldState = _state;
-			_state |= StateDown;
-			onStateChanged(oldState, StateChangeSource::ByPress);
+		if ((_state & StateFlag::Over) && !(_state & StateFlag::Down)) {
+			auto was = _state;
+			_state |= StateFlag::Down;
+			onStateChanged(was, StateChangeSource::ByPress);
 
 			e->accept();
 		}
@@ -61,11 +66,11 @@ void AbstractButton::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
-	if (_state & StateDown) {
-		int oldState = _state;
-		_state &= ~StateDown;
-		onStateChanged(oldState, StateChangeSource::ByPress);
-		if (oldState & StateOver) {
+	if (_state & StateFlag::Down) {
+		auto was = _state;
+		_state &= ~State(StateFlag::Down);
+		onStateChanged(was, StateChangeSource::ByPress);
+		if (was & StateFlag::Over) {
 			_modifiers = e->modifiers();
 			if (_clickedCallback) {
 				_clickedCallback();
@@ -73,43 +78,39 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 				emit clicked();
 			}
 		} else {
-			leaveEvent(e);
+			setOver(false, StateChangeSource::ByHover);
 		}
 	}
 }
 
 void AbstractButton::setOver(bool over, StateChangeSource source) {
 	setCursor(over ? style::cur_pointer : style::cur_default);
-	if (over && !(_state & StateOver)) {
-		int oldState = _state;
-		_state |= StateOver;
-		onStateChanged(oldState, source);
-	} else if (!over && (_state & StateOver)) {
-		int oldState = _state;
-		_state &= ~StateOver;
-		onStateChanged(oldState, source);
+	if (over && !(_state & StateFlag::Over)) {
+		auto was = _state;
+		_state |= StateFlag::Over;
+		onStateChanged(was, source);
+	} else if (!over && (_state & StateFlag::Over)) {
+		auto was = _state;
+		_state &= ~State(StateFlag::Over);
+		onStateChanged(was, source);
 	}
 }
 
 void AbstractButton::setDisabled(bool disabled) {
-	int oldState = _state;
-	if (disabled && !(_state & StateDisabled)) {
-		_state |= StateDisabled;
-		onStateChanged(oldState, StateChangeSource::ByUser);
-	} else if (!disabled && (_state & StateDisabled)) {
-		_state &= ~StateDisabled;
-		onStateChanged(oldState, StateChangeSource::ByUser);
+	auto was = _state;
+	if (disabled && !(_state & StateFlag::Disabled)) {
+		_state |= StateFlag::Disabled;
+		onStateChanged(was, StateChangeSource::ByUser);
+	} else if (!disabled && (_state & StateFlag::Disabled)) {
+		_state &= ~State(StateFlag::Disabled);
+		onStateChanged(was, StateChangeSource::ByUser);
 	}
 }
 
 void AbstractButton::clearState() {
-	int oldState = _state;
-	_state = StateNone;
-	onStateChanged(oldState, StateChangeSource::ByUser);
-}
-
-int AbstractButton::getState() const {
-	return _state;
+	auto was = _state;
+	_state = StateFlag::None;
+	onStateChanged(was, StateChangeSource::ByUser);
 }
 
 } // namespace Ui

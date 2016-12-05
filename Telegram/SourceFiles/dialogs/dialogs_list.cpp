@@ -201,7 +201,7 @@ bool List::del(PeerId peerId, Row *replacedBy) {
 	auto i = _rowByPeer.find(peerId);
 	if (i == _rowByPeer.cend()) return false;
 
-	Row *row = i.value();
+	auto row = i.value();
 	if (App::main()) {
 		emit App::main()->dialogRowReplaced(row, replacedBy);
 	}
@@ -209,7 +209,7 @@ bool List::del(PeerId peerId, Row *replacedBy) {
 	if (row == _current) {
 		_current = row->_next;
 	}
-	for (Row *change = row->_next; change != _end; change = change->_next) {
+	for (auto change = row->_next; change != _end; change = change->_next) {
 		--change->_pos;
 	}
 	--_end->_pos;

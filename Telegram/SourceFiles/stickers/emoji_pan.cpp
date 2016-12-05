@@ -177,7 +177,7 @@ void EmojiColorPicker::step_appearance(float64 ms, bool timer) {
 void EmojiColorPicker::hideFast() {
 	clearSelection();
 	if (_a_appearance.animating()) _a_appearance.stop();
-	a_opacity = anim::fvalue(0);
+	a_opacity = anim::value();
 	_cache = QPixmap();
 	hide();
 	emit hidden();
@@ -2899,7 +2899,9 @@ void EmojiPan::paintContent(Painter &p) {
 		paintStickerSettingsIcon(p);
 
 		if (!_icons.isEmpty()) {
-			int x = _iconsLeft, selxrel = _iconsLeft + _iconSelX.current(), selx = selxrel - _iconsX.current();
+			auto x = _iconsLeft;
+			auto selxrel = _iconsLeft + qRound(_iconSelX.current());
+			auto selx = selxrel - qRound(_iconsX.current());
 
 			QRect clip(x, _iconsTop, _iconsLeft + 7 * st::emojiCategory.width - x, st::emojiCategory.height);
 			if (rtl()) clip.moveLeft(width() - x - clip.width());
@@ -2915,9 +2917,10 @@ void EmojiPan::paintContent(Painter &p) {
 			};
 
 			int i = 0;
-			i += _iconsX.current() / int(st::emojiCategory.width);
-			x -= _iconsX.current() % int(st::emojiCategory.width);
-			selxrel -= _iconsX.current();
+			auto iconsX = qRound(_iconsX.current());
+			i += iconsX / int(st::emojiCategory.width);
+			x -= iconsX % int(st::emojiCategory.width);
+			selxrel -= iconsX;
 			for (int l = qMin(_icons.size(), i + 8); i < l; ++i) {
 				auto &s = _icons.at(i);
 				if (s.sticker) {
@@ -2938,13 +2941,13 @@ void EmojiPan::paintContent(Painter &p) {
 			if (rtl()) selx = width() - selx - st::emojiCategory.width;
 			p.fillRect(selx, _iconsTop + st::emojiCategory.height - st::stickerIconPadding, st::emojiCategory.width, st::stickerIconSel, st::stickerIconSelColor);
 
-			float64 o_left = snap(float64(_iconsX.current()) / st::stickerIconLeft.width(), 0., 1.);
+			auto o_left = snap(_iconsX.current() / st::stickerIconLeft.width(), 0., 1.);
 			if (o_left > 0) {
 				p.setOpacity(o_left);
 				st::stickerIconLeft.fill(p, rtlrect(_iconsLeft, _iconsTop, st::stickerIconLeft.width(), st::emojiCategory.height, width()));
 				p.setOpacity(1.);
 			}
-			float64 o_right = snap(float64(_iconsMax - _iconsX.current()) / st::stickerIconRight.width(), 0., 1.);
+			auto o_right = snap((_iconsMax - _iconsX.current()) / st::stickerIconRight.width(), 0., 1.);
 			if (o_right > 0) {
 				p.setOpacity(o_right);
 				st::stickerIconRight.fill(p, rtlrect(_iconsLeft + 7 * st::emojiCategory.width - st::stickerIconRight.width(), _iconsTop, st::stickerIconRight.width(), st::emojiCategory.height, width()));
@@ -3019,7 +3022,7 @@ void EmojiPan::mousePressEvent(QMouseEvent *e) {
 	} else {
 		_iconDown = _iconOver;
 		_iconsMouseDown = _iconsMousePos;
-		_iconsStartX = _iconsX.current();
+		_iconsStartX = qRound(_iconsX.current());
 	}
 }
 
@@ -3034,9 +3037,9 @@ void EmojiPan::mouseMoveEvent(QMouseEvent *e) {
 		}
 	}
 	if (_iconsDragging) {
-		int32 newX = snap(_iconsStartX + (rtl() ? -1 : 1) * (_iconsMouseDown.x() - _iconsMousePos.x()), 0, _iconsMax);
-		if (newX != _iconsX.current()) {
-			_iconsX = anim::ivalue(newX, newX);
+		auto newX = snap(_iconsStartX + (rtl() ? -1 : 1) * (_iconsMouseDown.x() - _iconsMousePos.x()), 0, _iconsMax);
+		if (newX != qRound(_iconsX.current())) {
+			_iconsX = anim::value(newX, newX);
 			_iconsStartAnim = 0;
 			_a_icons.stop();
 			updateIcons();
@@ -3052,9 +3055,9 @@ void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
 
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	if (_iconsDragging) {
-		int32 newX = snap(_iconsStartX + _iconsMouseDown.x() - _iconsMousePos.x(), 0, _iconsMax);
-		if (newX != _iconsX.current()) {
-			_iconsX = anim::ivalue(newX, newX);
+		auto newX = snap(_iconsStartX + _iconsMouseDown.x() - _iconsMousePos.x(), 0, _iconsMax);
+		if (newX != qRound(_iconsX.current())) {
+			_iconsX = anim::value(newX, newX);
 			_iconsStartAnim = 0;
 			_a_icons.stop();
 			updateIcons();
@@ -3065,7 +3068,7 @@ void EmojiPan::mouseReleaseEvent(QMouseEvent *e) {
 		updateSelected();
 
 		if (wasDown == _iconOver && _iconOver >= 0 && _iconOver < _icons.size()) {
-			_iconSelX = anim::ivalue(_iconOver * st::emojiCategory.width, _iconOver * st::emojiCategory.width);
+			_iconSelX = anim::value(_iconOver * st::emojiCategory.width, _iconOver * st::emojiCategory.width);
 			s_inner->showStickerSet(_icons.at(_iconOver).setId);
 		}
 	}
@@ -3080,14 +3083,14 @@ bool EmojiPan::event(QEvent *e) {
 			bool hor = (ev->angleDelta().x() != 0 || ev->orientation() == Qt::Horizontal);
 			bool ver = (ev->angleDelta().y() != 0 || ev->orientation() == Qt::Vertical);
 			if (hor) _horizontal = true;
-			int32 newX = _iconsX.current();
+			auto newX = qRound(_iconsX.current());
 			if (/*_horizontal && */hor) {
 				newX = snap(newX - (rtl() ? -1 : 1) * (ev->pixelDelta().x() ? ev->pixelDelta().x() : ev->angleDelta().x()), 0, _iconsMax);
 			} else if (/*!_horizontal && */ver) {
 				newX = snap(newX - (ev->pixelDelta().y() ? ev->pixelDelta().y() : ev->angleDelta().y()), 0, _iconsMax);
 			}
-			if (newX != _iconsX.current()) {
-				_iconsX = anim::ivalue(newX, newX);
+			if (newX != qRound(_iconsX.current())) {
+				_iconsX = anim::value(newX, newX);
 				_iconsStartAnim = 0;
 				_a_icons.stop();
 				updateSelected();
@@ -3138,7 +3141,7 @@ void EmojiPan::onRefreshIcons(bool scrollAnimation) {
 		_iconsMax = qMax(int((_icons.size() - 7) * st::emojiCategory.width), 0);
 	}
 	if (_iconsX.current() > _iconsMax) {
-		_iconsX = anim::ivalue(_iconsMax, _iconsMax);
+		_iconsX = anim::value(_iconsMax, _iconsMax);
 	}
 	updatePanelsPositions(s_panels, s_scroll->scrollTop());
 	updateSelected();
@@ -3178,7 +3181,7 @@ void EmojiPan::updateSelected() {
 		newOver = _icons.size();
 	} else if (!_icons.isEmpty()) {
 		if (y >= _iconsTop && y < _iconsTop + st::emojiCategory.height && x >= 0 && x < 7 * st::emojiCategory.width && x < _icons.size() * st::emojiCategory.width) {
-			x += _iconsX.current();
+			x += qRound(_iconsX.current());
 			newOver = qFloor(x / st::emojiCategory.width);
 		}
 	}
@@ -3329,8 +3332,8 @@ void EmojiPan::hideFinished() {
 	s_scroll->scrollToY(0);
 	_iconOver = _iconDown = -1;
 	_iconSel = 0;
-	_iconsX = anim::ivalue(0, 0);
-	_iconSelX = anim::ivalue(0, 0);
+	_iconsX = anim::value();
+	_iconSelX = anim::value();
 	_iconsStartAnim = 0;
 	_a_icons.stop();
 
@@ -3512,14 +3515,14 @@ void EmojiPan::onScrollEmoji() {
 }
 
 void EmojiPan::setCurrentTabIcon(DBIEmojiTab tab) {
-	_recent->setIcon((tab == dbietRecent) ? &st::emojiRecentActive : nullptr);
-	_people->setIcon((tab == dbietPeople) ? &st::emojiPeopleActive : nullptr);
-	_nature->setIcon((tab == dbietNature) ? &st::emojiNatureActive : nullptr);
-	_food->setIcon((tab == dbietFood) ? &st::emojiFoodActive : nullptr);
-	_activity->setIcon((tab == dbietActivity) ? &st::emojiActivityActive : nullptr);
-	_travel->setIcon((tab == dbietTravel) ? &st::emojiTravelActive : nullptr);
-	_objects->setIcon((tab == dbietObjects) ? &st::emojiObjectsActive : nullptr);
-	_symbols->setIcon((tab == dbietSymbols) ? &st::emojiSymbolsActive : nullptr);
+	_recent->setIconOverride((tab == dbietRecent) ? &st::emojiRecentActive : nullptr);
+	_people->setIconOverride((tab == dbietPeople) ? &st::emojiPeopleActive : nullptr);
+	_nature->setIconOverride((tab == dbietNature) ? &st::emojiNatureActive : nullptr);
+	_food->setIconOverride((tab == dbietFood) ? &st::emojiFoodActive : nullptr);
+	_activity->setIconOverride((tab == dbietActivity) ? &st::emojiActivityActive : nullptr);
+	_travel->setIconOverride((tab == dbietTravel) ? &st::emojiTravelActive : nullptr);
+	_objects->setIconOverride((tab == dbietObjects) ? &st::emojiObjectsActive : nullptr);
+	_symbols->setIconOverride((tab == dbietSymbols) ? &st::emojiSymbolsActive : nullptr);
 }
 
 void EmojiPan::onScrollStickers() {
@@ -3550,11 +3553,11 @@ void EmojiPan::validateSelectedIcon(ValidateIconAnimations animations) {
 		if (animations == ValidateIconAnimations::Full) {
 			_iconSelX.start(iconSelXFinal);
 		} else {
-			_iconSelX = anim::ivalue(iconSelXFinal, iconSelXFinal);
+			_iconSelX = anim::value(iconSelXFinal, iconSelXFinal);
 		}
 		auto iconsXFinal = snap((2 * newSel - 7) * int(st::emojiCategory.width) / 2, 0, _iconsMax);
 		if (animations == ValidateIconAnimations::None) {
-			_iconsX = anim::ivalue(iconsXFinal, iconsXFinal);
+			_iconsX = anim::value(iconsXFinal, iconsXFinal);
 			_a_icons.stop();
 		} else {
 			_iconsX.start(iconsXFinal);

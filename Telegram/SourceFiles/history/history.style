@@ -240,8 +240,6 @@ historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
 	iconPosition: point(15px, 15px);
-
-	ripple: emptyRippleAnimation;
 }
 historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
@@ -251,16 +249,16 @@ historyEmojiCircleLine: 2px;
 historyEmojiCircleFg: historyComposeIconFg;
 historyEmojiCircleFgOver: historyComposeIconFgOver;
 historyEmojiCirclePart: 3.5;
-historyBotKeyboardShow: IconButton(historySend) {
+historyBotKeyboardShow: IconButton(historyAttach) {
 	icon: icon {{ "send_control_bot_keyboard", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_keyboard", historyComposeIconFgOver }};
 }
-historyBotKeyboardHide: IconButton(historySend) {
+historyBotKeyboardHide: IconButton(historyAttach) {
 	icon: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFgOver }};
 	iconPosition: point(11px, 16px);
 }
-historyBotCommandStart: IconButton(historySend) {
+historyBotCommandStart: IconButton(historyAttach) {
 	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
 }
@@ -270,6 +268,7 @@ historyRecordVoiceFgActive: windowBgActive;
 historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
 historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
+historyRecordVoiceRippleBgActive: lightButtonBgOver;
 historyRecordSignalColor: #f17077;
 historyRecordSignalMin: 5px;
 historyRecordSignalMax: 12px;

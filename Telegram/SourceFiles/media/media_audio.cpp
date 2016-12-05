@@ -991,7 +991,7 @@ void AudioPlayerFader::onTimer() {
 			float64 wasAudio = suppressAllGain;
 			if (ms >= _suppressAllStart + notifyLengthMs || ms < _suppressAllStart) {
 				_suppressAll = _suppressAllAnim = false;
-				_suppressAllGain = anim::fvalue(1., 1.);
+				_suppressAllGain = anim::value(1., 1.);
 			} else if (ms > _suppressAllStart + notifyLengthMs - AudioFadeDuration) {
 				if (_suppressAllGain.to() != 1.) _suppressAllGain.start(1.);
 				_suppressAllGain.update(1. - ((_suppressAllStart + notifyLengthMs - ms) / float64(AudioFadeDuration)), anim::linear);

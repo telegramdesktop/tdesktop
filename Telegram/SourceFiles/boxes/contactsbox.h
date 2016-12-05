@@ -31,6 +31,7 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
+class RippleAnimation;
 class RoundButton;
 class LinkButton;
 class Checkbox;
@@ -208,19 +209,29 @@ protected:
 	void leaveEvent(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	struct ContactData {
-		ContactData() = default;
+		ContactData();
 		ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
+		~ContactData();
 
 		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
+		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		int rippleRowTop = 0;
 		Text name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
 		bool disabledChecked = false;
 	};
+	void addRipple(ContactData *data);
+	void stopLastRipple(ContactData *data);
+	void setPressed(Dialogs::Row *pressed);
+	void setFilteredPressed(int pressed);
+	void setSearchedPressed(int pressed);
+	void clearSearchedContactDatas();
 
 	void init();
 	void initList();
@@ -277,12 +288,14 @@ private:
 
 	std_::unique_ptr<Dialogs::IndexedList> _customList;
 	Dialogs::IndexedList *_contacts = nullptr;
-	Dialogs::Row *_sel = nullptr;
+	Dialogs::Row *_selected = nullptr;
+	Dialogs::Row *_pressed = nullptr;
 	QString _filter;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;
-	int _filteredSel = -1;
-	bool _mouseSel = false;
+	int _filteredSelected = -1;
+	int _filteredPressed = -1;
+	bool _mouseSelection = false;
 
 	using ContactsData = QMap<PeerData*, ContactData*>;
 	ContactsData _contactsData;
@@ -298,7 +311,8 @@ private:
 	ByUsernameRows _byUsername, _byUsernameFiltered;
 	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
 	ByUsernameDatas _byUsernameDatas;
-	int _byUsernameSel = -1;
+	int _searchedSelected = -1;
+	int _searchedPressed = -1;
 
 	QPoint _lastMousePos;
 	ChildWidget<Ui::LinkButton> _addContactLnk;

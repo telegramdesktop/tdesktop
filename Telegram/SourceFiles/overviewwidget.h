@@ -301,7 +301,6 @@ public:
 	}
 	void setLastScrollTop(int lastScrollTop);
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
-	void step_show(float64 ms, bool timer);
 
 	void doneShow();
 
@@ -355,16 +354,17 @@ public slots:
 	void onClearSelected();
 
 private:
+	void animationCallback();
+
 	ChildWidget<Ui::ScrollArea> _scroll;
 	ChildWidget<OverviewInner> _inner;
 	bool _noDropResizeIndex = false;
 
 	QString _header;
 
-	Animation _a_show;
+	FloatAnimation _a_show;
+	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_progress;
 
 	int32 _scrollSetAfterShow = 0;
 

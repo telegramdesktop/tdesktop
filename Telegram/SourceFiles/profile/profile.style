@@ -123,7 +123,7 @@ profileMemberNamePosition: point(68px, 11px);
 profileMemberNameFg: #222222;
 profileMemberStatusPosition: point(68px, 31px);
 profileMemberStatusFg: windowSubTextFg;
-profileMemberStatusFgOver: windowSubTextFgOver;
+profileMemberStatusFgOver: #7c99b2;
 profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {{ "profile_admin_star", windowBgActive, point(4px, 3px) }};
 profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {

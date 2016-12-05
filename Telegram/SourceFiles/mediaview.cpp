@@ -2241,7 +2241,7 @@ bool MediaView::updateOverState(OverState newState) {
 			if (i != _animOpacities.end()) {
 				i->start(0);
 			} else {
-				_animOpacities.insert(_over, anim::fvalue(1, 0));
+				_animOpacities.insert(_over, anim::value(1, 0));
 			}
 			if (!_a_state.animating()) _a_state.start();
 		} else {
@@ -2254,7 +2254,7 @@ bool MediaView::updateOverState(OverState newState) {
 			if (i != _animOpacities.end()) {
 				i->start(1);
 			} else {
-				_animOpacities.insert(_over, anim::fvalue(0, 1));
+				_animOpacities.insert(_over, anim::value());
 			}
 			if (!_a_state.animating()) _a_state.start();
 		}
@@ -2492,7 +2492,7 @@ void MediaView::setVisible(bool visible) {
 	if (!visible) {
 		_controlsHideTimer.stop();
 		_controlsState = ControlsShown;
-		a_cOpacity = anim::fvalue(1, 1);
+		a_cOpacity = anim::value(1, 1);
 	}
 	TWidget::setVisible(visible);
 	if (visible) {

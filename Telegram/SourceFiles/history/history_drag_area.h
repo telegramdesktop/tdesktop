@@ -70,8 +70,8 @@ private:
 	bool _hiding, _in;
 	base::lambda<void(const QMimeData *data)> _droppedCallback;
 
-	anim::fvalue a_opacity;
-	anim::fvalue a_colorDrop;
+	anim::value a_opacity;
+	anim::value a_colorDrop;
 	Animation _a_appearance;
 
 	Ui::RectShadow _shadow;

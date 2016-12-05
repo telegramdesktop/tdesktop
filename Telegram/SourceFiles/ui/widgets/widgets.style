@@ -878,7 +878,7 @@ historySendActionTypingDuration: 800;
 historySendActionTypingHalfPeriod: 320;
 historySendActionTypingDeltaTime: 150;
 historySendActionTypingPosition: point(4px, -4px);
-historySendActionTypingDelta: 7px;
+historySendActionTypingDelta: 6px;
 historySendActionTypingLargeNumerator: 28px;
 historySendActionTypingSmallNumerator: 16px;
 historySendActionTypingDenominator: 12.;
@@ -895,3 +895,18 @@ historySendActionUploadDelta: 5px;
 historySendActionUploadStrokeNumerator: 12px;
 historySendActionUploadSizeNumerator: 28px;
 historySendActionUploadDenominator: 8.;
+
+MediaPlayerButton {
+	playPosition: point;
+	playOuter: size;
+	pausePosition: point;
+	pauseOuter: size;
+	pauseStroke: pixels;
+	cancelPosition: point;
+	cancelOuter: size;
+	cancelStroke: pixels;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	ripple: RippleAnimation;
+}

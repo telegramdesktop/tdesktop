@@ -152,9 +152,7 @@ public:
 
 	int contentScrollAddToY() const;
 
-	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	void step_show(float64 ms, bool timer);
-	void animStop_show();
+	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
 	void start(const MTPUser &user);
 
@@ -178,7 +176,7 @@ public:
 	void removeDialog(History *history);
 	void dlgUpdated();
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
-	void dlgUpdated(History *row, MsgId msgId);
+	void dlgUpdated(PeerData *peer, MsgId msgId);
 
 	void windowShown();
 
@@ -483,6 +481,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	void animationCallback();
 	void updateAdaptiveLayout();
 	void handleAudioUpdate(const AudioMsgId &audioId);
 	void updateMediaPlayerPosition();
@@ -587,10 +586,9 @@ private:
 	base::Observable<PeerData*> _searchInPeerChanged;
 	base::Observable<PeerData*> _historyPeerChanged;
 
-	Animation _a_show;
+	FloatAnimation _a_show;
+	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
 
 	int _dialogsWidth;
 

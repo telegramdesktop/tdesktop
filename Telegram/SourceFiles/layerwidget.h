@@ -144,8 +144,6 @@ public:
 	void paintEvent(QPaintEvent *e);
 	void resizeEvent(QResizeEvent *e);
 
-	void step_shown(float64 ms, bool timer);
-
 	void showPreview(DocumentData *document);
 	void showPreview(PhotoData *photo);
 	void hidePreview();
@@ -159,8 +157,8 @@ private:
 	void fillEmojiString();
 	void resetGifAndCache();
 
-	anim::fvalue a_shown;
-	Animation _a_shown;
+	FloatAnimation _a_shown;
+	bool _hiding = false;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Media::Clip::ReaderPointer _gif;

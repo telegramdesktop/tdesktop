@@ -584,7 +584,7 @@ void HistoryItem::finishCreate() {
 void HistoryItem::finishEdition(int oldKeyboardTop) {
 	setPendingInitDimensions();
 	if (App::main()) {
-		App::main()->dlgUpdated(history(), id);
+		App::main()->dlgUpdated(history()->peer, id);
 	}
 
 	// invalidate cache for drawInDialog

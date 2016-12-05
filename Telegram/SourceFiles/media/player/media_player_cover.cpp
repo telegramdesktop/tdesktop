@@ -234,7 +234,7 @@ void CoverWidget::updateLabelPositions() {
 }
 
 void CoverWidget::updateRepeatTrackIcon() {
-	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
+	_repeatTrack->setIconOverride(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
 }
 
 void CoverWidget::handleSongUpdate(const UpdatedEvent &e) {
@@ -338,9 +338,9 @@ void CoverWidget::handlePlaylistUpdate() {
 		createPrevNextButtons();
 		auto previousEnabled = (index > 0);
 		auto nextEnabled = (index + 1 < playlist.size());
-		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPanelPreviousDisabledIcon);
+		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPanelPreviousDisabledIcon);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
-		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerPanelNextDisabledIcon);
+		_nextTrack->setIconOverride(nextEnabled ? nullptr : &st::mediaPlayerPanelNextDisabledIcon);
 		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
 	}
 }
@@ -386,7 +386,7 @@ void CoverWidget::updateVolumeToggleIcon() {
 		}
 		return nullptr;
 	};
-	_volumeToggle->setIcon(icon());
+	_volumeToggle->setIconOverride(icon());
 }
 
 } // namespace Player

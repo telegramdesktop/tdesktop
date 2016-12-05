@@ -44,8 +44,8 @@ void MembersAddButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto over = (_state & StateOver);
-	auto down = (_state & StateDown);
+	auto over = isOver();
+	auto down = isDown();
 
 	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);

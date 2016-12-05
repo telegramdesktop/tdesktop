@@ -395,7 +395,7 @@ void FieldAutocomplete::hideFast() {
 	if (_a_appearance.animating()) {
 		_a_appearance.stop();
 	}
-	a_opacity = anim::fvalue(0, 0);
+	a_opacity = anim::value();
 	hideFinish();
 }
 

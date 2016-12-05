@@ -23,17 +23,7 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "overview/overview.style";
 
-MediaPlayerButton {
-	playPosition: point;
-	playOuter: size;
-	pausePosition: point;
-	pauseOuter: size;
-	pauseStroke: pixels;
-	cancelPosition: point;
-	cancelOuter: size;
-	cancelStroke: pixels;
-}
-
+mediaPlayerBg: windowBg;
 mediaPlayerActiveFg: windowBgActive;
 mediaPlayerInactiveFg: #dfebf2;
 
@@ -46,6 +36,12 @@ mediaPlayerButton: MediaPlayerButton {
 	cancelPosition: point(1px, 1px);
 	cancelOuter: size(15px, 15px);
 	cancelStroke: 3px;
+
+	rippleAreaPosition: point(0px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 mediaPlayerButtonSize: size(25px, 30px);
 
@@ -76,10 +72,20 @@ mediaPlayerRepeatButton: IconButton {
 		{ "player_repeat", mediaPlayerActiveFg, point(9px, 11px) }
 	};
 	iconPosition: point(0px, 0px);
+
+	rippleAreaPosition: point(3px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 mediaPlayerRepeatDisabledIcon: icon {
-	{ "player_repeat", #c8c8c8, point(9px, 11px)}
+	{ "player_repeat", menuIconFg, point(9px, 11px)}
 };
+mediaPlayerRepeatDisabledIconOver: icon {
+	{ "player_repeat", menuIconFgOver, point(9px, 11px)}
+};
+mediaPlayerRepeatDisabledRippleBg: windowBgOver;
 mediaPlayerRepeatInactiveIcon: icon {
 	{ "player_repeat", mediaPlayerInactiveFg, point(9px, 11px)}
 };
@@ -102,6 +108,12 @@ mediaPlayerVolumeToggle: IconButton {
 
 	icon: mediaPlayerVolumeIcon0;
 	iconPosition: point(8px, 11px);
+
+	rippleAreaPosition: point(3px, 5px);
+	rippleAreaSize: 25px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgOver;
+	}
 }
 mediaPlayerVolumeMargin: 10px;
 mediaPlayerVolumeSize: size(27px, 100px);
@@ -117,6 +129,8 @@ mediaPlayerNextButton: IconButton(mediaPlayerRepeatButton) {
 	icon: icon {
 		{ "player_next", mediaPlayerActiveFg, mediaPlayerSkipIconPosition },
 	};
+
+	rippleAreaPosition: point(0px, 5px);
 }
 mediaPlayerNextDisabledIcon: icon {
 	{ "player_next", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
@@ -125,13 +139,20 @@ mediaPlayerPreviousButton: IconButton(mediaPlayerNextButton) {
 	icon: icon {
 		{ "player_next-flip_horizontal", mediaPlayerActiveFg, mediaPlayerSkipIconPosition },
 	};
+	rippleAreaPosition: point(1px, 5px);
 }
 mediaPlayerPreviousDisabledIcon: icon {
 	{ "player_next-flip_horizontal", mediaPlayerInactiveFg, mediaPlayerSkipIconPosition },
 };
 mediaPlayerClose: IconButton(mediaPlayerRepeatButton) {
 	width: 37px;
-	icon: icon {{ "player_close", #c8c8c8, point(10px, 12px) }};
+	icon: icon {{ "player_close", menuIconFg, point(10px, 12px) }};
+	iconOver: icon {{ "player_close", menuIconFgOver, point(10px, 12px) }};
+
+	rippleAreaPosition: point(3px, 5px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 mediaPlayerPlayback: FilledSlider {
 	fullWidth: 6px;
@@ -165,7 +186,8 @@ mediaPlayerCoverHeight: 102px;
 mediaPlayerPanelClose: IconButton(mediaPlayerClose) {
 	width: 43px;
 	height: 28px;
-	icon: icon {{ "player_close", #c8c8c8, point(16px, 14px) }};
+	icon: icon {{ "player_close", menuIconFg, point(16px, 14px) }};
+	iconOver: icon {{ "player_close", menuIconFgOver, point(16px, 14px) }};
 }
 
 mediaPlayerPanelNextButton: IconButton(mediaPlayerRepeatButton) {

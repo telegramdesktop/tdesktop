@@ -229,7 +229,7 @@ private:
 		int titleWidth;
 		bool installed, official, unread, archived, removed;
 		int32 pixw, pixh;
-		anim::ivalue yadd;
+		anim::value yadd;
 		QSharedPointer<Ui::RippleAnimation> ripple;
 	};
 	using Rows = QList<Row*>;
@@ -245,7 +245,7 @@ private:
 	Rows _rows;
 	QList<TimeMs> _animStartTimes;
 	TimeMs _aboveShadowFadeStart = 0;
-	anim::fvalue _aboveShadowFadeOpacity = { 0., 0. };
+	anim::value _aboveShadowFadeOpacity;
 	Animation _a_shifting;
 
 	base::lambda<void(uint64 setId)> _installSetCallback;

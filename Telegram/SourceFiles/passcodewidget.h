@@ -34,9 +34,7 @@ public:
 
 	void setInnerFocus();
 
-	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	void step_show(float64 ms, bool timer);
-	void stop_show();
+	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -48,13 +46,14 @@ public slots:
 	void onSubmit();
 
 private:
+	void animationCallback();
+
 	void showAll();
 	void hideAll();
 
-	Animation _a_show;
+	FloatAnimation _a_show;
+	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
 
 	ChildWidget<Ui::PasswordInput> _passcode;
 	ChildWidget<Ui::RoundButton> _submit;

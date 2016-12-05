@@ -786,7 +786,7 @@ void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 		} else {
 			if (!_animation) {
 				ensureAnimation();
-				_animation->a_thumbOver = anim::fvalue(1, 1);
+				_animation->a_thumbOver = anim::value(1, 1);
 			}
 			_animation->a_thumbOver.start(0);
 		}

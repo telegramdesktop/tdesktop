@@ -89,9 +89,9 @@ void TitleWidget::onWindowStateChanged(Qt::WindowState state) {
 
 void TitleWidget::updateMaximizeRestoreButton() {
 	if (_maximized) {
-		_maximizeRestore->setIcon(&st::titleButtonRestoreIcon, &st::titleButtonRestoreIconOver);
+		_maximizeRestore->setIconOverride(&st::titleButtonRestoreIcon, &st::titleButtonRestoreIconOver);
 	} else {
-		_maximizeRestore->setIcon(nullptr, nullptr);
+		_maximizeRestore->setIconOverride(nullptr, nullptr);
 	}
 }
 

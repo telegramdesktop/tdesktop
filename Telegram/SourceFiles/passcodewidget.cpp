@@ -32,7 +32,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/window_slide_animation.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
-, _a_show(animation(this, &PasscodeWidget::step_show))
 , _passcode(this, st::passcodeInput)
 , _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
@@ -104,52 +103,30 @@ void PasscodeWidget::onChanged() {
 	}
 }
 
-void PasscodeWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	if (App::app()) App::app()->mtpPause();
+void PasscodeWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
+	_showBack = back;
+	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
 
-	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
-
-	_a_show.stop();
+	_a_show.finish();
 
 	showAll();
-	(back ? _cacheUnder : _cacheOver) = myGrab(this);
+	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 
-	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
-	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
-	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
-	_a_show.start();
-
+	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 	show();
 }
 
-void PasscodeWidget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
-	if (dt >= 1) {
-		_a_show.stop();
-
-		a_coordUnder.finish();
-		a_coordOver.finish();
-		a_shadow.finish();
-
-		_cacheUnder = _cacheOver = QPixmap();
-
+void PasscodeWidget::animationCallback() {
+	update();
+	if (!_a_show.animating()) {
 		showAll();
 		if (App::wnd()) App::wnd()->setInnerFocus();
 
-		if (App::app()) App::app()->mtpUnpause();
-
 		Ui::showChatsList();
-	} else {
-		a_coordUnder.update(dt, Window::SlideAnimation::transition());
-		a_coordOver.update(dt, Window::SlideAnimation::transition());
-		a_shadow.update(dt, Window::SlideAnimation::transition());
-	}
-	if (timer) update();
-}
 
-void PasscodeWidget::stop_show() {
-	_a_show.stop();
+		_cacheUnder = _cacheOver = QPixmap();
+	}
 }
 
 void PasscodeWidget::showAll() {
@@ -173,16 +150,20 @@ void PasscodeWidget::paintEvent(QPaintEvent *e) {
 		p.setClipRect(e->rect());
 	}
 
+	auto progress = _a_show.current(getms(), 1.);
 	if (_a_show.animating()) {
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current());
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
+		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = _showBack ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * cRetinaFactor(), 0, coordOver * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
-		p.setOpacity(a_shadow.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+		p.drawPixmap(coordOver, 0, _cacheOver);
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 	} else {
 		p.fillRect(rect(), st::windowBg);
 

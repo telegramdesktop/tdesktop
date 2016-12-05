@@ -55,8 +55,8 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	p.setOpacity(opacity);
-	auto over = (_state & StateOver);
-	auto down = (_state & StateDown);
+	auto over = isOver();
+	auto down = isDown();
 	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
 	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
 	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
@@ -118,7 +118,7 @@ void HistoryDownButton::step_arrowOver(float64 ms, bool timer) {
 	if (timer) update();
 }
 
-EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : AbstractButton(parent)
+EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : RippleButton(parent, st.ripple)
 , _st(st)
 , _a_loading(animation(this, &EmojiButton::step_loading)) {
 	resize(_st.width, _st.height);
@@ -131,11 +131,12 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 	auto ms = getms();
 
 	p.fillRect(e->rect(), st::historyComposeAreaBg);
+	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
 
 	auto loading = a_loading.current(ms, _loading ? 1 : 0);
 	p.setOpacity(1 - loading);
 
-	auto over = (_state & StateOver);
+	auto over = isOver();
 	auto icon = &(over ? _st.iconOver : _st.icon);
 	icon->paint(p, _st.iconPosition, width());
 
@@ -170,11 +171,20 @@ void EmojiButton::setLoading(bool loading) {
 	}
 }
 
-void EmojiButton::onStateChanged(int oldState, StateChangeSource source) {
-	auto over = (_state & StateOver);
-	if (over != (oldState & StateOver)) {
+void EmojiButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+	auto wasOver = static_cast<bool>(was & StateFlag::Over);
+	if (isOver() != wasOver) {
 		update();
 	}
+}
+
+QPoint EmojiButton::prepareRippleStartPosition() const {
+	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+}
+
+QImage EmojiButton::prepareRippleMask() const {
+	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 }
 
 } // namespace Ui

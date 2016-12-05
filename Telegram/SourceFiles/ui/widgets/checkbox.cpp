@@ -163,16 +163,16 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 }
 
 void Checkbox::onClicked() {
-	if (_state & StateDisabled) return;
+	if (isDisabled()) return;
 	setChecked(!checked());
 }
 
-void Checkbox::onStateChanged(int oldState, StateChangeSource source) {
-	RippleButton::onStateChanged(oldState, source);
+void Checkbox::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
 
-	if ((_state & StateDisabled) && !(oldState & StateDisabled)) {
+	if (isDisabled() && !(was & StateFlag::Disabled)) {
 		setCursor(style::cur_default);
-	} else if (!(_state & StateDisabled) && (oldState & StateDisabled)) {
+	} else if (!isDisabled() && (was & StateFlag::Disabled)) {
 		setCursor(style::cur_pointer);
 	}
 }
@@ -284,16 +284,16 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 }
 
 void Radiobutton::onClicked() {
-	if (_state & StateDisabled) return;
+	if (isDisabled()) return;
 	setChecked(!checked());
 }
 
-void Radiobutton::onStateChanged(int oldState, StateChangeSource source) {
-	RippleButton::onStateChanged(oldState, source);
+void Radiobutton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
 
-	if ((_state & StateDisabled) && !(oldState & StateDisabled)) {
+	if (isDisabled() && !(was & StateFlag::Disabled)) {
 		setCursor(style::cur_default);
-	} else if (!(_state & StateDisabled) && (oldState & StateDisabled)) {
+	} else if (!isDisabled() && (was & StateFlag::Disabled)) {
 		setCursor(style::cur_pointer);
 	}
 }

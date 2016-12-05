@@ -241,9 +241,9 @@ void MainWindow::clearPasscode() {
 
 	_passcode.destroy();
 	if (_intro) {
-		_intro->animShow(bg, true);
+		_intro->showAnimated(bg, true);
 	} else {
-		_main->animShow(bg, true);
+		_main->showAnimated(bg, true);
 	}
 	notifyUpdateAll();
 	updateGlobalMenu();
@@ -265,7 +265,7 @@ void MainWindow::setupPasscode() {
 	}
 	if (_intro) _intro->hide();
 	if (animated) {
-		_passcode->animShow(bg);
+		_passcode->showAnimated(bg);
 	} else {
 		setInnerFocus();
 	}
@@ -313,7 +313,7 @@ void MainWindow::setupIntro() {
 	updateControlsGeometry();
 
 	if (animated) {
-		_intro->animShow(bg);
+		_intro->showAnimated(bg);
 	} else {
 		setInnerFocus();
 	}
@@ -367,7 +367,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 	updateControlsGeometry();
 
 	if (animated) {
-		_main->animShow(bg);
+		_main->showAnimated(bg);
 	} else {
 		_main->activate();
 	}

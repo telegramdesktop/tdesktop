@@ -23,6 +23,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/abstract_button.h"
 #include "styles/style_widgets.h"
 
+#include <memory>
+
 namespace Ui {
 
 class RippleAnimation;
@@ -38,7 +40,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
 	QString _text;
@@ -66,7 +68,7 @@ public:
 protected:
 	void paintRipple(QPainter &p, int x, int y, TimeMs ms, const QColor *colorOverride = nullptr);
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 
 	virtual QImage prepareRippleMask() const;
 	virtual QPoint prepareRippleStartPosition() const;
@@ -98,7 +100,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
 	void setOpacity(float64 o);
@@ -109,7 +111,7 @@ private:
 
 	const style::FlatButton &_st;
 
-	anim::fvalue a_over;
+	anim::value a_over;
 	Animation _a_appearance;
 
 	float64 _opacity = 1.;
@@ -162,12 +164,13 @@ public:
 	IconButton(QWidget *parent, const style::IconButton &st);
 
 	// Pass nullptr to restore the default icon.
-	void setIcon(const style::icon *icon, const style::icon *iconOver = nullptr);
+	void setIconOverride(const style::icon *iconOverride, const style::icon *iconOverOverride = nullptr);
+	void setRippleColorOverride(const style::color *colorOverride);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
@@ -176,6 +179,7 @@ private:
 	const style::IconButton &_st;
 	const style::icon *_iconOverride = nullptr;
 	const style::icon *_iconOverrideOver = nullptr;
+	const style::color *_rippleColorOverride = nullptr;
 
 	FloatAnimation _a_over;
 
@@ -215,7 +219,7 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, StateChangeSource source) override;
+	void onStateChanged(State was, StateChangeSource source) override;
 
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;

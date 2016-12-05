@@ -69,7 +69,6 @@ StackItemSection::~StackItemSection() {
 }
 
 MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
-, _a_show(animation(this, &MainWidget::step_show))
 , _dialogsWidth(st::dialogsWidthMin)
 , _sideShadow(this, st::shadowColor)
 , _dialogs(this)
@@ -2231,7 +2230,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 	}
 
 	Window::SectionSlideParams animationParams;
-	if (!_a_show.animating() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)) || back || (way == Ui::ShowWay::Forward))) {
+	if (!_a_show.animating() && !App::passcoded() && ((_history->isHidden() && (_wideSection || _overview)) || (Adaptive::OneColumn() && (_history->isHidden() || !peerId)) || back || (way == Ui::ShowWay::Forward))) {
 		animationParams = prepareHistoryAnimation(peerId);
 	}
 	if (_history->peer() && _history->peer()->id != peerId && way != Ui::ShowWay::Forward) {
@@ -2258,7 +2257,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		_topBar->hide();
 		_history->hide();
 		if (!_a_show.animating()) {
-			if (!animationParams.oldContentCache.isNull() && !App::passcoded()) {
+			if (!animationParams.oldContentCache.isNull()) {
 				_dialogs->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
 			} else {
 				_dialogs->showFast();
@@ -2408,7 +2407,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	} else {
 		_overview->fastShow();
 	}
-	_history->animStop();
+	_history->finishAnimation();
 	if (back) {
 		clearBotStartToken(_history->peer());
 	}
@@ -2537,7 +2536,7 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 	resizeEvent(0);
 	auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
 	_wideSection->showAnimated(direction, animationParams);
-	_history->animStop();
+	_history->finishAnimation();
 	_history->showHistory(0, 0);
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
@@ -2651,7 +2650,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 
 void MainWidget::dlgUpdated() {
 	if (_peerInStack) {
-		_dialogs->dlgUpdated(App::history(_peerInStack->id), _msgIdInStack);
+		_dialogs->dlgUpdated(_peerInStack, _msgIdInStack);
 	}
 }
 
@@ -2661,12 +2660,12 @@ void MainWidget::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
 	}
 }
 
-void MainWidget::dlgUpdated(History *row, MsgId msgId) {
-	if (!row) return;
-	if (msgId < 0 && -msgId < ServerMaxMsgId && row->peer->migrateFrom()) {
-		_dialogs->dlgUpdated(App::history(row->peer->migrateFrom()->id), -msgId);
+void MainWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
+	if (!peer) return;
+	if (msgId < 0 && -msgId < ServerMaxMsgId && peer->migrateFrom()) {
+		_dialogs->dlgUpdated(peer->migrateFrom(), -msgId);
 	} else {
-		_dialogs->dlgUpdated(row, msgId);
+		_dialogs->dlgUpdated(peer, msgId);
 	}
 }
 
@@ -2719,66 +2718,49 @@ void MainWidget::historyCleared(History *history) {
 	_history->historyCleared(history);
 }
 
-void MainWidget::animShow(const QPixmap &bgAnimCache, bool back) {
-	if (App::app()) App::app()->mtpPause();
+void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
+	_showBack = back;
+	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
 
-	(back ? _cacheOver : _cacheUnder) = bgAnimCache;
-
-	_a_show.stop();
+	_a_show.finish();
 
 	showAll();
-	(back ? _cacheUnder : _cacheOver) = myGrab(this);
+	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 
-	a_coordUnder = back ? anim::ivalue(-st::slideShift, 0) : anim::ivalue(0, -st::slideShift);
-	a_coordOver = back ? anim::ivalue(0, width()) : anim::ivalue(width(), 0);
-	a_shadow = back ? anim::fvalue(1, 0) : anim::fvalue(0, 1);
-	_a_show.start();
+	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 
 	show();
 }
 
-void MainWidget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
-	if (dt >= 1) {
-		_a_show.stop();
-
-		a_coordUnder.finish();
-		a_coordOver.finish();
-		a_shadow.finish();
-
+void MainWidget::animationCallback() {
+	update();
+	if (!_a_show.animating()) {
 		_cacheUnder = _cacheOver = QPixmap();
 
 		showAll();
 		activate();
-
-		if (App::app()) App::app()->mtpUnpause();
-	} else {
-		a_coordUnder.update(dt, Window::SlideAnimation::transition());
-		a_coordOver.update(dt, Window::SlideAnimation::transition());
-		a_shadow.update(dt, Window::SlideAnimation::transition());
 	}
-	if (timer) update();
-}
-
-void MainWidget::animStop_show() {
-	_a_show.stop();
 }
 
 void MainWidget::paintEvent(QPaintEvent *e) {
 	if (_background) checkChatBackground();
 
 	Painter p(this);
+	auto progress = _a_show.current(getms(), 1.);
 	if (_a_show.animating()) {
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * cRetinaFactor(), 0, a_coordOver.current() * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(a_shadow.current());
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
+		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = _showBack ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * cRetinaFactor(), 0, coordOver * cRetinaFactor(), height() * cRetinaFactor()));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(a_coordOver.current(), 0, _cacheOver);
-		p.setOpacity(a_shadow.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+		p.drawPixmap(coordOver, 0, _cacheOver);
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 	}
 }
 
@@ -3048,7 +3030,7 @@ void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
 		_topBar->hide();
 	}
 
-	dlgUpdated(history, atMsgId);
+	dlgUpdated(history ? history->peer : nullptr, atMsgId);
 }
 
 void MainWidget::searchInPeer(PeerData *peer) {

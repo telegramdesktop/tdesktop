@@ -1878,7 +1878,6 @@ OverviewInner::~OverviewInner() {
 OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type) : TWidget(parent)
 , _scroll(this, st::settingsScroll, false)
 , _inner(this, _scroll, peer, type)
-, _a_show(animation(this, &OverviewWidget::step_show))
 , _topShadow(this, st::shadowColor) {
 	_scroll->setOwnedWidget(_inner);
 	_scroll->move(0, 0);
@@ -1936,18 +1935,23 @@ void OverviewWidget::paintEvent(QPaintEvent *e) {
 	if (App::wnd() && App::wnd()->contentOverlapped(this, e)) return;
 
 	Painter p(this);
+	auto progress = _a_show.current(getms(), 1.);
 	if (_a_show.animating()) {
-		int retina = cIntRetinaFactor();
-		int inCacheTop = st::topBarHeight;
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), height()), _cacheUnder, QRect(-a_coordUnder.current() * retina, inCacheTop * retina, a_coordOver.current() * retina, height() * retina));
-			p.setOpacity(a_progress.current());
-			p.fillRect(0, 0, a_coordOver.current(), height(), st::slideFadeOutBg);
+		auto retina = cIntRetinaFactor();
+		auto inCacheTop = st::topBarHeight;
+		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
+		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = fromLeft ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * retina, inCacheTop * retina, coordOver * retina, height() * retina));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
-		p.setOpacity(a_progress.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+		p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, height()), _cacheOver, QRect(0, inCacheTop * retina, _cacheOver.width(), height() * retina));
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
 		return;
 	}
 
@@ -1972,16 +1976,21 @@ void OverviewWidget::scrollReset() {
 
 bool OverviewWidget::paintTopBar(Painter &p, int decreaseWidth) {
 	if (_a_show.animating()) {
-		int retina = cIntRetinaFactor();
-		if (a_coordOver.current() > 0) {
-			p.drawPixmap(QRect(0, 0, a_coordOver.current(), st::topBarHeight), _cacheUnder, QRect(-a_coordUnder.current() * retina, 0, a_coordOver.current() * retina, st::topBarHeight * retina));
-			p.setOpacity(a_progress.current());
-			p.fillRect(0, 0, a_coordOver.current(), st::topBarHeight, st::slideFadeOutBg);
+		auto progress = _a_show.current(1.);
+		auto retina = cIntRetinaFactor();
+		auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
+		auto coordUnder = fromLeft ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
+		auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
+		auto shadow = fromLeft ? (1. - progress) : progress;
+		if (coordOver > 0) {
+			p.drawPixmap(QRect(0, 0, coordOver, st::topBarHeight), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, st::topBarHeight * retina));
+			p.setOpacity(shadow);
+			p.fillRect(0, 0, coordOver, st::topBarHeight, st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(QRect(a_coordOver.current(), 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
-		p.setOpacity(a_progress.current());
-		st::slideShadow.fill(p, QRect(a_coordOver.current() - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
+		p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, st::topBarHeight), _cacheOver, QRect(0, 0, _cacheOver.width(), st::topBarHeight * retina));
+		p.setOpacity(shadow);
+		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), st::topBarHeight));
 		return false;
 	}
 	st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
@@ -2080,8 +2089,6 @@ void OverviewWidget::fastShow(bool back, int32 lastScrollTop) {
 	show();
 	_inner->activate();
 	doneShow();
-
-	if (App::app()) App::app()->mtpUnpause();
 }
 
 void OverviewWidget::setLastScrollTop(int lastScrollTop) {
@@ -2090,9 +2097,10 @@ void OverviewWidget::setLastScrollTop(int lastScrollTop) {
 }
 
 void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
-	if (App::app()) App::app()->mtpPause();
-
+	_showDirection = direction;
 	resizeEvent(0);
+
+	_a_show.finish();
 
 	_cacheUnder = params.oldContentCache;
 	show();
@@ -2104,47 +2112,26 @@ void OverviewWidget::showAnimated(Window::SlideDirection direction, const Window
 	_scrollSetAfterShow = _scroll->scrollTop();
 	_scroll->hide();
 
-	int delta = st::slideShift;
-	if (direction == Window::SlideDirection::FromLeft) {
-		a_progress = anim::fvalue(1, 0);
+	if (_showDirection == Window::SlideDirection::FromLeft) {
 		std::swap(_cacheUnder, _cacheOver);
-		a_coordUnder = anim::ivalue(-delta, 0);
-		a_coordOver = anim::ivalue(0, width());
-	} else {
-		a_progress = anim::fvalue(0, 1);
-		a_coordUnder = anim::ivalue(0, -delta);
-		a_coordOver = anim::ivalue(width(), 0);
 	}
-	_a_show.start();
+	_a_show.start([this] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
 
 	App::main()->topBar()->update();
 
 	activate();
 }
 
-void OverviewWidget::step_show(float64 ms, bool timer) {
-	float64 dt = ms / st::slideDuration;
-	if (dt >= 1) {
-		_a_show.stop();
+void OverviewWidget::animationCallback() {
+	update();
+	App::main()->topBar()->update();
+	if (!_a_show.animating()) {
 		_topShadow->show();
 
-		a_coordUnder.finish();
-		a_coordOver.finish();
-		a_progress.finish();
 		_cacheUnder = _cacheOver = QPixmap();
 		App::main()->topBar()->stopAnim();
 
 		doneShow();
-
-		if (App::app()) App::app()->mtpUnpause();
-	} else {
-		a_coordUnder.update(dt, Window::SlideAnimation::transition());
-		a_coordOver.update(dt, Window::SlideAnimation::transition());
-		a_progress.update(dt, Window::SlideAnimation::transition());
-	}
-	if (timer) {
-		update();
-		App::main()->topBar()->update();
 	}
 }
 

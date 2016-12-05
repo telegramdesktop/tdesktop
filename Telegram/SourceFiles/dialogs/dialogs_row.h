@@ -25,13 +25,32 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 class History;
 class HistoryItem;
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace Dialogs {
 namespace Layout {
 class RowPainter;
 } // namespace Layout
 
+class RippleRow {
+public:
+	RippleRow();
+	~RippleRow();
+
+	void addRipple(QPoint origin, QSize size, base::lambda_copy<void()> &&updateCallback);
+	void stopLastRipple();
+
+	void paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride = nullptr) const;
+
+private:
+	mutable std_::unique_ptr<Ui::RippleAnimation> _ripple;
+
+};
+
 class List;
-class Row {
+class Row : public RippleRow {
 public:
 	Row(History *history, Row *prev, Row *next, int pos)
 		: _history(history)
@@ -57,7 +76,7 @@ private:
 
 };
 
-class FakeRow {
+class FakeRow : public RippleRow {
 public:
 	FakeRow(HistoryItem *item);
 

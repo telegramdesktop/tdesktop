@@ -21,10 +21,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "profile/profile_block_peer_list.h"
 
+#include "ui/effects/ripple_animation.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
 
 namespace Profile {
+
+PeerListWidget::Item::Item(PeerData *peer) : peer(peer) {
+}
+
+PeerListWidget::Item::~Item() = default;
 
 PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const QString &removeText)
 : BlockWidget(parent, peer, title)
@@ -54,37 +60,38 @@ void PeerListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 }
 
 void PeerListWidget::paintContents(Painter &p) {
-	int left = getListLeft();
-	int top = getListTop();
-	int memberRowWidth = width() - left;
-	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
+	auto ms = getms();
+	auto left = getListLeft();
+	auto top = getListTop();
+	auto memberRowWidth = rowWidth();
 
-	int from = floorclamp(_visibleTop - top, st::profileMemberHeight, 0, _items.size());
-	int to = ceilclamp(_visibleBottom - top, st::profileMemberHeight, 0, _items.size());
-	for (int i = from; i < to; ++i) {
-		int y = top + i * st::profileMemberHeight;
-		bool selected = (i == _selected);
-		bool selectedRemove = selected && _selectedRemove;
-		if (_pressed >= 0) {
-			if (_pressed != _selected) {
-				selected = selectedRemove = false;
-			} else if (!_pressedRemove) {
-				_selectedRemove = false;
-			}
+	auto from = floorclamp(_visibleTop - top, st::profileMemberHeight, 0, _items.size());
+	auto to = ceilclamp(_visibleBottom - top, st::profileMemberHeight, 0, _items.size());
+	for (auto i = from; i < to; ++i) {
+		auto y = top + i * st::profileMemberHeight;
+		auto selected = (_pressed >= 0) ? (i == _pressed) : (i == _selected);
+		auto selectedRemove = selected && _selectedRemove;
+		if (_pressed >= 0 && !_pressedRemove) {
+			selectedRemove = false;
 		}
-		paintItem(p, left, y, _items[i], selected, selectedRemove);
+		paintItem(p, left, y, _items[i], selected, selectedRemove, ms);
 	}
 }
 
-void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedKick) {
+void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedKick, TimeMs ms) {
 	if (_updateItemCallback) {
 		_updateItemCallback(item);
 	}
 
-	int memberRowWidth = width() - x;
-	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
+	auto memberRowWidth = rowWidth();
 	if (selected) {
 		paintOutlinedRect(p, x, y, memberRowWidth, st::profileMemberHeight);
+	}
+	if (auto &ripple = item->ripple) {
+		ripple->paint(p, x + st::defaultLeftOutlineButton.outlineWidth, y, width(), ms);
+		if (ripple->empty()) {
+			ripple.reset();
+		}
 	}
 	int skip = st::profileMemberPhotoPosition.x();
 
@@ -136,19 +143,36 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 
 	_pressed = _selected;
 	_pressedRemove = _selectedRemove;
+	if (_pressed >= 0 && !_pressedRemove) {
+		auto item = _items[_pressed];
+		if (!item->ripple) {
+			auto memberRowWidth = rowWidth();
+			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth - st::defaultLeftOutlineButton.outlineWidth, st::profileMemberHeight));
+			item->ripple = std_::make_unique<Ui::RippleAnimation>(st::defaultLeftOutlineButton.ripple, std_::move(mask), [this, index = _pressed] {
+				repaintRow(index);
+			});
+		}
+		auto left = getListLeft() + st::defaultLeftOutlineButton.outlineWidth;
+		auto top = getListTop() + st::profileMemberHeight * _pressed;
+		item->ripple->add(e->pos() - QPoint(left, top));
+	}
 }
 
 void PeerListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	_mousePosition = e->globalPos();
 	updateSelection();
 
-	auto pressed = _pressed;
-	auto pressedRemove = _pressedRemove;
-	_pressed = -1;
-	_pressedRemove = false;
-	if (pressed >= 0 && pressed < _items.size() && pressed == _selected && pressedRemove == _selectedRemove) {
-		if (auto &callback = (pressedRemove ? _removedCallback : _selectedCallback)) {
-			callback(_items[pressed]->peer);
+	repaintRow(_pressed);
+	auto pressed = base::take(_pressed, -1);
+	auto pressedRemove = base::take(_pressedRemove);
+	if (pressed >= 0 && pressed < _items.size()) {
+		if (auto &ripple = _items[pressed]->ripple) {
+			ripple->lastStop();
+		}
+		if (pressed == _selected && pressedRemove == _selectedRemove) {
+			if (auto &callback = (pressedRemove ? _removedCallback : _selectedCallback)) {
+				callback(_items[pressed]->peer);
+			}
 		}
 	}
 	setCursor(_selectedRemove ? style::cur_pointer : style::cur_default);
@@ -166,15 +190,14 @@ void PeerListWidget::leaveEvent(QEvent *e) {
 }
 
 void PeerListWidget::updateSelection() {
-	int selected = -1;
-	bool selectedKick = false;
+	auto selected = -1;
+	auto selectedKick = false;
 
 	auto mouse = mapFromGlobal(_mousePosition);
 	if (rtl()) mouse.setX(width() - mouse.x());
-	int left = getListLeft();
-	int top = getListTop();
-	int memberRowWidth = width() - left;
-	accumulate_min(memberRowWidth, st::profileBlockWideWidthMax);
+	auto left = getListLeft();
+	auto top = getListTop();
+	auto memberRowWidth = rowWidth();
 	if (mouse.x() >= left && mouse.x() < left + memberRowWidth && mouse.y() >= top) {
 		selected = (mouse.y() - top) / st::profileMemberHeight;
 		if (selected >= _items.size()) {
@@ -214,14 +237,22 @@ void PeerListWidget::setSelected(int selected, bool selectedRemove) {
 }
 
 void PeerListWidget::repaintSelectedRow() {
-	if (_selected >= 0) {
-		int left = getListLeft();
-		rtlupdate(left, getListTop() + _selected * st::profileMemberHeight, width() - left, st::profileMemberHeight);
+	repaintRow(_selected);
+}
+
+void PeerListWidget::repaintRow(int index) {
+	if (index >= 0) {
+		auto left = getListLeft();
+		rtlupdate(left, getListTop() + index * st::profileMemberHeight, width() - left, st::profileMemberHeight);
 	}
 }
 
 int PeerListWidget::getListLeft() const {
 	return st::profileBlockTitlePosition.x() - st::profileMemberPaddingLeft;
+}
+
+int PeerListWidget::rowWidth() const {
+	return qMin(width() - getListLeft(), st::profileBlockWideWidthMax);
 }
 
 void PeerListWidget::preloadPhotos() {

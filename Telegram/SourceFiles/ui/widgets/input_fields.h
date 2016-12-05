@@ -347,8 +347,6 @@ public:
 	}
 	void updatePlaceholder();
 
-	void step_placeholderFg(float64 ms, bool timer);
-	void step_placeholderShift(float64 ms, bool timer);
 	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const override;
@@ -470,14 +468,12 @@ private:
 
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible;
-	anim::ivalue a_placeholderLeft;
-	anim::fvalue a_placeholderOpacity;
-	anim::fvalue a_placeholderFgActive;
-	Animation _a_placeholderFg, _a_placeholderShift;
+	FloatAnimation _a_placeholderFocused;
+	FloatAnimation _a_placeholderVisible;
 
-	anim::fvalue a_borderOpacityActive;
-	anim::fvalue a_borderFgActive;
-	anim::fvalue a_borderFgError;
+	anim::value a_borderOpacityActive;
+	anim::value a_borderFgActive;
+	anim::value a_borderFgError;
 	Animation _a_border;
 
 	bool _focused, _error;
@@ -511,8 +507,6 @@ public:
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void finishPlaceholderAnimation();
 
-	void step_placeholderFg(float64 ms, bool timer);
-	void step_placeholderShift(float64 ms, bool timer);
 	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const override;
@@ -640,14 +634,12 @@ private:
 
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible;
-	anim::ivalue a_placeholderLeft;
-	anim::fvalue a_placeholderOpacity;
-	anim::fvalue a_placeholderFgActive;
-	Animation _a_placeholderFg, _a_placeholderShift;
+	FloatAnimation _a_placeholderFocused;
+	FloatAnimation _a_placeholderVisible;
 
-	anim::fvalue a_borderOpacityActive;
-	anim::fvalue a_borderFgActive;
-	anim::fvalue a_borderFgError;
+	anim::value a_borderOpacityActive;
+	anim::value a_borderFgActive;
+	anim::value a_borderFgError;
 	Animation _a_border;
 
 	bool _focused, _error;
@@ -676,8 +668,6 @@ public:
 
 	QRect getTextRect() const;
 
-	void step_placeholderFg(float64 ms, bool timer);
-	void step_placeholderShift(float64 ms, bool timer);
 	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const override;
@@ -736,13 +726,13 @@ protected:
 	}
 	void setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos);
 
-	virtual void paintPlaceholder(Painter &p);
+	virtual void paintPlaceholder(Painter &p, TimeMs ms);
 
 	style::font phFont() {
 		return _st.font;
 	}
 
-	void placeholderPreparePaint(Painter &p);
+	void placeholderPreparePaint(Painter &p, TimeMs ms);
 	const QString &placeholder() const;
 	QRect placeholderRect() const;
 
@@ -764,14 +754,12 @@ private:
 
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible, _placeholderFast;
-	anim::ivalue a_placeholderLeft;
-	anim::fvalue a_placeholderOpacity;
-	anim::fvalue a_placeholderFgActive;
-	Animation _a_placeholderFg, _a_placeholderShift;
+	FloatAnimation _a_placeholderFocused;
+	FloatAnimation _a_placeholderVisible;
 
-	anim::fvalue a_borderOpacityActive;
-	anim::fvalue a_borderFgActive;
-	anim::fvalue a_borderFgError;
+	anim::value a_borderOpacityActive;
+	anim::value a_borderFgActive;
+	anim::value a_borderFgError;
 	Animation _a_border;
 
 	bool _focused, _error;
@@ -822,7 +810,7 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
-	void paintPlaceholder(Painter &p) override;
+	void paintPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
 	QVector<int> _pattern;
@@ -850,7 +838,7 @@ public:
 
 protected:
 	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
-	void paintPlaceholder(Painter &p) override;
+	void paintPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
 	QString _linkPlaceholder;
@@ -867,7 +855,7 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 
 	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
-	void paintPlaceholder(Painter &p) override;
+	void paintPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
 	QString _defaultPlaceholder;

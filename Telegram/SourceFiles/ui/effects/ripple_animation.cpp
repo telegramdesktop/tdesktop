@@ -92,7 +92,7 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms,
 		return;
 	}
 
-	if (_cache.isNull()) {
+	if (_cache.isNull() || colorOverride != nullptr) {
 		auto radius = anim::interpolate(_radiusFrom, _radiusTo, _show.current(ms, 1.));
 		_frame.fill(Qt::transparent);
 		{
@@ -110,7 +110,7 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms,
 			p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 			p.drawPixmap(0, 0, mask);
 		}
-		if (radius == _radiusTo) {
+		if (radius == _radiusTo && colorOverride == nullptr) {
 			_cache = App::pixmapFromImageInPlace(std_::move(_frame));
 		}
 	}

@@ -453,9 +453,6 @@ void LayerStackWidget::prepareForAnimation() {
 	if (auto layer = currentLayer()) {
 		layer->hide();
 	}
-	if (auto app = App::app()) {
-		app->mtpPause();
-	}
 }
 
 void LayerStackWidget::animationDone() {
@@ -476,9 +473,6 @@ void LayerStackWidget::animationDone() {
 		App::wnd()->layerFinishedHide(this);
 	} else {
 		showFinished();
-	}
-	if (auto app = App::app()) {
-		app->mtpUnpause();
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
@@ -613,8 +607,6 @@ LayerStackWidget::~LayerStackWidget() {
 }
 
 MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
-, a_shown(0, 0)
-, _a_shown(animation(this, &MediaPreviewWidget::step_shown))
 , _emojiSize(EmojiSizes[EIndex + 1] / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
@@ -626,8 +618,13 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 
 	auto image = currentImage();
 	int w = image.width() / cIntRetinaFactor(), h = image.height() / cIntRetinaFactor();
-	if (_a_shown.animating()) {
-		float64 shown = a_shown.current();
+	auto shown = _a_shown.current(getms(), _hiding ? 0. : 1.);
+	if (!_a_shown.animating()) {
+		if (_hiding) {
+			hide();
+			return;
+		}
+	} else {
 		p.setOpacity(shown);
 //		w = qMax(qRound(w * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(w % 2), 1);
 //		h = qMax(qRound(h * (st::stickerPreviewMin + ((1. - st::stickerPreviewMin) * shown)) / 2.) * 2 + int(h % 2), 1);
@@ -648,18 +645,6 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 
 void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
 	update();
-}
-
-void MediaPreviewWidget::step_shown(float64 ms, bool timer) {
-	float64 dt = ms / st::stickerPreviewDuration;
-	if (dt >= 1) {
-		_a_shown.stop();
-		a_shown.finish();
-		if (a_shown.current() < 0.5) hide();
-	} else {
-		a_shown.update(dt, anim::linear);
-	}
-	if (timer) update();
 }
 
 void MediaPreviewWidget::showPreview(DocumentData *document) {
@@ -692,8 +677,8 @@ void MediaPreviewWidget::startShow() {
 	_cache = QPixmap();
 	if (isHidden() || _a_shown.animating()) {
 		if (isHidden()) show();
-		a_shown.start(1);
-		_a_shown.start();
+		_hiding = false;
+		_a_shown.start([this] { update(); }, 0., 1., st::stickerPreviewDuration);
 	} else {
 		update();
 	}
@@ -704,8 +689,8 @@ void MediaPreviewWidget::hidePreview() {
 		return;
 	}
 	if (_gif) _cache = currentImage();
-	a_shown.start(0);
-	_a_shown.start();
+	_hiding = true;
+	_a_shown.start([this] { update(); }, 1., 0., st::stickerPreviewDuration);
 	_photo = nullptr;
 	_document = nullptr;
 	resetGifAndCache();

@@ -274,7 +274,7 @@ void ShareBox::onMustScrollTo(int top, int bottom) {
 	}
 	if (from != to) {
 		_scrollAnimation.start([this]() {
-			scrollArea()->scrollToY(_scrollAnimation.current(scrollArea()->scrollTop()));
+			scrollArea()->scrollToY(qRound(_scrollAnimation.current(scrollArea()->scrollTop())));
 		}, from, to, st::shareScrollDuration, anim::sineInOut);
 	}
 }

@@ -66,7 +66,7 @@ private:
 
 	style::size _realSize;
 	int _forceHeight = -1;
-	anim::ivalue a_height;
+	anim::value a_height;
 	Animation _a_height;
 	bool _hiding = false;
 

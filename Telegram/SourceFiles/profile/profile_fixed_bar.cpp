@@ -60,8 +60,8 @@ protected:
 
 		Window::TopBarWidget::paintUnreadCounter(p, width());
 	}
-	void onStateChanged(int oldState, StateChangeSource source) override {
-		if ((_state & StateDown) && !(oldState & StateDown)) {
+	void onStateChanged(State was, StateChangeSource source) override {
+		if (isDown() && !(was & StateFlag::Down)) {
 			emit clicked();
 		}
 	}

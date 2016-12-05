@@ -131,7 +131,7 @@ private:
 	int32 _width, _height;
 	bool _hiding = false;
 
-	anim::fvalue a_opacity;
+	anim::value a_opacity;
 	Animation _a_appearance;
 
 	friend class internal::FieldAutocompleteInner;
