@@ -3470,7 +3470,7 @@ void HistoryWidget::updateSendAction(History *history, SendAction::Type type, in
 			case Type::UploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
 			case Type::ChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
 			case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
-			case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
+			case Type::PlayGame: return;// action = MTP_sendMessageGamePlayAction(); break; // TODO
 			}
 			_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(history->peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
 			if (type == Type::Typing) _sendActionStopTimer.start(5000);
@@ -8612,17 +8612,17 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					}
 					replyLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 				}
-				p.setPen(st::historyReplyColor);
+				p.setPen(st::historyReplyNameFg);
 				if (_editMsgId) {
 					paintEditHeader(p, rect, replyLeft, backy);
 				} else {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
-				p.setPen((((drawMsgText->toHistoryMessage() && drawMsgText->toHistoryMessage()->emptyText()) || drawMsgText->serviceMsg()) ? st::msgInDateFg : st::msgColor)->p);
+				p.setPen(((drawMsgText->toHistoryMessage() && drawMsgText->toHistoryMessage()->emptyText()) || drawMsgText->serviceMsg()) ? st::msgInDateFg : st::msgColor);
 				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			} else {
-				p.setFont(st::msgDateFont->f);
-				p.setPen(st::msgInDateFg->p);
+				p.setFont(st::msgDateFont);
+				p.setPen(st::msgInDateFg);
 				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
 			}
 		}
@@ -8640,9 +8640,9 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				}
 				forwardLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 			}
-			p.setPen(st::historyReplyColor->p);
+			p.setPen(st::historyReplyNameFg);
 			from->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.setPen((serviceColor ? st::msgInDateFg : st::msgColor)->p);
+			p.setPen(serviceColor ? st::msgInDateFg : st::msgColor);
 			text->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 		}
 	}
@@ -8662,9 +8662,9 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			}
 			previewLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 		}
-		p.setPen(st::historyReplyColor->p);
+		p.setPen(st::historyReplyNameFg);
 		_previewTitle.drawElided(p, previewLeft, backy + st::msgReplyPadding.top(), width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-		p.setPen(st::msgColor->p);
+		p.setPen(st::msgColor);
 		_previewDescription.drawElided(p, previewLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 	}
 }
@@ -8781,7 +8781,7 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 			}
 			left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
 		}
-		p.setPen(st::historyReplyColor);
+		p.setPen(st::historyReplyNameFg);
 		p.setFont(st::msgServiceNameFont);
 		p.drawText(left, st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 

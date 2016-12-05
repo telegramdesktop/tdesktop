@@ -687,7 +687,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 		case mtpc_webPage: {
 			_media.reset(new HistoryWebPage(this, App::feedWebPage(d.c_webPage())));
 		} break;
-		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break;
+//		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break; // TODO
 		}
 	} break;
 	case mtpc_messageMediaGame: {

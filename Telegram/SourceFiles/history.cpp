@@ -203,12 +203,12 @@ bool History::updateSendActionNeedsAnimating(UserData *user, const MTPSendMessag
 	case mtpc_sendMessageUploadDocumentAction: _sendActions.insert(user, { Type::UploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v }); break;
 	case mtpc_sendMessageGeoLocationAction: _sendActions.insert(user, { Type::ChooseLocation, ms + kStatusShowClientsideChooseLocation }); break;
 	case mtpc_sendMessageChooseContactAction: _sendActions.insert(user, { Type::ChooseContact, ms + kStatusShowClientsideChooseContact }); break;
-	case mtpc_sendMessageGamePlayAction: {
-		auto it = _sendActions.find(user);
-		if (it == _sendActions.end() || it->type == Type::PlayGame || it->until <= ms) {
-			_sendActions.insert(user, { Type::PlayGame, ms + kStatusShowClientsidePlayGame });
-		}
-	} break;
+	//case mtpc_sendMessageGamePlayAction: { // TODO
+	//	auto it = _sendActions.find(user);
+	//	if (it == _sendActions.end() || it->type == Type::PlayGame || it->until <= ms) {
+	//		_sendActions.insert(user, { Type::PlayGame, ms + kStatusShowClientsidePlayGame });
+	//	}
+	//} break;
 	default: return false;
 	}
 	return updateSendActionNeedsAnimating(ms, true);
@@ -779,7 +779,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_webPage:
 			case mtpc_webPageEmpty:
 			case mtpc_webPagePending: break;
-			case mtpc_webPageNotModified:
+//			case mtpc_webPageNotModified: // TODO
 			default: badMedia = 1; break;
 			}
 			break;

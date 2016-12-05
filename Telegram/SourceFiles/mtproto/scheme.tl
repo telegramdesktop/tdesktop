@@ -300,7 +300,7 @@ inputReportReasonViolence#1e22c78d = ReportReason;
 inputReportReasonPornography#2e59d922 = ReportReason;
 inputReportReasonOther#e1746d0a text:string = ReportReason;
 
-userFull#f220f3f flags:# blocked:flags.0?true user:User about:flags.1?string link:contacts.Link profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo common_chats_count:int = UserFull;
+userFull#f220f3f flags:# blocked:flags.0?true phone_calls_available:flags.4?true user:User about:flags.1?string link:contacts.Link profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo common_chats_count:int = UserFull;
 
 contact#f911c994 user_id:int mutual:Bool = Contact;
 
@@ -482,7 +482,6 @@ sendMessageUploadPhotoAction#d1d34a26 progress:int = SendMessageAction;
 sendMessageUploadDocumentAction#aa0cd9e4 progress:int = SendMessageAction;
 sendMessageGeoLocationAction#176f8ba1 = SendMessageAction;
 sendMessageChooseContactAction#628cbc6f = SendMessageAction;
-sendMessageGamePlayAction#dd6a8f48 = SendMessageAction;
 
 contacts.found#1aa1f784 results:Vector<Peer> chats:Vector<Chat> users:Vector<User> = contacts.Found;
 
@@ -537,8 +536,7 @@ contactLinkContact#d502c2d0 = ContactLink;
 
 webPageEmpty#eb1477e8 id:long = WebPage;
 webPagePending#c586da1c id:long date:int = WebPage;
-webPage#5f07b4bc flags:# id:long url:string display_url:string hash:int type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document cached_page:flags.10?Page = WebPage;
-webPageNotModified#85849473 = WebPage;
+webPage#ca820ed7 flags:# id:long url:string display_url:string type:flags.0?string site_name:flags.1?string title:flags.2?string description:flags.3?string photo:flags.4?Photo embed_url:flags.5?string embed_type:flags.5?string embed_width:flags.6?int embed_height:flags.6?int duration:flags.7?int author:flags.8?string document:flags.9?Document = WebPage;
 
 authorization#7bf2e6f6 hash:long flags:int device_model:string platform:string system_version:string api_id:int app_name:string app_version:string date_created:int date_active:int ip:string country:string region:string = Authorization;
 
@@ -739,42 +737,6 @@ highScore#58fffcd0 pos:int user_id:int score:int = HighScore;
 
 messages.highScores#9a3bfd99 scores:Vector<HighScore> users:Vector<User> = messages.HighScores;
 
-textEmpty#dc3d824f = RichText;
-textPlain#744694e0 text:string = RichText;
-textBold#6724abc4 text:RichText = RichText;
-textItalic#d912a59c text:RichText = RichText;
-textUnderline#c12622c4 text:RichText = RichText;
-textStrike#9bf8bb95 text:RichText = RichText;
-textFixed#6c3f19b9 text:RichText = RichText;
-textUrl#3c2884c1 text:RichText url:string webpage_id:long = RichText;
-textEmail#de5a0dd6 text:RichText email:string = RichText;
-textConcat#7e6260d7 texts:Vector<RichText> = RichText;
-
-pageBlockTitle#70abc3fd text:RichText = PageBlock;
-pageBlockSubtitle#8ffa9a1f text:RichText = PageBlock;
-pageBlockAuthorDate#3d5b64f2 author:string published_date:int = PageBlock;
-pageBlockHeader#bfd064ec text:RichText = PageBlock;
-pageBlockSubheader#f12bb6e1 text:RichText = PageBlock;
-pageBlockParagraph#467a0766 text:RichText = PageBlock;
-pageBlockPreformatted#c070d93e text:RichText language:string = PageBlock;
-pageBlockFooter#48870999 text:RichText = PageBlock;
-pageBlockDivider#db20b188 = PageBlock;
-pageBlockList#3a58c7f4 ordered:Bool items:Vector<RichText> = PageBlock;
-pageBlockBlockquote#263d7c26 text:RichText caption:RichText = PageBlock;
-pageBlockPullquote#4f4456d3 text:RichText caption:RichText = PageBlock;
-pageBlockPhoto#e9c69982 photo_id:long caption:RichText = PageBlock;
-pageBlockVideo#d9d71866 flags:# autoplay:flags.1?true loop:flags.2?true video_id:long caption:RichText = PageBlock;
-pageBlockCover#39f23300 cover:PageBlock = PageBlock;
-pageBlockEmbed#36b0816 url:string w:int h:int caption:RichText = PageBlock;
-pageBlockEmbedPost#7ff81db7 flags:# author:string date:int caption:RichText url:string webpage_id:long text:flags.1?RichText medias:flags.2?Vector<EmbedPostMedia> author_photo_id:flags.3?long = PageBlock;
-pageBlockSlideshow#130c8963 items:Vector<PageBlock> caption:RichText = PageBlock;
-
-embedPostPhoto#e31ee77 photo_id:long = EmbedPostMedia;
-embedPostVideo#a07f2d66 video_id:long = EmbedPostMedia;
-
-pagePart#8dee6c44 blocks:Vector<PageBlock> photos:Vector<Photo> videos:Vector<Document> = Page;
-pageFull#d7a19d69 blocks:Vector<PageBlock> photos:Vector<Photo> videos:Vector<Document> = Page;
-
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -924,7 +886,6 @@ messages.getGameHighScores#e822649d peer:InputPeer id:int user_id:InputUser = me
 messages.getInlineGameHighScores#f635e1b id:InputBotInlineMessageID user_id:InputUser = messages.HighScores;
 messages.getCommonChats#d0a48c4 user_id:InputUser max_id:int limit:int = messages.Chats;
 messages.getAllChats#eba80ff0 except_ids:Vector<int> = messages.Chats;
-messages.getWebPage#61203e2 id:long hash:int = WebPage;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -977,4 +938,4 @@ channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 channels.updatePinnedMessage#a72ded52 flags:# silent:flags.0?true channel:InputChannel id:int = Updates;
 channels.getAdminedPublicChannels#8d8d82d7 = messages.Chats;
 
-// LAYER 59
+// LAYER 58
