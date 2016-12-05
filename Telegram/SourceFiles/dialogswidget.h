@@ -156,6 +156,16 @@ protected:
 
 private:
 	void itemRemoved(HistoryItem *item);
+	enum class UpdateRowSection {
+		Default = 0x01,
+		Filtered = 0x02,
+		GlobalSearch = 0x04,
+		MessageSearch = 0x08,
+		All = 0x0F,
+	};
+	Q_DECLARE_FLAGS(UpdateRowSections, UpdateRowSection);
+	Q_DECLARE_FRIEND_OPERATORS_FOR_FLAGS(UpdateRowSections);
+	void updateDialogRow(History *history, MsgId msgId, QRect updateRect, UpdateRowSections sections = UpdateRowSection::All);
 
 	int dialogsOffset() const;
 	int filteredOffset() const;
@@ -224,6 +234,8 @@ private:
 	Ui::PopupMenu *_menu = nullptr;
 
 };
+
+Q_DECLARE_OPERATORS_FOR_FLAGS(DialogsInner::UpdateRowSections);
 
 class DialogsWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT

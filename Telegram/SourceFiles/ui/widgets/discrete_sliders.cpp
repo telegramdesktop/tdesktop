@@ -111,25 +111,29 @@ void DiscreteSlider::mousePressEvent(QMouseEvent *e) {
 		setSelectedSection(index);
 	}
 	startRipple(index);
-	_pressed = true;
+	_pressed = index;
 }
 
 void DiscreteSlider::mouseMoveEvent(QMouseEvent *e) {
-	if (!_pressed) return;
+	if (_pressed < 0) return;
 	if (_selectOnPress) {
 		setSelectedSection(getIndexFromPosition(e->pos()));
 	}
 }
 
 void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
-	if (!base::take(_pressed)) return;
+	auto pressed = base::take(_pressed, -1);
+	if (pressed < 0) return;
+
 	auto index = getIndexFromPosition(e->pos());
-	if (index >= 0 && index < _sections.size()) {
-		if (_sections[index].ripple) {
-			_sections[index].ripple->lastStop();
+	if (pressed < _sections.size()) {
+		if (_sections[pressed].ripple) {
+			_sections[pressed].ripple->lastStop();
 		}
 	}
-	setActiveSection(index);
+	if (_selectOnPress || index == pressed) {
+		setActiveSection(index);
+	}
 }
 
 void DiscreteSlider::setSelectedSection(int index) {
@@ -219,8 +223,10 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 
 	p.setFont(_st.labelFont);
 	enumerateSections([this, &p, activeLeft, ms](Section &section) {
+		auto active = 1. - snap(qAbs(activeLeft - section.left) / float64(section.width), 0., 1.);
 		if (section.ripple) {
-			section.ripple->paint(p, section.left, 0, width(), ms);
+			auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
+			section.ripple->paint(p, section.left, 0, width(), ms, &color);
 			if (section.ripple->empty()) {
 				section.ripple.reset();
 			}
@@ -232,7 +238,6 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 			from += fill;
 			tofill -= fill;
 		}
-		auto active = 1. - snap(qAbs(activeLeft - section.left) / float64(section.width), 0., 1.);
 		if (activeLeft + section.width > from) {
 			if (auto fill = qMin(tofill, activeLeft + section.width - from)) {
 				p.fillRect(myrtlrect(from, _st.barTop, fill, _st.barStroke), _st.barFgActive);

@@ -122,6 +122,12 @@ public:
 	}
 	void update(const QRect&);
 	void update(const QRegion&);
+	void rtlupdate(const QRect &r) {
+		update(myrtlrect(r));
+	}
+	void rtlupdate(int x, int y, int w, int h) {
+		update(myrtlrect(x, y, w, h));
+	}
 
 public slots:
 	void update() {

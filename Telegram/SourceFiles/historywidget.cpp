@@ -6217,17 +6217,20 @@ bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
 
 	if (!_history) return false;
 
-	int increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
+	auto increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
 	decreaseWidth += increaseLeft;
-	QRect rectForName(st::topBarArrowPadding.right() + increaseLeft, st::topBarArrowPadding.top(), width() - decreaseWidth - st::topBarArrowPadding.left() - st::topBarArrowPadding.right(), st::msgNameFont->height);
+	auto nameleft = st::topBarArrowPadding.right() + increaseLeft;
+	auto nametop = st::topBarArrowPadding.top();
+	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
+	auto namewidth = width() - decreaseWidth - st::topBarArrowPadding.left() - st::topBarArrowPadding.right();
 	p.setFont(st::dialogsTextFont);
-	if (!_history->paintSendAction(p, rectForName.x(), st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height, rectForName.width(), width(), st::statusFgActive, ms)) {
+	if (!_history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::statusFgActive, ms)) {
 		p.setPen(_titlePeerTextOnline ? st::statusFgActive : st::statusFg);
-		p.drawText(rectForName.x(), st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
+		p.drawText(nameleft, st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	}
 
 	p.setPen(st::dialogsNameFg);
-	_peer->dialogName().drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+	_peer->dialogName().drawElided(p, nameleft, nametop, namewidth);
 
 	if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 		st::topBarBackward.paint(p, (st::topBarArrowPadding.left() - st::topBarBackward.width()) / 2, (st::topBarHeight - st::topBarBackward.height()) / 2, width());

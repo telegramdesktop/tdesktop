@@ -251,7 +251,12 @@ bool History::paintSendAction(Painter &p, int x, int y, int availableWidth, int 
 		availableWidth -= animationWidth;
 		p.setPen(color);
 		_sendActionText.drawElided(p, x, y, availableWidth);
-		updateSendActionAnimationAreas();
+//		App::histories().sendActionAnimationUpdated().notify({
+//			this,
+//			animationWidth,
+//			st::normalFont->height,
+//			false
+//		});
 		return true;
 	}
 	return false;
@@ -334,16 +339,14 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 	}
 	auto result = (!_typing.isEmpty() || !_sendActions.isEmpty());
 	if (changed || result) {
-		updateSendActionAnimationAreas();
+		App::histories().sendActionAnimationUpdated().notify({
+			this,
+			_sendActionAnimation.width(),
+			st::normalFont->height,
+			changed
+		});
 	}
 	return result;
-}
-
-void History::updateSendActionAnimationAreas() {
-	updateChatListEntry();
-	if (App::main()->historyPeer() == peer) {
-		App::main()->topBar()->update();
-	}
 }
 
 ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer)
@@ -2066,11 +2069,11 @@ void History::addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs
 }
 
 void History::updateChatListEntry() const {
-	if (MainWidget *m = App::main()) {
+	if (auto main = App::main()) {
 		if (inChatList(Dialogs::Mode::All)) {
-			m->dlgUpdated(Dialogs::Mode::All, mainChatListLink(Dialogs::Mode::All));
+			main->dlgUpdated(Dialogs::Mode::All, mainChatListLink(Dialogs::Mode::All));
 			if (inChatList(Dialogs::Mode::Important)) {
-				m->dlgUpdated(Dialogs::Mode::Important, mainChatListLink(Dialogs::Mode::Important));
+				main->dlgUpdated(Dialogs::Mode::Important, mainChatListLink(Dialogs::Mode::Important));
 			}
 		}
 	}

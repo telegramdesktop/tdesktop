@@ -378,24 +378,25 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	}
 	bool radial = isRadialAnimation(ms);
 
-	if (bubble) {
-		skipx = st::mediaPadding.left();
-		skipy = st::mediaPadding.top();
-
-		width -= st::mediaPadding.left() + st::mediaPadding.right();
-		height -= skipy + st::mediaPadding.bottom();
-		if (!_caption.isEmpty()) {
-			height -= st::mediaCaptionSkip + _caption.countHeight(captionw);
-			if (isBubbleBottom()) {
-				height -= st::msgPadding.bottom();
-			}
-		}
-	} else {
-		App::roundShadow(p, 0, 0, width, height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
-	}
-	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
+	auto rthumb = rtlrect(skipx, skipy, width, height, _width);
 	QPixmap pix;
 	if (_parent->toHistoryMessage()) {
+		if (bubble) {
+			skipx = st::mediaPadding.left();
+			skipy = st::mediaPadding.top();
+
+			width -= st::mediaPadding.left() + st::mediaPadding.right();
+			height -= skipy + st::mediaPadding.bottom();
+			if (!_caption.isEmpty()) {
+				height -= st::mediaCaptionSkip + _caption.countHeight(captionw);
+				if (isBubbleBottom()) {
+					height -= st::msgPadding.bottom();
+				}
+			}
+			rthumb = rtlrect(skipx, skipy, width, height, _width);
+		} else {
+			App::roundShadow(p, 0, 0, width, height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
+		}
 		auto inWebPage = (_parent->getMedia() != this);
 		auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
 		auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)

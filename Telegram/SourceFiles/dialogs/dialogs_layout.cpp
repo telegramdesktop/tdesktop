@@ -299,6 +299,13 @@ void RowPainter::paint(Painter &p, const FakeRow *row, int w, bool active, bool 
 	});
 }
 
+QRect RowPainter::sendActionAnimationRect(int animationWidth, int animationHeight, int fullWidth, bool textUpdated) {
+	auto nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
+	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x();
+	auto texttop = st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
+	return QRect(nameleft, texttop, textUpdated ? namewidth : animationWidth, animationHeight);
+}
+
 void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground) {
 	p.fillRect(0, 0, w, st::dialogsImportantBarHeight, selected ? st::dialogsBgOver : st::dialogsBg);
 	if (onlyBackground) {

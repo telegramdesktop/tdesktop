@@ -64,6 +64,10 @@ DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(pare
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
+	subscribe(App::histories().sendActionAnimationUpdated(), [this](const Histories::SendActionAnimationUpdate &update) {
+		auto updateRect = Dialogs::Layout::RowPainter::sendActionAnimationRect(update.width, update.height, fullWidth(), update.textUpdated);
+		updateDialogRow(update.history, MsgId(0), updateRect, UpdateRowSection::Default | UpdateRowSection::Filtered);
+	});
 
 	refresh();
 }
@@ -524,37 +528,48 @@ void DialogsInner::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
 }
 
 void DialogsInner::dlgUpdated(History *history, MsgId msgId) {
+	updateDialogRow(history, msgId, QRect(0, 0, fullWidth(), st::dialogsRowHeight));
+}
+
+void DialogsInner::updateDialogRow(History *history, MsgId msgId, QRect updateRect, UpdateRowSections sections) {
+	auto updateRow = [this, updateRect](int rowTop) {
+		rtlupdate(updateRect.x(), rowTop + updateRect.y(), updateRect.width(), updateRect.height());
+	};
 	if (_state == DefaultState) {
-		if (auto row = shownDialogs()->getRow(history->peer->id)) {
-			update(0, dialogsOffset() + row->pos() * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
+		if (sections & UpdateRowSection::Default) {
+			if (auto row = shownDialogs()->getRow(history->peer->id)) {
+				updateRow(dialogsOffset() + row->pos() * st::dialogsRowHeight);
+			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
-		int32 cnt = 0, add = filteredOffset();
-		for (FilteredDialogs::const_iterator i = _filterResults.cbegin(), e = _filterResults.cend(); i != e; ++i) {
-			if ((*i)->history() == history) {
-				update(0, add + cnt * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
-				break;
-			}
-			++cnt;
-		}
-		if (!_peopleResults.isEmpty()) {
-			int32 cnt = 0, add = peopleOffset();
-			for (PeopleResults::const_iterator i = _peopleResults.cbegin(), e = _peopleResults.cend(); i != e; ++i) {
-				if ((*i) == history->peer) {
-					update(0, add + cnt * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
+		if ((sections & UpdateRowSection::Filtered) && !_filterResults.isEmpty()) {
+			auto index = 0, add = filteredOffset();
+			for_const (auto row, _filterResults) {
+				if (row->history() == history) {
+					updateRow(add + index * st::dialogsRowHeight);
 					break;
 				}
-				++cnt;
+				++index;
 			}
 		}
-		if (!_searchResults.isEmpty()) {
-			int32 cnt = 0, add = searchedOffset();
-			for (SearchResults::const_iterator i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
-				if ((*i)->item()->history() == history && (*i)->item()->id == msgId) {
-					update(0, add + cnt * st::dialogsRowHeight, fullWidth(), st::dialogsRowHeight);
+		if ((sections & UpdateRowSection::GlobalSearch) && !_peopleResults.isEmpty()) {
+			auto index = 0, add = peopleOffset();
+			for_const (auto peer, _peopleResults) {
+				if (peer == history->peer) {
+					updateRow(add + index * st::dialogsRowHeight);
 					break;
 				}
-				++cnt;
+				++index;
+			}
+		}
+		if ((sections & UpdateRowSection::MessageSearch) && !_searchResults.isEmpty()) {
+			auto index = 0, add = searchedOffset();
+			for_const (auto fakeRow, _searchResults) {
+				if (fakeRow->item()->history() == history && fakeRow->item()->id == msgId) {
+					updateRow(add + index * st::dialogsRowHeight);
+					break;
+				}
+				++index;
 			}
 		}
 	}

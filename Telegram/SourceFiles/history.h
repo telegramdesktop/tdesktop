@@ -38,7 +38,7 @@ enum NewMessageType {
 class History;
 class Histories {
 public:
-	typedef QHash<PeerId, History*> Map;
+	using Map = QHash<PeerId, History*>;
 	Map map;
 
 	Histories() : _a_typings(animation(this, &Histories::step_typings)), _unreadFull(0), _unreadMuted(0) {
@@ -82,8 +82,19 @@ public:
 		}
 	}
 
+	struct SendActionAnimationUpdate {
+		History *history = nullptr;
+		int width = 0;
+		int height = 0;
+		bool textUpdated = 0;
+	};
+	base::Observable<SendActionAnimationUpdate> &sendActionAnimationUpdated() {
+		return _sendActionAnimationUpdated;
+	}
+
 private:
 	int _unreadFull, _unreadMuted;
+	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
 
 };
 
@@ -314,7 +325,6 @@ public:
 	bool updateSendActionNeedsAnimating(TimeMs ms, bool force = false);
 	void unregSendAction(UserData *from);
 	bool updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action);
-	void updateSendActionAnimationAreas();
 	bool mySendActionUpdated(SendAction::Type type, bool doing);
 	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, const style::color &color, TimeMs ms);
 

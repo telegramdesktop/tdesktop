@@ -197,6 +197,7 @@ void RippleAnimation::paint(QPainter &p, int x, int y, int outerWidth, TimeMs ms
 
 QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(QPainter &p)> &&drawer) {
 	auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(filled ? QColor(255, 255, 255) : Qt::transparent);
 	if (drawer) {
 		Painter p(&result);

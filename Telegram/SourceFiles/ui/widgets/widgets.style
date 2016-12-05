@@ -707,6 +707,8 @@ SettingsSlider {
 	labelFgActive: color;
 	duration: int;
 	rippleBottomSkip: pixels;
+	rippleBg: color;
+	rippleBgActive: color;
 	ripple: RippleAnimation;
 }
 
@@ -734,9 +736,9 @@ defaultTabsSlider: SettingsSlider(defaultSettingsSlider) {
 	labelFg: #999999;
 	labelFgActive: lightButtonFg;
 	rippleBottomSkip: 1px;
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: windowBgOver;
-	}
+	rippleBg: windowBgOver;
+	rippleBgActive: #e0f2fa;
+	ripple: defaultRippleAnimation;
 }
 
 defaultRoundShadow: Shadow {

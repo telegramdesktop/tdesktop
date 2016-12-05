@@ -66,6 +66,11 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 			rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
 		});
 	}
+	subscribe(App::histories().sendActionAnimationUpdated(), [this](const Histories::SendActionAnimationUpdate &update) {
+		if (App::main() && update.history->peer == App::main()->historyPeer()) {
+			rtlupdate(0, 0, width(), height());
+		}
+	});
 
 	setCursor(style::cur_pointer);
 	showAll();

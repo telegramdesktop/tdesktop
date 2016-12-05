@@ -90,7 +90,7 @@ private:
 
 	SectionActivatedCallback _callback;
 
-	bool _pressed = false;
+	int _pressed = -1;
 	int _selected = 0;
 	FloatAnimation _a_left;
 
