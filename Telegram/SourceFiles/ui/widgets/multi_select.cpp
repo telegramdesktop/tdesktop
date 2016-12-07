@@ -95,7 +95,7 @@ private:
 			, y(y) {
 			x.start(updateCallback, fromX, toX, duration);
 		}
-		FloatAnimation x;
+		Animation x;
 		int fromX, toX;
 		int y;
 	};
@@ -107,8 +107,8 @@ private:
 	const style::color &_color;
 	bool _over = false;
 	QPixmap _cache;
-	FloatAnimation _visibility;
-	FloatAnimation _overOpacity;
+	Animation _visibility;
+	Animation _overOpacity;
 	bool _overDelete = false;
 	bool _active = false;
 	PaintRoundImage _paintRoundImage;

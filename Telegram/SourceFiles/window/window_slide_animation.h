@@ -53,7 +53,7 @@ private:
 	SlideDirection _direction = SlideDirection::FromRight;
 	bool _topBarShadowEnabled = false;
 
-	mutable FloatAnimation _animation;
+	mutable Animation _animation;
 	QPixmap _cacheUnder, _cacheOver;
 
 	RepaintCallback _repaintCallback;

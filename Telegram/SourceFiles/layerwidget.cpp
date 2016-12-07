@@ -79,10 +79,10 @@ private:
 
 	bool _wasAnimating = false;
 	bool _inPaintEvent = false;
-	FloatAnimation _a_shown;
-	FloatAnimation _a_mainMenuShown;
-	FloatAnimation _a_specialLayerShown;
-	FloatAnimation _a_layerShown;
+	Animation _a_shown;
+	Animation _a_mainMenuShown;
+	Animation _a_specialLayerShown;
+	Animation _a_layerShown;
 
 	Ui::RectShadow _shadow;
 

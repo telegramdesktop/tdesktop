@@ -141,35 +141,6 @@ public:
 typedef QMap<mtpRequestId, mtpRequest> mtpPreRequestMap;
 typedef QMap<mtpMsgId, mtpRequest> mtpRequestMap;
 typedef QMap<mtpMsgId, bool> mtpMsgIdsSet;
-class mtpMsgIdsMap : public QMap<mtpMsgId, bool> {
-public:
-	typedef QMap<mtpMsgId, bool> ParentType;
-
-	bool insert(const mtpMsgId &k, bool v) {
-		ParentType::const_iterator i = constFind(k);
-		if (i == cend()) {
-			if (size() >= MTPIdsBufferSize && k < min()) {
-				MTP_LOG(-1, ("No need to handle - %1 < min = %2").arg(k).arg(min()));
-				return false;
-			} else {
-				ParentType::insert(k, v);
-				return true;
-			}
-		} else {
-			MTP_LOG(-1, ("No need to handle - %1 already is in map").arg(k));
-			return false;
-		}
-	}
-
-	mtpMsgId min() const {
-		return isEmpty() ? 0 : cbegin().key();
-	}
-
-	mtpMsgId max() const {
-		ParentType::const_iterator e(cend());
-		return isEmpty() ? 0 : (--e).key();
-	}
-};
 
 class mtpRequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
 public:

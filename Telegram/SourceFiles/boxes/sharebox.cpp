@@ -273,10 +273,13 @@ void ShareBox::onMustScrollTo(int top, int bottom) {
 		to = bottom - (scrollBottom - scrollTop);
 	}
 	if (from != to) {
-		_scrollAnimation.start([this]() {
-			scrollArea()->scrollToY(qRound(_scrollAnimation.current(scrollArea()->scrollTop())));
-		}, from, to, st::shareScrollDuration, anim::sineInOut);
+		_scrollAnimation.start([this]() { scrollAnimationCallback(); }, from, to, st::shareScrollDuration, anim::sineInOut);
 	}
+}
+
+void ShareBox::scrollAnimationCallback() {
+	auto scrollTop = qRound(_scrollAnimation.current(scrollArea()->scrollTop()));
+	scrollArea()->scrollToY(scrollTop);
 }
 
 void ShareBox::onScroll() {
@@ -505,7 +508,8 @@ void ShareBox::Inner::paintChat(Painter &p, TimeMs ms, Chat *chat, int index) {
 	auto photoTop = st::sharePhotoTop;
 	chat->checkbox.paint(p, ms, x + photoLeft, y + photoTop, outerWidth);
 
-	p.setPen(anim::pen(st::shareNameFg, st::shareNameActiveFg, chat->nameActive.current((index == _active) ? 1. : 0.)));
+	auto nameActive = chat->nameActive.current(ms, (index == _active) ? 1. : 0.);
+	p.setPen(anim::pen(st::shareNameFg, st::shareNameActiveFg, nameActive));
 
 	auto nameWidth = (_rowWidth - st::shareColumnSkip);
 	auto nameLeft = st::shareColumnSkip / 2;

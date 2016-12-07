@@ -274,7 +274,7 @@ private:
 	int _visibleAreaBottom = 0;
 
 	bool _scrollDateShown = false;
-	FloatAnimation _scrollDateOpacity;
+	Animation _scrollDateOpacity;
 	SingleDelayedCall _scrollDateCheck = { this, "onScrollDateCheck" };
 	SingleTimer _scrollDateHideTimer;
 	HistoryItem *_scrollDateLastItem = nullptr;
@@ -467,7 +467,6 @@ public:
 	HistoryHider(MainWidget *parent, const QString &url, const QString &text); // share url
 	HistoryHider(MainWidget *parent, const QString &botAndQuery); // inline switch button handler
 
-	void step_appearance(float64 ms, bool timer);
 	bool withConfirm() const;
 
 	bool offerPeer(PeerId peer);
@@ -496,6 +495,7 @@ signals:
 	void forwarded();
 
 private:
+	void animationCallback();
 	void init();
 	MainWidget *parent();
 
@@ -510,8 +510,7 @@ private:
 	ChildWidget<Ui::RoundButton> _cancel;
 	PeerData *_offered = nullptr;
 
-	anim::value a_opacity;
-	Animation _a_appearance;
+	Animation _a_opacity;
 
 	QRect _box;
 	bool _hiding = false;
@@ -677,7 +676,8 @@ public:
 	void applyCloudDraft(History *history);
 
 	void contactsReceived();
-	void updateToEndVisibility();
+	void updateHistoryDownPosition();
+	void updateHistoryDownVisibility();
 
 	void updateAfterDrag();
 	void updateFieldSubmitSettings();
@@ -850,6 +850,7 @@ private:
 	void animationCallback();
 	void recordActiveCallback();
 	void chooseAttach();
+	void historyDownAnimationFinish();
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 	struct SendingFilesLists {
 		QList<QUrl> nonLocalUrls;
@@ -1088,7 +1089,9 @@ private:
 	TimeMs _lastScrolled = 0;
 	QTimer _updateHistoryItems;
 
-	ChildWidget<Ui::HistoryDownButton> _historyToEnd;
+	Animation _historyDownShown;
+	bool _historyDownIsShown = false;
+	ChildWidget<Ui::HistoryDownButton> _historyDown;
 
 	ChildWidget<FieldAutocomplete> _fieldAutocomplete;
 
@@ -1122,18 +1125,21 @@ private:
 	ChildWidget<SilentToggle> _silent;
 	bool _cmdStartShown = false;
 	ChildWidget<MessageField> _field;
-	Animation _a_recording;
 	bool _recording = false;
 	bool _inRecord = false;
 	bool _inField = false;
 	bool _inReplyEdit = false;
 	bool _inPinnedMsg = false;
 	bool _inClickable = false;
-	anim::value a_recordingLevel;
 	int _recordingSamples = 0;
-	FloatAnimation _a_recordActive;
+	Animation _a_recordActive;
 	std_::unique_ptr<Ui::RippleAnimation> _recordRipple;
 	int _recordCancelWidth;
+
+	// This can animate for a very long time (like in music playing),
+	// so it should be a BasicAnimation, not an Animation.
+	BasicAnimation _a_recording;
+	anim::value a_recordingLevel;
 
 	FileDialog::QueryId _attachFilesQueryId = 0;
 
@@ -1163,7 +1169,7 @@ private:
 	bool _titlePeerTextOnline = false;
 	int _titlePeerTextWidth = 0;
 
-	FloatAnimation _a_show;
+	Animation _a_show;
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 

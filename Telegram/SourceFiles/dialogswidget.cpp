@@ -477,7 +477,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
 	setFilteredPressed(_filteredSelected);
-	setPeerSearchPressed(_peerSearchPressed);
+	setPeerSearchPressed(_peerSearchSelected);
 	setSearchedPressed(_searchedSelected);
 	if (_importantSwitchPressed) {
 		_importantSwitch->row.addRipple(e->pos(), QSize(getFullWidth(), st::dialogsImportantBarHeight), [this] {

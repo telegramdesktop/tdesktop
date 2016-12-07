@@ -86,10 +86,7 @@ protected:
 
 class RadialProgressItem : public ItemBase {
 public:
-	RadialProgressItem(HistoryItem *parent) : ItemBase(parent)
-		, _radial(0)
-		, a_iconOver(0, 0)
-		, _a_iconOver(animation(this, &RadialProgressItem::step_iconOver)) {
+	RadialProgressItem(HistoryItem *parent) : ItemBase(parent) {
 	}
 	RadialProgressItem(const RadialProgressItem &other) = delete;
 
@@ -111,7 +108,6 @@ protected:
 		setLinks(MakeShared<DocumentOpenClickHandler>(document), std_::move(save), MakeShared<DocumentCancelClickHandler>(document));
 	}
 
-	void step_iconOver(float64 ms, bool timer);
 	void step_radial(TimeMs ms, bool timer);
 
 	void ensureRadial();
@@ -131,8 +127,7 @@ protected:
 		return false;
 	}
 
-	Ui::RadialAnimation *_radial;
-	anim::value a_iconOver;
+	std_::unique_ptr<Ui::RadialAnimation> _radial;
 	Animation _a_iconOver;
 
 };

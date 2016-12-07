@@ -65,7 +65,7 @@ private:
 	Item *computeItem(PeerData *group);
 	QMap<PeerData*, Item*> _dataMap;
 
-	FloatAnimation _height;
+	Animation _height;
 
 	int32 _preloadGroupId = 0;
 	mtpRequestId _preloadRequestId = 0;

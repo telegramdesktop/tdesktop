@@ -172,8 +172,6 @@ historyViewsSendingIcon: icon {{ "dialogs_sending", #a0adb5, point(3px, 0px) }};
 historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", #ffffffc8, point(3px, 0px) }};
 
 dialogsUpdateButton: FlatButton {
-	duration: 0;
-
 	color: activeButtonFg;
 	overColor: activeButtonFgOver;
 

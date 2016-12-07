@@ -48,8 +48,6 @@ public:
 	void showStickers(EmojiPtr emoji);
 	void setBoundings(QRect boundings);
 
-	void step_appearance(float64 ms, bool timer);
-
 	const QString &filter() const;
 	ChatData *chat() const;
 	ChannelData *channel() const;
@@ -97,6 +95,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void animationCallback();
 	void hideFinish();
 
 	void updateFiltered(bool resetScroll = false);
@@ -131,8 +130,7 @@ private:
 	int32 _width, _height;
 	bool _hiding = false;
 
-	anim::value a_opacity;
-	Animation _a_appearance;
+	Animation _a_opacity;
 
 	friend class internal::FieldAutocompleteInner;
 

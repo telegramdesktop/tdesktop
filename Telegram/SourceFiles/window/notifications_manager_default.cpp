@@ -346,10 +346,6 @@ Manager::~Manager() {
 namespace internal {
 
 Widget::Widget(QPoint startPosition, int shift, Direction shiftDirection) : TWidget(nullptr)
-, _opacityDuration(st::notifyFastAnim)
-, a_opacity(0, 1)
-, a_func(anim::linear)
-, _a_opacity(animation(this, &Widget::step_opacity))
 , _startPosition(startPosition)
 , _direction(shiftDirection)
 , a_shift(shift)
@@ -360,7 +356,7 @@ Widget::Widget(QPoint startPosition, int shift, Direction shiftDirection) : TWid
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 
-	_a_opacity.start();
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::notifyFastAnim);
 }
 
 void Widget::destroyDelayed() {
@@ -376,19 +372,12 @@ void Widget::destroyDelayed() {
 #endif // Q_OS_LINUX32 || Q_OS_LINUX64
 }
 
-void Widget::step_opacity(float64 ms, bool timer) {
-	float64 dt = ms / float64(_opacityDuration);
-	if (dt >= 1) {
-		a_opacity.finish();
-		_a_opacity.stop();
-		if (_hiding) {
-			destroyDelayed();
-		}
-	} else {
-		a_opacity.update(dt, a_func);
-	}
+void Widget::opacityAnimationCallback() {
 	updateOpacity();
 	update();
+	if (!_a_opacity.animating() && _hiding) {
+		destroyDelayed();
+	}
 }
 
 void Widget::step_shift(float64 ms, bool timer) {
@@ -411,25 +400,19 @@ void Widget::hideFast() {
 
 void Widget::hideStop() {
 	if (_hiding) {
-		_opacityDuration = st::notifyFastAnim;
-		a_func = anim::linear;
-		a_opacity.start(1);
 		_hiding = false;
-		_a_opacity.start();
+		_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::notifyFastAnim);
 	}
 }
 
 void Widget::hideAnimated(float64 duration, const anim::transition &func) {
-	_opacityDuration = duration;
-	a_func = func;
-	a_opacity.start(0);
 	_hiding = true;
-	_a_opacity.start();
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., duration, func);
 }
 
 void Widget::updateOpacity() {
 	if (auto manager = ManagerInstance.data()) {
-		setWindowOpacity(a_opacity.current() * manager->demoMasterOpacity());
+		setWindowOpacity(_a_opacity.current(_hiding ? 1. : 0.) * manager->demoMasterOpacity());
 	}
 }
 
@@ -724,6 +707,7 @@ void Notification::toggleActionButtons(bool visible) {
 	if (_actionsVisible != visible) {
 		_actionsVisible = visible;
 		a_actionsOpacity.start([this] { actionsOpacityCallback(); }, _actionsVisible ? 0. : 1., _actionsVisible ? 1. : 0., st::notifyActionsDuration);
+		_reply->clearState();
 		_reply->hide();
 	}
 }
@@ -755,7 +739,7 @@ void Notification::showReplyField() {
 	connect(_replyArea, SIGNAL(submitted(bool)), this, SLOT(onReplySubmit(bool)));
 	connect(_replyArea, SIGNAL(cancelled()), this, SLOT(onReplyCancel()));
 
-	_replySend = new Ui::IconButton(this, st::notifySendReply);
+	_replySend.create(this, st::notifySendReply);
 	_replySend->moveToRight(st::notifyBorderWidth, st::notifyMinHeight);
 	_replySend->show();
 	_replySend->setClickedCallback([this] { sendReply(); });

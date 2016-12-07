@@ -62,8 +62,9 @@ void ItemBase::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed
 
 void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _openl || p == _savel || p == _cancell) {
-		a_iconOver.start(active ? 1 : 0);
-		_a_iconOver.start();
+		if (iconAnimated()) {
+			_a_iconOver.start([this] { Ui::repaintHistoryItem(_parent); }, active ? 0. : 1., active ? 1. : 0., st::msgFileOverDuration);
+		}
 	}
 	ItemBase::clickHandlerActiveChanged(p, active);
 }
@@ -76,19 +77,6 @@ void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&sav
 	_openl = std_::move(openl);
 	_savel = std_::move(savel);
 	_cancell = std_::move(cancell);
-}
-
-void RadialProgressItem::step_iconOver(float64 ms, bool timer) {
-	float64 dt = ms / st::msgFileOverDuration;
-	if (dt >= 1) {
-		a_iconOver.finish();
-		_a_iconOver.stop();
-	} else if (!timer) {
-		a_iconOver.update(dt, anim::linear);
-	}
-	if (timer && iconAnimated()) {
-		Ui::repaintHistoryItem(_parent);
-	}
 }
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
@@ -104,20 +92,17 @@ void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
 
 void RadialProgressItem::ensureRadial() {
 	if (!_radial) {
-		_radial = new Ui::RadialAnimation(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
+		_radial = std_::make_unique<Ui::RadialAnimation>(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
 	}
 }
 
 void RadialProgressItem::checkRadialFinished() {
 	if (_radial && !_radial->animating() && dataLoaded()) {
-		delete _radial;
-		_radial = nullptr;
+		_radial.reset();
 	}
 }
 
-RadialProgressItem::~RadialProgressItem() {
-	delete base::take(_radial);
-}
+RadialProgressItem::~RadialProgressItem() = default;
 
 void StatusText::update(int newSize, int fullSize, int duration, TimeMs realDuration) {
 	setSize(newSize);
@@ -174,7 +159,7 @@ private:
 	base::lambda_copy<void()> _updateCallback;
 	Ui::RoundCheckbox _check;
 
-	FloatAnimation _pression;
+	Animation _pression;
 	bool _active = false;
 	bool _pressed = false;
 
@@ -393,13 +378,9 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setPen(Qt::NoPen);
 		if (selected) {
 			p.setBrush(st::msgDateImgBgSelected);
-		} else if (_a_iconOver.animating()) {
-			_a_iconOver.step(context->ms);
-			auto over = a_iconOver.current();
-			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _savel));
-			p.setBrush(over ? st::msgDateImgBgOver : st::msgDateImgBg);
+			p.setBrush(anim::brush(st::msgDateImgBg, st::msgDateImgBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
 
 		{
@@ -541,13 +522,9 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setPen(Qt::NoPen);
 		if (selected) {
 			p.setBrush(st::msgFileInBgSelected);
-		} else if (_a_iconOver.animating()) {
-			_a_iconOver.step(context->ms);
-			auto over = a_iconOver.current();
-			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, over));
 		} else {
 			auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
-			p.setBrush(over ? st::msgFileInBgOver : st::msgFileInBg);
+			p.setBrush(anim::brush(st::msgFileInBg, st::msgFileInBgOver, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 		}
 
 		{
@@ -752,13 +729,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 			p.setPen(Qt::NoPen);
 			if (selected) {
 				p.setBrush(st::msgFileInBgSelected);
-			} else if (_a_iconOver.animating()) {
-				_a_iconOver.step(context->ms);
-				auto over = a_iconOver.current();
-				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, over));
 			} else {
 				auto over = ClickHandler::showAsActive(loaded ? _openl : (_data->loading() ? _cancell : _openl));
-				p.setBrush(over ? _st.songOverBg : _st.songIconBg);
+				p.setBrush(anim::brush(_st.songIconBg, _st.songOverBg, _a_iconOver.current(context->ms, over ? 1. : 0.)));
 			}
 
 			{
@@ -828,13 +801,9 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					p.setPen(Qt::NoPen);
 					if (selected) {
 						p.setBrush(wthumb ? st::msgDateImgBgSelected : documentSelectedColor(_colorIndex));
-					} else if (_a_iconOver.animating()) {
-						_a_iconOver.step(context->ms);
-						auto over = a_iconOver.current();
-						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), over));
 					} else {
 						auto over = ClickHandler::showAsActive(_data->loading() ? _cancell : _savel);
-						p.setBrush(over ? (wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex)) : (wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex)));
+						p.setBrush(anim::brush(wthumb ? st::msgDateImgBg : documentDarkColor(_colorIndex), wthumb ? st::msgDateImgBgOver : documentOverColor(_colorIndex), _a_iconOver.current(context->ms, over ? 1. : 0.)));
 					}
 					p.setOpacity(radialOpacity * p.opacity());
 

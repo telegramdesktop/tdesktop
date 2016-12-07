@@ -23,8 +23,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"
+#include "ui/toast/toast.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
+#include "mainwindow.h"
 #include "lang.h"
 
 namespace Profile {
@@ -108,7 +110,9 @@ void InviteLinkWidget::refreshLink() {
 			}
 
 			QApplication::clipboard()->setText(link);
-			Ui::showLayer(new InformBox(lang(lng_group_invite_copied)));
+			Ui::Toast::Config toast;
+			toast.text = lang(lng_group_invite_copied);
+			Ui::Toast::Show(App::wnd(), toast);
 			return false;
 		});
 	}

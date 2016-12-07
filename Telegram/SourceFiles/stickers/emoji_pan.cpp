@@ -41,9 +41,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace internal {
 
-EmojiColorPicker::EmojiColorPicker() : TWidget()
-, a_opacity(0)
-, _a_appearance(animation(this, &EmojiColorPicker::step_appearance))
+EmojiColorPicker::EmojiColorPicker(QWidget *parent) : TWidget(parent)
 , _shadow(st::defaultDropdownShadow) {
 	memset(_variants, 0, sizeof(_variants));
 
@@ -78,15 +76,21 @@ void EmojiColorPicker::showEmoji(uint32 code) {
 void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (!_cache.isNull()) {
-		p.setOpacity(a_opacity.current());
+	auto opacity = _a_opacity.current(getms(), _hiding ? 0. : 1.);
+	if (opacity < 1.) {
+		if (opacity > 0.) {
+			p.setOpacity(opacity);
+		} else {
+			return;
+		}
 	}
 	if (e->rect() != rect()) {
 		p.setClipRect(e->rect());
 	}
 
-	int32 w = st::defaultDropdownShadow.width(), h = st::defaultDropdownShadow.height();
-	QRect r = QRect(w, h, width() - 2 * w, height() - 2 * h);
+	auto w = st::defaultDropdownShadow.width();
+	auto h = st::defaultDropdownShadow.height();
+	auto r = QRect(w, h, width() - 2 * w, height() - 2 * h);
 	_shadow.paint(p, r, st::defaultDropdownShadowShift);
 
 	if (_cache.isNull()) {
@@ -151,14 +155,9 @@ void EmojiColorPicker::mouseMoveEvent(QMouseEvent *e) {
 	handleMouseMove(e->globalPos());
 }
 
-void EmojiColorPicker::step_appearance(float64 ms, bool timer) {
-	if (_cache.isNull()) {
-		_a_appearance.stop();
-		return;
-	}
-	float64 dt = ms / st::defaultDropdownDuration;
-	if (dt >= 1) {
-		a_opacity.finish();
+void EmojiColorPicker::animationCallback() {
+	update();
+	if (!_a_opacity.animating()) {
 		_cache = QPixmap();
 		if (_hiding) {
 			hide();
@@ -167,17 +166,12 @@ void EmojiColorPicker::step_appearance(float64 ms, bool timer) {
 			_lastMousePos = QCursor::pos();
 			updateSelected();
 		}
-		_a_appearance.stop();
-	} else {
-		a_opacity.update(dt, anim::linear);
 	}
-	if (timer) update();
 }
 
 void EmojiColorPicker::hideFast() {
 	clearSelection();
-	if (_a_appearance.animating()) _a_appearance.stop();
-	a_opacity = anim::value();
+	_a_opacity.finish();
 	_cache = QPixmap();
 	hide();
 	emit hidden();
@@ -190,29 +184,23 @@ void EmojiColorPicker::hideAnimated() {
 		clearSelection();
 	}
 	_hiding = true;
-	a_opacity.start(0);
-	_a_appearance.start();
+	_a_opacity.start([this] { animationCallback(); }, 1., 0., st::defaultDropdownDuration);
 }
 
 void EmojiColorPicker::showAnimated() {
 	if (_ignoreShow) return;
 
-	_hiding = false;
-	if (!isHidden() && a_opacity.current() == 1) {
-		if (_a_appearance.animating()) {
-			_a_appearance.stop();
-			_cache = QPixmap();
-		}
+	if (!isHidden() && !_hiding) {
 		return;
 	}
+	_hiding = false;
 	if (_cache.isNull()) {
 		auto w = st::defaultDropdownShadow.width(), h = st::defaultDropdownShadow.height();
 		_cache = myGrab(this, QRect(w, h, width() - 2 * w, height() - 2 * h));
 		clearSelection();
 	}
 	show();
-	a_opacity.start(1);
-	_a_appearance.start();
+	_a_opacity.start([this] { animationCallback(); }, 0., 1., st::defaultDropdownDuration);
 }
 
 void EmojiColorPicker::clearSelection() {
@@ -266,13 +254,14 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 }
 
 EmojiPanInner::EmojiPanInner(QWidget *parent) : TWidget(parent)
-, _maxHeight(int(st::emojiPanMaxHeight) - st::emojiCategory.height) {
+, _maxHeight(int(st::emojiPanMaxHeight) - st::emojiCategory.height)
+, _picker(this) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
-	_picker.hide();
+	_picker->hide();
 
 	_esize = EmojiSizes[EIndex + 1];
 
@@ -282,8 +271,8 @@ EmojiPanInner::EmojiPanInner(QWidget *parent) : TWidget(parent)
 
 	_showPickerTimer.setSingleShot(true);
 	connect(&_showPickerTimer, SIGNAL(timeout()), this, SLOT(onShowPicker()));
-	connect(&_picker, SIGNAL(emojiSelected(EmojiPtr)), this, SLOT(onColorSelected(EmojiPtr)));
-	connect(&_picker, SIGNAL(hidden()), this, SLOT(onPickerHidden()));
+	connect(_picker, SIGNAL(emojiSelected(EmojiPtr)), this, SLOT(onColorSelected(EmojiPtr)));
+	connect(_picker, SIGNAL(hidden()), this, SLOT(onPickerHidden()));
 }
 
 void EmojiPanInner::setMaxHeight(int32 h) {
@@ -357,7 +346,7 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 				int32 index = i * EmojiPanPerRow + j;
 				if (index >= size) break;
 
-				auto selected = (!_picker.isHidden() && c * MatrixRowShift + index == _pickerSel) || (c * MatrixRowShift + index == _selected);
+				auto selected = (!_picker->isHidden() && c * MatrixRowShift + index == _pickerSel) || (c * MatrixRowShift + index == _selected);
 
 				QPoint w(st::emojiPanPadding + j * st::emojiPanSize.width(), y + i * st::emojiPanSize.height());
 				if (selected) {
@@ -372,8 +361,8 @@ void EmojiPanInner::paintEvent(QPaintEvent *e) {
 }
 
 bool EmojiPanInner::checkPickerHide() {
-	if (!_picker.isHidden() && _pickerSel >= 0) {
-		_picker.hideAnimated();
+	if (!_picker->isHidden() && _pickerSel >= 0) {
+		_picker->hideAnimated();
 		_pickerSel = -1;
 		updateSelected();
 		return true;
@@ -408,14 +397,14 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_pressedSel = -1;
 
 	_lastMousePos = e->globalPos();
-	if (!_picker.isHidden()) {
-		if (_picker.rect().contains(_picker.mapFromGlobal(_lastMousePos))) {
-			return _picker.handleMouseRelease(QCursor::pos());
+	if (!_picker->isHidden()) {
+		if (_picker->rect().contains(_picker->mapFromGlobal(_lastMousePos))) {
+			return _picker->handleMouseRelease(QCursor::pos());
 		} else if (_pickerSel >= 0) {
 			int tab = (_pickerSel / MatrixRowShift), sel = _pickerSel % MatrixRowShift;
 			if (tab < emojiTabCount && sel < _emojis[tab].size() && _emojis[tab][sel]->color) {
 				if (cEmojiVariants().constFind(_emojis[tab][sel]->code) != cEmojiVariants().cend()) {
-					_picker.hideAnimated();
+					_picker->hideAnimated();
 					_pickerSel = -1;
 				}
 			}
@@ -426,7 +415,7 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_showPickerTimer.isActive()) {
 		_showPickerTimer.stop();
 		_pickerSel = -1;
-		_picker.hide();
+		_picker->hide();
 	}
 
 	if (_selected < 0 || _selected != pressed) return;
@@ -438,7 +427,7 @@ void EmojiPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	int tab = (_selected / MatrixRowShift), sel = _selected % MatrixRowShift;
 	if (sel < _emojis[tab].size()) {
 		EmojiPtr emoji(_emojis[tab][sel]);
-		if (emoji->color && !_picker.isHidden()) return;
+		if (emoji->color && !_picker->isHidden()) return;
 
 		selectEmoji(emoji);
 	}
@@ -493,16 +482,16 @@ void EmojiPanInner::onShowPicker() {
 			int32 size = (c == tab) ? (sel - (sel % EmojiPanPerRow)) : _counts[c], rows = (size / EmojiPanPerRow) + ((size % EmojiPanPerRow) ? 1 : 0);
 			y += st::emojiPanHeader + (rows * st::emojiPanSize.height());
 		}
-		y -= _picker.height() - st::buttonRadius + _visibleTop;
+		y -= _picker->height() - st::buttonRadius + _visibleTop;
 		if (y < 0) {
-			y += _picker.height() - st::buttonRadius + st::emojiPanSize.height() - st::buttonRadius;
+			y += _picker->height() - st::buttonRadius + st::emojiPanSize.height() - st::buttonRadius;
 		}
-		int xmax = width() - _picker.width();
+		int xmax = width() - _picker->width();
 		float64 coef = float64(sel % EmojiPanPerRow) / float64(EmojiPanPerRow - 1);
 		if (rtl()) coef = 1. - coef;
-		_picker.move(qRound(xmax * coef), y);
+		_picker->move(qRound(xmax * coef), y);
 
-		_picker.showEmoji(_emojis[tab][sel]->code);
+		_picker->showEmoji(_emojis[tab][sel]->code);
 		emit disableScroll(true);
 	}
 }
@@ -545,16 +534,16 @@ void EmojiPanInner::onColorSelected(EmojiPtr emoji) {
 		}
 	}
 	selectEmoji(emoji);
-	_picker.hideAnimated();
+	_picker->hideAnimated();
 }
 
 void EmojiPanInner::mouseMoveEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
-	if (!_picker.isHidden()) {
-		if (_picker.rect().contains(_picker.mapFromGlobal(_lastMousePos))) {
-			return _picker.handleMouseMove(QCursor::pos());
+	if (!_picker->isHidden()) {
+		if (_picker->rect().contains(_picker->mapFromGlobal(_lastMousePos))) {
+			return _picker->handleMouseMove(QCursor::pos());
 		} else {
-			_picker.clearSelection();
+			_picker->clearSelection();
 		}
 	}
 	updateSelected();
@@ -593,8 +582,8 @@ DBIEmojiTab EmojiPanInner::currentTab(int yOffset) const {
 }
 
 void EmojiPanInner::hideFinish() {
-	if (!_picker.isHidden()) {
-		_picker.hideFast();
+	if (!_picker->isHidden()) {
+		_picker->hideFast();
 		_pickerSel = -1;
 		clearSelection();
 	}
@@ -612,8 +601,8 @@ void EmojiPanInner::refreshRecent() {
 }
 
 void EmojiPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
-	if (_picker.parentWidget() != parentWidget()) {
-		_picker.setParent(parentWidget());
+	if (_picker->parentWidget() != parentWidget()) {
+		_picker->setParent(parentWidget());
 	}
 	for (int32 i = 0; i < panels.size(); ++i) {
 		panels.at(i)->hide();
@@ -630,7 +619,7 @@ void EmojiPanInner::fillPanels(QVector<EmojiPanel*> &panels) {
 		panels.back()->show();
 		y += st::emojiPanHeader + rows * st::emojiPanSize.height();
 	}
-	_picker.raise();
+	_picker->raise();
 }
 
 void EmojiPanInner::refreshPanels(QVector<EmojiPanel*> &panels) {
@@ -684,11 +673,11 @@ void EmojiPanInner::setSelected(int newSelected) {
 	updateSelected();
 
 	setCursor((_selected >= 0) ? style::cur_pointer : style::cur_default);
-	if (_selected >= 0 && !_picker.isHidden()) {
+	if (_selected >= 0 && !_picker->isHidden()) {
 		if (_selected != _pickerSel) {
-			_picker.hideAnimated();
+			_picker->hideAnimated();
 		} else {
-			_picker.showAnimated();
+			_picker->showAnimated();
 		}
 	}
 }
@@ -1633,14 +1622,15 @@ void StickerPanInner::clearInlineRowsPanel() {
 
 void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 	if (!entry || entry->switchPmText.isEmpty()) {
-		_switchPmButton.reset();
+		_switchPmButton.destroy();
 		_switchPmStartToken.clear();
 	} else {
 		if (!_switchPmButton) {
-			_switchPmButton = std_::make_unique<Ui::RoundButton>(this, QString(), st::switchPmButton);
+			_switchPmButton.create(this, QString(), st::switchPmButton);
 			_switchPmButton->show();
 			_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, st::emojiPanHeader);
-			connect(_switchPmButton.get(), SIGNAL(clicked()), this, SLOT(onSwitchPm()));
+			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
 		}
 		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
 		_switchPmStartToken = entry->switchPmStartToken;

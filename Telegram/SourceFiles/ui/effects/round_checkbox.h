@@ -42,8 +42,8 @@ public:
 
 private:
 	struct Icon {
-		FloatAnimation fadeIn;
-		FloatAnimation fadeOut;
+		Animation fadeIn;
+		Animation fadeOut;
 		QPixmap wideCheckCache;
 	};
 	void removeFadeOutedIcons();
@@ -87,7 +87,7 @@ private:
 	PaintRoundImage _paintRoundImage;
 
 	QPixmap _wideCache;
-	FloatAnimation _selection;
+	Animation _selection;
 
 	RoundCheckbox _check;
 

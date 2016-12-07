@@ -28,10 +28,9 @@ namespace Ui {
 namespace Toast {
 
 Instance::Instance(const Config &config, QWidget *widgetParent, const Private &)
-: _a_fade(animation(this, &Instance::step_fade))
-, _hideAtMs(getms(true) + config.durationMs) {
+: _hideAtMs(getms(true) + config.durationMs) {
 	_widget = std_::make_unique<internal::Widget>(widgetParent, config);
-	_a_fade.start();
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::toastFadeInDuration);
 }
 
 void Show(QWidget *parent, const Config &config) {
@@ -41,36 +40,24 @@ void Show(QWidget *parent, const Config &config) {
 	}
 }
 
+void Instance::opacityAnimationCallback() {
+	_widget->setShownLevel(_a_opacity.current(_hiding ? 0. : 1.));
+	_widget->update();
+	if (!_a_opacity.animating()) {
+		if (_hiding) {
+			hide();
+		}
+	}
+}
+
 void Instance::fadeOut() {
-	_fadingOut = true;
-	_a_fade.start();
+	_hiding = true;
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::toastFadeOutDuration);
 }
 
 void Instance::hide() {
 	_widget->hide();
 	_widget->deleteLater();
-}
-
-void Instance::step_fade(float64 ms, bool timer) {
-	if (timer) {
-		_widget->update();
-	}
-	if (_fadingOut) {
-		if (ms >= st::toastFadeOutDuration) {
-			hide();
-		} else {
-			float64 dt = ms / st::toastFadeOutDuration;
-			_widget->setShownLevel(1. - dt);
-		}
-	} else {
-		if (ms >= st::toastFadeInDuration) {
-			_widget->setShownLevel(1.);
-			_a_fade.stop();
-		} else {
-			float64 dt = ms / st::toastFadeInDuration;
-			_widget->setShownLevel(dt);
-		}
-	}
 }
 
 } // namespace Toast

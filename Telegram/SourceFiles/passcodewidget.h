@@ -51,7 +51,7 @@ private:
 	void showAll();
 	void hideAll();
 
-	FloatAnimation _a_show;
+	Animation _a_show;
 	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
 

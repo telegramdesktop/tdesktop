@@ -3139,7 +3139,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 				h->inboxReadBefore = d.vread_inbox_max_id.v + 1;
 			}
 			if (_history->peer() == channel) {
-				_history->updateToEndVisibility();
+				_history->updateHistoryDownVisibility();
 				_history->preloadHistoryIfNeeded();
 			}
 			h->asChannelHistory()->getRangeDifference();

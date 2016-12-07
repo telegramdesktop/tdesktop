@@ -154,7 +154,6 @@ protected:
 
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	void step_goodFade(float64 ms, bool timer);
 
 	void onUpdateDone(const MTPBool &result);
 	bool onUpdateFail(const RPCError &error);
@@ -190,8 +189,7 @@ private:
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	QString _goodTextLink;
-	anim::value a_goodOpacity;
-	Animation _a_goodFade;
+	Animation _a_goodOpacity;
 
 	QTimer _checkTimer;
 

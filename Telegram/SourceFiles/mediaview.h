@@ -296,7 +296,7 @@ private:
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown = false;
 
-	Animation _a_state;
+	BasicAnimation _a_state;
 
 	enum ControlsState {
 		ControlsShowing,

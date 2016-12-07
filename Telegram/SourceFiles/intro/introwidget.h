@@ -198,7 +198,7 @@ public:
 		QString _errorText;
 		ChildWidget<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
-		FloatAnimation _a_show;
+		Animation _a_show;
 		CoverAnimation _coverAnimation;
 		std_::unique_ptr<Ui::SlideAnimation> _slideAnimation;
 		QPixmap _coverMask;
@@ -226,7 +226,7 @@ private:
 	void resetDone(const MTPBool &result);
 	bool resetFail(const RPCError &error);
 
-	FloatAnimation _a_show;
+	Animation _a_show;
 	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
 
@@ -243,7 +243,7 @@ private:
 
 	Data _data;
 
-	FloatAnimation _coverShownAnimation;
+	Animation _coverShownAnimation;
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
 

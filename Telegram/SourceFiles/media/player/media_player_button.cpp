@@ -45,7 +45,7 @@ QPainterPath interpolatePaths(QPointF (&from)[N], QPointF (&to)[N], float64 k) {
 
 } // namespace
 
-PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, UpdateCallback &&callback)
+PlayButtonLayout::PlayButtonLayout(const style::MediaPlayerButton &st, base::lambda<void()> &&callback)
 : _st(st)
 , _callback(std_::move(callback)) {
 }

@@ -51,7 +51,7 @@ private:
 	float64 _opacity = 0.;
 	anim::value a_arcEnd;
 	anim::value a_arcStart;
-	Animation _animation;
+	BasicAnimation _animation;
 
 };
 

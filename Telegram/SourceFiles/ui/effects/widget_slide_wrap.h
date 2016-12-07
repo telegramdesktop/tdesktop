@@ -56,7 +56,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void step_height(float64 ms, bool timer);
+	void animationCallback();
 
 	TWidget *_entity;
 	bool _inResizeToWidth = false;
@@ -66,7 +66,6 @@ private:
 
 	style::size _realSize;
 	int _forceHeight = -1;
-	anim::value a_height;
 	Animation _a_height;
 	bool _hiding = false;
 

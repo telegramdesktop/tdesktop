@@ -28,9 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 HistoryDownButton::HistoryDownButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
-, _st(st)
-//, a_arrowOpacity(st::historyAttachEmoji.opacity, st::historyAttachEmoji.opacity)
-, _a_arrowOver(animation(this, &HistoryDownButton::step_arrowOver)) {
+, _st(st) {
 	resize(_st.width, _st.height);
 	setCursor(style::cur_pointer);
 
@@ -49,12 +47,6 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto opacity = _a_show.current(ms, _shown ? 1. : 0.);
-	if (opacity == 0.) {
-		if (!_shown) hide();
-		return;
-	}
-	p.setOpacity(opacity);
 	auto over = isOver();
 	auto down = isDown();
 	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
@@ -78,44 +70,6 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 void HistoryDownButton::setUnreadCount(int unreadCount) {
 	_unreadCount = unreadCount;
 	update();
-}
-
-bool HistoryDownButton::hidden() const {
-	return !_shown;
-}
-
-void HistoryDownButton::showAnimated() {
-	if (_shown) return;
-
-	if (isHidden()) show();
-	toggleAnimated();
-}
-
-void HistoryDownButton::hideAnimated() {
-	if (!_shown) return;
-	toggleAnimated();
-}
-
-void HistoryDownButton::toggleAnimated() {
-	_shown = !_shown;
-	float64 from = _shown ? 0. : 1., to = _shown ? 1. : 0.;
-	_a_show.start([this] { update(); }, from, to, st::historyToDownDuration);
-}
-
-void HistoryDownButton::finishAnimation() {
-	_a_show.finish();
-	setVisible(_shown);
-}
-
-void HistoryDownButton::step_arrowOver(float64 ms, bool timer) {
-	float64 dt = ms / st::historyAttachEmoji.duration;
-	if (dt >= 1) {
-		_a_arrowOver.stop();
-		a_arrowOpacity.finish();
-	} else {
-		a_arrowOpacity.update(dt, anim::linear);
-	}
-	if (timer) update();
 }
 
 EmojiButton::EmojiButton(QWidget *parent, const style::IconButton &st) : RippleButton(parent, st.ripple)

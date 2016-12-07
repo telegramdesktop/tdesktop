@@ -383,7 +383,7 @@ void Sticker::preload() const {
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	bool loaded = getShownDocument()->loaded();
 
-	auto over = _a_over.current(_active ? 1. : 0.);
+	auto over = _a_over.current(context->ms, _active ? 1. : 0.);
 	if (over > 0) {
 		p.setOpacity(over);
 		App::roundRect(p, QRect(QPoint(0, 0), st::stickerPanSize), st::emojiPanHover, StickerHoverCorners);
@@ -780,17 +780,8 @@ void File::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, in
 
 void File::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
 	if (p == _open || p == _cancel) {
-		if (active) {
-			ensureAnimation();
-			_animation->a_thumbOver.start(1);
-		} else {
-			if (!_animation) {
-				ensureAnimation();
-				_animation->a_thumbOver = anim::value(1, 1);
-			}
-			_animation->a_thumbOver.start(0);
-		}
-		_animation->_a_thumbOver.start();
+		ensureAnimation();
+		_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, active ? 0. : 1., active ? 1. : 0., st::msgFileOverDuration);
 	}
 }
 
@@ -798,18 +789,9 @@ File::~File() {
 	unregDocumentItem(getShownDocument(), this);
 }
 
-void File::step_thumbOver(float64 ms, bool timer) {
-	float64 dt = ms / st::msgFileOverDuration;
-	if (dt >= 1) {
-		_animation->a_thumbOver.finish();
-		_animation->_a_thumbOver.stop();
-		checkAnimationFinished();
-	} else if (!timer) {
-		_animation->a_thumbOver.update(dt, anim::linear);
-	}
-	if (timer) {
-		Ui::repaintInlineItem(this);
-	}
+void File::thumbAnimationCallback() {
+	Ui::repaintInlineItem(this);
+	checkAnimationFinished();
 }
 
 void File::step_radial(TimeMs ms, bool timer) {
@@ -826,16 +808,14 @@ void File::step_radial(TimeMs ms, bool timer) {
 
 void File::ensureAnimation() const {
 	if (!_animation) {
-		_animation.reset(new AnimationData(
-			animation(const_cast<File*>(this), &File::step_thumbOver),
-			animation(const_cast<File*>(this), &File::step_radial)));
+		_animation.reset(new AnimationData(animation(const_cast<File*>(this), &File::step_radial)));
 	}
 }
 
 void File::checkAnimationFinished() {
-	if (_animation && !_animation->_a_thumbOver.animating() && !_animation->radial.animating()) {
+	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
 		if (getShownDocument()->loaded()) {
-			_animation = nullptr;
+			_animation.reset();
 		}
 	}
 }

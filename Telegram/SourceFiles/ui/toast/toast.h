@@ -49,9 +49,10 @@ public:
 	void hide();
 
 private:
-	void step_fade(float64 ms, bool timer);
-	bool _fadingOut = false;
-	Animation _a_fade;
+	void opacityAnimationCallback();
+
+	bool _hiding = false;
+	Animation _a_opacity;
 
 	const TimeMs _hideAtMs;
 

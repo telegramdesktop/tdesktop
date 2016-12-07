@@ -71,8 +71,8 @@ protected:
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
 
-	void step_thumbOver(float64 ms, bool timer);
 	void step_radial(TimeMs ms, bool timer);
+	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
 	void checkAnimationFinished();
@@ -84,10 +84,10 @@ protected:
 		return _animation && _animation->radial.animating();
 	}
 	bool isThumbAnimation(TimeMs ms) const {
-		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
-
-		_animation->_a_thumbOver.step(ms);
-		return _animation && _animation->_a_thumbOver.animating();
+		if (_animation) {
+			return _animation->a_thumbOver.animating(ms);
+		}
+		return false;
 	}
 
 	virtual float64 dataProgress() const = 0;
@@ -95,16 +95,13 @@ protected:
 	virtual bool dataLoaded() const = 0;
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&thumbOverCallbacks, AnimationCallbacks &&radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(std_::move(thumbOverCallbacks))
-			, radial(std_::move(radialCallbacks)) {
+		AnimationData(AnimationCallbacks &&radialCallbacks)
+			: radial(std_::move(radialCallbacks)) {
 		}
-		anim::value a_thumbOver;
-		Animation _a_thumbOver;
-
+		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
-	mutable AnimationData *_animation = nullptr;
+	mutable std_::unique_ptr<AnimationData> _animation;
 
 };
 
@@ -307,7 +304,7 @@ struct HistoryDocumentVoicePlayback {
 
 	int32 _position;
 	anim::value a_progress;
-	Animation _a_progress;
+	BasicAnimation _a_progress;
 };
 struct HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
 	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other) {

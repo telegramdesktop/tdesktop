@@ -63,7 +63,7 @@ class EmojiColorPicker : public TWidget {
 	Q_OBJECT
 
 public:
-	EmojiColorPicker();
+	EmojiColorPicker(QWidget *parent);
 
 	void showEmoji(uint32 code);
 
@@ -90,7 +90,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 
 private:
-	void step_appearance(float64 ms, bool timer);
+	void animationCallback();
 
 	void drawVariant(Painter &p, int variant);
 
@@ -107,9 +107,7 @@ private:
 
 	bool _hiding = false;
 	QPixmap _cache;
-
-	anim::value a_opacity;
-	Animation _a_appearance;
+	Animation _a_opacity;
 
 	QTimer _hideTimer;
 
@@ -192,8 +190,9 @@ private:
 	int _pickerSel = -1;
 	QPoint _lastMousePos;
 
-	EmojiColorPicker _picker;
+	ChildWidget<EmojiColorPicker> _picker;
 	QTimer _showPickerTimer;
+
 };
 
 struct StickerIcon {
@@ -368,14 +367,12 @@ private:
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
-	std_::unique_ptr<Ui::RoundButton> _switchPmButton;
+	ChildWidget<Ui::RoundButton> _switchPmButton = { nullptr };
 	QString _switchPmStartToken;
 
 	typedef QVector<InlineItem*> InlineItems;
 	struct InlineRow {
-		InlineRow() : height(0) {
-		}
-		int32 height;
+		int height = 0;
 		InlineItems items;
 	};
 	typedef QVector<InlineRow> InlineRows;
@@ -629,17 +626,17 @@ private:
 
 	Ui::PanelAnimation::Origin _origin = Ui::PanelAnimation::Origin::BottomRight;
 	std_::unique_ptr<Ui::PanelAnimation> _showAnimation;
-	FloatAnimation _a_show;
+	Animation _a_show;
 
 	bool _hiding = false;
 	QPixmap _cache;
-	FloatAnimation _a_opacity;
+	Animation _a_opacity;
 	QTimer _hideTimer;
 	bool _inPanelGrab = false;
 
 	class SlideAnimation;
 	std_::unique_ptr<SlideAnimation> _slideAnimation;
-	FloatAnimation _a_slide;
+	Animation _a_slide;
 
 	ChildWidget<Ui::IconButton> _recent;
 	ChildWidget<Ui::IconButton> _people;
@@ -655,7 +652,7 @@ private:
 	int _iconSel = 0;
 	int _iconDown = -1;
 	bool _iconsDragging = false;
-	Animation _a_icons;
+	BasicAnimation _a_icons;
 	QPoint _iconsMousePos, _iconsMouseDown;
 	int _iconsLeft = 0;
 	int _iconsTop = 0;

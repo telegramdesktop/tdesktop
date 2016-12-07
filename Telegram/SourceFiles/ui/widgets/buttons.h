@@ -90,8 +90,6 @@ class FlatButton : public RippleButton {
 public:
 	FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st);
 
-	void step_appearance(float64 ms, bool timer);
-
 	void setText(const QString &text);
 	void setWidth(int32 w);
 
@@ -103,18 +101,10 @@ protected:
 	void onStateChanged(State was, StateChangeSource source) override;
 
 private:
-	void setOpacity(float64 o);
-	float64 opacity() const;
-
 	QString _text, _textForAutoSize;
 	int _width;
 
 	const style::FlatButton &_st;
-
-	anim::value a_over;
-	Animation _a_appearance;
-
-	float64 _opacity = 1.;
 
 };
 
@@ -181,7 +171,7 @@ private:
 	const style::icon *_iconOverrideOver = nullptr;
 	const style::color *_rippleColorOverride = nullptr;
 
-	FloatAnimation _a_over;
+	Animation _a_over;
 
 };
 
@@ -231,7 +221,7 @@ private:
 	const style::CrossButton &_st;
 
 	bool _shown = false;
-	FloatAnimation _a_show;
+	Animation _a_show;
 
 };
 

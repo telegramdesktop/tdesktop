@@ -92,7 +92,7 @@ private:
 
 	int _pressed = -1;
 	int _selected = 0;
-	FloatAnimation _a_left;
+	Animation _a_left;
 
 	int _timerId = -1;
 	TimeMs _callbackAfterMs = 0;

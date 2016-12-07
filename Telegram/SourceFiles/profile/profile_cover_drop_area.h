@@ -45,7 +45,7 @@ private:
 	int _titleWidth, _subtitleWidth;
 
 	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 	bool _hiding = false;
 	HideFinishCallback _hideFinishCallback;
 

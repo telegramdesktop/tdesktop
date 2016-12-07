@@ -189,8 +189,6 @@ historySendPadding: 9px;
 historySendRight: 2px;
 
 historyComposeButton: FlatButton {
-	duration: 200;
-
 	color: windowActiveTextFg;
 	overColor: windowActiveTextFg;
 
@@ -214,12 +212,14 @@ historyUnblock: FlatButton(historyComposeButton) {
 	overColor: #d15948;
 }
 
+historySendIcon: icon {{ "send_control_send", historySendIconFg }};
+historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
 historySend: IconButton {
 	width: 46px;
 	height: 46px;
 
-	icon: icon {{ "send_control_send", historySendIconFg }};
-	iconOver: icon {{ "send_control_send", historySendIconFgOver }};
+	icon: historySendIcon;
+	iconOver: historySendIconOver;
 	iconPosition: point(11px, 11px);
 }
 historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
@@ -265,6 +265,7 @@ historyBotCommandStart: IconButton(historyAttach) {
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgActive: windowBgActive;
+historyRecordVoiceDuration: 200;
 historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
 historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
@@ -315,8 +316,6 @@ historyInlineBotCancel: IconButton(historyReplyCancel) {
 }
 
 reportSpamHide: FlatButton {
-	duration: 200;
-
 	color: windowActiveTextFg;
 	overColor: windowActiveTextFg;
 

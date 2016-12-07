@@ -34,10 +34,8 @@ public:
 	void otherEnter();
 	void otherLeave();
 
-	void step_appearance(float64 ms, bool timer);
-
 	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || _a_appearance.animating()) return false;
+		if (isHidden() || _a_opacity.animating()) return false;
 
 		return QRect(st::dragPadding.left(),
 					 st::dragPadding.top(),
@@ -67,12 +65,15 @@ public slots:
 	void showStart();
 
 private:
-	bool _hiding, _in;
+	void setIn(bool in);
+	void opacityAnimationCallback();
+
+	bool _hiding = false;
+	bool _in = false;
 	base::lambda<void(const QMimeData *data)> _droppedCallback;
 
-	anim::value a_opacity;
-	anim::value a_colorDrop;
-	Animation _a_appearance;
+	Animation _a_opacity;
+	Animation _a_in;
 
 	Ui::RectShadow _shadow;
 

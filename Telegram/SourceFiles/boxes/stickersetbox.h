@@ -113,7 +113,7 @@ private:
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
 
-	std_::vector_of_moveable<FloatAnimation> _packOvers;
+	std_::vector_of_moveable<Animation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;

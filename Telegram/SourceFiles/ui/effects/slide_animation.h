@@ -40,7 +40,7 @@ public:
 	}
 
 private:
-	FloatAnimation _animation;
+	Animation _animation;
 	QPixmap _leftSnapshot;
 	QPixmap _rightSnapshot;
 	bool _slideLeft = false;

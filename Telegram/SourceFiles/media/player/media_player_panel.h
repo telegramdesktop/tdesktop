@@ -100,7 +100,7 @@ private:
 	bool _hiding = false;
 
 	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 
 	bool _ignoringEnterEvents = false;
 

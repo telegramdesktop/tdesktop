@@ -46,8 +46,8 @@ private:
 	int _radiusTo = 0;
 
 	bool _hiding = false;
-	FloatAnimation _show;
-	FloatAnimation _hide;
+	Animation _show;
+	Animation _hide;
 	QPixmap _cache;
 	QImage _frame;
 

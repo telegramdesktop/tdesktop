@@ -102,7 +102,7 @@ private:
 
 	NotificationsBox *_owner;
 	QPixmap _cache;
-	FloatAnimation _opacity;
+	Animation _opacity;
 	bool _hiding = false;
 	bool _deleted = false;
 
@@ -116,7 +116,7 @@ NotificationsBox::NotificationsBox() : AbstractBox()
 	_sampleOpacities.reserve(kMaxNotificationsCount);
 	for (int i = 0; i != kMaxNotificationsCount; ++i) {
 		_countSlider->addSection(QString::number(i + 1));
-		_sampleOpacities.push_back(FloatAnimation());
+		_sampleOpacities.push_back(Animation());
 	}
 	_countSlider->setActiveSectionFast(_oldCount - 1);
 	_countSlider->setSectionActivatedCallback([this] { countChanged(); });

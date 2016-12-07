@@ -387,7 +387,7 @@ private:
 	ChildWidget<DialogsInner> _inner;
 	ChildWidget<Ui::FlatButton> _updateTelegram = { nullptr };
 
-	FloatAnimation _a_show;
+	Animation _a_show;
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 

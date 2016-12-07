@@ -55,53 +55,58 @@ class ScrollBar : public QWidget {
 	Q_OBJECT
 
 public:
-
 	ScrollBar(ScrollArea *parent, bool vertical, const style::FlatScroll *st);
 
 	void recountSize();
 
-	void paintEvent(QPaintEvent *e);
-	void enterEvent(QEvent *e);
-	void leaveEvent(QEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
-	void step_appearance(float64 ms, bool timer);
-
 	void hideTimeout(TimeMs dt);
 
 public slots:
-
 	void onValueChanged();
 	void updateBar(bool force = false);
 	void onHideTimer();
 
 signals:
-
 	void topShadowVisibility(bool);
 	void bottomShadowVisibility(bool);
 
-private:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void enterEvent(QEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
+private:
 	ScrollArea *area();
+
+	void setOver(bool over);
+	void setOverBar(bool overbar);
+	void setMoving(bool moving);
+
 	const style::FlatScroll *_st;
 
-	bool _vertical;
-	bool _over, _overbar, _moving;
-	bool _topSh, _bottomSh;
+	bool _vertical = true;
+	bool _hiding = false;
+	bool _over = false;
+	bool _overbar = false;
+	bool _moving = false;
+	bool _topSh = false;
+	bool _bottomSh = false;
 
 	QPoint _dragStart;
 	QScrollBar *_connected;
 
 	int32 _startFrom, _scrollMax;
 
-	TimeMs _hideIn;
+	TimeMs _hideIn = 0;
 	QTimer _hideTimer;
 
-	anim::value a_bgOver, a_barOver, a_fullOpacity;
-	Animation _a_appearance;
+	Animation _a_over;
+	Animation _a_barOver;
+	Animation _a_opacity;
 
 	QRect _bar;
 };

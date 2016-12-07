@@ -383,12 +383,12 @@ FORCE_INLINE QBrush brush(const style::color &a, const style::color &b, float64 
 
 };
 
-class Animation;
+class BasicAnimation;
 
 class AnimationImplementation {
 public:
 	virtual void start() {}
-	virtual void step(Animation *a, TimeMs ms, bool timer) = 0;
+	virtual void step(BasicAnimation *a, TimeMs ms, bool timer) = 0;
 	virtual ~AnimationImplementation() {}
 
 };
@@ -407,7 +407,7 @@ public:
 	}
 
 	void start() { _implementation->start();  }
-	void step(Animation *a, TimeMs ms, bool timer) { _implementation->step(a, ms, timer); }
+	void step(BasicAnimation *a, TimeMs ms, bool timer) { _implementation->step(a, ms, timer); }
 	~AnimationCallbacks() { delete base::take(_implementation); }
 
 private:
@@ -415,9 +415,9 @@ private:
 
 };
 
-class Animation {
+class BasicAnimation {
 public:
-	Animation(AnimationCallbacks &&callbacks)
+	BasicAnimation(AnimationCallbacks &&callbacks)
 		: _callbacks(std_::move(callbacks))
 		, _animating(false) {
 	}
@@ -437,7 +437,7 @@ public:
 		return _animating;
 	}
 
-	~Animation() {
+	~BasicAnimation() {
 		if (_animating) stop();
 	}
 
@@ -459,7 +459,7 @@ public:
 		_started = float64(getms());
 	}
 
-	void step(Animation *a, TimeMs ms, bool timer) {
+	void step(BasicAnimation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(ms - _started, timer);
 	}
 
@@ -482,7 +482,7 @@ public:
 	AnimationCallbacksAbsolute(Type *obj, Method method) : _obj(obj), _method(method) {
 	}
 
-	void step(Animation *a, TimeMs ms, bool timer) {
+	void step(BasicAnimation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(ms, timer);
 	}
 
@@ -508,7 +508,7 @@ public:
 		_started = float64(getms());
 	}
 
-	void step(Animation *a, TimeMs ms, bool timer) {
+	void step(BasicAnimation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(_param, ms - _started, timer);
 	}
 
@@ -532,7 +532,7 @@ public:
 	AnimationCallbacksAbsoluteWithParam(Param param, Type *obj, Method method) : _param(param), _obj(obj), _method(method) {
 	}
 
-	void step(Animation *a, TimeMs ms, bool timer) {
+	void step(BasicAnimation *a, TimeMs ms, bool timer) {
 		(_obj->*_method)(_param, ms, timer);
 	}
 
@@ -547,12 +547,8 @@ AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacks
 	return AnimationCallbacks(new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method));
 }
 
-template <typename AnimType>
-class SimpleAnimation {
+class Animation {
 public:
-	using ValueType = typename AnimType::ValueType;
-	using Callback = base::lambda<void()>;
-
 	void step(TimeMs ms) {
 		if (_data) {
 			_data->a_animation.step(ms);
@@ -576,23 +572,31 @@ public:
 		return animating();
 	}
 
-	ValueType current() const {
+	float64 current() const {
 		t_assert(_data != nullptr);
 		return _data->value.current();
 	}
-	ValueType current(const ValueType &def) const {
-		return _data ? current() : def;
+	float64 current(float64 def) const {
+		return animating() ? current() : def;
 	}
-	ValueType current(TimeMs ms, const ValueType &def) {
+	float64 current(TimeMs ms, float64 def) {
 		return animating(ms) ? current() : def;
 	}
 
+	static constexpr auto kLongAnimationDuration = 1000;
+
 	template <typename Lambda>
-	void start(Lambda &&updateCallback, const ValueType &from, const ValueType &to, float64 duration, const anim::transition &transition = anim::linear) {
+	void start(Lambda &&updateCallback, float64 from, float64 to, float64 duration, const anim::transition &transition = anim::linear) {
+		auto isLong = (duration >= kLongAnimationDuration);
 		if (_data) {
-			_data->pause.restart();
+			if (!isLong) {
+				_data->pause.restart();
+			}
 		} else {
 			_data = std_::make_unique<Data>(from, std_::forward<Lambda>(updateCallback));
+		}
+		if (isLong) {
+			_data->pause.release();
 		}
 		_data->value.start(to);
 		_data->duration = duration;
@@ -611,12 +615,12 @@ public:
 private:
 	struct Data {
 		template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
-		Data(const ValueType &from, Lambda &&updateCallback)
+		Data(float64 from, Lambda &&updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
 			, updateCallback(std_::move(updateCallback)) {
 		}
-		Data(const ValueType &from, const base::lambda_copy<void()> &updateCallback)
+		Data(float64 from, const base::lambda_copy<void()> &updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
 			, updateCallback(base::lambda_copy<void()>(updateCallback)) {
@@ -633,9 +637,9 @@ private:
 			updateCallback();
 		}
 
-		AnimType value;
-		Animation a_animation;
-		Callback updateCallback;
+		anim::value value;
+		BasicAnimation a_animation;
+		base::lambda<void()> updateCallback;
 		float64 duration = 0.;
 		anim::transition transition = anim::linear;
 		MTP::PauseHolder pause;
@@ -644,16 +648,14 @@ private:
 
 };
 
-using FloatAnimation = SimpleAnimation<anim::value>;
-
 class AnimationManager : public QObject {
 	Q_OBJECT
 
 public:
 	AnimationManager();
 
-	void start(Animation *obj);
-	void stop(Animation *obj);
+	void start(BasicAnimation *obj);
+	void stop(BasicAnimation *obj);
 
 public slots:
 	void timeout();
@@ -661,7 +663,7 @@ public slots:
 	void clipCallback(Media::Clip::Reader *reader, qint32 threadIndex, qint32 notification);
 
 private:
-	using AnimatingObjects = OrderedSet<Animation*>;
+	using AnimatingObjects = OrderedSet<BasicAnimation*>;
 	AnimatingObjects _objects, _starting, _stopping;
 	QTimer _timer;
 	bool _iterating;

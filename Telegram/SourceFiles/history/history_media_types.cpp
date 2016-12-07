@@ -155,13 +155,16 @@ void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool 
 	if (p == _savel || p == _cancell) {
 		if (active && !dataLoaded()) {
 			ensureAnimation();
-			_animation->a_thumbOver.start(1);
-			_animation->_a_thumbOver.start();
+			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 0., 1., st::msgFileOverDuration);
 		} else if (!active && _animation) {
-			_animation->a_thumbOver.start(0);
-			_animation->_a_thumbOver.start();
+			_animation->a_thumbOver.start([this] { thumbAnimationCallback(); }, 1., 0., st::msgFileOverDuration);
 		}
 	}
+}
+
+void HistoryFileMedia::thumbAnimationCallback() {
+	Ui::repaintHistoryItem(_parent);
+	checkAnimationFinished();
 }
 
 void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
@@ -189,20 +192,6 @@ void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 durati
 	}
 }
 
-void HistoryFileMedia::step_thumbOver(float64 ms, bool timer) {
-	float64 dt = ms / st::msgFileOverDuration;
-	if (dt >= 1) {
-		_animation->a_thumbOver.finish();
-		_animation->_a_thumbOver.stop();
-		checkAnimationFinished();
-	} else if (!timer) {
-		_animation->a_thumbOver.update(dt, anim::linear);
-	}
-	if (timer) {
-		Ui::repaintHistoryItem(_parent);
-	}
-}
-
 void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 	if (timer) {
 		Ui::repaintHistoryItem(_parent);
@@ -216,24 +205,19 @@ void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 
 void HistoryFileMedia::ensureAnimation() const {
 	if (!_animation) {
-		_animation = new AnimationData(
-			animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_thumbOver),
-			animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
+		_animation = std_::make_unique<AnimationData>(animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
 	}
 }
 
 void HistoryFileMedia::checkAnimationFinished() {
-	if (_animation && !_animation->_a_thumbOver.animating() && !_animation->radial.animating()) {
+	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
 		if (dataLoaded()) {
-			delete _animation;
-			_animation = 0;
+			_animation.reset();
 		}
 	}
 }
 
-HistoryFileMedia::~HistoryFileMedia() {
-	delete base::take(_animation);
-}
+HistoryFileMedia::~HistoryFileMedia() = default;
 
 HistoryPhoto::HistoryPhoto(HistoryItem *parent, PhotoData *photo, const QString &caption) : HistoryFileMedia(parent)
 , _data(photo)

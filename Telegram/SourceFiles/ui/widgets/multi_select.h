@@ -137,7 +137,7 @@ private:
 	QMargins itemPaintMargins() const;
 
 	const style::MultiSelect &_st;
-	FloatAnimation _iconOpacity;
+	Animation _iconOpacity;
 
 	ScrollCallback _scrollCallback;
 
@@ -157,7 +157,7 @@ private:
 	ChildWidget<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
-	FloatAnimation _height;
+	Animation _height;
 
 	base::lambda<void(const QString &query)> _queryChangedCallback;
 	base::lambda<void(bool ctrlShiftEnter)> _submittedCallback;

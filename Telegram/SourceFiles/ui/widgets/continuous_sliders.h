@@ -105,10 +105,12 @@ private:
 	Callback _changeFinishedCallback;
 
 	bool _over = false;
-	FloatAnimation _a_over;
+	Animation _a_over;
 
+	// This can animate for a very long time (like in music playing),
+	// so it should be a BasicAnimation, not an Animation.
 	anim::value a_value;
-	Animation _a_value;
+	BasicAnimation _a_value;
 
 	bool _mouseDown = false;
 	float64 _downValue = 0.;

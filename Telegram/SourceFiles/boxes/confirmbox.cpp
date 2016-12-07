@@ -204,10 +204,7 @@ void ConfirmBotGameBox::onOpenLink() {
 MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
 , _close(this, lang(lng_box_ok), st::defaultBoxButton)
 , _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _link(link)
-, _linkOver(false)
-, a_goodOpacity(0, 0)
-, _a_good(animation(this, &MaxInviteBox::step_good)) {
+, _link(link) {
 	setMouseTracking(true);
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
@@ -226,8 +223,8 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		Application::clipboard()->setText(_link);
 		_goodTextLink = lang(lng_create_channel_link_copied);
-		a_goodOpacity = anim::value(1, 0);
-		_a_good.start();
+		_a_goodOpacity.finish();
+		_a_goodOpacity.start([this] { update(); }, 1., 0., st::newGroupLinkFadeDuration);
 	}
 }
 
@@ -246,17 +243,6 @@ void MaxInviteBox::updateSelected(const QPoint &cursorGlobalPosition) {
 	}
 }
 
-void MaxInviteBox::step_good(float64 ms, bool timer) {
-	float dt = ms / st::newGroupLinkFadeDuration;
-	if (dt >= 1) {
-		_a_good.stop();
-		a_goodOpacity.finish();
-	} else {
-		a_goodOpacity.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	AbstractBox::paintEvent(e);
 
@@ -271,12 +257,15 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	p.setFont(_linkOver ? st::defaultInputField.font->underline() : st::defaultInputField.font);
 	p.setPen(st::defaultLinkButton.color);
 	p.drawText(_invitationLink, _link, option);
-	if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
-		p.setOpacity(a_goodOpacity.current());
-		p.setPen(st::boxTextFgGood);
-		p.setFont(st::boxTextFont);
-		p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close->height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
-		p.setOpacity(1);
+	if (!_goodTextLink.isEmpty()) {
+		auto opacity = _a_goodOpacity.current(getms(), 0.);
+		if (opacity > 0.) {
+			p.setOpacity(opacity);
+			p.setPen(st::boxTextFgGood);
+			p.setFont(st::boxTextFont);
+			p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close->height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
+			p.setOpacity(1);
+		}
 	}
 }
 

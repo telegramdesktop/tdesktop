@@ -34,13 +34,6 @@ public:
 		return _unreadCount;
 	}
 
-	bool hidden() const;
-
-	void showAnimated();
-	void hideAnimated();
-
-	void finishAnimation();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -48,17 +41,7 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void toggleAnimated();
-	void step_arrowOver(float64 ms, bool timer);
-
 	const style::TwoIconButton &_st;
-
-	bool _shown = false;
-
-	anim::value a_arrowOpacity;
-	Animation _a_arrowOver;
-
-	FloatAnimation _a_show;
 
 	int _unreadCount = 0;
 
@@ -81,8 +64,8 @@ private:
 	const style::IconButton &_st;
 
 	bool _loading = false;
-	FloatAnimation a_loading;
-	Animation _a_loading;
+	Animation a_loading;
+	BasicAnimation _a_loading;
 
 	void step_loading(TimeMs ms, bool timer) {
 		if (timer) {

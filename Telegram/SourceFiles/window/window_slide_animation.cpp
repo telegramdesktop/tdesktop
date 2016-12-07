@@ -28,7 +28,8 @@ namespace Window {
 void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 	int retina = cIntRetinaFactor();
 
-	auto progress = _animation.current(getms());
+	// Animation callback can destroy "this", so we don't pass "ms".
+	auto progress = _animation.current((_direction == SlideDirection::FromLeft) ? 0. : 1.);
 	auto coordUnder = anim::interpolate(0, -st::slideShift, progress);
 	auto coordOver = anim::interpolate(_cacheOver.width() / cIntRetinaFactor(), 0, progress);
 	if (coordOver) {

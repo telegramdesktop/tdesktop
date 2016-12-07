@@ -164,7 +164,6 @@ protected:
 
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	void step_good(float64 ms, bool timer);
 
 	ChildWidget<Ui::RoundButton> _close;
 
@@ -173,13 +172,12 @@ private:
 
 	QString _link;
 	QRect _invitationLink;
-	bool _linkOver;
+	bool _linkOver = false;
 
 	QPoint _lastMousePos;
 
 	QString _goodTextLink;
-	anim::value a_goodOpacity;
-	Animation _a_good;
+	Animation _a_goodOpacity;
 
 };
 

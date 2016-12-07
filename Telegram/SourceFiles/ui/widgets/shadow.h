@@ -58,7 +58,7 @@ protected:
 
 private:
 	const style::color &_color;
-	FloatAnimation _a_opacity;
+	Animation _a_opacity;
 	bool _shown = true;
 
 };

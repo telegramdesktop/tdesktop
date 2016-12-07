@@ -31,8 +31,7 @@ WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 , _entity(entity)
 , _padding(entityPadding)
 , _duration(duration)
-, _updateCallback(std_::move(updateCallback))
-, _a_height(animation(this, &WidgetSlideWrap<TWidget>::step_height)) {
+, _updateCallback(std_::move(updateCallback)) {
 	_entity->setParent(this);
 	auto margins = getMargins();
 	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());
@@ -50,12 +49,9 @@ void WidgetSlideWrap<TWidget>::slideUp() {
 	}
 	if (_a_height.animating()) {
 		if (_hiding) return;
-	} else {
-		a_height = anim::value(_realSize.height());
 	}
-	a_height.start(0.);
 	_hiding = true;
-	_a_height.start();
+	_a_height.start([this] { animationCallback(); }, _realSize.height(), 0., _duration);
 }
 
 void WidgetSlideWrap<TWidget>::slideDown() {
@@ -69,15 +65,14 @@ void WidgetSlideWrap<TWidget>::slideDown() {
 	if (_a_height.animating()) {
 		if (!_hiding) return;
 	}
-	a_height.start(_realSize.height());
-	_forceHeight = qRound(a_height.current());
 	_hiding = false;
-	_a_height.start();
+	_forceHeight = qRound(_a_height.current(0.));
+	_a_height.start([this] { animationCallback(); }, 0., _realSize.height(), _duration);
 }
 
 void WidgetSlideWrap<TWidget>::showFast() {
 	show();
-	_a_height.stop();
+	_a_height.finish();
 	_forceHeight = -1;
 	resizeToWidth(_realSize.width());
 	if (_updateCallback) {
@@ -86,8 +81,7 @@ void WidgetSlideWrap<TWidget>::showFast() {
 }
 
 void WidgetSlideWrap<TWidget>::hideFast() {
-	_a_height.stop();
-	a_height = anim::value();
+	_a_height.finish();
 	_forceHeight = 0;
 	resizeToWidth(_realSize.width());
 	hide();
@@ -135,18 +129,13 @@ int WidgetSlideWrap<TWidget>::resizeGetHeight(int newWidth) {
 	return _realSize.height();
 }
 
-void WidgetSlideWrap<TWidget>::step_height(float64 ms, bool timer) {
-	auto dt = ms / _duration;
-	if (dt >= 1) {
-		a_height.finish();
-		_a_height.stop();
+void WidgetSlideWrap<TWidget>::animationCallback() {
+	_forceHeight = qRound(_a_height.current(_hiding ? 0 : -1));
+	resizeToWidth(_realSize.width());
+	if (!_a_height.animating()) {
 		_forceHeight = _hiding ? 0 : -1;
 		if (_hiding) hide();
-	} else {
-		a_height.update(dt, anim::linear);
-		_forceHeight = qRound(a_height.current());
 	}
-	resizeToWidth(_realSize.width());
 	if (_updateCallback) {
 		_updateCallback();
 	}

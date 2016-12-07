@@ -38,9 +38,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 DragArea::DragArea(QWidget *parent) : TWidget(parent)
 , _hiding(false)
 , _in(false)
-, a_opacity(0)
-, a_colorDrop(0)
-, _a_appearance(animation(this, &DragArea::step_appearance))
 , _shadow(st::boxShadow) {
 	setMouseTracking(true);
 	setAcceptDrops(true);
@@ -49,26 +46,22 @@ DragArea::DragArea(QWidget *parent) : TWidget(parent)
 void DragArea::mouseMoveEvent(QMouseEvent *e) {
 	if (_hiding) return;
 
-	bool newIn = QRect(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom()).contains(e->pos());
-	if (newIn != _in) {
-		_in = newIn;
-		a_opacity.start(1);
-		a_colorDrop.start(_in ? 1. : 0.);
-		_a_appearance.start();
-	}
+	auto in = QRect(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom()).contains(e->pos());
+	setIn(in);
 }
 
 void DragArea::dragMoveEvent(QDragMoveEvent *e) {
 	QRect r(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom());
-	bool newIn = r.contains(e->pos());
-	if (newIn != _in) {
-		_in = newIn;
-		a_opacity.start(1);
-		a_colorDrop.start(_in ? 1. : 0.);
-		_a_appearance.start();
-	}
+	setIn(r.contains(e->pos()));
 	e->setDropAction(_in ? Qt::CopyAction : Qt::IgnoreAction);
 	e->accept();
+}
+
+void DragArea::setIn(bool in) {
+	if (_in != in) {
+		_in = in;
+		_a_in.start([this] { update(); }, _in ? 0. : 1., _in ? 1. : 0., st::defaultDropdownDuration);
+	}
 }
 
 void DragArea::setText(const QString &text, const QString &subtext) {
@@ -80,9 +73,12 @@ void DragArea::setText(const QString &text, const QString &subtext) {
 void DragArea::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_a_appearance.animating()) {
-		p.setOpacity(a_opacity.current());
+	auto ms = getms();
+	auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.);
+	if (!_a_opacity.animating() && _hiding) {
+		return;
 	}
+	p.setOpacity(opacity);
 
 	QRect r(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom());
 
@@ -91,7 +87,7 @@ void DragArea::paintEvent(QPaintEvent *e) {
 
 	p.fillRect(r, st::dragBg);
 
-	p.setPen(anim::pen(st::dragColor, st::dragDropColor, a_colorDrop.current()));
+	p.setPen(anim::pen(st::dragColor, st::dragDropColor, _a_in.current(ms, _in ? 1. : 0.)));
 
 	p.setFont(st::dragFont);
 	p.drawText(QRect(0, (height() - st::dragHeight) / 2, width(), st::dragFont->height), _text, QTextOption(style::al_top));
@@ -108,10 +104,7 @@ void DragArea::dragEnterEvent(QDragEnterEvent *e) {
 
 void DragArea::dragLeaveEvent(QDragLeaveEvent *e) {
 	static_cast<HistoryWidget*>(parentWidget())->dragLeaveEvent(e);
-	_in = false;
-	a_opacity.start(_hiding ? 0 : 1);
-	a_colorDrop.start(_in ? 1. : 0.);
-	_a_appearance.start();
+	setIn(false);
 }
 
 void DragArea::dropEvent(QDropEvent *e) {
@@ -130,47 +123,33 @@ void DragArea::otherLeave() {
 }
 
 void DragArea::hideFast() {
-	if (_a_appearance.animating()) {
-		_a_appearance.stop();
-	}
-	a_opacity = anim::value();
+	_a_opacity.finish();
 	hide();
 }
 
 void DragArea::hideStart() {
 	_hiding = true;
-	_in = false;
-	a_opacity.start(0.);
-	a_colorDrop.start(_in ? 1. : 0.);
-	_a_appearance.start();
+	setIn(false);
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::defaultDropdownDuration);
 }
 
 void DragArea::hideFinish() {
 	hide();
 	_in = false;
-	a_colorDrop = anim::value();
+	_a_in.finish();
 }
 
 void DragArea::showStart() {
 	_hiding = false;
 	show();
-	a_opacity.start(1);
-	a_colorDrop.start(_in ? 1. : 0.);
-	_a_appearance.start();
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::defaultDropdownDuration);
 }
 
-void DragArea::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / st::defaultDropdownDuration;
-	if (dt >= 1) {
-		a_opacity.finish();
-		a_colorDrop.finish();
+void DragArea::opacityAnimationCallback() {
+	update();
+	if (!_a_opacity.animating()) {
 		if (_hiding) {
 			hideFinish();
 		}
-		_a_appearance.stop();
-	} else {
-		a_opacity.update(dt, anim::linear);
-		a_colorDrop.update(dt, anim::linear);
 	}
-	if (timer) update();
 }

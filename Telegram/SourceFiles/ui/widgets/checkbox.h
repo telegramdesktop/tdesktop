@@ -68,7 +68,7 @@ private:
 	QRect _checkRect;
 
 	bool _checked;
-	FloatAnimation _a_checked;
+	Animation _a_checked;
 
 };
 
@@ -117,7 +117,7 @@ private:
 	QRect _checkRect;
 
 	bool _checked;
-	FloatAnimation _a_checked;
+	Animation _a_checked;
 
 	void *_group;
 	int32 _value;

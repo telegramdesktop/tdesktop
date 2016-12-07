@@ -2676,8 +2676,6 @@ HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(p
 , _forwardSelected(forwardSelected)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, a_opacity(0, 1)
-, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , _shadow(st::boxShadow) {
 	init();
 }
@@ -2686,8 +2684,6 @@ HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidge
 , _sharedContact(sharedContact)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, a_opacity(0, 1)
-, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , _shadow(st::boxShadow) {
 	init();
 }
@@ -2696,8 +2692,6 @@ HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 , _sendPath(true)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, a_opacity(0, 1)
-, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , _shadow(st::boxShadow) {
 	init();
 }
@@ -2706,8 +2700,6 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : TWi
 , _botAndQuery(botAndQuery)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, a_opacity(0, 1)
-, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , _shadow(st::boxShadow) {
 	init();
 }
@@ -2717,8 +2709,6 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 , _shareText(text)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, a_opacity(0, 1)
-, _a_appearance(animation(this, &HistoryHider::step_appearance))
 , _shadow(st::boxShadow) {
 	init();
 }
@@ -2731,21 +2721,7 @@ void HistoryHider::init() {
 	_chooseWidth = st::forwardFont->width(lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose));
 
 	resizeEvent(0);
-	_a_appearance.start();
-}
-
-void HistoryHider::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / 200;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_opacity.finish();
-		if (_hiding)	{
-			QTimer::singleShot(0, this, SLOT(deleteLater()));
-		}
-	} else {
-		a_opacity.update(dt, anim::linear);
-	}
-	if (timer) update();
+	_a_opacity.start([this] { update(); }, 0., 1., st::boxDuration);
 }
 
 bool HistoryHider::withConfirm() const {
@@ -2754,7 +2730,15 @@ bool HistoryHider::withConfirm() const {
 
 void HistoryHider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.setOpacity(a_opacity.current());
+	auto opacity = _a_opacity.current(getms(), _hiding ? 0. : 1.);
+	if (opacity == 0.) {
+		if (_hiding) {
+			QTimer::singleShot(0, this, SLOT(deleteLater()));
+		}
+		return;
+	}
+
+	p.setOpacity(opacity);
 	if (!_hiding || !_cacheForAnim.isNull() || !_offered) {
 		p.fillRect(rect(), st::layerBg);
 	}
@@ -2813,10 +2797,16 @@ void HistoryHider::startHide() {
 	} else {
 		if (_offered) _cacheForAnim = myGrab(this, _box);
 		if (_forwardRequest) MTP::cancel(_forwardRequest);
-		a_opacity.start(0);
 		_send->hide();
 		_cancel->hide();
-		_a_appearance.start();
+		_a_opacity.start([this] { animationCallback(); }, 1., 0., st::boxDuration);
+	}
+}
+
+void HistoryHider::animationCallback() {
+	update();
+	if (!_a_opacity.animating() && _hiding) {
+		QTimer::singleShot(0, this, SLOT(deleteLater()));
 	}
 }
 
@@ -3037,7 +3027,7 @@ TextWithTags::Tags textTagsFromEntities(const EntitiesInText &entities) {
 HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _fieldBarCancel(this, st::historyReplyCancel)
 , _scroll(this, st::historyScroll, false)
-, _historyToEnd(this, st::historyToDown)
+, _historyDown(_scroll, st::historyToDown)
 , _fieldAutocomplete(this)
 , _reportSpamPanel(this)
 , _send(this, st::historySend)
@@ -3052,8 +3042,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _botCommandStart(this, st::historyBotCommandStart)
 , _silent(this)
 , _field(this, st::historyComposeField, lang(lng_message_ph))
-, _a_recording(animation(this, &HistoryWidget::step_recording))
 , _recordCancelWidth(st::historyRecordFont->width(lang(lng_record_cancel)))
+, _a_recording(animation(this, &HistoryWidget::step_recording))
 , _kbScroll(this, st::botKbScroll)
 , _keyboard(this)
 , _emojiPan(this)
@@ -3068,7 +3058,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
 	connect(_reportSpamPanel, SIGNAL(clearClicked()), this, SLOT(onReportSpamClear()));
-	connect(_historyToEnd, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
+	connect(_historyDown, SIGNAL(clicked()), this, SLOT(onHistoryToEnd()));
 	connect(_fieldBarCancel, SIGNAL(clicked()), this, SLOT(onFieldBarCancel()));
 	connect(_send, SIGNAL(clicked()), this, SLOT(onSend()));
 	connect(_unblock, SIGNAL(clicked()), this, SLOT(onUnblock()));
@@ -3138,7 +3128,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 
 	updateScrollColors();
 
-	_historyToEnd->installEventFilter(this);
+	_historyDown->installEventFilter(this);
 
 	_fieldAutocomplete->hide();
 	connect(_fieldAutocomplete, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onMentionInsert(UserData*)));
@@ -4346,7 +4336,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 			if (wasHistory) _peer->asUser()->botInfo->inlineReturnPeerId = wasHistory->peer->id;
 			onBotStart();
 		}
-		unreadCountChanged(_history); // set _historyToEnd badge.
+		unreadCountChanged(_history); // set _historyDown badge.
 	} else {
 		clearFieldText();
 		doneShow();
@@ -4523,7 +4513,7 @@ void HistoryWidget::updateControlsVisibility() {
 	if (!_a_show.animating()) {
 		_topShadow->setVisible(_peer ? true : false);
 	}
-	updateToEndVisibility();
+	updateHistoryDownVisibility();
 	if (!_history || _a_show.animating()) {
 		_reportSpamPanel->hide();
 		_scroll->hide();
@@ -4540,7 +4530,7 @@ void HistoryWidget::updateControlsVisibility() {
 		_attachToggle->hide();
 		_attachEmoji->hide();
 		_silent->hide();
-		_historyToEnd->hide();
+		_historyDown->hide();
 		_botKeyboardShow->hide();
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
@@ -4781,9 +4771,9 @@ void HistoryWidget::historyWasRead(ReadServerHistoryChecks checks) {
 
 void HistoryWidget::unreadCountChanged(History *history) {
 	if (history == _history || history == _migrated) {
-		updateToEndVisibility();
-		if (_historyToEnd) {
-			_historyToEnd->setUnreadCount(_history->unreadCount() + (_migrated ? _migrated->unreadCount() : 0));
+		updateHistoryDownVisibility();
+		if (_historyDown) {
+			_historyDown->setUnreadCount(_history->unreadCount() + (_migrated ? _migrated->unreadCount() : 0));
 		}
 	}
 }
@@ -5118,7 +5108,7 @@ void HistoryWidget::visibleAreaUpdated() {
 void HistoryWidget::preloadHistoryIfNeeded() {
 	if (_firstLoadRequest || _scroll->isHidden() || !_peer) return;
 
-	updateToEndVisibility();
+	updateHistoryDownVisibility();
 
 	int st = _scroll->scrollTop(), stm = _scroll->scrollTopMax(), sh = _scroll->height();
 	if (st + PreloadHeightsCount * sh > stm) {
@@ -5456,7 +5446,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_cacheUnder = params.oldContentCache;
 	show();
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
-	_historyToEnd->finishAnimation();
+	historyDownAnimationFinish();
 	_cacheOver = App::main()->grabForShowAnimation(params);
 	App::main()->topBar()->startAnim();
 	_topShadow->setVisible(params.withTopBarShadow ? true : false);
@@ -5464,7 +5454,7 @@ void HistoryWidget::showAnimated(Window::SlideDirection direction, const Window:
 	_scroll->hide();
 	_kbScroll->hide();
 	_reportSpamPanel->hide();
-	_historyToEnd->hide();
+	_historyDown->hide();
 	_attachToggle->hide();
 	_attachEmoji->hide();
 	_fieldAutocomplete->hide();
@@ -5500,7 +5490,7 @@ void HistoryWidget::animationCallback() {
 	App::main()->topBar()->update();
 	if (!_a_show.animating()) {
 		_topShadow->setVisible(_peer ? true : false);
-		_historyToEnd->finishAnimation();
+		historyDownAnimationFinish();
 
 		_cacheUnder = _cacheOver = QPixmap();
 		App::main()->topBar()->stopAnim();
@@ -5528,7 +5518,12 @@ void HistoryWidget::finishAnimation() {
 	if (!_a_show.animating()) return;
 	_a_show.finish();
 	_topShadow->setVisible(_peer ? true : false);
-	_historyToEnd->finishAnimation();
+	historyDownAnimationFinish();
+}
+
+void HistoryWidget::historyDownAnimationFinish() {
+	_historyDownShown.finish();
+	updateHistoryDownPosition();
 }
 
 void HistoryWidget::recordActiveCallback() {
@@ -5634,7 +5629,7 @@ void HistoryWidget::mouseMoveEvent(QMouseEvent *e) {
 	}
 	if (inField != _inField && _recording) {
 		_inField = inField;
-		_a_recordActive.start([this] { recordActiveCallback(); }, _inField ? 0. : 1., _inField ? 1. : 0., st::historyComposeButton.duration);
+		_a_recordActive.start([this] { recordActiveCallback(); }, _inField ? 0. : 1., _inField ? 1. : 0., st::historyRecordVoiceDuration);
 	}
 	_inReplyEdit = inReplyEdit;
 	_inPinnedMsg = inPinnedMsg;
@@ -5680,7 +5675,7 @@ void HistoryWidget::stopRecording(bool send) {
 	updateField();
 
 	if (_inField) {
-		_a_recordActive.start([this] { recordActiveCallback(); }, 1., 0., st::historyComposeButton.duration);
+		_a_recordActive.start([this] { recordActiveCallback(); }, 1., 0., st::historyRecordVoiceDuration);
 	}
 
 	if (_recordRipple) {
@@ -5873,7 +5868,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 }
 
 bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
-	if (obj == _historyToEnd && e->type() == QEvent::Wheel) {
+	if (obj == _historyDown && e->type() == QEvent::Wheel) {
 		return _scroll->viewportEvent(e);
 	}
 	return TWidget::eventFilter(obj, e);
@@ -7096,7 +7091,7 @@ void HistoryWidget::updateControlsGeometry() {
 
 	updateFieldSize();
 
-	_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll->y() + _scroll->height() - _historyToEnd->height() - st::historyToDownPosition.y());
+	updateHistoryDownPosition();
 
 	_emojiPan->setMaxHeight(height() - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom() - _attachEmoji->height());
 	if (_membersDropdown) {
@@ -7196,7 +7191,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		}
 
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
-		_historyToEnd->moveToRight(st::historyToDownPosition.x(), _scroll->y() + _scroll->height() - _historyToEnd->height() - st::historyToDownPosition.y());
+		_historyDown->moveToRight(st::historyToDownPosition.x(), _scroll->y() + _scroll->height() - _historyDown->height() - st::historyToDownPosition.y());
 	}
 
 	_list->recountHeight();
@@ -7439,7 +7434,16 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	update();
 }
 
-void HistoryWidget::updateToEndVisibility() {
+void HistoryWidget::updateHistoryDownPosition() {
+	auto top = anim::interpolate(0, _historyDown->height() + st::historyToDownPosition.y(), _historyDownShown.current(_historyDownIsShown ? 1. : 0.));
+	_historyDown->moveToRight(st::historyToDownPosition.x(), _scroll->height() - top);
+	auto shouldBeHidden = !_historyDownIsShown && !_historyDownShown.animating();
+	if (shouldBeHidden != _historyDown->isHidden()) {
+		_historyDown->setVisible(!shouldBeHidden);
+	}
+}
+
+void HistoryWidget::updateHistoryDownVisibility() {
 	if (_a_show.animating()) return;
 
 	auto haveUnreadBelowBottom = [this](History *history) {
@@ -7451,7 +7455,7 @@ void HistoryWidget::updateToEndVisibility() {
 		}
 		return (_list->itemTop(history->showFrom) >= _scroll->scrollTop() + _scroll->height());
 	};
-	auto isToEndVisible = [this, &haveUnreadBelowBottom]() {
+	auto historyDownIsVisible = [this, &haveUnreadBelowBottom]() {
 		if (!_history || _firstLoadRequest) {
 			return false;
 		}
@@ -7466,11 +7470,10 @@ void HistoryWidget::updateToEndVisibility() {
 		}
 		return false;
 	};
-	bool toEndVisible = isToEndVisible();
-	if (toEndVisible && _historyToEnd->hidden()) {
-		_historyToEnd->showAnimated();
-	} else if (!toEndVisible && !_historyToEnd->hidden()) {
-		_historyToEnd->hideAnimated();
+	auto historyDownIsShown = historyDownIsVisible();
+	if (_historyDownIsShown != historyDownIsShown) {
+		_historyDownIsShown = historyDownIsShown;
+		_historyDownShown.start([this] { updateHistoryDownPosition(); }, _historyDownIsShown ? 0. : 1., _historyDownIsShown ? 1. : 0., st::historyToDownDuration);
 	}
 }
 
@@ -7487,7 +7490,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 
 		updateField();
 
-		_a_recordActive.start([this] { recordActiveCallback(); }, 0., 1., st::historyComposeButton.duration);
+		_a_recordActive.start([this] { recordActiveCallback(); }, 0., 1., st::historyRecordVoiceDuration);
 
 		if (!_recordRipple) {
 			auto mask = Ui::RippleAnimation::ellipseMask(QSize(st::historyAttachEmoji.rippleAreaSize, st::historyAttachEmoji.rippleAreaSize));
@@ -8797,6 +8800,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	bool hasTopBar = !App::main()->topBar()->isHidden();
 
 	auto ms = getms();
+	_historyDownShown.step(ms);
 	auto progress = _a_show.current(ms, 1.);
 	if (_a_show.animating()) {
 		auto retina = cIntRetinaFactor();

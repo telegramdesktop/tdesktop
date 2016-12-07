@@ -54,7 +54,7 @@ private:
 	PeerData *_peer;
 	bool _waiting = false;
 	QPixmap _userpic, _oldUserpic;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 
 };
 

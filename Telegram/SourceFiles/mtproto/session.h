@@ -28,18 +28,64 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace MTP {
 namespace internal {
 
-class Session;
+class ReceivedMsgIds {
+public:
+	bool registerMsgId(mtpMsgId msgId, bool needAck) {
+		auto i = _idsNeedAck.constFind(msgId);
+		if (i == _idsNeedAck.cend()) {
+			if (_idsNeedAck.size() < MTPIdsBufferSize || msgId > min()) {
+				_idsNeedAck.insert(msgId, needAck);
+				return true;
+			}
+			MTP_LOG(-1, ("No need to handle - %1 < min = %2").arg(msgId).arg(min()));
+		} else {
+			MTP_LOG(-1, ("No need to handle - %1 already is in map").arg(msgId));
+		}
+		return false;
+	}
 
+	mtpMsgId min() const {
+		return _idsNeedAck.isEmpty() ? 0 : _idsNeedAck.cbegin().key();
+	}
+
+	mtpMsgId max() const {
+		auto end = _idsNeedAck.cend();
+		return _idsNeedAck.isEmpty() ? 0 : (--end).key();
+	}
+
+	void shrink() {
+		auto size = _idsNeedAck.size();
+		while (size-- > MTPIdsBufferSize) {
+			_idsNeedAck.erase(_idsNeedAck.begin());
+		}
+	}
+
+	enum class State {
+		NotFound,
+		NeedsAck,
+		NoAckNeeded,
+	};
+	State lookup(mtpMsgId msgId) const {
+		auto i = _idsNeedAck.constFind(msgId);
+		if (i == _idsNeedAck.cend()) {
+			return State::NotFound;
+		}
+		return i.value() ? State::NeedsAck : State::NoAckNeeded;
+	}
+
+	void clear() {
+		_idsNeedAck.clear();
+	}
+
+private:
+	QMap<mtpMsgId, bool> _idsNeedAck;
+
+};
+
+class Session;
 class SessionData {
 public:
-	SessionData(Session *creator)
-	: _session(0)
-	, _salt(0)
-	, _messagesSent(0)
-	, _fakeRequestId(-2000000000)
-	, _owner(creator)
-	, _keyChecked(false)
-	, _layerInited(false) {
+	SessionData(Session *creator) : _owner(creator) {
 	}
 
 	void setSession(uint64 session) {
@@ -142,10 +188,10 @@ public:
 	const mtpRequestIdsMap &toResendMap() const {
 		return toResend;
 	}
-	mtpMsgIdsMap &receivedIdsSet() {
+	ReceivedMsgIds &receivedIdsSet() {
 		return receivedIds;
 	}
-	const mtpMsgIdsMap &receivedIdsSet() const {
+	const ReceivedMsgIds &receivedIdsSet() const {
 		return receivedIds;
 	}
 	mtpRequestIdsMap &wereAckedMap() {
@@ -193,20 +239,22 @@ public:
 	void clear();
 
 private:
-	uint64 _session, _salt;
+	uint64 _session = 0;
+	uint64 _salt = 0;
 
-	uint32 _messagesSent;
-	mtpRequestId _fakeRequestId;
+	uint32 _messagesSent = 0;
+	mtpRequestId _fakeRequestId = -2000000000;
 
-	Session *_owner;
+	Session *_owner = nullptr;
 
 	AuthKeyPtr _authKey;
-	bool _keyChecked, _layerInited;
+	bool _keyChecked = false;
+	bool _layerInited = false;
 
 	mtpPreRequestMap toSend; // map of request_id -> request, that is waiting to be sent
 	mtpRequestMap haveSent; // map of msg_id -> request, that was sent, msDate = 0 for msgs_state_req (no resend / state req), msDate = 0, seqNo = 0 for containers
 	mtpRequestIdsMap toResend; // map of msg_id -> request_id, that request_id -> request lies in toSend and is waiting to be resent
-	mtpMsgIdsMap receivedIds; // set of received msg_id's, for checking new msg_ids
+	ReceivedMsgIds receivedIds; // set of received msg_id's, for checking new msg_ids
 	mtpRequestIdsMap wereAcked; // map of msg_id -> request_id, this msg_ids already were acked or do not need ack
 	mtpResponseMap haveReceived; // map of request_id -> response, that should be processed in other thread
 	mtpMsgIdsSet stateRequest; // set of msg_id's, whose state should be requested

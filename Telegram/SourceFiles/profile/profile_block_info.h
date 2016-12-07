@@ -84,7 +84,7 @@ private:
 	ChildWidget<Ui::FlatLabel> _username = { nullptr };
 	ChildWidget<Ui::LeftOutlineButton> _commonGroups = { nullptr };
 
-	FloatAnimation _height;
+	Animation _height;
 	bool _showFinished = false;
 
 	bool _forceHiddenCommonGroups = false;

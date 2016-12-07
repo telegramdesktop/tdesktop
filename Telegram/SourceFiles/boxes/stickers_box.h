@@ -246,7 +246,7 @@ private:
 	QList<TimeMs> _animStartTimes;
 	TimeMs _aboveShadowFadeStart = 0;
 	anim::value _aboveShadowFadeOpacity;
-	Animation _a_shifting;
+	BasicAnimation _a_shifting;
 
 	base::lambda<void(uint64 setId)> _installSetCallback;
 

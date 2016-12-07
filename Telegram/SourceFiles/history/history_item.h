@@ -372,7 +372,7 @@ private:
 	ButtonRows _rows;
 
 	Animations _animations;
-	Animation _a_selected;
+	BasicAnimation _a_selected;
 
 	StylePtr _st;
 

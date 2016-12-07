@@ -80,7 +80,7 @@ private:
 	void createChildRow(ChildWidget<Ui::WidgetSlideWrap<Widget>> &child, style::margins &margin, const style::margins &padding, Args&&... args) {
 		ChildWidget<Widget> plainChild = { nullptr };
 		createChildRow(plainChild, margin, std_::forward<Args>(args)...);
-		child = new Ui::WidgetSlideWrap<Widget>(this, plainChild, padding, [this]() {
+		child.create(this, plainChild, padding, [this]() {
 			rowHeightUpdated();
 		});
 		margin.setLeft(margin.left() - padding.left());

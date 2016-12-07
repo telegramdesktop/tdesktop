@@ -61,7 +61,7 @@ public:
 
 	typedef QMap<History*, TimeMs> TypingHistories; // when typing in this history started
 	TypingHistories typing;
-	Animation _a_typings;
+	BasicAnimation _a_typings;
 
 	int unreadBadge() const;
 	int unreadMutedCount() const {

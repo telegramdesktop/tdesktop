@@ -52,7 +52,7 @@ private:
 	void handleTimer();
 
 	bool _hiding = false;
-	FloatAnimation _animation;
+	Animation _animation;
 	QPixmap _cache;
 	QRect _inner, _outer;
 

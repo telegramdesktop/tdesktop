@@ -190,8 +190,8 @@ private:
 	QString _ph, _phelided;
 	int _phAfter = 0;
 	bool _placeholderVisible = true;
-	FloatAnimation _a_placeholderFocused;
-	FloatAnimation _a_placeholderVisible;
+	Animation _a_placeholderFocused;
+	Animation _a_placeholderVisible;
 
 	TextWithTags _lastTextWithTags;
 
@@ -314,8 +314,8 @@ private:
 	bool _customUpDown = false;
 
 	bool _placeholderVisible = true;
-	FloatAnimation _a_placeholderFocused;
-	FloatAnimation _a_placeholderVisible;
+	Animation _a_placeholderFocused;
+	Animation _a_placeholderVisible;
 
 	const style::FlatInput &_st;
 
@@ -468,13 +468,13 @@ private:
 
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible;
-	FloatAnimation _a_placeholderFocused;
-	FloatAnimation _a_placeholderVisible;
+	Animation _a_placeholderFocused;
+	Animation _a_placeholderVisible;
 
 	anim::value a_borderOpacityActive;
 	anim::value a_borderFgActive;
 	anim::value a_borderFgError;
-	Animation _a_border;
+	BasicAnimation _a_border;
 
 	bool _focused, _error;
 
@@ -634,13 +634,13 @@ private:
 
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible;
-	FloatAnimation _a_placeholderFocused;
-	FloatAnimation _a_placeholderVisible;
+	Animation _a_placeholderFocused;
+	Animation _a_placeholderVisible;
 
 	anim::value a_borderOpacityActive;
 	anim::value a_borderFgActive;
 	anim::value a_borderFgError;
-	Animation _a_border;
+	BasicAnimation _a_border;
 
 	bool _focused, _error;
 
@@ -754,13 +754,13 @@ private:
 
 	QString _placeholder, _placeholderFull;
 	bool _placeholderVisible, _placeholderFast;
-	FloatAnimation _a_placeholderFocused;
-	FloatAnimation _a_placeholderVisible;
+	Animation _a_placeholderFocused;
+	Animation _a_placeholderVisible;
 
 	anim::value a_borderOpacityActive;
 	anim::value a_borderFgActive;
 	anim::value a_borderFgError;
-	Animation _a_border;
+	BasicAnimation _a_border;
 
 	bool _focused, _error;
 

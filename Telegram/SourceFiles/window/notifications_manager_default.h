@@ -114,7 +114,7 @@ private:
 	using QueuedNotifications = QList<QueuedNotification>;
 	QueuedNotifications _queuedNotifications;
 
-	FloatAnimation _demoMasterOpacity;
+	Animation _demoMasterOpacity;
 
 };
 
@@ -150,23 +150,20 @@ protected:
 	virtual void updateGeometry(int x, int y, int width, int height);
 
 private:
+	void opacityAnimationCallback();
 	void destroyDelayed();
 	void moveByShift();
 	void hideAnimated(float64 duration, const anim::transition &func);
-	void step_opacity(float64 ms, bool timer);
 	void step_shift(float64 ms, bool timer);
 
 	bool _hiding = false;
 	bool _deleted = false;
-	float64 _opacityDuration;
-	anim::value a_opacity;
-	anim::transition a_func;
 	Animation _a_opacity;
 
 	QPoint _startPosition;
 	Direction _direction;
 	anim::value a_shift;
-	Animation _a_shift;
+	BasicAnimation _a_shift;
 
 };
 
@@ -234,7 +231,7 @@ private:
 
 	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
-	FloatAnimation a_actionsOpacity;
+	Animation a_actionsOpacity;
 	QPixmap _buttonsCache;
 
 #if defined Q_OS_WIN && !defined Q_OS_WINRT

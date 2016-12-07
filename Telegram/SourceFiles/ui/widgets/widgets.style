@@ -64,7 +64,6 @@ FlatButton {
 
 	font: font;
 	overFont: font;
-	duration: int;
 
 	ripple: RippleAnimation;
 }

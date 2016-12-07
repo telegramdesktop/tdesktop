@@ -157,7 +157,7 @@ private:
 	void fillEmojiString();
 	void resetGifAndCache();
 
-	FloatAnimation _a_shown;
+	Animation _a_shown;
 	bool _hiding = false;
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;

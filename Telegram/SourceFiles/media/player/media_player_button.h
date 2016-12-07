@@ -33,8 +33,7 @@ public:
 		Pause,
 		Cancel,
 	};
-	using UpdateCallback = FloatAnimation::Callback;
-	PlayButtonLayout(const style::MediaPlayerButton &st, UpdateCallback &&callback);
+	PlayButtonLayout(const style::MediaPlayerButton &st, base::lambda<void()> &&callback);
 
 	void setState(State state);
 	void finishTransform();
@@ -54,10 +53,10 @@ private:
 	State _state = State::Play;
 	State _oldState = State::Play;
 	State _nextState = State::Play;
-	FloatAnimation _transformProgress;
+	Animation _transformProgress;
 	bool _transformBackward = false;
 
-	UpdateCallback _callback;
+	base::lambda<void()> _callback;
 
 };
 

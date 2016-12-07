@@ -135,9 +135,7 @@ RippleButton::~RippleButton() = default;
 
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st) : RippleButton(parent, st.ripple)
 , _text(text)
-, _st(st)
-, a_over(0)
-, _a_appearance(animation(this, &FlatButton::step_appearance)) {
+, _st(st) {
 	if (_st.width < 0) {
 		_width = textWidth() - _st.width;
 	} else if (!_st.width) {
@@ -146,15 +144,6 @@ FlatButton::FlatButton(QWidget *parent, const QString &text, const style::FlatBu
 		_width = _st.width;
 	}
 	resize(_width, _st.height);
-}
-
-void FlatButton::setOpacity(float64 o) {
-	_opacity = o;
-	update();
-}
-
-float64 FlatButton::opacity() const {
-	return _opacity;
 }
 
 void FlatButton::setText(const QString &text) {
@@ -176,44 +165,22 @@ int32 FlatButton::textWidth() const {
 	return _st.font->width(_text);
 }
 
-void FlatButton::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / _st.duration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_over.finish();
-	} else {
-		a_over.update(dt, anim::linear);
-	}
-	if (timer) update();
-}
-
 void FlatButton::onStateChanged(State was, StateChangeSource source) {
 	RippleButton::onStateChanged(was, source);
-
-	a_over.start(isOver() ? 1. : 0.);
-	if (source == StateChangeSource::ByUser || source == StateChangeSource::ByPress) {
-		_a_appearance.stop();
-		a_over.finish();
-		update();
-	} else {
-		_a_appearance.start();
-	}
+	update();
 }
 
 void FlatButton::paintEvent(QPaintEvent *e) {
 	QPainter p(this);
 
 	QRect r(0, height() - _st.height, width(), _st.height);
+	p.fillRect(r, isOver() ? _st.overBgColor : _st.bgColor);
 
-	p.setOpacity(_opacity);
-	p.fillRect(r, anim::brush(_st.bgColor, _st.overBgColor, a_over.current()));
-
-	auto ms = getms();
-	paintRipple(p, 0, 0, ms);
+	paintRipple(p, 0, 0, getms());
 
 	p.setFont(isOver() ? _st.overFont : _st.font);
 	p.setRenderHint(QPainter::TextAntialiasing);
-	p.setPen(anim::pen(_st.color, _st.overColor, a_over.current()));
+	p.setPen(isOver() ? _st.overColor : _st.color);
 
 	r.setTop(_st.textTop);
 	p.drawText(r, _text, style::al_top);
@@ -269,8 +236,12 @@ void RoundButton::resizeToText() {
 		resize(innerWidth - _st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	} else {
 		if (_st.width < innerWidth + (_st.height - _st.font->height)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
-			innerWidth = _st.font->width(_text);
+			auto fullText = _fullText;
+			if (_transform == TextTransform::ToUpper) {
+				fullText = std_::move(fullText).toUpper();
+			}
+			_text = _st.font->elided(fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
+			_textWidth = _st.font->width(_text);
 		}
 		resize(_st.width + _st.padding.left() + _st.padding.right(), _st.height + _st.padding.top() + _st.padding.bottom());
 	}

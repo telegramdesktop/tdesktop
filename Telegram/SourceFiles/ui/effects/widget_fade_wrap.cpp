@@ -29,7 +29,7 @@ FadeAnimation::FadeAnimation(TWidget *widget) : _widget(widget) {
 bool FadeAnimation::paint(Painter &p) {
 	if (_cache.isNull()) return false;
 
-	p.setOpacity(_animation.current(_visible ? 1. : 0.));
+	p.setOpacity(_animation.current(getms(), _visible ? 1. : 0.));
 	p.drawPixmap(0, 0, _cache);
 	return true;
 }

@@ -112,7 +112,7 @@ void registerClipManager(Media::Clip::Manager *manager) {
 
 } // anim
 
-void Animation::start() {
+void BasicAnimation::start() {
 	if (!_manager) return;
 
 	_callbacks.start();
@@ -120,7 +120,7 @@ void Animation::start() {
 	_animating = true;
 }
 
-void Animation::stop() {
+void BasicAnimation::stop() {
 	if (!_manager) return;
 
 	_animating = false;
@@ -132,7 +132,7 @@ AnimationManager::AnimationManager() : _timer(this), _iterating(false) {
 	connect(&_timer, SIGNAL(timeout()), this, SLOT(timeout()));
 }
 
-void AnimationManager::start(Animation *obj) {
+void AnimationManager::start(BasicAnimation *obj) {
 	if (_iterating) {
 		_starting.insert(obj);
 		if (!_stopping.isEmpty()) {
@@ -146,7 +146,7 @@ void AnimationManager::start(Animation *obj) {
 	}
 }
 
-void AnimationManager::stop(Animation *obj) {
+void AnimationManager::stop(BasicAnimation *obj) {
 	if (_iterating) {
 		_stopping.insert(obj);
 		if (!_starting.isEmpty()) {

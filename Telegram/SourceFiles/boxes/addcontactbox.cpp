@@ -436,9 +436,7 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 , _link(this, st::defaultInputField, QString(), channel->username, true)
 , _linkOver(false)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton)
-, a_goodOpacity(0, 0)
-, _a_goodFade(animation(this, &SetupChannelBox::step_goodFade)) {
+, _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton) {
 	setMouseTracking(true);
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
@@ -515,12 +513,15 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::defaultLinkButton.color);
 			p.drawText(_invitationLink, _channel->inviteLink(), option);
-			if (!_goodTextLink.isEmpty() && a_goodOpacity.current() > 0) {
-				p.setOpacity(a_goodOpacity.current());
-				p.setPen(st::boxTextFgGood);
-				p.setFont(st::boxTextFont);
-				p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
-				p.setOpacity(1);
+			if (!_goodTextLink.isEmpty()) {
+				auto opacity = _a_goodOpacity.current(getms(), 0.);
+				if (opacity > 0.) {
+					p.setOpacity(opacity);
+					p.setPen(st::boxTextFgGood);
+					p.setFont(st::boxTextFont);
+					p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
+					p.setOpacity(1);
+				}
 			}
 		}
 	} else {
@@ -557,8 +558,8 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		Application::clipboard()->setText(_channel->inviteLink());
 		_goodTextLink = lang(lng_create_channel_link_copied);
-		a_goodOpacity = anim::value(1, 0);
-		_a_goodFade.start();
+		_a_goodOpacity.finish();
+		_a_goodOpacity.start([this] { update(); }, 1., 0., st::newGroupLinkFadeDuration);
 	}
 }
 
@@ -575,17 +576,6 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 		update();
 		setCursor(_linkOver ? style::cur_pointer : style::cur_default);
 	}
-}
-
-void SetupChannelBox::step_goodFade(float64 ms, bool timer) {
-	float dt = ms / st::newGroupLinkFadeDuration;
-	if (dt >= 1) {
-		_a_goodFade.stop();
-		a_goodOpacity.finish();
-	} else {
-		a_goodOpacity.update(dt, anim::linear);
-	}
-	if (timer) update();
 }
 
 void SetupChannelBox::closePressed() {

@@ -107,11 +107,11 @@ private:
 			, radial(std_::move(callbacks)) {
 		}
 		bool over;
-		FloatAnimation _a_over;
+		Animation _a_over;
 		Ui::RadialAnimation radial;
 	};
 	mutable std_::unique_ptr<AnimationData> _animation;
-	mutable FloatAnimation _a_deleteOver;
+	mutable Animation _a_deleteOver;
 
 };
 
@@ -170,7 +170,7 @@ private:
 
 	QSize getThumbSize() const;
 
-	mutable FloatAnimation _a_over;
+	mutable Animation _a_over;
 	mutable bool _active = false;
 
 	mutable QPixmap _thumb;
@@ -242,7 +242,7 @@ public:
 	~File();
 
 private:
-	void step_thumbOver(float64 ms, bool timer);
+	void thumbAnimationCallback();
 	void step_radial(TimeMs ms, bool timer);
 
 	void ensureAnimation() const;
@@ -256,20 +256,16 @@ private:
 		return _animation && _animation->radial.animating();
 	}
 	bool isThumbAnimation(TimeMs ms) const {
-		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
-
-		_animation->_a_thumbOver.step(ms);
-		return _animation && _animation->_a_thumbOver.animating();
+		if (_animation) {
+			return _animation->a_thumbOver.animating(ms);
+		}
+		return false;
 	}
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&thumbOverCallbacks, AnimationCallbacks &&radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(std_::move(thumbOverCallbacks))
-			, radial(std_::move(radialCallbacks)) {
+		AnimationData(AnimationCallbacks &&radialCallbacks) : radial(std_::move(radialCallbacks)) {
 		}
-		anim::value a_thumbOver;
-		Animation _a_thumbOver;
-
+		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
 	mutable std_::unique_ptr<AnimationData> _animation;

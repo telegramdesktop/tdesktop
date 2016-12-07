@@ -52,7 +52,7 @@ private:
 	void updateCallback();
 
 	TWidget *_widget;
-	FloatAnimation _animation;
+	Animation _animation;
 	QPixmap _cache;
 	bool _visible = false;
 

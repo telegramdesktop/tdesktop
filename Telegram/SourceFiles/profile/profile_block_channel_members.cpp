@@ -65,7 +65,7 @@ void ChannelMembersWidget::addButton(const QString &text, ChildWidget<Ui::LeftOu
 	} else if (*button) {
 		(*button)->setText(text);
 	} else {
-		(*button) = new Ui::LeftOutlineButton(this, text, st::defaultLeftOutlineButton);
+		button->create(this, text, st::defaultLeftOutlineButton);
 		(*button)->show();
 		connect(*button, SIGNAL(clicked()), this, slot);
 	}

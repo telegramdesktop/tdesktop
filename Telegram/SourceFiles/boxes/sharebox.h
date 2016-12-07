@@ -69,6 +69,8 @@ protected:
 	void doSetInnerFocus() override;
 
 private:
+	void scrollAnimationCallback();
+
 	void onFilterUpdate(const QString &query);
 	void onSelectedChanged();
 	void moveButtons();
@@ -107,7 +109,7 @@ private:
 	using PeopleQueries = QMap<mtpRequestId, QString>;
 	PeopleQueries _peopleQueries;
 
-	FloatAnimation _scrollAnimation;
+	Animation _scrollAnimation;
 
 };
 
@@ -161,7 +163,7 @@ private:
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
 		Text name;
-		FloatAnimation nameActive;
+		Animation nameActive;
 	};
 	void paintChat(Painter &p, TimeMs ms, Chat *chat, int index);
 	void updateChat(PeerData *peer);

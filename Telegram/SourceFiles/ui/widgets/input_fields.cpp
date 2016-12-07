@@ -1717,9 +1717,6 @@ InputArea::InputArea(QWidget *parent, const style::InputArea &st, const QString 
 , _placeholderFull(ph)
 , _placeholderVisible(val.isEmpty())
 
-, a_borderOpacityActive(0)
-, a_borderFgActive(0)
-, a_borderFgError(0)
 , _a_border(animation(this, &InputArea::step_border))
 
 , _focused(false)
@@ -2412,9 +2409,6 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 , _placeholderFull(ph)
 , _placeholderVisible(val.isEmpty())
 
-, a_borderOpacityActive(0)
-, a_borderFgActive(0)
-, a_borderFgError(0)
 , _a_border(animation(this, &InputField::step_border))
 
 , _focused(false)
@@ -3125,9 +3119,6 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 , _placeholderVisible(val.isEmpty())
 , _placeholderFast(false)
 
-, a_borderOpacityActive(0)
-, a_borderFgActive(0)
-, a_borderFgError(0)
 , _a_border(animation(this, &MaskedInputField::step_border))
 
 , _focused(false)

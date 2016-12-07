@@ -177,7 +177,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			if (!doc || !doc->sticker()) continue;
 
 			_pack.push_back(doc);
-			_packOvers.push_back(FloatAnimation());
+			_packOvers.push_back(Animation());
 		}
 		auto &packs(d.vpacks.c_vector().v);
 		for (int i = 0, l = packs.size(); i < l; ++i) {
@@ -389,6 +389,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 
 	if (_pack.isEmpty()) return;
 
+	auto ms = getms();
 	int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
 	int32 from = qFloor(e->rect().top() / st::stickersSize.height()), to = qFloor(e->rect().bottom() / st::stickersSize.height()) + 1;
 
@@ -401,7 +402,7 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 			DocumentData *doc = _pack.at(index);
 			QPoint pos(st::stickersPadding.left() + j * st::stickersSize.width(), st::stickersPadding.top() + i * st::stickersSize.height());
 
-			if (auto over = _packOvers[index].current((index == _selected) ? 1. : 0.)) {
+			if (auto over = _packOvers[index].current(ms, (index == _selected) ? 1. : 0.)) {
 				p.setOpacity(over);
 				QPoint tl(pos);
 				if (rtl()) tl.setX(width() - tl.x() - st::stickersSize.width());

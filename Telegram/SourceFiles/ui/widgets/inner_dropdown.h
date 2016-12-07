@@ -108,11 +108,11 @@ private:
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
 	std_::unique_ptr<PanelAnimation> _showAnimation;
-	FloatAnimation _a_show;
+	Animation _a_show;
 
 	bool _hiding = false;
 	QPixmap _cache;
-	FloatAnimation _a_opacity;
+	Animation _a_opacity;
 
 	QTimer _hideTimer;
 	bool _ignoreShowEvents = false;

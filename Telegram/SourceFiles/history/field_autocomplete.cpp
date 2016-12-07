@@ -31,9 +31,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
-, _inner(this, &_mrows, &_hrows, &_brows, &_srows)
-, a_opacity(0)
-, _a_appearance(animation(this, &FieldAutocomplete::step_appearance)) {
+, _inner(this, &_mrows, &_hrows, &_brows, &_srows) {
 	connect(_inner, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)));
 	connect(_inner, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)));
@@ -47,15 +45,22 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 	_scroll->show();
 	_inner->show();
 
+	hide();
+
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
 }
 
 void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_a_appearance.animating()) {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
+	auto opacity = _a_opacity.current(getms(), _hiding ? 0. : 1.);
+	if (opacity < 1.) {
+		if (opacity > 0.) {
+			p.setOpacity(opacity);
+			p.drawPixmap(0, 0, _cache);
+		} else if (_hiding) {
+
+		}
 		return;
 	}
 
@@ -392,10 +397,7 @@ void FieldAutocomplete::recount(bool resetScroll) {
 }
 
 void FieldAutocomplete::hideFast() {
-	if (_a_appearance.animating()) {
-		_a_appearance.stop();
-	}
-	a_opacity = anim::value();
+	_a_opacity.finish();
 	hideFinish();
 }
 
@@ -410,9 +412,8 @@ void FieldAutocomplete::hideAnimated() {
 	}
 	_scroll->hide();
 	_hiding = true;
-	a_opacity.start(0);
+	_a_opacity.start([this] { animationCallback(); }, 1., 0., st::defaultDropdownDuration);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
-	_a_appearance.start();
 }
 
 void FieldAutocomplete::hideFinish() {
@@ -423,7 +424,7 @@ void FieldAutocomplete::hideFinish() {
 }
 
 void FieldAutocomplete::showAnimated() {
-	if (!isHidden() && a_opacity.current() == 1 && !_hiding) {
+	if (!isHidden() && !_hiding) {
 		return;
 	}
 	if (_cache.isNull()) {
@@ -433,16 +434,13 @@ void FieldAutocomplete::showAnimated() {
 	_scroll->hide();
 	_hiding = false;
 	show();
-	a_opacity.start(1);
+	_a_opacity.start([this] { animationCallback(); }, 0., 1., st::defaultDropdownDuration);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
-	_a_appearance.start();
 }
 
-void FieldAutocomplete::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / st::defaultDropdownDuration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_opacity.finish();
+void FieldAutocomplete::animationCallback() {
+	update();
+	if (!_a_opacity.animating()) {
 		_cache = QPixmap();
 		setAttribute(Qt::WA_OpaquePaintEvent);
 		if (_hiding) {
@@ -451,10 +449,7 @@ void FieldAutocomplete::step_appearance(float64 ms, bool timer) {
 			_scroll->show();
 			_inner->clearSel();
 		}
-	} else {
-		a_opacity.update(dt, anim::linear);
 	}
-	if (timer) update();
 }
 
 const QString &FieldAutocomplete::filter() const {

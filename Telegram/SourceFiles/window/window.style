@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 using "basic.style";
 using "ui/widgets/widgets.style";
+using "history/history.style";
 
 windowMinWidth: 380px;
 windowMinHeight: 480px;
@@ -76,12 +77,10 @@ notifyReplyArea: InputArea(defaultInputArea) {
 	borderActive: 0px;
 	borderError: 0px;
 }
-notifySendReply: IconButton {
+notifySendReply: IconButton(historySend) {
 	width: 36px;
 	height: 36px;
-
-	icon: icon {{ "notification_send", lightButtonFg, point(3px, 9px) }};
-	iconPosition: point(0px, 0px);
+	iconPosition: point(6px, 6px);
 }
 
 titleUnreadCounterTop: 5px;
