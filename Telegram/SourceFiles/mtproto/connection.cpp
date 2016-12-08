@@ -2827,7 +2827,7 @@ void ConnectionPrivate::clearAuthKeyData() {
 		if (!_authKeyStrings->dh_prime.isEmpty()) SecureZeroMemory(_authKeyStrings->dh_prime.data(), _authKeyStrings->dh_prime.size());
 		if (!_authKeyStrings->g_a.isEmpty()) SecureZeroMemory(_authKeyStrings->g_a.data(), _authKeyStrings->g_a.size());
 #else
-		memset(authKeyData, 0, sizeof(AuthKeyCreateData));
+		memset(_authKeyData.get(), 0, sizeof(AuthKeyCreateData));
 		if (!_authKeyStrings->dh_prime.isEmpty()) memset(_authKeyStrings->dh_prime.data(), 0, _authKeyStrings->dh_prime.size());
 		if (!_authKeyStrings->g_a.isEmpty()) memset(_authKeyStrings->g_a.data(), 0, _authKeyStrings->g_a.size());
 #endif

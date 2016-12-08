@@ -32,9 +32,13 @@ OverviewFileLayout {
 	songIconBg: color;
 	songOverBg: color;
 	songPause: icon;
+	songPauseSelected: icon;
 	songPlay: icon;
+	songPlaySelected: icon;
 	songCancel: icon;
+	songCancelSelected: icon;
 	songDownload: icon;
+	songDownloadSelected: icon;
 
 	filePadding: margins;
 	fileThumbSize: pixels;
@@ -42,6 +46,9 @@ OverviewFileLayout {
 	fileStatusTop: pixels;
 	fileDateTop: pixels;
 }
+
+overviewLeftMin: 28px;
+overviewLeftMax: 42px;
 
 overviewCheckBg: #00000040;
 overviewCheckFg: windowBg;
@@ -70,18 +77,30 @@ overviewFileExtTop: 24px;
 overviewFileExtFg: #ffffff;
 overviewFileExtFont: font(18px semibold);
 
+overviewSongPause: icon {{ "playlist_pause", msgInBg }};
+overviewSongPauseSelected: icon {{ "playlist_pause", msgInBgSelected }};
+overviewSongPlay: icon {{ "playlist_play", msgInBg }};
+overviewSongPlaySelected: icon {{ "playlist_play", msgInBgSelected }};
+overviewSongCancel: icon {{ "playlist_cancel", msgInBg }};
+overviewSongCancelSelected: icon {{ "playlist_cancel", msgInBgSelected }};
+overviewSongDownload: icon {{ "playlist_download", msgInBg }};
+overviewSongDownloadSelected: icon {{ "playlist_download", msgInBgSelected }};
 overviewFileLayout: OverviewFileLayout {
-	maxWidth: 410px;
-	songPadding: msgFilePadding;
-	songThumbSize: msgFileSize;
-	songNameTop: msgFileNameTop;
-	songStatusTop: msgFileStatusTop;
+	maxWidth: 520px;
+	songPadding: margins(17px, 7px, 10px, 6px);
+	songThumbSize: 36px;
+	songNameTop: 7px;
+	songStatusTop: 25px;
 	songIconBg: msgFileInBg;
 	songOverBg: msgFileInBgOver;
-	songPause: historyFileInPause;
-	songPlay: historyFileInPlay;
-	songCancel: historyFileInCancel;
-	songDownload: historyFileInDownload;
+	songPause: overviewSongPause;
+	songPauseSelected: overviewSongPauseSelected;
+	songPlay: overviewSongPlay;
+	songPlaySelected: overviewSongPlaySelected;
+	songCancel: overviewSongCancel;
+	songCancelSelected: overviewSongCancelSelected;
+	songDownload: overviewSongDownload;
+	songDownloadSelected: overviewSongDownloadSelected;
 
 	filePadding: margins(0px, 3px, 16px, 3px);
 	fileThumbSize: 70px;
@@ -97,7 +116,7 @@ overviewLoaderSkip: 4px;
 playlistHoverBg: windowBgOver;
 playlistPadding: 10px;
 
-linksSearchMargin: margins(20px, 20px, 20px, 0px);
+linksSearchTop: 30px;
 linksMaxWidth: 520px;
 linksLetterFg: #ffffff;
 linksLetterFont: font(24px);

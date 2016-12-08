@@ -21,10 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/section_widget.h"
-#include "ui/widgets/shadow.h"
 
 namespace Ui {
 class ScrollArea;
+class ToggleableShadow;
 } // namespace Ui
 
 namespace Profile {
@@ -43,9 +43,7 @@ public:
 		return peer();
 	}
 
-	bool hasTopBarShadow() const override {
-		return _fixedBarShadow->isFullyShown();
-	}
+	bool hasTopBarShadow() const override;
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 

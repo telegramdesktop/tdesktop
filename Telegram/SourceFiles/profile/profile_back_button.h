@@ -20,11 +20,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/utils.h"
+#include "ui/abstract_button.h"
 
-#define BETA_VERSION_MACRO (10019013ULL)
+namespace Profile {
 
-constexpr int AppVersion = 10020;
-constexpr str_const AppVersionStr = "0.10.20";
-constexpr bool AppAlphaVersion = false;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+class BackButton final : public Ui::AbstractButton, private base::Subscriber {
+public:
+	BackButton(QWidget *parent, const QString &text);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	int resizeGetHeight(int newWidth) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+
+private:
+	void updateAdaptiveLayout();
+
+	int _unreadCounterSubscription = 0;
+	QString _text;
+
+};
+
+} // namespace Profile

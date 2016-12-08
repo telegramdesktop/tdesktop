@@ -1276,14 +1276,21 @@ int32 OverviewInner::resizeToWidth(int32 nwidth, int32 scrollTop, int32 minHeigh
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
 		_photosInRow = int32(_width - st::overviewPhotoSkip) / int32(st::overviewPhotoMinSize + st::overviewPhotoSkip);
 		_rowWidth = (int32(_width - st::overviewPhotoSkip) / _photosInRow) - st::overviewPhotoSkip;
-	} else if (_type == OverviewLinks) {
-		_rowWidth = qMin(_width - st::linksSearchMargin.left() - st::linksSearchMargin.right(), int32(st::linksMaxWidth));
+		_rowsLeft = st::overviewPhotoSkip;
 	} else {
-		_rowWidth = qMin(_width - st::profilePadding.left() - st::profilePadding.right(), st::overviewFileLayout.maxWidth);
+		auto contentLeftMin = st::overviewLeftMin;
+		auto contentLeftMax = st::overviewLeftMax;
+		if (_type == OverviewMusicFiles || _type == OverviewVoiceFiles) {
+			contentLeftMin -= st::overviewFileLayout.songPadding.left();
+			contentLeftMax -= st::overviewFileLayout.songPadding.left();
+		}
+		auto widthWithMin = st::windowMinWidth;
+		auto widthWithMax = st::overviewFileLayout.maxWidth + 2 * contentLeftMax;
+		_rowsLeft = anim::interpolate(contentLeftMax, contentLeftMin, qMax(widthWithMax - _width, 0) / float64(widthWithMax - widthWithMin));
+		_rowWidth = qMin(_width - 2 * _rowsLeft, st::overviewFileLayout.maxWidth);
 	}
-	_rowsLeft = (_width - _rowWidth) / 2;
 
-	_search->setGeometry(_rowsLeft, st::linksSearchMargin.top(), _rowWidth, _search->height());
+	_search->setGeometry(_rowsLeft, st::linksSearchTop, _rowWidth, _search->height());
 	_cancelSearch->moveToLeft(_rowsLeft + _rowWidth - _cancelSearch->width(), _search->y());
 
 	if (_type == OverviewPhotos || _type == OverviewVideos) {
@@ -1797,7 +1804,7 @@ void OverviewInner::recountMargins() {
 		_marginTop = st::playlistPadding;
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
 	} else if (_type == OverviewLinks || _type == OverviewFiles) {
-		_marginTop = st::linksSearchMargin.top() + _search->height() + st::linksSearchMargin.bottom();
+		_marginTop = st::linksSearchTop + _search->height();
 		_marginBottom = qMax(_minHeight - _height - _marginTop, int32(st::playlistPadding));
 	} else {
 		_marginBottom = st::playlistPadding;
@@ -1827,7 +1834,7 @@ Overview::Layout::ItemBase *OverviewInner::layoutPrepare(HistoryItem *item) {
 	} else if (_type == OverviewVoiceFiles) {
 		if (media && (media->type() == MediaTypeVoiceFile)) {
 			if ((i = _layoutItems.constFind(item)) == _layoutItems.cend()) {
-				i = _layoutItems.insert(item, new Overview::Layout::Voice(media->getDocument(), item));
+				i = _layoutItems.insert(item, new Overview::Layout::Voice(media->getDocument(), item, st::overviewFileLayout));
 				i.value()->initDimensions();
 			}
 		}

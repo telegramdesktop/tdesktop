@@ -466,9 +466,10 @@ void Video::updateStatusText() {
 	}
 }
 
-Voice::Voice(DocumentData *voice, HistoryItem *parent) : RadialProgressItem(parent)
+Voice::Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFileLayout &st) : RadialProgressItem(parent)
 , _data(voice)
-, _namel(new DocumentOpenClickHandler(_data)) {
+, _namel(new DocumentOpenClickHandler(_data))
+, _st(st) {
 	AddComponents(Info::Bit());
 
 	t_assert(_data->voice() != 0);
@@ -483,8 +484,8 @@ Voice::Voice(DocumentData *voice, HistoryItem *parent) : RadialProgressItem(pare
 }
 
 void Voice::initDimensions() {
-	_maxw = st::overviewFileLayout.maxWidth;
-	_minh = st::overviewFileLayout.songPadding.top() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.bottom() + st::lineWidth;
+	_maxw = _st.maxWidth;
+	_minh = _st.songPadding.top() + _st.songThumbSize + _st.songPadding.bottom() + st::lineWidth;
 }
 
 void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) {
@@ -508,16 +509,16 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = -1;
 
-	nameleft = st::overviewFileLayout.songPadding.left() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.right();
-	nameright = st::overviewFileLayout.songPadding.left();
-	nametop = st::overviewFileLayout.songNameTop;
-	statustop = st::overviewFileLayout.songStatusTop;
+	nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
+	nameright = _st.songPadding.left();
+	nametop = _st.songNameTop;
+	statustop = _st.songStatusTop;
 
 	if (selected) {
 		p.fillRect(clip.intersected(QRect(0, 0, _width, _height)), st::msgInBgSelected);
 	}
 
-	QRect inner(rtlrect(st::overviewFileLayout.songPadding.left(), st::overviewFileLayout.songPadding.top(), st::overviewFileLayout.songThumbSize, st::overviewFileLayout.songThumbSize, _width));
+	QRect inner(rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width));
 	if (clip.intersects(inner)) {
 		p.setPen(Qt::NoPen);
 		if (selected) {
@@ -540,13 +541,13 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 		auto icon = ([showPause, this, selected] {
 			if (showPause) {
-				return &(selected ? st::historyFileInPauseSelected : st::historyFileInPause);
+				return &(selected ? _st.songPauseSelected : _st.songPause);
 			} else if (_status.size() < 0 || _status.size() == FileStatusSizeLoaded) {
-				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
+				return &(selected ? _st.songPlaySelected : _st.songPlay);
 			} else if (_data->loading()) {
-				return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+				return &(selected ? _st.songCancelSelected : _st.songCancel);
 			}
-			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+			return &(selected ? _st.songDownloadSelected : _st.songDownload);
 		})();
 		icon->paintInCenter(p, inner);
 	}
@@ -589,12 +590,12 @@ void Voice::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 
 	int32 nameleft = 0, nametop = 0, nameright = 0, statustop = 0, datetop = 0;
 
-	nameleft = st::overviewFileLayout.songPadding.left() + st::overviewFileLayout.songThumbSize + st::overviewFileLayout.songPadding.right();
-	nameright = st::overviewFileLayout.songPadding.left();
-	nametop = st::overviewFileLayout.songNameTop;
-	statustop = st::overviewFileLayout.songStatusTop;
+	nameleft = _st.songPadding.left() + _st.songThumbSize + _st.songPadding.right();
+	nameright = _st.songPadding.left();
+	nametop = _st.songNameTop;
+	statustop = _st.songStatusTop;
 
-	auto inner = rtlrect(st::overviewFileLayout.songPadding.left(), st::overviewFileLayout.songPadding.top(), st::overviewFileLayout.songThumbSize, st::overviewFileLayout.songThumbSize, _width);
+	auto inner = rtlrect(_st.songPadding.left(), _st.songPadding.top(), _st.songThumbSize, _st.songThumbSize, _width);
 	if (inner.contains(x, y)) {
 		link = loaded ? _openl : ((_data->loading() || _data->status == FileUploading) ? _cancell : _openl);
 		return;
@@ -747,13 +748,13 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 
 			auto icon = ([showPause, loaded, this, selected] {
 				if (showPause) {
-					return &(selected ? st::historyFileInPauseSelected : _st.songPause);
+					return &(selected ? _st.songPauseSelected : _st.songPause);
 				} else if (loaded) {
-					return &(selected ? st::historyFileInPlaySelected : _st.songPlay);
+					return &(selected ? _st.songPlaySelected : _st.songPlay);
 				} else if (_data->loading()) {
-					return &(selected ? st::historyFileInCancelSelected : _st.songCancel);
+					return &(selected ? _st.songCancelSelected : _st.songCancel);
 				}
-				return &(selected ? st::historyFileInDownloadSelected : _st.songDownload);
+				return &(selected ? _st.songDownloadSelected : _st.songDownload);
 			})();
 			icon->paintInCenter(p, inner);
 		}

@@ -335,14 +335,6 @@ QVector<int> ServiceMessagePainter::countLineWidths(const Text &text, const QRec
 }
 
 void paintEmpty(Painter &p, int width, int height) {
-	auto position = QPoint((width - st::historyEmptySize) / 2, ((height - st::historyEmptySize) * 4) / 9);
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::msgServiceBg);
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(rtlrect(position.x(), position.y(), st::historyEmptySize, st::historyEmptySize, width));
-	}
-	st::historyEmptyDog.paint(p, position.x() + (st::historyEmptySize - st::historyEmptyDog.width()) / 2, position.y() + (st::historyEmptySize - st::historyEmptyDog.height()) / 2, width);
 }
 
 void serviceColorsUpdated() {

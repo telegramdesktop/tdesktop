@@ -882,17 +882,17 @@ historySendActionTypingLargeNumerator: 28px;
 historySendActionTypingSmallNumerator: 16px;
 historySendActionTypingDenominator: 12.;
 
-historySendActionRecordDuration: 300;
+historySendActionRecordDuration: 500;
 historySendActionRecordPosition: point(1px, -4px);
-historySendActionRecordDelta: 3px;
-historySendActionRecordStrokeNumerator: 12px;
+historySendActionRecordDelta: 4px;
+historySendActionRecordStrokeNumerator: 16px;
 historySendActionRecordDenominator: 8.;
 
 historySendActionUploadDuration: 500;
 historySendActionUploadPosition: point(0px, -4px);
 historySendActionUploadDelta: 5px;
-historySendActionUploadStrokeNumerator: 12px;
-historySendActionUploadSizeNumerator: 28px;
+historySendActionUploadStrokeNumerator: 16px;
+historySendActionUploadSizeNumerator: 32px;
 historySendActionUploadDenominator: 8.;
 
 MediaPlayerButton {

@@ -144,3 +144,14 @@ profileVerifiedCheck: icon {
 	{ "profile_verified_star", windowBgActive, point(0px, 7px) },
 	{ "profile_verified_check", windowFgActive, point(4px, 11px) }
 };
+
+profileCommonGroupsSkip: 24px;
+profileCommonGroupsLeftMin: 24px;
+profileCommonGroupsLeftMax: 36px;
+profileCommonGroupsWidthMax: 480px;
+profileCommonGroupsPadding: margins(7px, 7px, 7px, 7px);
+profileCommonGroupsPhotoSize: 42px;
+profileCommonGroupsNameTop: 12px;
+profileCommonGroupsNameLeft: 16px;
+profileCommonGroupsBgOver: windowBgOver;
+profileCommonGroupsRipple: defaultRippleAnimation;

@@ -36,16 +36,11 @@ class LeftOutlineButton;
 
 namespace Profile {
 
-struct CommonGroupsEvent;
 class InfoWidget : public BlockWidget, public RPCSender {
 public:
 	InfoWidget(QWidget *parent, PeerData *peer);
 
-	void setShowCommonGroupsObservable(base::Observable<CommonGroupsEvent> *observable);
-
 	void showFinished() override;
-
-	void restoreState(const SectionMemento *memento) override;
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
@@ -66,7 +61,6 @@ private:
 	void refreshVisibility();
 
 	int getCommonGroupsCount() const;
-	void onForceHideCommonGroups();
 	void onShowCommonGroups();
 	void slideCommonGroupsDown();
 
@@ -86,11 +80,6 @@ private:
 
 	Animation _height;
 	bool _showFinished = false;
-
-	bool _forceHiddenCommonGroups = false;
-	mtpRequestId _getCommonGroupsRequestId = 0;
-
-	base::Observable<CommonGroupsEvent> *_showCommonGroupsObservable = nullptr;
 
 };
 

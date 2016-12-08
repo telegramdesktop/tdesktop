@@ -391,23 +391,24 @@ inline const QRegularExpression &cRussianLetters() {
 	return regexp;
 }
 
-inline QStringList cImgExtensions() {
-	static QStringList imgExtensions;
-	if (imgExtensions.isEmpty()) {
-		imgExtensions.reserve(4);
-		imgExtensions.push_back(qsl(".jpg"));
-		imgExtensions.push_back(qsl(".jpeg"));
-		imgExtensions.push_back(qsl(".png"));
-		imgExtensions.push_back(qsl(".gif"));
+inline const QStringList &cImgExtensions() {
+	static QStringList result;
+	if (result.isEmpty()) {
+		result.reserve(4);
+		result.push_back(qsl(".jpg"));
+		result.push_back(qsl(".jpeg"));
+		result.push_back(qsl(".png"));
+		result.push_back(qsl(".gif"));
 	}
-	return imgExtensions;
+	return result;
 }
 
-inline QStringList cPhotoExtensions() {
-	static QStringList photoExtensions;
-	if (photoExtensions.isEmpty()) {
-		photoExtensions.push_back(qsl(".jpg"));
-		photoExtensions.push_back(qsl(".jpeg"));
+inline const QStringList &cExtensionsForCompress() {
+	static QStringList result;
+	if (result.isEmpty()) {
+		result.push_back(qsl(".jpg"));
+		result.push_back(qsl(".jpeg"));
+		result.push_back(qsl(".png"));
 	}
-	return photoExtensions;
+	return result;
 }

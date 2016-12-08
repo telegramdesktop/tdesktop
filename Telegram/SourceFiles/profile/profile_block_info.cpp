@@ -21,13 +21,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "profile/profile_block_info.h"
 
-#include "profile/profile_block_common_groups.h"
+#include "profile/profile_common_groups_section.h"
 #include "profile/profile_section_memento.h"
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "core/click_handler_types.h"
+#include "mainwidget.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "lang.h"
@@ -67,12 +68,6 @@ void InfoWidget::slideCommonGroupsDown() {
 	refreshVisibility();
 	_height.start([this] { contentSizeUpdated(); }, isHidden() ? 0 : height(), resizeGetHeight(width()), st::widgetSlideDuration);
 	contentSizeUpdated();
-}
-
-void InfoWidget::restoreState(const SectionMemento *memento) {
-	if (!memento->getCommonGroups().isEmpty()) {
-		onForceHideCommonGroups();
-	}
 }
 
 void InfoWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -253,7 +248,7 @@ int InfoWidget::getCommonGroupsCount() const {
 }
 
 void InfoWidget::refreshCommonGroups() {
-	if (auto count = (_forceHiddenCommonGroups ? 0 : getCommonGroupsCount())) {
+	if (auto count = getCommonGroupsCount()) {
 		auto text = lng_profile_common_groups(lt_count, count);
 		if (_commonGroups) {
 			_commonGroups->setText(text);
@@ -270,56 +265,15 @@ void InfoWidget::refreshCommonGroups() {
 	}
 }
 
-void InfoWidget::setShowCommonGroupsObservable(base::Observable<CommonGroupsEvent> *observable) {
-	_showCommonGroupsObservable = observable;
-	subscribe(_showCommonGroupsObservable, [this](const CommonGroupsEvent &event) {
-		onForceHideCommonGroups();
-	});
-}
-
-void InfoWidget::onForceHideCommonGroups() {
-	if (_forceHiddenCommonGroups) {
-		return;
-	}
-	_forceHiddenCommonGroups = true;
-	_commonGroups.destroyDelayed();
-	refreshVisibility();
-	contentSizeUpdated();
-}
-
 void InfoWidget::onShowCommonGroups() {
 	auto count = getCommonGroupsCount();
 	if (count <= 0) {
 		refreshCommonGroups();
 		return;
 	}
-	if (_getCommonGroupsRequestId) {
-		return;
+	if (auto main = App::main()) {
+		main->showWideSection(Profile::CommonGroups::SectionMemento(peer()));
 	}
-	auto user = peer()->asUser();
-	t_assert(user != nullptr);
-	auto request = MTPmessages_GetCommonChats(user->inputUser, MTP_int(0), MTP_int(kCommonGroupsLimit));
-	_getCommonGroupsRequestId = MTP::send(request, ::rpcDone(base::lambda_guarded(this, [this](const MTPmessages_Chats &result) {
-		_getCommonGroupsRequestId = 0;
-
-		CommonGroupsEvent event;
-		if (auto chats = Api::getChatsFromMessagesChats(result)) {
-			auto &list = chats->c_vector().v;
-			event.groups.reserve(list.size());
-			for_const (auto &chatData, list) {
-				if (auto chat = App::feedChat(chatData)) {
-					event.groups.push_back(chat);
-				}
-			}
-		}
-
-		auto oldHeight = height();
-		onForceHideCommonGroups();
-		if (!event.groups.empty() && _showCommonGroupsObservable) {
-			event.initialHeight = oldHeight - (isHidden() ? 0 : height());
-			_showCommonGroupsObservable->notify(event, true);
-		}
-	})));
 }
 
 void InfoWidget::setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,

@@ -24,7 +24,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "styles/style_window.h"
 #include "profile/profile_cover.h"
-#include "profile/profile_block_common_groups.h"
 #include "profile/profile_block_info.h"
 #include "profile/profile_block_settings.h"
 #include "profile/profile_block_invite_link.h"
@@ -50,16 +49,7 @@ void InnerWidget::createBlocks() {
 	auto channel = _peer->asChannel();
 	auto megagroup = _peer->isMegagroup() ? channel : nullptr;
 	if (user || channel || megagroup) {
-		auto widget = new InfoWidget(this, _peer);
-		widget->setShowCommonGroupsObservable(&_showCommonGroupsObservable);
-		_blocks.push_back({ widget, BlockSide::Right });
-	}
-	if (user) {
-		_commonGroupsWidget = new CommonGroupsWidget(this, _peer);
-		_commonGroupsWidget->setShowCommonGroupsObservable(&_showCommonGroupsObservable);
-		_blocks.push_back({ _commonGroupsWidget, BlockSide::Right });
-	} else {
-		_commonGroupsWidget = nullptr;
+		_blocks.push_back({ new InfoWidget(this, _peer), BlockSide::Right });
 	}
 	_blocks.push_back({ new SettingsWidget(this, _peer), BlockSide::Right });
 	if (chat || channel || megagroup) {

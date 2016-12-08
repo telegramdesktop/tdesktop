@@ -858,7 +858,7 @@ private:
 		QStringList emptyFiles;
 		QStringList tooLargeFiles;
 		QStringList filesToSend;
-		bool allFilesArePhotos = true;
+		bool allFilesForCompress = true;
 	};
 	SendingFilesLists getSendingFilesLists(const QList<QUrl> &files);
 	SendingFilesLists getSendingFilesLists(const QStringList &files);

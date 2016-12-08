@@ -29,59 +29,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
-#include "window/top_bar_widget.h"
 #include "styles/style_boxes.h"
+#include "profile/profile_back_button.h"
 
 namespace Profile {
-
-class BackButton final : public Ui::AbstractButton, private base::Subscriber {
-public:
-	BackButton(QWidget *parent) : Ui::AbstractButton(parent)
-	, _text(lang(lng_menu_back).toUpper()) {
-		setCursor(style::cur_pointer);
-
-		subscribe(Adaptive::Changed(), [this] { updateAdaptiveLayout(); });
-		updateAdaptiveLayout();
-	}
-
-protected:
-	int resizeGetHeight(int newWidth) override {
-		return st::profileTopBarHeight;
-	}
-	void paintEvent(QPaintEvent *e) override {
-		Painter p(this);
-
-		p.fillRect(e->rect(), st::profileBg);
-		st::topBarBack.paint(p, (st::topBarArrowPadding.left() - st::topBarBack.width()) / 2, (st::topBarHeight - st::topBarBack.height()) / 2, width());
-
-		p.setFont(st::topBarButton.font);
-		p.setPen(st::topBarButton.textFg);
-		p.drawTextLeft(st::topBarArrowPadding.left(), st::topBarButton.padding.top() + st::topBarButton.textTop, width(), _text);
-
-		Window::TopBarWidget::paintUnreadCounter(p, width());
-	}
-	void onStateChanged(State was, StateChangeSource source) override {
-		if (isDown() && !(was & StateFlag::Down)) {
-			emit clicked();
-		}
-	}
-
-private:
-	void updateAdaptiveLayout() {
-		if (!Adaptive::OneColumn()) {
-			unsubscribe(base::take(_unreadCounterSubscription));
-		} else if (!_unreadCounterSubscription) {
-			_unreadCounterSubscription = subscribe(Global::RefUnreadCounterUpdate(), [this] {
-				rtlupdate(0, 0, st::titleUnreadCounterRight, st::titleUnreadCounterTop);
-			});
-		}
-	}
-
-	int _unreadCounterSubscription = 0;
-	QString _text;
-
-};
-
 namespace {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
@@ -98,7 +49,7 @@ FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerChat(peer->asChat())
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
-, _backButton(this) {
+, _backButton(this, lang(lng_menu_back)) {
 	_backButton->moveToLeft(0, 0);
 	connect(_backButton, SIGNAL(clicked()), this, SLOT(onBack()));
 

@@ -238,17 +238,8 @@ mediaPlayerListMarginBottom: 10px;
 mediaPlayerScrollShadow: icon {{ "playlist_shadow", windowShadowFg }};
 
 mediaPlayerListMarginTop: 8px;
-mediaPlayerListIconFg: #ffffff;
 mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {
 	maxWidth: 344px;
-	songPadding: margins(17px, 7px, 10px, 6px);
-	songThumbSize: 36px;
-	songNameTop: 7px;
-	songStatusTop: 25px;
 	songIconBg: mediaPlayerActiveFg;
 	songOverBg: mediaPlayerActiveFg;
-	songPause: icon {{ "playlist_pause", mediaPlayerListIconFg }};
-	songPlay: icon {{ "playlist_play", mediaPlayerListIconFg }};
-	songCancel: icon {{ "playlist_cancel", mediaPlayerListIconFg }};
-	songDownload: icon {{ "playlist_download", mediaPlayerListIconFg }};
 }

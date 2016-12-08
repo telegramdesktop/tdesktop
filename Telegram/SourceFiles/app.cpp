@@ -2511,26 +2511,26 @@ namespace {
 			if (!fmt.isEmpty()) *format = fmt;
 		}
 		buffer.seek(0);
-        QString fmt = QString::fromUtf8(*format).toLower();
+		auto fmt = QString::fromUtf8(*format).toLower();
 		if (fmt == "jpg" || fmt == "jpeg") {
 #ifdef OS_MAC_OLD
-			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
-			if (exifData) {
-				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
-				ExifEntry *exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION);
-				if (exifEntry) {
-					QTransform orientationFix;
-					int orientation = exif_get_short(exifEntry->data, byteOrder);
-					switch (orientation) {
-					case 2: orientationFix = QTransform(-1, 0, 0, 1, 0, 0); break;
-					case 3: orientationFix = QTransform(-1, 0, 0, -1, 0, 0); break;
-					case 4: orientationFix = QTransform(1, 0, 0, -1, 0, 0); break;
-					case 5: orientationFix = QTransform(0, -1, -1, 0, 0, 0); break;
-					case 6: orientationFix = QTransform(0, 1, -1, 0, 0, 0); break;
-					case 7: orientationFix = QTransform(0, 1, 1, 0, 0, 0); break;
-					case 8: orientationFix = QTransform(0, -1, 1, 0, 0, 0); break;
-					}
-					result = result.transformed(orientationFix);
+			if (auto exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size())) {
+				auto byteOrder = exif_data_get_byte_order(exifData);
+				if (auto exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION)) {
+					auto orientationFix = [exifEntry, byteOrder] {
+						auto orientation = exif_get_short(exifEntry->data, byteOrder);
+						switch (orientation) {
+						case 2: return QTransform(-1, 0, 0, 1, 0, 0);
+						case 3: return QTransform(-1, 0, 0, -1, 0, 0);
+						case 4: return QTransform(1, 0, 0, -1, 0, 0);
+						case 5: return QTransform(0, -1, -1, 0, 0, 0);
+						case 6: return QTransform(0, 1, -1, 0, 0, 0);
+						case 7: return QTransform(0, 1, 1, 0, 0, 0);
+						case 8: return QTransform(0, -1, 1, 0, 0, 0);
+						}
+						return QTransform();
+					};
+					result = result.transformed(orientationFix());
 				}
 				exif_data_free(exifData);
 			}
@@ -2547,9 +2547,11 @@ namespace {
 			if (animated) *animated = false;
 			return QImage();
 		}
-		QByteArray img = f.readAll();
-		QImage result = readImage(img, format, opaque, animated);
-		if (content && !result.isNull()) *content = img;
+		auto imageBytes = f.readAll();
+		auto result = readImage(imageBytes, format, opaque, animated);
+		if (content && !result.isNull()) {
+			*content = imageBytes;
+		}
 		return result;
 	}
 

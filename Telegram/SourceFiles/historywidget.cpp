@@ -5551,9 +5551,7 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 void HistoryWidget::chooseAttach() {
 	if (!_history) return;
 
-	auto photoExtensions = cPhotoExtensions();
-	auto imageExtensions = cImgExtensions();
-	auto filter = filedialogAllFilesFilter() + qsl(";;Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;Photo files (*") + photoExtensions.join(qsl(" *")) + qsl(")");
+	auto filter = filedialogAllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
 
 	_attachFilesQueryId = FileDialog::queryReadFiles(lang(lng_choose_files), filter);
 }
@@ -5578,7 +5576,7 @@ void HistoryWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update
 		}
 	} else {
 		auto lists = getSendingFilesLists(update.filePaths);
-		if (lists.allFilesArePhotos) {
+		if (lists.allFilesForCompress) {
 			confirmSendingFiles(lists);
 		} else {
 			validateSendingFiles(lists, [this](const QStringList &files) {
@@ -6525,7 +6523,7 @@ bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, Compress
 		auto insertTextOnCancel = QString();
 		auto prepareBox = [this, &files, &lists, compressed, &image] {
 			if (files.size() > 1) {
-				return new SendFilesBox(files, lists.allFilesArePhotos ? compressed : CompressConfirm::None);
+				return new SendFilesBox(files, lists.allFilesForCompress ? compressed : CompressConfirm::None);
 			}
 			auto filepath = files.front();
 			auto animated = false;
@@ -6610,8 +6608,8 @@ HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QStri
 }
 
 void HistoryWidget::getSendingLocalFileInfo(SendingFilesLists &result, const QString &filepath) {
-	auto hasPhotoExtension = [](const QString &filepath) {
-		for_const (auto extension, cPhotoExtensions()) {
+	auto hasExtensionForCompress = [](const QString &filepath) {
+		for_const (auto extension, cExtensionsForCompress()) {
 			if (filepath.right(extension.size()).compare(extension, Qt::CaseInsensitive) == 0) {
 				return true;
 			}
@@ -6629,9 +6627,9 @@ void HistoryWidget::getSendingLocalFileInfo(SendingFilesLists &result, const QSt
 			result.tooLargeFiles.push_back(filepath);
 		} else {
 			result.filesToSend.push_back(filepath);
-			if (result.allFilesArePhotos) {
-				if (filesize > App::kImageSizeLimit || !hasPhotoExtension(filepath)) {
-					result.allFilesArePhotos = false;
+			if (result.allFilesForCompress) {
+				if (filesize > App::kImageSizeLimit || !hasExtensionForCompress(filepath)) {
+					result.allFilesForCompress = false;
 				}
 			}
 		}

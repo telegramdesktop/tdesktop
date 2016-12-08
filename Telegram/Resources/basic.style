@@ -309,12 +309,6 @@ simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
 dialogsForwardCancelIcon: icon {{ "simple_close", dialogsForwardFg }};
 
-profileMaxWidth: 410px;
-profilePadding: margins(28px, 30px, 28px, 0px);
-
-profileOnlineFg: statusFgActive;
-profileOfflineFg: statusFg;
-
 membersPadding: margins(0px, 10px, 0px, 10px);
 
 forwardMargins: margins(30px, 10px, 30px, 10px);

@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "application.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/shadow.h"
 
 namespace Profile {
 
@@ -59,6 +60,10 @@ void Widget::updateAdaptiveLayout() {
 
 PeerData *Widget::peer() const {
 	return _inner->peer();
+}
+
+bool Widget::hasTopBarShadow() const {
+	return _fixedBarShadow->isFullyShown();
 }
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {

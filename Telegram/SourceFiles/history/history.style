@@ -67,9 +67,6 @@ historyToDownBadgeSize: 22px;
 historyToDownShownAfter: 480px;
 historyToDownDuration: 150;
 
-historyEmptyDog: icon {{ "history_empty_dog", #ffffff }};
-historyEmptySize: 128px;
-
 membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {

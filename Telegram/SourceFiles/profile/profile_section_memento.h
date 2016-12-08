@@ -42,17 +42,10 @@ public:
 	int getScrollTop() const {
 		return _scrollTop;
 	}
-	void setCommonGroups(const QList<PeerData*> &groups) {
-		_commonGroups = groups;
-	}
-	const QList<PeerData*> &getCommonGroups() const {
-		return _commonGroups;
-	}
 
 private:
 	PeerData *_peer;
 	int _scrollTop = 0;
-	QList<PeerData*> _commonGroups;
 
 };
 

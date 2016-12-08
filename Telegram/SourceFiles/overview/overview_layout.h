@@ -244,7 +244,7 @@ private:
 
 class Voice : public RadialProgressItem {
 public:
-	Voice(DocumentData *voice, HistoryItem *parent);
+	Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFileLayout &st);
 
 	void initDimensions() override;
 	void paint(Painter &p, const QRect &clip, TextSelection selection, const PaintContext *context) override;
@@ -268,6 +268,8 @@ private:
 	DocumentData *_data;
 	StatusText _status;
 	ClickHandlerPtr _namel;
+
+	const style::OverviewFileLayout &_st;
 
 	Text _name, _details;
 	int _nameVersion;

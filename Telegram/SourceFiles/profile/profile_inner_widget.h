@@ -20,13 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "profile/profile_block_common_groups.h"
-
 namespace Profile {
 
 class CoverWidget;
 class BlockWidget;
-struct CommonGroupsEvent;
 class SectionMemento;
 
 class InnerWidget final : public TWidget {
@@ -117,12 +114,8 @@ private:
 	};
 	QList<Block> _blocks;
 
-	// We need to save this pointer for getting common groups list for section memento.
-	CommonGroupsWidget *_commonGroupsWidget = nullptr;
-
 	Mode _mode = Mode::OneColumn;
 
-	base::Observable<CommonGroupsEvent> _showCommonGroupsObservable;
 };
 
 } // namespace Profile

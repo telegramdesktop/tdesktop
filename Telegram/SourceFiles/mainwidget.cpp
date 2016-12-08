@@ -4546,15 +4546,14 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateWebPage: {
 		auto &d = update.c_updateWebPage();
 
-		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
-			return;
-		}
-
-		// update before applying skipped
+		// update web page anyway
 		App::feedWebPage(d.vwebpage);
 		_history->updatePreview();
 		webPagesOrGamesUpdate();
 
+		if (!ptsUpdated(d.vpts.v, d.vpts_count.v, update)) {
+			return;
+		}
 		ptsApplySkippedUpdates();
 	} break;
 
@@ -4893,8 +4892,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannelWebPage: {
 		auto &d = update.c_updateChannelWebPage();
-		auto channel = App::channelLoaded(d.vchannel_id.v);
 
+		// update web page anyway
+		App::feedWebPage(d.vwebpage);
+		_history->updatePreview();
+		webPagesOrGamesUpdate();
+
+		auto channel = App::channelLoaded(d.vchannel_id.v);
 		if (channel && !_handlingChannelDifference) {
 			if (channel->ptsRequesting()) { // skip global updates while getting channel difference
 				return;
@@ -4902,12 +4906,6 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				return;
 			}
 		}
-
-
-		// update before applying skipped
-		App::feedWebPage(d.vwebpage);
-		_history->updatePreview();
-		webPagesOrGamesUpdate();
 
 		if (channel && !_handlingChannelDifference) {
 			channel->ptsApplySkippedUpdates();
