@@ -239,9 +239,7 @@ void AddContactBox::onRetry() {
 	_retry->hide();
 	resizeEvent(0);
 	_first->setText(QString());
-	_first->updatePlaceholder();
 	_last->setText(QString());
-	_last->updatePlaceholder();
 	_phone->clearText();
 	_phone->setDisabled(false);
 	_first->setFocus();
@@ -274,13 +272,11 @@ GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : Ab
 	connect(_next, SIGNAL(clicked()), this, SLOT(onNext()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	_photo->setClickedCallback([this] {
-		App::CallDelayed(st::defaultActiveButton.ripple.hideDuration, base::lambda_guarded(this, [this] {
-			auto imgExtensions = cImgExtensions();
-			auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-			_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-		}));
-	});
+	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
+		auto imgExtensions = cImgExtensions();
+		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+	}));
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
@@ -433,7 +429,7 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 , _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _link(this, st::defaultInputField, QString(), channel->username, true)
+, _link(this, st::setupChannelLink, QString(), channel->username, true)
 , _linkOver(false)
 , _save(this, lang(lng_settings_save), st::defaultBoxButton)
 , _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton) {

@@ -157,7 +157,7 @@ void SendFilesBox::setup() {
 	}
 	if (_caption) {
 		_caption->setMaxLength(MaxPhotoCaption);
-		_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
+		_caption->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 		connect(_caption, SIGNAL(resized()), this, SLOT(onCaptionResized()));
 		connect(_caption, SIGNAL(submitted(bool)), this, SLOT(onSend(bool)));
 		connect(_caption, SIGNAL(cancelled()), this, SLOT(onClose()));
@@ -484,13 +484,13 @@ EditCaptionBox::EditCaptionBox(HistoryItem *msg) : AbstractBox(st::boxWideWidth)
 	if (_animated || _photo || _doc) {
 		_field.create(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
 		_field->setMaxLength(MaxPhotoCaption);
-		_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
+		_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 	} else {
 		auto original = msg->originalText();
 		QString text = textApplyEntities(original.text, original.entities);
 		_field.create(this, st::editTextArea, lang(lng_photo_caption), text);
 //		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
-		_field->setCtrlEnterSubmit(cCtrlEnter() ? Ui::CtrlEnterSubmitCtrlEnter : Ui::CtrlEnterSubmitEnter);
+		_field->setCtrlEnterSubmit(cCtrlEnter() ? Ui::CtrlEnterSubmit::CtrlEnter : Ui::CtrlEnterSubmit::Enter);
 	}
 	updateBoxSize();
 	connect(_field, SIGNAL(submitted(bool)), this, SLOT(onSave(bool)));
@@ -547,7 +547,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 				PainterHighQualityEnabler hq(p);
 				p.drawEllipse(inner);
 			}
-			
+
 			auto icon = &st::historyFileInPlay;
 			icon->paintInCenter(p, inner);
 		}

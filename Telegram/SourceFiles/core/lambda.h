@@ -424,11 +424,17 @@ public:
 	using return_type = typename lambda_type<Lambda>::return_type;
 
 	template <typename ...PointersAndLambda>
-	lambda_guard_data(PointersAndLambda&&... qobjectsAndLambda) : _lambda(init(_pointers, std_::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
+	inline lambda_guard_data(PointersAndLambda&&... qobjectsAndLambda) : _lambda(init(_pointers, std_::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
+	}
+
+	inline lambda_guard_data(const lambda_guard_data &other) : _lambda(other._lambda) {
+		for (auto i = 0; i != N; ++i) {
+			_pointers[i] = other._pointers[i];
+		}
 	}
 
 	template <typename ...Args>
-	inline return_type operator()(Args... args) const {
+	inline return_type operator()(Args&&... args) const {
 		for (int i = 0; i != N; ++i) {
 			if (!_pointers[i]) {
 				return return_type();
@@ -458,17 +464,44 @@ public:
 	using return_type = typename lambda_type<Lambda>::return_type;
 
 	template <typename ...PointersAndLambda>
-	lambda_guard(PointersAndLambda&&... qobjectsAndLambda) : _data(std_::make_unique<lambda_guard_data<N, Lambda>>(std_::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
+	inline lambda_guard(PointersAndLambda&&... qobjectsAndLambda) : _data(std_::make_unique<lambda_guard_data<N, Lambda>>(std_::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
 		static_assert(sizeof...(PointersAndLambda) == N + 1, "Wrong argument count!");
 	}
 
+	inline lambda_guard(const lambda_guard &&other) : _data(std_::move(other._data)) {
+	}
+
+	inline lambda_guard(lambda_guard &&other) : _data(std_::move(other._data)) {
+	}
+
+	inline lambda_guard &operator=(const lambda_guard &&other) {
+		_data = std_::move(other._data);
+		return *this;
+	}
+
+	inline lambda_guard &operator=(lambda_guard &&other) {
+		_data = std_::move(other._data);
+		return *this;
+	}
+
 	template <typename ...Args>
-	inline return_type operator()(Args... args) const {
+	inline return_type operator()(Args&&... args) const {
 		return (*_data)(std_::forward<Args>(args)...);
 	}
 
+	bool isNull() const {
+		return !_data;
+	}
+
+	lambda_guard clone() const {
+		return lambda_guard(*this);
+	}
+
 private:
-	std_::unique_ptr<lambda_guard_data<N, Lambda>> _data;
+	inline lambda_guard(const lambda_guard &other) : _data(std_::make_unique<lambda_guard_data<N, Lambda>>(static_cast<const lambda_guard_data<N, Lambda> &>(*other._data))) {
+	}
+
+	mutable std_::unique_ptr<lambda_guard_data<N, Lambda>> _data;
 
 };
 

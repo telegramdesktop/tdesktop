@@ -63,7 +63,8 @@ private:
 	ChildWidget<Ui::UsernameInput> _username;
 	ChildWidget<Ui::LinkButton> _link;
 
-	mtpRequestId _saveRequestId, _checkRequestId;
+	mtpRequestId _saveRequestId = 0;
+	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText, _copiedTextLink;
 
 	Text _about;

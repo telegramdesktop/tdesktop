@@ -486,10 +486,12 @@ void CoverWidget::onShareContact() {
 }
 
 void CoverWidget::onSetPhoto() {
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
+	App::CallDelayed(st::profilePrimaryButton.ripple.hideDuration, this, [this] {
+		QStringList imgExtensions(cImgExtensions());
+		QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
 
-	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+	});
 }
 
 void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {

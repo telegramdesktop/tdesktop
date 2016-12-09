@@ -1091,20 +1091,20 @@ void GifOpenClickHandler::onClickImpl() const {
 void DocumentSaveClickHandler::doSave(DocumentData *data, bool forceSavingAs) {
 	if (!data->date) return;
 
-	QString filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
+	auto filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
 	if (!filepath.isEmpty() && !forceSavingAs) {
-		QPoint pos(QCursor::pos());
+		auto pos = QCursor::pos();
 		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
 			psOpenFile(filepath, true);
 		}
 	} else {
-		QFileInfo fileinfo(filepath);
-		QDir filedir(filepath.isEmpty() ? QDir() : fileinfo.dir());
-		QString filename(filepath.isEmpty() ? QString() : fileinfo.fileName());
-		QString newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
+		auto fileinfo = QFileInfo(filepath);
+		auto filedir = filepath.isEmpty() ? QDir() : fileinfo.dir();
+		auto filename = filepath.isEmpty() ? QString() : fileinfo.fileName();
+		auto newfname = documentSaveFilename(data, forceSavingAs, filename, filedir);
 		if (!newfname.isEmpty()) {
-			ActionOnLoad action = filename.isEmpty() ? ActionOnLoadNone : ActionOnLoadOpenWith;
-			FullMsgId actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
+			auto action = (filename.isEmpty() || forceSavingAs) ? ActionOnLoadNone : ActionOnLoadOpenWith;
+			auto actionMsgId = App::hoveredLinkItem() ? App::hoveredLinkItem()->fullId() : (App::contextItem() ? App::contextItem()->fullId() : FullMsgId());
 			data->save(newfname, action, actionMsgId);
 		}
 	}

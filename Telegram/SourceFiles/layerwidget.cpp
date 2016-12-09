@@ -311,6 +311,7 @@ void LayerStackWidget::setCacheImages() {
 		setFocus();
 	}
 	if (_mainMenu) {
+		setAttribute(Qt::WA_OpaquePaintEvent, false);
 		hideChildren();
 		bodyCache = myGrab(App::wnd()->bodyWidget());
 		showChildren();

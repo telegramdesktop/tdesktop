@@ -56,6 +56,7 @@ private:
 	const style::InputField &_st;
 	bool _active = false;
 	QString _text;
+	QPainterPath _placeholderPath;
 
 };
 

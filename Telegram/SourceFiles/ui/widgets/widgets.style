@@ -181,16 +181,20 @@ FlatInput {
 	phDuration: int;
 }
 
-InputArea {
+InputField {
 	textBg: color;
 	textFg: color;
 	textMargins: margins;
+	textAlign: align;
 
 	placeholderFg: color;
 	placeholderFgActive: color;
+	placeholderFgError: color;
 	placeholderMargins: margins;
 	placeholderAlign: align;
+	placeholderScale: double;
 	placeholderShift: pixels;
+	placeholderFont: font;
 
 	duration: int;
 
@@ -207,34 +211,6 @@ InputArea {
 	width: pixels;
 	heightMin: pixels;
 	heightMax: pixels;
-}
-
-InputField {
-	textBg: color;
-	textFg: color;
-	textMargins: margins;
-	textAlign: align;
-
-	placeholderFg: color;
-	placeholderFgActive: color;
-	placeholderMargins: margins;
-	placeholderAlign: align;
-	placeholderShift: pixels;
-
-	duration: int;
-
-	borderFg: color;
-	borderFgActive: color;
-	borderFgError: color;
-
-	border: pixels;
-	borderActive: pixels;
-	borderError: pixels;
-
-	font: font;
-
-	width: pixels;
-	height: pixels;
 }
 
 OutlineButton {
@@ -602,44 +578,21 @@ attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
 	}
 }
 
-defaultInputArea: InputArea {
-	textBg: windowBg;
-	textFg: windowFg;
-	textMargins: margins(5px, 6px, 5px, 4px);
-
-	placeholderFg: #999999;
-	placeholderFgActive: #aaaaaa;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
-	placeholderAlign: align(topleft);
-	placeholderShift: 50px;
-	duration: 120;
-
-	borderFg: #e0e0e0;
-	borderFgActive: activeLineFg;
-	borderFgError: #e48383;
-
-	border: 1px;
-	borderActive: 2px;
-	borderError: 2px;
-
-	font: boxTextFont;
-
-	heightMin: 32px;
-	heightMax: 128px;
-}
-
 defaultInputField: InputField {
 	textBg: windowBg;
 	textFg: windowFg;
-	textMargins: margins(0px, 6px, 0px, 4px);
+	textMargins: margins(0px, 26px, 0px, 4px);
 	textAlign: align(topleft);
 
-	placeholderFg: #999999;
-	placeholderFgActive: #aaaaaa;
-	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderFg: windowSubTextFg;
+	placeholderFgActive: windowActiveTextFg;
+	placeholderFgError: attentionButtonFg;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
 	placeholderAlign: align(topleft);
-	placeholderShift: 50px;
-	duration: 120;
+	placeholderScale: 0.9;
+	placeholderShift: -20px;
+	placeholderFont: font(semibold 14px);
+	duration: 150;
 
 	borderFg: #e0e0e0;
 	borderFgActive: activeLineFg;
@@ -651,7 +604,8 @@ defaultInputField: InputField {
 
 	font: boxTextFont;
 
-	height: 32px;
+	heightMin: 52px;
+	heightMax: 148px;
 }
 
 defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
@@ -908,4 +862,11 @@ MediaPlayerButton {
 	rippleAreaPosition: point;
 	rippleAreaSize: pixels;
 	ripple: RippleAnimation;
+}
+
+ProfilePeerListItem {
+	button: OutlineButton;
+	statusFg: color;
+	statusFgOver: color;
+	statusFgActive: color;
 }

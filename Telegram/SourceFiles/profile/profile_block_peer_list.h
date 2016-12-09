@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "profile/profile_block_widget.h"
+#include "styles/style_profile.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -34,7 +35,7 @@ namespace Profile {
 
 class PeerListWidget : public BlockWidget {
 public:
-	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const QString &removeText = QString());
+	PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::ProfilePeerListItem &st = st::profileMemberItem, const QString &removeText = QString());
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -122,6 +123,8 @@ private:
 	int rowWidth() const;
 
 	void paintItem(Painter &p, int x, int y, Item *item, bool selected, bool selectedRemove, TimeMs ms);
+
+	const style::ProfilePeerListItem &_st;
 
 	base::lambda<void()> _preloadMoreCallback;
 	base::lambda<void(PeerData*)> _selectedCallback;

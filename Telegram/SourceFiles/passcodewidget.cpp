@@ -32,7 +32,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/window_slide_animation.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
-, _passcode(this, st::passcodeInput)
+, _passcode(this, st::passcodeInput, lang(lng_passcode_ph))
 , _submit(this, lang(lng_passcode_submit), st::passcodeSubmit)
 , _logout(this, lang(lng_passcode_logout)) {
 	connect(_passcode, SIGNAL(changed()), this, SLOT(onChanged()));
@@ -42,7 +42,6 @@ PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 	_logout->setClickedCallback([] { App::wnd()->onLogout(); });
 
 	show();
-	_passcode->setFocus();
 }
 
 void PasscodeWidget::onSubmit() {
@@ -110,6 +109,8 @@ void PasscodeWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	_a_show.finish();
 
 	showAll();
+	setFocus();
+	_passcode->finishAnimations();
 	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
 

@@ -71,7 +71,7 @@ void CodeInput::correctValue(const QString &was, int wasCursor, QString &now, in
 	if (newText != now) {
 		now = newText;
 		setText(now);
-		updatePlaceholder();
+		startPlaceholderAnimation();
 	}
 	if (newPos != nowCursor) {
 		nowCursor = newPos;
@@ -176,7 +176,6 @@ void CodeWidget::finished() {
 	cancelled();
 	_sentCode.clear();
 	_code->setText(QString());
-	_code->setDisabled(false);
 }
 
 void CodeWidget::cancelled() {
@@ -190,17 +189,13 @@ void CodeWidget::stopCheck() {
 }
 
 void CodeWidget::onCheckRequest() {
-	int32 status = MTP::state(_sentRequest);
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
 			if (_sentRequest) {
 				MTP::cancel(base::take(_sentRequest));
 				_sentCode.clear();
-			}
-			if (!_code->isEnabled()) {
-				_code->setDisabled(false);
-				_code->setFocus();
 			}
 		}
 	}
@@ -212,7 +207,6 @@ void CodeWidget::onCheckRequest() {
 void CodeWidget::codeSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
 	_sentRequest = 0;
-	_code->setDisabled(false);
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showCodeError(lang(lng_server_error));
@@ -226,7 +220,6 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
 		_sentRequest = 0;
-		_code->setDisabled(false);
 		showCodeError(lang(lng_flood_error));
 		return true;
 	}
@@ -234,8 +227,7 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 
 	stopCheck();
 	_sentRequest = 0;
-	_code->setDisabled(false);
-	const QString &err = error.type();
+	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED")) { // show error
 		goBack();
 		return true;
@@ -248,7 +240,6 @@ bool CodeWidget::codeSubmitFail(const RPCError &error) {
 		return true;
 	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
 		getData()->code = _sentCode;
-		_code->setDisabled(false);
 		_checkRequest->start(1000);
 		_sentRequest = MTP::send(MTPaccount_GetPassword(), rpcDone(&CodeWidget::gotPassword), rpcFail(&CodeWidget::codeSubmitFail));
 		return true;
@@ -298,7 +289,6 @@ void CodeWidget::callDone(const MTPauth_SentCode &v) {
 void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 	stopCheck();
 	_sentRequest = 0;
-	_code->setDisabled(false);
 	switch (result.type()) {
 	case mtpc_account_noPassword: { // should not happen
 		_code->setFocus();
@@ -316,9 +306,6 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 
 void CodeWidget::submit() {
 	if (_sentRequest) return;
-
-	_code->setDisabled(true);
-	setFocus();
 
 	hideError();
 

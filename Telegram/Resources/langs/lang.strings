@@ -154,6 +154,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_phone_notreg" = "If you don't have a Telegram account yet,\nplease [b]sign up[/b] with {link_start}Android / iPhone{link_end} or {signup_start}here{signup_end}";
 "lng_country_code" = "Country Code";
 "lng_bad_country_code" = "Invalid Country Code";
+"lng_country_fake_ph" = "Your country";
 "lng_country_ph" = "Search";
 "lng_country_done" = "Done";
 "lng_country_none" = "Country not found";
@@ -351,6 +352,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
 "lng_passcode_enter" = "Enter your local passcode";
+"lng_passcode_ph" = "Your passcode";
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
 "lng_passcode_need_unblock" = "You need to unlock me first.";

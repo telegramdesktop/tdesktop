@@ -50,7 +50,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 
-	connect(_setPhoto, SIGNAL(clicked()), this, SLOT(onSetPhoto()));
+	_setPhoto->setClickedCallback(App::LambdaDelayed(st::settingsPrimaryButton.ripple.hideDuration, this, [this] { onSetPhoto(); }));
 	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
 	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 

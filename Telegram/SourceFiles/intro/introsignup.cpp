@@ -42,13 +42,11 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 , _checkRequest(this) {
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_photo->setClickedCallback([this] {
-		App::CallDelayed(st::defaultActiveButton.ripple.hideDuration, base::lambda_guarded(this, [this] {
-			auto imgExtensions = cImgExtensions();
-			auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-			_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-		}));
-	});
+	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
+		auto imgExtensions = cImgExtensions();
+		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+		_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+	}));
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
@@ -96,7 +94,7 @@ void SignupWidget::resizeEvent(QResizeEvent *e) {
 	_photo->moveToLeft(photoRight - _photo->width(), photoTop);
 
 	auto firstTop = contentTop() + st::introStepFieldTop;
-	auto secondTop = firstTop + st::introName.height + st::introPhoneTop;
+	auto secondTop = firstTop + st::introName.heightMin + st::introPhoneTop;
 	if (_invertOrder) {
 		_last->moveToLeft(contentLeft(), firstTop);
 		_first->moveToLeft(contentLeft(), secondTop);
@@ -131,20 +129,11 @@ void SignupWidget::stopCheck() {
 }
 
 void SignupWidget::onCheckRequest() {
-	int32 status = MTP::state(_sentRequest);
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
 			MTP::cancel(base::take(_sentRequest));
-			if (!_first->isEnabled()) {
-				_first->setDisabled(false);
-				_last->setDisabled(false);
-				if (_invertOrder) {
-					_first->setFocus();
-				} else {
-					_last->setFocus();
-				}
-			}
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -159,9 +148,7 @@ void SignupWidget::onPhotoReady(const QImage &img) {
 
 void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 	stopCheck();
-	_first->setDisabled(false);
-	_last->setDisabled(false);
-	const auto &d(result.c_auth_authorization());
+	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
 		return;
@@ -172,8 +159,6 @@ void SignupWidget::nameSubmitDone(const MTPauth_Authorization &result) {
 bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		stopCheck();
-		_first->setDisabled(false);
-		_last->setDisabled(false);
 		showError(lang(lng_flood_error));
 		if (_invertOrder) {
 			_first->setFocus();
@@ -185,9 +170,7 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	stopCheck();
-	_first->setDisabled(false);
-	_last->setDisabled(false);
-	const QString &err = error.type();
+	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
 		err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID") ||
 		err == qstr("PHONE_NUMBER_OCCUPIED")) {
@@ -220,6 +203,7 @@ void SignupWidget::onInputChange() {
 }
 
 void SignupWidget::submit() {
+	if (_sentRequest) return;
 	if (_invertOrder) {
 		if ((_last->hasFocus() || _last->getLastText().trimmed().length()) && !_first->getLastText().trimmed().length()) {
 			_first->setFocus();
@@ -237,11 +221,6 @@ void SignupWidget::submit() {
 			return;
 		}
 	}
-	if (!_first->isEnabled()) return;
-
-	_first->setDisabled(true);
-	_last->setDisabled(true);
-	setFocus();
 
 	showError(QString());
 

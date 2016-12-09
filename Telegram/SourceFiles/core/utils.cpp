@@ -335,7 +335,8 @@ TimeMs getms(bool checked) {
 	return ((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
 #else
     timespec ts;
-    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+    auto res = clock_gettime(CLOCK_MONOTONIC, &ts);
+    if (res != 0) {
         LOG(("Bad clock_gettime result: %1").arg(res));
         return 0;
     }

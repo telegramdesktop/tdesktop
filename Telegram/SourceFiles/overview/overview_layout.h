@@ -76,8 +76,8 @@ public:
 		return _parent;
 	}
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
+	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
 protected:
 	HistoryItem *_parent;
@@ -90,8 +90,7 @@ public:
 	}
 	RadialProgressItem(const RadialProgressItem &other) = delete;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool active) override;
+	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 
 	~RadialProgressItem();
 

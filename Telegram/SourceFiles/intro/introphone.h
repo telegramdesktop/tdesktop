@@ -68,8 +68,6 @@ private:
 	void toSignUp();
 
 	QString fullNumber() const;
-	void disableAll();
-	void enableAll(bool failed);
 	void stopCheck();
 
 	void showPhoneError(const QString &text);

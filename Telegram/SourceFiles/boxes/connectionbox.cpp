@@ -61,7 +61,7 @@ ConnectionBox::ConnectionBox() : AbstractBox(st::boxWidth, lang(lng_connection_h
 void ConnectionBox::updateControlsVisibility() {
 	int32 h = titleHeight() + st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListPadding.top() + _httpProxyRadio->heightNoMargins() + st::boxOptionListPadding.top() + _tcpProxyRadio->heightNoMargins() + st::boxOptionListPadding.top() + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
-		h += 2 * st::boxOptionListPadding.top() + 2 * _hostInput->height();
+		h += 2 * st::boxOptionInputSkip + 2 * _hostInput->height();
 		_hostInput->show();
 		_portInput->show();
 		_userInput->show();
@@ -89,19 +89,19 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 
 	int32 inputy = 0;
 	if (_httpProxyRadio->checked()) {
-		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionListPadding.top();
-		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionListPadding.top() + 2 * _hostInput->height() + st::boxOptionListPadding.top());
+		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
+		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionInputSkip + 2 * _hostInput->height() + st::boxOptionListPadding.top());
 	} else {
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _httpProxyRadio->bottomNoMargins() + st::boxOptionListPadding.top());
 		if (_tcpProxyRadio->checked()) {
-			inputy = _tcpProxyRadio->bottomNoMargins() + st::boxOptionListPadding.top();
+			inputy = _tcpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		}
 	}
 
 	if (inputy) {
 		_hostInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x() - st::defaultInputField.textMargins.left(), inputy);
 		_portInput->moveToRight(st::boxPadding.right(), inputy);
-		_userInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x() - st::defaultInputField.textMargins.left(), _hostInput->y() + _hostInput->height() + st::boxOptionListPadding.top());
+		_userInput->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x() - st::defaultInputField.textMargins.left(), _hostInput->y() + _hostInput->height() + st::boxOptionInputSkip);
 		_passwordInput->moveToRight(st::boxPadding.right(), _userInput->y());
 	}
 
@@ -120,7 +120,6 @@ void ConnectionBox::onChange() {
 		_hostInput->setFocus();
 		if (_httpProxyRadio->checked() && !_portInput->getLastText().toInt()) {
 			_portInput->setText(qsl("80"));
-			_portInput->updatePlaceholder();
 		}
 	}
 	update();

@@ -97,6 +97,7 @@ boxLinkButton: LinkButton {
 }
 
 boxOptionListPadding: margins(2px, 20px, 2px, 2px);
+boxOptionInputSkip: 6px;
 
 boxVerticalMargin: 10px;
 boxWidth: 320px;
@@ -146,7 +147,7 @@ boxPhotoTitleFont: font(16px semibold);
 boxPhotoTitlePosition: point(28px, 26px);
 boxPhotoPadding: margins(28px, 28px, 28px, 0px);
 boxPhotoCompressedSkip: 20px;
-boxPhotoCaptionSkip: 22px;
+boxPhotoCaptionSkip: 8px;
 boxPhotoTextFg: #808080;
 
 cropPointSize: 10px;
@@ -202,7 +203,7 @@ aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 
 contactUserIcon: icon {{ "add_contact_user", #999999 }};
 contactPhoneIcon: icon {{ "add_contact_phone", #999999 }};
-contactIconTop: 10px;
+contactIconTop: 28px;
 
 contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
 contactsAdd: TwoIconButton {
@@ -222,8 +223,8 @@ contactsAdd: TwoIconButton {
 }
 contactsAddPosition: point(14px, 8px);
 
-contactPadding: margins(49px, 22px, 0px, 6px);
-contactSkip: 13px;
+contactPadding: margins(49px, 2px, 0px, 6px);
+contactSkip: 6px;
 contactPhoneSkip: 30px;
 
 contactsPhotoSize: 42px;
@@ -283,13 +284,16 @@ contactsMultiSelect: MultiSelect {
 
 		placeholderFg: #999999;
 		placeholderFgActive: #aaaaaa;
+		placeholderFgError: #aaaaaa;
 		placeholderMargins: margins(2px, 0px, 2px, 0px);
+		placeholderScale: 0.;
+		placeholderFont: normalFont;
 
 		border: 0px;
 		borderActive: 0px;
 		borderError: 0px;
 
-		height: 32px;
+		heightMin: 32px;
 
 		font: normalFont;
 	}
@@ -406,20 +410,23 @@ sessionTerminateAllButton: LinkButton(boxLinkButton) {
 
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
-passcodeInput: introPhone;
+passcodeInput: InputField(introPhone) {
+	textMargins: margins(1px, 27px, 1px, 6px);
+}
 passcodeSubmit: RoundButton(introNextButton) {
 	width: 225px;
 }
 passcodeSubmitSkip: 40px;
-passcodePadding: margins(0px, 22px, 0px, 3px);
-passcodeSkip: 31px;
+passcodePadding: margins(0px, 6px, 0px, 13px);
+passcodeTextLine: 28px;
+passcodeSkip: 21px;
 
 newGroupAboutFg: #808080;
 newGroupPadding: margins(4px, 6px, 4px, 3px);
-newGroupSkip: 17px;
+newGroupSkip: 27px;
 newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
 
-newGroupLinkPadding: margins(4px, 27px, 4px, 12px);
+newGroupLinkPadding: margins(4px, 27px, 4px, 21px);
 newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
 
@@ -428,12 +435,17 @@ newGroupPhotoIcon: icon {{ "new_chat_photo", #ffffff }};
 newGroupPhotoIconPosition: point(23px, 25px);
 newGroupPhotoDuration: 150;
 
-newGroupNamePosition: point(27px, 20px);
+newGroupNamePosition: point(27px, 5px);
 
-newGroupDescriptionPadding: margins(0px, 23px, 0px, 14px);
-newGroupDescription: InputArea(defaultInputArea) {
-	textMargins: margins(1px, 6px, 1px, 4px);
-	heightMax: 115px;
+newGroupDescriptionPadding: margins(0px, 13px, 0px, 4px);
+newGroupDescription: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 135px;
+}
+
+setupChannelLink: InputField(defaultInputField) {
+	textMargins: margins(0px, 6px, 0px, 4px);
+	heightMin: 32px;
 }
 
 newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
@@ -463,14 +475,14 @@ aboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 22px;
 }
 
-editTextArea: InputArea(defaultInputArea) {
-	textMargins: margins(1px, 6px, 1px, 4px);
-	heightMax: 256px;
+editTextArea: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 276px;
 }
 
-confirmCaptionArea: InputArea(defaultInputArea) {
-	textMargins: margins(1px, 6px, 1px, 4px);
-	heightMax: 56px;
+confirmCaptionArea: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 78px;
 }
 confirmBg: windowBgOver;
 confirmMaxHeight: 245px;
@@ -501,3 +513,12 @@ backgroundScroll: FlatScroll(boxScroll) {
 	deltat: 10px;
 	deltab: 0px;
 }
+
+usernamePadding: margins(23px, 6px, 21px, 12px);
+usernameSkip: 49px;
+usernameTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 20px;
+}
+usernameDefaultFg: #777777;
+
+downloadPathSkip: 10px;

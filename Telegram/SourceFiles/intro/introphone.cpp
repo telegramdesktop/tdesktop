@@ -114,20 +114,6 @@ void PhoneWidget::onInputChange() {
 	hidePhoneError();
 }
 
-void PhoneWidget::disableAll() {
-	_phone->setDisabled(true);
-	_country->setDisabled(true);
-	_code->setDisabled(true);
-	setFocus();
-}
-
-void PhoneWidget::enableAll(bool failed) {
-	_phone->setDisabled(false);
-	_country->setDisabled(false);
-	_code->setDisabled(false);
-	if (failed) _phone->setFocus();
-}
-
 void PhoneWidget::submit() {
 	if (_sentRequest || isHidden()) return;
 
@@ -137,7 +123,6 @@ void PhoneWidget::submit() {
 		return;
 	}
 
-	disableAll();
 	hidePhoneError();
 
 	_checkRequest->start(1000);
@@ -151,12 +136,11 @@ void PhoneWidget::stopCheck() {
 }
 
 void PhoneWidget::onCheckRequest() {
-	int32 status = MTP::state(_sentRequest);
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
 			MTP::cancel(base::take(_sentRequest));
-			if (!_phone->isEnabled()) enableAll(true);
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -169,7 +153,6 @@ void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 	auto &d = result.c_auth_checkedPhone();
 	if (mtpIsTrue(d.vphone_registered)) {
-		disableAll();
 		hidePhoneError();
 
 		_checkRequest->start(1000);
@@ -178,7 +161,6 @@ void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	} else {
 		showSignup();
-		enableAll(true);
 		_sentRequest = 0;
 	}
 }
@@ -186,7 +168,6 @@ void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	stopCheck();
 	_sentRequest = 0;
-	enableAll(true);
 
 	if (result.type() != mtpc_auth_sentCode) {
 		showPhoneError(lang(lng_server_error));
@@ -209,7 +190,6 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 }
 
 void PhoneWidget::toSignUp() {
-	disableAll();
 	hideError(); // Hide error, but leave the signup label visible.
 
 	_checkRequest->start(1000);
@@ -223,17 +203,15 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 		stopCheck();
 		_sentRequest = 0;
 		showPhoneError(lang(lng_flood_error));
-		enableAll(true);
 		return true;
 	}
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	stopCheck();
 	_sentRequest = 0;
-	const QString &err = error.type();
+	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(lang(lng_bad_phone));
-		enableAll(true);
 		return true;
 	}
 	if (cDebug()) { // internal server error
@@ -241,7 +219,6 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	} else {
 		showPhoneError(lang(lng_server_error));
 	}
-	enableAll(true);
 	return false;
 }
 
@@ -271,7 +248,6 @@ void PhoneWidget::finished() {
 	rpcClear();
 
 	cancelled();
-	enableAll(true);
 }
 
 void PhoneWidget::cancelled() {

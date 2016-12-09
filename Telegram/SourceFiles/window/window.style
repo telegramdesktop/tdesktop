@@ -68,11 +68,13 @@ notifyActionsDuration: 200;
 
 notifyHideAllHeight: 36px;
 
-notifyReplyArea: InputArea(defaultInputArea) {
+notifyReplyArea: InputField(defaultInputField) {
 	font: normalFont;
 	textMargins: margins(8px, 8px, 8px, 6px);
 	heightMin: 36px;
 	heightMax: 72px;
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
 	border: 0px;
 	borderActive: 0px;
 	borderError: 0px;

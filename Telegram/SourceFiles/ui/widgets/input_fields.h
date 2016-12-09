@@ -247,8 +247,6 @@ class FlatInput : public QLineEdit {
 public:
 	FlatInput(QWidget *parent, const style::FlatInput &st, const QString &ph = QString(), const QString &val = QString());
 
-	void setPlaceholder(const QString &ph);
-	void setPlaceholderFast(bool fast);
 	void updatePlaceholder();
 	const QString &placeholder() const;
 	QRect placeholderRect() const;
@@ -309,7 +307,6 @@ private:
 	void updatePlaceholderText();
 
 	QString _oldtext, _ph, _fullph;
-	bool _fastph = false;
 
 	bool _customUpDown = false;
 
@@ -324,17 +321,17 @@ private:
 	QPoint _touchStart;
 };
 
-enum CtrlEnterSubmit {
-	CtrlEnterSubmitEnter,
-	CtrlEnterSubmitCtrlEnter,
-	CtrlEnterSubmitBoth,
+enum class CtrlEnterSubmit {
+	Enter,
+	CtrlEnter,
+	Both,
 };
 
 class InputArea : public TWidget {
 	Q_OBJECT
 
 public:
-	InputArea(QWidget *parent, const style::InputArea &st, const QString &ph = QString(), const QString &val = QString());
+	InputArea(QWidget *parent, const style::InputField &st, const QString &ph = QString(), const QString &val = QString());
 
 	void showError();
 
@@ -345,9 +342,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
-	void updatePlaceholder();
-
-	void step_border(float64 ms, bool timer);
+	void finishAnimations();
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
@@ -362,30 +357,30 @@ public:
 	void setCtrlEnterSubmit(CtrlEnterSubmit ctrlEnterSubmit);
 
 	void setTextCursor(const QTextCursor &cursor) {
-		return _inner.setTextCursor(cursor);
+		return _inner->setTextCursor(cursor);
 	}
 	QTextCursor textCursor() const {
-		return _inner.textCursor();
+		return _inner->textCursor();
 	}
 	void setText(const QString &text) {
-		_inner.setText(text);
-		updatePlaceholder();
+		_inner->setText(text);
+		startPlaceholderAnimation();
 	}
 	void clear() {
-		_inner.clear();
-		updatePlaceholder();
+		_inner->clear();
+		startPlaceholderAnimation();
 	}
 	bool hasFocus() const {
-		return _inner.hasFocus();
+		return _inner->hasFocus();
 	}
 	void setFocus() {
-		_inner.setFocus();
+		_inner->setFocus();
 	}
 	void clearFocus() {
-		_inner.clearFocus();
+		_inner->clearFocus();
 	}
 
-public slots:
+private slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -393,6 +388,8 @@ public slots:
 
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
+
+	void onFocusInner();
 
 signals:
 	void changed();
@@ -405,6 +402,9 @@ signals:
 	void resized();
 
 protected:
+	void startPlaceholderAnimation();
+	void startBorderAnimation();
+
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 	TWidget *tparent() {
 		return qobject_cast<TWidget*>(parentWidget());
@@ -421,10 +421,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	int32 _maxLength;
-	bool heightAutoupdated();
-	void checkContentHeight();
-
 	class Inner : public QTextEdit {
 	public:
 		Inner(InputArea *parent);
@@ -436,7 +432,6 @@ private:
 		void focusInEvent(QFocusEvent *e) override;
 		void focusOutEvent(QFocusEvent *e) override;
 		void keyPressEvent(QKeyEvent *e) override;
-		void paintEvent(QPaintEvent *e) override;
 		void contextMenuEvent(QContextMenuEvent *e) override;
 
 		QMimeData *createMimeDataFromSelection() const override;
@@ -450,41 +445,55 @@ private:
 	};
 	friend class Inner;
 
-	void focusInInner();
+	bool heightAutoupdated();
+	void checkContentHeight();
+	void createPlaceholderPath();
+	void setErrorShown(bool error);
+
+	void focusInInner(bool focusByMouse);
 	void focusOutInner();
 
 	void processDocumentContentsChange(int position, int charsAdded);
 
-	void startBorderAnimation();
+	const style::InputField &_st;
 
-	Inner _inner;
+	int _maxLength = -1;
+
+	ChildWidget<Inner> _inner;
 
 	QString _oldtext;
 
-	CtrlEnterSubmit _ctrlEnterSubmit;
-	bool _undoAvailable, _redoAvailable, _inHeightCheck;
+	CtrlEnterSubmit _ctrlEnterSubmit = CtrlEnterSubmit::CtrlEnter;
+	bool _undoAvailable = false;
+	bool _redoAvailable = false;
+	bool _inHeightCheck = false;
 
-	bool _customUpDown;
+	bool _customUpDown = false;
 
-	QString _placeholder, _placeholderFull;
-	bool _placeholderVisible;
-	Animation _a_placeholderFocused;
-	Animation _a_placeholderVisible;
+	QString _placeholder;
+	QString _placeholderFull;
+	Animation _a_placeholderShifted;
+	bool _placeholderShifted = false;
+	QPainterPath _placeholderPath;
 
-	anim::value a_borderOpacityActive;
-	anim::value a_borderFgActive;
-	anim::value a_borderFgError;
-	BasicAnimation _a_border;
+	Animation _a_borderShown;
+	int _borderAnimationStart = 0;
+	Animation _a_borderOpacity;
+	bool _borderVisible = false;
 
-	bool _focused, _error;
+	Animation _a_focused;
+	Animation _a_error;
 
-	const style::InputArea &_st;
+	bool _focused = false;
+	bool _error = false;
 
 	QTimer _touchTimer;
-	bool _touchPress, _touchRightButton, _touchMove;
+	bool _touchPress = false;
+	bool _touchRightButton = false;
+	bool _touchMove = false;
 	QPoint _touchStart;
 
-	bool _correcting;
+	bool _correcting = false;
 
 };
 
@@ -503,11 +512,8 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
-	void updatePlaceholder();
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
-	void finishPlaceholderAnimation();
-
-	void step_border(float64 ms, bool timer);
+	void finishAnimations();
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
@@ -521,38 +527,41 @@ public:
 	void customUpDown(bool isCustom);
 
 	void setTextCursor(const QTextCursor &cursor) {
-		return _inner.setTextCursor(cursor);
+		return _inner->setTextCursor(cursor);
 	}
 	QTextCursor textCursor() const {
-		return _inner.textCursor();
+		return _inner->textCursor();
 	}
 	void setText(const QString &text) {
-		_inner.setText(text);
-		updatePlaceholder();
+		_inner->setText(text);
+		startPlaceholderAnimation();
 	}
 	void clear() {
-		_inner.clear();
-		updatePlaceholder();
+		_inner->clear();
+		startPlaceholderAnimation();
 	}
 	bool hasFocus() const {
-		return _inner.hasFocus();
+		return _inner->hasFocus();
 	}
 	void setFocus() {
-		_inner.setFocus();
-		QTextCursor c(_inner.textCursor());
-		c.movePosition(QTextCursor::End);
-		_inner.setTextCursor(c);
+		_inner->setFocus();
+		auto cursor = _inner->textCursor();
+		cursor.movePosition(QTextCursor::End);
+		_inner->setTextCursor(cursor);
 	}
 	void clearFocus() {
-		_inner.clearFocus();
+		_inner->clearFocus();
 	}
 	void setCursorPosition(int pos) {
-		QTextCursor c(_inner.textCursor());
-		c.setPosition(pos);
-		_inner.setTextCursor(c);
+		auto cursor = _inner->textCursor();
+		cursor.setPosition(pos);
+		_inner->setTextCursor(cursor);
 	}
 
 public slots:
+	void selectAll();
+
+private slots:
 	void onTouchTimer();
 
 	void onDocumentContentsChange(int position, int charsRemoved, int charsAdded);
@@ -561,7 +570,7 @@ public slots:
 	void onUndoAvailable(bool avail);
 	void onRedoAvailable(bool avail);
 
-	void selectAll();
+	void onFocusInner();
 
 signals:
 	void changed();
@@ -573,6 +582,9 @@ signals:
 	void blurred();
 
 protected:
+	void startPlaceholderAnimation();
+	void startBorderAnimation();
+
 	void insertEmoji(EmojiPtr emoji, QTextCursor c);
 	TWidget *tparent() {
 		return qobject_cast<TWidget*>(parentWidget());
@@ -589,9 +601,6 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	int32 _maxLength;
-	bool _forcePlaceholderHidden = false;
-
 	class Inner : public QTextEdit {
 	public:
 		Inner(InputField *parent);
@@ -603,7 +612,6 @@ private:
 		void focusInEvent(QFocusEvent *e) override;
 		void focusOutEvent(QFocusEvent *e) override;
 		void keyPressEvent(QKeyEvent *e) override;
-		void paintEvent(QPaintEvent *e) override;
 		void contextMenuEvent(QContextMenuEvent *e) override;
 
 		QMimeData *createMimeDataFromSelection() const override;
@@ -617,40 +625,52 @@ private:
 	};
 	friend class Inner;
 
-	void focusInInner();
+	void createPlaceholderPath();
+	void setErrorShown(bool error);
+
+	void focusInInner(bool focusByMouse);
 	void focusOutInner();
 
 	void processDocumentContentsChange(int position, int charsAdded);
 
-	void startBorderAnimation();
+	const style::InputField &_st;
 
-	Inner _inner;
+	int _maxLength = -1;
+	bool _forcePlaceholderHidden = false;
+
+	ChildWidget<Inner> _inner;
 
 	QString _oldtext;
 
-	bool _undoAvailable, _redoAvailable;
+	bool _undoAvailable = false;
+	bool _redoAvailable = false;
 
-	bool _customUpDown;
+	bool _customUpDown = true;
 
-	QString _placeholder, _placeholderFull;
-	bool _placeholderVisible;
-	Animation _a_placeholderFocused;
-	Animation _a_placeholderVisible;
+	QString _placeholder;
+	QString _placeholderFull;
+	Animation _a_placeholderShifted;
+	bool _placeholderShifted = false;
+	QPainterPath _placeholderPath;
 
-	anim::value a_borderOpacityActive;
-	anim::value a_borderFgActive;
-	anim::value a_borderFgError;
-	BasicAnimation _a_border;
+	Animation _a_borderShown;
+	int _borderAnimationStart = 0;
+	Animation _a_borderOpacity;
+	bool _borderVisible = false;
 
-	bool _focused, _error;
+	Animation _a_focused;
+	Animation _a_error;
 
-	const style::InputField &_st;
+	bool _focused = false;
+	bool _error = false;
 
 	QTimer _touchTimer;
-	bool _touchPress, _touchRightButton, _touchMove;
+	bool _touchPress = false;
+	bool _touchRightButton = false;
+	bool _touchMove = false;
 	QPoint _touchStart;
 
-	bool _correcting;
+	bool _correcting = false;
 };
 
 class MaskedInputField : public QLineEdit {
@@ -662,13 +682,7 @@ public:
 
 	void showError();
 
-	bool setPlaceholder(const QString &ph);
-	void setPlaceholderFast(bool fast);
-	void updatePlaceholder();
-
 	QRect getTextRect() const;
-
-	void step_border(float64 ms, bool timer);
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
@@ -677,13 +691,16 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
+	void setPlaceholderHidden(bool forcePlaceholderHidden);
+	void finishAnimations();
+
 	void setText(const QString &text) {
 		QLineEdit::setText(text);
-		updatePlaceholder();
+		startPlaceholderAnimation();
 	}
 	void clear() {
 		QLineEdit::clear();
-		updatePlaceholder();
+		startPlaceholderAnimation();
 	}
 
 	QMargins getMargins() const {
@@ -706,6 +723,9 @@ signals:
 	void blurred();
 
 protected:
+	void startBorderAnimation();
+	void startPlaceholderAnimation();
+
 	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
@@ -726,13 +746,14 @@ protected:
 	}
 	void setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos);
 
-	virtual void paintPlaceholder(Painter &p, TimeMs ms);
+	virtual void paintAdditionalPlaceholder(Painter &p, TimeMs ms) {
+	}
 
 	style::font phFont() {
 		return _st.font;
 	}
 
-	void placeholderPreparePaint(Painter &p, TimeMs ms);
+	void placeholderAdditionalPrepare(Painter &p, TimeMs ms);
 	const QString &placeholder() const;
 	QRect placeholderRect() const;
 
@@ -740,34 +761,43 @@ protected:
 	const style::InputField &_st;
 
 private:
-	void startBorderAnimation();
-	void updatePlaceholderText();
+	void createPlaceholderPath();
+	void setErrorShown(bool error);
 
-	int32 _maxLength;
+	int _maxLength = -1;
+	bool _forcePlaceholderHidden = false;
 
 	QString _oldtext;
-	int32 _oldcursor;
+	int _oldcursor = 0;
 
-	bool _undoAvailable, _redoAvailable;
+	bool _undoAvailable = false;
+	bool _redoAvailable = false;
 
-	bool _customUpDown;
+	bool _customUpDown = false;
 
-	QString _placeholder, _placeholderFull;
-	bool _placeholderVisible, _placeholderFast;
-	Animation _a_placeholderFocused;
-	Animation _a_placeholderVisible;
+	QString _placeholder;
+	QString _placeholderFull;
+	Animation _a_placeholderShifted;
+	bool _placeholderShifted = false;
+	QPainterPath _placeholderPath;
 
-	anim::value a_borderOpacityActive;
-	anim::value a_borderFgActive;
-	anim::value a_borderFgError;
-	BasicAnimation _a_border;
+	Animation _a_borderShown;
+	int _borderAnimationStart = 0;
+	Animation _a_borderOpacity;
+	bool _borderVisible = false;
 
-	bool _focused, _error;
+	Animation _a_focused;
+	Animation _a_error;
+
+	bool _focused = false;
+	bool _error = false;
 
 	style::margins _textMargins;
 
 	QTimer _touchTimer;
-	bool _touchPress, _touchRightButton, _touchMove;
+	bool _touchPress = false;
+	bool _touchRightButton = false;
+	bool _touchMove = false;
 	QPoint _touchStart;
 };
 
@@ -810,10 +840,11 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 
 	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
-	void paintPlaceholder(Painter &p, TimeMs ms) override;
+	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
 	QVector<int> _pattern;
+	QString _additionalPlaceholder;
 
 };
 
@@ -838,7 +869,7 @@ public:
 
 protected:
 	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
-	void paintPlaceholder(Painter &p, TimeMs ms) override;
+	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
 	QString _linkPlaceholder;
@@ -855,11 +886,11 @@ protected:
 	void focusInEvent(QFocusEvent *e) override;
 
 	void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) override;
-	void paintPlaceholder(Painter &p, TimeMs ms) override;
+	void paintAdditionalPlaceholder(Painter &p, TimeMs ms) override;
 
 private:
-	QString _defaultPlaceholder;
 	QVector<int> _pattern;
+	QString _additionalPlaceholder;
 
 };
 

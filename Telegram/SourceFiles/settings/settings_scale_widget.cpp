@@ -127,9 +127,7 @@ void ScaleWidget::onRestartNow() {
 }
 
 void ScaleWidget::onCancel() {
-	App::CallDelayed(st::boxDuration, base::lambda_guarded(this, [this] {
-		setScale(cRealScale());
-	}));
+	App::CallDelayed(st::boxDuration, this, [this] { setScale(cRealScale()); });
 }
 
 } // namespace Settings

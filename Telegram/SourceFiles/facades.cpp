@@ -37,10 +37,13 @@ Q_DECLARE_METATYPE(Qt::MouseButton);
 Q_DECLARE_METATYPE(Ui::ShowWay);
 
 namespace App {
+namespace internal {
 
 void CallDelayed(int duration, base::lambda<void()> &&lambda) {
 	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std_::move(lambda)), SLOT(action()));
 }
+
+} // namespace internal
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	if (auto m = main()) {

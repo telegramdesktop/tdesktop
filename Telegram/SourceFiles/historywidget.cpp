@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
+#include "styles/style_profile.h"
 #include "boxes/confirmbox.h"
 #include "boxes/send_files_box.h"
 #include "boxes/sharebox.h"
@@ -128,6 +129,11 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll,
 , _scroll(scroll) {
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
+
+	auto tmp = App::LambdaDelayed(200, this, [this] {
+		int a = 0;
+	});
+	tmp();
 
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	connect(&_touchScrollTimer, SIGNAL(timeout()), this, SLOT(onTouchScrollTimer()));
@@ -1233,19 +1239,24 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			}
 		}
 		if (lnkPhoto) {
-			_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextImage()))->setEnabled(true);
+			_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, photo = lnkPhoto->photo()] {
+				savePhotoToFile(photo);
+			}))->setEnabled(true);
 			_menu->addAction(lang(lng_context_copy_image), this, SLOT(copyContextImage()))->setEnabled(true);
 		} else {
-			if (lnkDocument && lnkDocument->document()->loading()) {
+			auto document = lnkDocument->document();
+			if (document->loading()) {
 				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 			} else {
-				if (lnkDocument && lnkDocument->document()->loaded() && lnkDocument->document()->isGifv()) {
+				if (document->loaded() && document->isGifv()) {
 					_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 				}
-				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+				if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), this, SLOT(saveContextFile()))->setEnabled(true);
+				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+					saveDocumentToFile(document);
+				}))->setEnabled(true);
 			}
 		}
 		if (item && item->hasDirectLink() && isUponSelected != 2 && isUponSelected != -2) {
@@ -1304,32 +1315,35 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 			if (item && !isUponSelected) {
-				bool mediaHasTextForCopy = false;
-				if (HistoryMedia *media = (msg ? msg->getMedia() : nullptr)) {
+				auto mediaHasTextForCopy = false;
+				if (auto media = (msg ? msg->getMedia() : nullptr)) {
 					mediaHasTextForCopy = media->hasTextForCopy();
 					if (media->type() == MediaTypeWebPage && static_cast<HistoryWebPage*>(media)->attach()) {
 						media = static_cast<HistoryWebPage*>(media)->attach();
 					}
 					if (media->type() == MediaTypeSticker) {
-						DocumentData *doc = media->getDocument();
-						if (doc && doc->sticker() && doc->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
-							_menu->addAction(lang(doc->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
+						if (auto document = media->getDocument()) {
+							if (document->sticker() && document->sticker()->set.type() != mtpc_inputStickerSetEmpty) {
+								_menu->addAction(lang(document->sticker()->setInstalled() ? lng_context_pack_info : lng_context_pack_add), _widget, SLOT(onStickerPackInfo()));
+							}
+							_menu->addAction(lang(lng_context_save_image), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+								saveDocumentToFile(document);
+							}))->setEnabled(true);
 						}
-
-						_menu->addAction(lang(lng_context_save_image), this, SLOT(saveContextFile()))->setEnabled(true);
 					} else if (media->type() == MediaTypeGif && !_contextMenuLnk) {
-						DocumentData *doc = media->getDocument();
-						if (doc) {
-							if (doc->loading()) {
+						if (auto document = media->getDocument()) {
+							if (document->loading()) {
 								_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 							} else {
-								if (doc->isGifv()) {
+								if (document->isGifv()) {
 									_menu->addAction(lang(lng_context_save_gif), this, SLOT(saveContextGif()))->setEnabled(true);
 								}
-								if (!doc->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+								if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 									_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 								}
-								_menu->addAction(lang(lng_context_save_file), this, SLOT(saveContextFile()))->setEnabled(true);
+								_menu->addAction(lang(lng_context_save_file), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+									saveDocumentToFile(document);
+								}))->setEnabled(true);
 							}
 						}
 					}
@@ -1401,11 +1415,7 @@ void HistoryInner::copyContextUrl() {
 	}
 }
 
-void HistoryInner::saveContextImage() {
-    PhotoClickHandler *lnk = dynamic_cast<PhotoClickHandler*>(_contextMenuLnk.data());
-	if (!lnk) return;
-
-	PhotoData *photo = lnk->photo();
+void HistoryInner::savePhotoToFile(PhotoData *photo) {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
 	QString file;
@@ -1455,30 +1465,22 @@ void HistoryInner::showContextInFolder() {
 	}
 }
 
-void HistoryInner::saveContextFile() {
-	if (DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
-		DocumentSaveClickHandler::doSave(lnkDocument->document(), true);
-	} else if (HistoryItem *item = App::contextItem()) {
-		if (HistoryMedia *media = item->getMedia()) {
-			if (DocumentData *doc = media->getDocument()) {
-				DocumentSaveClickHandler::doSave(doc, true);
-			}
-		}
-	}
+void HistoryInner::saveDocumentToFile(DocumentData *document) {
+	DocumentSaveClickHandler::doSave(document, true);
 }
 
 void HistoryInner::saveContextGif() {
-	if (HistoryItem *item = App::contextItem()) {
-		if (HistoryMedia *media = item->getMedia()) {
-			if (DocumentData *doc = media->getDocument()) {
-				_widget->saveGif(doc);
+	if (auto item = App::contextItem()) {
+		if (auto media = item->getMedia()) {
+			if (auto document = media->getDocument()) {
+				_widget->saveGif(document);
 			}
 		}
 	}
 }
 
 void HistoryInner::copyContextText() {
-	HistoryItem *item = App::contextItem();
+	auto item = App::contextItem();
 	if (!item || (item->getMedia() && item->getMedia()->type() == MediaTypeSticker)) {
 		return;
 	}
@@ -3089,11 +3091,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 		connect(audioCapture(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
 	}
 
-	_attachToggle->setClickedCallback([this] {
-		App::CallDelayed(st::historyAttach.ripple.hideDuration, base::lambda_guarded(this, [this] {
-			chooseAttach();
-		}));
-	});
+	_attachToggle->setClickedCallback(App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [this] {
+		chooseAttach();
+	}));
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
@@ -6235,7 +6235,7 @@ void HistoryWidget::setMembersShowAreaActive(bool active) {
 void HistoryWidget::onMembersDropdownShow() {
 	if (!_membersDropdown) {
 		_membersDropdown.create(this, st::membersInnerDropdown);
-		_membersDropdown->setOwnedWidget(new Profile::GroupMembersWidget(_membersDropdown, _peer, Profile::GroupMembersWidget::TitleVisibility::Hidden));
+		_membersDropdown->setOwnedWidget(new Profile::GroupMembersWidget(_membersDropdown, _peer, Profile::GroupMembersWidget::TitleVisibility::Hidden, st::membersInnerItem));
 		_membersDropdown->resizeToWidth(st::membersInnerWidth);
 
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());

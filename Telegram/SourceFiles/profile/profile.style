@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "basic_types.style";
 
+using "ui/widgets/widgets.style";
 using "window/window.style";
 
 profileBg: windowBg;
@@ -115,6 +116,12 @@ profileInviteLinkText: FlatLabel(profileBlockTextPart) {
 
 profileLimitReachedSkip: 6px;
 
+profileMemberItem: ProfilePeerListItem {
+	button: defaultLeftOutlineButton;
+	statusFg: windowSubTextFg;
+	statusFgOver: #7c99b2;
+	statusFgActive: windowActiveTextFg;
+}
 profileMemberHeight: 58px;
 profileMemberPaddingLeft: 16px;
 profileMemberPhotoSize: 46px;
@@ -122,9 +129,6 @@ profileMemberPhotoPosition: point(12px, 6px);
 profileMemberNamePosition: point(68px, 11px);
 profileMemberNameFg: #222222;
 profileMemberStatusPosition: point(68px, 31px);
-profileMemberStatusFg: windowSubTextFg;
-profileMemberStatusFgOver: #7c99b2;
-profileMemberStatusFgActive: windowActiveTextFg;
 profileMemberAdminIcon: icon {{ "profile_admin_star", windowBgActive, point(4px, 3px) }};
 profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {
 	width: 180px;
@@ -134,9 +138,9 @@ profileLimitReachedStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 19px;
 }
 
-profileReportReasonOther: InputArea(defaultInputArea) {
-	textMargins: margins(1px, 6px, 1px, 4px);
-	heightMax: 115px;
+profileReportReasonOther: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 135px;
 }
 
 profileVerifiedCheckShift: -3px;

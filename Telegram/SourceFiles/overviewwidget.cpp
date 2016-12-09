@@ -1195,13 +1195,17 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		if (lnkPhoto) {
 		} else {
-			if (lnkDocument && lnkDocument->document()->loading()) {
-				_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
-			} else {
-				if (lnkDocument && !lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
-					_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
+			if (auto document = lnkDocument->document()) {
+				if (document->loading()) {
+					_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
+				} else {
+					if (document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+						_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
+					}
+					_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+						saveDocumentToFile(document);
+					}))->setEnabled(true);
 				}
-				_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), this, SLOT(saveContextFile()))->setEnabled(true);
 			}
 		}
 		if (isUponSelected > 1) {
@@ -1418,30 +1422,27 @@ void OverviewInner::cancelContextDownload() {
 }
 
 void OverviewInner::showContextInFolder() {
-	if (DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
-		QString filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
+	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
+		auto filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 		if (!filepath.isEmpty()) {
 			psShowInFolder(filepath);
 		}
 	}
 }
 
-void OverviewInner::saveContextFile() {
-	DocumentClickHandler *lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data());
-	if (lnkDocument) DocumentSaveClickHandler::doSave(lnkDocument->document(), true);
+void OverviewInner::saveDocumentToFile(DocumentData *document) {
+	DocumentSaveClickHandler::doSave(document, true);
 }
 
 bool OverviewInner::onSearchMessages(bool searchCache) {
 	_searchTimer.stop();
-	QString q = _search->text().trimmed();
+	auto q = _search->text().trimmed();
 	if (q.isEmpty()) {
-		if (_searchRequest) {
-			_searchRequest = 0;
-		}
+		MTP::cancel(base::take(_searchRequest));
 		return true;
 	}
 	if (searchCache) {
-		SearchCache::const_iterator i = _searchCache.constFind(q);
+		auto i = _searchCache.constFind(q);
 		if (i != _searchCache.cend()) {
 			_searchQuery = q;
 			_searchFull = _searchFullMigrated = false;

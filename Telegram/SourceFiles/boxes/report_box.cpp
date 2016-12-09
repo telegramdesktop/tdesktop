@@ -71,7 +71,7 @@ void ReportBox::onChange() {
 		if (!_reasonOtherText) {
 			_reasonOtherText.create(this, st::profileReportReasonOther, lang(lng_report_reason_description));
 			_reasonOtherText->show();
-			_reasonOtherText->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
+			_reasonOtherText->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 			_reasonOtherText->setMaxLength(MaxPhotoCaption);
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 

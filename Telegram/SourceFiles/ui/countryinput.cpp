@@ -95,7 +95,16 @@ CountryInput::CountryInput(QWidget *parent, const style::InputField &st) : TWidg
 , _st(st)
 , _text(lang(lng_country_code)) {
 	initCountries();
-	resize(_st.width, _st.height);
+	resize(_st.width, _st.heightMin);
+
+	auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
+	auto placeholderFont = _st.placeholderFont->f;
+	placeholderFont.setStyleStrategy(QFont::PreferMatch);
+	auto metrics = QFontMetrics(placeholderFont);
+	auto placeholder = QString();// metrics.elidedText(lang(lng_country_fake_ph), Qt::ElideRight, availableWidth);
+	if (!placeholder.isNull()) {
+		_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, placeholder);
+	}
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
@@ -106,7 +115,7 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 		p.fillRect(r, _st.textBg);
 	}
 	if (_st.border) {
-		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
+		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
 	}
 
 	st::introCountryIcon.paint(p, width() - st::introCountryIcon.width() - st::introCountryIconPosition.x(), st::introCountryIconPosition.y(), width());
@@ -114,6 +123,30 @@ void CountryInput::paintEvent(QPaintEvent *e) {
 	p.setFont(_st.font);
 	p.setPen(_st.textFg);
 	p.drawText(rect().marginsRemoved(_st.textMargins), _text, _st.textAlign);
+	if (!_placeholderPath.isEmpty()) {
+		auto placeholderShiftDegree = 1.;
+		p.save();
+		p.setClipRect(r);
+
+		auto placeholderTop = anim::interpolate(0, _st.placeholderShift, placeholderShiftDegree);
+
+		QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+		r.moveTop(r.top() + placeholderTop);
+		if (rtl()) r.moveLeft(width() - r.left() - r.width());
+
+		auto placeholderScale = 1. - (1. - _st.placeholderScale) * placeholderShiftDegree;
+		auto placeholderFg = anim::color(_st.placeholderFg, _st.placeholderFgActive, 0.);
+		placeholderFg = anim::color(placeholderFg, _st.placeholderFgError, 0.);
+
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(placeholderFg);
+		p.translate(r.topLeft());
+		p.scale(placeholderScale, placeholderScale);
+		p.drawPath(_placeholderPath);
+
+		p.restore();
+	}
 }
 
 void CountryInput::mouseMoveEvent(QMouseEvent *e) {

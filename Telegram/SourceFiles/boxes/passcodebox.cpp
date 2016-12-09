@@ -75,13 +75,13 @@ void PasscodeBox::init() {
 	if (_turningOff) {
 		_oldPasscode->show();
 		setTitleText(lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
-		setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
+		setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
 	} else {
 		bool has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 		if (has) {
 			_oldPasscode->show();
 			setTitleText(lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
-			setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0) + _newPasscode->height() + st::contactSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::contactSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
+			setMaxHeight(titleHeight() + st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::contactSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::contactSkip : 0) + _aboutHeight + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
 		} else {
 			_oldPasscode->hide();
 			setTitleText(lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create));
@@ -160,27 +160,27 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 	textstyleSet(&st::usernameTextStyle);
 
 	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
-	int32 abouty = (_passwordHint->isHidden() ? (_reenterPasscode->isHidden() ? (_oldPasscode->y() + (_hasRecovery && !_hintText.isEmpty() ? st::passcodeSkip : 0)) : _reenterPasscode->y()) + st::passcodeSkip : _passwordHint->y() + st::contactSkip) + _oldPasscode->height();
+	int32 abouty = (_passwordHint->isHidden() ? (_reenterPasscode->isHidden() ? (_oldPasscode->y() + (_hasRecovery && !_hintText.isEmpty() ? st::passcodeTextLine : 0)) : _reenterPasscode->y()) + st::passcodeSkip : _passwordHint->y() + st::contactSkip) + _oldPasscode->height() + st::passcodePadding.bottom();
 	p.setPen(st::boxTextFg);
 	_about.drawLeft(p, st::boxPadding.left(), abouty, w, width());
 
 	if (!_hintText.isEmpty() && _oldError.isEmpty()) {
-		_hintText.drawLeftElided(p, st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height() + ((st::passcodeSkip - st::normalFont->height) / 2), w, width(), 1, style::al_topleft);
+		_hintText.drawLeftElided(p, st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height() + ((st::passcodeTextLine - st::normalFont->height) / 2), w, width(), 1, style::al_topleft);
 	}
 
 	if (!_oldError.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height(), w, st::passcodeSkip), _oldError, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height(), w, st::passcodeTextLine), _oldError, style::al_left);
 	}
 
 	if (!_newError.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _reenterPasscode->y() + _reenterPasscode->height(), w, st::passcodeSkip), _newError, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _reenterPasscode->y() + _reenterPasscode->height(), w, st::passcodeTextLine), _newError, style::al_left);
 	}
 
 	if (!_emailError.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _recoverEmail->y() + _recoverEmail->height(), w, st::passcodeSkip), _emailError, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _recoverEmail->y() + _recoverEmail->height(), w, st::passcodeTextLine), _emailError, style::al_left);
 	}
 
 	textstyleRestore();
@@ -192,7 +192,7 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	_oldPasscode->resize(w, _oldPasscode->height());
 	_oldPasscode->moveToLeft(st::boxPadding.left(), titleHeight() + st::passcodePadding.top());
 	_newPasscode->resize(w, _newPasscode->height());
-	_newPasscode->moveToLeft(st::boxPadding.left(), _oldPasscode->y() + ((_turningOff || has) ? (_oldPasscode->height() + st::passcodeSkip + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeSkip : 0)) : 0));
+	_newPasscode->moveToLeft(st::boxPadding.left(), _oldPasscode->y() + ((_turningOff || has) ? (_oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0)) : 0));
 	_reenterPasscode->resize(w, _reenterPasscode->height());
 	_reenterPasscode->moveToLeft(st::boxPadding.left(), _newPasscode->y() + _newPasscode->height() + st::contactSkip);
 	_passwordHint->resize(w, _passwordHint->height());
@@ -201,7 +201,7 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 	_recoverEmail->moveToLeft(st::boxPadding.left(), _passwordHint->y() + _passwordHint->height() + st::contactSkip + _aboutHeight + st::contactSkip);
 
 	if (!_recover->isHidden()) {
-		_recover->moveToLeft(st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height() + (_hintText.isEmpty() ? ((st::passcodeSkip - _recover->height()) / 2) : st::passcodeSkip));
+		_recover->moveToLeft(st::boxPadding.left(), _oldPasscode->y() + _oldPasscode->height() + (_hintText.isEmpty() ? ((st::passcodeTextLine - _recover->height()) / 2) : st::passcodeTextLine));
 	}
 
 	_saveButton->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _saveButton->height());
@@ -455,7 +455,7 @@ RecoverBox::RecoverBox(const QString &pattern) : AbstractBox(st::boxWidth, lang(
 , _recoverCode(this, st::defaultInputField, lang(lng_signin_code)) {
 	setBlockTitle(true);
 
-	setMaxHeight(titleHeight() + st::passcodePadding.top() + st::passcodeSkip + _recoverCode->height() + st::passcodeSkip + st::passcodePadding.bottom() + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
+	setMaxHeight(titleHeight() + st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine + _recoverCode->height() + st::passcodeTextLine + st::boxButtonPadding.top() + _saveButton->height() + st::boxButtonPadding.bottom());
 
 	connect(_saveButton, SIGNAL(clicked()), this, SLOT(onSubmit()));
 	connect(_cancelButton, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -474,17 +474,17 @@ void RecoverBox::paintEvent(QPaintEvent *e) {
 	p.setFont(st::normalFont);
 	p.setPen(st::boxTextFg);
 	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
-	p.drawText(QRect(st::boxPadding.left(), _recoverCode->y() - st::passcodeSkip - st::passcodePadding.top(), w, st::passcodePadding.top() + st::passcodeSkip), _pattern, style::al_left);
+	p.drawText(QRect(st::boxPadding.left(), _recoverCode->y() - st::passcodeTextLine - st::passcodePadding.top(), w, st::passcodePadding.top() + st::passcodeTextLine), _pattern, style::al_left);
 
 	if (!_error.isEmpty()) {
 		p.setPen(st::boxTextFgError);
-		p.drawText(QRect(st::boxPadding.left(), _recoverCode->y() + _recoverCode->height(), w, st::passcodeSkip), _error, style::al_left);
+		p.drawText(QRect(st::boxPadding.left(), _recoverCode->y() + _recoverCode->height(), w, st::passcodeTextLine), _error, style::al_left);
 	}
 }
 
 void RecoverBox::resizeEvent(QResizeEvent *e) {
 	_recoverCode->resize(st::boxWidth - st::boxPadding.left() - st::boxPadding.right(), _recoverCode->height());
-	_recoverCode->moveToLeft(st::boxPadding.left(), titleHeight() + st::passcodePadding.top() + st::passcodeSkip);
+	_recoverCode->moveToLeft(st::boxPadding.left(), titleHeight() + st::passcodePadding.top() + st::passcodePadding.bottom() + st::passcodeTextLine);
 
 	_saveButton->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _saveButton->height());
 	_cancelButton->moveToRight(st::boxButtonPadding.right() + _saveButton->width() + st::boxButtonPadding.left(), _saveButton->y());

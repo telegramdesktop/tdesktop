@@ -731,7 +731,7 @@ void Notification::showReplyField() {
 	_replyArea->show();
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
-	_replyArea->setCtrlEnterSubmit(Ui::CtrlEnterSubmitBoth);
+	_replyArea->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 
 	// Catch mouse press event to activate the window.
 	Sandbox::installEventFilter(this);

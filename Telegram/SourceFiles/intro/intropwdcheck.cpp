@@ -102,16 +102,11 @@ void PwdCheckWidget::stopCheck() {
 }
 
 void PwdCheckWidget::onCheckRequest() {
-	int32 status = MTP::state(_sentRequest);
+	auto status = MTP::state(_sentRequest);
 	if (status < 0) {
-		int32 leftms = -status;
+		auto leftms = -status;
 		if (leftms >= 1000) {
 			MTP::cancel(base::take(_sentRequest));
-			if (!_pwdField->isEnabled()) {
-				_pwdField->setDisabled(false);
-				_codeField->setDisabled(false);
-				activate();
-			}
 		}
 	}
 	if (!_sentRequest && status == MTP::RequestSent) {
@@ -125,8 +120,6 @@ void PwdCheckWidget::pwdSubmitDone(bool recover, const MTPauth_Authorization &re
 	if (recover) {
 		cSetPasswordRecovered(true);
 	}
-	_pwdField->setDisabled(false);
-	_codeField->setDisabled(false);
 	auto &d = result.c_auth_authorization();
 	if (d.vuser.type() != mtpc_user || !d.vuser.c_user().is_self()) { // wtf?
 		showError(lang(lng_server_error));
@@ -139,9 +132,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 	if (MTP::isFloodError(error)) {
 		_sentRequest = 0;
 		stopCheck();
-		_codeField->setDisabled(false);
 		showError(lang(lng_flood_error));
-		_pwdField->setDisabled(false);
 		_pwdField->showError();
 		return true;
 	}
@@ -149,9 +140,7 @@ bool PwdCheckWidget::pwdSubmitFail(const RPCError &error) {
 
 	_sentRequest = 0;
 	stopCheck();
-	_pwdField->setDisabled(false);
-	_codeField->setDisabled(false);
-	const QString &err = error.type();
+	auto &err = error.type();
 	if (err == qstr("PASSWORD_HASH_INVALID")) {
 		showError(lang(lng_signin_bad_password));
 		_pwdField->selectAll();
@@ -179,8 +168,6 @@ bool PwdCheckWidget::codeSubmitFail(const RPCError &error) {
 
 	_sentRequest = 0;
 	stopCheck();
-	_pwdField->setDisabled(false);
-	_codeField->setDisabled(false);
 	const QString &err = error.type();
 	if (err == qstr("PASSWORD_EMPTY")) {
 		goBack();
@@ -214,8 +201,6 @@ void PwdCheckWidget::recoverStarted(const MTPauth_PasswordRecovery &result) {
 
 bool PwdCheckWidget::recoverStartFail(const RPCError &error) {
 	stopCheck();
-	_pwdField->setDisabled(false);
-	_codeField->setDisabled(false);
 	_pwdField->show();
 	_pwdHint->show();
 	_codeField->hide();
@@ -283,7 +268,6 @@ void PwdCheckWidget::onInputChange() {
 void PwdCheckWidget::submit() {
 	if (_sentRequest) return;
 	if (_pwdField->isHidden()) {
-		if (!_codeField->isEnabled()) return;
 		auto code = _codeField->getLastText().trimmed();
 		if (code.isEmpty()) {
 			_codeField->showError();
@@ -292,11 +276,6 @@ void PwdCheckWidget::submit() {
 
 		_sentRequest = MTP::send(MTPauth_RecoverPassword(MTP_string(code)), rpcDone(&PwdCheckWidget::pwdSubmitDone, true), rpcFail(&PwdCheckWidget::codeSubmitFail));
 	} else {
-		if (!_pwdField->isEnabled()) return;
-
-		_pwdField->setDisabled(true);
-		setFocus();
-
 		hideError();
 
 		QByteArray pwdData = _salt + _pwdField->getLastText().toUtf8() + _salt, pwdHash(32, Qt::Uninitialized);

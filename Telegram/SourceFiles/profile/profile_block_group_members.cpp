@@ -32,10 +32,11 @@ namespace Profile {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
 
-GroupMembersWidget::GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility)
+GroupMembersWidget::GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVisibility titleVisibility, const style::ProfilePeerListItem &st)
 : PeerListWidget(parent
 	, peer
 	, (titleVisibility == TitleVisibility::Visible) ? lang(lng_profile_participants_section) : QString()
+	, st
 	, lang(lng_profile_kick)) {
 	_updateOnlineTimer.setSingleShot(true);
 	connect(&_updateOnlineTimer, SIGNAL(timeout()), this, SLOT(onUpdateOnlineDisplay()));

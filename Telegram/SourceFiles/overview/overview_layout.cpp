@@ -50,27 +50,23 @@ TextParseOptions _documentNameOptions = {
 
 } // namespace
 
-void ItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+void ItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	App::hoveredLinkItem(active ? _parent : nullptr);
 	Ui::repaintHistoryItem(_parent);
 }
 
-void ItemBase::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+void ItemBase::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
 	App::pressedLinkItem(pressed ? _parent : nullptr);
 	Ui::repaintHistoryItem(_parent);
 }
 
-void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
-	if (p == _openl || p == _savel || p == _cancell) {
+void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+	ItemBase::clickHandlerActiveChanged(action, active);
+	if (action == _openl || action == _savel || action == _cancell) {
 		if (iconAnimated()) {
 			_a_iconOver.start([this] { Ui::repaintHistoryItem(_parent); }, active ? 0. : 1., active ? 1. : 0., st::msgFileOverDuration);
 		}
 	}
-	ItemBase::clickHandlerActiveChanged(p, active);
-}
-
-void RadialProgressItem::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
-	ItemBase::clickHandlerPressedChanged(p, pressed);
 }
 
 void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
@@ -274,12 +270,14 @@ void Photo::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, i
 }
 
 void Photo::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
+	ItemBase::clickHandlerActiveChanged(action, active);
 	if (_check) {
 		_check->setActive(active);
 	}
 }
 
 void Photo::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {
+	ItemBase::clickHandlerPressedChanged(action, pressed);
 	if (_check) {
 		_check->setPressed(pressed);
 	}

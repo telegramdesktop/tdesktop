@@ -32,8 +32,9 @@ PeerListWidget::Item::Item(PeerData *peer) : peer(peer) {
 
 PeerListWidget::Item::~Item() = default;
 
-PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const QString &removeText)
+PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &title, const style::ProfilePeerListItem &st, const QString &removeText)
 : BlockWidget(parent, peer, title)
+, _st(st)
 , _removeText(removeText)
 , _removeWidth(st::normalFont->width(_removeText)) {
 	setMouseTracking(true);
@@ -88,7 +89,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 		paintOutlinedRect(p, x, y, memberRowWidth, st::profileMemberHeight);
 	}
 	if (auto &ripple = item->ripple) {
-		ripple->paint(p, x + st::defaultLeftOutlineButton.outlineWidth, y, width(), ms);
+		ripple->paint(p, x + _st.button.outlineWidth, y, width(), ms);
 		if (ripple->empty()) {
 			ripple.reset();
 		}
@@ -118,18 +119,20 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 	item->name.drawLeftElided(p, nameLeft, nameTop, nameWidth, width());
 
 	if (item->statusHasOnlineColor) {
-		p.setPen(st::profileMemberStatusFgActive);
+		p.setPen(_st.statusFgActive);
 	} else {
-		p.setPen(selected ? st::profileMemberStatusFgOver : st::profileMemberStatusFg);
+		p.setPen(selected ? _st.statusFgOver : _st.statusFg);
 	}
 	p.setFont(st::normalFont);
 	p.drawTextLeft(x + st::profileMemberStatusPosition.x(), y + st::profileMemberStatusPosition.y(), width(), item->statusText);
 }
 
 void PeerListWidget::paintOutlinedRect(Painter &p, int x, int y, int w, int h) const {
-	int outlineWidth = st::defaultLeftOutlineButton.outlineWidth;
-	p.fillRect(rtlrect(x, y, outlineWidth, h, width()), st::defaultLeftOutlineButton.outlineFgOver);
-	p.fillRect(rtlrect(x + outlineWidth, y, w - outlineWidth, h, width()), st::defaultLeftOutlineButton.textBgOver);
+	auto outlineWidth = _st.button.outlineWidth;
+	if (outlineWidth) {
+		p.fillRect(rtlrect(x, y, outlineWidth, h, width()), _st.button.outlineFgOver);
+	}
+	p.fillRect(rtlrect(x + outlineWidth, y, w - outlineWidth, h, width()), _st.button.textBgOver);
 }
 
 void PeerListWidget::mouseMoveEvent(QMouseEvent *e) {
@@ -147,12 +150,12 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 		auto item = _items[_pressed];
 		if (!item->ripple) {
 			auto memberRowWidth = rowWidth();
-			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth - st::defaultLeftOutlineButton.outlineWidth, st::profileMemberHeight));
-			item->ripple = std_::make_unique<Ui::RippleAnimation>(st::defaultLeftOutlineButton.ripple, std_::move(mask), [this, index = _pressed] {
+			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth - _st.button.outlineWidth, st::profileMemberHeight));
+			item->ripple = std_::make_unique<Ui::RippleAnimation>(_st.button.ripple, std_::move(mask), [this, index = _pressed] {
 				repaintRow(index);
 			});
 		}
-		auto left = getListLeft() + st::defaultLeftOutlineButton.outlineWidth;
+		auto left = getListLeft() + _st.button.outlineWidth;
 		auto top = getListTop() + st::profileMemberHeight * _pressed;
 		item->ripple->add(e->pos() - QPoint(left, top));
 	}

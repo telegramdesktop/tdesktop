@@ -107,7 +107,6 @@ public slots:
 	void copyContextUrl();
 	void cancelContextDownload();
 	void showContextInFolder();
-	void saveContextFile();
 
 	void goToMessage();
 	void deleteMessage();
@@ -128,6 +127,8 @@ public slots:
 	void onNeedSearchMessages();
 
 private:
+	void saveDocumentToFile(DocumentData *document);
+
 	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;
 

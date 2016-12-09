@@ -51,7 +51,7 @@ introCoverTitle: FlatLabel(defaultFlatLabel) {
 	textFg: introTitleFg;
 	align: align(center);
 }
-introCoverTitleTop: 126px;
+introCoverTitleTop: 136px;
 introCoverDescription: FlatLabel(defaultFlatLabel) {
 	font: font(15px);
 	textFg: introDescriptionFg;
@@ -60,12 +60,12 @@ introCoverDescription: FlatLabel(defaultFlatLabel) {
 introCoverDescriptionTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 24px;
 }
-introCoverDescriptionTop: 164px;
+introCoverDescriptionTop: 174px;
 introTitle: FlatLabel(defaultFlatLabel) {
 	font: font(17px semibold);
 	textFg: introTitleFg;
 }
-introTitleTop: 11px;
+introTitleTop: 1px;
 introDescription: FlatLabel(defaultFlatLabel) {
 	font: normalFont;
 	textFg: introDescriptionFg;
@@ -73,18 +73,18 @@ introDescription: FlatLabel(defaultFlatLabel) {
 introDescriptionTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
-introDescriptionTop: 44px;
+introDescriptionTop: 34px;
 
 introLink: defaultLinkButton;
 
 introPlaneWidth: 48px;
 introPlaneHeight: 38px;
-introHeight: 396px;
-introStepTopMin: 86px;
+introHeight: 406px;
+introStepTopMin: 76px;
 introStepWidth: 380px;
-introStepHeight: 256px;
+introStepHeight: 266px;
 introStepHeightAdd: 30px;
-introStepHeightFull: 580px;
+introStepHeightFull: 590px;
 introSlideDuration: 200;
 introCoverDuration: 300;
 
@@ -96,30 +96,28 @@ introNextButton: RoundButton(defaultActiveButton) {
 	font: font(17px semibold);
 }
 
-introStepFieldTop: 116px;
-introPhoneTop: 16px;
-introLinkTop: 21px;
+introStepFieldTop: 96px;
+introPhoneTop: 6px;
+introLinkTop: 24px;
 introCountry: InputField(defaultInputField) {
-	textMargins: margins(3px, 7px, 3px, 6px);
+	textMargins: margins(3px, 27px, 3px, 6px);
 	font: font(16px);
 	width: 300px;
-	height: 41px;
+	heightMin: 61px;
 }
 introCountryCode: InputField(introCountry) {
 	width: 64px;
-	height: 41px;
 	textAlign: align(top);
 }
 introPhone: InputField(introCountry) {
-	textMargins: margins(12px, 7px, 12px, 6px);
+	textMargins: margins(12px, 27px, 12px, 6px);
 	width: 225px;
-	height: 41px;
 }
 introCode: introCountry;
 introName: introCountry;
 introPassword: introCountry;
-introPasswordTop: 94px;
-introPasswordHintTop: 146px;
+introPasswordTop: 74px;
+introPasswordHintTop: 151px;
 
 introPasswordHint: FlatLabel(introDescription) {
 	textFg: windowFg;
@@ -138,12 +136,12 @@ introResetButton: RoundButton(defaultLightButton) {
 introResetBottom: 20px;
 
 introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
-introCountryIconPosition: point(8px, 17px);
+introCountryIconPosition: point(8px, 37px);
 
 introSelectDelta: 30px;
 
-introErrorTop: 225px;
-introErrorBelowLinkTop: 213px;
+introErrorTop: 235px;
+introErrorBelowLinkTop: 220px;
 introErrorDuration: 200;
 
 introError: introDescription;

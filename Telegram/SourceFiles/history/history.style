@@ -80,6 +80,25 @@ membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 8px, 3px);
 }
+membersInnerItem: ProfilePeerListItem {
+	button: OutlineButton {
+		outlineWidth: 0px;
+
+		textBg: windowBg;
+		textBgOver: windowBgOver;
+
+		textFg: windowSubTextFg;
+		textFgOver: windowSubTextFgOver;
+
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: windowSubTextFg;
+	statusFgOver: windowSubTextFgOver;
+	statusFgActive: windowActiveTextFg;
+}
 
 historyFileOutImage: icon {{ "history_file_image", msgOutBg }};
 historyFileOutImageSelected: icon {{ "history_file_image", msgOutBgSelected }};

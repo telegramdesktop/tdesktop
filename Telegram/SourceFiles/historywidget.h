@@ -139,11 +139,9 @@ public slots:
 	void onParentGeometryChanged();
 
 	void copyContextUrl();
-	void saveContextImage();
 	void copyContextImage();
 	void cancelContextDownload();
 	void showContextInFolder();
-	void saveContextFile();
 	void saveContextGif();
 	void copyContextText();
 	void copySelectedText();
@@ -159,6 +157,8 @@ private slots:
 
 private:
 	void itemRemoved(HistoryItem *item);
+	void savePhotoToFile(PhotoData *photo);
+	void saveDocumentToFile(DocumentData *document);
 
 	void touchResetSpeed();
 	void touchUpdateSpeed();

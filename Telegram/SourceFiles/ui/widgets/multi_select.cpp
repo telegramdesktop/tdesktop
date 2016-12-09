@@ -700,7 +700,7 @@ void MultiSelect::Inner::addItem(std_::unique_ptr<Item> item, AddItemWay way) {
 	if (way != AddItemWay::SkipAnimation) {
 		_items.back()->showAnimated();
 	} else {
-		_field->finishPlaceholderAnimation();
+		_field->finishAnimations();
 		finishHeightAnimation();
 	}
 }

@@ -394,15 +394,6 @@ radialPeriod: 3000;
 radialFg: #ffffff;
 radialBg: #00000056;
 
-downloadPathSkip: 10px;
-
-usernamePadding: margins(23px, 22px, 21px, 12px);
-usernameSkip: 49px;
-usernameTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 20px;
-}
-usernameDefaultFg: #777777;
-
 youtubeIcon: icon {
 	{ "media_youtube_play_bg", #e83131c8 },
 	{ "media_youtube_play", #ffffff, point(24px, 12px) },
