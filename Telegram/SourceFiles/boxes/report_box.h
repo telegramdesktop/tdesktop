@@ -32,7 +32,7 @@ class ReportBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
 public:
-	ReportBox(ChannelData *channel);
+	ReportBox(PeerData *peer);
 
 private slots:
 	void onReport();
@@ -50,7 +50,7 @@ private:
 	void reportDone(const MTPBool &result);
 	bool reportFail(const RPCError &error);
 
-	ChannelData *_channel;
+	PeerData *_peer;
 
 	ChildWidget<Ui::Radiobutton> _reasonSpam;
 	ChildWidget<Ui::Radiobutton> _reasonViolence;

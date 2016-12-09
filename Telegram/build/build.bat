@@ -44,7 +44,7 @@ set "ReleasePath=%HomePath%\..\out\Release"
 set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
 set "BinaryName=Telegram"
-set "DropboxSymbolsPath=X:\Telegram\symbols"
+set "DropboxSymbolsPath=Y:\Telegram\symbols"
 
 if not exist %DropboxSymbolsPath% (
   echo Dropbox path not found!

@@ -30,15 +30,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
 
-ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
-, _channel(channel)
+ReportBox::ReportBox(PeerData *peer) : AbstractBox(st::boxWidth)
+, _peer(peer)
 , _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true, st::defaultBoxCheckbox)
 , _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence), false, st::defaultBoxCheckbox)
 , _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography), false, st::defaultBoxCheckbox)
 , _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox)
 , _report(this, lang(lng_report_button), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	setTitleText(lang(_channel->isMegagroup() ? lng_report_group_title : lng_report_title));
+	setTitleText(lang(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
 
 	connect(_report, SIGNAL(clicked()), this, SLOT(onReport()));
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
@@ -119,7 +119,7 @@ void ReportBox::onReport() {
 			return MTP_inputReportReasonSpam();
 		}
 	};
-	_requestId = MTP::send(MTPaccount_ReportPeer(_channel->input, getReason()), rpcDone(&ReportBox::reportDone), rpcFail(&ReportBox::reportFail));
+	_requestId = MTP::send(MTPaccount_ReportPeer(_peer->input, getReason()), rpcDone(&ReportBox::reportDone), rpcFail(&ReportBox::reportFail));
 }
 
 void ReportBox::reportDone(const MTPBool &result) {

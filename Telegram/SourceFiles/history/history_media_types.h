@@ -75,7 +75,7 @@ protected:
 	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
-	void checkAnimationFinished();
+	void checkAnimationFinished() const;
 
 	bool isRadialAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
@@ -85,7 +85,10 @@ protected:
 	}
 	bool isThumbAnimation(TimeMs ms) const {
 		if (_animation) {
-			return _animation->a_thumbOver.animating(ms);
+			if (_animation->a_thumbOver.animating(ms)) {
+				return true;
+			}
+			checkAnimationFinished();
 		}
 		return false;
 	}

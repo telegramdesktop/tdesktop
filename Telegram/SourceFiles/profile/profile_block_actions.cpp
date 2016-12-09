@@ -131,6 +131,9 @@ void ActionsWidget::refreshButtons() {
 		}
 		addButton(lang(lng_profile_clear_history), SLOT(onClearHistory()));
 		addButton(lang(lng_profile_delete_conversation), SLOT(onDeleteConversation()));
+		if (user->botInfo) {
+			addButton(lang(lng_profile_report), SLOT(onReport()), st::defaultLeftOutlineButton, st::profileBlockOneLineSkip);
+		}
 		refreshBlockUser();
 	} else if (auto chat = peer()->asChat()) {
 		if (chat->amCreator()) {
@@ -139,7 +142,7 @@ void ActionsWidget::refreshButtons() {
 		addButton(lang(lng_profile_clear_history), SLOT(onClearHistory()));
 		addButton(lang(lng_profile_clear_and_exit), SLOT(onDeleteConversation()));
 	} else if (auto channel = peer()->asChannel()) {
-		if (!channel->amCreator()) {
+		if (!channel->amCreator() && (!channel->isMegagroup() || channel->isPublic())) {
 			addButton(lang(lng_profile_report), SLOT(onReport()));
 		}
 		refreshDeleteChannel();
@@ -359,9 +362,7 @@ void ActionsWidget::onLeaveChannelSure() {
 }
 
 void ActionsWidget::onReport() {
-	if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new ReportBox(channel));
-	}
+	Ui::showLayer(new ReportBox(peer()));
 }
 
 } // namespace Profile

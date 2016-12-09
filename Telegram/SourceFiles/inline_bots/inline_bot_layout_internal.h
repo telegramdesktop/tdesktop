@@ -246,7 +246,7 @@ private:
 	void step_radial(TimeMs ms, bool timer);
 
 	void ensureAnimation() const;
-	void checkAnimationFinished();
+	void checkAnimationFinished() const;
 	bool updateStatusText() const;
 
 	bool isRadialAnimation(TimeMs ms) const {
@@ -257,7 +257,10 @@ private:
 	}
 	bool isThumbAnimation(TimeMs ms) const {
 		if (_animation) {
-			return _animation->a_thumbOver.animating(ms);
+			if (_animation->a_thumbOver.animating(ms)) {
+				return true;
+			}
+			checkAnimationFinished();
 		}
 		return false;
 	}

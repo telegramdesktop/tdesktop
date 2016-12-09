@@ -412,7 +412,7 @@ void Widget::hideAnimated(float64 duration, const anim::transition &func) {
 
 void Widget::updateOpacity() {
 	if (auto manager = ManagerInstance.data()) {
-		setWindowOpacity(_a_opacity.current(_hiding ? 1. : 0.) * manager->demoMasterOpacity());
+		setWindowOpacity(_a_opacity.current(_hiding ? 0. : 1.) * manager->demoMasterOpacity());
 	}
 }
 

@@ -791,7 +791,6 @@ File::~File() {
 
 void File::thumbAnimationCallback() {
 	Ui::repaintInlineItem(this);
-	checkAnimationFinished();
 }
 
 void File::step_radial(TimeMs ms, bool timer) {
@@ -812,7 +811,7 @@ void File::ensureAnimation() const {
 	}
 }
 
-void File::checkAnimationFinished() {
+void File::checkAnimationFinished() const {
 	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
 		if (getShownDocument()->loaded()) {
 			_animation.reset();

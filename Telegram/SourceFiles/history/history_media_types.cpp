@@ -164,7 +164,6 @@ void HistoryFileMedia::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool 
 
 void HistoryFileMedia::thumbAnimationCallback() {
 	Ui::repaintHistoryItem(_parent);
-	checkAnimationFinished();
 }
 
 void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
@@ -209,7 +208,7 @@ void HistoryFileMedia::ensureAnimation() const {
 	}
 }
 
-void HistoryFileMedia::checkAnimationFinished() {
+void HistoryFileMedia::checkAnimationFinished() const {
 	if (_animation && !_animation->a_thumbOver.animating() && !_animation->radial.animating()) {
 		if (dataLoaded()) {
 			_animation.reset();

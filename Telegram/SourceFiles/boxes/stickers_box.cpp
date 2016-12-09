@@ -959,10 +959,13 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (pressed == _selected && _actionSel < 0 && _actionDown < 0) {
 		if (_selected >= 0 && !_inDragArea) {
 			auto &sets = Global::RefStickerSets();
-			auto it = sets.find(_rows.at(pressed)->id);
-			if (it != sets.cend()) {
-				_selected = -1;
-				Ui::showLayer(new StickerSetBox(Stickers::inputSetId(*it)), KeepOtherLayers);
+			auto row = _rows[pressed];
+			if (!row->isRecentSet()) {
+				auto it = sets.find(row->id);
+				if (it != sets.cend()) {
+					_selected = -1;
+					Ui::showLayer(new StickerSetBox(Stickers::inputSetId(*it)), KeepOtherLayers);
+				}
 			}
 		}
 	}

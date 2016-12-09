@@ -88,15 +88,6 @@ private:
 	void sendBotCommand(const QString &command);
 
 	QList<Ui::LeftOutlineButton*> _buttons;
-	//ChildWidget<Ui::LeftOutlineButton> _botHelp = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _botSettings = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _reportChannel = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _leaveChannel = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _deleteChannel = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _upgradeToSupergroup = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _clearHistory = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _deleteConversation = { nullptr };
-	//ChildWidget<Ui::LeftOutlineButton> _blockUser = { nullptr };
 
 	// Hold some button pointers to update / toggle them.
 	bool _hasBotHelp = false;
