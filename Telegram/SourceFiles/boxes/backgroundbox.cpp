@@ -29,25 +29,29 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "ui/effects/round_checkbox.h"
 
-BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
-, _inner(this) {
-	init(_inner);
-	setTitleText(lang(lng_backgrounds_header));
-
-	connect(_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
-
-	raiseShadow();
+BackgroundBox::BackgroundBox(QWidget*) {
 }
 
-void BackgroundBox::onBackgroundChosen(int index) {
+void BackgroundBox::prepare() {
+	setTitle(lang(lng_backgrounds_header));
+
+	addButton(lang(lng_close), [this] { closeBox(); });
+
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
+
+	_inner = setInnerWidget(object_ptr<Inner>(this), st::backgroundScroll);
+	_inner->setBackgroundChosenCallback([this](int index) { backgroundChosen(index); });
+}
+
+void BackgroundBox::backgroundChosen(int index) {
 	if (index >= 0 && index < App::cServerBackgrounds().size()) {
-		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
+		auto &paper = App::cServerBackgrounds()[index];
 		if (App::main()) App::main()->setChatBackground(paper);
 
 		using Update = Window::Theme::BackgroundUpdate;
 		Window::Theme::Background()->notify(Update(Update::Type::Start, !paper.id));
 	}
-	onClose();
+	closeBox();
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
@@ -163,8 +167,8 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 			}
 		}
 	} else {
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	}
 }
@@ -191,7 +195,9 @@ void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 
 void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_overDown == _over && _over >= 0) {
-		emit backgroundChosen(_over);
+		if (_backgroundChosenCallback) {
+			_backgroundChosenCallback(_over);
+		}
 	} else if (_over < 0) {
 		setCursor(style::cur_default);
 	}

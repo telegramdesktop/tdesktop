@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_section_memento.h"
 #include "mainwindow.h"
 #include "application.h"
+#include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
 
@@ -34,19 +35,18 @@ namespace Profile {
 
 Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 , _scroll(this, st::settingsScroll)
-, _inner(this, peer)
 , _fixedBar(this, peer)
-, _fixedBarShadow(this, st::shadowColor) {
+, _fixedBarShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowColor)) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();
 
-	_fixedBarShadow->setMode(Ui::ToggleableShadow::Mode::HiddenFast);
+	_fixedBarShadow->hideFast();
 	_fixedBarShadow->raise();
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
-	_scroll->setOwnedWidget(_inner);
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, peer));
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 
@@ -63,11 +63,11 @@ PeerData *Widget::peer() const {
 }
 
 bool Widget::hasTopBarShadow() const {
-	return _fixedBarShadow->isFullyShown();
+	return !_fixedBarShadow->isHidden() && !_fixedBarShadow->animating();
 }
 
 QPixmap Widget::grabForShowAnimation(const Window::SectionSlideParams &params) {
-	if (params.withTopBarShadow) _fixedBarShadow->hide();
+	if (params.withTopBarShadow || !_scroll->scrollTop()) _fixedBarShadow->hide();
 	auto result = myGrab(this);
 	if (params.withTopBarShadow) _fixedBarShadow->show();
 	return result;
@@ -108,7 +108,8 @@ void Widget::restoreState(const SectionMemento *memento) {
 	_inner->restoreState(memento);
 	auto scrollTop = memento->getScrollTop();
 	_scroll->scrollToY(scrollTop);
-	_fixedBarShadow->setMode((scrollTop > 0) ? Ui::ToggleableShadow::Mode::ShownFast : Ui::ToggleableShadow::Mode::HiddenFast);
+	updateScrollState();
+	_fixedBarShadow->finishAnimation();
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -118,7 +119,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 
 	int newScrollTop = _scroll->scrollTop() + topDelta();
 	_fixedBar->resizeToWidth(width());
-	_fixedBarShadow->resize(width(), st::lineWidth);
+	_fixedBarShadow->entity()->resize(width(), st::lineWidth);
 
 	QSize scrollSize(width(), height() - _fixedBar->height());
 	if (_scroll->size() != scrollSize) {
@@ -131,16 +132,22 @@ void Widget::resizeEvent(QResizeEvent *e) {
 		if (topDelta()) {
 			_scroll->scrollToY(newScrollTop);
 		}
-		int scrollTop = _scroll->scrollTop();
-		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-		_fixedBarShadow->setMode((scrollTop > 0) ? Ui::ToggleableShadow::Mode::Shown : Ui::ToggleableShadow::Mode::Hidden);
+		updateScrollState();
+	}
+}
+
+void Widget::updateScrollState() {
+	auto scrollTop = _scroll->scrollTop();
+	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
+	if (scrollTop > 0) {
+		_fixedBarShadow->showAnimated();
+	} else {
+		_fixedBarShadow->hideAnimated();
 	}
 }
 
 void Widget::onScroll() {
-	int scrollTop = _scroll->scrollTop();
-	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-	_fixedBarShadow->setMode((scrollTop > 0) ? Ui::ToggleableShadow::Mode::Shown : Ui::ToggleableShadow::Mode::Hidden);
+	updateScrollState();
 }
 
 void Widget::showAnimatedHook() {
@@ -149,6 +156,9 @@ void Widget::showAnimatedHook() {
 
 void Widget::showFinishedHook() {
 	_fixedBar->setAnimatingMode(false);
+	if (!_scroll->scrollTop()) {
+		_fixedBarShadow->hide();
+	}
 	_inner->showFinished();
 }
 

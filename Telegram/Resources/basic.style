@@ -36,11 +36,6 @@ emojiPadding: 1px;
 
 lineWidth: 1px;
 
-defaultDropdownDuration: 150;
-defaultDropdownPadding: margins(10px, 10px, 10px, 10px);
-defaultDropdownShadow: icon {{ "dropdown_shadow", windowShadowFg }};
-defaultDropdownShadowShift: 1px;
-
 defaultTooltip: Tooltip {
 	textBg: #eef2f5;
 	textFg: #5d6c80;
@@ -309,8 +304,6 @@ simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
 simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
 dialogsForwardCancelIcon: icon {{ "simple_close", dialogsForwardFg }};
 
-membersPadding: margins(0px, 10px, 0px, 10px);
-
 forwardMargins: margins(30px, 10px, 30px, 10px);
 forwardFont: font(16px);
 forwardBg: #0000004c;
@@ -450,8 +443,8 @@ historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
 historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
 boxSearchCancelIcon: icon {{ "box_button_close", boxSearchCancelIconFg }};
 boxSearchCancelIconOver: icon {{ "box_button_close", boxSearchCancelIconFgOver }};
-boxBlockTitleCloseIcon: icon {{ "box_button_close", boxBlockTitleCloseFg }};
-boxBlockTitleCloseIconOver: icon {{ "box_button_close", boxBlockTitleCloseFgOver }};
+boxTitleCloseIcon: icon {{ "box_button_close", boxTitleCloseFg }};
+boxTitleCloseIconOver: icon {{ "box_button_close", boxTitleCloseFgOver }};
 
 notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 

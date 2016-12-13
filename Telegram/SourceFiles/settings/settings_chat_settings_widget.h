@@ -38,9 +38,7 @@ public:
 
 	void setLink(const QString &text);
 
-	Ui::LinkButton *link() {
-		return _link;
-	}
+	Ui::LinkButton *link() const;
 
 	int naturalWidth() const override;
 
@@ -48,8 +46,8 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	ChildWidget<Ui::FlatLabel> _label;
-	ChildWidget<Ui::LinkButton> _link;
+	object_ptr<Ui::FlatLabel> _label;
+	object_ptr<Ui::LinkButton> _link;
 
 };
 
@@ -67,7 +65,6 @@ protected:
 private slots:
 	void onDownloadPath();
 	void onClear();
-	void onClearSure();
 	void onTempDirCleared(int task);
 	void onTempDirClearFailed(int task);
 
@@ -84,8 +81,8 @@ private:
 	};
 	State _state = State::Empty;
 
-	ChildWidget<LabeledLink> _path;
-	ChildWidget<Ui::LinkButton> _clear;
+	object_ptr<LabeledLink> _path;
+	object_ptr<Ui::LinkButton> _clear;
 
 };
 
@@ -107,14 +104,14 @@ private slots:
 private:
 	void createControls();
 
-	ChildWidget<Ui::Checkbox> _replaceEmoji = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
-	ChildWidget<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
-	ChildWidget<Ui::Radiobutton> _sendByEnter = { nullptr };
-	ChildWidget<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
-	ChildWidget<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
-	ChildWidget<Ui::LinkButton> _manageStickerSets = { nullptr };
+	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
+	object_ptr<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
+	object_ptr<Ui::Radiobutton> _sendByEnter = { nullptr };
+	object_ptr<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
+	object_ptr<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
+	object_ptr<Ui::LinkButton> _manageStickerSets = { nullptr };
 
 };
 

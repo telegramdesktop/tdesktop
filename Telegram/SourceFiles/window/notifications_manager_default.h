@@ -192,7 +192,7 @@ public:
 		return !_history;
 	}
 	bool isReplying() const {
-		return (_replyArea != nullptr) && !isUnlinked();
+		return _replyArea && !isUnlinked();
 	}
 
 	// Called only by Manager.
@@ -243,11 +243,11 @@ private:
 	PeerData *_author;
 	HistoryItem *_item;
 	int _forwardedCount;
-	ChildWidget<Ui::IconButton> _close;
-	ChildWidget<Ui::RoundButton> _reply;
-	ChildWidget<Background> _background = { nullptr };
-	ChildWidget<Ui::InputArea> _replyArea = { nullptr };
-	ChildWidget<Ui::IconButton> _replySend = { nullptr };
+	object_ptr<Ui::IconButton> _close;
+	object_ptr<Ui::RoundButton> _reply;
+	object_ptr<Background> _background = { nullptr };
+	object_ptr<Ui::InputArea> _replyArea = { nullptr };
+	object_ptr<Ui::IconButton> _replySend = { nullptr };
 	bool _waitingForInput = true;
 
 	QTimer _hideTimer;

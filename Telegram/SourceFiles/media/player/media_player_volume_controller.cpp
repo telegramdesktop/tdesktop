@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "media/media_audio.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/shadow.h"
 #include "ui/widgets/continuous_sliders.h"
 #include "styles/style_media_player.h"
 #include "styles/style_widgets.h"
@@ -81,7 +82,6 @@ void VolumeController::applyVolumeChange(float64 volume) {
 }
 
 VolumeWidget::VolumeWidget(QWidget *parent) : TWidget(parent)
-, _shadow(st::defaultDropdownShadow)
 , _controller(this) {
 	hide();
 	_controller->setIsVertical(true);
@@ -143,10 +143,11 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 
 	// draw shadow
 	auto shadowedRect = rect().marginsRemoved(getMargin());
-	using ShadowSide = Ui::RectShadow::Side;
+	using ShadowSide = Ui::Shadow::Side;
 	auto shadowedSides = ShadowSide::Left | ShadowSide::Right | ShadowSide::Bottom;
-	_shadow.paint(p, shadowedRect, st::defaultDropdownShadowShift, shadowedSides);
-	p.fillRect(shadowedRect.x(), 0, shadowedRect.width(), shadowedRect.y() + shadowedRect.height(), st::windowBg);
+	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
+	auto parts = App::RectPart::NoTopBottom | App::RectPart::BottomFull;
+	App::roundRect(p, QRect(shadowedRect.x(), -st::buttonRadius, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::buttonRadius), st::menuBg, MenuCorners, nullptr, parts);
 }
 
 void VolumeWidget::enterEvent(QEvent *e) {

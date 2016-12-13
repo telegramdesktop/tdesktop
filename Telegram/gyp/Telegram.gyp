@@ -470,8 +470,6 @@
       '<(src_loc)/ui/effects/panel_animation.h',
       '<(src_loc)/ui/effects/radial_animation.cpp',
       '<(src_loc)/ui/effects/radial_animation.h',
-      '<(src_loc)/ui/effects/rect_shadow.cpp',
-      '<(src_loc)/ui/effects/rect_shadow.h',
       '<(src_loc)/ui/effects/ripple_animation.cpp',
       '<(src_loc)/ui/effects/ripple_animation.h',
       '<(src_loc)/ui/effects/round_checkbox.cpp',

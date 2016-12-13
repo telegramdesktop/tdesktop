@@ -99,14 +99,16 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::showLayer(new InformBox(lang(lng_bot_share_location_unavailable)));
+		Ui::show(Box<InformBox>(lang(lng_bot_share_location_unavailable)));
 	} break;
 
 	case ButtonType::RequestPhone: {
 		hideSingleUseKeyboard(msg);
-		auto box = new SharePhoneConfirmBox(msg->history()->peer);
-		box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
-		Ui::showLayer(box);
+		Ui::show(Box<ConfirmBox>(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm), [peerId = msg->history()->peer->id] {
+			if (auto m = App::main()) {
+				m->onShareContact(peerId, App::self());
+			}
+		}));
 	} break;
 
 	case ButtonType::SwitchInlineSame:
@@ -188,6 +190,15 @@ void logOutDelayed() {
 } // namespace App
 
 namespace Ui {
+namespace internal {
+
+void showBox(object_ptr<BoxContent> content, ShowLayerOptions options) {
+	if (auto w = App::wnd()) {
+		w->ui_showBox(std_::move(content), options);
+	}
+}
+
+} // namespace internal
 
 void showMediaPreview(DocumentData *document) {
 	if (auto w = App::wnd()) {
@@ -207,20 +218,16 @@ void hideMediaPreview() {
 	}
 }
 
-void showLayer(LayerWidget *box, ShowLayerOptions options) {
+void hideLayer(bool fast) {
 	if (auto w = App::wnd()) {
-		w->ui_showLayer(box, options);
-	} else {
-		delete box;
+		w->ui_showBox({ nullptr }, CloseOtherLayers | (fast ? ForceFastShowLayer : AnimatedShowLayer));
 	}
 }
 
-void hideLayer(bool fast) {
-	if (auto w = App::wnd()) w->ui_showLayer(0, CloseOtherLayers | (fast ? ForceFastShowLayer : AnimatedShowLayer));
-}
-
 void hideSettingsAndLayer(bool fast) {
-	if (auto w = App::wnd()) w->ui_hideSettingsAndLayer(fast ? ForceFastShowLayer : AnimatedShowLayer);
+	if (auto w = App::wnd()) {
+		w->ui_hideSettingsAndLayer(fast ? ForceFastShowLayer : AnimatedShowLayer);
+	}
 }
 
 bool isLayerShown() {

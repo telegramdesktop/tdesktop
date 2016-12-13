@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/effects/rect_shadow.h"
 
 class DragArea : public TWidget {
 	Q_OBJECT
@@ -34,15 +33,7 @@ public:
 	void otherEnter();
 	void otherLeave();
 
-	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || _a_opacity.animating()) return false;
-
-		return QRect(st::dragPadding.left(),
-					 st::dragPadding.top(),
-					 width() - st::dragPadding.left() - st::dragPadding.right(),
-					 height() - st::dragPadding.top() - st::dragPadding.bottom()
-					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
-	}
+	bool overlaps(const QRect &globalRect);
 
 	void hideFast();
 
@@ -67,15 +58,22 @@ public slots:
 private:
 	void setIn(bool in);
 	void opacityAnimationCallback();
+	QRect innerRect() const {
+		return QRect(
+			st::dragPadding.left(),
+			st::dragPadding.top(),
+			width() - st::dragPadding.left() - st::dragPadding.right(),
+			height() - st::dragPadding.top() - st::dragPadding.bottom()
+		);
+	}
 
 	bool _hiding = false;
 	bool _in = false;
+	QPixmap _cache;
 	base::lambda<void(const QMimeData *data)> _droppedCallback;
 
 	Animation _a_opacity;
 	Animation _a_in;
-
-	Ui::RectShadow _shadow;
 
 	QString _text, _subtext;
 

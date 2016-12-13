@@ -76,17 +76,17 @@ private:
 
 	bool _animating = false;
 
-	ChildWidget<Ui::RoundButton> _clearSelection;
-	ChildWidget<Ui::RoundButton> _forward, _delete;
+	object_ptr<Ui::RoundButton> _clearSelection;
+	object_ptr<Ui::RoundButton> _forward, _delete;
 
-	ChildWidget<Ui::PeerAvatarButton> _info;
-	ChildWidget<Ui::RoundButton> _mediaType;
+	object_ptr<Ui::PeerAvatarButton> _info;
+	object_ptr<Ui::RoundButton> _mediaType;
 
-	ChildWidget<Ui::IconButton> _search;
-	ChildWidget<Ui::IconButton> _menuToggle;
-	ChildWidget<Ui::DropdownMenu> _menu = { nullptr };
+	object_ptr<Ui::IconButton> _search;
+	object_ptr<Ui::IconButton> _menuToggle;
+	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
 
-	ChildWidget<TWidget> _membersShowArea = { nullptr };
+	object_ptr<TWidget> _membersShowArea = { nullptr };
 
 	int _unreadCounterSubscription = 0;
 

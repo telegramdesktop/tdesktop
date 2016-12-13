@@ -78,17 +78,17 @@ private:
 	QString _time;
 
 	class PlayButton;
-	ChildWidget<Ui::FlatLabel> _nameLabel;
-	ChildWidget<Ui::LabelSimple> _timeLabel;
-	ChildWidget<Ui::IconButton> _close;
-	ChildWidget<Clip::Playback> _playback;
-	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
-	ChildWidget<PlayButton> _playPause;
-	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };
-	ChildWidget<Ui::IconButton> _volumeToggle;
-	ChildWidget<VolumeController> _volumeController;
-	ChildWidget<Ui::IconButton> _pinPlayer;
-	ChildWidget<Ui::IconButton> _repeatTrack;
+	object_ptr<Ui::FlatLabel> _nameLabel;
+	object_ptr<Ui::LabelSimple> _timeLabel;
+	object_ptr<Ui::IconButton> _close;
+	std_::unique_ptr<Clip::Playback> _playback;
+	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
+	object_ptr<PlayButton> _playPause;
+	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
+	object_ptr<Ui::IconButton> _volumeToggle;
+	object_ptr<VolumeController> _volumeController;
+	object_ptr<Ui::IconButton> _pinPlayer;
+	object_ptr<Ui::IconButton> _repeatTrack;
 
 };
 

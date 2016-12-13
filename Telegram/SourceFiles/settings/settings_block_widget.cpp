@@ -86,17 +86,17 @@ void BlockWidget::rowHeightUpdated() {
 	}
 }
 
-void BlockWidget::createChildRow(ChildWidget<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
+void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
 	child.create(this, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
+void BlockWidget::createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
 	child .create(this, group, value, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
+void BlockWidget::createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
 	child .create(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }

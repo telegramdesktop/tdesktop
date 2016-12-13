@@ -43,10 +43,10 @@ constexpr int kCommonGroupsPerPage = 40;
 
 } // namespace
 
-Window::SectionWidget *SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
-	auto result = new Widget(parent, _peer);
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
+	auto result = object_ptr<Widget>(parent, _peer);
 	result->setInternalState(geometry, this);
-	return result;
+	return std_::move(result);
 }
 
 FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
@@ -333,7 +333,6 @@ InnerWidget::~InnerWidget() {
 
 Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 , _scroll(this, st::settingsScroll)
-, _inner(this, peer)
 , _fixedBar(this)
 , _fixedBarShadow(this, st::shadowColor) {
 	_fixedBar->move(0, 0);
@@ -344,7 +343,7 @@ Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 	updateAdaptiveLayout();
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
-	_scroll->setOwnedWidget(_inner);
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, peer));
 	_scroll->move(0, _fixedBar->height());
 	_scroll->show();
 

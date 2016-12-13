@@ -75,13 +75,13 @@ void TitleWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 }
 
-Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
+object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 	if (auto window = qobject_cast<Platform::MainWindow*>(parent)) {
 		if (auto height = window->getCustomTitleHeight()) {
-			return new TitleWidget(window, height);
+			return object_ptr<TitleWidget>(window, height);
 		}
 	}
-	return nullptr;
+	return { nullptr };
 }
 
 } // namespace Platform

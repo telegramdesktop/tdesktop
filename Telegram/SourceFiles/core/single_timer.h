@@ -26,7 +26,7 @@ class SingleTimer : public QTimer { // single shot timer with check
 	Q_OBJECT
 
 public:
-	SingleTimer();
+	SingleTimer(QObject *parent = nullptr);
 
 	void setSingleShot(bool); // is not available
 	void start(); // is not available

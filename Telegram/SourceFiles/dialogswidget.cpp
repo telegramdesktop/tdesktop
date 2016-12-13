@@ -1887,9 +1887,8 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 , _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
-, _scroll(this, st::dialogsScroll)
-, _inner(this, parent) {
-	_scroll->setOwnedWidget(_inner);
+, _scroll(this, st::dialogsScroll) {
+	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, parent));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
 	connect(_inner, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));

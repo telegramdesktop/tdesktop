@@ -190,13 +190,13 @@ public:
 		base::lambda<void(Step *step, Direction direction)> _goCallback;
 		base::lambda<void()> _showResetCallback;
 
-		ChildWidget<Ui::FlatLabel> _title;
-		ChildWidget<Ui::WidgetFadeWrap<Ui::FlatLabel>> _description;
+		object_ptr<Ui::FlatLabel> _title;
+		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _description;
 
 		bool _errorCentered = false;
 		bool _errorBelowLink = false;
 		QString _errorText;
-		ChildWidget<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
+		object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _error = { nullptr };
 
 		Animation _a_show;
 		CoverAnimation _coverAnimation;
@@ -222,7 +222,6 @@ private:
 
 	void showResetButton();
 	void resetAccount();
-	void resetAccountSure();
 	void resetDone(const MTPBool &result);
 	bool resetFail(const RPCError &error);
 
@@ -247,13 +246,13 @@ private:
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
 
-	ChildWidget<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
-	ChildWidget<Ui::WidgetFadeWrap<Ui::RoundButton>> _update = { nullptr };
-	ChildWidget<Ui::WidgetFadeWrap<Ui::RoundButton>> _settings;
+	object_ptr<Ui::WidgetFadeWrap<Ui::IconButton>> _back;
+	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _update = { nullptr };
+	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _settings;
 
-	ChildWidget<Ui::RoundButton> _next;
-	ChildWidget<Ui::WidgetFadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
-	ChildWidget<Ui::WidgetFadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
+	object_ptr<Ui::RoundButton> _next;
+	object_ptr<Ui::WidgetFadeWrap<Ui::LinkButton>> _changeLanguage = { nullptr };
+	object_ptr<Ui::WidgetFadeWrap<Ui::RoundButton>> _resetAccount = { nullptr };
 
 	mtpRequestId _resetRequest = 0;
 

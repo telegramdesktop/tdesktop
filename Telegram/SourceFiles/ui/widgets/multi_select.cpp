@@ -328,9 +328,10 @@ void MultiSelect::Inner::Item::setOver(bool over) {
 
 MultiSelect::MultiSelect(QWidget *parent, const style::MultiSelect &st, const QString &placeholder) : TWidget(parent)
 , _st(st)
-, _scroll(this, _st.scroll)
-, _inner(this, st, placeholder, [this](int activeTop, int activeBottom) { scrollTo(activeTop, activeBottom); }) {
-	_scroll->setOwnedWidget(_inner);
+, _scroll(this, _st.scroll) {
+	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, st, placeholder, [this](int activeTop, int activeBottom) {
+		scrollTo(activeTop, activeBottom);
+	}));
 	_scroll->installEventFilter(this);
 	_inner->setResizedCallback([this](int innerHeightDelta) {
 		auto newHeight = resizeGetHeight(width());

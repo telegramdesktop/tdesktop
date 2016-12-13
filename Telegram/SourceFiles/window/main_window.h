@@ -51,7 +51,7 @@ public:
 	virtual ~MainWindow();
 
 	TWidget *bodyWidget() {
-		return _body;
+		return _body.data();
 	}
 
 protected:
@@ -86,11 +86,11 @@ private:
 	void updateUnreadCounter();
 	void initSize();
 
-	ChildObject<QTimer> _positionUpdatedTimer;
+	object_ptr<QTimer> _positionUpdatedTimer;
 	bool _positionInited = false;
 
-	ChildWidget<TitleWidget> _title = { nullptr };
-	ChildWidget<TWidget> _body;
+	object_ptr<TitleWidget> _title = { nullptr };
+	object_ptr<TWidget> _body;
 
 	QString _titleText;
 

@@ -59,7 +59,7 @@ void ChannelMembersWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	contentSizeUpdated();
 }
 
-void ChannelMembersWidget::addButton(const QString &text, ChildWidget<Ui::LeftOutlineButton> *button, const char *slot) {
+void ChannelMembersWidget::addButton(const QString &text, object_ptr<Ui::LeftOutlineButton> *button, const char *slot) {
 	if (text.isEmpty()) {
 		button->destroy();
 	} else if (*button) {
@@ -111,7 +111,7 @@ void ChannelMembersWidget::refreshVisibility() {
 int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 	int newHeight = contentTop();
 
-	auto resizeButton = [this, &newHeight, newWidth](ChildWidget<Ui::LeftOutlineButton> &button) {
+	auto resizeButton = [this, &newHeight, newWidth](object_ptr<Ui::LeftOutlineButton> &button) {
 		if (!button) {
 			return;
 		}
@@ -132,13 +132,13 @@ int ChannelMembersWidget::resizeGetHeight(int newWidth) {
 
 void ChannelMembersWidget::onAdmins() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new MembersBox(channel, MembersFilter::Admins));
+		Ui::show(Box<MembersBox>(channel, MembersFilter::Admins));
 	}
 }
 
 void ChannelMembersWidget::onMembers() {
 	if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new MembersBox(channel, MembersFilter::Recent));
+		Ui::show(Box<MembersBox>(channel, MembersFilter::Recent));
 	}
 }
 

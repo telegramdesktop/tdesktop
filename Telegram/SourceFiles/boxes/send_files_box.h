@@ -29,13 +29,13 @@ class RoundButton;
 class InputArea;
 } // namespace Ui
 
-class SendFilesBox : public AbstractBox {
+class SendFilesBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	SendFilesBox(const QString &filepath, QImage image, CompressConfirm compressed, bool animated = false);
-	SendFilesBox(const QStringList &files, CompressConfirm compressed);
-	SendFilesBox(const QString &phone, const QString &firstname, const QString &lastname);
+	SendFilesBox(QWidget*, const QString &filepath, QImage image, CompressConfirm compressed, bool animated = false);
+	SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed);
+	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
 
 	void setConfirmedCallback(base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> &&callback) {
 		_confirmedCallback = std_::move(callback);
@@ -44,21 +44,22 @@ public:
 		_cancelledCallback = std_::move(callback);
 	}
 
-public slots:
-	void onCompressedChange();
-	void onSend(bool ctrlShiftEnter = false);
-	void onCaptionResized();
+	void closeHook() override;
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void closePressed() override;
-	void doSetInnerFocus() override;
+private slots:
+	void onCompressedChange();
+	void onSend(bool ctrlShiftEnter = false);
+	void onCaptionResized();
 
 private:
-	void setup();
 	void updateTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
@@ -90,31 +91,30 @@ private:
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
-	ChildWidget<Ui::InputArea> _caption = { nullptr };
-	ChildWidget<Ui::Checkbox> _compressed = { nullptr };
+	object_ptr<Ui::InputArea> _caption = { nullptr };
+	object_ptr<Ui::Checkbox> _compressed = { nullptr };
 
-	ChildWidget<Ui::RoundButton> _send;
-	ChildWidget<Ui::RoundButton> _cancel;
+	QPointer<Ui::RoundButton> _send;
 
 };
 
-class EditCaptionBox : public AbstractBox, public RPCSender {
+class EditCaptionBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditCaptionBox(HistoryItem *msg);
-
-	bool captionFound() const;
+	EditCaptionBox(QWidget*, HistoryItem *msg);
+	static bool canEdit(HistoryItem *message);
 
 public slots:
 	void onCaptionResized();
 	void onSave(bool ctrlShiftEnter = false);
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
 
 private:
 	void updateBoxSize();
@@ -123,22 +123,25 @@ private:
 	bool saveFail(const RPCError &error);
 
 	FullMsgId _msgId;
-	bool _animated, _photo, _doc;
+	bool _animated = false;
+	bool _photo = false;
+	bool _doc = false;
 
 	QPixmap _thumb;
 
-	ChildWidget<Ui::InputArea> _field = { nullptr };
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::InputArea> _field = { nullptr };
 
-	int32 _thumbx, _thumby, _thumbw, _thumbh;
+	int _thumbx = 0;
+	int _thumby = 0;
+	int _thumbw = 0;
+	int _thumbh = 0;
 	Text _name;
 	QString _status;
-	int32 _statusw;
-	bool _isImage;
+	int _statusw = 0;
+	bool _isImage = false;
 
-	bool _previewCancelled;
-	mtpRequestId _saveRequestId;
+	bool _previewCancelled = false;
+	mtpRequestId _saveRequestId = 0;
 
 	QString _error;
 

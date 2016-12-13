@@ -36,53 +36,6 @@ private:
 
 };
 
-class ToggleableShadow : public TWidget {
-public:
-	ToggleableShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
-	}
-
-	enum class Mode {
-		Shown,
-		ShownFast,
-		Hidden,
-		HiddenFast
-	};
-	void setMode(Mode mode);
-
-	bool isFullyShown() const {
-		return _shown && !_a_opacity.animating();
-	}
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	const style::color &_color;
-	Animation _a_opacity;
-	bool _shown = true;
-
-};
-
-class GradientShadow : public TWidget {
-public:
-	GradientShadow(QWidget *parent, const style::icon &icon) : TWidget(parent), _icon(icon) {
-	}
-
-protected:
-	int resizeGetHeight(int newWidth) override {
-		return _icon.height();
-	}
-	void paintEvent(QPaintEvent *e) override {
-		Painter p(this);
-		auto clip = e->rect();
-		_icon.fill(p, QRect(clip.x(), 0, clip.width(), height()));
-	}
-
-private:
-	const style::icon &_icon;
-
-};
-
 class Shadow : public TWidget {
 public:
 	enum class Side {
@@ -100,6 +53,8 @@ public:
 	}
 
 	static void paint(Painter &p, const QRect &box, int outerWidth, const style::Shadow &st, Sides sides = Side::Left | Side::Top | Side::Right | Side::Bottom);
+
+	static QPixmap grab(TWidget *target, const style::Shadow &shadow, Sides sides = Side::Left | Side::Top | Side::Right | Side::Bottom);
 
 protected:
 	void paintEvent(QPaintEvent *e) override {

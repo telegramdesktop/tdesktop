@@ -49,11 +49,11 @@ int LocalPasscodeState::resizeGetHeight(int newWidth) {
 }
 
 void LocalPasscodeState::onEdit() {
-	Ui::showLayer(new PasscodeBox());
+	Ui::show(Box<PasscodeBox>(false));
 }
 
 void LocalPasscodeState::onTurnOff() {
-	Ui::showLayer(new PasscodeBox(true));
+	Ui::show(Box<PasscodeBox>(true));
 }
 
 void LocalPasscodeState::updateControls() {
@@ -79,9 +79,8 @@ int CloudPasswordState::resizeGetHeight(int newWidth) {
 }
 
 void CloudPasswordState::onEdit() {
-	PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint);
+	auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint));
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-	Ui::showLayer(box);
 }
 
 void CloudPasswordState::onTurnOff() {
@@ -92,9 +91,8 @@ void CloudPasswordState::onTurnOff() {
 		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
 		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&CloudPasswordState::offPasswordDone), rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
-		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
+		auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true));
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-		Ui::showLayer(box);
 	}
 }
 
@@ -196,11 +194,11 @@ void PrivacyWidget::autoLockUpdated() {
 }
 
 void PrivacyWidget::onAutoLock() {
-	Ui::showLayer(new AutoLockBox());
+	Ui::show(Box<AutoLockBox>());
 }
 
 void PrivacyWidget::onShowSessions() {
-	Ui::showLayer(new SessionsBox());
+	Ui::show(Box<SessionsBox>());
 }
 
 } // namespace Settings

@@ -52,12 +52,8 @@ private:
 
 		void setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
 
-		Ui::FlatLabel *textLabel() {
-			return _text;
-		}
-		Ui::FlatLabel *shortTextLabel() {
-			return _shortText;
-		}
+		Ui::FlatLabel *textLabel() const;
+		Ui::FlatLabel *shortTextLabel() const;
 
 		int naturalWidth() const override;
 
@@ -65,20 +61,20 @@ private:
 		int resizeGetHeight(int newWidth) override;
 
 	private:
-		void setLabelText(ChildWidget<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
+		void setLabelText(object_ptr<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
 
-		ChildWidget<Ui::FlatLabel> _label = { nullptr };
-		ChildWidget<Ui::FlatLabel> _text = { nullptr };
-		ChildWidget<Ui::FlatLabel> _shortText = { nullptr };
+		object_ptr<Ui::FlatLabel> _label = { nullptr };
+		object_ptr<Ui::FlatLabel> _text = { nullptr };
+		object_ptr<Ui::FlatLabel> _shortText = { nullptr };
 
 	};
 
 	using LabeledWrap = Ui::WidgetSlideWrap<LabeledWidget>;
-	void setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
+	void setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
 
-	ChildWidget<LabeledWrap> _mobileNumber = { nullptr };
-	ChildWidget<LabeledWrap> _username = { nullptr };
-	ChildWidget<LabeledWrap> _link = { nullptr };
+	object_ptr<LabeledWrap> _mobileNumber = { nullptr };
+	object_ptr<LabeledWrap> _username = { nullptr };
+	object_ptr<LabeledWrap> _link = { nullptr };
 
 };
 

@@ -54,15 +54,11 @@ private slots:
 	void onBotHelp();
 	void onBotSettings();
 	void onClearHistory();
-	void onClearHistorySure();
 	void onDeleteConversation();
-	void onDeleteConversationSure();
 	void onBlockUser();
 	void onUpgradeToSupergroup();
 	void onDeleteChannel();
-	void onDeleteChannelSure();
 	void onLeaveChannel();
-	void onLeaveChannelSure();
 	void onReport();
 
 private:

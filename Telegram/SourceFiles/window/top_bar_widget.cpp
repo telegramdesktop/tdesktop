@@ -106,19 +106,19 @@ void TopBarWidget::showMenu() {
 		if (auto peer = main->peer()) {
 			if (!_menu) {
 				_menu.create(App::main());
-				_menu->setHiddenCallback([that = weak(), menu = _menu.ptr()] {
+				_menu->setHiddenCallback([that = weak(), menu = _menu.data()] {
 					menu->deleteLater();
 					if (that && that->_menu == menu) {
 						that->_menu = nullptr;
 						that->_menuToggle->setForceRippled(false);
 					}
 				});
-				_menu->setShowStartCallback(base::lambda_guarded(this, [this, menu = _menu.ptr()] {
+				_menu->setShowStartCallback(base::lambda_guarded(this, [this, menu = _menu.data()] {
 					if (_menu == menu) {
 						_menuToggle->setForceRippled(true);
 					}
 				}));
-				_menu->setHideStartCallback(base::lambda_guarded(this, [this, menu = _menu.ptr()] {
+				_menu->setHideStartCallback(base::lambda_guarded(this, [this, menu = _menu.data()] {
 					if (_menu == menu) {
 						_menuToggle->setForceRippled(false);
 					}
@@ -312,7 +312,7 @@ void TopBarWidget::updateMembersShowArea() {
 		}
 		return;
 	} else if (!_membersShowArea) {
-		_membersShowArea = new TWidget(this);
+		_membersShowArea.create(this);
 		_membersShowArea->show();
 		_membersShowArea->installEventFilter(this);
 	}

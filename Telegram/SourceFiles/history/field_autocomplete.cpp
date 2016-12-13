@@ -30,18 +30,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_stickers.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
-, _scroll(this, st::mentionScroll)
-, _inner(this, &_mrows, &_hrows, &_brows, &_srows) {
-	connect(_inner, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
-
-	_inner->setGeometry(rect());
+, _scroll(this, st::mentionScroll) {
 	_scroll->setGeometry(rect());
 
-	_scroll->setOwnedWidget(_inner);
+	_inner = _scroll->setOwnedWidget(object_ptr<internal::FieldAutocompleteInner>(this, &_mrows, &_hrows, &_brows, &_srows));
+	_inner->setGeometry(rect());
+
+	connect(_inner, SIGNAL(mentionChosen(UserData*, FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(hashtagChosen(QString, FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(botCommandChosen(QString, FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(stickerChosen(DocumentData*, FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(DocumentData*, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
+
 	_scroll->show();
 	_inner->show();
 
@@ -412,7 +412,7 @@ void FieldAutocomplete::hideAnimated() {
 	}
 	_scroll->hide();
 	_hiding = true;
-	_a_opacity.start([this] { animationCallback(); }, 1., 0., st::defaultDropdownDuration);
+	_a_opacity.start([this] { animationCallback(); }, 1., 0., st::emojiPanDuration);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
@@ -434,7 +434,7 @@ void FieldAutocomplete::showAnimated() {
 	_scroll->hide();
 	_hiding = false;
 	show();
-	_a_opacity.start([this] { animationCallback(); }, 0., 1., st::defaultDropdownDuration);
+	_a_opacity.start([this] { animationCallback(); }, 0., 1., st::emojiPanDuration);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 

@@ -86,8 +86,8 @@ trayCounterFgMacInvert: #ffffff01;
 // layers
 layerBg: #0000007f;
 
-cancelIconFg: #a2a2a2;
-cancelIconFgOver: #808080;
+cancelIconFg: menuIconFg;
+cancelIconFgOver: menuIconFgOver;
 
 // boxes
 boxBg: windowBg;
@@ -99,11 +99,9 @@ boxSearchBg: boxBg;
 boxSearchCancelIconFg: cancelIconFg;
 boxSearchCancelIconFgOver: cancelIconFgOver;
 
-boxBlockTitleBg: boxBg;
-boxBlockTitleFg: boxTitleFg;
-boxBlockTitleAdditionalFg: #808080;
-boxBlockTitleCloseFg: cancelIconFg;
-boxBlockTitleCloseFgOver: cancelIconFgOver;
+boxTitleAdditionalFg: #808080;
+boxTitleCloseFg: cancelIconFg;
+boxTitleCloseFgOver: cancelIconFgOver;
 
 membersAboutLimitFg: windowSubTextFgOver;
 

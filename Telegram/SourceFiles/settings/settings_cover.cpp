@@ -210,7 +210,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (!_dropArea) {
 		auto title = lang(lng_profile_drop_area_title);
 		auto subtitle = lang(lng_settings_drop_area_subtitle);
-		_dropArea = new Profile::CoverDropArea(this, title, subtitle);
+		_dropArea.create(this, title, subtitle);
 		resizeDropArea();
 	}
 	_dropArea->showAnimated();
@@ -308,7 +308,7 @@ void CoverWidget::onSetPhoto() {
 }
 
 void CoverWidget::onEditName() {
-	Ui::showLayer(new EditNameTitleBox(self()));
+	Ui::show(Box<EditNameTitleBox>(self()));
 }
 
 void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
@@ -333,13 +333,12 @@ void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) 
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		Ui::showLayer(new InformBox(lang(lng_bad_photo)));
+		Ui::show(Box<InformBox>(lang(lng_bad_photo)));
 		return;
 	}
 
-	auto box = new PhotoCropBox(img, _self);
-	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onPhotoUploadStatusChanged()));
-	Ui::showLayer(box);
+	auto box = Ui::show(Box<PhotoCropBox>(img, _self));
+	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
 }
 
 void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {

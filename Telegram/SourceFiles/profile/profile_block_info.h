@@ -30,17 +30,11 @@ namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
 
-namespace Ui {
-class LeftOutlineButton;
-} // namespace Ui
-
 namespace Profile {
 
 class InfoWidget : public BlockWidget, public RPCSender {
 public:
 	InfoWidget(QWidget *parent, PeerData *peer);
-
-	void showFinished() override;
 
 protected:
 	// Resizes content and counts natural widget height for the desired width.
@@ -57,29 +51,20 @@ private:
 	void refreshMobileNumber();
 	void refreshUsername();
 	void refreshChannelLink();
-	void refreshCommonGroups();
 	void refreshVisibility();
 
-	int getCommonGroupsCount() const;
-	void onShowCommonGroups();
-	void slideCommonGroupsDown();
-
 	// labelWidget may be nullptr.
-	void setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,
-		ChildWidget<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
+	void setLabeledText(object_ptr<Ui::FlatLabel> *labelWidget, const QString &label,
+		object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText);
 
-	ChildWidget<Ui::FlatLabel> _about = { nullptr };
-	ChildWidget<Ui::FlatLabel> _channelLinkLabel = { nullptr };
-	ChildWidget<Ui::FlatLabel> _channelLink = { nullptr };
-	ChildWidget<Ui::FlatLabel> _channelLinkShort = { nullptr };
-	ChildWidget<Ui::FlatLabel> _mobileNumberLabel = { nullptr };
-	ChildWidget<Ui::FlatLabel> _mobileNumber = { nullptr };
-	ChildWidget<Ui::FlatLabel> _usernameLabel = { nullptr };
-	ChildWidget<Ui::FlatLabel> _username = { nullptr };
-	ChildWidget<Ui::LeftOutlineButton> _commonGroups = { nullptr };
-
-	Animation _height;
-	bool _showFinished = false;
+	object_ptr<Ui::FlatLabel> _about = { nullptr };
+	object_ptr<Ui::FlatLabel> _channelLinkLabel = { nullptr };
+	object_ptr<Ui::FlatLabel> _channelLink = { nullptr };
+	object_ptr<Ui::FlatLabel> _channelLinkShort = { nullptr };
+	object_ptr<Ui::FlatLabel> _mobileNumberLabel = { nullptr };
+	object_ptr<Ui::FlatLabel> _mobileNumber = { nullptr };
+	object_ptr<Ui::FlatLabel> _usernameLabel = { nullptr };
+	object_ptr<Ui::FlatLabel> _username = { nullptr };
 
 };
 

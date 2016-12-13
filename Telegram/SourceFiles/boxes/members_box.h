@@ -49,31 +49,33 @@ private:
 
 };
 
-class MembersBox : public ItemListBox {
+class MembersBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	MembersBox(ChannelData *channel, MembersFilter filter);
+	MembersBox(QWidget*, ChannelData *channel, MembersFilter filter);
 
 public slots:
-	void onScroll();
-
 	void onAdminAdded();
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void onAdd();
 
+	ChannelData *_channel = nullptr;
+	MembersFilter _filter = MembersFilter::Recent;
+
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<MembersAddButton> _add = { nullptr };
+	QPointer<Inner> _inner;
 
-	ContactsBox *_addBox = nullptr;
+	QPointer<ContactsBox> _addBox;
 
-	SingleTimer _loadTimer;
+	object_ptr<SingleTimer> _loadTimer = { nullptr };
 
 };
 
@@ -87,7 +89,6 @@ public:
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
 
-	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 
 	void refresh();
@@ -101,6 +102,7 @@ public:
 	void clearSel();
 
 	MembersAlreadyIn already() const;
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	~Inner();
 
@@ -114,8 +116,6 @@ public slots:
 	void updateSel();
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-	void onKickConfirm();
-	void onKickBoxDestroyed(QObject *obj);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -133,6 +133,8 @@ private:
 		bool canKick;
 	};
 
+	void loadProfilePhotos();
+
 	void updateSelectedRow();
 	MemberData *data(int32 index);
 
@@ -149,6 +151,8 @@ private:
 	void clear();
 
 	int _rowHeight;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 
 	ChannelData *_channel;
 	MembersFilter _filter;
@@ -162,7 +166,7 @@ private:
 	UserData *_kickConfirm;
 	mtpRequestId _kickRequestId;
 
-	ConfirmBox *_kickBox;
+	QPointer<ConfirmBox> _kickBox;
 
 	enum class MemberRole {
 		None,

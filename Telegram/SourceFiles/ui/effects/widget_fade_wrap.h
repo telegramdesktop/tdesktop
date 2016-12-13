@@ -45,6 +45,14 @@ public:
 	void fadeIn(int duration);
 	void fadeOut(int duration);
 
+	void finish() {
+		_animation.finish();
+	}
+
+	bool animating() const {
+		return _animation.animating();
+	}
+
 private:
 	void startAnimation(int duration);
 	void stopAnimation();
@@ -67,15 +75,16 @@ class WidgetFadeWrap;
 template <>
 class WidgetFadeWrap<TWidget> : public TWidget {
 public:
-	WidgetFadeWrap(QWidget *parent, TWidget *entity
-		, base::lambda<void()> &&updateCallback
-		, int duration = st::widgetFadeDuration);
+	WidgetFadeWrap(QWidget *parent
+		, object_ptr<TWidget> entity
+		, int duration = st::widgetFadeDuration
+		, base::lambda<void()> &&updateCallback = base::lambda<void()>());
 
-	void fadeOut() {
-		_animation.fadeOut(_duration);
-	}
-	void fadeIn() {
+	void showAnimated() {
 		_animation.fadeIn(_duration);
+	}
+	void hideAnimated() {
+		_animation.fadeOut(_duration);
 	}
 	void showFast() {
 		_animation.show();
@@ -88,6 +97,9 @@ public:
 		if (_updateCallback) {
 			_updateCallback();
 		}
+	}
+	void finishAnimation() {
+		_animation.finish();
 	}
 
 	TWidget *entity() {
@@ -105,12 +117,16 @@ public:
 		return _entity->naturalWidth();
 	}
 
+	bool animating() const {
+		return _animation.animating();
+	}
+
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	TWidget *_entity;
+	object_ptr<TWidget> _entity;
 	int _duration;
 	base::lambda<void()> _updateCallback;
 
@@ -121,9 +137,13 @@ private:
 template <typename Widget>
 class WidgetFadeWrap : public WidgetFadeWrap<TWidget> {
 public:
-	WidgetFadeWrap(QWidget *parent, Widget *entity
-		, base::lambda<void()> &&updateCallback
-		, int duration = st::widgetFadeDuration) : WidgetFadeWrap<TWidget>(parent, entity, std_::move(updateCallback), duration) {
+	WidgetFadeWrap(QWidget *parent
+		, object_ptr<Widget> entity
+		, int duration = st::widgetFadeDuration
+		, base::lambda<void()> &&updateCallback = base::lambda<void()>()) : WidgetFadeWrap<TWidget>(parent
+			, std_::move(entity)
+			, duration
+			, std_::move(updateCallback)) {
 	}
 	Widget *entity() {
 		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());

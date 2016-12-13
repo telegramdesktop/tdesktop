@@ -20,12 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
-
 namespace Ui {
 class IconButton;
 class MediaSlider;
-class RectShadow;
 } // namespace Ui
 
 namespace Media {
@@ -44,7 +41,7 @@ private:
 	void setVolume(float64 volume, bool animated = true);
 	void applyVolumeChange(float64 volume);
 
-	ChildWidget<Ui::MediaSlider> _slider;
+	object_ptr<Ui::MediaSlider> _slider;
 
 };
 
@@ -86,8 +83,7 @@ private:
 
 	QTimer _hideTimer, _showTimer;
 
-	Ui::RectShadow _shadow;
-	ChildWidget<VolumeController> _controller;
+	object_ptr<VolumeController> _controller;
 
 };
 

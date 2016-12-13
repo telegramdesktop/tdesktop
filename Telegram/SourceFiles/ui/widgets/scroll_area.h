@@ -37,7 +37,7 @@ class ScrollShadow : public QWidget {
 
 public:
 
-	ScrollShadow(ScrollArea *parent, const style::FlatScroll *st);
+	ScrollShadow(ScrollArea *parent, const style::ScrollArea *st);
 
 	void paintEvent(QPaintEvent *e);
 
@@ -47,7 +47,7 @@ public slots:
 
 private:
 
-	const style::FlatScroll *_st;
+	const style::ScrollArea *_st;
 
 };
 
@@ -55,7 +55,7 @@ class ScrollBar : public QWidget {
 	Q_OBJECT
 
 public:
-	ScrollBar(ScrollArea *parent, bool vertical, const style::FlatScroll *st);
+	ScrollBar(ScrollArea *parent, bool vertical, const style::ScrollArea *st);
 
 	void recountSize();
 
@@ -86,7 +86,7 @@ private:
 	void setOverBar(bool overbar);
 	void setMoving(bool moving);
 
-	const style::FlatScroll *_st;
+	const style::ScrollArea *_st;
 
 	bool _vertical = true;
 	bool _hiding = false;
@@ -174,7 +174,7 @@ class ScrollArea : public QScrollArea {
 	T_WIDGET
 
 public:
-	ScrollArea(QWidget *parent, const style::FlatScroll &st = st::defaultFlatScroll, bool handleTouch = true);
+	ScrollArea(QWidget *parent, const style::ScrollArea &st = st::defaultScrollArea, bool handleTouch = true);
 
 	int scrollWidth() const;
 	int scrollHeight() const;
@@ -183,9 +183,16 @@ public:
 	int scrollLeft() const;
 	int scrollTop() const;
 
-	void setWidget(QWidget *widget);
-	void setOwnedWidget(QWidget *widget);
-	QWidget *takeWidget();
+	template <typename Widget>
+	QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget) {
+		auto result = QPointer<Widget>(widget);
+		doSetOwnedWidget(std_::move(widget));
+		return result;
+	}
+	template <typename Widget>
+	object_ptr<Widget> takeWidget() {
+		return static_object_cast<Widget>(doTakeWidget());
+	}
 
 	void rangeChanged(int oldMax, int newMax, bool vertical);
 
@@ -200,8 +207,6 @@ public:
 	QMargins getMargins() const {
 		return QMargins();
 	}
-
-	~ScrollArea();
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;
@@ -236,6 +241,11 @@ protected:
 	void scrollContentsBy(int dx, int dy) override;
 
 private:
+	void doSetOwnedWidget(object_ptr<TWidget> widget);
+	object_ptr<TWidget> doTakeWidget();
+
+	void setWidget(QWidget *widget);
+
 	bool touchScroll(const QPoint &delta);
 
 	void touchScrollUpdated(const QPoint &screenPos);
@@ -245,12 +255,11 @@ private:
 	void touchDeaccelerate(int32 elapsed);
 
 	bool _disabled = false;
-	bool _ownsWidget = false; // if true, the widget is deleted in destructor.
 	bool _movingByScrollBar = false;
 
-	const style::FlatScroll &_st;
-	ChildWidget<ScrollBar> _horizontalBar, _verticalBar;
-	ChildWidget<ScrollShadow> _topShadow, _bottomShadow;
+	const style::ScrollArea &_st;
+	object_ptr<ScrollBar> _horizontalBar, _verticalBar;
+	object_ptr<ScrollShadow> _topShadow, _bottomShadow;
 	int _horizontalValue, _verticalValue;
 
 	bool _touchEnabled;
@@ -272,13 +281,16 @@ private:
 	bool _widgetAcceptsTouch = false;
 
 	friend class SplittedWidgetOther;
-	SplittedWidgetOther *_other = nullptr;
+	object_ptr<SplittedWidgetOther> _other = { nullptr };
+
+	object_ptr<TWidget> _widget = { nullptr };
 
 };
 
 class SplittedWidgetOther : public TWidget {
 public:
 	SplittedWidgetOther(ScrollArea *parent) : TWidget(parent) {
+		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
 protected:

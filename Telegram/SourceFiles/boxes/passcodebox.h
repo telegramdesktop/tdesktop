@@ -26,15 +26,14 @@ namespace Ui {
 class InputField;
 class PasswordInput;
 class LinkButton;
-class RoundButton;
 } // namespace Ui
 
-class PasscodeBox : public AbstractBox, public RPCSender {
+class PasscodeBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	PasscodeBox(bool turningOff = false);
-	PasscodeBox(const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
+	PasscodeBox(QWidget*, bool turningOff);
+	PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &curSalt, bool hasRecovery, const QString &hint, bool turningOff = false);
 
 private slots:
 	void onSave(bool force = false);
@@ -42,8 +41,6 @@ private slots:
 	void onOldChanged();
 	void onNewChanged();
 	void onEmailChanged();
-	void onForceNoMail();
-	void onBoxDestroyed(QObject *obj);
 	void onRecoverByEmail();
 	void onRecoverExpired();
 	void onSubmit();
@@ -52,12 +49,14 @@ signals:
 	void reloadPassword();
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void doSetInnerFocus() override;
 
 private:
-	void init();
+	void closeReplacedBy();
 
 	void setPasswordDone(const MTPBool &result);
 	bool setPasswordFail(const RPCError &error);
@@ -68,7 +67,7 @@ private:
 	void recover();
 	QString _pattern;
 
-	AbstractBox *_replacedBy = nullptr;
+	QPointer<BoxContent> _replacedBy;
 	bool _turningOff = false;
 	bool _cloudPwd = false;
 	mtpRequestId _setRequest = 0;
@@ -81,24 +80,22 @@ private:
 
 	Text _about, _hintText;
 
-	ChildWidget<Ui::RoundButton> _saveButton;
-	ChildWidget<Ui::RoundButton> _cancelButton;
-	ChildWidget<Ui::PasswordInput> _oldPasscode;
-	ChildWidget<Ui::PasswordInput> _newPasscode;
-	ChildWidget<Ui::PasswordInput> _reenterPasscode;
-	ChildWidget<Ui::InputField> _passwordHint;
-	ChildWidget<Ui::InputField> _recoverEmail;
-	ChildWidget<Ui::LinkButton> _recover;
+	object_ptr<Ui::PasswordInput> _oldPasscode;
+	object_ptr<Ui::PasswordInput> _newPasscode;
+	object_ptr<Ui::PasswordInput> _reenterPasscode;
+	object_ptr<Ui::InputField> _passwordHint;
+	object_ptr<Ui::InputField> _recoverEmail;
+	object_ptr<Ui::LinkButton> _recover;
 
 	QString _oldError, _newError, _emailError;
 
 };
 
-class RecoverBox : public AbstractBox, public RPCSender {
+class RecoverBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	RecoverBox(const QString &pattern);
+	RecoverBox(QWidget*, const QString &pattern);
 
 public slots:
 	void onSubmit();
@@ -109,22 +106,21 @@ signals:
 	void recoveryExpired();
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
 
 private:
 	void codeSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool codeSubmitFail(const RPCError &error);
 
-	mtpRequestId _submitRequest;
+	mtpRequestId _submitRequest = 0;
 
 	QString _pattern;
 
-	ChildWidget<Ui::RoundButton> _saveButton;
-	ChildWidget<Ui::RoundButton> _cancelButton;
-	ChildWidget<Ui::InputField> _recoverCode;
+	object_ptr<Ui::InputField> _recoverCode;
 
 	QString _error;
 

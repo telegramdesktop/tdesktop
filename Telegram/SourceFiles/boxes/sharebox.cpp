@@ -39,29 +39,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "boxes/contactsbox.h"
 
-ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback) : ItemListBox(st::boxScroll)
-, _copyCallback(std_::move(copyCallback))
+ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
+: _copyCallback(std_::move(copyCallback))
 , _submitCallback(std_::move(submitCallback))
-, _inner(this, std_::move(filterCallback))
+, _filterCallback(std_::move(filterCallback))
 , _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
-, _copy(this, lang(lng_share_copy_link), st::defaultBoxButton)
-, _share(this, lang(lng_share_confirm), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this)
-, _bottomShadow(this) {
+, _searchTimer(this) {
+}
+
+void ShareBox::prepare() {
 	_select->resizeToWidth(st::boxWideWidth);
 	myEnsureResized(_select);
-	setTitleText(lang(lng_share_title));
 
-	auto topSkip = getTopScrollSkip();
-	auto bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();
-	init(_inner, bottomSkip, topSkip);
+	setTitle(lang(lng_share_title));
 
+	_inner = setInnerWidget(object_ptr<Inner>(this, std_::move(_filterCallback)), getTopScrollSkip());
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
-	connect(_copy, SIGNAL(clicked()), this, SLOT(onCopyLink()));
-	connect(_share, SIGNAL(clicked()), this, SLOT(onSubmit()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
+
+	createButtons();
+
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
+
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->setItemRemovedCallback([this](uint64 itemId) {
 		if (auto peer = App::peerLoaded(itemId)) {
@@ -77,16 +75,14 @@ ShareBox::ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback,
 		onPeerSelectedChanged(peer, checked);
 	});
 
-	_searchTimer.setSingleShot(true);
-	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
+	_searchTimer->setSingleShot(true);
+	connect(_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
 
-	updateButtonsVisibility();
-
-	raiseShadow();
+	_select->raise();
 }
 
 int ShareBox::getTopScrollSkip() const {
-	auto result = titleHeight();
+	auto result = 0;
 	if (!_select->isHidden()) {
 		result += _select->height();
 	}
@@ -94,16 +90,7 @@ int ShareBox::getTopScrollSkip() const {
 }
 
 void ShareBox::updateScrollSkips() {
-	auto oldScrollHeight = scrollArea()->height();
-	auto topSkip = getTopScrollSkip();
-	auto bottomSkip = st::boxButtonPadding.top() + _share->height() + st::boxButtonPadding.bottom();
-	setScrollSkips(bottomSkip, topSkip);
-	auto scrollHeightDelta = scrollArea()->height() - oldScrollHeight;
-	if (scrollHeightDelta) {
-		scrollArea()->scrollToY(scrollArea()->scrollTop() - scrollHeightDelta);
-	}
-
-	_topShadow->setGeometry(0, topSkip, width(), st::lineWidth);
+	setInnerTopSkip(getTopScrollSkip(), true);
 }
 
 bool ShareBox::onSearchByUsername(bool searchCache) {
@@ -135,7 +122,7 @@ bool ShareBox::onSearchByUsername(bool searchCache) {
 
 void ShareBox::onNeedSearchByUsername() {
 	if (!onSearchByUsername(true)) {
-		_searchTimer.start(AutoSearchTimeout);
+		_searchTimer->start(AutoSearchTimeout);
 	}
 }
 
@@ -160,7 +147,6 @@ void ShareBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId requ
 		}
 
 		_peopleRequest = 0;
-		onScroll();
 	}
 }
 
@@ -174,22 +160,19 @@ bool ShareBox::peopleFailed(const RPCError &error, mtpRequestId requestId) {
 	return true;
 }
 
-void ShareBox::doSetInnerFocus() {
+void ShareBox::setInnerFocus() {
 	_select->setInnerFocus();
 }
 
 void ShareBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
+	BoxContent::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, titleHeight());
+	_select->moveToLeft(0, 0);
 
 	updateScrollSkips();
 
 	_inner->resizeToWidth(width());
-	moveButtons();
-	_topShadow->setGeometry(0, getTopScrollSkip(), width(), st::lineWidth);
-	_bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _share->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 }
 
 void ShareBox::keyPressEvent(QKeyEvent *e) {
@@ -200,32 +183,37 @@ void ShareBox::keyPressEvent(QKeyEvent *e) {
 		} else if (e->key() == Qt::Key_Down) {
 			_inner->activateSkipColumn(1);
 		} else if (e->key() == Qt::Key_PageUp) {
-			_inner->activateSkipPage(scrollArea()->height(), -1);
+			_inner->activateSkipPage(height() - getTopScrollSkip(), -1);
 		} else if (e->key() == Qt::Key_PageDown) {
-			_inner->activateSkipPage(scrollArea()->height(), 1);
+			_inner->activateSkipPage(height() - getTopScrollSkip(), 1);
 		} else {
-			ItemListBox::keyPressEvent(e);
+			BoxContent::keyPressEvent(e);
 		}
 	} else {
-		ItemListBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
-void ShareBox::moveButtons() {
-	_copy->moveToRight(st::boxButtonPadding.right(), _share->y());
-	_share->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _share->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _share->width() + st::boxButtonPadding.left(), _share->y());
+void ShareBox::updateButtons() {
+	auto hasSelected = _inner->hasSelected();
+	if (_hasSelected != hasSelected) {
+		_hasSelected = hasSelected;
+		createButtons();
+	}
 }
 
-void ShareBox::updateButtonsVisibility() {
-	auto hasSelected = _inner->hasSelected();
-	_copy->setVisible(!hasSelected);
-	_share->setVisible(hasSelected);
-	_cancel->setVisible(hasSelected);
+void ShareBox::createButtons() {
+	clearButtons();
+	if (_hasSelected) {
+		addButton(lang(lng_share_confirm), [this] { onSubmit(); });
+	} else {
+		addButton(lang(lng_share_copy_link), [this] { onCopyLink(); });
+	}
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 }
 
 void ShareBox::onFilterUpdate(const QString &query) {
-	scrollArea()->scrollToY(0);
+	onScrollToY(0);
 	_inner->updateFilter(query);
 }
 
@@ -259,33 +247,27 @@ void ShareBox::onCopyLink() {
 }
 
 void ShareBox::onSelectedChanged() {
-	updateButtonsVisibility();
-	moveButtons();
+	updateButtons();
 	update();
 }
 
 void ShareBox::onMustScrollTo(int top, int bottom) {
-	auto scrollTop = scrollArea()->scrollTop(), scrollBottom = scrollTop + scrollArea()->height();
-	auto from = scrollTop, to = scrollTop;
-	if (scrollTop > top) {
-		to = top;
-	} else if (scrollBottom < bottom) {
-		to = bottom - (scrollBottom - scrollTop);
-	}
-	if (from != to) {
-		_scrollAnimation.start([this]() { scrollAnimationCallback(); }, from, to, st::shareScrollDuration, anim::sineInOut);
-	}
+	onScrollToY(top, bottom);
+	//auto scrollTop = scrollArea()->scrollTop(), scrollBottom = scrollTop + scrollArea()->height();
+	//auto from = scrollTop, to = scrollTop;
+	//if (scrollTop > top) {
+	//	to = top;
+	//} else if (scrollBottom < bottom) {
+	//	to = bottom - (scrollBottom - scrollTop);
+	//}
+	//if (from != to) {
+	//	_scrollAnimation.start([this]() { scrollAnimationCallback(); }, from, to, st::shareScrollDuration, anim::sineInOut);
+	//}
 }
 
 void ShareBox::scrollAnimationCallback() {
-	auto scrollTop = qRound(_scrollAnimation.current(scrollArea()->scrollTop()));
-	scrollArea()->scrollToY(scrollTop);
-}
-
-void ShareBox::onScroll() {
-	auto scroll = scrollArea();
-	auto scrollTop = scroll->scrollTop();
-	_inner->setVisibleTopBottom(scrollTop, scrollTop + scroll->height());
+	//auto scrollTop = qRound(_scrollAnimation.current(scrollArea()->scrollTop()));
+	//scrollArea()->scrollToY(scrollTop);
 }
 
 ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback) : TWidget(parent)
@@ -928,7 +910,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 		}
 		return false;
 	};
-	Ui::showLayer(new ShareBox(std_::move(copyCallback), std_::move(submitCallback), std_::move(filterCallback)));
+	Ui::show(Box<ShareBox>(std_::move(copyCallback), std_::move(submitCallback), std_::move(filterCallback)));
 }
 
 } // namespace
@@ -938,7 +920,7 @@ void shareGameScoreByHash(const QString &hash) {
 
 	auto hashEncrypted = QByteArray::fromBase64(hash.toLatin1(), QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
 	if (hashEncrypted.size() <= key128Size || (hashEncrypted.size() % 0x10) != 0) {
-		Ui::showLayer(new InformBox(lang(lng_confirm_phone_link_invalid)));
+		Ui::show(Box<InformBox>(lang(lng_confirm_phone_link_invalid)));
 		return;
 	}
 
@@ -958,20 +940,20 @@ void shareGameScoreByHash(const QString &hash) {
 	// Check next 64 bits of SHA1() of data.
 	auto skipSha1Part = sizeof(channelAccessHash);
 	if (memcmp(dataSha1 + skipSha1Part, hashEncrypted.constData() + skipSha1Part, key128Size - skipSha1Part) != 0) {
-		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}
 
 	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
 	if (hashDataInts[0] != MTP::authedId()) {
-		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}
 
 	// Check first 32 bits of channel access hash.
 	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
 	if (channelAccessHashInts[0] != hashDataInts[3]) {
-		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}
 
@@ -979,7 +961,7 @@ void shareGameScoreByHash(const QString &hash) {
 	auto msgId = hashDataInts[2];
 	if (!channelId && channelAccessHash) {
 		// If there is no channel id, there should be no channel access_hash.
-		Ui::showLayer(new InformBox(lang(lng_share_wrong_user)));
+		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}
 
@@ -991,7 +973,7 @@ void shareGameScoreByHash(const QString &hash) {
 				if (auto item = App::histItemById(channel, msgId)) {
 					shareGameScoreFromItem(item);
 				} else {
-					Ui::showLayer(new InformBox(lang(lng_edit_deleted)));
+					Ui::show(Box<InformBox>(lang(lng_edit_deleted)));
 				}
 			});
 		};

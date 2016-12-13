@@ -31,13 +31,9 @@ public:
 	FixedBar(QWidget *parent);
 
 protected:
-	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
-
-private:
-	ChildWidget<Ui::IconButton> _close;
 
 };
 

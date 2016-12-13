@@ -22,44 +22,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 
-namespace Ui {
-class RoundButton;
-} // namespace Ui
-
-class PhotoCropBox : public AbstractBox {
+class PhotoCropBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	PhotoCropBox(const QImage &img, const PeerId &peer);
-	PhotoCropBox(const QImage &img, PeerData *peer);
+	PhotoCropBox(QWidget*, const QImage &img, const PeerId &peer);
+	PhotoCropBox(QWidget*, const QImage &img, PeerData *peer);
 
 	int32 mouseState(QPoint p);
 
-public slots:
-	void onSend();
-	void onReady(const QImage &tosend);
+	void closeHook() override {
+		emit closed();
+	}
 
 signals:
 	void ready(const QImage &tosend);
+	void closed();
+
+private slots:
+	void onReady(const QImage &tosend);
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 
 private:
 	void init(const QImage &img, PeerData *peer);
+	void sendPhoto();
 
 	QString _title;
-	int32 _downState;
+	int32 _downState = 0;
 	int32 _thumbx, _thumby, _thumbw, _thumbh;
 	int32 _cropx, _cropy, _cropw;
 	int32 _fromposx, _fromposy, _fromcropx, _fromcropy, _fromcropw;
-	ChildWidget<Ui::RoundButton> _done;
-	ChildWidget<Ui::RoundButton> _cancel;
 	QImage _img;
 	QPixmap _thumb;
 	QImage _mask, _fade;

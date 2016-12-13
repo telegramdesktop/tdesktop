@@ -1885,9 +1885,8 @@ OverviewInner::~OverviewInner() {
 
 OverviewWidget::OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type) : TWidget(parent)
 , _scroll(this, st::settingsScroll, false)
-, _inner(this, _scroll, peer, type)
 , _topShadow(this, st::shadowColor) {
-	_scroll->setOwnedWidget(_inner);
+	_inner = _scroll->setOwnedWidget(object_ptr<OverviewInner>(this, _scroll, peer, type));
 	_scroll->move(0, 0);
 	_inner->move(0, 0);
 

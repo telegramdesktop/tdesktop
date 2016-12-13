@@ -24,25 +24,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Radiobutton;
-class RoundButton;
 } // namespace Ui
 
-class LanguageBox : public AbstractBox {
+class LanguageBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	LanguageBox();
-
-public slots:
-	void onChange();
-	void onRestore();
-	void onSave();
+	LanguageBox(QWidget*) {
+	}
 
 protected:
+	void prepare() override;
+
 	void mousePressEvent(QMouseEvent *e) override;
 
+private slots:
+	void onChange();
+
 private:
+	void saveLanguage();
+	void restoreLanguage();
+
 	QVector<Ui::Radiobutton*> _langs;
-	ChildWidget<Ui::RoundButton> _close;
 
 };

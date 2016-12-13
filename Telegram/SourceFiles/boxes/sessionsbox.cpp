@@ -31,28 +31,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_boxes.h"
 
-SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
-, _loading(false)
-, _inner(this, &_list, &_current)
-, _shadow(this)
-, _done(this, lang(lng_about_done), st::defaultBoxButton)
-, _shortPollRequest(0) {
-	setMaxHeight(st::sessionsHeight);
-	setTitleText(lang(lng_sessions_other_header));
+SessionsBox::SessionsBox(QWidget*)
+: _shortPollTimer(this) {
+}
 
-	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
+void SessionsBox::prepare() {
+	setTitle(lang(lng_sessions_other_header));
+
+	addButton(lang(lng_close), [this] { closeBox(); });
+
+	setDimensions(st::boxWideWidth, st::sessionsHeight);
+
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
 	connect(_inner, SIGNAL(allTerminated()), this, SLOT(onAllTerminated()));
 	connect(_inner, SIGNAL(terminateAll()), this, SLOT(onTerminateAll()));
 	connect(App::wnd(), SIGNAL(checkNewAuthorization()), this, SLOT(onCheckNewAuthorization()));
-	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
+	connect(_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
-	init(_inner, st::boxButtonPadding.bottom() + _done->height() + st::boxButtonPadding.top(), titleHeight());
+	_inner = setInnerWidget(object_ptr<Inner>(this, &_list, &_current), st::sessionsScroll);
 	_inner->resize(width(), st::noContactsHeight);
 
 	setLoading(true);
-
-	raiseShadow();
 
 	MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
 }
@@ -60,23 +59,20 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 void SessionsBox::setLoading(bool loading) {
 	if (_loading != loading) {
 		_loading = loading;
-		scrollArea()->setVisible(!_loading);
-		_shadow->setVisible(!_loading);
+		setInnerVisible(!_loading);
 	}
 }
 
 void SessionsBox::resizeEvent(QResizeEvent *e) {
-	ScrollableBox::resizeEvent(e);
-	_shadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _done->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
-	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
+	BoxContent::resizeEvent(e);
+
+	_inner->resize(width(), _inner->height());
 }
 
 void SessionsBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
-
-	p.translate(0, titleHeight());
 
 	if (_loading) {
 		p.setFont(st::noContactsFont);
@@ -202,7 +198,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 
 	update();
 
-	_shortPollTimer.start(SessionsShortPollTimeout);
+	_shortPollTimer->start(SessionsShortPollTimeout);
 }
 
 void SessionsBox::onOneTerminated() {
@@ -236,9 +232,7 @@ void SessionsBox::onTerminateAll() {
 SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : TWidget(parent)
 , _list(list)
 , _current(current)
-, _terminating(0)
-, _terminateAll(this, lang(lng_sessions_terminate_all), st::sessionTerminateAllButton)
-, _terminateBox(0) {
+, _terminateAll(this, lang(lng_sessions_terminate_all), st::sessionTerminateAllButton) {
 	connect(_terminateAll, SIGNAL(clicked()), this, SLOT(onTerminateAll()));
 	_terminateAll->hide();
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -312,49 +306,33 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 void SessionsBox::Inner::onTerminate() {
 	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
 		if (i.value()->isOver()) {
-			_terminating = i.key();
-
 			if (_terminateBox) _terminateBox->deleteLater();
-			_terminateBox = new ConfirmBox(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
-			connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateSure()));
-			connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
-			Ui::showLayer(_terminateBox, KeepOtherLayers);
+			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this, terminating = i.key()] {
+				if (_terminateBox) {
+					_terminateBox->closeBox();
+					_terminateBox = nullptr;
+				}
+				MTP::send(MTPaccount_ResetAuthorization(MTP_long(terminating)), rpcDone(&Inner::terminateDone, terminating), rpcFail(&Inner::terminateFail, terminating));
+				TerminateButtons::iterator i = _terminateButtons.find(terminating);
+				if (i != _terminateButtons.cend()) {
+					i.value()->clearState();
+					i.value()->hide();
+				}
+			})), KeepOtherLayers);
 		}
-	}
-}
-
-void SessionsBox::Inner::onTerminateSure() {
-	if (_terminateBox) {
-		_terminateBox->onClose();
-		_terminateBox = 0;
-	}
-	MTP::send(MTPaccount_ResetAuthorization(MTP_long(_terminating)), rpcDone(&Inner::terminateDone, _terminating), rpcFail(&Inner::terminateFail, _terminating));
-	TerminateButtons::iterator i = _terminateButtons.find(_terminating);
-	if (i != _terminateButtons.cend()) {
-		i.value()->clearState();
-		i.value()->hide();
 	}
 }
 
 void SessionsBox::Inner::onTerminateAll() {
 	if (_terminateBox) _terminateBox->deleteLater();
-	_terminateBox = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
-	connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateAllSure()));
-	connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
-	Ui::showLayer(_terminateBox, KeepOtherLayers);
-}
-
-void SessionsBox::Inner::onTerminateAllSure() {
-	if (_terminateBox) {
-		_terminateBox->onClose();
-		_terminateBox = 0;
-	}
-	MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
-	emit terminateAll();
-}
-
-void SessionsBox::Inner::onNoTerminateBox(QObject *obj) {
-	if (obj == _terminateBox) _terminateBox = 0;
+	_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+		if (_terminateBox) {
+			_terminateBox->closeBox();
+			_terminateBox = nullptr;
+		}
+		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
+		emit terminateAll();
+	})), KeepOtherLayers);
 }
 
 void SessionsBox::Inner::terminateDone(uint64 hash, const MTPBool &result) {

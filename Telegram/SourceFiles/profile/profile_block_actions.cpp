@@ -277,16 +277,12 @@ void ActionsWidget::onClearHistory() {
 		confirmation = lng_sure_delete_group_history(lt_group, App::peerName(peer()));
 	}
 	if (!confirmation.isEmpty()) {
-		auto box = new ConfirmBox(confirmation, lang(lng_box_delete), st::attentionBoxButton);
-		connect(box, SIGNAL(confirmed()), this, SLOT(onClearHistorySure()));
-		Ui::showLayer(box);
+		Ui::show(Box<ConfirmBox>(confirmation, lang(lng_box_delete), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+			Ui::hideLayer();
+			App::main()->clearHistory(peer());
+			Ui::showPeerHistory(peer(), ShowAtUnreadMsgId);
+		})));
 	}
-}
-
-void ActionsWidget::onClearHistorySure() {
-	Ui::hideLayer();
-	App::main()->clearHistory(peer());
-	Ui::showPeerHistory(peer(), ShowAtUnreadMsgId);
 }
 
 void ActionsWidget::onDeleteConversation() {
@@ -299,19 +295,15 @@ void ActionsWidget::onDeleteConversation() {
 		confirmButton = lang(lng_box_leave);
 	}
 	if (!confirmation.isEmpty()) {
-		auto box = new ConfirmBox(confirmation, confirmButton, st::attentionBoxButton);
-		connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteConversationSure()));
-		Ui::showLayer(box);
-	}
-}
-
-void ActionsWidget::onDeleteConversationSure() {
-	Ui::hideLayer();
-	Ui::showChatsList();
-	if (auto user = peer()->asUser()) {
-		App::main()->deleteConversation(peer());
-	} else if (auto chat = peer()->asChat()) {
-		App::main()->deleteAndExit(chat);
+		Ui::show(Box<ConfirmBox>(confirmation, confirmButton, st::attentionBoxButton, base::lambda_guarded(this, [this] {
+			Ui::hideLayer();
+			Ui::showChatsList();
+			if (auto user = peer()->asUser()) {
+				App::main()->deleteConversation(peer());
+			} else if (auto chat = peer()->asChat()) {
+				App::main()->deleteAndExit(chat);
+			}
+		})));
 	}
 }
 
@@ -327,42 +319,36 @@ void ActionsWidget::onBlockUser() {
 
 void ActionsWidget::onUpgradeToSupergroup() {
 	if (auto chat = peer()->asChat()) {
-		Ui::showLayer(new ConvertToSupergroupBox(chat));
+		Ui::show(Box<ConvertToSupergroupBox>(chat));
 	}
 }
 
 void ActionsWidget::onDeleteChannel() {
-	auto box = new ConfirmBox(lang(peer()->isMegagroup() ? lng_sure_delete_group : lng_sure_delete_channel), lang(lng_box_delete), st::attentionBoxButton);
-	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteChannelSure()));
-	Ui::showLayer(box);
-}
-
-void ActionsWidget::onDeleteChannelSure() {
-	Ui::hideLayer();
-	Ui::showChatsList();
-	if (auto chat = peer()->migrateFrom()) {
-		App::main()->deleteAndExit(chat);
-	}
-	if (auto channel = peer()->asChannel()) {
-		MTP::send(MTPchannels_DeleteChannel(channel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::deleteChannelFailed));
-	}
+	auto text = lang(peer()->isMegagroup() ? lng_sure_delete_group : lng_sure_delete_channel);
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+		Ui::hideLayer();
+		Ui::showChatsList();
+		if (auto chat = peer()->migrateFrom()) {
+			App::main()->deleteAndExit(chat);
+		}
+		if (auto channel = peer()->asChannel()) {
+			MTP::send(MTPchannels_DeleteChannel(channel->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::deleteChannelFailed));
+		}
+	})));
 }
 
 void ActionsWidget::onLeaveChannel() {
 	auto channel = peer()->asChannel();
 	if (!channel) return;
 
-	auto box = new ConfirmBox(lang(channel->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel), lang(lng_box_leave));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onLeaveChannelSure()));
-	Ui::showLayer(box);
-}
-
-void ActionsWidget::onLeaveChannelSure() {
-	App::api()->leaveChannel(peer()->asChannel());
+	auto text = lang(channel->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel);
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), base::lambda_guarded(this, [this] {
+		App::api()->leaveChannel(peer()->asChannel());
+	})));
 }
 
 void ActionsWidget::onReport() {
-	Ui::showLayer(new ReportBox(peer()));
+	Ui::show(Box<ReportBox>(peer()));
 }
 
 } // namespace Profile

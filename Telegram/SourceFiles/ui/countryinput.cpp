@@ -160,9 +160,8 @@ void CountryInput::mouseMoveEvent(QMouseEvent *e) {
 void CountryInput::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_active) {
-		CountrySelectBox *box = new CountrySelectBox();
+		auto box = Ui::show(Box<CountrySelectBox>());
 		connect(box, SIGNAL(countryChosen(const QString&)), this, SLOT(onChooseCountry(const QString&)));
-		Ui::showLayer(box);
 	}
 }
 
@@ -213,21 +212,25 @@ void CountryInput::setText(const QString &newText) {
 	_text = _st.font->elided(newText, width() - _st.textMargins.left() - _st.textMargins.right());
 }
 
-CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxWidth)
-, _inner(this)
-, _select(this, st::contactsMultiSelect, lang(lng_country_ph))
-, _topShadow(this) {
+CountrySelectBox::CountrySelectBox(QWidget*)
+: _select(this, st::contactsMultiSelect, lang(lng_country_ph)) {
+}
+
+void CountrySelectBox::prepare() {
+	setTitle(lang(lng_country_select));
+
 	_select->resizeToWidth(st::boxWidth);
-	setTitleText(lang(lng_country_select));
-
-	ItemListBox::init(_inner, st::boxScrollSkip, titleHeight() + _select->height());
-
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->setSubmittedCallback([this](bool) { onSubmit(); });
-	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
-	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
 
-	raiseShadow();
+	_inner = setInnerWidget(object_ptr<Inner>(this), st::countriesScroll, _select->height());
+
+	addButton(lang(lng_close), [this] { closeBox(); });
+
+	setDimensions(st::boxWidth, st::boxMaxListHeight);
+
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), this, SLOT(onScrollToY(int, int)));
+	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
 }
 
 void CountrySelectBox::onSubmit() {
@@ -240,30 +243,29 @@ void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		_inner->selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner->selectSkipPage(scrollArea()->height(), 1);
+		_inner->selectSkipPage(height() - _select->height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner->selectSkipPage(scrollArea()->height(), -1);
+		_inner->selectSkipPage(height() - _select->height(), -1);
 	} else {
-		ItemListBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void CountrySelectBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
+	BoxContent::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, titleHeight());
+	_select->moveToLeft(0, 0);
 
 	_inner->resizeToWidth(width());
-	_topShadow.setGeometry(0, titleHeight() + _select->height(), width(), st::lineWidth);
 }
 
 void CountrySelectBox::onFilterUpdate(const QString &query) {
-	scrollArea()->scrollToY(0);
+	onScrollToY(0);
 	_inner->updateFilter(query);
 }
 
-void CountrySelectBox::doSetInnerFocus() {
+void CountrySelectBox::setInnerFocus() {
 	_select->setInnerFocus();
 }
 
@@ -337,12 +339,12 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 				}
 			}
 
-			QString code = QString("+") + (*countriesNow)[i]->code;
-			int32 codeWidth = st::countryRowCodeFont->width(code);
+			auto code = QString("+") + (*countriesNow)[i]->code;
+			auto codeWidth = st::countryRowCodeFont->width(code);
 
-			QString name = QString::fromUtf8((*countriesNow)[i]->name);
-			int32 nameWidth = st::countryRowNameFont->width(name);
-			int32 availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::contactsScroll.width;
+			auto name = QString::fromUtf8((*countriesNow)[i]->name);
+			auto nameWidth = st::countryRowNameFont->width(name);
+			auto availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::boxLayerScroll.width;
 			if (nameWidth > availWidth) {
 				name = st::countryRowNameFont->elided(name, availWidth);
 				nameWidth = st::countryRowNameFont->width(name);

@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_mediaview.h"
 #include "styles/style_stickers.h"
 #include "styles/style_history.h"
+#include "styles/style_boxes.h"
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
@@ -2243,6 +2244,7 @@ namespace {
 			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
 		}
 		prepareCorners(MenuCorners, st::buttonRadius, st::menuBg);
+		prepareCorners(BoxCorners, st::boxRadius, st::boxBg);
 		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBg);
 		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
 		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);

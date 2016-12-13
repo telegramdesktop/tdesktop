@@ -200,18 +200,36 @@ int SettingsSlider::resizeGetHeight(int newWidth) {
 	return _st.height;
 }
 
-void SettingsSlider::startRipple(int index) {
+void SettingsSlider::startRipple(int sectionIndex) {
 	if (!_st.ripple.showDuration) return;
-	enumerateSections([this, &index](Section &section) {
-		if (!index--) {
+	auto index = 0;
+	enumerateSections([this, &index, sectionIndex](Section &section) {
+		if (index++ == sectionIndex) {
 			if (!section.ripple) {
-				auto mask = RippleAnimation::rectMask(QSize(section.width, height() - _st.rippleBottomSkip));
+				auto mask = prepareRippleMask(sectionIndex, section);
 				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this] { update(); });
 			}
 			section.ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(section.left, 0));
 			return false;
 		}
 		return true;
+	});
+}
+
+QImage SettingsSlider::prepareRippleMask(int sectionIndex, const Section &section) {
+	auto size = QSize(section.width, height() - _st.rippleBottomSkip);
+	if (!_st.rippleRoundRadius || sectionIndex > 0 && sectionIndex + 1 < getSectionsCount()) {
+		return RippleAnimation::rectMask(size);
+	}
+	return RippleAnimation::maskByDrawer(size, false, [this, sectionIndex, width = section.width](QPainter &p) {
+		auto plusRadius = _st.rippleRoundRadius + 1;
+		p.drawRoundedRect(0, 0, width, height() + plusRadius, _st.rippleRoundRadius, _st.rippleRoundRadius);
+		if (sectionIndex > 0) {
+			p.fillRect(0, 0, plusRadius, plusRadius, p.brush());
+		}
+		if (sectionIndex + 1 < getSectionsCount()) {
+			p.fillRect(width - plusRadius, 0, plusRadius, plusRadius, p.brush());
+		}
 	});
 }
 

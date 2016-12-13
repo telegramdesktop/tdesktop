@@ -32,7 +32,6 @@ class IndexedList;
 
 namespace Ui {
 class RippleAnimation;
-class RoundButton;
 class LinkButton;
 class Checkbox;
 class MultiSelect;
@@ -48,64 +47,79 @@ inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *pe
 	};
 }
 
-class ContactsBox : public ItemListBox, public RPCSender {
+class ContactsBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	ContactsBox();
-	ContactsBox(const QString &name, const QImage &photo); // group creation
-	ContactsBox(ChannelData *channel); // channel setup
-	ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
-	ContactsBox(ChatData *chat, MembersFilter filter);
-	ContactsBox(UserData *bot);
+	ContactsBox(QWidget*);
+	ContactsBox(QWidget*, const QString &name, const QImage &photo); // group creation
+	ContactsBox(QWidget*, ChannelData *channel); // channel setup
+	ContactsBox(QWidget*, ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
+	ContactsBox(QWidget*, ChatData *chat, MembersFilter filter);
+	ContactsBox(QWidget*, UserData *bot);
+
+	void closeHook() override;
 
 signals:
 	void adminAdded();
 
 private slots:
-	void onScroll();
-
-	void onInvite();
-	void onCreate();
-	void onSaveAdmins();
-
 	void onSubmit();
 
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void closePressed() override;
-	void doSetInnerFocus() override;
-
 private:
-	void init();
+	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
+
+	void updateTitle();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
 	void onFilterUpdate(const QString &filter);
 	void onPeerSelectedChanged(PeerData *peer, bool checked);
 	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
 
-	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
-	ChildWidget<MembersAddButton> _add = { nullptr };
+	void saveChatAdmins();
+	void inviteParticipants();
+	void createGroup();
 
-	ChildWidget<Ui::RoundButton> _next;
-	ChildWidget<Ui::RoundButton> _cancel;
-	MembersFilter _membersFilter;
-
-	ChildWidget<ScrollableBoxShadow> _topShadow;
-	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
-
+	// global search
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
-	QTimer _searchTimer;
+	// saving admins
+	void saveAdminsDone(const MTPUpdates &result);
+	void saveSelectedAdmins();
+	void getAdminsDone(const MTPmessages_ChatFull &result);
+	void setAdminDone(UserData *user, const MTPBool &result);
+	void removeAdminDone(UserData *user, const MTPBool &result);
+	bool saveAdminsFail(const RPCError &error);
+	bool editAdminFail(const RPCError &error);
+
+	// group creation
+	void creationDone(const MTPUpdates &updates);
+	bool creationFail(const RPCError &e);
+
+	ChatData *_chat = nullptr;
+	ChannelData *_channel = nullptr;
+	MembersFilter _membersFilter = MembersFilter::Recent;
+	UserData *_bot = nullptr;
+	CreatingGroupType _creating = CreatingGroupNone;
+	MembersAlreadyIn _alreadyIn;
+
+	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
+
+	class Inner;
+	QPointer<Inner> _inner;
+
+	object_ptr<QTimer> _searchTimer;
 	QString _peopleQuery;
 	bool _peopleFull;
 	mtpRequestId _peopleRequest;
@@ -118,21 +132,8 @@ private:
 
 	mtpRequestId _saveRequestId = 0;
 
-	// saving admins
-	void saveAdminsDone(const MTPUpdates &result);
-	void saveSelectedAdmins();
-	void getAdminsDone(const MTPmessages_ChatFull &result);
-	void setAdminDone(UserData *user, const MTPBool &result);
-	void removeAdminDone(UserData *user, const MTPBool &result);
-	bool saveAdminsFail(const RPCError &error);
-	bool editAdminFail(const RPCError &error);
-
-	// group creation
 	QString _creationName;
 	QImage _creationPhoto;
-
-	void creationDone(const MTPUpdates &updates);
-	bool creationFail(const RPCError &e);
 
 };
 
@@ -162,7 +163,6 @@ public:
 		_allAdminsChangedCallback = std_::move(allAdminsChangedCallback);
 	}
 
-	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 
 	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
@@ -177,12 +177,14 @@ public:
 
 	bool sharingBotGame() const;
 
-	int32 selectedCount() const;
+	int selectedCount() const;
 	bool hasAlreadyMembersInChannel() const {
 		return !_already.isEmpty();
 	}
 
 	void saving(bool flag);
+
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	~Inner();
 
@@ -196,10 +198,6 @@ private slots:
 
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-
-	void onAddBot();
-	void onAddAdmin();
-	void onNoAddAdminBox(QObject *obj);
 
 	void onAllAdminsChanged();
 
@@ -233,6 +231,9 @@ private:
 	void setSearchedPressed(int pressed);
 	void clearSearchedContactDatas();
 
+	void loadProfilePhotos();
+	void addBot();
+
 	void init();
 	void initList();
 
@@ -264,7 +265,10 @@ private:
 
 	base::lambda<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
-	int _rowHeight;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+	int _rowHeight = 0;
+	int _rowsTop = 0;
 	int _aboutHeight = 0;
 
 	ChatData *_chat = nullptr;
@@ -274,7 +278,7 @@ private:
 	CreatingGroupType _creating = CreatingGroupNone;
 	MembersAlreadyIn _already;
 
-	ChildWidget<Ui::Checkbox> _allAdmins;
+	object_ptr<Ui::Checkbox> _allAdmins;
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
 	base::lambda<void()> _allAdminsChangedCallback;
@@ -282,7 +286,7 @@ private:
 	PeerData *_addToPeer = nullptr;
 	UserData *_addAdmin = nullptr;
 	mtpRequestId _addAdminRequestId = 0;
-	ConfirmBox *_addAdminBox = nullptr;
+	QPointer<ConfirmBox> _addAdminBox;
 
 	int32 _time;
 
@@ -315,7 +319,7 @@ private:
 	int _searchedPressed = -1;
 
 	QPoint _lastMousePos;
-	ChildWidget<Ui::LinkButton> _addContactLnk;
+	object_ptr<Ui::LinkButton> _addContactLnk;
 
 	bool _saving = false;
 	bool _allAdminsChecked = false;

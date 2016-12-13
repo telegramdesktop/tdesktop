@@ -35,13 +35,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "mainwidget.h"
 
-DragArea::DragArea(QWidget *parent) : TWidget(parent)
-, _hiding(false)
-, _in(false)
-, _shadow(st::boxShadow) {
+DragArea::DragArea(QWidget *parent) : TWidget(parent) {
 	setMouseTracking(true);
 	setAcceptDrops(true);
 }
+
+bool DragArea::overlaps(const QRect &globalRect) {
+	if (isHidden() || _a_opacity.animating()) {
+		return false;
+	}
+
+	auto inner = innerRect();
+	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
+	return inner.marginsRemoved(QMargins(st::boxRadius, 0, st::boxRadius, 0)).contains(testRect)
+		|| inner.marginsRemoved(QMargins(0, st::boxRadius, 0, st::boxRadius)).contains(testRect);
+}
+
 
 void DragArea::mouseMoveEvent(QMouseEvent *e) {
 	if (_hiding) return;
@@ -60,7 +69,7 @@ void DragArea::dragMoveEvent(QDragMoveEvent *e) {
 void DragArea::setIn(bool in) {
 	if (_in != in) {
 		_in = in;
-		_a_in.start([this] { update(); }, _in ? 0. : 1., _in ? 1. : 0., st::defaultDropdownDuration);
+		_a_in.start([this] { update(); }, _in ? 0. : 1., _in ? 1. : 0., st::boxDuration);
 	}
 }
 
@@ -79,13 +88,15 @@ void DragArea::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	p.setOpacity(opacity);
+	auto inner = innerRect();
 
-	QRect r(st::dragPadding.left(), st::dragPadding.top(), width() - st::dragPadding.left() - st::dragPadding.right(), height() - st::dragPadding.top() - st::dragPadding.bottom());
+	if (!_cache.isNull()) {
+		p.drawPixmapLeft(inner.x() - st::boxRoundShadow.extend.left(), inner.y() - st::boxRoundShadow.extend.top(), width(), _cache);
+		return;
+	}
 
-	// draw shadow
-	_shadow.paint(p, r, st::boxShadowShift);
-
-	p.fillRect(r, st::dragBg);
+	Ui::Shadow::paint(p, inner, width(), st::boxRoundShadow);
+	App::roundRect(p, inner, st::boxBg, BoxCorners);
 
 	p.setPen(anim::pen(st::dragColor, st::dragDropColor, _a_in.current(ms, _in ? 1. : 0.)));
 
@@ -128,9 +139,15 @@ void DragArea::hideFast() {
 }
 
 void DragArea::hideStart() {
+	if (_hiding || isHidden()) {
+		return;
+	}
+	if (_cache.isNull()) {
+		_cache = myGrab(this, innerRect().marginsAdded(st::boxRoundShadow.extend));
+	}
 	_hiding = true;
 	setIn(false);
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::defaultDropdownDuration);
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::boxDuration);
 }
 
 void DragArea::hideFinish() {
@@ -140,14 +157,21 @@ void DragArea::hideFinish() {
 }
 
 void DragArea::showStart() {
+	if (!_hiding && !isHidden()) {
+		return;
+	}
 	_hiding = false;
+	if (_cache.isNull()) {
+		_cache = myGrab(this, innerRect().marginsAdded(st::boxRoundShadow.extend));
+	}
 	show();
-	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::defaultDropdownDuration);
+	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::boxDuration);
 }
 
 void DragArea::opacityAnimationCallback() {
 	update();
 	if (!_a_opacity.animating()) {
+		_cache = QPixmap();
 		if (_hiding) {
 			hideFinish();
 		}

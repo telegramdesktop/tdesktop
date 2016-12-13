@@ -24,11 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
-, TWidget *entity
+, object_ptr<TWidget> entity
 , style::margins entityPadding
 , base::lambda<void()> &&updateCallback
 , int duration) : TWidget(parent)
-, _entity(entity)
+, _entity(std_::move(entity))
 , _padding(entityPadding)
 , _duration(duration)
 , _updateCallback(std_::move(updateCallback)) {

@@ -51,17 +51,17 @@ private:
 	void updateMaximizeRestoreButton();
 	void updateControlsPosition();
 
-	ChildWidget<Ui::IconButton> _minimize;
-	ChildWidget<Ui::IconButton> _maximizeRestore;
-	ChildWidget<Ui::IconButton> _close;
-	ChildWidget<Ui::PlainShadow> _shadow;
+	object_ptr<Ui::IconButton> _minimize;
+	object_ptr<Ui::IconButton> _maximizeRestore;
+	object_ptr<Ui::IconButton> _close;
+	object_ptr<Ui::PlainShadow> _shadow;
 
 	bool _maximized = false;
 
 };
 
-inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
-	return new TitleWidget(parent);
+inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
+	return object_ptr<TitleWidget>(parent);
 }
 
 } // namespace Platform

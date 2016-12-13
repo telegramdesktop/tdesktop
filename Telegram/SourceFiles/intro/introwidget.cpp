@@ -47,8 +47,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Intro {
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
-, _back(this, new Ui::IconButton(this, st::introBackButton), base::lambda<void()>(), st::introSlideDuration)
-, _settings(this, new Ui::RoundButton(this, lang(lng_menu_settings), st::defaultBoxButton), base::lambda<void()>(), st::introCoverDuration)
+, _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton), st::introSlideDuration)
+, _settings(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_settings), st::defaultBoxButton), st::introCoverDuration)
 , _next(this, QString(), st::introNextButton) {
 	getData()->country = psCurrentCountry();
 
@@ -65,12 +65,12 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[systemLangId].c_str() + qsl(".strings"), langLoaderRequest(lng_switch_to_this));
 			QString text = loader.found().value(lng_switch_to_this);
 			if (!text.isEmpty()) {
-				_changeLanguage.create(this, new Ui::LinkButton(this, text), base::lambda<void()>(), st::introCoverDuration);
+				_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, text), st::introCoverDuration);
 				_changeLanguage->entity()->setClickedCallback([this, systemLangId] { changeLanguage(systemLangId); });
 			}
 		}
 	} else {
-		_changeLanguage.create(this, new Ui::LinkButton(this, langOriginal(lng_switch_to_this)), base::lambda<void()>(), st::introCoverDuration);
+		_changeLanguage.create(this, object_ptr<Ui::LinkButton>(this, langOriginal(lng_switch_to_this)), st::introCoverDuration);
 		_changeLanguage->entity()->setClickedCallback([this] { changeLanguage(languageDefault); });
 	}
 
@@ -98,7 +98,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 void Widget::onCheckUpdateStatus() {
 	if (Sandbox::updatingState() == Application::UpdatingReady) {
 		if (_update) return;
-		_update.create(this, new Ui::RoundButton(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton), base::lambda<void()>(), st::introCoverDuration);
+		_update.create(this, object_ptr<Ui::RoundButton>(this, lang(lng_menu_update).toUpper(), st::defaultBoxButton), st::introCoverDuration);
 		if (!_a_show.animating()) _update->show();
 		_update->entity()->setClickedCallback([] {
 			checkReadyUpdate();
@@ -152,21 +152,21 @@ void Widget::historyMove(Direction direction) {
 		delete base::take(wasStep);
 	}
 	if (getStep()->hasBack()) {
-		_back->fadeIn();
+		_back->showAnimated();
 	} else {
-		_back->fadeOut();
+		_back->hideAnimated();
 	}
 	if (getStep()->hasCover()) {
-		_settings->fadeOut();
-		if (_update) _update->fadeOut();
-		if (_changeLanguage) _changeLanguage->fadeIn();
+		_settings->hideAnimated();
+		if (_update) _update->hideAnimated();
+		if (_changeLanguage) _changeLanguage->showAnimated();
 	} else {
-		_settings->fadeIn();
-		if (_update) _update->fadeIn();
-		if (_changeLanguage) _changeLanguage->fadeOut();
+		_settings->showAnimated();
+		if (_update) _update->showAnimated();
+		if (_changeLanguage) _changeLanguage->hideAnimated();
 	}
 	_next->setText(getStep()->nextButtonText());
-	if (_resetAccount) _resetAccount->fadeOut();
+	if (_resetAccount) _resetAccount->hideAnimated();
 	getStep()->showAnimated(direction);
 	fixOrder();
 }
@@ -206,25 +206,22 @@ void Widget::appendStep(Step *step) {
 
 void Widget::showResetButton() {
 	if (!_resetAccount) {
-		_resetAccount.create(this, new Ui::RoundButton(this, lang(lng_signin_reset_account), st::introResetButton), base::lambda<void()>(), st::introErrorDuration);
+		auto entity = object_ptr<Ui::RoundButton>(this, lang(lng_signin_reset_account), st::introResetButton);
+		_resetAccount.create(this, std_::move(entity), st::introErrorDuration);
 		_resetAccount->hideFast();
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
 		updateControlsGeometry();
 	}
-	_resetAccount->fadeIn();
+	_resetAccount->showAnimated();
 }
 
 void Widget::resetAccount() {
 	if (_resetRequest) return;
 
-	auto box = new ConfirmBox(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton);
-	box->setConfirmedCallback([this] { resetAccountSure(); });
-	Ui::showLayer(box);
-}
-
-void Widget::resetAccountSure() {
-	if (_resetRequest) return;
-	_resetRequest = MTP::send(MTPaccount_DeleteAccount(MTP_string("Forgot password")), rpcDone(&Widget::resetDone), rpcFail(&Widget::resetFail));
+	Ui::show(Box<ConfirmBox>(lang(lng_signin_sure_reset), lang(lng_signin_reset), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+		if (_resetRequest) return;
+		_resetRequest = MTP::send(MTPaccount_DeleteAccount(MTP_string("Forgot password")), rpcDone(&Widget::resetDone), rpcFail(&Widget::resetFail));
+	})));
 }
 
 void Widget::resetDone(const MTPBool &result) {
@@ -251,9 +248,9 @@ bool Widget::resetFail(const RPCError &error) {
 		} else {
 			when = lng_signin_reset_in_minutes(lt_count_minutes, minutes);
 		}
-		Ui::showLayer(new InformBox(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
+		Ui::show(Box<InformBox>(lng_signin_reset_wait(lt_phone_number, App::formatPhone(getData()->phone), lt_when, when)));
 	} else if (type == qstr("2FA_RECENT_CONFIRM")) {
-		Ui::showLayer(new InformBox(lang(lng_signin_reset_cancelled)));
+		Ui::show(Box<InformBox>(lang(lng_signin_reset_cancelled)));
 	} else {
 		Ui::hideLayer();
 		getStep()->showError(lang(lng_server_error));
@@ -544,11 +541,11 @@ void Widget::Step::fillSentCodeData(const MTPauth_SentCodeType &type) {
 }
 
 void Widget::Step::showDescription() {
-	_description->fadeIn();
+	_description->showAnimated();
 }
 
 void Widget::Step::hideDescription() {
-	_description->fadeOut();
+	_description->hideAnimated();
 }
 
 void Widget::Step::paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
@@ -647,16 +644,16 @@ void Widget::Step::setErrorBelowLink(bool below) {
 void Widget::Step::showError(const QString &text) {
 	_errorText = text;
 	if (_errorText.isEmpty()) {
-		if (_error) _error->fadeOut();
+		if (_error) _error->hideAnimated();
 	} else {
 		if (!_error) {
 			auto &st = _errorCentered ? st::introErrorCentered : st::introError;
-			_error.create(this, new Ui::FlatLabel(this, st, st::introErrorTextStyle), base::lambda<void()>(), st::introErrorDuration);
+			_error.create(this, object_ptr<Ui::FlatLabel>(this, st, st::introErrorTextStyle), st::introErrorDuration);
 			_error->hideFast();
 		}
 		_error->entity()->setText(text);
 		updateLabelsPosition();
-		_error->fadeIn();
+		_error->showAnimated();
 	}
 }
 
@@ -664,7 +661,7 @@ Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 , _data(data)
 , _hasCover(hasCover)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle, st::defaultTextStyle)
-, _description(this, new Ui::FlatLabel(this, _hasCover ? st::introCoverDescription : st::introDescription, _hasCover ? st::introCoverDescriptionTextStyle : st::introDescriptionTextStyle), base::lambda<void()>(), st::introErrorDuration) {
+, _description(this, object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription, _hasCover ? st::introCoverDescriptionTextStyle : st::introDescriptionTextStyle), st::introErrorDuration) {
 	hide();
 }
 

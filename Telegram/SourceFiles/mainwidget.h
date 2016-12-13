@@ -232,7 +232,7 @@ public:
 	void shareContactLayer(UserData *contact);
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
-	void hiderLayer(HistoryHider *h);
+	void hiderLayer(object_ptr<HistoryHider> h);
 	void noHider(HistoryHider *destroyed);
 	bool onForward(const PeerId &peer, ForwardWhatMessages what);
 	bool onShareUrl(const PeerId &peer, const QString &url, const QString &text);
@@ -423,7 +423,6 @@ public slots:
 
 	void documentLoadProgress(FileLoader *loader);
 	void documentLoadFailed(FileLoader *loader, bool started);
-	void documentLoadRetry();
 	void inlineResultLoadProgress(FileLoader *loader);
 	void inlineResultLoadFailed(FileLoader *loader, bool started);
 
@@ -452,8 +451,6 @@ public slots:
 	void onAudiosSelect();
 	void onLinksSelect();
 
-	void onForwardCancel(QObject *obj = 0);
-
 	void onCacheBackground();
 
 	void onInviteImport();
@@ -466,14 +463,8 @@ public slots:
 	void onViewsIncrement();
 	void onActiveChannelUpdateFull();
 
-	void onDownloadPathSettings();
-
-	void onSharePhoneWithBot(PeerData *recipient);
-
 	void ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way);
 	void ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId);
-
-	void onDeletePhotoSure();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -507,7 +498,7 @@ private:
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
 
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
-	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back);
+	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back, bool saveInStack);
 
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);
@@ -518,10 +509,6 @@ private:
 	void saveSectionInStack();
 
 	bool _started = false;
-
-	uint64 failedObjId = 0;
-	QString failedFileName;
-	void loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot);
 
 	SelectedItemSet _toForward;
 	Text _toForwardFrom, _toForwardText;
@@ -592,21 +579,21 @@ private:
 
 	int _dialogsWidth;
 
-	ChildWidget<Ui::PlainShadow> _sideShadow;
-	ChildWidget<DialogsWidget> _dialogs;
-	ChildWidget<HistoryWidget> _history;
-	ChildWidget<Window::SectionWidget> _wideSection = { nullptr };
-	ChildWidget<OverviewWidget> _overview = { nullptr };
-	ChildWidget<Window::TopBarWidget> _topBar;
+	object_ptr<Ui::PlainShadow> _sideShadow;
+	object_ptr<DialogsWidget> _dialogs;
+	object_ptr<HistoryWidget> _history;
+	object_ptr<Window::SectionWidget> _wideSection = { nullptr };
+	object_ptr<OverviewWidget> _overview = { nullptr };
+	object_ptr<Window::TopBarWidget> _topBar;
 
-	ChildWidget<Window::PlayerWrapWidget> _player = { nullptr };
-	ChildWidget<Media::Player::VolumeWidget> _playerVolume = { nullptr };
-	ChildWidget<Media::Player::Panel> _playerPlaylist;
-	ChildWidget<Media::Player::Panel> _playerPanel;
+	object_ptr<Window::PlayerWrapWidget> _player = { nullptr };
+	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };
+	object_ptr<Media::Player::Panel> _playerPlaylist;
+	object_ptr<Media::Player::Panel> _playerPanel;
 	bool _playerUsingPanel = false;
 
-	ConfirmBox *_forwardConfirm = nullptr; // for single column layout
-	ChildWidget<HistoryHider> _hider = { nullptr };
+	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
+	object_ptr<HistoryHider> _hider = { nullptr };
 	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;
 	PeerData *_peerInStack = nullptr;
 	MsgId _msgIdInStack = 0;
@@ -614,7 +601,7 @@ private:
 	int _playerHeight = 0;
 	int _contentScrollAddToY = 0;
 
-	ChildWidget<Ui::DropdownMenu> _mediaType;
+	object_ptr<Ui::DropdownMenu> _mediaType;
 	int32 _mediaTypeMask = 0;
 
 	int32 updDate = 0;

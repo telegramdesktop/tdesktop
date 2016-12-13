@@ -20,11 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
-
 namespace Ui {
 class ScrollArea;
-class GradientShadow;
+class Shadow;
 } // namespace Ui
 
 namespace Media {
@@ -106,11 +104,10 @@ private:
 
 	QTimer _hideTimer, _showTimer;
 
-	Ui::RectShadow _shadow;
 	ButtonCallback _pinCallback, _closeCallback;
-	ChildWidget<CoverWidget> _cover = { nullptr };
-	ChildWidget<Ui::ScrollArea> _scroll;
-	ChildWidget<Ui::GradientShadow> _scrollShadow = { nullptr };
+	object_ptr<CoverWidget> _cover = { nullptr };
+	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::Shadow> _scrollShadow = { nullptr };
 
 };
 

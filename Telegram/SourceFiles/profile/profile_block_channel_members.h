@@ -55,10 +55,10 @@ private:
 	void refreshMembers();
 	void refreshVisibility();
 
-	void addButton(const QString &text, ChildWidget<Ui::LeftOutlineButton> *button, const char *slot);
+	void addButton(const QString &text, object_ptr<Ui::LeftOutlineButton> *button, const char *slot);
 
-	ChildWidget<Ui::LeftOutlineButton> _admins = { nullptr };
-	ChildWidget<Ui::LeftOutlineButton> _members = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _admins = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _members = { nullptr };
 
 };
 

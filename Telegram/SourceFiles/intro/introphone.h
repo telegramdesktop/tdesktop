@@ -76,16 +76,16 @@ private:
 
 	bool _changed = false;
 
-	ChildWidget<CountryInput> _country;
-	ChildWidget<Ui::CountryCodeInput> _code;
-	ChildWidget<Ui::PhonePartInput> _phone;
+	object_ptr<CountryInput> _country;
+	object_ptr<Ui::CountryCodeInput> _code;
+	object_ptr<Ui::PhonePartInput> _phone;
 
-	ChildWidget<Ui::WidgetFadeWrap<Ui::FlatLabel>> _signup = { nullptr };
+	object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _signup = { nullptr };
 
 	QString _sentPhone;
 	mtpRequestId _sentRequest = 0;
 
-	ChildObject<QTimer> _checkRequest;
+	object_ptr<QTimer> _checkRequest;
 
 };
 

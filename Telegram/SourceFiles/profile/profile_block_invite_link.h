@@ -48,7 +48,7 @@ private:
 	void refreshLink();
 	void refreshVisibility();
 
-	ChildWidget<Ui::FlatLabel> _link = { nullptr };
+	object_ptr<Ui::FlatLabel> _link = { nullptr };
 
 };
 

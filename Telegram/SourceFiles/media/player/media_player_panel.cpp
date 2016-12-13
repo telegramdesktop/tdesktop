@@ -36,7 +36,6 @@ namespace Player {
 
 Panel::Panel(QWidget *parent, Layout layout) : TWidget(parent)
 , _layout(layout)
-, _shadow(st::defaultDropdownShadow)
 , _scroll(this, st::mediaPlayerScroll) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
@@ -84,7 +83,7 @@ void Panel::updateControlsGeometry() {
 		_cover->moveToRight(contentRight(), scrollTop);
 		scrollTop += _cover->height();
 		if (_scrollShadow) {
-			_scrollShadow->resizeToWidth(width);
+			_scrollShadow->resize(width, st::mediaPlayerScrollShadow.extend.bottom());
 			_scrollShadow->moveToRight(contentRight(), scrollTop);
 		}
 	}
@@ -167,14 +166,15 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	// draw shadow
-	using Side = Ui::RectShadow::Side;
+	using Side = Ui::Shadow::Side;
 	auto shadowedRect = myrtlrect(contentLeft(), contentTop(), contentWidth(), contentHeight());
 	auto shadowedSides = (rtl() ? Side::Right : Side::Left) | Side::Bottom;
 	if (_layout != Layout::Full) {
 		shadowedSides |= (rtl() ? Side::Left : Side::Right) | Side::Top;
 	}
-	_shadow.paint(p, shadowedRect, st::defaultDropdownShadowShift, shadowedSides);
-	p.fillRect(shadowedRect, st::windowBg);
+	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
+	auto parts = App::RectPart::Full;
+	App::roundRect(p, shadowedRect, st::menuBg, MenuCorners, nullptr, parts);
 }
 
 void Panel::enterEvent(QEvent *e) {
@@ -225,11 +225,11 @@ void Panel::ensureCreated() {
 		setPinCallback(std_::move(_pinCallback));
 		setCloseCallback(std_::move(_closeCallback));
 
-		_scrollShadow.create(this, st::mediaPlayerScrollShadow);
+		_scrollShadow.create(this, st::mediaPlayerScrollShadow, Ui::Shadow::Side::Bottom);
 	}
-	auto list = std_::make_unique<ListWidget>();
-	connect(list.get(), SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
-	_scroll->setOwnedWidget(list.release());
+	auto list = object_ptr<ListWidget>(this);
+	connect(list, SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
+	_scroll->setOwnedWidget(std_::move(list));
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {
@@ -246,9 +246,7 @@ void Panel::performDestroy() {
 	if (!_scroll->widget()) return;
 
 	_cover.destroy();
-	auto list = _scroll->takeWidget();
-	list->hide();
-	list->deleteLater();
+	_scroll->takeWidget<ListWidget>().destroyDelayed();
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {

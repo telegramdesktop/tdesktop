@@ -92,7 +92,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this, st::shadowColor)
-, _playback(new Ui::FilledSlider(this, st::mediaPlayerPlayback)) {
+, _playback(std_::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -191,6 +191,8 @@ QPoint Widget::getPositionForVolumeWidget() const {
 void Widget::volumeWidgetCreated(VolumeWidget *widget) {
 	_volumeToggle->installEventFilter(widget);
 }
+
+Widget::~Widget() = default;
 
 void Widget::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;

@@ -23,17 +23,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/abstractbox.h"
 
 namespace Ui {
-class RoundButton;
 class LinkButton;
 class SettingsSlider;
 } // namespace Ui
 
-class NotificationsBox : public AbstractBox {
+class NotificationsBox : public BoxContent {
 public:
-	NotificationsBox();
+	NotificationsBox(QWidget*);
 	~NotificationsBox();
 
 protected:
+	void prepare() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -70,8 +71,7 @@ private:
 	ScreenCorner _downCorner = ScreenCorner::TopLeft;
 
 	int _oldCount;
-	ChildWidget<Ui::SettingsSlider> _countSlider;
-	ChildWidget<Ui::RoundButton> _done;
+	object_ptr<Ui::SettingsSlider> _countSlider;
 
 	QVector<SampleWidget*> _cornerSamples[4];
 

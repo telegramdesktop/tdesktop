@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "pspecific.h"
-#include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
 
@@ -29,7 +28,7 @@ class MediaView;
 class PasscodeWidget;
 class MainWidget;
 class LayerStackWidget;
-class LayerWidget;
+class BoxContent;
 
 namespace Intro {
 class Widget;
@@ -38,10 +37,6 @@ class Widget;
 namespace Local {
 class ClearManager;
 } // namespace Local
-
-namespace Settings {
-class Widget;
-} // namespace Settings
 
 namespace Window {
 namespace Theme {
@@ -68,10 +63,9 @@ public slots:
 	void onReconnect();
 
 private:
-	Ui::RectShadow _shadow;
 	QString _text;
-	int32 _textWidth;
-	ChildWidget<Ui::LinkButton> _reconnect;
+	int _textWidth = 0;
+	object_ptr<Ui::LinkButton> _reconnect;
 
 };
 
@@ -162,7 +156,7 @@ public:
 
 	void showMainMenu();
 
-	void ui_showLayer(LayerWidget *box, ShowLayerOptions options);
+	void ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options);
 	void ui_hideSettingsAndLayer(ShowLayerOptions options);
 	bool ui_isLayerShown();
 	bool ui_isMediaViewShown();
@@ -206,7 +200,6 @@ public slots:
 	void onShowNewGroup();
 	void onShowNewChannel();
 	void onLogout();
-	void onLogoutSure();
 	void updateGlobalMenu(); // for OS X top menu
 
 	void onReActivate();
@@ -220,7 +213,6 @@ signals:
 
 private slots:
 	void onStateChanged(Qt::WindowState state);
-	void onSettingsDestroyed(QObject *was);
 
 	void onWindowActiveChanged();
 
@@ -247,18 +239,17 @@ private:
 	QList<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
 
-	ChildWidget<PasscodeWidget> _passcode = { nullptr };
-	ChildWidget<Intro::Widget> _intro = { nullptr };
-	ChildWidget<MainWidget> _main = { nullptr };
-	ChildWidget<Settings::Widget> _settings = { nullptr };
-	ChildWidget<LayerStackWidget> _layerBg = { nullptr };
-	ChildWidget<MediaPreviewWidget> _mediaPreview = { nullptr };
+	object_ptr<PasscodeWidget> _passcode = { nullptr };
+	object_ptr<Intro::Widget> _intro = { nullptr };
+	object_ptr<MainWidget> _main = { nullptr };
+	object_ptr<LayerStackWidget> _layerBg = { nullptr };
+	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
 	QTimer _isActiveTimer;
 	bool _isActive = false;
 
-	ChildWidget<ConnectingWidget> _connecting = { nullptr };
-	ChildWidget<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
+	object_ptr<ConnectingWidget> _connecting = { nullptr };
+	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
 

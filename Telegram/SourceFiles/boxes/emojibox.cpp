@@ -71,17 +71,18 @@ namespace {
 	const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace), replacesInRow = 7;
 }
 
-EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
-	setTitleText(lang(lng_settings_emoji_list));
-	setBlockTitle(true);
+EmojiBox::EmojiBox(QWidget*) : _esize(EmojiSizes[EIndex + 1]) {
+}
 
+void EmojiBox::prepare() {
+	setTitle(lang(lng_settings_emoji_list));
 	fillBlocks();
+
+	addButton(lang(lng_close), [this] { closeBox(); });
 
 	_blockHeight = st::emojiReplaceInnerHeight;
 
-	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, titleHeight() + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
-
-	raiseShadow();
+	setDimensions(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
 }
 
 void EmojiBox::fillBlocks() {
@@ -116,20 +117,20 @@ void EmojiBox::fillBlocks() {
 
 void EmojiBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onClose();
+		closeBox();
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void EmojiBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
 	p.setFont(st::emojiTextFont);
 	p.setPen(st::boxTextFg);
-	int32 top = titleHeight() + st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
+	auto top = st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
 	for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {

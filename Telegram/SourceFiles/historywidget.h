@@ -22,7 +22,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "ui/filedialog.h"
-#include "ui/effects/rect_shadow.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
@@ -365,9 +364,9 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	ChildWidget<Ui::FlatButton> _report;
-	ChildWidget<Ui::FlatButton> _hide;
-	ChildWidget<Ui::LinkButton> _clear;
+	object_ptr<Ui::FlatButton> _report;
+	object_ptr<Ui::FlatButton> _hide;
+	object_ptr<Ui::LinkButton> _clear;
 
 };
 
@@ -506,8 +505,8 @@ private:
 	QString _shareUrl, _shareText;
 	QString _botAndQuery;
 
-	ChildWidget<Ui::RoundButton> _send;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::RoundButton> _send;
+	object_ptr<Ui::RoundButton> _cancel;
 	PeerData *_offered = nullptr;
 
 	Animation _a_opacity;
@@ -522,8 +521,6 @@ private:
 	Text _toText;
 	int32 _toTextWidth = 0;
 	QPixmap _cacheForAnim;
-
-	Ui::RectShadow _shadow;
 
 };
 
@@ -724,8 +721,6 @@ public:
 	bool cmd_next_chat();
 	bool cmd_previous_chat();
 
-	~HistoryWidget();
-
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -746,7 +741,6 @@ public slots:
 	void onEditMessage();
 	void onPinMessage();
 	void onUnpinMessage();
-	void onUnpinMessageSure();
 	void onPinnedHide();
 	void onCopyPostLink();
 	void onFieldBarCancel();
@@ -773,7 +767,6 @@ public slots:
 	void onDocumentFailed(const FullMsgId &msgId);
 
 	void onReportSpamClicked();
-	void onReportSpamSure();
 	void onReportSpamHide();
 	void onReportSpamClear();
 
@@ -804,8 +797,6 @@ public slots:
 	void deleteMessage();
 	void forwardMessage();
 	void selectMessage();
-
-	void onForwardHere(); // instead of a reply
 
 	void onFieldFocused();
 	void onFieldResize();
@@ -867,7 +858,7 @@ private:
 	template <typename Callback>
 	bool validateSendingFiles(const SendingFilesLists &lists, Callback callback);
 	template <typename SendCallback>
-	bool showSendFilesBox(SendFilesBox *box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback);
+	bool showSendFilesBox(object_ptr<SendFilesBox> box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback);
 	CompressConfirm imageCompressConfirm(const QImage &image, CompressConfirm compressed, bool animated = false);
 
 	// If an empty filepath is found we upload (possible) "image" with (possible) "content".
@@ -908,7 +899,7 @@ private:
 	Text _replyEditMsgText;
 	mutable SingleTimer _updateEditTimeLeftDisplay;
 
-	ChildWidget<Ui::IconButton> _fieldBarCancel;
+	object_ptr<Ui::IconButton> _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);
 
 	struct PinnedBar {
@@ -918,8 +909,8 @@ private:
 		MsgId msgId = 0;
 		HistoryItem *msg = nullptr;
 		Text text;
-		ChildWidget<Ui::IconButton> cancel;
-		ChildWidget<Ui::PlainShadow> shadow;
+		object_ptr<Ui::IconButton> cancel;
+		object_ptr<Ui::PlainShadow> shadow;
 	};
 	std_::unique_ptr<PinnedBar> _pinnedBar;
 	void updatePinnedBar(bool force = false);
@@ -1078,8 +1069,8 @@ private:
 
 	MsgId _activeAnimMsgId = 0;
 
-	ChildWidget<Ui::ScrollArea> _scroll;
-	HistoryInner *_list = nullptr;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
 	History *_history = nullptr;
 	bool _histInited = false; // initial updateListSize() called
@@ -1091,9 +1082,9 @@ private:
 
 	Animation _historyDownShown;
 	bool _historyDownIsShown = false;
-	ChildWidget<Ui::HistoryDownButton> _historyDown;
+	object_ptr<Ui::HistoryDownButton> _historyDown;
 
-	ChildWidget<FieldAutocomplete> _fieldAutocomplete;
+	object_ptr<FieldAutocomplete> _fieldAutocomplete;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
@@ -1108,23 +1099,23 @@ private:
 	bool isMuteUnmute() const;
 	bool updateCmdStartShown();
 
-	ChildWidget<ReportSpamPanel> _reportSpamPanel;
+	object_ptr<ReportSpamPanel> _reportSpamPanel;
 
-	ChildWidget<Ui::IconButton> _send;
-	ChildWidget<Ui::FlatButton> _unblock;
-	ChildWidget<Ui::FlatButton> _botStart;
-	ChildWidget<Ui::FlatButton> _joinChannel;
-	ChildWidget<Ui::FlatButton> _muteUnmute;
+	object_ptr<Ui::IconButton> _send;
+	object_ptr<Ui::FlatButton> _unblock;
+	object_ptr<Ui::FlatButton> _botStart;
+	object_ptr<Ui::FlatButton> _joinChannel;
+	object_ptr<Ui::FlatButton> _muteUnmute;
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
-	ChildWidget<Ui::IconButton> _attachToggle;
-	ChildWidget<Ui::EmojiButton> _attachEmoji;
-	ChildWidget<Ui::IconButton> _botKeyboardShow;
-	ChildWidget<Ui::IconButton> _botKeyboardHide;
-	ChildWidget<Ui::IconButton> _botCommandStart;
-	ChildWidget<SilentToggle> _silent;
+	object_ptr<Ui::IconButton> _attachToggle;
+	object_ptr<Ui::EmojiButton> _attachEmoji;
+	object_ptr<Ui::IconButton> _botKeyboardShow;
+	object_ptr<Ui::IconButton> _botKeyboardHide;
+	object_ptr<Ui::IconButton> _botCommandStart;
+	object_ptr<SilentToggle> _silent;
 	bool _cmdStartShown = false;
-	ChildWidget<MessageField> _field;
+	object_ptr<MessageField> _field;
 	bool _recording = false;
 	bool _inRecord = false;
 	bool _inField = false;
@@ -1147,15 +1138,15 @@ private:
 
 	bool _kbShown = false;
 	HistoryItem *_kbReplyTo = nullptr;
-	ChildWidget<Ui::ScrollArea> _kbScroll;
-	ChildWidget<BotKeyboard> _keyboard;
+	object_ptr<Ui::ScrollArea> _kbScroll;
+	QPointer<BotKeyboard> _keyboard;
 
-	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
+	object_ptr<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;
 
-	ChildWidget<EmojiPan> _emojiPan;
+	object_ptr<EmojiPan> _emojiPan;
 	DragState _attachDrag = DragStateNone;
-	ChildWidget<DragArea> _attachDragDocument, _attachDragPhoto;
+	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 
 	int32 _selCount; // < 0 - text selected, focus list, not _field
 
@@ -1186,7 +1177,7 @@ private:
 	bool _saveDraftText = false;
 	QTimer _saveDraftTimer, _saveCloudDraftTimer;
 
-	ChildWidget<Ui::PlainShadow> _topShadow;
+	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
 
 };

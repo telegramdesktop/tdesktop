@@ -25,7 +25,7 @@ namespace Ui {
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
-ScrollShadow::ScrollShadow(ScrollArea *parent, const style::FlatScroll *st) : QWidget(parent), _st(st) {
+ScrollShadow::ScrollShadow(ScrollArea *parent, const style::ScrollArea *st) : QWidget(parent), _st(st) {
 	setVisible(false);
 }
 
@@ -38,7 +38,7 @@ void ScrollShadow::changeVisibility(bool shown) {
 	setVisible(shown);
 }
 
-ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::FlatScroll *st) : QWidget(parent)
+ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : QWidget(parent)
 , _st(st)
 , _vertical(vert)
 , _hiding(_st->hiding != 0)
@@ -313,7 +313,7 @@ void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	}
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::FlatScroll &st, bool handleTouch) : QScrollArea(parent)
+ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch) : QScrollArea(parent)
 , _st(st)
 , _horizontalBar(this, false, &_st)
 , _verticalBar(this, true, &_st)
@@ -699,39 +699,34 @@ void ScrollArea::scrollToY(int toTop, int toBottom) {
 	verticalScrollBar()->setValue(scToTop);
 }
 
-void ScrollArea::setWidget(QWidget *w) {
-	SplittedWidget *splitted = qobject_cast<SplittedWidget*>(w);
+void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
+	auto splitted = qobject_cast<SplittedWidget*>(w.data());
 	if (widget() && _touchEnabled) {
 		widget()->removeEventFilter(this);
 		if (!_widgetAcceptsTouch) widget()->setAttribute(Qt::WA_AcceptTouchEvents, false);
 	}
 	if (_other && !splitted) {
-		delete _other;
-		_other = 0;
+		_other.destroy();
 		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 	} else if (!_other && splitted) {
-		_other = new SplittedWidgetOther(this);
-		_other->setAttribute(Qt::WA_OpaquePaintEvent);
+		_other.create(this);
 		_other->resize(_verticalBar->width(), _other->height());
 		connect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 		_horizontalBar->raise();
 		_verticalBar->raise();
 	}
-	if (_ownsWidget) {
-		_ownsWidget = false;
-		delete takeWidget();
-	}
-	QScrollArea::setWidget(w);
-	if (w) {
-		w->setAutoFillBackground(false);
+	_widget = std_::move(w);
+	QScrollArea::setWidget(_widget);
+	if (_widget) {
+		_widget->setAutoFillBackground(false);
 		if (_touchEnabled) {
-			w->installEventFilter(this);
-			_widgetAcceptsTouch = w->testAttribute(Qt::WA_AcceptTouchEvents);
-			w->setAttribute(Qt::WA_AcceptTouchEvents);
+			_widget->installEventFilter(this);
+			_widgetAcceptsTouch = _widget->testAttribute(Qt::WA_AcceptTouchEvents);
+			_widget->setAttribute(Qt::WA_AcceptTouchEvents);
 		}
 		if (splitted) {
 			splitted->setOtherWidth(_verticalBar->width());
-			w->setGeometry(rtl() ? splitted->otherWidth() : 0, 0, width() - splitted->otherWidth(), w->height());
+			_widget->setGeometry(rtl() ? splitted->otherWidth() : 0, 0, width() - splitted->otherWidth(), _widget->height());
 			connect(splitted, SIGNAL(resizeOther()), this, SLOT(onResizeOther()));
 			connect(splitted, SIGNAL(updateOther(const QRect&)), this, SLOT(onUpdateOther(const QRect&)));
 			connect(splitted, SIGNAL(updateOther(const QRegion&)), this, SLOT(onUpdateOther(const QRegion&)));
@@ -741,18 +736,13 @@ void ScrollArea::setWidget(QWidget *w) {
 	}
 }
 
-void ScrollArea::setOwnedWidget(QWidget *widget) {
-	setWidget(widget);
-	_ownsWidget = true;
-}
-
-QWidget *ScrollArea::takeWidget() {
+object_ptr<TWidget> ScrollArea::doTakeWidget() {
 	if (_other) {
-		delete _other;
-		_other = 0;
+		_other.destroy();
 		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 	}
-	return QScrollArea::takeWidget();
+	QScrollArea::takeWidget();
+	return std_::move(_widget);
 }
 
 void ScrollArea::onResizeOther() {
@@ -790,12 +780,6 @@ bool ScrollArea::focusNextPrevChild(bool next) {
 
 void ScrollArea::setMovingByScrollBar(bool movingByScrollBar) {
 	_movingByScrollBar = movingByScrollBar;
-}
-
-ScrollArea::~ScrollArea() {
-	if (!_ownsWidget) {
-		takeWidget();
-	}
 }
 
 } // namespace Ui

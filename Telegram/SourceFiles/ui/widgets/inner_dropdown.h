@@ -120,7 +120,7 @@ private:
 	base::lambda<void()> _hideStartCallback;
 	base::lambda<void()> _hiddenCallback;
 
-	ChildWidget<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ScrollArea> _scroll;
 
 	int _maxHeight = 0;
 

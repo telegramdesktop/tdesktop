@@ -51,9 +51,10 @@ private slots:
 	void onToPassword();
 	void onInputChange();
 	void onCheckRequest();
-	void onToReset();
 
 private:
+	void showReset();
+
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool pwdSubmitFail(const RPCError &error);
 	bool codeSubmitFail(const RPCError &error);
@@ -68,16 +69,16 @@ private:
 	bool _hasRecovery;
 	QString _hint, _emailPattern;
 
-	ChildWidget<Ui::PasswordInput> _pwdField;
-	ChildWidget<Ui::FlatLabel> _pwdHint;
-	ChildWidget<Ui::InputField> _codeField;
-	ChildWidget<Ui::LinkButton> _toRecover;
-	ChildWidget<Ui::LinkButton> _toPassword;
+	object_ptr<Ui::PasswordInput> _pwdField;
+	object_ptr<Ui::FlatLabel> _pwdHint;
+	object_ptr<Ui::InputField> _codeField;
+	object_ptr<Ui::LinkButton> _toRecover;
+	object_ptr<Ui::LinkButton> _toPassword;
 	mtpRequestId _sentRequest = 0;
 
 	QByteArray _pwdSalt;
 
-	ChildObject<QTimer> _checkRequest;
+	object_ptr<QTimer> _checkRequest;
 
 };
 

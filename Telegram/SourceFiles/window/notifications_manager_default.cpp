@@ -561,7 +561,7 @@ void Notification::onReplyCancel() {
 void Notification::updateGeometry(int x, int y, int width, int height) {
 	if (height > st::notifyMinHeight) {
 		if (!_background) {
-			_background = new Background(this);
+			_background.create(this);
 		}
 		_background->setGeometry(0, st::notifyMinHeight, width, height - st::notifyMinHeight);
 	} else if (_background) {

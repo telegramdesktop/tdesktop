@@ -28,67 +28,64 @@ class PortInput;
 class PasswordInput;
 class Checkbox;
 class Radiobutton;
-class RoundButton;
 } // namespace Ui
 
-class ConnectionBox : public AbstractBox {
+class ConnectionBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	ConnectionBox();
+	ConnectionBox(QWidget *parent);
 
-public slots:
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void onChange();
 	void onSubmit();
 	void onSave();
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
-
 private:
 	void updateControlsVisibility();
+	void updateControlsPosition();
 
-	ChildWidget<Ui::InputField> _hostInput;
-	ChildWidget<Ui::PortInput> _portInput;
-	ChildWidget<Ui::InputField> _userInput;
-	ChildWidget<Ui::PasswordInput> _passwordInput;
-	ChildWidget<Ui::Radiobutton> _autoRadio;
-	ChildWidget<Ui::Radiobutton> _httpProxyRadio;
-	ChildWidget<Ui::Radiobutton> _tcpProxyRadio;
-	ChildWidget<Ui::Checkbox> _tryIPv6;
-
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::InputField> _hostInput;
+	object_ptr<Ui::PortInput> _portInput;
+	object_ptr<Ui::InputField> _userInput;
+	object_ptr<Ui::PasswordInput> _passwordInput;
+	object_ptr<Ui::Radiobutton> _autoRadio;
+	object_ptr<Ui::Radiobutton> _httpProxyRadio;
+	object_ptr<Ui::Radiobutton> _tcpProxyRadio;
+	object_ptr<Ui::Checkbox> _tryIPv6;
 
 };
 
-class AutoDownloadBox : public AbstractBox {
+class AutoDownloadBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	AutoDownloadBox();
-
-public slots:
-	void onSave();
+	AutoDownloadBox(QWidget *parent);
 
 protected:
+	void prepare() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
+private slots:
+	void onSave();
+
 private:
-	ChildWidget<Ui::Checkbox> _photoPrivate;
-	ChildWidget<Ui::Checkbox> _photoGroups;
-	ChildWidget<Ui::Checkbox> _audioPrivate;
-	ChildWidget<Ui::Checkbox> _audioGroups;
-	ChildWidget<Ui::Checkbox> _gifPrivate;
-	ChildWidget<Ui::Checkbox> _gifGroups;
-	ChildWidget<Ui::Checkbox> _gifPlay;
+	object_ptr<Ui::Checkbox> _photoPrivate;
+	object_ptr<Ui::Checkbox> _photoGroups;
+	object_ptr<Ui::Checkbox> _audioPrivate;
+	object_ptr<Ui::Checkbox> _audioGroups;
+	object_ptr<Ui::Checkbox> _gifPrivate;
+	object_ptr<Ui::Checkbox> _gifGroups;
+	object_ptr<Ui::Checkbox> _gifPlay;
 
-	int _sectionHeight;
-
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
+	int _sectionHeight = 0;
 
 };

@@ -52,8 +52,8 @@ private:
 	void step_radial(TimeMs ms, bool timer);
 
 	QPixmap _background;
-	ChildWidget<Ui::LinkButton> _chooseFromGallery;
-	ChildWidget<Ui::LinkButton> _chooseFromFile;
+	object_ptr<Ui::LinkButton> _chooseFromGallery;
+	object_ptr<Ui::LinkButton> _chooseFromFile;
 
 	Ui::RadialAnimation _radial;
 
@@ -76,9 +76,9 @@ private:
 	void needBackgroundUpdate(bool tile);
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	ChildWidget<BackgroundRow> _background = { nullptr };
-	ChildWidget<Ui::Checkbox> _tile = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Ui::Checkbox>> _adaptive = { nullptr };
+	object_ptr<BackgroundRow> _background = { nullptr };
+	object_ptr<Ui::Checkbox> _tile = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _adaptive = { nullptr };
 
 	FileDialog::QueryId _chooseFromFileQueryId = 0;
 

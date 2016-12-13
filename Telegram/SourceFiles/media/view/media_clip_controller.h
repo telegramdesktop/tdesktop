@@ -83,12 +83,12 @@ private:
 	TimeMs _seekPositionMs = -1;
 	TimeMs _lastDurationMs = 0;
 
-	ChildWidget<Ui::IconButton> _playPauseResume;
-	ChildWidget<Playback> _playback;
-	ChildWidget<VolumeController> _volumeController;
-	ChildWidget<Ui::IconButton> _fullScreenToggle;
-	ChildWidget<Ui::LabelSimple> _playedAlready;
-	ChildWidget<Ui::LabelSimple> _toPlayLeft;
+	object_ptr<Ui::IconButton> _playPauseResume;
+	std_::unique_ptr<Playback> _playback;
+	object_ptr<VolumeController> _volumeController;
+	object_ptr<Ui::IconButton> _fullScreenToggle;
+	object_ptr<Ui::LabelSimple> _playedAlready;
+	object_ptr<Ui::LabelSimple> _toPlayLeft;
 
 	std_::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 

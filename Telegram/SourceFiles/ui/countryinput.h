@@ -20,7 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
 #include "boxes/abstractbox.h"
 #include "styles/style_widgets.h"
 
@@ -60,36 +59,32 @@ private:
 
 };
 
-namespace internal {
-class CountrySelectInner;
-} // namespace internal
-
-class CountrySelectBox : public ItemListBox {
+class CountrySelectBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	CountrySelectBox();
+	CountrySelectBox(QWidget*);
 
 signals:
 	void countryChosen(const QString &iso);
 
-public slots:
-	void onSubmit();
-
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void doSetInnerFocus() override;
+private slots:
+	void onSubmit();
 
 private:
 	void onFilterUpdate(const QString &query);
 
-	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::MultiSelect> _select;
+	object_ptr<Ui::MultiSelect> _select;
 
-	ScrollableBoxShadow _topShadow;
+	class Inner;
+	QPointer<Inner> _inner;
 
 };
 

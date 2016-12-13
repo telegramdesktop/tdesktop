@@ -1934,13 +1934,8 @@ void InputArea::Inner::focusInEvent(QFocusEvent *e) {
 }
 
 void InputArea::focusInInner(bool focusByMouse) {
-	if (!_focused) {
-		_focused = true;
-		_borderAnimationStart = focusByMouse ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
-		_a_focused.start([this] { update(); }, 0., 1., _st.duration);
-		startPlaceholderAnimation();
-		startBorderAnimation();
-	}
+	_borderAnimationStart = focusByMouse ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
+	setFocused(true);
 }
 
 void InputArea::Inner::focusOutEvent(QFocusEvent *e) {
@@ -1950,9 +1945,13 @@ void InputArea::Inner::focusOutEvent(QFocusEvent *e) {
 }
 
 void InputArea::focusOutInner() {
-	if (_focused) {
-		_focused = false;
-		_a_focused.start([this] { update(); }, 1., 0., _st.duration);
+	setFocused(false);
+}
+
+void InputArea::setFocused(bool focused) {
+	if (_focused != focused) {
+		_focused = focused;
+		_a_focused.start([this] { update(); }, _focused ? 0. : 1., _focused ? 1. : 0., _st.duration);
 		startPlaceholderAnimation();
 		startBorderAnimation();
 	}
@@ -2273,6 +2272,11 @@ void InputArea::onUndoAvailable(bool avail) {
 void InputArea::onRedoAvailable(bool avail) {
 	_redoAvailable = avail;
 	if (App::wnd()) App::wnd()->updateGlobalMenu();
+}
+
+void InputArea::setDisplayFocused(bool focused) {
+	setFocused(focused);
+	finishAnimations();
 }
 
 void InputArea::finishAnimations() {
@@ -2631,13 +2635,8 @@ void InputField::Inner::focusInEvent(QFocusEvent *e) {
 }
 
 void InputField::focusInInner(bool focusByMouse) {
-	if (!_focused) {
-		_focused = true;
-		_borderAnimationStart = focusByMouse ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
-		_a_focused.start([this] { update(); }, 0., 1., _st.duration);
-		startPlaceholderAnimation();
-		startBorderAnimation();
-	}
+	_borderAnimationStart = focusByMouse ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
+	setFocused(true);
 }
 
 void InputField::Inner::focusOutEvent(QFocusEvent *e) {
@@ -2647,9 +2646,13 @@ void InputField::Inner::focusOutEvent(QFocusEvent *e) {
 }
 
 void InputField::focusOutInner() {
-	if (_focused) {
-		_focused = false;
-		_a_focused.start([this] { update(); }, 1., 0., _st.duration);
+	setFocused(false);
+}
+
+void InputField::setFocused(bool focused) {
+	if (_focused != focused) {
+		_focused = focused;
+		_a_focused.start([this] { update(); }, _focused ? 0. : 1., _focused ? 1. : 0., _st.duration);
 		startPlaceholderAnimation();
 		startBorderAnimation();
 	}
@@ -3027,6 +3030,11 @@ void InputField::selectAll() {
 	_inner->setTextCursor(cursor);
 }
 
+void InputField::setDisplayFocused(bool focused) {
+	setFocused(focused);
+	finishAnimations();
+}
+
 void InputField::finishAnimations() {
 	_a_focused.finish();
 	_a_error.finish();
@@ -3383,26 +3391,25 @@ void MaskedInputField::startBorderAnimation() {
 }
 
 void MaskedInputField::focusInEvent(QFocusEvent *e) {
-	if (!_focused) {
-		_focused = true;
-		_borderAnimationStart = (e->reason() == Qt::MouseFocusReason) ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
-		_a_focused.start([this] { update(); }, 0., 1., _st.duration);
-		startPlaceholderAnimation();
-		startBorderAnimation();
-	}
+	_borderAnimationStart = (e->reason() == Qt::MouseFocusReason) ? mapFromGlobal(QCursor::pos()).x() : (width() / 2);
+	setFocused(true);
 	QLineEdit::focusInEvent(e);
 	emit focused();
 }
 
 void MaskedInputField::focusOutEvent(QFocusEvent *e) {
-	if (_focused) {
-		_focused = false;
-		_a_focused.start([this] { update(); }, 1., 0., _st.duration);
+	setFocused(false);
+	QLineEdit::focusOutEvent(e);
+	emit blurred();
+}
+
+void MaskedInputField::setFocused(bool focused) {
+	if (_focused != focused) {
+		_focused = focused;
+		_a_focused.start([this] { update(); }, _focused ? 0. : 1., _focused ? 1. : 0., _st.duration);
 		startPlaceholderAnimation();
 		startBorderAnimation();
 	}
-	QLineEdit::focusOutEvent(e);
-	emit blurred();
 }
 
 void MaskedInputField::resizeEvent(QResizeEvent *e) {
@@ -3454,6 +3461,11 @@ QSize MaskedInputField::sizeHint() const {
 
 QSize MaskedInputField::minimumSizeHint() const {
 	return geometry().size();
+}
+
+void MaskedInputField::setDisplayFocused(bool focused) {
+	setFocused(focused);
+	finishAnimations();
 }
 
 void MaskedInputField::finishAnimations() {

@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 
 class LayerWidget;
+class BoxContent;
 
 namespace InlineBots {
 namespace Layout {
@@ -76,12 +77,23 @@ void logOutDelayed();
 } // namespace App
 
 namespace Ui {
+namespace internal {
+
+void showBox(object_ptr<BoxContent> content, ShowLayerOptions options);
+
+} // namespace internal
 
 void showMediaPreview(DocumentData *document);
 void showMediaPreview(PhotoData *photo);
 void hideMediaPreview();
 
-void showLayer(LayerWidget *box, ShowLayerOptions options = CloseOtherLayers);
+template <typename BoxType>
+QPointer<BoxType> show(object_ptr<BoxType> content, ShowLayerOptions options = CloseOtherLayers) {
+	auto result = QPointer<BoxType>(content.data());
+	internal::showBox(std_::move(content), options);
+	return result;
+}
+
 void hideLayer(bool fast = false);
 void hideSettingsAndLayer(bool fast = false);
 bool isLayerShown();

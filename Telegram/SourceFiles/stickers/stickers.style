@@ -67,6 +67,10 @@ stickersRemoveSkip: 4px;
 stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
 stickersReorderSkip: 13px;
 
+stickersTabs: SettingsSlider(defaultTabsSlider) {
+	rippleRoundRadius: boxRadius;
+}
+
 stickerEmojiSkip: 5px;
 
 stickersFeaturedBadgeFont: font(12px bold);
@@ -82,11 +86,11 @@ stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
 stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
 
-stickersMaxHeight: 440px;
-stickersPadding: margins(19px, 17px, 19px, 17px);
+stickersMaxHeight: 320px;
+stickersPadding: margins(19px, 13px, 19px, 13px);
 stickersSize: size(64px, 64px);
-stickersScroll: FlatScroll(boxScroll) {
-	deltat: 23px;
+stickersScroll: ScrollArea(boxLayerScroll) {
+	deltat: 19px;
 	deltab: 9px;
 }
 stickersReorderPadding: margins(0px, 12px, 0px, 12px);
@@ -103,7 +107,9 @@ stickersTrendingActive: icon {{ "emoji_trending", emojiIconFgActive }};
 stickersSettingsUnreadSize: 17px;
 stickersSettingsUnreadPosition: point(4px, 5px);
 
-emojiScroll: FlatScroll(defaultSolidScroll) {
+emojiPanMargins: margins(10px, 10px, 10px, 10px);
+
+emojiScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 48px;
 }
 emojiRecent: icon {{ "emoji_recent", emojiIconFg }};

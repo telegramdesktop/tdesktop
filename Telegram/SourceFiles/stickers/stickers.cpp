@@ -78,7 +78,7 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	}
 	Local::writeInstalledStickers();
 	Local::writeArchivedStickers();
-	Ui::showLayer(new StickersBox(archived), KeepOtherLayers);
+	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
 
 	emit App::main()->stickersUpdated();
 }
@@ -164,7 +164,7 @@ void undoInstallLocally(uint64 setId) {
 	Local::writeInstalledStickers();
 	emit App::main()->stickersUpdated();
 
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
+	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)), KeepOtherLayers);
 }
 
 void markFeaturedAsRead(uint64 setId) {

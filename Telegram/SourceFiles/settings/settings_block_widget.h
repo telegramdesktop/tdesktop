@@ -69,7 +69,7 @@ protected:
 	}
 
 	template <typename Widget, typename ...Args>
-	Widget *addChildRow(ChildWidget<Widget> &child, style::margins margin, Args&&... args) {
+	Widget *addChildRow(object_ptr<Widget> &child, style::margins margin, Args&&... args) {
 		createChildRow(child, margin, std_::forward<Args>(args)...);
 		addCreatedRow(child, margin);
 		return child;
@@ -77,20 +77,18 @@ protected:
 
 private:
 	template <typename Widget, typename ...Args>
-	void createChildRow(ChildWidget<Ui::WidgetSlideWrap<Widget>> &child, style::margins &margin, const style::margins &padding, Args&&... args) {
-		ChildWidget<Widget> plainChild = { nullptr };
-		createChildRow(plainChild, margin, std_::forward<Args>(args)...);
-		child.create(this, plainChild, padding, [this]() {
-			rowHeightUpdated();
-		});
+	void createChildRow(object_ptr<Ui::WidgetSlideWrap<Widget>> &child, style::margins &margin, const style::margins &padding, Args&&... args) {
+		object_ptr<Widget> entity = { nullptr };
+		createChildRow(entity, margin, std_::forward<Args>(args)...);
+		child.create(this, std_::move(entity), padding, [this] { rowHeightUpdated(); });
 		margin.setLeft(margin.left() - padding.left());
 		margin.setTop(margin.top() - padding.top());
 		margin.setRight(margin.right() - padding.right());
 		margin.setBottom(margin.bottom() - padding.bottom());
 	}
-	void createChildRow(ChildWidget<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
-	void createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
-	void createChildRow(ChildWidget<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
+	void createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
+	void createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
+	void createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);
 	void rowHeightUpdated();
@@ -112,8 +110,8 @@ private:
 		!std_::is_same<Widget, Ui::LinkButton>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
-	void createChildRow(ChildWidget<Widget> &child, style::margins &margin, Args&&... args) {
-		child = new Widget(this, std_::forward<Args>(args)...);
+	void createChildRow(object_ptr<Widget> &child, style::margins &margin, Args&&... args) {
+		child.create(this, std_::forward<Args>(args)...);
 	}
 
 	void paintTitle(Painter &p);

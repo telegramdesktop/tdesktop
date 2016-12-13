@@ -50,7 +50,7 @@ dialogsSkip: 8px;
 dialogsWidthMin: 260px;
 dialogsWidthMax: 540px;
 dialogsTextWidthMin: 150px;
-dialogsScroll: FlatScroll(defaultFlatScroll) {
+dialogsScroll: ScrollArea(defaultScrollArea) {
 	topsh: 0px;
 	bottomsh: 0px;
 }

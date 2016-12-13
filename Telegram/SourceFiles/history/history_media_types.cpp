@@ -1554,7 +1554,7 @@ void HistoryGif::initDimensions() {
 	int32 tw = 0, th = 0;
 	if (_gif && _gif->state() == Media::Clip::State::Error) {
 		if (!_gif->autoplay()) {
-			Ui::showLayer(new InformBox(lang(lng_gif_error)));
+			Ui::show(Box<InformBox>(lang(lng_gif_error)));
 		}
 		App::unregGifItem(_gif.get());
 		_gif.setBad();
@@ -2204,7 +2204,7 @@ ClickHandlerPtr addContactClickHandler(HistoryItem *item) {
 					auto fname = contact->fname();
 					auto lname = contact->lname();
 					auto phone = contact->phone();
-					Ui::showLayer(new AddContactBox(fname, lname, phone));
+					Ui::show(Box<AddContactBox>(fname, lname, phone));
 				}
 			}
 		}

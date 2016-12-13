@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"
 #include "boxes/confirmbox.h"
+#include "mainwidget.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "lang.h"
@@ -49,7 +50,16 @@ GroupMembersWidget::GroupMembersWidget(QWidget *parent, PeerData *peer, TitleVis
 	}));
 
 	setRemovedCallback([this, peer](PeerData *selectedPeer) {
-		Ui::showLayer(new KickMemberBox(peer, selectedPeer->asUser()));
+		auto user = selectedPeer->asUser();
+		auto text = lng_profile_sure_kick(lt_user, user->firstName);
+		Ui::show(Box<ConfirmBox>(text, lang(lng_box_remove), base::lambda_guarded(this, [peer, user] {
+			Ui::hideLayer();
+			if (auto chat = peer->asChat()) {
+				if (App::main()) App::main()->kickParticipant(chat, user);
+			} else if (auto channel = peer->asChannel()) {
+				if (App::api()) App::api()->kickParticipant(channel, user);
+			}
+		})));
 	});
 	setSelectedCallback([this](PeerData *selectedPeer) {
 		Ui::showPeerProfile(selectedPeer);
@@ -206,7 +216,7 @@ void GroupMembersWidget::refreshLimitReached() {
 		QString text = qsl("%1%2%3\n%4 [a href=\"https://telegram.org/blog/supergroups5k\"]%5[/a]").arg(textcmdStartSemibold()).arg(title).arg(textcmdStopSemibold()).arg(body).arg(link);
 		_limitReachedInfo->setRichText(text);
 		_limitReachedInfo->setClickHandlerHook([this](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new ConvertToSupergroupBox(peer()->asChat()));
+			Ui::show(Box<ConvertToSupergroupBox>(peer()->asChat()));
 			return false;
 		});
 	} else if (!limitReachedShown && _limitReachedInfo) {

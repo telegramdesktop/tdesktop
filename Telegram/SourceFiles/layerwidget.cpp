@@ -22,13 +22,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "media/media_clip_reader.h"
+#include "boxes/abstractbox.h"
 #include "layerwidget.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "ui/filedialog.h"
 #include "styles/style_boxes.h"
+#include "styles/style_widgets.h"
 #include "styles/style_stickers.h"
+#include "ui/widgets/shadow.h"
 #include "window/window_main_menu.h"
 
 namespace {
@@ -39,8 +42,7 @@ constexpr int kStickerPreviewEmojiLimit = 10;
 
 class LayerStackWidget::BackgroundWidget : public TWidget {
 public:
-	BackgroundWidget(QWidget *parent) : TWidget(parent)
-	, _shadow(st::boxShadow) {
+	BackgroundWidget(QWidget *parent) : TWidget(parent) {
 	}
 
 	void setDoneCallback(base::lambda<void()> &&callback) {
@@ -72,6 +74,7 @@ private:
 
 	QPixmap _bodyCache;
 	QPixmap _mainMenuCache;
+	int _mainMenuCacheWidth = 0;
 	QPixmap _specialLayerCache;
 	QPixmap _layerCache;
 
@@ -83,8 +86,6 @@ private:
 	Animation _a_mainMenuShown;
 	Animation _a_specialLayerShown;
 	Animation _a_layerShown;
-
-	Ui::RectShadow _shadow;
 
 	QRect _specialLayerBox, _specialLayerCacheBox;
 	QRect _layerBox, _layerCacheBox;
@@ -144,7 +145,8 @@ void LayerStackWidget::BackgroundWidget::setMainMenuShown(bool shown) {
 		_mainMenuShown = shown;
 		_a_mainMenuShown.start([this] { animationCallback(); }, _mainMenuShown ? 0. : 1., _mainMenuShown ? 1. : 0., st::boxDuration, anim::easeOutCirc);
 	}
-	_mainMenuRight = _mainMenuShown ? (_mainMenuCache.width() / cIntRetinaFactor()) : 0;
+	_mainMenuCacheWidth = (_mainMenuCache.width() / cIntRetinaFactor()) - st::boxRoundShadow.extend.right();
+	_mainMenuRight = _mainMenuShown ? _mainMenuCacheWidth : 0;
 	checkWasShown(wasShown);
 }
 
@@ -196,13 +198,14 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 
 	auto ms = getms();
 	auto mainMenuProgress = _a_mainMenuShown.current(ms, -1);
-	auto mainMenuRight = (_mainMenuCache.isNull() || mainMenuProgress < 0) ? _mainMenuRight : (mainMenuProgress < 0) ? _mainMenuRight : anim::interpolate(0, _mainMenuCache.width() / cIntRetinaFactor(), mainMenuProgress);
+	auto mainMenuRight = (_mainMenuCache.isNull() || mainMenuProgress < 0) ? _mainMenuRight : (mainMenuProgress < 0) ? _mainMenuRight : anim::interpolate(0, _mainMenuCacheWidth, mainMenuProgress);
 	if (mainMenuRight) {
+		// Move showing boxes to the right while main menu is hiding.
 		if (!_specialLayerCache.isNull()) {
-			specialLayerBox.setX(specialLayerBox.x() + mainMenuRight / 2);
+			specialLayerBox.moveLeft(specialLayerBox.left() + mainMenuRight / 2);
 		}
 		if (!_layerCache.isNull()) {
-			layerBox.setX(layerBox.x() + mainMenuRight / 2);
+			layerBox.moveLeft(layerBox.left() + mainMenuRight / 2);
 		}
 	}
 	auto bgOpacity = _a_shown.current(ms, isShown() ? 1. : 0.);
@@ -213,41 +216,85 @@ void LayerStackWidget::BackgroundWidget::paintEvent(QPaintEvent *e) {
 	}
 
 	p.setOpacity(bgOpacity);
+	auto overSpecialOpacity = (layerOpacity * specialLayerOpacity);
 	auto bg = myrtlrect(mainMenuRight, 0, width() - mainMenuRight, height());
-	p.fillRect(bg, st::layerBg);
-	if (mainMenuRight > 0) {
-		_shadow.paint(p, myrtlrect(0, 0, mainMenuRight, height()), 0, Ui::RectShadow::Side::Right);
-	}
-	if (!specialLayerBox.isEmpty()) {
-		p.setClipRegion(QRegion(bg) - specialLayerBox);
-		_shadow.paint(p, specialLayerBox, st::boxShadowShift);
+
+	if (_mainMenuCache.isNull() && mainMenuRight > 0) {
+		// All cache images are taken together with their shadows,
+		// so we paint shadow only when there is no cache.
+		Ui::Shadow::paint(p, myrtlrect(0, 0, mainMenuRight, height()), width(), st::boxRoundShadow, Ui::Shadow::Side::Right);
 	}
 
-	p.setClipping(false);
+	if (_specialLayerCache.isNull() && !specialLayerBox.isEmpty()) {
+		// All cache images are taken together with their shadows,
+		// so we paint shadow only when there is no cache.
+		auto sides = Ui::Shadow::Side::Left | Ui::Shadow::Side::Right;
+		auto topCorners = (specialLayerBox.y() > 0);
+		auto bottomCorners = (specialLayerBox.y() + specialLayerBox.height() < height());
+		if (topCorners) {
+			sides |= Ui::Shadow::Side::Top;
+		}
+		if (bottomCorners) {
+			sides |= Ui::Shadow::Side::Bottom;
+		}
+		if (topCorners || bottomCorners) {
+			p.setClipRegion(QRegion(rect()) - specialLayerBox.marginsRemoved(QMargins(st::boxRadius, 0, st::boxRadius, 0)) - specialLayerBox.marginsRemoved(QMargins(0, st::boxRadius, 0, st::boxRadius)));
+		}
+		Ui::Shadow::paint(p, specialLayerBox, width(), st::boxRoundShadow, sides);
+
+		if (topCorners || bottomCorners) {
+			// In case of painting the shadow above the special layer we get
+			// glitches in the corners, so we need to paint the corners once more.
+			p.setClipping(false);
+			auto parts = (topCorners ? (App::RectPart::TopLeft | App::RectPart::TopRight) : App::RectPart::None)
+				| (bottomCorners ? (App::RectPart::BottomLeft | App::RectPart::BottomRight) : App::RectPart::None);
+			App::roundRect(p, specialLayerBox, st::boxBg, BoxCorners, nullptr, parts);
+		}
+	}
+
+	if (!layerBox.isEmpty() && !_specialLayerCache.isNull() && overSpecialOpacity < bgOpacity) {
+		// In case of moving special layer below the background while showing a box
+		// we need to fill special layer rect below its cache with a complex opacity
+		// (alpha_final - alpha_current) / (1 - alpha_current) so we won't get glitches
+		// in the transparent special layer cache corners after filling special layer
+		// rect above its cache with alpha_current opacity.
+		auto region = QRegion(bg) - specialLayerBox;
+		for_const (auto rect, region.rects()) {
+			p.fillRect(rect, st::layerBg);
+		}
+		p.setOpacity((bgOpacity - overSpecialOpacity) / (1. - (overSpecialOpacity * st::layerBg->c.alphaF())));
+		p.fillRect(specialLayerBox, st::layerBg);
+		p.setOpacity(bgOpacity);
+	} else {
+		p.fillRect(bg, st::layerBg);
+	}
+
 	if (!_specialLayerCache.isNull() && specialLayerOpacity > 0) {
 		p.setOpacity(specialLayerOpacity);
-		p.drawPixmap(specialLayerBox.topLeft(), _specialLayerCache);
+		auto cacheLeft = specialLayerBox.x() - st::boxRoundShadow.extend.left();
+		auto cacheTop = specialLayerBox.y() - (specialLayerBox.y() > 0 ? st::boxRoundShadow.extend.top() : 0);
+		p.drawPixmapLeft(cacheLeft, cacheTop, width(), _specialLayerCache);
 	}
 	if (!layerBox.isEmpty()) {
 		if (!_specialLayerCache.isNull()) {
-			p.setOpacity(layerOpacity * specialLayerOpacity);
-			p.setClipRegion(QRegion(specialLayerBox) - layerBox);
+			p.setOpacity(overSpecialOpacity);
 			p.fillRect(specialLayerBox, st::layerBg);
 		}
-		p.setOpacity(layerOpacity);
-		p.setClipRegion(QRegion(bg) - layerBox);
-		_shadow.paint(p, layerBox, st::boxShadowShift);
-		p.setClipping(false);
+		if (_layerCache.isNull()) {
+			p.setOpacity(layerOpacity);
+			Ui::Shadow::paint(p, layerBox, width(), st::boxRoundShadow);
+		}
 	}
 	if (!_layerCache.isNull() && layerOpacity > 0) {
 		p.setOpacity(layerOpacity);
-		p.drawPixmap(layerBox.topLeft(), _layerCache);
+		p.drawPixmapLeft(layerBox.topLeft() - QPoint(st::boxRoundShadow.extend.left(), st::boxRoundShadow.extend.top()), width(), _layerCache);
 	}
 	if (!_mainMenuCache.isNull() && mainMenuRight > 0) {
 		p.setOpacity(1.);
-		auto shownWidth = mainMenuRight * cIntRetinaFactor();
-		auto shownRect = rtlrect(_mainMenuCache.width() - shownWidth, 0, shownWidth, _mainMenuCache.height(), _mainMenuCache.width());
-		p.drawPixmapLeft(0, 0, mainMenuRight, height(), width(), _mainMenuCache, shownRect);
+		auto shownWidth = mainMenuRight + st::boxRoundShadow.extend.right();
+		auto sourceWidth = shownWidth * cIntRetinaFactor();
+		auto sourceRect = rtlrect(_mainMenuCache.width() - sourceWidth, 0, sourceWidth, _mainMenuCache.height(), _mainMenuCache.width());
+		p.drawPixmapLeft(0, 0, shownWidth, height(), width(), _mainMenuCache, sourceRect);
 	}
 }
 
@@ -277,6 +324,23 @@ void LayerWidget::setInnerFocus() {
 	}
 }
 
+bool LayerWidget::overlaps(const QRect &globalRect) {
+	if (isHidden()) {
+		return false;
+	}
+	auto testRect = QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size());
+	if (testAttribute(Qt::WA_OpaquePaintEvent)) {
+		return rect().contains(testRect);
+	}
+	if (QRect(0, st::boxRadius, width(), height() - 2 * st::boxRadius).contains(testRect)) {
+		return true;
+	}
+	if (QRect(st::boxRadius, 0, width() - 2 * st::boxRadius, height()).contains(testRect)) {
+		return true;
+	}
+	return false;
+}
+
 void LayerStackWidget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		hideCurrent();
@@ -300,9 +364,21 @@ void LayerStackWidget::hideLayers() {
 void LayerStackWidget::hideAll() {
 	startAnimation([] {}, [this] {
 		clearLayers();
-		_specialLayer.destroyDelayed();
+		clearSpecialLayer();
 		_mainMenu.destroyDelayed();
 	}, Action::HideAll);
+}
+
+void LayerStackWidget::hideTopLayer() {
+	if (_specialLayer) {
+		hideLayers();
+	} else {
+		hideAll();
+	}
+}
+
+bool LayerStackWidget::layerShown() const {
+	return _specialLayer || currentLayer();
 }
 
 void LayerStackWidget::setCacheImages() {
@@ -315,12 +391,22 @@ void LayerStackWidget::setCacheImages() {
 		hideChildren();
 		bodyCache = myGrab(App::wnd()->bodyWidget());
 		showChildren();
-		mainMenuCache = myGrab(_mainMenu);
+		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, Ui::Shadow::Side::Right);
 	}
-	auto specialLayerCache = _specialLayer ? myGrab(_specialLayer) : QPixmap();
+	auto specialLayerCache = QPixmap();
+	if (_specialLayer) {
+		auto sides = Ui::Shadow::Side::Left | Ui::Shadow::Side::Right;
+		if (_specialLayer->y() > 0) {
+			sides |= Ui::Shadow::Side::Top;
+		}
+		if (_specialLayer->y() + _specialLayer->height() < height()) {
+			sides |= Ui::Shadow::Side::Bottom;
+		}
+		specialLayerCache = Ui::Shadow::grab(_specialLayer, st::boxRoundShadow, sides);
+	}
 	auto layerCache = QPixmap();
 	if (auto layer = currentLayer()) {
-		layerCache = myGrab(layer);
+		layerCache = Ui::Shadow::grab(layer, st::boxRoundShadow);
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, !bodyCache.isNull());
 	updateLayerBoxes();
@@ -328,6 +414,7 @@ void LayerStackWidget::setCacheImages() {
 }
 
 void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
+	layer->closing();
 	layer->deleteLater();
 	if (layer == _specialLayer) {
 		hideAll();
@@ -430,12 +517,13 @@ void LayerStackWidget::resizeEvent(QResizeEvent *e) {
 	updateLayerBoxes();
 }
 
-void LayerStackWidget::showLayer(LayerWidget *layer) {
-	appendLayer(layer);
-	while (!_layers.isEmpty() && _layers.front() != layer) {
+void LayerStackWidget::showBox(object_ptr<BoxContent> box) {
+	auto pointer = pushBox(std_::move(box));
+	while (!_layers.isEmpty() && _layers.front() != pointer) {
 		auto removingLayer = _layers.front();
 		_layers.pop_front();
 
+		removingLayer->closing();
 		removingLayer->hide();
 		removingLayer->deleteLater();
 	}
@@ -496,10 +584,10 @@ void LayerStackWidget::showFinished() {
 	}
 }
 
-void LayerStackWidget::showSpecialLayer(LayerWidget *layer) {
-	startAnimation([this, layer] {
+void LayerStackWidget::showSpecialLayer(object_ptr<LayerWidget> layer) {
+	startAnimation([this, layer = std_::move(layer)]() mutable {
 		_specialLayer.destroyDelayed();
-		_specialLayer = layer;
+		_specialLayer = std_::move(layer);
 		initChildLayer(_specialLayer);
 	}, [this] {
 		clearLayers();
@@ -518,11 +606,16 @@ void LayerStackWidget::showMainMenu() {
 	}, Action::ShowMainMenu);
 }
 
-void LayerStackWidget::appendLayer(LayerWidget *layer) {
+void LayerStackWidget::appendBox(object_ptr<BoxContent> box) {
+	pushBox(std_::move(box));
+}
+
+LayerWidget *LayerStackWidget::pushBox(object_ptr<BoxContent> box) {
 	auto oldLayer = currentLayer();
 	if (oldLayer) {
 		oldLayer->hide();
 	}
+	auto layer = object_ptr<AbstractBox>(std_::move(box));
 	_layers.push_back(layer);
 	initChildLayer(layer);
 
@@ -536,12 +629,15 @@ void LayerStackWidget::appendLayer(LayerWidget *layer) {
 			_mainMenu.destroyDelayed();
 		}, Action::ShowLayer);
 	}
+
+	return layer.data();
 }
 
-void LayerStackWidget::prependLayer(LayerWidget *layer) {
+void LayerStackWidget::prependBox(object_ptr<BoxContent> box) {
 	if (_layers.empty()) {
-		return showLayer(layer);
+		return showBox(std_::move(box));
 	}
+	auto layer = object_ptr<AbstractBox>(std_::move(box));
 	layer->hide();
 	_layers.push_front(layer);
 	initChildLayer(layer);
@@ -549,15 +645,23 @@ void LayerStackWidget::prependLayer(LayerWidget *layer) {
 
 void LayerStackWidget::clearLayers() {
 	for (auto layer : base::take(_layers)) {
+		layer->closing();
 		layer->hide();
 		layer->deleteLater();
 	}
 }
 
+void LayerStackWidget::clearSpecialLayer() {
+	if (_specialLayer) {
+		_specialLayer->closing();
+		_specialLayer.destroyDelayed();
+	}
+}
+
 void LayerStackWidget::initChildLayer(LayerWidget *layer) {
 	layer->setParent(this);
-	connect(layer, SIGNAL(closed(LayerWidget*)), this, SLOT(onLayerClosed(LayerWidget*)));
-	connect(layer, SIGNAL(resized()), this, SLOT(onLayerResized()));
+	layer->setClosedCallback([this, layer] { onLayerClosed(layer); });
+	layer->setResizedCallback([this] { onLayerResized(); });
 	connect(layer, SIGNAL(destroyed(QObject*)), this, SLOT(onLayerDestroyed(QObject*)));
 	layer->parentResized();
 }

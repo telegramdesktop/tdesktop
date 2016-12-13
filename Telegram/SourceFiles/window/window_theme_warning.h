@@ -20,8 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
-
 namespace Ui {
 class RoundButton;
 } // namespace Ui
@@ -61,9 +59,8 @@ private:
 	int _secondsLeft = 0;
 	QString _text;
 
-	Ui::RectShadow _shadow;
-	ChildWidget<Ui::RoundButton> _keepChanges;
-	ChildWidget<Ui::RoundButton> _revert;
+	object_ptr<Ui::RoundButton> _keepChanges;
+	object_ptr<Ui::RoundButton> _revert;
 
 	base::lambda<void()> _hiddenCallback;
 

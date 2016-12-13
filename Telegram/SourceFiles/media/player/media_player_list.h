@@ -31,7 +31,7 @@ namespace Player {
 
 class ListWidget : public TWidget, private base::Subscriber {
 public:
-	ListWidget();
+	ListWidget(QWidget *parent);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
 

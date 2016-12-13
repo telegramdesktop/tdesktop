@@ -20,8 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
-
 namespace Ui {
 class FlatLabel;
 class Menu;
@@ -51,10 +49,10 @@ private:
 	void updateControlsGeometry();
 	void updateConnectionState();
 
-	ChildWidget<Profile::UserpicButton> _userpicButton = { nullptr };
-	ChildWidget<Ui::Menu> _menu;
-	ChildWidget<Ui::FlatLabel> _telegram;
-	ChildWidget<Ui::FlatLabel> _version;
+	object_ptr<Profile::UserpicButton> _userpicButton = { nullptr };
+	object_ptr<Ui::Menu> _menu;
+	object_ptr<Ui::FlatLabel> _telegram;
+	object_ptr<Ui::FlatLabel> _version;
 
 	bool _showFinished = false;
 	QString _connectionText;

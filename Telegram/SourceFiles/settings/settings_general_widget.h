@@ -65,8 +65,8 @@ private:
 	void setState(State state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
 
-	ChildWidget<Ui::LinkButton> _check;
-	ChildWidget<Ui::LinkButton> _restart;
+	object_ptr<Ui::LinkButton> _check;
+	object_ptr<Ui::LinkButton> _restart;
 
 	State _state = State::None;
 	QString _downloadText;
@@ -85,7 +85,6 @@ protected:
 
 private slots:
 	void onChangeLanguage();
-	void onSaveTestLanguage();
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateAutomatically();
@@ -106,16 +105,16 @@ private:
 	void chooseCustomLang();
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	ChildWidget<Ui::LinkButton> _changeLanguage;
+	object_ptr<Ui::LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	ChildWidget<Ui::Checkbox> _updateAutomatically = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
+	object_ptr<Ui::Checkbox> _updateAutomatically = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	ChildWidget<Ui::Checkbox> _enableTrayIcon = { nullptr };
-	ChildWidget<Ui::Checkbox> _enableTaskbarIcon = { nullptr };
-	ChildWidget<Ui::Checkbox> _autoStart = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
-	ChildWidget<Ui::Checkbox> _addInSendTo = { nullptr };
+	object_ptr<Ui::Checkbox> _enableTrayIcon = { nullptr };
+	object_ptr<Ui::Checkbox> _enableTaskbarIcon = { nullptr };
+	object_ptr<Ui::Checkbox> _autoStart = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
+	object_ptr<Ui::Checkbox> _addInSendTo = { nullptr };
 
 	FileDialog::QueryId _chooseLangFileQueryId = 0;
 	QString _testLanguage;

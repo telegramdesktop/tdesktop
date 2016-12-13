@@ -30,32 +30,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 
-AutoLockBox::AutoLockBox() : _close(this, lang(lng_box_ok), st::defaultBoxButton) {
-	setTitleText(lang(lng_passcode_autolock));
+void AutoLockBox::prepare() {
+	setTitle(lang(lng_passcode_autolock));
 
-	bool haveTestLang = (cLang() == languageTest);
+	addButton(lang(lng_box_ok), [this] { closeBox(); });
 
-	int32 opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
-
-	resizeMaxHeight(st::langsWidth, titleHeight() + cnt * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
-
-	int32 y = titleHeight() + st::boxOptionListPadding.top();
+	int opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
+	auto y = st::boxOptionListPadding.top();
 	_options.reserve(cnt);
-	for (int32 i = 0; i < cnt; ++i) {
-		int32 v = opts[i];
+	for (auto i = 0; i != cnt; ++i) {
+		auto v = opts[i];
 		_options.push_back(new Ui::Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (Global::AutoLock() == v), st::langsButton));
 		_options.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
-		y += _options.back()->heightNoMargins() + st::boxOptionListPadding.top();
+		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
 		connect(_options.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
+	setDimensions(st::langsWidth, st::boxOptionListPadding.top() + cnt * st::langsButton.height + (cnt - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
 }
 
 void AutoLockBox::onChange() {
-	if (isHidden()) return;
+	if (!isBoxShown()) return;
 
 	for (int32 i = 0, l = _options.size(); i < l; ++i) {
 		int32 v = _options[i]->val();
@@ -66,5 +61,5 @@ void AutoLockBox::onChange() {
 		}
 	}
 	App::wnd()->checkAutoLock();
-	onClose();
+	closeBox();
 }

@@ -43,7 +43,7 @@ public:
 	SectionMemento(PeerData *peer) : _peer(peer) {
 	}
 
-	Window::SectionWidget *createWidget(QWidget *parent, const QRect &geometry) const override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, const QRect &geometry) const override;
 
 	PeerData *getPeer() const {
 		return _peer;
@@ -86,7 +86,7 @@ public slots:
 	void onBack();
 
 private:
-	ChildWidget<BackButton> _backButton;
+	object_ptr<BackButton> _backButton;
 
 	bool _animatingMode = false;
 
@@ -205,10 +205,10 @@ private:
 	void saveState(SectionMemento *memento) const;
 	void restoreState(const SectionMemento *memento);
 
-	ChildWidget<Ui::ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<Ui::PlainShadow> _fixedBarShadow;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<InnerWidget> _inner;
+	object_ptr<FixedBar> _fixedBar;
+	object_ptr<Ui::PlainShadow> _fixedBarShadow;
 
 };
 

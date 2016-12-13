@@ -342,6 +342,7 @@ public:
 	const QString &getLastText() const {
 		return _oldtext;
 	}
+	void setDisplayFocused(bool focused);
 	void finishAnimations();
 
 	QSize sizeHint() const override;
@@ -452,6 +453,7 @@ private:
 
 	void focusInInner(bool focusByMouse);
 	void focusOutInner();
+	void setFocused(bool focused);
 
 	void processDocumentContentsChange(int position, int charsAdded);
 
@@ -459,7 +461,7 @@ private:
 
 	int _maxLength = -1;
 
-	ChildWidget<Inner> _inner;
+	object_ptr<Inner> _inner;
 
 	QString _oldtext;
 
@@ -513,6 +515,7 @@ public:
 		return _oldtext;
 	}
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
+	void setDisplayFocused(bool focused);
 	void finishAnimations();
 
 	QSize sizeHint() const override;
@@ -630,6 +633,7 @@ private:
 
 	void focusInInner(bool focusByMouse);
 	void focusOutInner();
+	void setFocused(bool focused);
 
 	void processDocumentContentsChange(int position, int charsAdded);
 
@@ -638,7 +642,7 @@ private:
 	int _maxLength = -1;
 	bool _forcePlaceholderHidden = false;
 
-	ChildWidget<Inner> _inner;
+	object_ptr<Inner> _inner;
 
 	QString _oldtext;
 
@@ -692,6 +696,7 @@ public:
 		return _oldtext;
 	}
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
+	void setDisplayFocused(bool focused);
 	void finishAnimations();
 
 	void setText(const QString &text) {
@@ -763,6 +768,8 @@ protected:
 private:
 	void createPlaceholderPath();
 	void setErrorShown(bool error);
+
+	void setFocused(bool focused);
 
 	int _maxLength = -1;
 	bool _forcePlaceholderHidden = false;

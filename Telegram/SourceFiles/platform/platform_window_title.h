@@ -30,8 +30,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Platform {
 
-inline Window::TitleWidget *CreateTitleWidget(QWidget *parent) {
-	return nullptr;
+inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
+	return { nullptr };
 }
 
 } // namespace Platform

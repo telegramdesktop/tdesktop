@@ -35,7 +35,7 @@ namespace Clip {
 
 Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
-, _playback(new Ui::MediaSlider(this, st::mediaviewPlayback))
+, _playback(std_::make_unique<Playback>(new Ui::MediaSlider(this, st::mediaviewPlayback)))
 , _volumeController(this)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
@@ -218,8 +218,7 @@ void Controller::mousePressEvent(QMouseEvent *e) {
 	e->accept(); // Don't pass event to the MediaView.
 }
 
-Controller::~Controller() {
-}
+Controller::~Controller() = default;
 
 } // namespace Clip
 } // namespace Media

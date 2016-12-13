@@ -1366,8 +1366,7 @@ void MediaView::createClipReader() {
 void MediaView::createClipController() {
 	if (!_doc->isVideo()) return;
 
-	_clipController.destroy();
-	_clipController = new Media::Clip::Controller(this);
+	_clipController.create(this);
 	setClipControllerGeometry();
 	_clipController->show();
 

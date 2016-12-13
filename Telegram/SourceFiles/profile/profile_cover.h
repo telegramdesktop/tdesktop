@@ -117,11 +117,11 @@ private:
 	ChannelData *_peerChannel;
 	ChannelData *_peerMegagroup;
 
-	ChildWidget<UserpicButton> _userpicButton;
-	ChildWidget<CoverDropArea> _dropArea = { nullptr };
+	object_ptr<UserpicButton> _userpicButton;
+	object_ptr<CoverDropArea> _dropArea = { nullptr };
 
-	ChildWidget<Ui::FlatLabel> _name;
-	ChildWidget<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
+	object_ptr<Ui::FlatLabel> _name;
+	object_ptr<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
 	QString _statusText;

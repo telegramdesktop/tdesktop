@@ -164,9 +164,9 @@ void SettingsWidget::onNotificationsChange() {
 
 void SettingsWidget::onManageAdmins() {
 	if (auto chat = peer()->asChat()) {
-		Ui::showLayer(new ContactsBox(chat, MembersFilter::Admins));
+		Ui::show(Box<ContactsBox>(chat, MembersFilter::Admins));
 	} else if (auto channel = peer()->asChannel()) {
-		Ui::showLayer(new MembersBox(channel, MembersFilter::Admins));
+		Ui::show(Box<MembersBox>(channel, MembersFilter::Admins));
 	}
 }
 
@@ -181,14 +181,11 @@ void SettingsWidget::onInviteLink() {
 	};
 	auto link = getInviteLink();
 
-	ConfirmBox *box = new ConfirmBox(lang(link.isEmpty() ? lng_group_invite_about : lng_group_invite_about_new));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onInviteLinkSure()));
-	Ui::showLayer(box);
-}
-
-void SettingsWidget::onInviteLinkSure() {
-	Ui::hideLayer();
-	App::api()->exportInviteLink(peer());
+	auto text = lang(link.isEmpty() ? lng_group_invite_about : lng_group_invite_about_new);
+	Ui::show(Box<ConfirmBox>(text, base::lambda_guarded(this, [this] {
+		Ui::hideLayer();
+		App::api()->exportInviteLink(peer());
+	})));
 }
 
 } // namespace Profile

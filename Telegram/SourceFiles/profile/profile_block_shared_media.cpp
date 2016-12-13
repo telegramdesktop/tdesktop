@@ -21,6 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "profile/profile_block_shared_media.h"
 
+#include "profile/profile_common_groups_section.h"
+#include "profile/profile_section_memento.h"
 #include "styles/style_profile.h"
 #include "observer_peer.h"
 #include "ui/widgets/buttons.h"
@@ -51,7 +53,8 @@ QString getButtonText(MediaOverviewType type, int count) {
 SharedMediaWidget::SharedMediaWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, peer, lang(lng_profile_shared_media))
 , _history(App::history(peer))
 , _migrated(peer->migrateFrom() ? App::history(peer->migrateFrom()) : nullptr) {
-	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
+	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged
+		| Notify::PeerUpdate::Flag::UserCommonChatsChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
@@ -77,6 +80,10 @@ void SharedMediaWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 			updated = true;
 		}
 	}
+	if (update.flags & Notify::PeerUpdate::Flag::UserCommonChatsChanged) {
+		refreshCommonGroups();
+		updated = true;
+	}
 	if (updated) {
 		refreshVisibility();
 
@@ -96,6 +103,7 @@ void SharedMediaWidget::refreshButtons() {
 	for (int typeIndex = 0; typeIndex < OverviewCount; ++typeIndex) {
 		refreshButton(static_cast<MediaOverviewType>(typeIndex));
 	}
+	refreshCommonGroups();
 }
 
 void SharedMediaWidget::refreshButton(MediaOverviewType type) {
@@ -125,7 +133,7 @@ void SharedMediaWidget::refreshVisibility() {
 			return;
 		}
 	}
-	hide();
+	setVisible(_commonGroups != nullptr);
 }
 
 void SharedMediaWidget::onMediaChosen() {
@@ -150,6 +158,46 @@ void SharedMediaWidget::resizeButtons(int newWidth, int *top) {
 		button->resizeToWidth(availableWidth);
 		button->moveToLeft(left, *top);
 		*top += button->height();
+	}
+
+	if (_commonGroups) {
+		_commonGroups->resizeToWidth(availableWidth);
+		_commonGroups->moveToLeft(left, *top);
+		*top += _commonGroups->height();
+	}
+
+}
+
+int SharedMediaWidget::getCommonGroupsCount() const {
+	if (auto user = peer()->asUser()) {
+		return user->commonChatsCount();
+	}
+	return 0;
+}
+
+void SharedMediaWidget::refreshCommonGroups() {
+	if (auto count = getCommonGroupsCount()) {
+		auto text = lng_profile_common_groups(lt_count, count);
+		if (_commonGroups) {
+			_commonGroups->setText(text);
+		} else {
+			_commonGroups.create(this, text, st::defaultLeftOutlineButton);
+			_commonGroups->setClickedCallback([this] { onShowCommonGroups(); });
+			_commonGroups->show();
+		}
+	} else if (_commonGroups) {
+		_commonGroups.destroyDelayed();
+	}
+}
+
+void SharedMediaWidget::onShowCommonGroups() {
+	auto count = getCommonGroupsCount();
+	if (count <= 0) {
+		refreshCommonGroups();
+		return;
+	}
+	if (auto main = App::main()) {
+		main->showWideSection(Profile::CommonGroups::SectionMemento(peer()));
 	}
 }
 

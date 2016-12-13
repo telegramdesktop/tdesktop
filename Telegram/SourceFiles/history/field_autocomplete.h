@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/effects/rect_shadow.h"
 
 namespace Ui {
 class ScrollArea;
@@ -109,8 +108,8 @@ private:
 
 	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll);
 
-	ChildWidget<Ui::ScrollArea> _scroll;
-	ChildWidget<internal::FieldAutocompleteInner> _inner;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<internal::FieldAutocompleteInner> _inner;
 
 	ChatData *_chat = nullptr;
 	UserData *_user = nullptr;

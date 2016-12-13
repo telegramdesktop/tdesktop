@@ -22,7 +22,7 @@ using "basic.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
-historyScroll: FlatScroll(defaultFlatScroll) {
+historyScroll: ScrollArea(defaultScrollArea) {
 	barColor: #89a0b47a;
 	bgColor: #89a0b44c;
 	barOverColor: #89a0b4bc;
@@ -70,7 +70,7 @@ historyToDownDuration: 150;
 membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
-	scroll: FlatScroll(defaultSolidScroll) {
+	scroll: ScrollArea(defaultSolidScroll) {
 		deltat: 3px;
 		deltab: 3px;
 		round: 1px;
@@ -389,7 +389,7 @@ botKbTinyButton: BotKeyboardButton {
 botKbScroll: defaultSolidScroll;
 
 mentionHeight: 40px;
-mentionScroll: FlatScroll(defaultFlatScroll) {
+mentionScroll: ScrollArea(defaultScrollArea) {
 	topsh: 0px;
 	bottomsh: 0px;
 }

@@ -27,42 +27,38 @@ class ConfirmBox;
 
 namespace Ui {
 class PlainShadow;
-class RoundButton;
 } // namespace Ui
 
-class StickerSetBox : public ScrollableBox, public RPCSender {
+class StickerSetBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	StickerSetBox(const MTPInputStickerSet &set);
-
-public slots:
-	void onStickersUpdated();
-	void onAddStickers();
-	void onShareStickers();
-	void onUpdateButtons();
-
-	void onScroll();
-
-private slots:
-	void onInstalled(uint64 id);
+	StickerSetBox(QWidget*, const MTPInputStickerSet &set);
 
 signals:
 	void installed(uint64 id);
 
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 
+private slots:
+	void onStickersUpdated();
+	void onAddStickers();
+	void onShareStickers();
+	void onUpdateButtons();
+
+	void onInstalled(uint64 id);
+
 private:
-	void updateControlsVisibility();
+	void updateButtons();
+
+	MTPInputStickerSet _set;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ScrollableBoxShadow _shadow;
-	ChildWidget<Ui::RoundButton> _add;
-	ChildWidget<Ui::RoundButton> _share;
-	ChildWidget<Ui::RoundButton> _cancel;
-	ChildWidget<Ui::RoundButton> _done;
+	QPointer<Inner> _inner;
+
 	QString _title;
 
 };

@@ -60,10 +60,10 @@ private:
 
 	const style::MultiSelect &_st;
 
-	ChildWidget<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::ScrollArea> _scroll;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
+	QPointer<Inner> _inner;
 
 	base::lambda<void()> _resizedCallback;
 	base::lambda<void(const QString &query)> _queryChangedCallback;
@@ -153,8 +153,8 @@ private:
 	int _fieldLeft = 0;
 	int _fieldTop = 0;
 	int _fieldWidth = 0;
-	ChildWidget<Ui::InputField> _field;
-	ChildWidget<Ui::CrossButton> _cancel;
+	object_ptr<Ui::InputField> _field;
+	object_ptr<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
 	Animation _height;

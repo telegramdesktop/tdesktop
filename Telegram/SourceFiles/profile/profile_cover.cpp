@@ -280,7 +280,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 		} else {
 			subtitle = lang(lng_profile_drop_area_subtitle_channel);
 		}
-		_dropArea = new CoverDropArea(this, title, subtitle);
+		_dropArea.create(this, title, subtitle);
 		resizeDropArea(width());
 	}
 	_dropArea->showAnimated();
@@ -516,13 +516,12 @@ void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) 
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		Ui::showLayer(new InformBox(lang(lng_bad_photo)));
+		Ui::show(Box<InformBox>(lang(lng_bad_photo)));
 		return;
 	}
 
-	auto box = new PhotoCropBox(img, _peer);
-	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onPhotoUploadStatusChanged()));
-	Ui::showLayer(box);
+	auto box = Ui::show(Box<PhotoCropBox>(img, _peer));
+	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
 }
 
 void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {
@@ -534,22 +533,22 @@ void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {
 void CoverWidget::onAddMember() {
 	if (_peerChat) {
 		if (_peerChat->count >= Global::ChatSizeMax() && _peerChat->amCreator()) {
-			Ui::showLayer(new ConvertToSupergroupBox(_peerChat));
+			Ui::show(Box<ConvertToSupergroupBox>(_peerChat));
 		} else {
-			Ui::showLayer(new ContactsBox(_peerChat, MembersFilter::Recent));
+			Ui::show(Box<ContactsBox>(_peerChat, MembersFilter::Recent));
 		}
 	} else if (_peerChannel && _peerChannel->mgInfo) {
 		MembersAlreadyIn already;
 		for_const (auto user, _peerChannel->mgInfo->lastParticipants) {
 			already.insert(user);
 		}
-		Ui::showLayer(new ContactsBox(_peerChannel, MembersFilter::Recent, already));
+		Ui::show(Box<ContactsBox>(_peerChannel, MembersFilter::Recent, already));
 	}
 }
 
 void CoverWidget::onAddBotToGroup() {
 	if (_peerUser && _peerUser->botInfo) {
-		Ui::showLayer(new ContactsBox(_peerUser));
+		Ui::show(Box<ContactsBox>(_peerUser));
 	}
 }
 

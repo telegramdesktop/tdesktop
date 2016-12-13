@@ -118,10 +118,10 @@ void FadeAnimation::updateCallback() {
 }
 
 WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
-, TWidget *entity
-, base::lambda<void()> &&updateCallback
-, int duration) : TWidget(parent)
-, _entity(entity)
+, object_ptr<TWidget> entity
+, int duration
+, base::lambda<void()> &&updateCallback) : TWidget(parent)
+, _entity(std_::move(entity))
 , _duration(duration)
 , _updateCallback(std_::move(updateCallback))
 , _animation(this) {

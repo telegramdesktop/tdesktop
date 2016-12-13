@@ -26,36 +26,34 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Ui {
 class Radiobutton;
 class LinkButton;
-class RoundButton;
 } // namespace Ui
 
-class DownloadPathBox : public AbstractBox {
+class DownloadPathBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	DownloadPathBox();
-
-public slots:
-	void onChange();
-	void onEditPath();
-	void onSave();
+	DownloadPathBox(QWidget *parent);
 
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 
+private slots:
+	void onChange();
+	void onEditPath();
+
 private:
+	void save();
 	void updateControlsVisibility();
 	void setPathText(const QString &text);
 
 	QString _path;
 	QByteArray _pathBookmark;
 
-	ChildWidget<Ui::Radiobutton> _default;
-	ChildWidget<Ui::Radiobutton> _temp;
-	ChildWidget<Ui::Radiobutton> _dir;
-	ChildWidget<Ui::LinkButton> _pathLink;
-
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::Radiobutton> _default;
+	object_ptr<Ui::Radiobutton> _temp;
+	object_ptr<Ui::Radiobutton> _dir;
+	object_ptr<Ui::LinkButton> _pathLink;
 
 };

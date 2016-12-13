@@ -203,7 +203,7 @@ void BackgroundWidget::createControls() {
 }
 
 void BackgroundWidget::onChooseFromGallery() {
-	Ui::showLayer(new BackgroundBox());
+	Ui::show(Box<BackgroundBox>());
 }
 
 void BackgroundWidget::needBackgroundUpdate(bool tile) {

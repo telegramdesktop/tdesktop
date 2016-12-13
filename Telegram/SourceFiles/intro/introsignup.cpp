@@ -81,9 +81,8 @@ void SignupWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update)
 		showError(lang(lng_bad_photo));
 		return;
 	}
-	auto box = new PhotoCropBox(img, PeerId(0));
-	connect(box, SIGNAL(ready(const QImage &)), this, SLOT(onPhotoReady(const QImage &)));
-	Ui::showLayer(box);
+	auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
+	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
 }
 
 void SignupWidget::resizeEvent(QResizeEvent *e) {

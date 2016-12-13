@@ -24,8 +24,6 @@ namespace Window {
 class MainMenu;
 } // namespace Window
 
-#include "ui/effects/rect_shadow.h"
-
 class LayerWidget : public TWidget {
 	Q_OBJECT
 
@@ -36,26 +34,46 @@ public:
 	virtual void showFinished() {
 	}
 	void setInnerFocus();
+	void closing() {
+		if (!_closing) {
+			_closing = true;
+			closeHook();
+		}
+	}
 
-	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || !testAttribute(Qt::WA_OpaquePaintEvent)) return false;
-		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
+	bool overlaps(const QRect &globalRect);
+
+	void setClosedCallback(base::lambda<void()> &&callback) {
+		_closedCallback = std_::move(callback);
+	}
+	void setResizedCallback(base::lambda<void()> &&callback) {
+		_resizedCallback = std_::move(callback);
 	}
 
 protected:
+	void closeLayer() {
+		if (_closedCallback) {
+			_closedCallback();
+		}
+	}
 	void mousePressEvent(QMouseEvent *e) override {
 		e->accept();
 	}
 	void resizeEvent(QResizeEvent *e) override {
-		emit resized();
+		if (_resizedCallback) {
+			_resizedCallback();
+		}
 	}
 	virtual void doSetInnerFocus() {
 		setFocus();
 	}
+	virtual void closeHook() {
+	}
 
-signals:
-	void closed(LayerWidget *layer);
-	void resized();
+private:
+	bool _closing = false;
+	base::lambda<void()> _closedCallback;
+	base::lambda<void()> _resizedCallback;
 
 };
 
@@ -67,11 +85,11 @@ public:
 
 	void finishAnimation();
 
-	void showLayer(LayerWidget *layer);
-	void showSpecialLayer(LayerWidget *layer);
+	void showBox(object_ptr<BoxContent> box);
+	void showSpecialLayer(object_ptr<LayerWidget> layer);
 	void showMainMenu();
-	void appendLayer(LayerWidget *layer);
-	void prependLayer(LayerWidget *layer);
+	void appendBox(object_ptr<BoxContent> box);
+	void prependBox(object_ptr<BoxContent> box);
 
 	bool canSetFocus() const;
 	void setInnerFocus();
@@ -80,6 +98,9 @@ public:
 
 	void hideLayers();
 	void hideAll();
+	void hideTopLayer();
+
+	bool layerShown() const;
 
 	~LayerStackWidget();
 
@@ -94,6 +115,7 @@ private slots:
 	void onLayerResized();
 
 private:
+	LayerWidget *pushBox(object_ptr<BoxContent> box);
 	void showFinished();
 	void hideCurrent();
 
@@ -112,6 +134,7 @@ private:
 
 	void setCacheImages();
 	void clearLayers();
+	void clearSpecialLayer();
 	void initChildLayer(LayerWidget *layer);
 	void updateLayerBoxes();
 	void fixOrder();
@@ -127,11 +150,11 @@ private:
 	using Layers = QList<LayerWidget*>;
 	Layers _layers;
 
-	ChildWidget<LayerWidget> _specialLayer = { nullptr };
-	ChildWidget<Window::MainMenu> _mainMenu = { nullptr };
+	object_ptr<LayerWidget> _specialLayer = { nullptr };
+	object_ptr<Window::MainMenu> _mainMenu = { nullptr };
 
 	class BackgroundWidget;
-	ChildWidget<BackgroundWidget> _background;
+	object_ptr<BackgroundWidget> _background;
 
 };
 
@@ -141,14 +164,15 @@ class MediaPreviewWidget : public TWidget, private base::Subscriber {
 public:
 	MediaPreviewWidget(QWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-
 	void showPreview(DocumentData *document);
 	void showPreview(PhotoData *photo);
 	void hidePreview();
 
 	~MediaPreviewWidget();
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	QSize currentDimensions() const;

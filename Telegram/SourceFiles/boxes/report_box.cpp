@@ -30,18 +30,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
 
-ReportBox::ReportBox(PeerData *peer) : AbstractBox(st::boxWidth)
-, _peer(peer)
+ReportBox::ReportBox(QWidget*, PeerData *peer) : _peer(peer)
 , _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true, st::defaultBoxCheckbox)
 , _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence), false, st::defaultBoxCheckbox)
 , _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography), false, st::defaultBoxCheckbox)
-, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox)
-, _report(this, lang(lng_report_button), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	setTitleText(lang(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
+, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox) {
+}
 
-	connect(_report, SIGNAL(clicked()), this, SLOT(onReport()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+void ReportBox::prepare() {
+	setTitle(lang(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
+
+	addButton(lang(lng_report_button), [this] { onReport(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 
 	connect(_reasonSpam, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(_reasonViolence, SIGNAL(changed()), this, SLOT(onChange()));
@@ -52,18 +52,16 @@ ReportBox::ReportBox(PeerData *peer) : AbstractBox(st::boxWidth)
 }
 
 void ReportBox::resizeEvent(QResizeEvent *e) {
-	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
-	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListPadding.top());
-	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListPadding.top());
-	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListPadding.top());
+	BoxContent::resizeEvent(e);
+
+	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
+	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
 	if (_reasonOtherText) {
 		_reasonOtherText->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() - st::defaultInputField.textMargins.left(), _reasonOther->bottomNoMargins() + st::newGroupDescriptionPadding.top());
 	}
-
-	_report->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _report->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _report->width() + st::boxButtonPadding.left(), _report->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void ReportBox::onChange() {
@@ -87,7 +85,7 @@ void ReportBox::onChange() {
 	}
 }
 
-void ReportBox::doSetInnerFocus() {
+void ReportBox::setInnerFocus() {
 	if (_reasonOtherText) {
 		_reasonOtherText->setFocus();
 	} else {
@@ -124,7 +122,7 @@ void ReportBox::onReport() {
 
 void ReportBox::reportDone(const MTPBool &result) {
 	_requestId = 0;
-	Ui::showLayer(new InformBox(lang(lng_report_thanks)));
+	Ui::show(Box<InformBox>(lang(lng_report_thanks)));
 }
 
 bool ReportBox::reportFail(const RPCError &error) {
@@ -138,9 +136,9 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	int32 h = titleHeight() + 4 * (st::boxOptionListPadding.top() + _reasonSpam->heightNoMargins()) + st::boxButtonPadding.top() + _report->height() + st::boxButtonPadding.bottom();
+	auto newHeight = st::boxOptionListPadding.top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + st::boxOptionListPadding.bottom();
 	if (_reasonOtherText) {
-		h += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
+		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}
-	setMaxHeight(h);
+	setDimensions(st::boxWidth, newHeight);
 }

@@ -23,32 +23,29 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/abstractbox.h"
 
 namespace Ui {
-class RoundButton;
 class LinkButton;
 class FlatLabel;
 } // namespace Ui
 
-class AboutBox : public AbstractBox {
-	Q_OBJECT
-
+class AboutBox : public BoxContent {
 public:
-	AboutBox();
-
-public slots:
-	void onVersion();
+	AboutBox(QWidget*);
 
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
 
 private:
-	ChildWidget<Ui::LinkButton> _version;
-	ChildWidget<Ui::FlatLabel> _text1;
-	ChildWidget<Ui::FlatLabel> _text2;
-	ChildWidget<Ui::FlatLabel> _text3;
-	ChildWidget<Ui::RoundButton> _done;
+	void showVersionHistory();
+
+	object_ptr<Ui::LinkButton> _version;
+	object_ptr<Ui::FlatLabel> _text1;
+	object_ptr<Ui::FlatLabel> _text2;
+	object_ptr<Ui::FlatLabel> _text3;
 
 };
 

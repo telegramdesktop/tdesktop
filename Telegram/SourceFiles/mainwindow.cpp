@@ -52,7 +52,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/window_main_menu.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
-, _shadow(st::boxShadow)
 , _reconnect(this, QString()) {
 	set(text, reconnect);
 	connect(_reconnect, SIGNAL(clicked()), this, SLOT(onReconnect()));
@@ -67,21 +66,24 @@ void ConnectingWidget::set(const QString &text, const QString &reconnect) {
 	} else {
 		_reconnect->setText(reconnect);
 		_reconnect->show();
-		_reconnect->move(st::connectingPadding.left() + _textWidth, st::boxShadow.height() + st::connectingPadding.top());
+		_reconnect->move(st::connectingPadding.left() + _textWidth, st::boxRoundShadow.extend.top() + st::connectingPadding.top());
 		_reconnectWidth = _reconnect->width();
 	}
-	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxShadow.width(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->height + st::connectingPadding.bottom());
+	resize(st::connectingPadding.left() + _textWidth + _reconnectWidth + st::connectingPadding.right() + st::boxRoundShadow.extend.right(), st::boxRoundShadow.extend.top() + st::connectingPadding.top() + st::normalFont->height + st::connectingPadding.bottom());
 	update();
 }
 
 void ConnectingWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	_shadow.paint(p, QRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height()), 0, Ui::RectShadow::Side::Top | Ui::RectShadow::Side::Right);
-	p.fillRect(0, st::boxShadow.height(), width() - st::boxShadow.width(), height() - st::boxShadow.height(), st::connectingBG->b);
-	p.setFont(st::linkFont->f);
-	p.setPen(st::connectingColor->p);
-	p.drawText(st::connectingPadding.left(), st::boxShadow.height() + st::connectingPadding.top() + st::linkFont->ascent, _text);
+	auto sides = Ui::Shadow::Side::Top | Ui::Shadow::Side::Right;
+	Ui::Shadow::paint(p, QRect(0, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right(), height() - st::boxRoundShadow.extend.top()), width(), st::boxRoundShadow, sides);
+	auto parts = App::RectPart::Top | App::RectPart::TopRight | App::RectPart::Center | App::RectPart::Right;
+	App::roundRect(p, QRect(-st::boxRadius, st::boxRoundShadow.extend.top(), width() - st::boxRoundShadow.extend.right() + st::boxRadius, height() - st::boxRoundShadow.extend.top() + st::boxRadius), st::boxBg, BoxCorners, nullptr, parts);
+
+	p.setFont(st::normalFont);
+	p.setPen(st::windowSubTextFg);
+	p.drawText(st::connectingPadding.left(), st::boxRoundShadow.extend.top() + st::connectingPadding.top() + st::normalFont->ascent, _text);
 }
 
 void ConnectingWidget::onReconnect() {
@@ -260,9 +262,7 @@ void MainWindow::setupPasscode() {
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
-	if (_settings) {
-		_settings.destroyDelayed();
-	}
+	Ui::hideSettingsAndLayer(true);
 	if (_intro) _intro->hide();
 	if (animated) {
 		_passcode->showAnimated(bg);
@@ -392,17 +392,10 @@ void MainWindow::showSettings() {
 
 	if (isHidden()) showFromTray();
 
-	if (_settings) {
-		Ui::hideSettingsAndLayer();
-		return;
-	}
-
 	if (!_layerBg) {
 		_layerBg.create(bodyWidget());
 	}
-	_settings.create(this);
-	connect(_settings, SIGNAL(destroyed(QObject*)), this, SLOT(onSettingsDestroyed(QObject*)));
-	_layerBg->showSpecialLayer(_settings);
+	_layerBg->showSpecialLayer(Box<Settings::Widget>());
 }
 
 void MainWindow::showMainMenu() {
@@ -479,32 +472,28 @@ void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
 	_mediaView->setFocus();
 }
 
-void MainWindow::ui_showLayer(LayerWidget *box, ShowLayerOptions options) {
+void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options) {
 	if (box) {
 		if (!_layerBg) {
 			_layerBg.create(bodyWidget());
 		}
 		if (options.testFlag(KeepOtherLayers)) {
 			if (options.testFlag(ShowAfterOtherLayers)) {
-				_layerBg->prependLayer(box);
+				_layerBg->prependBox(std_::move(box));
 			} else {
-				_layerBg->appendLayer(box);
+				_layerBg->appendBox(std_::move(box));
 			}
 		} else {
-			_layerBg->showLayer(box);
+			_layerBg->showBox(std_::move(box));
 		}
 		if (options.testFlag(ForceFastShowLayer)) {
 			_layerBg->finishAnimation();
 		}
 	} else {
 		if (_layerBg) {
-			if (_settings) {
-				_layerBg->hideLayers();
-			} else {
-				_layerBg->hideAll();
-				if (options.testFlag(ForceFastShowLayer)) {
-					_layerBg.destroyDelayed();
-				}
+			_layerBg->hideTopLayer();
+			if (options.testFlag(ForceFastShowLayer) && !_layerBg->layerShown()) {
+				_layerBg.destroyDelayed();
 			}
 		}
 		hideMediaview();
@@ -642,8 +631,6 @@ void MainWindow::setInnerFocus() {
 		_layerBg->setInnerFocus();
 	} else if (_passcode) {
 		_passcode->setInnerFocus();
-	} else if (_settings) {
-		_settings->setInnerFocus();
 	} else if (_main) {
 		_main->setInnerFocus();
 	} else if (_intro) {
@@ -776,7 +763,7 @@ void MainWindow::onShowAddContact() {
 	if (isHidden()) showFromTray();
 
 	if (App::self()) {
-		Ui::showLayer(new AddContactBox(), KeepOtherLayers);
+		Ui::show(Box<AddContactBox>(), KeepOtherLayers);
 	}
 }
 
@@ -784,26 +771,22 @@ void MainWindow::onShowNewGroup() {
 	if (isHidden()) showFromTray();
 
 	if (App::self()) {
-		Ui::showLayer(new GroupInfoBox(CreatingGroupGroup, false), KeepOtherLayers);
+		Ui::show(Box<GroupInfoBox>(CreatingGroupGroup, false), KeepOtherLayers);
 	}
 }
 
 void MainWindow::onShowNewChannel() {
 	if (isHidden()) showFromTray();
 
-	if (_main) Ui::showLayer(new GroupInfoBox(CreatingGroupChannel, false), KeepOtherLayers);
+	if (_main) Ui::show(Box<GroupInfoBox>(CreatingGroupChannel, false), KeepOtherLayers);
 }
 
 void MainWindow::onLogout() {
 	if (isHidden()) showFromTray();
 
-	auto box = new ConfirmBox(lang(lng_sure_logout), lang(lng_settings_logout), st::attentionBoxButton);
-	connect(box, SIGNAL(confirmed()), this, SLOT(onLogoutSure()));
-	Ui::showLayer(box);
-}
-
-void MainWindow::onLogoutSure() {
-	App::logOut();
+	Ui::show(Box<ConfirmBox>(lang(lng_sure_logout), lang(lng_settings_logout), st::attentionBoxButton, [] {
+		App::logOut();
+	}));
 }
 
 void MainWindow::updateGlobalMenu() {
@@ -836,13 +819,6 @@ void MainWindow::noIntro(Intro::Widget *was) {
 	if (was == _intro) {
 		_intro = nullptr;
 	}
-}
-
-void MainWindow::onSettingsDestroyed(QObject *was) {
-	if (was == _settings) {
-		_settings = nullptr;
-	}
-	checkHistoryActivation();
 }
 
 void MainWindow::noMain(MainWidget *was) {
@@ -896,7 +872,7 @@ void MainWindow::toggleTray(QSystemTrayIcon::ActivationReason reason) {
 void MainWindow::toggleDisplayNotifyFromTray() {
 	if (App::passcoded()) {
 		if (!isActive()) showFromTray();
-		Ui::showLayer(new InformBox(lang(lng_passcode_need_unblock)));
+		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
 	}
 

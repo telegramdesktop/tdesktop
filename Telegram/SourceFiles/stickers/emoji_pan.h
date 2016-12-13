@@ -21,7 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/effects/rect_shadow.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/panel_animation.h"
 
@@ -111,8 +110,6 @@ private:
 
 	QTimer _hideTimer;
 
-	Ui::RectShadow _shadow;
-
 };
 
 class EmojiPanel;
@@ -122,7 +119,7 @@ class EmojiPanInner : public TWidget {
 public:
 	EmojiPanInner(QWidget *parent);
 
-	void setMaxHeight(int32 h);
+	void setMaxHeight(int maxHeight);
 
 	void hideFinish();
 
@@ -190,7 +187,7 @@ private:
 	int _pickerSel = -1;
 	QPoint _lastMousePos;
 
-	ChildWidget<EmojiColorPicker> _picker;
+	object_ptr<EmojiColorPicker> _picker;
 	QTimer _showPickerTimer;
 
 };
@@ -212,7 +209,7 @@ class StickerPanInner : public TWidget, private base::Subscriber {
 public:
 	StickerPanInner(QWidget *parent);
 
-	void setMaxHeight(int32 h);
+	void setMaxHeight(int maxHeight);
 
 	void hideFinish(bool completely);
 	void showFinish();
@@ -367,7 +364,7 @@ private:
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
-	ChildWidget<Ui::RoundButton> _switchPmButton = { nullptr };
+	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
 	QString _switchPmStartToken;
 
 	typedef QVector<InlineItem*> InlineItems;
@@ -410,7 +407,7 @@ private:
 	QString _addText;
 	int _addWidth;
 
-	ChildWidget<Ui::LinkButton> _settings;
+	object_ptr<Ui::LinkButton> _settings;
 
 	QTimer _previewTimer;
 	bool _previewShown = false;
@@ -476,9 +473,9 @@ class EmojiPan : public TWidget, public RPCSender {
 public:
 	EmojiPan(QWidget *parent);
 
-	void setMaxHeight(int32 h);
+	void setMaxHeight(int maxHeight);
 
-	void moveBottom(int32 bottom, bool force = false);
+	void moveBottom(int bottom, bool force = false);
 
 	void hideFast();
 	bool hiding() const {
@@ -494,15 +491,7 @@ public:
 	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
 	void clearInlineBot();
 
-	bool overlaps(const QRect &globalRect) {
-		if (isHidden() || !_cache.isNull()) return false;
-
-		return QRect(st::defaultDropdownPadding.left() + st::buttonRadius,
-					 st::defaultDropdownPadding.top(),
-					 _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right() - 2 * st::buttonRadius,
-					 _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom()
-					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
-	}
+	bool overlaps(const QRect &globalRect) const;
 
 	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
@@ -545,7 +534,6 @@ private slots:
 	void onDisplaySet(quint64 setId);
 	void onInstallSet(quint64 setId);
 	void onRemoveSet(quint64 setId);
-	void onRemoveSetSure();
 	void onDelayedHide();
 
 	void onRefreshIcons(bool scrollAnimation);
@@ -619,10 +607,16 @@ private:
 	void showAll();
 	void hideAll();
 
-	int32 _maxHeight, _contentMaxHeight, _contentHeight, _contentHeightEmoji, _contentHeightStickers;
+	int _maxHeight = 0;
+	int _contentMaxHeight = 0;
+	int _contentHeight = 0;
+	int _contentHeightEmoji = 0;
+	int _contentHeightStickers = 0;
 	bool _horizontal = false;
 
-	int32 _width, _height, _bottom;
+	int _width = 0;
+	int _height = 0;
+	int _bottom = 0;
 
 	Ui::PanelAnimation::Origin _origin = Ui::PanelAnimation::Origin::BottomRight;
 	std_::unique_ptr<Ui::PanelAnimation> _showAnimation;
@@ -638,14 +632,14 @@ private:
 	std_::unique_ptr<SlideAnimation> _slideAnimation;
 	Animation _a_slide;
 
-	ChildWidget<Ui::IconButton> _recent;
-	ChildWidget<Ui::IconButton> _people;
-	ChildWidget<Ui::IconButton> _nature;
-	ChildWidget<Ui::IconButton> _food;
-	ChildWidget<Ui::IconButton> _activity;
-	ChildWidget<Ui::IconButton> _travel;
-	ChildWidget<Ui::IconButton> _objects;
-	ChildWidget<Ui::IconButton> _symbols;
+	object_ptr<Ui::IconButton> _recent;
+	object_ptr<Ui::IconButton> _people;
+	object_ptr<Ui::IconButton> _nature;
+	object_ptr<Ui::IconButton> _food;
+	object_ptr<Ui::IconButton> _activity;
+	object_ptr<Ui::IconButton> _travel;
+	object_ptr<Ui::IconButton> _objects;
+	object_ptr<Ui::IconButton> _symbols;
 
 	QList<internal::StickerIcon> _icons;
 	int _iconOver = -1;
@@ -665,14 +659,14 @@ private:
 	bool _emojiShown = true;
 	bool _shownFromInlineQuery = false;
 
-	ChildWidget<Ui::ScrollArea> e_scroll;
-	ChildWidget<internal::EmojiPanInner> e_inner;
+	object_ptr<Ui::ScrollArea> e_scroll;
+	QPointer<internal::EmojiPanInner> e_inner;
 	QVector<internal::EmojiPanel*> e_panels;
-	ChildWidget<internal::EmojiSwitchButton> e_switch;
-	ChildWidget<Ui::ScrollArea> s_scroll;
-	ChildWidget<internal::StickerPanInner> s_inner;
+	object_ptr<internal::EmojiSwitchButton> e_switch;
+	object_ptr<Ui::ScrollArea> s_scroll;
+	QPointer<internal::StickerPanInner> s_inner;
 	QVector<internal::EmojiPanel*> s_panels;
-	ChildWidget<internal::EmojiSwitchButton> s_switch;
+	object_ptr<internal::EmojiSwitchButton> s_switch;
 
 	uint64 _displayingSetId = 0;
 	uint64 _removingSetId = 0;

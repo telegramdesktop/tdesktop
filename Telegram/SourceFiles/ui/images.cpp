@@ -279,8 +279,9 @@ QImage prepareOpaque(QImage image) {
 		for (auto y = 0; y != height; ++y) {
 			for (auto x = 0; x != width; ++x) {
 				auto components = anim::shifted(*ints);
-				*ints = anim::unshifted(components * 256 + bg * (256 - anim::getAlpha(components)));
+				*ints++ = anim::unshifted(components * 256 + bg * (256 - anim::getAlpha(components)));
 			}
+			ints += addPerLine;
 		}
 	}
 	return std_::move(image);

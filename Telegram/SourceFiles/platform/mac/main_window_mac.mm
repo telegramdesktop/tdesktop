@@ -395,7 +395,7 @@ void MainWindow::createGlobalMenu() {
 	auto about = main->addAction(lng_mac_menu_about_telegram(lt_telegram, qsl("Telegram")));
 	connect(about, SIGNAL(triggered()), base::lambda_slot(about, [] {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
-		Ui::showLayer(new AboutBox());
+		Ui::show(Box<AboutBox>());
 	}), SLOT(action()));
 	about->setMenuRole(QAction::AboutQtRole);
 
@@ -423,7 +423,7 @@ void MainWindow::createGlobalMenu() {
 		if (App::wnd() && App::wnd()->isHidden()) App::wnd()->showFromTray();
 
 		if (!App::self()) return;
-		Ui::showLayer(new ContactsBox());
+		Ui::show(Box<ContactsBox>());
 	}), SLOT(action()));
 	psAddContact = window->addAction(lang(lng_mac_menu_add_contact), App::wnd(), SLOT(onShowAddContact()));
 	window->addSeparator();

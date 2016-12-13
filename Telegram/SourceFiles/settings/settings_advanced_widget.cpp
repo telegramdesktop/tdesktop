@@ -72,37 +72,42 @@ void AdvancedWidget::createControls() {
 }
 
 void AdvancedWidget::onManageLocalStorage() {
-	Ui::showLayer(new LocalStorageBox());
+	Ui::show(Box<LocalStorageBox>());
 }
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void AdvancedWidget::connectionTypeUpdated() {
-	QString connection;
-	switch (Global::ConnectionType()) {
-	case dbictAuto: {
-		QString transport = MTP::dctransport();
-		connection = transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
-	} break;
-	case dbictHttpProxy:
-	case dbictTcpProxy: {
-		QString transport = MTP::dctransport();
-		connection = transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
-	} break;
-	}
-	_connectionType->link()->setText(connection);
+	auto connection = [] {
+		switch (Global::ConnectionType()) {
+		case dbictHttpProxy:
+		case dbictTcpProxy: {
+			auto transport = MTP::dctransport();
+			return transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
+		} break;
+		case dbictAuto:
+		default: {
+			auto transport = MTP::dctransport();
+			return transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
+		} break;
+		}
+	};
+	_connectionType->link()->setText(connection());
 	resizeToWidth(width());
 }
 
 void AdvancedWidget::onConnectionType() {
-	Ui::showLayer(new ConnectionBox());
+	Ui::show(Box<ConnectionBox>());
 }
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
 void AdvancedWidget::onAskQuestion() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
-	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
-	Ui::showLayer(box);
+	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
+		onAskQuestionSure();
+	}), base::lambda_guarded(this, [this] {
+		onTelegramFAQ();
+	}));
+	box->setStrictCancel(true);
+	Ui::show(std_::move(box));
 }
 
 void AdvancedWidget::onAskQuestionSure() {

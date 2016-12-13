@@ -204,7 +204,7 @@ private:
 	QString _dateText;
 	QString _headerText;
 
-	ChildWidget<Media::Clip::Controller> _clipController = { nullptr };
+	object_ptr<Media::Clip::Controller> _clipController = { nullptr };
 	DocumentData *_autoplayVideoDocument = nullptr;
 	bool _fullScreenVideo = false;
 	int _fullScreenZoomCache = 0;
@@ -244,9 +244,9 @@ private:
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
 	int _docThumbx = 0, _docThumby = 0, _docThumbw = 0;
-	ChildWidget<Ui::LinkButton> _docDownload;
-	ChildWidget<Ui::LinkButton> _docSaveAs;
-	ChildWidget<Ui::LinkButton> _docCancel;
+	object_ptr<Ui::LinkButton> _docDownload;
+	object_ptr<Ui::LinkButton> _docSaveAs;
+	object_ptr<Ui::LinkButton> _docCancel;
 
 	QRect _photoRadialRect;
 	Ui::RadialAnimation _radial;
@@ -311,7 +311,7 @@ private:
 	bool _mousePressed = false;
 
 	Ui::PopupMenu *_menu = nullptr;
-	ChildWidget<Ui::DropdownMenu> _dropdown;
+	object_ptr<Ui::DropdownMenu> _dropdown;
 
 	struct ActionData {
 		QString text;

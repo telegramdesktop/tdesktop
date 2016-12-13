@@ -34,45 +34,33 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 
-StickerSetBox::StickerSetBox(const MTPInputStickerSet &set) : ScrollableBox(st::stickersScroll)
-, _inner(this, set)
-, _shadow(this)
-, _add(this, lang(lng_stickers_add_pack), st::defaultBoxButton)
-, _share(this, lang(lng_stickers_share_pack), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _done(this, lang(lng_about_done), st::defaultBoxButton) {
-	setTitleText(lang(lng_contacts_loading));
+StickerSetBox::StickerSetBox(QWidget*, const MTPInputStickerSet &set)
+: _set(set) {
+}
 
-	setMaxHeight(st::stickersMaxHeight);
+void StickerSetBox::prepare() {
+	setTitle(lang(lng_contacts_loading));
+
+	_inner = setInnerWidget(object_ptr<Inner>(this, _set), st::stickersScroll);
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
 
-	init(_inner, st::boxButtonPadding.bottom() + _cancel->height() + st::boxButtonPadding.top());
+	setDimensions(st::boxWideWidth, st::stickersMaxHeight);
 
-	connect(_add, SIGNAL(clicked()), this, SLOT(onAddStickers()));
-	connect(_share, SIGNAL(clicked()), this, SLOT(onShareStickers()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(_done, SIGNAL(clicked()), this, SLOT(onClose()));
+	onUpdateButtons();
 
 	connect(_inner, SIGNAL(updateButtons()), this, SLOT(onUpdateButtons()));
-	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
-
 	connect(_inner, SIGNAL(installed(uint64)), this, SLOT(onInstalled(uint64)));
 
 	onStickersUpdated();
-	updateControlsVisibility();
-
-	onScroll();
-
-	raiseShadow();
 }
 
 void StickerSetBox::onInstalled(uint64 setId) {
 	emit installed(setId);
-	onClose();
+	closeBox();
 }
 
 void StickerSetBox::onStickersUpdated() {
-	updateControlsVisibility();
+	updateButtons();
 }
 
 void StickerSetBox::onAddStickers() {
@@ -82,66 +70,35 @@ void StickerSetBox::onAddStickers() {
 void StickerSetBox::onShareStickers() {
 	QString url = qsl("https://telegram.me/addstickers/") + _inner->shortName();
 	QApplication::clipboard()->setText(url);
-	Ui::showLayer(new InformBox(lang(lng_stickers_copied)));
+	Ui::show(Box<InformBox>(lang(lng_stickers_copied)));
 }
 
 void StickerSetBox::onUpdateButtons() {
-	setTitleText(_inner->title());
-	if (!_cancel->isHidden() || !_done->isHidden()) {
-		updateControlsVisibility();
-	}
+	setTitle(_inner->title());
+	updateButtons();
 }
 
-void StickerSetBox::onScroll() {
-	auto scroll = scrollArea();
-	auto scrollTop = scroll->scrollTop();
-	_inner->setVisibleTopBottom(scrollTop, scrollTop + scroll->height());
-}
-
-void StickerSetBox::updateControlsVisibility() {
+void StickerSetBox::updateButtons() {
+	clearButtons();
 	if (_inner->loaded()) {
-		_shadow.show();
 		if (_inner->notInstalled()) {
-			_add->show();
-			_cancel->show();
-			_share->hide();
-			_done->hide();
+			addButton(lang(lng_stickers_add_pack), [this] { onAddStickers(); });
+			addButton(lang(lng_cancel), [this] { closeBox(); });
 		} else if (_inner->official()) {
-			_add->hide();
-			_share->hide();
-			_cancel->hide();
-			_done->show();
+			addButton(lang(lng_about_done), [this] { closeBox(); });
 		} else {
-			_share->show();
-			_cancel->show();
-			_add->hide();
-			_done->hide();
+			addButton(lang(lng_stickers_share_pack), [this] { onShareStickers(); });
+			addButton(lang(lng_cancel), [this] { closeBox(); });
 		}
 	} else {
-		_shadow.hide();
-		_add->hide();
-		_share->hide();
-		_cancel->show();
-		_done->hide();
+		addButton(lang(lng_cancel), [this] { closeBox(); });
 	}
-	resizeEvent(0);
 	update();
 }
 
 void StickerSetBox::resizeEvent(QResizeEvent *e) {
-	ScrollableBox::resizeEvent(e);
+	BoxContent::resizeEvent(e);
 	_inner->resize(width(), _inner->height());
-	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _cancel->height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
-	_add->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _add->height());
-	_share->moveToRight(st::boxButtonPadding.right(), _add->y());
-	_done->moveToRight(st::boxButtonPadding.right(), _add->y());
-	if (_add->isHidden() && _share->isHidden()) {
-		_cancel->moveToRight(st::boxButtonPadding.right(), _add->y());
-	} else if (_add->isHidden()) {
-		_cancel->moveToRight(st::boxButtonPadding.right() + _share->width() + st::boxButtonPadding.left(), _add->y());
-	} else {
-		_cancel->moveToRight(st::boxButtonPadding.right() + _add->width() + st::boxButtonPadding.left(), _add->y());
-	}
 }
 
 StickerSetBox::Inner::Inner(QWidget *parent, const MTPInputStickerSet &set) : TWidget(parent)
@@ -199,7 +156,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 		if (d.vset.type() == mtpc_stickerSet) {
 			auto &s = d.vset.c_stickerSet();
 			_setTitle = stickerSetTitle(s);
-			_title = st::boxBlockTitleFont->elided(_setTitle, width() - st::boxBlockTitlePosition.x() - st::boxBlockTitleHeight);
+			_title = st::boxTitleFont->elided(_setTitle, width() - st::boxTitlePosition.x() - st::boxTitleHeight);
 			_setShortName = qs(s.vshort_name);
 			_setId = s.vid.v;
 			_setAccess = s.vaccess_hash.v;
@@ -219,7 +176,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	}
 
 	if (_pack.isEmpty()) {
-		Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+		Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
 	} else {
 		int32 rows = _pack.size() / StickerPanPerRow + ((_pack.size() % StickerPanPerRow) ? 1 : 0);
 		resize(st::stickersPadding.left() + StickerPanPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
@@ -236,7 +193,7 @@ bool StickerSetBox::Inner::failedSet(const RPCError &error) {
 
 	_loaded = true;
 
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -297,7 +254,7 @@ void StickerSetBox::Inner::installDone(const MTPmessages_StickerSetInstallResult
 bool StickerSetBox::Inner::installFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)));
+	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
 
 	return true;
 }
@@ -467,7 +424,7 @@ QString StickerSetBox::Inner::shortName() const {
 
 void StickerSetBox::Inner::install() {
 	if (isMasksSet()) {
-		Ui::showLayer(new InformBox(lang(lng_stickers_masks_pack)), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lang(lng_stickers_masks_pack)), KeepOtherLayers);
 		return;
 	}
 	if (_installRequest) return;

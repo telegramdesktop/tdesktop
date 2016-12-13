@@ -24,29 +24,29 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class UsernameInput;
-class RoundButton;
 class LinkButton;
 } // namespace Ui
 
-class UsernameBox : public AbstractBox, public RPCSender {
+class UsernameBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	UsernameBox();
+	UsernameBox(QWidget*);
 
-public slots:
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void onSave();
 
 	void onCheck();
 	void onChanged();
 
 	void onLinkClick();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
 
 private:
 	void onUpdateDone(const MTPUser &result);
@@ -58,16 +58,14 @@ private:
 	QString getName() const;
 	void updateLinkText();
 
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
-	ChildWidget<Ui::UsernameInput> _username;
-	ChildWidget<Ui::LinkButton> _link;
+	object_ptr<Ui::UsernameInput> _username;
+	object_ptr<Ui::LinkButton> _link;
 
 	mtpRequestId _saveRequestId = 0;
 	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText, _copiedTextLink;
 
 	Text _about;
-	QTimer _checkTimer;
+	object_ptr<QTimer> _checkTimer;
 
 };

@@ -37,16 +37,14 @@ public:
 
 private slots:
 	void onAutoChanged();
-	void onRestartNow();
-	void onCancel();
 
 private:
 	void scaleChanged();
 	void createControls();
 	void setScale(DBIScale newScale);
 
-	ChildWidget<Ui::Checkbox> _auto = { nullptr };
-	ChildWidget<Ui::SettingsSlider> _scale = { nullptr };
+	object_ptr<Ui::Checkbox> _auto = { nullptr };
+	object_ptr<Ui::SettingsSlider> _scale = { nullptr };
 
 	DBIScale _newScale = dbisAuto;
 	bool _inSetScale = false;

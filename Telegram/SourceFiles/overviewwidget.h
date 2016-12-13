@@ -183,8 +183,8 @@ private:
 	Overview::Layout::AbstractItem *layoutPrepare(const QDate &date, bool month);
 	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
-	ChildWidget<Ui::FlatInput> _search;
-	ChildWidget<Ui::CrossButton> _cancelSearch;
+	object_ptr<Ui::FlatInput> _search;
+	object_ptr<Ui::CrossButton> _cancelSearch;
 	QVector<MsgId> _results;
 	int32 _itemsToBeLoaded;
 
@@ -357,8 +357,8 @@ public slots:
 private:
 	void animationCallback();
 
-	ChildWidget<Ui::ScrollArea> _scroll;
-	ChildWidget<OverviewInner> _inner;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<OverviewInner> _inner;
 	bool _noDropResizeIndex = false;
 
 	QString _header;
@@ -374,7 +374,7 @@ private:
 
 	int32 _selCount = 0;
 
-	ChildWidget<Ui::PlainShadow> _topShadow;
+	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
 
 };

@@ -118,7 +118,7 @@ Checkbox {
 	ripple: RippleAnimation;
 }
 
-FlatScroll {
+ScrollArea {
 	barColor: color;
 	bgColor: color;
 	barOverColor: color;
@@ -339,7 +339,7 @@ MultiSelect {
 	bg: color;
 	padding: margins;
 	maxHeight: pixels;
-	scroll: FlatScroll;
+	scroll: ScrollArea;
 
 	item: MultiSelectItem;
 	itemSkip: pixels;
@@ -414,7 +414,7 @@ InnerDropdown {
 	width: pixels;
 
 	bg: color;
-	scroll: FlatScroll;
+	scroll: ScrollArea;
 	scrollMargin: margins;
 	scrollPadding: margins;
 }
@@ -481,6 +481,8 @@ defaultActiveButton: RoundButton {
 defaultLightButton: RoundButton(defaultActiveButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
+	secondaryTextFg: lightButtonFg;
+	secondaryTextFgOver: lightButtonFgOver;
 	textBg: lightButtonBg;
 	textBgOver: lightButtonBgOver;
 
@@ -489,7 +491,7 @@ defaultLightButton: RoundButton(defaultActiveButton) {
 	}
 }
 
-defaultFlatScroll: FlatScroll {
+defaultScrollArea: ScrollArea {
 	barColor: #00000053;
 	bgColor: #0000001a;
 	barOverColor: #0000007a;
@@ -511,7 +513,7 @@ defaultFlatScroll: FlatScroll {
 	hiding: 1000;
 }
 
-defaultSolidScroll: FlatScroll(defaultFlatScroll) {
+defaultSolidScroll: ScrollArea(defaultScrollArea) {
 	deltax: 5px;
 	width: 14px;
 	deltat: 6px;
@@ -660,6 +662,7 @@ SettingsSlider {
 	labelFgActive: color;
 	duration: int;
 	rippleBottomSkip: pixels;
+	rippleRoundRadius: pixels;
 	rippleBg: color;
 	rippleBgActive: color;
 	ripple: RippleAnimation;

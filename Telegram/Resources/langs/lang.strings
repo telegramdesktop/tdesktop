@@ -296,7 +296,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_backgrounds_header" = "Choose your new chat background";
 "lng_theme_sure_keep" = "Keep this color theme?";
-"lng_theme_reverting" = "Reverting to previous color theme in {count:_not_used_|# second|# seconds}.";
+"lng_theme_reverting" = "Reverting to the old color theme in {count:_not_used_|# second|# seconds}.";
 "lng_theme_keep_changes" = "Keep changes";
 "lng_theme_revert" = "Revert";
 

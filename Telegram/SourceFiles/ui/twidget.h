@@ -290,8 +290,8 @@ public:
 };
 
 void myEnsureResized(QWidget *target);
-QPixmap myGrab(TWidget *target, QRect rect = QRect());
-QImage myGrabImage(TWidget *target, QRect rect = QRect());
+QPixmap myGrab(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));
+QImage myGrabImage(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));
 
 class SingleDelayedCall : public QObject {
 	Q_OBJECT
@@ -318,72 +318,107 @@ private:
 
 };
 
-// A simple wrap around T* to explicitly state ownership
-template <typename T>
-class ChildObject {
+// Smart pointer for QObject*, has move semantics, destroys object if it doesn't have a parent.
+template <typename Object>
+class object_ptr {
 public:
-	ChildObject(std_::nullptr_t) : _object(nullptr) {
+	object_ptr(std_::nullptr_t) {
 	}
 
 	// No default constructor, but constructors with at least
 	// one argument are simply make functions.
 	template <typename Parent, typename... Args>
-	ChildObject(Parent &&parent, Args&&... args) : _object(new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...)) {
+	explicit object_ptr(Parent &&parent, Args&&... args) : _object(new Object(std_::forward<Parent>(parent), std_::forward<Args>(args)...)) {
 	}
 
-	ChildObject(const ChildObject<T> &other) = delete;
-	ChildObject<T> &operator=(const ChildObject<T> &other) = delete;
+	object_ptr(const object_ptr &other) = delete;
+	object_ptr &operator=(const object_ptr &other) = delete;
+	object_ptr(object_ptr &&other) : _object(base::take(other._object)) {
+	}
+	object_ptr &operator=(object_ptr &&other) {
+		auto temp = std_::move(other);
+		destroy();
+		std_::swap_moveable(_object, temp._object);
+		return *this;
+	}
 
-	ChildObject<T> &operator=(std_::nullptr_t) {
+	template <typename OtherObject, typename = std_::enable_if_t<std_::is_base_of<Object, OtherObject>::value>>
+	object_ptr(object_ptr<OtherObject> &&other) : _object(base::take(other._object)) {
+	}
+
+	template <typename OtherObject, typename = std_::enable_if_t<std_::is_base_of<Object, OtherObject>::value>>
+	object_ptr &operator=(object_ptr<OtherObject> &&other) {
+		_object = base::take(other._object);
+		return *this;
+	}
+
+	object_ptr &operator=(std_::nullptr_t) {
 		_object = nullptr;
 		return *this;
 	}
-	ChildObject<T> &operator=(T *object) {
-		_object = object;
-		return *this;
-	}
-
-	T *operator->() const {
-		return _object;
-	}
-	T &operator*() const {
-		return *_object;
-	}
 
 	// So we can pass this pointer to methods like connect().
-	T *ptr() const {
-		return _object;
+	Object *data() const {
+		return static_cast<Object*>(_object);
 	}
-	operator T*() const {
-		return ptr();
+	operator Object*() const {
+		return data();
 	}
 
-	// Use that instead "= new T(parent, ...)"
+	explicit operator bool() const {
+		return _object != nullptr;
+	}
+
+	Object *operator->() const {
+		return data();
+	}
+	Object &operator*() const {
+		return *data();
+	}
+
+	// Use that instead "= new Object(parent, ...)"
 	template <typename Parent, typename... Args>
 	void create(Parent &&parent, Args&&... args) {
-		delete _object;
-		_object = new T(std_::forward<Parent>(parent), std_::forward<Args>(args)...);
+		destroy();
+		_object = new Object(std_::forward<Parent>(parent), std_::forward<Args>(args)...);
 	}
 	void destroy() {
 		delete base::take(_object);
 	}
 	void destroyDelayed() {
 		if (_object) {
-			if (auto widget = base::up_cast<QWidget*>(_object)) {
+			if (auto widget = base::up_cast<QWidget*>(data())) {
 				widget->hide();
 			}
-			_object->deleteLater();
-			_object = nullptr;
+			base::take(_object)->deleteLater();
 		}
 	}
 
+	~object_ptr() {
+		if (auto pointer = _object) {
+			if (!pointer->parent()) {
+				destroy();
+			}
+		}
+	}
+
+	template <typename ResultType, typename SourceType>
+	friend object_ptr<ResultType> static_object_cast(object_ptr<SourceType> source);
+
 private:
-	T *_object;
+	template <typename OtherObject>
+	friend class object_ptr;
+
+	QObject *_object = nullptr;
 
 };
 
-template <typename T>
-using ChildWidget = ChildObject<T>;
+template <typename ResultType, typename SourceType>
+inline object_ptr<ResultType> static_object_cast(object_ptr<SourceType> source) {
+	auto result = object_ptr<ResultType>(nullptr);
+	result._object = static_cast<ResultType*>(base::take(source._object));
+	return std_::move(result);
+}
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint);
 

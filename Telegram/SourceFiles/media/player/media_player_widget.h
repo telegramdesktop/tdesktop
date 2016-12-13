@@ -55,6 +55,8 @@ public:
 	QPoint getPositionForVolumeWidget() const;
 	void volumeWidgetCreated(VolumeWidget *widget);
 
+	~Widget();
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -91,16 +93,16 @@ private:
 	QString _time;
 
 	class PlayButton;
-	ChildWidget<Ui::FlatLabel> _nameLabel;
-	ChildWidget<Ui::LabelSimple> _timeLabel;
-	ChildWidget<Ui::IconButton> _previousTrack = { nullptr };
-	ChildWidget<PlayButton> _playPause;
-	ChildWidget<Ui::IconButton> _nextTrack = { nullptr };
-	ChildWidget<Ui::IconButton> _volumeToggle;
-	ChildWidget<Ui::IconButton> _repeatTrack;
-	ChildWidget<Ui::IconButton> _close;
-	ChildWidget<Ui::PlainShadow> _shadow = { nullptr };
-	ChildWidget<Clip::Playback> _playback;
+	object_ptr<Ui::FlatLabel> _nameLabel;
+	object_ptr<Ui::LabelSimple> _timeLabel;
+	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
+	object_ptr<PlayButton> _playPause;
+	object_ptr<Ui::IconButton> _nextTrack = { nullptr };
+	object_ptr<Ui::IconButton> _volumeToggle;
+	object_ptr<Ui::IconButton> _repeatTrack;
+	object_ptr<Ui::IconButton> _close;
+	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
+	std_::unique_ptr<Clip::Playback> _playback;
 
 };
 

@@ -102,7 +102,7 @@ private:
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
-	ChildWidget<CoverWidget> _cover;
+	object_ptr<CoverWidget> _cover;
 
 	int _blocksLeft = 0; // Caching countBlocksLeft() result.
 	int _blocksTop = 0;

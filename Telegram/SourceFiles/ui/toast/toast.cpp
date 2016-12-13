@@ -50,7 +50,7 @@ void Instance::opacityAnimationCallback() {
 	}
 }
 
-void Instance::fadeOut() {
+void Instance::hideAnimated() {
 	_hiding = true;
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 1., 0., st::toastFadeOutDuration);
 }

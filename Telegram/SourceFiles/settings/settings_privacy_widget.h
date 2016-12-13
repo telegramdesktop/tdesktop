@@ -41,8 +41,8 @@ private slots:
 private:
 	void updateControls();
 
-	ChildWidget<Ui::LinkButton> _edit;
-	ChildWidget<Ui::LinkButton> _turnOff;
+	object_ptr<Ui::LinkButton> _edit;
+	object_ptr<Ui::LinkButton> _turnOff;
 
 };
 
@@ -67,8 +67,8 @@ private:
 	void offPasswordDone(const MTPBool &result);
 	bool offPasswordFail(const RPCError &error);
 
-	ChildWidget<Ui::LinkButton> _edit;
-	ChildWidget<Ui::LinkButton> _turnOff;
+	object_ptr<Ui::LinkButton> _edit;
+	object_ptr<Ui::LinkButton> _turnOff;
 
 	QString _waitingConfirm;
 	QByteArray _curPasswordSalt;
@@ -92,10 +92,10 @@ private:
 	void createControls();
 	void autoLockUpdated();
 
-	ChildWidget<LocalPasscodeState> _localPasscodeState = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
-	ChildWidget<CloudPasswordState> _cloudPasswordState = { nullptr };
-	ChildWidget<Ui::LinkButton> _showAllSessions = { nullptr };
+	object_ptr<LocalPasscodeState> _localPasscodeState = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
+	object_ptr<CloudPasswordState> _cloudPasswordState = { nullptr };
+	object_ptr<Ui::LinkButton> _showAllSessions = { nullptr };
 
 };
 

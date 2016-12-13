@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/shadow.h"
 #include "window/window_theme.h"
 #include "lang.h"
 
@@ -36,7 +37,6 @@ constexpr int kWaitBeforeRevertMs = 15999;
 
 WarningWidget::WarningWidget(QWidget *parent) : TWidget(parent)
 , _secondsLeft(kWaitBeforeRevertMs / 1000)
-, _shadow(st::themeWarningShadow)
 , _keepChanges(this, lang(lng_theme_keep_changes), st::defaultBoxButton)
 , _revert(this, lang(lng_theme_revert), st::cancelBoxButton) {
 	_keepChanges->setClickedCallback([] { Window::Theme::KeepApplied(); });
@@ -71,8 +71,8 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	_shadow.paint(p, _inner, st::themeWarningShadowShift);
-	p.fillRect(_inner, st::boxBg);
+	Ui::Shadow::paint(p, _inner, width(), st::boxRoundShadow);
+	App::roundRect(p, _inner, st::boxBg, BoxCorners);
 
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::boxTitleFg);
@@ -85,7 +85,7 @@ void WarningWidget::paintEvent(QPaintEvent *e) {
 
 void WarningWidget::resizeEvent(QResizeEvent *e) {
 	_inner = QRect((width() - st::themeWarningWidth) / 2, (height() - st::themeWarningHeight) / 2, st::themeWarningWidth, st::themeWarningHeight);
-	_outer = _inner.marginsAdded(_shadow.getDimensions(st::themeWarningShadowShift));
+	_outer = _inner.marginsAdded(st::boxRoundShadow.extend);
 	auto left = _inner.x() + _inner.width() - st::boxButtonPadding.right() - _keepChanges->width();
 	_keepChanges->moveToLeft(left, _inner.y() + _inner.height() - st::boxButtonPadding.bottom() - _keepChanges->height());
 	_revert->moveToLeft(left - st::boxButtonPadding.left() - _revert->width(), _keepChanges->y());

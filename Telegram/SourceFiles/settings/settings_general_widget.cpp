@@ -221,14 +221,17 @@ void GeneralWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update
 	LangLoaderPlain loader(_testLanguage, langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 	if (loader.errors().isEmpty()) {
 		LangLoaderResult result = loader.found();
-		QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
+		auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
 			save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
 			cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-		auto box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
-		connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLanguage()));
-		Ui::showLayer(box);
+		Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this] {
+			cSetLangFile(_testLanguage);
+			cSetLang(languageTest);
+			Local::writeSettings();
+			onRestart();
+		})));
 	} else {
-		Ui::showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
+		Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()));
 	}
 }
 
@@ -236,15 +239,8 @@ void GeneralWidget::onChangeLanguage() {
 	if ((_changeLanguage->clickModifiers() & Qt::ShiftModifier) && (_changeLanguage->clickModifiers() & Qt::AltModifier)) {
 		chooseCustomLang();
 	} else {
-		Ui::showLayer(new LanguageBox());
+		Ui::show(Box<LanguageBox>());
 	}
-}
-
-void GeneralWidget::onSaveTestLanguage() {
-	cSetLangFile(_testLanguage);
-	cSetLang(languageTest);
-	Local::writeSettings();
-	onRestart();
 }
 
 void GeneralWidget::onRestart() {

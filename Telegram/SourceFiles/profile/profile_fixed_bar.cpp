@@ -151,22 +151,22 @@ void FixedBar::onBack() {
 }
 
 void FixedBar::onEditChannel() {
-	Ui::showLayer(new EditChannelBox(_peerMegagroup ? _peerMegagroup : _peerChannel));
+	Ui::show(Box<EditChannelBox>(_peerMegagroup ? _peerMegagroup : _peerChannel));
 }
 
 void FixedBar::onEditGroup() {
-	Ui::showLayer(new EditNameTitleBox(_peerChat));
+	Ui::show(Box<EditNameTitleBox>(_peerChat));
 }
 
 void FixedBar::onAddContact() {
 	auto firstName = _peerUser->firstName;
 	auto lastName = _peerUser->lastName;
 	auto phone = _peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peer->id)) : _peerUser->phone();
-	Ui::showLayer(new AddContactBox(firstName, lastName, phone));
+	Ui::show(Box<AddContactBox>(firstName, lastName, phone));
 }
 
 void FixedBar::onEditContact() {
-	Ui::showLayer(new AddContactBox(_peerUser));
+	Ui::show(Box<AddContactBox>(_peerUser));
 }
 
 void FixedBar::onShareContact() {
@@ -174,27 +174,21 @@ void FixedBar::onShareContact() {
 }
 
 void FixedBar::onDeleteContact() {
-	ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, App::peerName(_peerUser)), lang(lng_box_delete));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteContactSure()));
-	Ui::showLayer(box);
-}
-
-void FixedBar::onDeleteContactSure() {
-	Ui::showChatsList();
-	Ui::hideLayer();
-	MTP::send(MTPcontacts_DeleteContact(_peerUser->inputUser), App::main()->rpcDone(&MainWidget::deletedContact, _peerUser));
+	auto text = lng_sure_delete_contact(lt_contact, App::peerName(_peerUser));
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), base::lambda_guarded(this, [this] {
+		Ui::showChatsList();
+		Ui::hideLayer();
+		MTP::send(MTPcontacts_DeleteContact(_peerUser->inputUser), App::main()->rpcDone(&MainWidget::deletedContact, _peerUser));
+	})));
 }
 
 void FixedBar::onLeaveGroup() {
-	ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, App::peerName(_peerChat)), lang(lng_box_leave), st::attentionBoxButton);
-	connect(box, SIGNAL(confirmed()), this, SLOT(onLeaveGroupSure()));
-	Ui::showLayer(box);
-}
-
-void FixedBar::onLeaveGroupSure() {
-	Ui::showChatsList();
-	Ui::hideLayer();
-	App::main()->deleteAndExit(_peerChat);
+	auto text = lng_sure_delete_and_exit(lt_group, App::peerName(_peerChat));
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+		Ui::showChatsList();
+		Ui::hideLayer();
+		App::main()->deleteAndExit(_peerChat);
+	})));
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {

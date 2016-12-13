@@ -18,7 +18,6 @@
 #pragma once
 
 #include "styles/style_widgets.h"
-#include "ui/effects/rect_shadow.h"
 #include "ui/widgets/inner_dropdown.h"
 #include "ui/widgets/menu.h"
 
@@ -101,7 +100,7 @@ private:
 	const style::DropdownMenu &_st;
 	base::lambda<void()> _hiddenCallback;
 
-	ChildWidget<Ui::Menu> _menu;
+	object_ptr<Ui::Menu> _menu;
 
 	// Not ready with submenus yet.
 	//using Submenus = QMap<QAction*, SubmenuPointer>;

@@ -36,24 +36,28 @@ struct PeerUpdate;
 
 namespace Ui {
 class MultiSelect;
-class RoundButton;
 } // namespace Ui
 
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
 void shareGameScoreByHash(const QString &hash);
 
-class ShareBox : public ItemListBox, public RPCSender {
+class ShareBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
 	using CopyCallback = base::lambda<void()>;
 	using SubmitCallback = base::lambda<void(const QVector<PeerData*> &)>;
 	using FilterCallback = base::lambda<bool(PeerData*)>;
-	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
+	ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
+
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private slots:
-	void onScroll();
-
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 
@@ -62,19 +66,13 @@ private slots:
 
 	void onMustScrollTo(int top, int bottom);
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-	void doSetInnerFocus() override;
-
 private:
 	void scrollAnimationCallback();
 
 	void onFilterUpdate(const QString &query);
 	void onSelectedChanged();
-	void moveButtons();
-	void updateButtonsVisibility();
+	void updateButtons();
+	void createButtons();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
 
@@ -86,19 +84,16 @@ private:
 
 	CopyCallback _copyCallback;
 	SubmitCallback _submitCallback;
+	FilterCallback _filterCallback;
+
+	object_ptr<Ui::MultiSelect> _select;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::MultiSelect> _select;
+	QPointer<Inner> _inner;
 
-	ChildWidget<Ui::RoundButton> _copy;
-	ChildWidget<Ui::RoundButton> _share;
-	ChildWidget<Ui::RoundButton> _cancel;
+	bool _hasSelected = false;
 
-	ChildWidget<ScrollableBoxShadow> _topShadow;
-	ChildWidget<ScrollableBoxShadow> _bottomShadow;
-
-	QTimer _searchTimer;
+	object_ptr<QTimer> _searchTimer;
 	QString _peopleQuery;
 	bool _peopleFull = false;
 	mtpRequestId _peopleRequest = 0;

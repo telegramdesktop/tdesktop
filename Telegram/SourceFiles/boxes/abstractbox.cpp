@@ -24,187 +24,341 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "localstorage.h"
 #include "lang.h"
+#include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
-AbstractBox::AbstractBox(int w, const QString &title) : LayerWidget(App::wnd()->bodyWidget())
-, _title(title) {
-	setAttribute(Qt::WA_OpaquePaintEvent);
-	resize((w > 0) ? w : st::boxWideWidth, 0);
+BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
 }
 
-void AbstractBox::setTitleText(const QString &title) {
-	_title = title;
-	update();
+QPointer<Ui::RoundButton> BoxContent::addButton(const QString &text, base::lambda<void()> &&clickCallback) {
+	return addButton(text, std_::move(clickCallback), st::defaultBoxButton);
 }
 
-void AbstractBox::setAdditionalTitle(const QString &additionalTitle) {
-	_additionalTitle = additionalTitle;
-	update();
+QPointer<Ui::RoundButton> BoxContent::addLeftButton(const QString &text, base::lambda<void()> &&clickCallback) {
+	return getDelegate()->addLeftButton(text, std_::move(clickCallback), st::defaultBoxButton);
 }
 
-void AbstractBox::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
-		onClose();
+void BoxContent::setInner(object_ptr<TWidget> inner) {
+	setInner(std_::move(inner), st::boxLayerScroll);
+}
+
+void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st) {
+	if (inner) {
+		getDelegate()->setLayerType(true);
+		if (!_scroll) {
+			_scroll.create(this, st);
+			connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+
+			_topShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
+			if (_innerTopSkip > 0) {
+				_topShadow->showFast();
+			} else {
+				_topShadow->hideFast();
+			}
+
+			_bottomShadow.create(this);
+			_bottomShadow->show();
+		} else {
+			_scroll->setGeometryToLeft(0, _innerTopSkip, width(), 0);
+		}
+		_scroll->setOwnedWidget(std_::move(inner));
+		updateScrollAreaGeometry();
 	} else {
-		LayerWidget::keyPressEvent(e);
+		getDelegate()->setLayerType(false);
+		_scroll.destroyDelayed();
+		_topShadow.destroyDelayed();
+		_bottomShadow.destroyDelayed();
 	}
 }
 
-void AbstractBox::resizeEvent(QResizeEvent *e) {
-	updateBlockTitleGeometry();
-	LayerWidget::resizeEvent(e);
+void BoxContent::onScrollToY(int top, int bottom) {
+	if (_scroll) {
+		_scroll->scrollToY(top, bottom);
+	}
 }
 
-void AbstractBox::updateBlockTitleGeometry() {
-	if (_blockClose) {
-		_blockClose->moveToRight(0, 0);
+void BoxContent::onDraggingScrollDelta(int delta) {
+	_draggingScrollDelta = _scroll ? delta : 0;
+	if (_draggingScrollDelta) {
+		if (!_draggingScrollTimer) {
+			_draggingScrollTimer.create(this);
+			_draggingScrollTimer->setSingleShot(false);
+			connect(_draggingScrollTimer, SIGNAL(timeout()), this, SLOT(onDraggingScrollTimer()));
+		}
+		_draggingScrollTimer->start(15);
+	} else {
+		_draggingScrollTimer.destroy();
 	}
-	if (_blockShadow) {
-		_blockShadow->setGeometry(0, st::boxBlockTitleHeight, width(), st::boxBlockTitleShadow.height());
+}
+
+void BoxContent::onDraggingScrollTimer() {
+	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
+	_scroll->scrollToY(_scroll->scrollTop() + delta);
+}
+
+void BoxContent::onScroll() {
+	if (_scroll) {
+		auto top = _scroll->scrollTop();
+		if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
+			widget->setVisibleTopBottom(top, top + _scroll->height());
+		}
+		if (top > 0 || _innerTopSkip > 0) {
+			_topShadow->showAnimated();
+		} else {
+			_topShadow->hideAnimated();
+		}
+	}
+}
+
+void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
+	if (_innerTopSkip != innerTopSkip) {
+		auto delta = innerTopSkip - _innerTopSkip;
+		_innerTopSkip = innerTopSkip;
+		if (_scroll) {
+			auto scrollTopWas = _scroll->scrollTop();
+			updateScrollAreaGeometry();
+			if (scrollBottomFixed) {
+				_scroll->scrollToY(scrollTopWas + delta);
+			}
+			if (_innerTopSkip > 0) {
+				_topShadow->showFast();
+			} else {
+				_topShadow->hideFast();
+			}
+		}
+	}
+}
+
+void BoxContent::setInnerVisible(bool scrollAreaVisible) {
+	if (_scroll) {
+		_scroll->setVisible(scrollAreaVisible);
+	}
+}
+
+QPixmap BoxContent::grabInnerCache() {
+	auto isTopShadowVisible = !_topShadow->isHidden();
+	auto isBottomShadowVisible = !_bottomShadow->isHidden();
+	if (isTopShadowVisible) _topShadow->hide();
+	if (isBottomShadowVisible) _bottomShadow->hide();
+	auto result = myGrab(this, _scroll->geometry());
+	if (isTopShadowVisible) _topShadow->show();
+	if (isBottomShadowVisible) _bottomShadow->show();
+	return std_::move(result);
+}
+
+void BoxContent::resizeEvent(QResizeEvent *e) {
+	if (_scroll) {
+		updateScrollAreaGeometry();
+	}
+}
+
+void BoxContent::updateScrollAreaGeometry() {
+	auto newScrollHeight = height() - _innerTopSkip;
+	auto changed = (_scroll->height() != newScrollHeight);
+	_scroll->setGeometryToLeft(0, _innerTopSkip, width(), newScrollHeight);
+	_topShadow->entity()->resize(width(), st::lineWidth);
+	_topShadow->moveToLeft(0, _innerTopSkip);
+	_bottomShadow->resize(width(), st::lineWidth);
+	_bottomShadow->moveToLeft(0, height() - st::lineWidth);
+	if (changed) {
+		onScroll();
+	}
+}
+
+object_ptr<TWidget> BoxContent::doTakeInnerWidget() {
+	return _scroll->takeWidget<TWidget>();
+}
+
+void BoxContent::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	if (testAttribute(Qt::WA_OpaquePaintEvent)) {
+		for_const (auto rect, e->region().rects()) {
+			p.fillRect(rect, st::boxBg);
+		}
+	}
+}
+
+AbstractBox::AbstractBox(object_ptr<BoxContent> content)
+: _content(std_::move(content)) {
+	_content->setParent(this);
+	_content->setDelegate(this);
+}
+
+void AbstractBox::setLayerType(bool layerType) {
+	_layerType = layerType;
+}
+
+int AbstractBox::titleHeight() const {
+	return _layerType ? st::boxLayerTitleHeight : st::boxTitleHeight;
+}
+
+int AbstractBox::buttonsHeight() const {
+	auto padding = _layerType ? st::boxLayerButtonPadding : st::boxButtonPadding;
+	return padding.top() + st::defaultBoxButton.height + padding.bottom();
+}
+
+int AbstractBox::buttonsTop() const {
+	auto padding = _layerType ? st::boxLayerButtonPadding : st::boxButtonPadding;
+	return height() - padding.bottom() - st::defaultBoxButton.height;
+}
+
+void AbstractBox::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	auto clip = e->rect();
+	auto paintTopRounded = clip.intersects(QRect(0, 0, width(), st::boxRadius));
+	auto paintBottomRounded = clip.intersects(QRect(0, height() - st::boxRadius, width(), st::boxRadius));
+	if (paintTopRounded || paintBottomRounded) {
+		auto parts = qFlags(App::RectPart::None);
+		if (paintTopRounded) parts |= App::RectPart::TopFull;
+		if (paintBottomRounded) parts |= App::RectPart::BottomFull;
+		App::roundRect(p, rect(), st::boxBg, BoxCorners, nullptr, parts);
+	}
+	auto other = e->region().intersected(QRect(0, st::boxRadius, width(), height() - 2 * st::boxRadius));
+	if (!other.isEmpty()) {
+		for_const (auto rect, other.rects()) {
+			p.fillRect(rect, st::boxBg);
+		}
+	}
+	if (!_title.isEmpty() && clip.intersects(QRect(0, 0, width(), titleHeight()))) {
+		paintTitle(p, _title, _additionalTitle);
+	}
+}
+
+void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
+	p.setFont(st::boxTitleFont);
+	p.setPen(st::boxTitleFg);
+	if (_layerType) {
+		auto titleWidth = st::boxTitleFont->width(title);
+		p.drawTextLeft(st::boxLayerTitlePosition.x(), st::boxLayerTitlePosition.y(), width(), title, titleWidth);
+		if (!additional.isEmpty()) {
+			p.setFont(st::boxLayerTitleAdditionalFont);
+			p.setPen(st::boxTitleAdditionalFg);
+			p.drawTextLeft(st::boxLayerTitlePosition.x() + titleWidth + st::boxLayerTitleAdditionalSkip, st::boxLayerTitlePosition.y() + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), additional);
+		}
+	} else {
+		p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), title);
 	}
 }
 
 void AbstractBox::parentResized() {
-	auto newHeight = countHeight();
+	auto newHeight = countRealHeight();
 	auto parentSize = parentWidget()->size();
 	setGeometry((parentSize.width() - width()) / 2, (parentSize.height() - newHeight) / 2, width(), newHeight);
 	update();
 }
 
-int AbstractBox::titleHeight() const {
-	return _blockTitle ? st::boxBlockTitleHeight : st::boxTitleHeight;
+void AbstractBox::setTitle(const QString &title, const QString &additional) {
+	auto wasTitle = hasTitle();
+	_title = title;
+	_additionalTitle = additional;
+	update();
+	if (wasTitle != hasTitle()) {
+		updateSize();
+	}
 }
 
-void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
-	if (_blockTitle) {
-		p.fillRect(0, 0, width(), titleHeight(), st::boxBlockTitleBg);
+bool AbstractBox::hasTitle() const {
+	return !_title.isEmpty() || !_additionalTitle.isEmpty();
+}
 
-		p.setFont(st::boxBlockTitleFont);
-		p.setPen(st::boxBlockTitleFg);
+void AbstractBox::updateSize() {
+	setDimensions(width(), _maxContentHeight);
+}
 
-		auto titleWidth = st::boxBlockTitleFont->width(title);
-		p.drawTextLeft(st::boxBlockTitlePosition.x(), st::boxBlockTitlePosition.y(), width(), title, titleWidth);
-
-		if (!additional.isEmpty()) {
-			p.setFont(st::boxBlockTitleAdditionalFont);
-			p.setPen(st::boxBlockTitleAdditionalFg);
-			p.drawTextLeft(st::boxBlockTitlePosition.x() + titleWidth + st::boxBlockTitleAdditionalSkip, st::boxBlockTitlePosition.y(), width(), additional);
+void AbstractBox::updateButtonsPositions() {
+	if (!_buttons.isEmpty() || _leftButton) {
+		auto padding = _layerType ? st::boxLayerButtonPadding : st::boxButtonPadding;
+		auto right = padding.right();
+		auto top = buttonsTop();
+		if (_leftButton) {
+			_leftButton->moveToLeft(right, top);
 		}
-	} else {
-		p.setFont(st::boxTitleFont);
-		p.setPen(st::boxTitleFg);
-		p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), title);
+		for_const (auto &button, _buttons) {
+			button->moveToRight(right, top);
+			right += button->width() + padding.left();
+		}
 	}
 }
 
-void AbstractBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	p.fillRect(e->rect(), st::boxBg);
-	if (!_title.isEmpty()) {
-		paintTitle(p, _title, _additionalTitle);
+void AbstractBox::clearButtons() {
+	for (auto &button : base::take(_buttons)) {
+		button.destroy();
 	}
+	_leftButton.destroy();
 }
 
-void AbstractBox::setMaxHeight(int32 maxHeight) {
-	resizeMaxHeight(width(), maxHeight);
+QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+	_buttons.push_back(object_ptr<Ui::RoundButton>(this, text, st));
+	auto result = QPointer<Ui::RoundButton>(_buttons.back());
+	result->setClickedCallback(std_::move(clickCallback));
+	result->show();
+	updateButtonsPositions();
+	return result;
 }
 
-void AbstractBox::resizeMaxHeight(int32 newWidth, int32 maxHeight) {
-	if (width() != newWidth || _maxHeight != maxHeight) {
-		QRect g(geometry());
-		_maxHeight = maxHeight;
-		resize(newWidth, countHeight());
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+	_leftButton = object_ptr<Ui::RoundButton>(this, text, st);
+	auto result = QPointer<Ui::RoundButton>(_leftButton);
+	result->setClickedCallback(std_::move(clickCallback));
+	result->show();
+	updateButtonsPositions();
+	return result;
+}
+
+void AbstractBox::setDimensions(int newWidth, int maxHeight) {
+	_maxContentHeight = maxHeight;
+
+	auto fullHeight = countFullHeight();
+	if (width() != newWidth || _fullHeight != fullHeight) {
+		_fullHeight = fullHeight;
 		if (parentWidget()) {
-			QRect r = geometry();
-			int32 parenth = parentWidget()->height();
-			if (r.top() + r.height() + st::boxVerticalMargin > parenth) {
-				int32 newTop = qMax(parenth - int(st::boxVerticalMargin) - r.height(), (parenth - r.height()) / 2);
-				if (newTop != r.top()) {
-					move(r.left(), newTop);
+			auto oldGeometry = geometry();
+			resize(newWidth, countRealHeight());
+			auto newGeometry = geometry();
+			auto parentHeight = parentWidget()->height();
+			if (newGeometry.top() + newGeometry.height() + st::boxVerticalMargin > parentHeight) {
+				auto newTop = qMax(parentHeight - int(st::boxVerticalMargin) - newGeometry.height(), (parentHeight - newGeometry.height()) / 2);
+				if (newTop != newGeometry.top()) {
+					move(newGeometry.left(), newTop);
 				}
 			}
-			parentWidget()->update(geometry().united(g).marginsAdded(QMargins(st::boxShadow.width(), st::boxShadow.height(), st::boxShadow.width(), st::boxShadow.height())));
+			parentWidget()->update(oldGeometry.united(geometry()).marginsAdded(st::boxRoundShadow.extend));
+		} else {
+			resize(newWidth, 0);
 		}
 	}
 }
 
-int AbstractBox::countHeight() const {
-	return qMin(_maxHeight, parentWidget()->height() - 2 * st::boxVerticalMargin);
+int AbstractBox::countRealHeight() const {
+	return qMin(_fullHeight, parentWidget()->height() - 2 * st::boxVerticalMargin);
 }
 
-void AbstractBox::onClose() {
-	if (!_closed) {
-		_closed = true;
-		closePressed();
-	}
-	emit closed(this);
+int AbstractBox::countFullHeight() const {
+	return contentTop() + _maxContentHeight + buttonsHeight();
 }
 
-void AbstractBox::setBlockTitle(bool block, bool withClose, bool withShadow) {
-	_blockTitle = block;
-	if (withClose) {
-		_blockClose.create(this, st::boxBlockTitleClose);
-		_blockClose->setClickedCallback([this] { onClose(); });
-		_blockClose->show();
+int AbstractBox::contentTop() const {
+	return hasTitle() ? titleHeight() : (_noContentMargin ? 0 : st::boxTopMargin);
+}
+
+void AbstractBox::resizeEvent(QResizeEvent *e) {
+	updateButtonsPositions();
+
+	auto top = contentTop();
+	_content->resize(width(), height() - top - buttonsHeight());
+	_content->moveToLeft(0, top);
+
+	LayerWidget::resizeEvent(e);
+}
+
+void AbstractBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Escape) {
+		closeBox();
 	} else {
-		_blockClose.destroy();
+		LayerWidget::keyPressEvent(e);
 	}
-	if (withShadow) {
-		_blockShadow.create(this, st::boxBlockTitleShadow);
-		_blockShadow->show();
-	} else {
-		_blockShadow.destroy();
-	}
-	updateBlockTitleGeometry();
-}
-
-void AbstractBox::raiseShadow() {
-	if (_blockShadow) {
-		_blockShadow->raise();
-	}
-}
-
-ScrollableBoxShadow::ScrollableBoxShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxScrollShadowBg) {
-}
-
-ScrollableBox::ScrollableBox(const style::FlatScroll &scroll, int32 w) : AbstractBox(w)
-, _scroll(this, scroll)
-, _topSkip(st::boxBlockTitleHeight)
-, _bottomSkip(st::boxScrollSkip) {
-	setBlockTitle(true);
-}
-
-void ScrollableBox::resizeEvent(QResizeEvent *e) {
-	updateScrollGeometry();
-	AbstractBox::resizeEvent(e);
-}
-
-void ScrollableBox::init(TWidget *inner, int bottomSkip, int topSkip) {
-	if (bottomSkip < 0) bottomSkip = st::boxScrollSkip;
-	if (topSkip < 0) topSkip = st::boxBlockTitleHeight;
-	_bottomSkip = bottomSkip;
-	_topSkip = topSkip;
-	_scroll->setOwnedWidget(inner);
-	updateScrollGeometry();
-}
-
-void ScrollableBox::setScrollSkips(int bottomSkip, int topSkip) {
-	if (bottomSkip < 0) bottomSkip = st::boxScrollSkip;
-	if (topSkip < 0) topSkip = st::boxBlockTitleHeight;
-	if (_topSkip != topSkip || _bottomSkip != bottomSkip) {
-		_topSkip = topSkip;
-		_bottomSkip = bottomSkip;
-		updateScrollGeometry();
-	}
-}
-
-void ScrollableBox::updateScrollGeometry() {
-	_scroll->setGeometry(0, _topSkip, width(), height() - _topSkip - _bottomSkip);
-}
-
-ItemListBox::ItemListBox(const style::FlatScroll &scroll, int32 w) : ScrollableBox(scroll, w) {
-	setMaxHeight(st::boxMaxListHeight);
 }

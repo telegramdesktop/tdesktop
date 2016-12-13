@@ -21,8 +21,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "profile/profile_block_info.h"
 
-#include "profile/profile_common_groups_section.h"
-#include "profile/profile_section_memento.h"
 #include "styles/style_profile.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
@@ -43,31 +41,12 @@ InfoWidget::InfoWidget(QWidget *parent, PeerData *peer) : BlockWidget(parent, pe
 	auto observeEvents = UpdateFlag::AboutChanged
 		| UpdateFlag::UsernameChanged
 		| UpdateFlag::UserPhoneChanged
-		| UpdateFlag::UserCanShareContact
-		| UpdateFlag::UserCommonChatsChanged;
+		| UpdateFlag::UserCanShareContact;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
 
 	refreshLabels();
-	if (_commonGroups && _commonGroups->isHidden()) {
-		_commonGroups->show();
-		refreshVisibility();
-	}
-}
-
-void InfoWidget::showFinished() {
-	_showFinished = true;
-	if (_commonGroups && _commonGroups->isHidden() && getCommonGroupsCount() > 0) {
-		slideCommonGroupsDown();
-	}
-}
-
-void InfoWidget::slideCommonGroupsDown() {
-	_commonGroups->show();
-	refreshVisibility();
-	_height.start([this] { contentSizeUpdated(); }, isHidden() ? 0 : height(), resizeGetHeight(width()), st::widgetSlideDuration);
-	contentSizeUpdated();
 }
 
 void InfoWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -84,9 +63,6 @@ void InfoWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	}
 	if (update.flags & (UpdateFlag::UserPhoneChanged | UpdateFlag::UserCanShareContact)) {
 		refreshMobileNumber();
-	}
-	if (update.flags & UpdateFlag::UserCommonChatsChanged) {
-		refreshCommonGroups();
 	}
 	refreshVisibility();
 
@@ -140,18 +116,8 @@ int InfoWidget::resizeGetHeight(int newWidth) {
 	moveLabeledText(_mobileNumberLabel, _mobileNumber, nullptr);
 	moveLabeledText(_usernameLabel, _username, nullptr);
 
-	if (_commonGroups && !_commonGroups->isHidden()) {
-		int left = defaultOutlineButtonLeft();
-		int availableWidth = newWidth - left - st::profileBlockMarginRight;
-		accumulate_min(availableWidth, st::profileBlockOneLineWidthMax);
-
-		_commonGroups->resizeToWidth(availableWidth);
-		_commonGroups->moveToLeft(left, newHeight);
-		newHeight += _commonGroups->height();
-	}
-
 	newHeight += st::profileBlockMarginBottom;
-	return qRound(_height.current(newHeight));
+	return newHeight;
 }
 
 void InfoWidget::leaveEvent(QEvent *e) {
@@ -164,13 +130,12 @@ void InfoWidget::refreshLabels() {
 	refreshMobileNumber();
 	refreshUsername();
 	refreshChannelLink();
-	refreshCommonGroups();
 
 	refreshVisibility();
 }
 
 void InfoWidget::refreshVisibility() {
-	setVisible(_about || _mobileNumber || _username || _channelLink || (_commonGroups && !_commonGroups->isHidden()));
+	setVisible(_about || _mobileNumber || _username || _channelLink);
 }
 
 void InfoWidget::refreshAbout() {
@@ -240,44 +205,8 @@ void InfoWidget::refreshChannelLink() {
 	}
 }
 
-int InfoWidget::getCommonGroupsCount() const {
-	if (auto user = peer()->asUser()) {
-		return user->commonChatsCount();
-	}
-	return 0;
-}
-
-void InfoWidget::refreshCommonGroups() {
-	if (auto count = getCommonGroupsCount()) {
-		auto text = lng_profile_common_groups(lt_count, count);
-		if (_commonGroups) {
-			_commonGroups->setText(text);
-		} else {
-			_commonGroups.create(this, text, st::defaultLeftOutlineButton);
-			_commonGroups->setClickedCallback([this] { onShowCommonGroups(); });
-			_commonGroups->hide();
-			if (_showFinished) {
-				slideCommonGroupsDown();
-			}
-		}
-	} else if (_commonGroups) {
-		_commonGroups.destroyDelayed();
-	}
-}
-
-void InfoWidget::onShowCommonGroups() {
-	auto count = getCommonGroupsCount();
-	if (count <= 0) {
-		refreshCommonGroups();
-		return;
-	}
-	if (auto main = App::main()) {
-		main->showWideSection(Profile::CommonGroups::SectionMemento(peer()));
-	}
-}
-
-void InfoWidget::setLabeledText(ChildWidget<Ui::FlatLabel> *labelWidget, const QString &label,
-	ChildWidget<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText) {
+void InfoWidget::setLabeledText(object_ptr<Ui::FlatLabel> *labelWidget, const QString &label,
+	object_ptr<Ui::FlatLabel> *textWidget, const TextWithEntities &textWithEntities, const QString &copyText) {
 	if (labelWidget) labelWidget->destroy();
 	textWidget->destroy();
 	if (textWithEntities.text.isEmpty()) return;

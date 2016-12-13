@@ -48,6 +48,10 @@ void LabeledLink::setLink(const QString &text) {
 	_link.create(this, text);
 }
 
+Ui::LinkButton *LabeledLink::link() const {
+	return _link;
+}
+
 int LabeledLink::naturalWidth() const {
 	return _label->naturalWidth() + st::normalFont->spacew + _link->naturalWidth();
 }
@@ -117,20 +121,16 @@ QString DownloadPathState::downloadPathText() const {
 };
 
 void DownloadPathState::onDownloadPath() {
-	Ui::showLayer(new DownloadPathBox());
+	Ui::show(Box<DownloadPathBox>());
 }
 
 void DownloadPathState::onClear() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_sure_clear_downloads));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onClearSure()));
-	Ui::showLayer(box);
-}
-
-void DownloadPathState::onClearSure() {
-	Ui::hideLayer();
-	App::wnd()->tempDirDelete(Local::ClearManagerDownloads);
-	_state = State::Clearing;
-	updateControls();
+	Ui::show(Box<ConfirmBox>(lang(lng_sure_clear_downloads), base::lambda_guarded(this, [this] {
+		Ui::hideLayer();
+		App::wnd()->tempDirDelete(Local::ClearManagerDownloads);
+		_state = State::Clearing;
+		updateControls();
+	})));
 }
 
 void DownloadPathState::onTempDirCleared(int task) {
@@ -189,7 +189,7 @@ void ChatSettingsWidget::onReplaceEmoji() {
 }
 
 void ChatSettingsWidget::onViewList() {
-	Ui::showLayer(new EmojiBox());
+	Ui::show(Box<EmojiBox>());
 }
 
 void ChatSettingsWidget::onDontAskDownloadPath() {
@@ -219,11 +219,11 @@ void ChatSettingsWidget::onSendByCtrlEnter() {
 }
 
 void ChatSettingsWidget::onAutomaticMediaDownloadSettings() {
-	Ui::showLayer(new AutoDownloadBox());
+	Ui::show(Box<AutoDownloadBox>());
 }
 
 void ChatSettingsWidget::onManageStickerSets() {
-	Ui::showLayer(new StickersBox());
+	Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
 }
 
 } // namespace Settings

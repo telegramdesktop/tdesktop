@@ -104,7 +104,7 @@ private:
 	void setItemFlags(Item *item, ChannelData *megagroup);
 	bool addUsersToEnd(ChannelData *megagroup);
 
-	ChildWidget<Ui::FlatLabel> _limitReachedInfo = { nullptr };
+	object_ptr<Ui::FlatLabel> _limitReachedInfo = { nullptr };
 
 	QMap<UserData*, Member*> _membersByUser;
 	bool _sortByOnline = false;

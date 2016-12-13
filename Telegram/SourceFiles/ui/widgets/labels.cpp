@@ -610,10 +610,7 @@ std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatL
 	};
 	auto prepareData = [&bg](FlatLabel *label) {
 		auto result = Data();
-		result.full = QImage(label->size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-		result.full.setDevicePixelRatio(cRetinaFactor());
-		result.full.fill(bg->c);
-		Painter(&result.full).drawImage(0, 0, myGrabImage(label));
+		result.full = myGrabImage(label, QRect(), bg->c);
 		auto textWidth = label->width() - label->_st.margin.left() - label->_st.margin.right();
 		label->_text.countLineWidths(textWidth, &result.lineWidths);
 		result.lineHeight = label->_st.font->height;

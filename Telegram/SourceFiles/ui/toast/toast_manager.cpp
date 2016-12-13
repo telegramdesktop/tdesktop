@@ -68,9 +68,9 @@ void Manager::onHideTimeout() {
 	auto now = getms(true);
 	for (auto i = _toastByHideTime.begin(); i != _toastByHideTime.cend();) {
 		if (i.key() <= now) {
-			Instance *toast = i.value();
+			auto toast = i.value();
 			i = _toastByHideTime.erase(i);
-			toast->fadeOut();
+			toast->hideAnimated();
 		} else {
 			break;
 		}
@@ -81,7 +81,7 @@ void Manager::onHideTimeout() {
 void Manager::onToastWidgetDestroyed(QObject *widget) {
 	auto i = _toastByWidget.find(static_cast<Widget*>(widget));
 	if (i != _toastByWidget.cend()) {
-		Instance *toast = i.value();
+		auto toast = i.value();
 		_toastByWidget.erase(i);
 		toast->_widget.release();
 
@@ -94,7 +94,7 @@ void Manager::onToastWidgetDestroyed(QObject *widget) {
 }
 
 void Manager::onToastWidgetParentResized() {
-	QObject *resizedWidget = QObject::sender();
+	auto resizedWidget = QObject::sender();
 	if (!resizedWidget) return;
 
 	for (auto i = _toastByWidget.cbegin(), e = _toastByWidget.cend(); i != e; ++i) {

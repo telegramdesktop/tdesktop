@@ -42,7 +42,7 @@ class CoverDropArea;
 
 namespace Settings {
 
-class CoverWidget final : public BlockWidget {
+class CoverWidget : public BlockWidget {
 	Q_OBJECT
 
 public:
@@ -88,19 +88,19 @@ private:
 
 	UserData *_self;
 
-	ChildWidget<Profile::UserpicButton> _userpicButton;
-	ChildWidget<Profile::CoverDropArea> _dropArea = { nullptr };
+	object_ptr<Profile::UserpicButton> _userpicButton;
+	object_ptr<Profile::CoverDropArea> _dropArea = { nullptr };
 
-	ChildWidget<Ui::FlatLabel> _name;
-	ChildWidget<Ui::IconButton> _editNameInline;
-	ChildWidget<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
+	object_ptr<Ui::FlatLabel> _name;
+	object_ptr<Ui::IconButton> _editNameInline;
+	object_ptr<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
 	QString _statusText;
 	bool _statusTextIsOnline = false;
 
-	ChildWidget<Ui::RoundButton> _setPhoto;
-	ChildWidget<Ui::RoundButton> _editName;
+	object_ptr<Ui::RoundButton> _setPhoto;
+	object_ptr<Ui::RoundButton> _editName;
 	bool _editNameVisible = true;
 
 	int _dividerTop = 0;

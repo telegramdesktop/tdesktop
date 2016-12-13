@@ -830,7 +830,7 @@ bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-		Ui::showLayer(new InformBox(lang(lng_join_channel_error)));
+		Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
 	}
 	_channelAmInRequests.remove(channel);
 	return true;

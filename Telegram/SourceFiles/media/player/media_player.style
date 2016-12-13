@@ -229,13 +229,16 @@ mediaPlayerPanelVolumeWidth: 64px;
 mediaPlayerPanelVolumeToggleSkip: 0px;
 mediaPlayerPanelVolumeToggleTop: 57px;
 
-mediaPlayerScroll: FlatScroll(defaultSolidScroll) {
+mediaPlayerScroll: ScrollArea(defaultSolidScroll) {
 	deltat: 10px;
 	deltab: 0px;
 }
 mediaPlayerListHeightMax: 280px;
 mediaPlayerListMarginBottom: 10px;
-mediaPlayerScrollShadow: icon {{ "playlist_shadow", windowShadowFg }};
+mediaPlayerScrollShadow: Shadow {
+	bottom: icon {{ "playlist_shadow", windowShadowFg }};
+	extend: margins(2px, 2px, 2px, 2px);
+}
 
 mediaPlayerListMarginTop: 8px;
 mediaPlayerFileLayout: OverviewFileLayout(overviewFileLayout) {

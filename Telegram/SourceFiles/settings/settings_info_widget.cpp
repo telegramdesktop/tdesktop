@@ -84,7 +84,7 @@ void InfoWidget::refreshUsername() {
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new UsernameBox());
+			Ui::show(Box<UsernameBox>());
 			return false;
 		});
 	}
@@ -102,20 +102,20 @@ void InfoWidget::refreshLink() {
 	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
 	if (auto text = _link->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new UsernameBox());
+			Ui::show(Box<UsernameBox>());
 			return false;
 		});
 	}
 	if (auto shortText = _link->entity()->shortTextLabel()) {
 		shortText->setExpandLinksMode(ExpandLinksUrlOnly);
 		shortText->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new UsernameBox());
+			Ui::show(Box<UsernameBox>());
 			return false;
 		});
 	}
 }
 
-void InfoWidget::setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
+void InfoWidget::setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
 	if (textWithEntities.text.isEmpty()) {
 		row->slideUp();
 	} else {
@@ -140,7 +140,15 @@ void InfoWidget::LabeledWidget::setLabeledText(const QString &label, const TextW
 	resizeToWidth(width());
 }
 
-void InfoWidget::LabeledWidget::setLabelText(ChildWidget<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
+Ui::FlatLabel *InfoWidget::LabeledWidget::textLabel() const {
+	return _text;
+}
+
+Ui::FlatLabel *InfoWidget::LabeledWidget::shortTextLabel() const {
+	return _shortText;
+}
+
+void InfoWidget::LabeledWidget::setLabelText(object_ptr<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
 	text.destroy();
 	if (textWithEntities.text.isEmpty()) return;
 

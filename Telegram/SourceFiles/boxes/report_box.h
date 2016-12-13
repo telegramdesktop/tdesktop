@@ -24,15 +24,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Radiobutton;
-class RoundButton;
 class InputArea;
 } // namespace Ui
 
-class ReportBox : public AbstractBox, public RPCSender {
+class ReportBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	ReportBox(PeerData *peer);
+	ReportBox(QWidget*, PeerData *peer);
 
 private slots:
 	void onReport();
@@ -40,9 +39,10 @@ private slots:
 	void onDescriptionResized();
 
 protected:
-	void resizeEvent(QResizeEvent *e) override;
+	void prepare() override;
+	void setInnerFocus() override;
 
-	void doSetInnerFocus() override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void updateMaxHeight();
@@ -52,13 +52,11 @@ private:
 
 	PeerData *_peer;
 
-	ChildWidget<Ui::Radiobutton> _reasonSpam;
-	ChildWidget<Ui::Radiobutton> _reasonViolence;
-	ChildWidget<Ui::Radiobutton> _reasonPornography;
-	ChildWidget<Ui::Radiobutton> _reasonOther;
-	ChildWidget<Ui::InputArea> _reasonOtherText = { nullptr };
-
-	ChildWidget<Ui::RoundButton> _report, _cancel;
+	object_ptr<Ui::Radiobutton> _reasonSpam;
+	object_ptr<Ui::Radiobutton> _reasonViolence;
+	object_ptr<Ui::Radiobutton> _reasonPornography;
+	object_ptr<Ui::Radiobutton> _reasonOther;
+	object_ptr<Ui::InputArea> _reasonOtherText = { nullptr };
 
 	enum Reason {
 		ReasonSpam,

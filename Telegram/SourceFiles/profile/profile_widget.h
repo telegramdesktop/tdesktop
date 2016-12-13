@@ -24,7 +24,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class ScrollArea;
-class ToggleableShadow;
+class PlainShadow;
+template <typename Widget>
+class WidgetFadeWrap;
 } // namespace Ui
 
 namespace Profile {
@@ -64,14 +66,15 @@ private slots:
 	void onScroll();
 
 private:
+	void updateScrollState();
 	void updateAdaptiveLayout();
 	void saveState(SectionMemento *memento) const;
 	void restoreState(const SectionMemento *memento);
 
-	ChildWidget<Ui::ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<Ui::ToggleableShadow> _fixedBarShadow;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<InnerWidget> _inner;
+	object_ptr<FixedBar> _fixedBar;
+	object_ptr<Ui::WidgetFadeWrap<Ui::PlainShadow>> _fixedBarShadow;
 
 };
 

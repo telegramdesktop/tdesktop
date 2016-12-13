@@ -40,11 +40,11 @@ protected:
 	void mouseDoubleClickEvent(QMouseEvent *e) override;
 
 private:
-	ChildWidget<Ui::PlainShadow> _shadow;
+	object_ptr<Ui::PlainShadow> _shadow;
 	QFont _font;
 
 };
 
-Window::TitleWidget *CreateTitleWidget(QWidget *parent);
+object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
 
 } // namespace Platform

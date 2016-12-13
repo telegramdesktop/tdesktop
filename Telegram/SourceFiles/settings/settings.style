@@ -24,7 +24,7 @@ using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 using "boxes/boxes.style";
 
-settingsScroll: FlatScroll(defaultFlatScroll) {
+settingsScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: 0px;
 	topsh: 0px;
 }
@@ -34,15 +34,12 @@ settingsMaxPadding: 48px;
 settingsMinPadding: 32px;
 settingsMargin: 48px;
 
-settingsFixedBarHeight: 52px;
-settingsFixedBarFont: font(14px semibold);
-settingsFixedBarTextLeft: 20px;
-settingsFixedBarTextTop: 16px;
-settingsFixedBarClose: IconButton(boxBlockTitleClose) {
+settingsFixedBarHeight: boxLayerTitleHeight;
+settingsFixedBarFont: boxTitleFont;
+settingsFixedBarTextPosition: boxLayerTitlePosition;
+settingsFixedBarClose: IconButton(boxTitleClose) {
 	width: settingsFixedBarHeight;
 	height: settingsFixedBarHeight;
-
-	rippleAreaPosition: point(6px, 6px);
 }
 
 settingsMarginTop: 34px;

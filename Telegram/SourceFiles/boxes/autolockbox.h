@@ -24,20 +24,22 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Radiobutton;
-class RoundButton;
 } // namespace Ui
 
-class AutoLockBox : public AbstractBox {
+class AutoLockBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	AutoLockBox();
+	AutoLockBox(QWidget*) {
+	}
 
-public slots:
+protected:
+	void prepare() override;
+
+private slots:
 	void onChange();
 
 private:
 	QVector<Ui::Radiobutton*> _options;
-	ChildWidget<Ui::RoundButton> _close;
 
 };

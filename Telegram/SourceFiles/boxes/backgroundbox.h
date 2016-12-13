@@ -26,31 +26,31 @@ namespace Ui {
 class RoundCheckbox;
 } // namespace Ui
 
-class BackgroundBox : public ItemListBox {
-	Q_OBJECT
-
+class BackgroundBox : public BoxContent {
 public:
-	BackgroundBox();
+	BackgroundBox(QWidget*);
 
-public slots:
-	void onBackgroundChosen(int index);
+protected:
+	void prepare() override;
 
 private:
+	void backgroundChosen(int index);
+
 	class Inner;
-	ChildWidget<Inner> _inner;
+	QPointer<Inner> _inner;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
 class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
-	Q_OBJECT
-
 public:
 	Inner(QWidget *parent);
-	~Inner();
 
-signals:
-	void backgroundChosen(int index);
+	void setBackgroundChosenCallback(base::lambda<void(int index)> &&callback) {
+		_backgroundChosenCallback = std_::move(callback);
+	}
+
+	~Inner();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -62,10 +62,12 @@ private:
 	void gotWallpapers(const MTPVector<MTPWallPaper> &result);
 	void updateWallpapers();
 
+	base::lambda<void(int index)> _backgroundChosenCallback;
+
 	int _bgCount = 0;
 	int _rows = 0;
 	int _over = -1;
 	int _overDown = -1;
-	std_::unique_ptr<Ui::RoundCheckbox> _check;
+	std_::unique_ptr<Ui::RoundCheckbox> _check; // this not a widget
 
 };

@@ -34,87 +34,89 @@ class UsernameInput;
 class Checkbox;
 class Radiobutton;
 class LinkButton;
-class RoundButton;
 class NewAvatarButton;
 } // namespace Ui
 
-class AddContactBox : public AbstractBox, public RPCSender {
+class AddContactBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	AddContactBox(QString fname = QString(), QString lname = QString(), QString phone = QString());
-	AddContactBox(UserData *user);
+	AddContactBox(QWidget*, QString fname = QString(), QString lname = QString(), QString phone = QString());
+	AddContactBox(QWidget*, UserData *user);
 
-public slots:
+protected:
+	void prepare() override;
+
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	void setInnerFocus() override;
+
+private slots:
 	void onSubmit();
 	void onSave();
 	void onRetry();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
-
 private:
+	void updateButtons();
 	void onImportDone(const MTPcontacts_ImportedContacts &res);
 
 	void onSaveUserDone(const MTPcontacts_ImportedContacts &res);
 	bool onSaveUserFail(const RPCError &e);
 
-	void initBox();
-
 	UserData *_user = nullptr;
 
-	ChildWidget<Ui::InputField> _first;
-	ChildWidget<Ui::InputField> _last;
-	ChildWidget<Ui::PhoneInput> _phone;
+	object_ptr<Ui::InputField> _first;
+	object_ptr<Ui::InputField> _last;
+	object_ptr<Ui::PhoneInput> _phone;
 
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
-	ChildWidget<Ui::RoundButton> _retry;
-
-	bool _invertOrder;
+	bool _retrying = false;
+	bool _invertOrder = false;
 
 	uint64 _contactId = 0;
 
 	mtpRequestId _addRequest = 0;
 	QString _sentName;
+
 };
 
-class GroupInfoBox : public AbstractBox, public RPCSender {
+class GroupInfoBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose);
+	GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeChoose);
 
-public slots:
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void onPhotoReady(const QImage &img);
 
 	void onNext();
 	void onNameSubmit();
 	void onDescriptionResized();
 
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
-
 private:
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
+	void creationDone(const MTPUpdates &updates);
+	bool creationFail(const RPCError &e);
+	void exportDone(const MTPExportedChatInvite &result);
+
 	void updateMaxHeight();
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	CreatingGroupType _creating;
 
-	ChildWidget<Ui::NewAvatarButton> _photo;
-	ChildWidget<Ui::InputField> _title;
-	ChildWidget<Ui::InputArea> _description;
+	CreatingGroupType _creating;
+	bool _fromTypeChoose = false;
+
+	object_ptr<Ui::NewAvatarButton> _photo;
+	object_ptr<Ui::InputField> _title;
+	object_ptr<Ui::InputArea> _description = { nullptr };
 
 	QImage _photoImage;
-
-	ChildWidget<Ui::RoundButton> _next;
-	ChildWidget<Ui::RoundButton> _cancel;
 
 	// channel creation
 	mtpRequestId _creationRequestId = 0;
@@ -122,26 +124,20 @@ private:
 
 	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
-	void creationDone(const MTPUpdates &updates);
-	bool creationFail(const RPCError &e);
-	void exportDone(const MTPExportedChatInvite &result);
-
 };
 
-class SetupChannelBox : public AbstractBox, public RPCSender {
+class SetupChannelBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	SetupChannelBox(ChannelData *channel, bool existing = false);
+	SetupChannelBox(QWidget*, ChannelData *channel, bool existing = false);
 
-public slots:
-	void onSave();
-	void onChange();
-	void onCheck();
-
-	void onPrivacyChange();
+	void setInnerFocus() override;
+	void closeHook() override;
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -149,8 +145,12 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
-	void closePressed() override;
-	void doSetInnerFocus() override;
+private slots:
+	void onSave();
+	void onChange();
+	void onCheck();
+
+	void onPrivacyChange();
 
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
@@ -166,22 +166,18 @@ private:
 
 	void showRevokePublicLinkBoxForEdit();
 
-	ChannelData *_channel;
-	bool _existing;
+	ChannelData *_channel = nullptr;
+	bool _existing = false;
 
-	ChildWidget<Ui::Radiobutton> _public;
-	ChildWidget<Ui::Radiobutton> _private;
+	object_ptr<Ui::Radiobutton> _public;
+	object_ptr<Ui::Radiobutton> _private;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
 	Text _aboutPublic, _aboutPrivate;
 
-	ChildWidget<Ui::UsernameInput> _link;
+	object_ptr<Ui::UsernameInput> _link;
 
 	QRect _invitationLink;
-	bool _linkOver;
-
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _skip;
-
+	bool _linkOver = false;
 	bool _tooMuchUsernames = false;
 
 	mtpRequestId _saveRequestId = 0;
@@ -195,20 +191,21 @@ private:
 
 };
 
-class EditNameTitleBox : public AbstractBox, public RPCSender {
+class EditNameTitleBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditNameTitleBox(PeerData *peer);
-
-public slots:
-	void onSave();
-	void onSubmit();
+	EditNameTitleBox(QWidget*, PeerData *peer);
 
 protected:
+	void setInnerFocus() override;
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 
-	void doSetInnerFocus() override;
+private slots:
+	void onSave();
+	void onSubmit();
 
 private:
 	void onSaveSelfDone(const MTPUser &user);
@@ -219,11 +216,8 @@ private:
 
 	PeerData *_peer;
 
-	ChildWidget<Ui::InputField> _first;
-	ChildWidget<Ui::InputField> _last;
-
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::InputField> _first;
+	object_ptr<Ui::InputField> _last;
 
 	bool _invertOrder = false;
 
@@ -232,24 +226,25 @@ private:
 
 };
 
-class EditChannelBox : public AbstractBox, public RPCSender {
+class EditChannelBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditChannelBox(ChannelData *channel);
+	EditChannelBox(QWidget*, ChannelData *channel);
 
-public slots:
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void peerUpdated(PeerData *peer);
 
 	void onSave();
 	void onDescriptionResized();
 	void onPublicLink();
-
-protected:
-	void keyPressEvent(QKeyEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void doSetInnerFocus() override;
 
 private:
 	void updateMaxHeight();
@@ -264,14 +259,11 @@ private:
 
 	ChannelData *_channel;
 
-	ChildWidget<Ui::InputField> _title;
-	ChildWidget<Ui::InputArea> _description;
-	ChildWidget<Ui::Checkbox> _sign;
+	object_ptr<Ui::InputField> _title;
+	object_ptr<Ui::InputArea> _description;
+	object_ptr<Ui::Checkbox> _sign;
 
-	ChildWidget<Ui::LinkButton> _publicLink;
-
-	ChildWidget<Ui::RoundButton> _save;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::LinkButton> _publicLink;
 
 	mtpRequestId _saveTitleRequestId = 0;
 	mtpRequestId _saveDescriptionRequestId = 0;
@@ -281,13 +273,13 @@ private:
 
 };
 
-class RevokePublicLinkBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
+class RevokePublicLinkBox : public BoxContent, public RPCSender {
 public:
-	RevokePublicLinkBox(base::lambda<void()> &&revokeCallback);
+	RevokePublicLinkBox(QWidget*, base::lambda<void()> &&revokeCallback);
 
 protected:
+	void prepare() override;
+
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -319,11 +311,10 @@ private:
 	int _rowHeight = 0;
 	int _revokeWidth = 0;
 
-	ChildWidget<Ui::FlatLabel> _aboutRevoke;
-	ChildWidget<Ui::RoundButton> _cancel;
+	object_ptr<Ui::FlatLabel> _aboutRevoke;
 
 	base::lambda<void()> _revokeCallback;
 	mtpRequestId _revokeRequestId = 0;
-	QPointer<ConfirmBox> weakRevokeConfirmBox;
+	QPointer<ConfirmBox> _weakRevokeConfirmBox;
 
 };

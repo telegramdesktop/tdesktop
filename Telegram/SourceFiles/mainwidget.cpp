@@ -177,7 +177,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
 	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
-		Ui::showLayer(new InformBox(lang(lng_forward_cant)));
+		Ui::show(Box<InformBox>(lang(lng_forward_cant)));
 		return false;
 	}
 	_history->cancelReply();
@@ -212,7 +212,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
 	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
-		Ui::showLayer(new InformBox(lang(lng_share_cant)));
+		Ui::show(Box<InformBox>(lang(lng_share_cant)));
 		return false;
 	}
 	History *h = App::history(peer);
@@ -232,7 +232,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
 	PeerData *p = App::peer(peer);
 	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
-		Ui::showLayer(new InformBox(lang(lng_inline_switch_cant)));
+		Ui::show(Box<InformBox>(lang(lng_inline_switch_cant)));
 		return false;
 	}
 	History *h = App::history(peer);
@@ -591,8 +591,8 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 		_hider = nullptr;
 		if (Adaptive::OneColumn()) {
 			if (_forwardConfirm) {
-				_forwardConfirm->onClose();
-				_forwardConfirm = 0;
+				_forwardConfirm->closeBox();
+				_forwardConfirm = nullptr;
 			}
 			onHistoryShown(_history->history(), _history->msgId());
 			if (_wideSection || _overview || (_history->peer() && _history->peer()->id)) {
@@ -616,19 +616,18 @@ void MainWidget::noHider(HistoryHider *destroyed) {
 		} else {
 			if (_forwardConfirm) {
 				_forwardConfirm->deleteLater();
-				_forwardConfirm = 0;
+				_forwardConfirm = nullptr;
 			}
 		}
 	}
 }
 
-void MainWidget::hiderLayer(HistoryHider *h) {
+void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 	if (App::passcoded()) {
-		delete h;
 		return;
 	}
 
-	_hider = h;
+	_hider = std_::move(h);
 	connect(_hider, SIGNAL(forwarded()), _dialogs, SLOT(onCancelSearch()));
 	if (Adaptive::OneColumn()) {
 		dialogsToUp();
@@ -657,66 +656,76 @@ void MainWidget::hiderLayer(HistoryHider *h) {
 }
 
 void MainWidget::forwardLayer(int32 forwardSelected) {
-	hiderLayer((forwardSelected < 0) ? (new HistoryHider(this)) : (new HistoryHider(this, forwardSelected > 0)));
+	hiderLayer((forwardSelected < 0) ? object_ptr<HistoryHider>(this) : object_ptr<HistoryHider>(this, forwardSelected > 0));
 }
 
 void MainWidget::deleteLayer(int32 selectedCount) {
 	if (selectedCount == -1 && !_overview) {
 		if (HistoryItem *item = App::contextItem()) {
 			if (item->suggestBanReportDeleteAll()) {
-				Ui::showLayer(new RichDeleteMessageBox(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
+				Ui::show(Box<RichDeleteMessageBox>(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
 				return;
 			}
 		}
 	}
-	QString str((selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount));
-	QString btn(lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete)), cancel(lang((selectedCount < -1) ? lng_continue : lng_cancel));
-	ConfirmBox *box = new ConfirmBox(str, btn, st::defaultBoxButton, cancel);
-	if (selectedCount < 0) {
-		if (selectedCount < -1) {
-			if (HistoryItem *item = App::contextItem()) {
-				App::uploader()->pause(item->fullId());
-				connect(box, SIGNAL(destroyed(QObject*)), App::uploader(), SLOT(unpause()));
+	auto text = (selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount);
+	auto confirmText = lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete);
+	auto cancelText = lang((selectedCount < -1) ? lng_continue : lng_cancel);
+	if (selectedCount < -1) {
+		if (auto item = App::contextItem()) {
+			App::uploader()->pause(item->fullId());
+		}
+	}
+	Ui::show(Box<ConfirmBox>(text, confirmText, cancelText, base::lambda_guarded(this, [this, selectedCount] {
+		if (selectedCount < 0) {
+			if (_overview) {
+				_overview->onDeleteContextSure();
+			} else {
+				_history->onDeleteContextSure();
+			}
+			if (selectedCount < -1) {
+				App::uploader()->unpause();
+			}
+		} else {
+			if (_overview) {
+				_overview->onDeleteSelectedSure();
+			} else {
+				_history->onDeleteSelectedSure();
 			}
 		}
-		connect(box, SIGNAL(confirmed()), _overview ? static_cast<QWidget*>(_overview) : static_cast<QWidget*>(_history), SLOT(onDeleteContextSure()));
-	} else {
-		connect(box, SIGNAL(confirmed()), _overview ? static_cast<QWidget*>(_overview) : static_cast<QWidget*>(_history), SLOT(onDeleteSelectedSure()));
-	}
-	Ui::showLayer(box);
+	}), base::lambda_guarded(this, [selectedCount] {
+		if (selectedCount < -1) {
+			App::uploader()->unpause();
+		}
+	})));
 }
 
 void MainWidget::deletePhotoLayer(PhotoData *photo) {
-	_deletingPhoto = photo;
-	auto box = new ConfirmBox(lang(lng_delete_photo_sure), lang(lng_box_delete));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onDeletePhotoSure()));
-	Ui::showLayer(box);
-}
+	if (!photo) return;
+	Ui::show(Box<ConfirmBox>(lang(lng_delete_photo_sure), lang(lng_box_delete), base::lambda_guarded(this, [this, photo] {
+		Ui::hideLayer();
 
-void MainWidget::onDeletePhotoSure() {
-	Ui::hideLayer();
+		auto me = App::self();
+		if (!me) return;
 
-	auto me = App::self();
-	auto photo = _deletingPhoto;
-	if (!photo || !me) return;
-
-	if (me->photoId == photo->id) {
-		App::app()->peerClearPhoto(me->id);
-	} else if (photo->peer && !photo->peer->isUser() && photo->peer->photoId == photo->id) {
-		App::app()->peerClearPhoto(photo->peer->id);
-	} else {
-		for (int i = 0, l = me->photos.size(); i != l; ++i) {
-			if (me->photos.at(i) == photo) {
-				me->photos.removeAt(i);
-				MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
-				break;
+		if (me->photoId == photo->id) {
+			App::app()->peerClearPhoto(me->id);
+		} else if (photo->peer && !photo->peer->isUser() && photo->peer->photoId == photo->id) {
+			App::app()->peerClearPhoto(photo->peer->id);
+		} else {
+			for (int i = 0, l = me->photos.size(); i != l; ++i) {
+				if (me->photos.at(i) == photo) {
+					me->photos.removeAt(i);
+					MTP::send(MTPphotos_DeletePhotos(MTP_vector<MTPInputPhoto>(1, MTP_inputPhoto(MTP_long(photo->id), MTP_long(photo->access)))));
+					break;
+				}
 			}
 		}
-	}
+	})));
 }
 
 void MainWidget::shareContactLayer(UserData *contact) {
-	hiderLayer(new HistoryHider(this, contact));
+	hiderLayer(object_ptr<HistoryHider>(this, contact));
 }
 
 void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
@@ -724,11 +733,11 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	if (url.trimmed().startsWith('@')) {
 		return;
 	}
-	hiderLayer(new HistoryHider(this, url, text));
+	hiderLayer(object_ptr<HistoryHider>(this, url, text));
 }
 
 void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
-	hiderLayer(new HistoryHider(this, botAndQuery));
+	hiderLayer(object_ptr<HistoryHider>(this, botAndQuery));
 }
 
 bool MainWidget::selectingPeer(bool withConfirm) {
@@ -742,21 +751,13 @@ bool MainWidget::selectingPeerForInlineSwitch() {
 void MainWidget::offerPeer(PeerId peer) {
 	Ui::hideLayer();
 	if (_hider->offerPeer(peer) && Adaptive::OneColumn()) {
-		_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
-		connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
-		connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
-		connect(_forwardConfirm, SIGNAL(destroyed(QObject*)), this, SLOT(onForwardCancel(QObject*)));
-		Ui::showLayer(_forwardConfirm);
-	}
-}
-
-void MainWidget::onForwardCancel(QObject *obj) {
-	if (!obj || obj == _forwardConfirm) {
-		if (_forwardConfirm) {
-			if (!obj) _forwardConfirm->onClose();
-			_forwardConfirm = 0;
-		}
-		if (_hider) _hider->offerPeer(0);
+		_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), base::lambda_guarded(this, [this] {
+			_hider->forward();
+			if (_forwardConfirm) _forwardConfirm->closeBox();
+			if (_hider) _hider->offerPeer(0);
+		}), base::lambda_guarded(this, [this] {
+			if (_hider && _forwardConfirm) _hider->offerPeer(0);
+		})));
 	}
 }
 
@@ -953,7 +954,7 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 	} else if (error.type() == qstr("PEER_FLOOD")) {
 		text = cantInviteError();
 	}
-	Ui::showLayer(new InformBox(text));
+	Ui::show(Box<InformBox>(text));
 	return false;
 }
 
@@ -971,7 +972,7 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 	} else if (error.type() == qstr("PEER_FLOOD")) {
 		text = cantInviteError();
 	}
-	Ui::showLayer(new InformBox(text));
+	Ui::show(Box<InformBox>(text));
 	return false;
 }
 
@@ -1059,7 +1060,7 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("PEER_FLOOD")) {
-		Ui::showLayer(new InformBox(cantInviteError()));
+		Ui::show(Box<InformBox>(cantInviteError()));
 		return true;
 	}
 	return false;
@@ -1526,29 +1527,6 @@ void MainWidget::messagesAffected(PeerData *peer, const MTPmessages_AffectedMess
 	}
 }
 
-void MainWidget::loadFailed(mtpFileLoader *loader, bool started, const char *retrySlot) {
-	failedObjId = loader->objId();
-	failedFileName = loader->fileName();
-	ConfirmBox *box = new ConfirmBox(lang(started ? lng_download_finish_failed : lng_download_path_failed), started ? QString() : lang(lng_download_path_settings));
-	if (started) {
-		connect(box, SIGNAL(confirmed()), this, retrySlot);
-	} else {
-		connect(box, SIGNAL(confirmed()), this, SLOT(onDownloadPathSettings()));
-	}
-	Ui::showLayer(box);
-}
-
-void MainWidget::onDownloadPathSettings() {
-	Global::SetDownloadPath(QString());
-	Global::SetDownloadPathBookmark(QByteArray());
-	Ui::showLayer(new DownloadPathBox());
-	Global::RefDownloadPathChanged().notify();
-}
-
-void MainWidget::onSharePhoneWithBot(PeerData *recipient) {
-	onShareContact(recipient->id, App::self());
-}
-
 void MainWidget::ui_showPeerHistoryAsync(quint64 peerId, qint32 showAtMsgId, Ui::ShowWay way) {
 	Ui::showPeerHistory(peerId, showAtMsgId, way);
 }
@@ -1719,18 +1697,26 @@ void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
 	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
 	if (!l) return;
 
-	loadFailed(l, started, SLOT(documentLoadRetry()));
-	DocumentData *document = App::document(l->objId());
+	auto document = App::document(l->objId());
+	if (started) {
+		auto failedFileName = l->fileName();
+		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), base::lambda_guarded(this, [this, document, failedFileName] {
+			Ui::hideLayer();
+			if (document) document->save(failedFileName);
+		})));
+	} else {
+		Ui::show(Box<ConfirmBox>(lang(lng_download_path_failed), lang(lng_download_path_settings), base::lambda_guarded(this, [this] {
+			Global::SetDownloadPath(QString());
+			Global::SetDownloadPathBookmark(QByteArray());
+			Ui::show(Box<DownloadPathBox>());
+			Global::RefDownloadPathChanged().notify();
+		})));
+	}
+
 	if (document) {
 		if (document->loading()) document->cancel();
 		document->status = FileDownloadFailed;
 	}
-}
-
-void MainWidget::documentLoadRetry() {
-	Ui::hideLayer();
-	DocumentData *document = App::document(failedObjId);
-	if (document) document->save(failedFileName);
 }
 
 void MainWidget::inlineResultLoadProgress(FileLoader *loader) {
@@ -1956,9 +1942,9 @@ void MainWidget::setInnerFocus() {
 	if (_hider || !_history->peer()) {
 		if (_hider && _hider->wasOffered()) {
 			_hider->setFocus();
-		} else if (_overview) {
+		} else if (!_hider && _overview) {
 			_overview->activate();
-		} else if (_wideSection) {
+		} else if (!_hider && _wideSection) {
 			_wideSection->setInnerFocus();
 		} else {
 			dialogsActivate();
@@ -2034,14 +2020,13 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 	});
 
 	auto clearHistoryHandler = [peer] {
-		auto box = new ConfirmBox(peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) : lng_sure_delete_group_history(lt_group, peer->name), lang(lng_box_delete), st::attentionBoxButton);
-		box->setConfirmedCallback([peer] {
+		auto text = peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) : lng_sure_delete_group_history(lt_group, peer->name);
+		Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), st::attentionBoxButton, [peer] {
 			if (!App::main()) return;
 
 			Ui::hideLayer();
 			App::main()->clearHistory(peer);
-		});
-		Ui::showLayer(box);
+		}));
 	};
 	auto deleteAndLeaveHandler = [peer] {
 		auto warningText = peer->isUser() ? lng_sure_delete_history(lt_contact, peer->name) :
@@ -2049,8 +2034,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 			lang(peer->isMegagroup() ? lng_sure_leave_group : lng_sure_leave_channel);
 		auto confirmText = lang(peer->isUser() ? lng_box_delete : lng_box_leave);
 		auto &confirmStyle = peer->isChannel() ? st::defaultBoxButton : st::attentionBoxButton;
-		auto box = new ConfirmBox(warningText, confirmText, confirmStyle);
-		box->setConfirmedCallback([peer] {
+		Ui::show(Box<ConfirmBox>(warningText, confirmText, confirmStyle, [peer] {
 			if (!App::main()) return;
 
 			Ui::hideLayer();
@@ -2065,8 +2049,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 				}
 				MTP::send(MTPchannels_LeaveChannel(peer->asChannel()->inputChannel), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 			}
-		});
-		Ui::showLayer(box);
+		}));
 	};
 	if (auto user = peer->asUser()) {
 		callback(lang(lng_profile_delete_conversation), std_::move(deleteAndLeaveHandler));
@@ -2204,7 +2187,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		QString restriction = peer->restrictionReason();
 		if (!restriction.isEmpty()) {
 			Ui::showChatsList();
-			Ui::showLayer(new InformBox(restriction));
+			Ui::show(Box<InformBox>(restriction));
 			return;
 		}
 	}
@@ -2422,7 +2405,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 		_wideSection->deleteLater();
 		_wideSection = nullptr;
 	}
-	_overview = new OverviewWidget(this, peer, type);
+	_overview.create(this, peer, type);
 	_mediaTypeMask = 0;
 	_topBar->show();
 	resizeEvent(nullptr);
@@ -2449,9 +2432,7 @@ void MainWidget::showWideSection(const Window::SectionMemento &memento) {
 	if (_wideSection && _wideSection->showInternal(&memento)) {
 		return;
 	}
-
-	saveSectionInStack();
-	showWideSectionAnimated(&memento, false);
+	showWideSectionAnimated(&memento, false, true);
 }
 
 Window::SectionSlideParams MainWidget::prepareShowAnimation(bool willHaveTopBarShadow) {
@@ -2538,13 +2519,16 @@ Window::SectionSlideParams MainWidget::prepareDialogsAnimation() {
 	return prepareShowAnimation(false);
 }
 
-void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, bool back) {
+void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, bool back, bool saveInStack) {
 	QPixmap animCache;
 
 	auto newWideGeometry = QRect(_history->x(), _playerHeight, _history->width(), height() - _playerHeight);
 	auto newWideSection = memento->createWidget(this, newWideGeometry);
 	Window::SectionSlideParams animationParams = prepareWideSectionAnimation(newWideSection);
 
+	if (saveInStack) {
+		saveSectionInStack();
+	}
 	if (_overview) {
 		_overview->hide();
 		_overview->clear();
@@ -2557,7 +2541,7 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 		_wideSection->deleteLater();
 		_wideSection = nullptr;
 	}
-	_wideSection = newWideSection;
+	_wideSection = std_::move(newWideSection);
 	_topBar->hide();
 	resizeEvent(0);
 	auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
@@ -2603,7 +2587,7 @@ void MainWidget::showBackFromStack() {
 		_history->setReplyReturns(histItem->peer->id, histItem->replyReturns);
 	} else if (item->type() == SectionStackItem) {
 		StackItemSection *sectionItem = static_cast<StackItemSection*>(item.get());
-		showWideSectionAnimated(sectionItem->memento(), true);
+		showWideSectionAnimated(sectionItem->memento(), true, false);
 	} else if (item->type() == OverviewStackItem) {
 		StackItemOverview *overItem = static_cast<StackItemOverview*>(item.get());
 		showMediaOverview(overItem->peer, overItem->mediaType, true, overItem->lastScrollTop);
@@ -2707,7 +2691,7 @@ bool MainWidget::deleteChannelFailed(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	//if (error.type() == qstr("CHANNEL_TOO_LARGE")) {
-	//	Ui::showLayer(new InformBox(lang(lng_cant_delete_channel)));
+	//	Ui::show(Box<InformBox>(lang(lng_cant_delete_channel)));
 	//}
 
 	return true;
@@ -2811,17 +2795,20 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		Ui::showLayer(new InformBox(lang(lng_signin_password_removed)));
+		Ui::show(Box<InformBox>(lang(lng_signin_password_removed)));
 	}
 	if (Adaptive::OneColumn()) {
 		_sideShadow->hide();
 		if (_hider) {
 			_hider->hide();
 			if (!_forwardConfirm && _hider->wasOffered()) {
-				_forwardConfirm = new ConfirmBox(_hider->offeredText(), lang(lng_forward_send));
-				connect(_forwardConfirm, SIGNAL(confirmed()), _hider, SLOT(forward()));
-				connect(_forwardConfirm, SIGNAL(cancelled()), this, SLOT(onForwardCancel()));
-				Ui::showLayer(_forwardConfirm, ForceFastShowLayer);
+				_forwardConfirm = Ui::show(Box<ConfirmBox>(_hider->offeredText(), lang(lng_forward_send), base::lambda_guarded(this, [this] {
+					_hider->forward();
+					if (_forwardConfirm) _forwardConfirm->closeBox();
+					if (_hider) _hider->offerPeer(0);
+				}), base::lambda_guarded(this, [this] {
+					if (_hider && _forwardConfirm) _hider->offerPeer(0);
+				})), ForceFastShowLayer);
 			}
 		}
 		if (selectingPeer()) {
@@ -2855,8 +2842,11 @@ void MainWidget::showAll() {
 		if (_hider) {
 			_hider->show();
 			if (_forwardConfirm) {
+				_forwardConfirm = nullptr;
 				Ui::hideLayer(true);
-				_forwardConfirm = 0;
+				if (_hider->wasOffered()) {
+					_hider->setFocus();
+				}
 			}
 		}
 		_dialogs->showFast();
@@ -3651,14 +3641,14 @@ void MainWidget::openPeerByName(const QString &username, MsgId msgId, const QStr
 		if (msgId == ShowAtGameShareMsgId) {
 			if (peer->isUser() && peer->asUser()->botInfo && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->shareGameShortName = startToken;
-				Ui::showLayer(new ContactsBox(peer->asUser()));
+				Ui::show(Box<ContactsBox>(peer->asUser()));
 			} else {
 				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
 			}
 		} else if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 			if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 				peer->asUser()->botInfo->startGroupToken = startToken;
-				Ui::showLayer(new ContactsBox(peer->asUser()));
+				Ui::show(Box<ContactsBox>(peer->asUser()));
 			} else if (peer->isUser() && peer->asUser()->botInfo) {
 				// Always open bot chats, even from mention links.
 				Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
@@ -3690,9 +3680,8 @@ void MainWidget::joinGroupByHash(const QString &hash) {
 
 void MainWidget::stickersBox(const MTPInputStickerSet &set) {
 	App::wnd()->hideMediaview();
-	StickerSetBox *box = new StickerSetBox(set);
+	auto box = Ui::show(Box<StickerSetBox>(set));
 	connect(box, SIGNAL(installed(uint64)), this, SLOT(onStickersInstalled(uint64)));
-	Ui::showLayer(box);
 }
 
 void MainWidget::onStickersInstalled(uint64 setId) {
@@ -3743,7 +3732,7 @@ void MainWidget::usernameResolveDone(QPair<MsgId, QString> msgIdAndStartToken, c
 	if (msgId == ShowAtProfileMsgId && !peer->isChannel()) {
 		if (peer->isUser() && peer->asUser()->botInfo && !peer->asUser()->botInfo->cantJoinGroups && !startToken.isEmpty()) {
 			peer->asUser()->botInfo->startGroupToken = startToken;
-			Ui::showLayer(new ContactsBox(peer->asUser()));
+			Ui::show(Box<ContactsBox>(peer->asUser()));
 		} else if (peer->isUser() && peer->asUser()->botInfo) {
 			// Always open bot chats, even from mention links.
 			Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId, Ui::ShowWay::Forward);
@@ -3769,7 +3758,7 @@ bool MainWidget::usernameResolveFail(QString name, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.code() == 400) {
-		Ui::showLayer(new InformBox(lng_username_not_found(lt_user, name)));
+		Ui::show(Box<InformBox>(lng_username_not_found(lt_user, name)));
 	}
 	return true;
 }
@@ -3789,9 +3778,8 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 				}
 			}
 		}
-		auto box = std_::make_unique<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, d.vparticipants_count.v, participants);
 		_inviteHash = hash;
-		Ui::showLayer(box.release());
+		Ui::show(Box<ConfirmInviteBox>(qs(d.vtitle), d.vphoto, d.vparticipants_count.v, participants));
 	} break;
 
 	case mtpc_chatInviteAlready: {
@@ -3808,7 +3796,7 @@ bool MainWidget::inviteCheckFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.code() == 400) {
-		Ui::showLayer(new InformBox(lang(lng_group_invite_bad_link)));
+		Ui::show(Box<InformBox>(lang(lng_group_invite_bad_link)));
 	}
 	return true;
 }
@@ -3841,9 +3829,9 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-		Ui::showLayer(new InformBox(lang(lng_join_channel_error)));
+		Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
 	} else if (error.code() == 400) {
-		Ui::showLayer(new InformBox(lang(error.type() == qstr("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
+		Ui::show(Box<InformBox>(lang(error.type() == qstr("USERS_TOO_MUCH") ? lng_group_invite_no_room : lng_group_invite_bad_link)));
 	}
 
 	return true;
@@ -4775,7 +4763,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateServiceNotification: {
 		auto &d = update.c_updateServiceNotification();
 		if (d.is_popup()) {
-			Ui::showLayer(new InformBox(qs(d.vmessage)));
+			Ui::show(Box<InformBox>(qs(d.vmessage)));
 		} else {
 			App::wnd()->serviceNotification({ qs(d.vmessage), entitiesFromMTP(d.ventities.c_vector().v) }, d.vmedia);
 			emit App::wnd()->checkNewAuthorization();

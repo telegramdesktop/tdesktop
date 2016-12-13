@@ -254,8 +254,8 @@ private:
 
 	State _state = DefaultState;
 
-	ChildWidget<Ui::LinkButton> _addContactLnk;
-	ChildWidget<Ui::IconButton> _cancelSearchInPeer;
+	object_ptr<Ui::LinkButton> _addContactLnk;
+	object_ptr<Ui::IconButton> _cancelSearchInPeer;
 
 	PeerData *_searchInPeer = nullptr;
 	PeerData *_searchInMigrated = nullptr;
@@ -382,14 +382,14 @@ private:
 	mtpRequestId _contactsRequestId = 0;
 	bool _pinnedDialogsReceived = false;
 
-	ChildWidget<Ui::IconButton> _forwardCancel = { nullptr };
-	ChildWidget<Ui::IconButton> _mainMenuToggle;
-	ChildWidget<Ui::FlatInput> _filter;
-	ChildWidget<Ui::CrossButton> _cancelSearch;
-	ChildWidget<Ui::IconButton> _lockUnlock;
-	ChildWidget<Ui::ScrollArea> _scroll;
-	ChildWidget<DialogsInner> _inner;
-	ChildWidget<Ui::FlatButton> _updateTelegram = { nullptr };
+	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
+	object_ptr<Ui::IconButton> _mainMenuToggle;
+	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::CrossButton> _cancelSearch;
+	object_ptr<Ui::IconButton> _lockUnlock;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<DialogsInner> _inner;
+	object_ptr<Ui::FlatButton> _updateTelegram = { nullptr };
 
 	Animation _a_show;
 	Window::SlideDirection _showDirection;

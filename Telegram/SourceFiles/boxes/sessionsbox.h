@@ -28,25 +28,26 @@ class ConfirmBox;
 namespace Ui {
 class IconButton;
 class LinkButton;
-class RoundButton;
 } // namespace Ui
 
-class SessionsBox : public ScrollableBox, public RPCSender {
+class SessionsBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	SessionsBox();
+	SessionsBox(QWidget*);
 
-public slots:
+protected:
+	void prepare() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private slots:
 	void onOneTerminated();
 	void onAllTerminated();
 	void onTerminateAll();
 	void onShortPollAuthorizations();
 	void onCheckNewAuthorization();
-
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 
 private:
 	void setLoading(bool loading);
@@ -61,18 +62,16 @@ private:
 
 	void gotAuthorizations(const MTPaccount_Authorizations &result);
 
-	bool _loading;
+	bool _loading = false;
 
 	Data _current;
 	List _list;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<ScrollableBoxShadow> _shadow;
-	ChildWidget<Ui::RoundButton> _done;
+	QPointer<Inner> _inner;
 
-	SingleTimer _shortPollTimer;
-	mtpRequestId _shortPollRequest;
+	object_ptr<SingleTimer> _shortPollTimer;
+	mtpRequestId _shortPollRequest = 0;
 
 };
 
@@ -96,10 +95,7 @@ signals:
 
 public slots:
 	void onTerminate();
-	void onTerminateSure();
 	void onTerminateAll();
-	void onTerminateAllSure();
-	void onNoTerminateBox(QObject *obj);
 
 private:
 	void terminateDone(uint64 hash, const MTPBool &result);
@@ -114,8 +110,7 @@ private:
 	typedef QMap<uint64, Ui::IconButton*> TerminateButtons;
 	TerminateButtons _terminateButtons;
 
-	uint64 _terminating;
-	ChildWidget<Ui::LinkButton> _terminateAll;
-	ConfirmBox *_terminateBox;
+	object_ptr<Ui::LinkButton> _terminateAll;
+	QPointer<ConfirmBox> _terminateBox;
 
 };

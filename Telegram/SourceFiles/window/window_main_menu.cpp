@@ -56,7 +56,7 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 		App::wnd()->onShowNewChannel();
 	}, &st::mainMenuNewChannel, &st::mainMenuNewChannelOver);
 	_menu->addAction(lang(lng_menu_contacts), [] {
-		Ui::showLayer(new ContactsBox());
+		Ui::show(Box<ContactsBox>());
 	}, &st::mainMenuContacts, &st::mainMenuContactsOver);
 	_menu->addAction(lang(lng_menu_settings), [] {
 		App::wnd()->showSettings();
@@ -69,7 +69,7 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_telegram->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org")));
 	_version->setRichText(textcmdLink(1, lng_settings_current_version(lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, lang(lng_menu_about)));
 	_version->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org/?_hash=changelog")));
-	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::showLayer(new AboutBox()); }));
+	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	subscribe(Global::RefConnectionTypeChanged(), [this] { updateConnectionState(); });

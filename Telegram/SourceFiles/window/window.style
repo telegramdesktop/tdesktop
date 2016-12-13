@@ -73,6 +73,9 @@ notifyReplyArea: InputField(defaultInputField) {
 	textMargins: margins(8px, 8px, 8px, 6px);
 	heightMin: 36px;
 	heightMax: 72px;
+	placeholderFgActive: #aaaaaa;
+	placeholderFgError: #aaaaaa;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 	border: 0px;

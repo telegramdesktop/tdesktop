@@ -39,57 +39,52 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 
-AddContactBox::AddContactBox(QString fname, QString lname, QString phone) : AbstractBox(st::boxWidth)
-, _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
+AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
+: _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), lname)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), phone)
-, _save(this, lang(lng_add_contact), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _invertOrder(langFirstNameGoesSecond()) {
 	if (!phone.isEmpty()) {
 		_phone->setDisabled(true);
 	}
-
-	initBox();
 }
 
-AddContactBox::AddContactBox(UserData *user) : AbstractBox(st::boxWidth)
-, _user(user)
+AddContactBox::AddContactBox(QWidget*, UserData *user)
+: _user(user)
 , _first(this, st::defaultInputField, lang(lng_signup_firstname), user->firstName)
 , _last(this, st::defaultInputField, lang(lng_signup_lastname), user->lastName)
 , _phone(this, st::defaultInputField, lang(lng_contact_phone), user->phone())
-, _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _retry(this, lang(lng_try_other_contact), st::defaultBoxButton)
 , _invertOrder(langFirstNameGoesSecond()) {
 	_phone->setDisabled(true);
-	initBox();
 }
 
-void AddContactBox::initBox() {
+void AddContactBox::prepare() {
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
 	if (_user) {
-		setTitleText(lang(lng_edit_contact_title));
+		setTitle(lang(lng_edit_contact_title));
 	} else {
 		bool readyToAdd = !_phone->getLastText().isEmpty() && (!_first->getLastText().isEmpty() || !_last->getLastText().isEmpty());
-		setTitleText(lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data));
+		setTitle(lang(readyToAdd ? lng_confirm_contact_data : lng_enter_contact_data));
 	}
-	setMaxHeight(titleHeight() + st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
-	_retry->hide();
-
-	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(_retry, SIGNAL(clicked()), this, SLOT(onRetry()));
+	updateButtons();
 
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_phone, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
+
+	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
+		(_invertOrder ? _last : _first)->setDisplayFocused(true);
+		_phone->finishAnimations();
+	} else {
+		_phone->setDisplayFocused(true);
+	}
+
+	setDimensions(st::boxWideWidth, st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom());
 }
 
-void AddContactBox::doSetInnerFocus() {
+void AddContactBox::setInnerFocus() {
 	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
 		(_invertOrder ? _last : _first)->setFocus();
 	} else {
@@ -98,38 +93,35 @@ void AddContactBox::doSetInnerFocus() {
 }
 
 void AddContactBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
-	if (_retry->isHidden()) {
-		st::contactUserIcon.paint(p, st::boxPadding.left(), _first->y() + st::contactIconTop, width());
-		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone->y() + st::contactIconTop, width());
-	} else {
+	if (_retrying) {
 		p.setPen(st::boxTextFg);
 		p.setFont(st::boxTextFont);
-		int32 h = height() - titleHeight() - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom() - st::boxButtonPadding.top() - _retry->height() - st::boxButtonPadding.bottom();
-		p.drawText(QRect(st::boxPadding.left(), titleHeight() + st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), h), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
+		auto textHeight = height() - st::contactPadding.top() - st::contactPadding.bottom() - st::boxPadding.bottom();
+		p.drawText(QRect(st::boxPadding.left(), st::contactPadding.top(), width() - st::boxPadding.left() - st::boxPadding.right(), textHeight), lng_contact_not_joined(lt_name, _sentName), style::al_topleft);
+	} else {
+		st::contactUserIcon.paint(p, st::boxPadding.left(), _first->y() + st::contactIconTop, width());
+		st::contactPhoneIcon.paint(p, st::boxPadding.left(), _phone->y() + st::contactIconTop, width());
 	}
 }
 
 void AddContactBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_first->resize(width() - st::boxPadding.left() - st::contactPadding.left() - st::boxPadding.right(), _first->height());
 	_last->resize(_first->width(), _last->height());
 	_phone->resize(_first->width(), _last->height());
 	if (_invertOrder) {
-		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), titleHeight() + st::contactPadding.top());
+		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::contactPadding.top());
 		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last->y() + _last->height() + st::contactSkip);
 		_phone->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first->y() + _first->height() + st::contactPhoneSkip);
 	} else {
-		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), titleHeight() + st::contactPadding.top());
+		_first->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), st::contactPadding.top());
 		_last->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _first->y() + _first->height() + st::contactSkip);
 		_phone->moveToLeft(st::boxPadding.left() + st::contactPadding.left(), _last->y() + _last->height() + st::contactPhoneSkip);
 	}
-
-	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
-	_retry->moveToRight(st::boxButtonPadding.right(), _save->y());
-	_cancel->moveToRight(st::boxButtonPadding.right() + (_retry->isHidden() ? _save->width() : _retry->width()) + st::boxButtonPadding.left(), _save->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void AddContactBox::onSubmit() {
@@ -190,7 +182,7 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 	QString firstName = _first->getLastText().trimmed(), lastName = _last->getLastText().trimmed();
 	if (err == "CHAT_TITLE_NOT_MODIFIED") {
 		_user->setName(firstName, lastName, _user->nameOrPhone, _user->username);
-		onClose();
+		closeBox();
 		return true;
 	} else if (err == "NO_CHAT_TITLE") {
 		_first->setFocus();
@@ -202,12 +194,12 @@ bool AddContactBox::onSaveUserFail(const RPCError &error) {
 }
 
 void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
-	if (isHidden() || !App::main()) return;
+	if (!isBoxShown() || !App::main()) return;
 
-	const auto &d(res.c_contacts_importedContacts());
+	auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	const auto &v(d.vimported.c_vector().v);
+	auto &v = d.vimported.c_vector().v;
 	UserData *user = nullptr;
 	if (!v.isEmpty()) {
 		const auto &c(v.front().c_importedContact());
@@ -220,8 +212,8 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 		Ui::hideLayer();
 	} else {
 		hideChildren();
-		_retry->show();
-		resizeEvent(0);
+		_retrying = true;
+		updateButtons();
 		update();
 	}
 }
@@ -229,15 +221,15 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 void AddContactBox::onSaveUserDone(const MTPcontacts_ImportedContacts &res) {
 	auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
-	onClose();
+	closeBox();
 }
 
 void AddContactBox::onRetry() {
 	_addRequest = 0;
 	_contactId = 0;
 	showChildren();
-	_retry->hide();
-	resizeEvent(0);
+	_retrying = false;
+	updateButtons();
 	_first->setText(QString());
 	_last->setText(QString());
 	_phone->clearText();
@@ -246,31 +238,42 @@ void AddContactBox::onRetry() {
 	update();
 }
 
-GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : AbstractBox()
-, _creating(creating)
-, _photo(this, st::newGroupPhotoSize, st::newGroupPhotoIconPosition)
-, _title(this, st::defaultInputField, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name))
-, _description(this, st::newGroupDescription, lang(lng_create_group_description))
-, _next(this, lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), st::defaultBoxButton)
-, _cancel(this, lang(fromTypeChoose ? lng_create_group_back : lng_cancel), st::cancelBoxButton) {
+void AddContactBox::updateButtons() {
+	clearButtons();
+	if (_retrying) {
+		addButton(lang(lng_try_other_contact), [this] { onRetry(); });
+	} else {
+		addButton(lang(_user ? lng_settings_save : lng_add_contact), [this] { onSave(); });
+		addButton(lang(lng_cancel), [this] { closeBox(); });
+	}
+}
 
+GroupInfoBox::GroupInfoBox(QWidget*, CreatingGroupType creating, bool fromTypeChoose)
+: _creating(creating)
+, _fromTypeChoose(fromTypeChoose)
+, _photo(this, st::newGroupPhotoSize, st::newGroupPhotoIconPosition)
+, _title(this, st::defaultInputField, lang(_creating == CreatingGroupChannel ? lng_dlg_new_channel_name : lng_dlg_new_group_name)) {
+}
+
+void GroupInfoBox::prepare() {
 	setMouseTracking(true);
 
 	_title->setMaxLength(MaxGroupChannelTitle);
 
-	_description->setMaxLength(MaxChannelDescription);
-	_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
-	_description->setVisible(_creating == CreatingGroupChannel);
+	if (_creating == CreatingGroupChannel) {
+		_description.create(this, st::newGroupDescription, lang(lng_create_group_description));
+		_description->show();
+		_description->setMaxLength(MaxChannelDescription);
 
-	updateMaxHeight();
-	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
-	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
-	connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+		connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
+		connect(_description, SIGNAL(submitted(bool)), this, SLOT(onNext()));
+		connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
+	}
 
 	connect(_title, SIGNAL(submitted(bool)), this, SLOT(onNameSubmit()));
 
-	connect(_next, SIGNAL(clicked()), this, SLOT(onNext()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	addButton(lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
+	addButton(lang(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
 
 	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
 		auto imgExtensions = cImgExtensions();
@@ -280,48 +283,53 @@ GroupInfoBox::GroupInfoBox(CreatingGroupType creating, bool fromTypeChoose) : Ab
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
+
+	_title->setDisplayFocused(true);
+
+	updateMaxHeight();
 }
 
-void GroupInfoBox::doSetInnerFocus() {
+void GroupInfoBox::setInnerFocus() {
 	_title->setFocus();
 }
 
 void GroupInfoBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_photo->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top());
 
-	int32 nameLeft = st::newGroupPhotoSize + st::newGroupNamePosition.x();
+	auto nameLeft = st::newGroupPhotoSize + st::newGroupNamePosition.x();
 	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right() - nameLeft, _title->height());
 	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left() + nameLeft, st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
-
-	_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::newGroupDescriptionPadding.top());
-
-	_next->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _next->width() + st::boxButtonPadding.left(), _next->y());
-	AbstractBox::resizeEvent(e);
+	if (_description) {
+		_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
+		_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::newGroupDescriptionPadding.top());
+	}
 }
 
 void GroupInfoBox::onNameSubmit() {
 	if (_title->getLastText().trimmed().isEmpty()) {
 		_title->setFocus();
 		_title->showError();
-	} else if (_description->isHidden()) {
-		onNext();
-	} else {
+	} else if (_description) {
 		_description->setFocus();
+	} else {
+		onNext();
 	}
 }
 
 void GroupInfoBox::onNext() {
 	if (_creationRequestId) return;
 
-	QString title = prepareText(_title->getLastText()), description = prepareText(_description->getLastText(), true);
+	auto title = prepareText(_title->getLastText());
+	auto description = _description ? prepareText(_description->getLastText(), true) : QString();
 	if (title.isEmpty()) {
 		_title->setFocus();
 		_title->showError();
 		return;
 	}
 	if (_creating == CreatingGroupGroup) {
-		Ui::showLayer(new ContactsBox(title, _photoImage), KeepOtherLayers);
+		Ui::show(Box<ContactsBox>(title, _photoImage), KeepOtherLayers);
 	} else {
 		bool mega = false;
 		MTPchannels_CreateChannel::Flags flags = mega ? MTPchannels_CreateChannel::Flag::f_megagroup : MTPchannels_CreateChannel::Flag::f_broadcast;
@@ -354,7 +362,7 @@ void GroupInfoBox::creationDone(const MTPUpdates &updates) {
 		LOG(("API Error: channel not found in updates (GroupInfoBox::creationDone)"));
 	}
 
-	onClose();
+	closeBox();
 }
 
 bool GroupInfoBox::creationFail(const RPCError &error) {
@@ -366,7 +374,7 @@ bool GroupInfoBox::creationFail(const RPCError &error) {
 		_title->showError();
 		return true;
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
-		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+		Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
 		return true;
 	}
 	return false;
@@ -377,7 +385,7 @@ void GroupInfoBox::exportDone(const MTPExportedChatInvite &result) {
 	if (result.type() == mtpc_chatInviteExported) {
 		_createdChannel->setInviteLink(qs(result.c_chatInviteExported().vlink));
 	}
-	Ui::showLayer(new SetupChannelBox(_createdChannel));
+	Ui::show(Box<SetupChannelBox>(_createdChannel));
 }
 
 void GroupInfoBox::onDescriptionResized() {
@@ -386,11 +394,11 @@ void GroupInfoBox::onDescriptionResized() {
 }
 
 void GroupInfoBox::updateMaxHeight() {
-	int32 h = st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _next->height() + st::boxButtonPadding.bottom();
-	if (_creating == CreatingGroupChannel) {
-		h += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
+	auto newHeight = st::boxPadding.top() + st::newGroupInfoPadding.top() + st::newGroupPhotoSize + st::boxPadding.bottom() + st::newGroupInfoPadding.bottom();
+	if (_description) {
+		newHeight += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	}
-	setMaxHeight(h);
+	setDimensions(st::boxWideWidth, newHeight);
 }
 
 void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
@@ -411,9 +419,8 @@ void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update)
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
 		return;
 	}
-	auto box = new PhotoCropBox(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0));
+	auto box = Ui::show(Box<PhotoCropBox>(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0)), KeepOtherLayers);
 	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
-	Ui::showLayer(box, KeepOtherLayers);
 }
 
 void GroupInfoBox::onPhotoReady(const QImage &img) {
@@ -421,27 +428,26 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 	_photo->setImage(_photoImage);
 }
 
-SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : AbstractBox()
-, _channel(channel)
+SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
+: _channel(channel)
 , _existing(existing)
 , _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true, st::defaultBoxCheckbox)
 , _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), false, st::defaultBoxCheckbox)
 , _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
-, _link(this, st::setupChannelLink, QString(), channel->username, true)
-, _linkOver(false)
-, _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _skip(this, lang(existing ? lng_cancel : lng_create_group_skip), st::cancelBoxButton) {
+, _link(this, st::setupChannelLink, QString(), channel->username, true) {
+}
+
+void SetupChannelBox::prepare() {
+	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
+
 	setMouseTracking(true);
 
 	_checkRequestId = MTP::send(MTPchannels_CheckUsername(_channel->inputChannel, MTP_string("preston")), RPCDoneHandlerPtr(), rpcFail(&SetupChannelBox::onFirstCheckFail));
 
-	_aboutPublicHeight = _aboutPublic.countHeight(_aboutPublicWidth);
-	updateMaxHeight();
-
-	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(_skip, SIGNAL(clicked()), this, SLOT(onClose()));
+	addButton(lang(lng_settings_save), [this] { onSave(); });
+	addButton(lang(_existing ? lng_cancel : lng_create_group_skip), [this] { closeBox(); });
 
 	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
 	_link->setVisible(_public->checked());
@@ -451,9 +457,11 @@ SetupChannelBox::SetupChannelBox(ChannelData *channel, bool existing) : Abstract
 
 	connect(_public, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
 	connect(_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
+
+	updateMaxHeight();
 }
 
-void SetupChannelBox::doSetInnerFocus() {
+void SetupChannelBox::setInnerFocus() {
 	if (_link->isHidden()) {
 		setFocus();
 	} else {
@@ -462,11 +470,11 @@ void SetupChannelBox::doSetInnerFocus() {
 }
 
 void SetupChannelBox::updateMaxHeight() {
+	auto newHeight = st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom();
 	if (!_channel->isMegagroup() || _public->checked()) {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
-	} else {
-		setMaxHeight(st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+		newHeight += st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom();
 	}
+	setDimensions(st::boxWideWidth, newHeight);
 }
 
 void SetupChannelBox::keyPressEvent(QKeyEvent *e) {
@@ -480,7 +488,7 @@ void SetupChannelBox::keyPressEvent(QKeyEvent *e) {
 			}
 		}
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
@@ -534,16 +542,14 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 }
 
 void SetupChannelBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_public->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), st::boxPadding.top() + st::newGroupPadding.top());
 	_private->moveToLeft(st::boxPadding.left() + st::newGroupPadding.left(), _public->bottomNoMargins() + _aboutPublicHeight + st::newGroupSkip);
 
 	_link->resize(width() - st::boxPadding.left() - st::newGroupLinkPadding.left() - st::boxPadding.right(), _link->height());
 	_link->moveToLeft(st::boxPadding.left() + st::newGroupLinkPadding.left(), _private->bottomNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom() + st::newGroupLinkPadding.top());
 	_invitationLink = QRect(_link->x(), _link->y() + (_link->height() / 2) - st::boxTextFont->height, _link->width(), 2 * st::boxTextFont->height);
-
-	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
-	_skip->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
@@ -574,9 +580,9 @@ void SetupChannelBox::updateSelected(const QPoint &cursorGlobalPosition) {
 	}
 }
 
-void SetupChannelBox::closePressed() {
+void SetupChannelBox::closeHook() {
 	if (!_existing) {
-		Ui::showLayer(new ContactsBox(_channel));
+		Ui::show(Box<ContactsBox>(_channel));
 	}
 }
 
@@ -586,7 +592,7 @@ void SetupChannelBox::onSave() {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
 		} else {
-			onClose();
+			closeBox();
 		}
 	}
 
@@ -655,7 +661,7 @@ void SetupChannelBox::onPrivacyChange() {
 	if (_public->checked()) {
 		if (_tooMuchUsernames) {
 			_private->setChecked(true);
-			Ui::showLayer(new RevokePublicLinkBox(base::lambda_guarded(this, [this] {
+			Ui::show(Box<RevokePublicLinkBox>(base::lambda_guarded(this, [this] {
 				_tooMuchUsernames = false;
 				_public->setChecked(true);
 				onCheck();
@@ -676,7 +682,7 @@ void SetupChannelBox::onPrivacyChange() {
 
 void SetupChannelBox::onUpdateDone(const MTPBool &result) {
 	_channel->setName(textOneLine(_channel->name), _sentUsername);
-	onClose();
+	closeBox();
 }
 
 bool SetupChannelBox::onUpdateFail(const RPCError &error) {
@@ -686,7 +692,7 @@ bool SetupChannelBox::onUpdateFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == "USERNAME_NOT_MODIFIED" || _sentUsername == _channel->username) {
 		_channel->setName(textOneLine(_channel->name), textOneLine(_sentUsername));
-		onClose();
+		closeBox();
 		return true;
 	} else if (err == "USERNAME_INVALID") {
 		_link->setFocus();
@@ -748,9 +754,9 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 }
 
 void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
-	onClose();
-	Ui::showLayer(new RevokePublicLinkBox([channel = _channel, existing = _existing]() {
-		Ui::showLayer(new SetupChannelBox(channel, existing), KeepOtherLayers);
+	closeBox();
+	Ui::show(Box<RevokePublicLinkBox>([channel = _channel, existing = _existing]() {
+		Ui::show(Box<SetupChannelBox>(channel, existing), KeepOtherLayers);
 	}), KeepOtherLayers);
 }
 
@@ -777,38 +783,40 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 	return true;
 }
 
-EditNameTitleBox::EditNameTitleBox(PeerData *peer) :
-_peer(peer),
-_first(this, st::defaultInputField, lang(peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), peer->isUser() ? peer->asUser()->firstName : peer->name),
-_last(this, st::defaultInputField, lang(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString()),
-_save(this, lang(lng_settings_save), st::defaultBoxButton),
-_cancel(this, lang(lng_cancel), st::cancelBoxButton),
-_invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
+EditNameTitleBox::EditNameTitleBox(QWidget*, PeerData *peer)
+: _peer(peer)
+, _first(this, st::defaultInputField, lang(peer->isUser() ? lng_signup_firstname : lng_dlg_new_group_name), peer->isUser() ? peer->asUser()->firstName : peer->name)
+, _last(this, st::defaultInputField, lang(lng_signup_lastname), peer->isUser() ? peer->asUser()->lastName : QString())
+, _invertOrder(!peer->isChat() && langFirstNameGoesSecond()) {
+}
+
+void EditNameTitleBox::prepare() {
+	auto newHeight = st::contactPadding.top() + _first->height();
+	if (_peer->isUser()) {
+		setTitle(lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title));
+		newHeight += st::contactSkip + _last->height();
+	} else if (_peer->isChat()) {
+		setTitle(lang(lng_edit_group_title));
+	}
+	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
+	setDimensions(st::boxWideWidth, newHeight);
+
+	addButton(lang(lng_settings_save), [this] { onSave(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
 	}
 	_first->setMaxLength(MaxGroupChannelTitle);
 	_last->setMaxLength(MaxGroupChannelTitle);
 
-	int32 h = titleHeight() + st::contactPadding.top() + _first->height();
-	if (_peer->isUser()) {
-		setTitleText(lang(_peer == App::self() ? lng_edit_self_title : lng_edit_contact_title));
-		h += st::contactSkip + _last->height();
-	} else if (_peer->isChat()) {
-		setTitleText(lang(lng_edit_group_title));
-	}
-	h += st::boxPadding.bottom() + st::contactPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
-	setMaxHeight(h);
-
-	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	_last->setVisible(!_peer->isChat());
+
+	(_invertOrder ? _last : _first)->setDisplayFocused(true);
 }
 
-void EditNameTitleBox::doSetInnerFocus() {
+void EditNameTitleBox::setInnerFocus() {
 	(_invertOrder ? _last : _first)->setFocus();
 }
 
@@ -838,19 +846,17 @@ void EditNameTitleBox::onSubmit() {
 }
 
 void EditNameTitleBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_first->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _first->height());
 	_last->resize(_first->size());
 	if (_invertOrder) {
-		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), titleHeight() + st::contactPadding.top());
+		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::contactPadding.top());
 		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _last->y() + _last->height() + st::contactSkip);
 	} else {
-		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), titleHeight() + st::contactPadding.top());
+		_first->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::contactPadding.top());
 		_last->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _first->y() + _first->height() + st::contactSkip);
 	}
-
-	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void EditNameTitleBox::onSave() {
@@ -882,7 +888,7 @@ void EditNameTitleBox::onSave() {
 
 void EditNameTitleBox::onSaveSelfDone(const MTPUser &user) {
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
-	onClose();
+	closeBox();
 }
 
 bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
@@ -892,7 +898,7 @@ bool EditNameTitleBox::onSaveSelfFail(const RPCError &error) {
 	QString first = textOneLine(_first->getLastText().trimmed()), last = textOneLine(_last->getLastText().trimmed());
 	if (err == "NAME_NOT_MODIFIED") {
 		App::self()->setName(first, last, QString(), textOneLine(App::self()->username));
-		onClose();
+		closeBox();
 		return true;
 	} else if (err == "FIRSTNAME_INVALID") {
 		_first->setFocus();
@@ -916,7 +922,7 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 		if (auto chatData = _peer->asChat()) {
 			chatData->setName(_sentName);
 		}
-		onClose();
+		closeBox();
 		return true;
 	} else if (err == qstr("NO_CHAT_TITLE")) {
 		_first->setFocus();
@@ -929,42 +935,44 @@ bool EditNameTitleBox::onSaveChatFail(const RPCError &error) {
 
 void EditNameTitleBox::onSaveChatDone(const MTPUpdates &updates) {
 	App::main()->sentUpdatesReceived(updates);
-	onClose();
+	closeBox();
 }
 
-EditChannelBox::EditChannelBox(ChannelData *channel) : AbstractBox()
-, _channel(channel)
+EditChannelBox::EditChannelBox(QWidget*, ChannelData *channel)
+: _channel(channel)
 , _title(this, st::defaultInputField, lang(lng_dlg_new_channel_name), _channel->name)
 , _description(this, st::newGroupDescription, lang(lng_create_group_description), _channel->about())
 , _sign(this, lang(lng_edit_sign_messages), channel->addsSignature(), st::defaultBoxCheckbox)
-, _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::boxLinkButton)
-, _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
+, _publicLink(this, lang(channel->isPublic() ? lng_profile_edit_public_link : lng_profile_create_public_link), st::boxLinkButton) {
+}
 
-	setTitleText(lang(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
+void EditChannelBox::prepare() {
+	setTitle(lang(_channel->isMegagroup() ? lng_edit_group : lng_edit_channel_title));
+
+	addButton(lang(lng_settings_save), [this] { onSave(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
+
+	connect(App::main(), SIGNAL(peerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)), this, SLOT(peerUpdated(PeerData*)));
 
 	setMouseTracking(true);
 
 	_title->setMaxLength(MaxGroupChannelTitle);
 	_description->setMaxLength(MaxChannelDescription);
-	_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
-	myEnsureResized(_description);
 
-	updateMaxHeight();
 	connect(_description, SIGNAL(resized()), this, SLOT(onDescriptionResized()));
 	connect(_description, SIGNAL(submitted(bool)), this, SLOT(onSave()));
 	connect(_description, SIGNAL(cancelled()), this, SLOT(onClose()));
 
-	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-
 	connect(_publicLink, SIGNAL(clicked()), this, SLOT(onPublicLink()));
 	_publicLink->setVisible(_channel->canEditUsername());
 	_sign->setVisible(!_channel->isMegagroup());
+
+	_title->setDisplayFocused(true);
+
+	updateMaxHeight();
 }
 
-void EditChannelBox::doSetInnerFocus() {
+void EditChannelBox::setInnerFocus() {
 	_title->setFocus();
 }
 
@@ -974,7 +982,7 @@ void EditChannelBox::keyPressEvent(QKeyEvent *e) {
 			onSave();
 		}
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
@@ -991,22 +999,25 @@ void EditChannelBox::onDescriptionResized() {
 }
 
 void EditChannelBox::updateMaxHeight() {
-	int32 h = titleHeight() + st::newGroupInfoPadding.top() + _title->height();
-	h += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
+	auto newHeight = st::newGroupInfoPadding.top() + _title->height();
+	newHeight += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	if (!_channel->isMegagroup()) {
-		h += st::newGroupPublicLinkPadding.top() + _sign->heightNoMargins() + st::newGroupPublicLinkPadding.bottom();
+		newHeight += st::newGroupPublicLinkPadding.top() + _sign->heightNoMargins() + st::newGroupPublicLinkPadding.bottom();
 	}
 	if (_channel->canEditUsername()) {
-		h += st::newGroupPublicLinkPadding.top() + _publicLink->height() + st::newGroupPublicLinkPadding.bottom();
+		newHeight += st::newGroupPublicLinkPadding.top() + _publicLink->height() + st::newGroupPublicLinkPadding.bottom();
 	}
-	h += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
-	setMaxHeight(h);
+	newHeight += st::boxPadding.bottom() + st::newGroupInfoPadding.bottom();
+	setDimensions(st::boxWideWidth, newHeight);
 }
 
 void EditChannelBox::resizeEvent(QResizeEvent *e) {
-	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _title->height());
-	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), titleHeight() + st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
+	BoxContent::resizeEvent(e);
 
+	_title->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _title->height());
+	_title->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), st::newGroupInfoPadding.top() + st::newGroupNamePosition.y());
+
+	_description->resize(width() - st::boxPadding.left() - st::newGroupInfoPadding.left() - st::boxPadding.right(), _description->height());
 	_description->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _title->y() + _title->height() + st::newGroupDescriptionPadding.top());
 
 	_sign->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _description->y() + _description->height() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
@@ -1016,10 +1027,6 @@ void EditChannelBox::resizeEvent(QResizeEvent *e) {
 	} else {
 		_publicLink->moveToLeft(st::boxPadding.left() + st::newGroupInfoPadding.left(), _sign->bottomNoMargins() + st::newGroupDescriptionPadding.bottom() + st::newGroupPublicLinkPadding.top());
 	}
-
-	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void EditChannelBox::onSave() {
@@ -1041,7 +1048,7 @@ void EditChannelBox::onSave() {
 }
 
 void EditChannelBox::onPublicLink() {
-	Ui::showLayer(new SetupChannelBox(_channel, true), KeepOtherLayers);
+	Ui::show(Box<SetupChannelBox>(_channel, true), KeepOtherLayers);
 }
 
 void EditChannelBox::saveDescription() {
@@ -1054,7 +1061,7 @@ void EditChannelBox::saveDescription() {
 
 void EditChannelBox::saveSign() {
 	if (_channel->isMegagroup() || _channel->addsSignature() == _sign->checked()) {
-		onClose();
+		closeBox();
 	} else {
 		_saveSignRequestId = MTP::send(MTPchannels_ToggleSignatures(_channel->inputChannel, MTP_bool(_sign->checked())), rpcDone(&EditChannelBox::onSaveSignDone), rpcFail(&EditChannelBox::onSaveFail));
 	}
@@ -1093,7 +1100,7 @@ bool EditChannelBox::onSaveFail(const RPCError &error, mtpRequestId req) {
 	} else if (req == _saveSignRequestId) {
 		_saveSignRequestId = 0;
 		if (err == qstr("CHAT_NOT_MODIFIED")) {
-			onClose();
+			closeBox();
 			return true;
 		}
 	}
@@ -1123,28 +1130,31 @@ void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
 	if (App::main()) {
 		App::main()->sentUpdatesReceived(updates);
 	}
-	onClose();
+	closeBox();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(base::lambda<void()> &&revokeCallback) : AbstractBox()
-, _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
+RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> &&revokeCallback)
+: _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
 , _revokeCallback(std_::move(revokeCallback)) {
+}
+
+void RevokePublicLinkBox::prepare() {
 	setMouseTracking(true);
 
 	MTP::send(MTPchannels_GetAdminedPublicChannels(), rpcDone(&RevokePublicLinkBox::getPublicDone), rpcFail(&RevokePublicLinkBox::getPublicFail));
 
-	updateMaxHeight();
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+
+	updateMaxHeight();
 }
 
 void RevokePublicLinkBox::updateMaxHeight() {
 	_rowsTop = st::boxPadding.top() + _aboutRevoke->height() + st::boxPadding.top();
-	setMaxHeight(_rowsTop + (5 * _rowHeight) + st::boxButtonPadding.top() + _cancel->height() + st::boxButtonPadding.bottom());
+	setDimensions(st::boxWideWidth, _rowsTop + (5 * _rowHeight));
 }
 
 void RevokePublicLinkBox::mouseMoveEvent(QMouseEvent *e) {
@@ -1183,23 +1193,16 @@ void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
 		auto text = text_method(lt_link, qsl("telegram.me/") + pressed->userName(), lt_group, pressed->name);
-		weakRevokeConfirmBox = new ConfirmBox(text, lang(lng_channels_too_much_public_revoke));
-		struct Data {
-			Data(QPointer<TWidget> &&weakThis, PeerData *pressed) : weakThis(std_::move(weakThis)), pressed(pressed) {
-			}
-			QPointer<TWidget> weakThis;
-			PeerData *pressed;
-		};
-		weakRevokeConfirmBox->setConfirmedCallback(base::lambda_guarded(this, [this, pressed]() {
+		auto confirmText = lang(lng_channels_too_much_public_revoke);
+		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, base::lambda_guarded(this, [this, pressed]() {
 			if (_revokeRequestId) return;
 			_revokeRequestId = MTP::send(MTPchannels_UpdateUsername(pressed->asChannel()->inputChannel, MTP_string("")), rpcDone(&RevokePublicLinkBox::revokeLinkDone), rpcFail(&RevokePublicLinkBox::revokeLinkFail));
-		}));
-		Ui::showLayer(weakRevokeConfirmBox, KeepOtherLayers);
+		})), KeepOtherLayers);
 	}
 }
 
 void RevokePublicLinkBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 	p.translate(0, _rowsTop);
@@ -1210,9 +1213,9 @@ void RevokePublicLinkBox::paintEvent(QPaintEvent *e) {
 }
 
 void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_aboutRevoke->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	_cancel->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _cancel->height());
-	AbstractBox::resizeEvent(e);
 }
 
 void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected, bool pressed) const {
@@ -1268,10 +1271,10 @@ bool RevokePublicLinkBox::getPublicFail(const RPCError &error) {
 }
 
 void RevokePublicLinkBox::revokeLinkDone(const MTPBool &result) {
-	if (weakRevokeConfirmBox) {
-		weakRevokeConfirmBox->onClose();
+	if (_weakRevokeConfirmBox) {
+		_weakRevokeConfirmBox->closeBox();
 	}
-	onClose();
+	closeBox();
 	if (_revokeCallback) {
 		_revokeCallback();
 	}

@@ -173,7 +173,7 @@ void NotificationsWidget::onNativeNotifications() {
 }
 
 void NotificationsWidget::onAdvanced() {
-	Ui::showLayer(new NotificationsBox());
+	Ui::show(Box<NotificationsBox>());
 }
 
 void NotificationsWidget::onPlaySound() {

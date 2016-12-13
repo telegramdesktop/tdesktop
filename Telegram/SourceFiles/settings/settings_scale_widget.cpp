@@ -99,10 +99,15 @@ void ScaleWidget::setScale(DBIScale newScale) {
 	}
 
 	if (cEvalScale(newScale) != cEvalScale(cRealScale())) {
-		auto box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_cancel));
-		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
-		connect(box, SIGNAL(cancelled()), this, SLOT(onCancel()));
-		Ui::showLayer(box);
+		Ui::show(Box<ConfirmBox>(lang(lng_settings_need_restart), lang(lng_settings_restart_now), base::lambda_guarded(this, [this] {
+			cSetConfigScale(_newScale);
+			Local::writeSettings();
+			App::restart();
+		}), base::lambda_guarded(this, [this] {
+			App::CallDelayed(st::boxDuration, this, [this] {
+				setScale(cRealScale());
+			});
+		})));
 	} else {
 		cSetConfigScale(newScale);
 		Local::writeSettings();
@@ -118,16 +123,6 @@ void ScaleWidget::scaleChanged() {
 	case 3: newScale = dbisTwo; break;
 	}
 	setScale(newScale);
-}
-
-void ScaleWidget::onRestartNow() {
-	cSetConfigScale(_newScale);
-	Local::writeSettings();
-	App::restart();
-}
-
-void ScaleWidget::onCancel() {
-	App::CallDelayed(st::boxDuration, this, [this] { setScale(cRealScale()); });
 }
 
 } // namespace Settings

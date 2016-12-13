@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/toast/toast.h"
 #include "core/click_handler_types.h"
 #include "localstorage.h"
 
@@ -40,54 +41,103 @@ TextParseOptions _confirmBoxTextOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, const QString &cancelText, const style::RoundButton &cancelStyle) : AbstractBox(st::boxWidth)
-, _informative(false)
-, _text(100)
-, _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
-, _cancel(this, cancelText.isEmpty() ? lang(lng_cancel) : cancelText, cancelStyle) {
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+: _confirmText(lang(lng_box_ok))
+, _cancelText(lang(lng_cancel))
+, _confirmStyle(st::defaultBoxButton)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(std_::move(confirmedCallback))
+, _cancelledCallback(std_::move(cancelledCallback)) {
 	init(text);
 }
 
-ConfirmBox::ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, bool informative) : AbstractBox(st::boxWidth)
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+: _confirmText(confirmText)
+, _cancelText(lang(lng_cancel))
+, _confirmStyle(st::defaultBoxButton)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(std_::move(confirmedCallback))
+, _cancelledCallback(std_::move(cancelledCallback)) {
+	init(text);
+}
+
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+: _confirmText(confirmText)
+, _cancelText(lang(lng_cancel))
+, _confirmStyle(confirmStyle)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(std_::move(confirmedCallback))
+, _cancelledCallback(std_::move(cancelledCallback)) {
+	init(text);
+}
+
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+: _confirmText(confirmText)
+, _cancelText(cancelText)
+, _confirmStyle(st::defaultBoxButton)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(std_::move(confirmedCallback))
+, _cancelledCallback(std_::move(cancelledCallback)) {
+	init(text);
+}
+
+ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda<void()> &&confirmedCallback, base::lambda<void()> &&cancelledCallback)
+: _confirmText(confirmText)
+, _cancelText(cancelText)
+, _confirmStyle(st::defaultBoxButton)
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(std_::move(confirmedCallback))
+, _cancelledCallback(std_::move(cancelledCallback)) {
+	init(text);
+}
+
+ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback)
+: _confirmText(doneText)
+, _confirmStyle(st::defaultBoxButton)
 , _informative(true)
-, _text(100)
-, _confirm(this, doneText.isEmpty() ? lang(lng_box_ok) : doneText, doneStyle)
-, _cancel(this, QString(), st::cancelBoxButton) {
+, _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+, _confirmedCallback(base::lambda_copy<void()>(closedCallback))
+, _cancelledCallback(base::lambda_copy<void()>(closedCallback)) {
 	init(text);
 }
 
 void ConfirmBox::init(const QString &text) {
+	textstyleSet(&st::boxTextStyle);
 	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
-
-	connect(_confirm, SIGNAL(clicked()), this, SLOT(onConfirmPressed()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onCancel()));
-	if (_informative) {
-		_cancel->hide();
-		connect(this, SIGNAL(confirmed()), this, SLOT(onCancel()));
-	}
-	onTextUpdated();
+	textstyleRestore();
 }
 
-void ConfirmBox::onConfirmPressed() {
-	if (_confirmedCallback) {
-		_confirmedCallback();
+void ConfirmBox::prepare() {
+	addButton(_confirmText, [this] { confirmed(); }, _confirmStyle);
+	if (!_informative) {
+		addButton(_cancelText, [this] { _cancelled = true; closeBox(); });
 	}
-	emit confirmed();
+	textUpdated();
 }
 
-void ConfirmBox::onTextUpdated() {
+void ConfirmBox::textUpdated() {
 	textstyleSet(&st::boxTextStyle);
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxPadding.bottom() + st::boxButtonPadding.top() + _confirm->height() + st::boxButtonPadding.bottom());
+	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 	textstyleRestore();
 
 	setMouseTracking(_text.hasLinks());
 }
 
-void ConfirmBox::onCancel() {
-	emit cancelPressed();
-	onClose();
+void ConfirmBox::closeHook() {
+	if (!_confirmed && (!_strictCancel || _cancelled) && _cancelledCallback) {
+		_cancelledCallback();
+	}
+}
+
+void ConfirmBox::confirmed() {
+	if (!_confirmed) {
+		_confirmed = true;
+		if (_confirmedCallback) {
+			_confirmedCallback();
+		}
+	}
 }
 
 void ConfirmBox::mouseMoveEvent(QMouseEvent *e) {
@@ -99,7 +149,7 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
 	ClickHandler::pressed();
-	return LayerWidget::mousePressEvent(e);
+	return BoxContent::mousePressEvent(e);
 }
 
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
@@ -109,6 +159,7 @@ void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 		Ui::hideLayer();
 		App::activateClickHandler(activated, e->button());
 	}
+	return BoxContent::mouseReleaseEvent(e);
 }
 
 void ConfirmBox::leaveEvent(QEvent *e) {
@@ -139,20 +190,16 @@ void ConfirmBox::updateHover() {
 	ClickHandler::setActive(state.link, this);
 }
 
-void ConfirmBox::closePressed() {
-	emit cancelled();
-}
-
 void ConfirmBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onConfirmPressed();
+		confirmed();
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void ConfirmBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
@@ -163,55 +210,19 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	textstyleRestore();
 }
 
-void ConfirmBox::resizeEvent(QResizeEvent *e) {
-	_confirm->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _confirm->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _confirm->width() + st::boxButtonPadding.left(), _confirm->y());
-	AbstractBox::resizeEvent(e);
-}
-
-SharePhoneConfirmBox::SharePhoneConfirmBox(PeerData *recipient)
-: ConfirmBox(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm))
-, _recipient(recipient) {
-	connect(this, SIGNAL(confirmed()), this, SLOT(onConfirm()));
-}
-
-void SharePhoneConfirmBox::onConfirm() {
-	emit confirmed(_recipient);
-}
-
-ConfirmLinkBox::ConfirmLinkBox(const QString &url) : ConfirmBox(lang(lng_open_this_link) + qsl("\n\n") + url, lang(lng_open_link))
-, _url(url) {
-	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));
-}
-
-void ConfirmLinkBox::onOpenLink() {
-	Ui::hideLayer();
-	UrlClickHandler::doOpen(_url);
-}
-
-ConfirmBotGameBox::ConfirmBotGameBox(UserData *bot, const QString &url) : ConfirmBox(lng_allow_bot_pass(lt_bot_name, bot->name), lang(lng_allow_bot))
-, _bot(bot)
-, _url(url) {
-	connect(this, SIGNAL(confirmed()), this, SLOT(onOpenLink()));
-}
-
-void ConfirmBotGameBox::onOpenLink() {
-	Ui::hideLayer();
-	Local::makeBotTrusted(_bot);
-	UrlClickHandler::doOpen(_url);
-}
-
-MaxInviteBox::MaxInviteBox(const QString &link) : AbstractBox(st::boxWidth)
-, _close(this, lang(lng_box_ok), st::defaultBoxButton)
-, _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
+: _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _link(link) {
+}
+
+void MaxInviteBox::prepare() {
 	setMouseTracking(true);
+
+	addButton(lang(lng_box_ok), [this] { closeBox(); });
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
-	setMaxHeight(st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
-
-	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
+	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom());
 }
 
 void MaxInviteBox::mouseMoveEvent(QMouseEvent *e) {
@@ -222,9 +233,10 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
 		Application::clipboard()->setText(_link);
-		_goodTextLink = lang(lng_create_channel_link_copied);
-		_a_goodOpacity.finish();
-		_a_goodOpacity.start([this] { update(); }, 1., 0., st::newGroupLinkFadeDuration);
+
+		Ui::Toast::Config toast;
+		toast.text = lang(lng_create_channel_link_copied);
+		Ui::Toast::Show(App::wnd(), toast);
 	}
 }
 
@@ -244,7 +256,7 @@ void MaxInviteBox::updateSelected(const QPoint &cursorGlobalPosition) {
 }
 
 void MaxInviteBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
@@ -257,49 +269,41 @@ void MaxInviteBox::paintEvent(QPaintEvent *e) {
 	p.setFont(_linkOver ? st::defaultInputField.font->underline() : st::defaultInputField.font);
 	p.setPen(st::defaultLinkButton.color);
 	p.drawText(_invitationLink, _link, option);
-	if (!_goodTextLink.isEmpty()) {
-		auto opacity = _a_goodOpacity.current(getms(), 0.);
-		if (opacity > 0.) {
-			p.setOpacity(opacity);
-			p.setPen(st::boxTextFgGood);
-			p.setFont(st::boxTextFont);
-			p.drawTextLeft(st::boxPadding.left(), height() - st::boxButtonPadding.bottom() - _close->height() + st::defaultBoxButton.textTop + st::defaultBoxButton.font->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
-			p.setOpacity(1);
-		}
-	}
 }
 
 void MaxInviteBox::resizeEvent(QResizeEvent *e) {
-	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
+	BoxContent::resizeEvent(e);
 	_invitationLink = myrtlrect(st::boxPadding.left(), st::boxPadding.top() + _textHeight + st::boxTextFont->height, width() - st::boxPadding.left() - st::boxPadding.right(), 2 * st::boxTextFont->height);
-	AbstractBox::resizeEvent(e);
 }
 
-ConvertToSupergroupBox::ConvertToSupergroupBox(ChatData *chat) : AbstractBox(st::boxWideWidth, lang(lng_profile_convert_title))
-, _chat(chat)
+ConvertToSupergroupBox::ConvertToSupergroupBox(QWidget*, ChatData *chat)
+: _chat(chat)
 , _text(100)
-, _note(100)
-, _convert(this, lang(lng_profile_convert_confirm), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _note(100) {
+}
+
+void ConvertToSupergroupBox::prepare() {
 	QStringList text;
 	text.push_back(lang(lng_profile_convert_feature1));
 	text.push_back(lang(lng_profile_convert_feature2));
 	text.push_back(lang(lng_profile_convert_feature3));
 	text.push_back(lang(lng_profile_convert_feature4));
 
+	setTitle(lang(lng_profile_convert_title));
+
+	addButton(lang(lng_profile_convert_confirm), [this] { convertToSupergroup(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
+
 	textstyleSet(&st::boxTextStyle);
 	_text.setText(st::boxTextFont, text.join('\n'), _confirmBoxTextOptions);
 	_note.setText(st::boxTextFont, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
 	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
-	setMaxHeight(titleHeight() + _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth) + st::boxButtonPadding.top() + _convert->height() + st::boxButtonPadding.bottom());
+	setDimensions(st::boxWideWidth, _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth));
 	textstyleRestore();
-
-	connect(_convert, SIGNAL(clicked()), this, SLOT(onConvert()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 }
 
-void ConvertToSupergroupBox::onConvert() {
+void ConvertToSupergroupBox::convertToSupergroup() {
 	MTP::send(MTPmessages_MigrateChat(_chat->inputChat), rpcDone(&ConvertToSupergroupBox::convertDone), rpcFail(&ConvertToSupergroupBox::convertFail));
 }
 
@@ -336,54 +340,48 @@ bool ConvertToSupergroupBox::convertFail(const RPCError &error) {
 
 void ConvertToSupergroupBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onConvert();
+		convertToSupergroup();
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
 	textstyleSet(&st::boxTextStyle);
-	_text.drawLeft(p, st::boxPadding.left(), titleHeight(), _textWidth, width());
-	_note.drawLeft(p, st::boxPadding.left(), titleHeight() + _textHeight + st::boxPadding.bottom(), _textWidth, width());
+	_text.drawLeft(p, st::boxPadding.left(), 0, _textWidth, width());
+	_note.drawLeft(p, st::boxPadding.left(), _textHeight + st::boxPadding.bottom(), _textWidth, width());
 	textstyleRestore();
 }
 
-void ConvertToSupergroupBox::resizeEvent(QResizeEvent *e) {
-	_convert->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _convert->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _convert->width() + st::boxButtonPadding.left(), _convert->y());
-	AbstractBox::resizeEvent(e);
-}
-
-PinMessageBox::PinMessageBox(ChannelData *channel, MsgId msgId) : AbstractBox(st::boxWidth)
-, _channel(channel)
+PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
+: _channel(channel)
 , _msgId(msgId)
 , _text(this, lang(lng_pinned_pin_sure), Ui::FlatLabel::InitType::Simple, st::boxLabel)
-, _notify(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox)
-, _pin(this, lang(lng_pinned_pin), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->heightNoMargins() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _pin->height() + st::boxButtonPadding.bottom());
+, _notify(this, lang(lng_pinned_notify), true, st::defaultBoxCheckbox) {
+}
 
-	connect(_pin, SIGNAL(clicked()), this, SLOT(onPin()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+void PinMessageBox::prepare() {
+	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
+
+	addButton(lang(lng_pinned_pin), [this] { pinMessage(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
+
+	setDimensions(st::boxWidth, st::boxPadding.top() + _text->height() + st::boxMediumSkip + _notify->heightNoMargins() + st::boxPadding.bottom());
 }
 
 void PinMessageBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 	_notify->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
-	_pin->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _pin->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _pin->width() + st::boxButtonPadding.left(), _pin->y());
-	AbstractBox::resizeEvent(e);
 }
 
-void PinMessageBox::onPin() {
+void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
 	MTPchannels_UpdatePinnedMessage::Flags flags = 0;
@@ -406,36 +404,35 @@ bool PinMessageBox::pinFail(const RPCError &error) {
 	return true;
 }
 
-RichDeleteMessageBox::RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId) : AbstractBox(st::boxWidth)
-, _channel(channel)
+RichDeleteMessageBox::RichDeleteMessageBox(QWidget*, ChannelData *channel, UserData *from, MsgId msgId)
+: _channel(channel)
 , _from(from)
 , _msgId(msgId)
 , _text(this, lang(lng_selected_delete_sure_this), Ui::FlatLabel::InitType::Simple, st::boxLabel)
 , _banUser(this, lang(lng_ban_user), false, st::defaultBoxCheckbox)
 , _reportSpam(this, lang(lng_report_spam), false, st::defaultBoxCheckbox)
-, _deleteAll(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox)
-, _delete(this, lang(lng_box_delete), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _deleteAll(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox) {
+}
+
+void RichDeleteMessageBox::prepare() {
 	t_assert(_channel != nullptr);
 
-	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setMaxHeight(st::boxPadding.top() + _text->height() + st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _delete->height() + st::boxButtonPadding.bottom());
+	addButton(lang(lng_box_delete), [this] { deleteAndClear(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	connect(_delete, SIGNAL(clicked()), this, SLOT(onDelete()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
+	setDimensions(st::boxWidth, st::boxPadding.top() + _text->height() + st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins() + st::boxPadding.bottom());
 }
 
 void RichDeleteMessageBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 	_banUser->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
 	_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->bottomNoMargins() + st::boxLittleSkip);
 	_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->bottomNoMargins() + st::boxLittleSkip);
-	_delete->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _delete->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _delete->width() + st::boxButtonPadding.left(), _delete->y());
-	AbstractBox::resizeEvent(e);
 }
 
-void RichDeleteMessageBox::onDelete() {
+void RichDeleteMessageBox::deleteAndClear() {
 	if (_banUser->checked()) {
 		MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _from->inputUser, MTP_boolTrue()), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 	}
@@ -445,7 +442,7 @@ void RichDeleteMessageBox::onDelete() {
 	if (_deleteAll->checked()) {
 		App::main()->deleteAllFromUser(_channel, _from);
 	}
-	if (HistoryItem *item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
+	if (auto item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
 		bool wasLast = (item->history()->lastMsg == item);
 		item->destroy();
 
@@ -458,33 +455,11 @@ void RichDeleteMessageBox::onDelete() {
 	Ui::hideLayer();
 }
 
-KickMemberBox::KickMemberBox(PeerData *chat, UserData *member)
-: ConfirmBox(lng_profile_sure_kick(lt_user, member->firstName), lang(lng_box_remove))
-, _chat(chat)
-, _member(member) {
-	connect(this, SIGNAL(confirmed()), this, SLOT(onConfirm()));
-}
-
-void KickMemberBox::onConfirm() {
-	Ui::hideLayer();
-	if (auto chat = _chat->asChat()) {
-		App::main()->kickParticipant(chat, _member);
-	} else if (auto channel = _chat->asChannel()) {
-		App::api()->kickParticipant(channel, _member);
-	}
-}
-
-ConfirmInviteBox::ConfirmInviteBox(const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants) : AbstractBox()
-, _title(this, st::confirmInviteTitle)
+ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
+: _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
 , _photo(chatDefPhoto(0))
-, _participants(participants)
-, _join(this, lang(lng_group_invite_join), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	if (_participants.size() > 4) {
-		_participants.resize(4);
-	}
-
+, _participants(participants) {
 	_title->setText(title);
 	QString status;
 	if (_participants.isEmpty() || _participants.size() >= count) {
@@ -504,8 +479,21 @@ ConfirmInviteBox::ConfirmInviteBox(const QString &title, const MTPChatPhoto &pho
 			}
 		}
 	}
+}
 
-	int h = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _join->height() + st::boxButtonPadding.bottom();
+void ConfirmInviteBox::prepare() {
+	addButton(lang(lng_group_invite_join), [this] {
+		if (auto main = App::main()) {
+			main->onInviteImport();
+		}
+	});
+	addButton(lang(lng_cancel), [this] { closeBox(); });
+
+	if (_participants.size() > 4) {
+		_participants.resize(4);
+	}
+
+	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
 	if (!_participants.isEmpty()) {
 		int skip = (width() - 4 * st::confirmInviteUserPhotoSize) / 5;
 		int padding = skip / 2;
@@ -520,24 +508,19 @@ ConfirmInviteBox::ConfirmInviteBox(const QString &title, const MTPChatPhoto &pho
 			left += _userWidth;
 		}
 
-		h += st::confirmInviteUserHeight;
+		newHeight += st::confirmInviteUserHeight;
 	}
-	setMaxHeight(h);
-
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(_join, SIGNAL(clicked()), App::main(), SLOT(onInviteImport()));
+	setDimensions(st::boxWideWidth, newHeight);
 }
 
 void ConfirmInviteBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
 	_title->move((width() - _title->width()) / 2, st::confirmInviteTitleTop);
 	_status->move((width() - _status->width()) / 2, st::confirmInviteStatusTop);
-	_join->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _join->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _join->width() + st::boxButtonPadding.left(), _join->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 

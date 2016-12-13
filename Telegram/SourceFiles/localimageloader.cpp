@@ -250,15 +250,26 @@ void FileLoadTask::process() {
 				filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
 			}
 		}
-	} else if (!fullimage.isNull()) {
-		filemime = mimeTypeForName("image/png").name();
-		filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-		{
-			QBuffer buffer(&_content);
-			fullimage.save(&buffer, "PNG");
+	} else if (!fullimage.isNull() && fullimage.width() > 0) {
+		if (_type == SendMediaType::Photo) {
+			auto w = fullimage.width(), h = fullimage.height();
+			if (w >= 20 * h || h >= 20 * w) {
+				_type = SendMediaType::File;
+			} else {
+				filesize = -1; // Fill later.
+				filemime = mimeTypeForName("image/jpeg").name();
+				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+			}
 		}
-		filesize = _content.size();
-
+		if (_type == SendMediaType::File) {
+			filemime = mimeTypeForName("image/png").name();
+			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+			{
+				QBuffer buffer(&_content);
+				fullimage.save(&buffer, "PNG");
+			}
+			filesize = _content.size();
+		}
 		fullimage = Images::prepareOpaque(std_::move(fullimage));
 	}
 	_result->filesize = (int32)qMin(filesize, qint64(INT_MAX));
@@ -367,6 +378,10 @@ void FileLoadTask::process() {
 
 				MTPDphoto::Flags photoFlags = 0;
 				photo = MTP_photo(MTP_flags(photoFlags), MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+
+				if (filesize < 0) {
+					filesize = _result->filesize = filedata.size();
+				}
 			}
 
 			QByteArray thumbFormat = "JPG";
@@ -396,11 +411,9 @@ void FileLoadTask::process() {
 		attributes[0] = MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
-	} else {
+	} else if (_type != SendMediaType::Photo) {
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
-		if (photo.type() == mtpc_photoEmpty) {
-			_type = SendMediaType::File;
-		}
+		_type = SendMediaType::File;
 	}
 
 	_result->type = _type;
@@ -423,11 +436,11 @@ void FileLoadTask::process() {
 
 void FileLoadTask::finish() {
 	if (!_result || !_result->filesize) {
-		Ui::showLayer(new InformBox(lng_send_image_empty(lt_name, _filepath)), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lng_send_image_empty(lt_name, _filepath)), KeepOtherLayers);
 	} else if (_result->filesize == -1) { // dir
-		Ui::showLayer(new InformBox(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lng_send_folder(lt_name, QFileInfo(_filepath).dir().dirName())), KeepOtherLayers);
 	} else if (_result->filesize > App::kFileSizeLimit) {
-		Ui::showLayer(new InformBox(lng_send_image_too_large(lt_name, _filepath)), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lng_send_image_too_large(lt_name, _filepath)), KeepOtherLayers);
 	} else if (App::main()) {
 		App::main()->onSendFileConfirm(_result);
 	}

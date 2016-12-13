@@ -229,19 +229,15 @@ void PwdCheckWidget::onToRecover() {
 			MTP::send(MTPauth_RequestPasswordRecovery(), rpcDone(&PwdCheckWidget::recoverStarted), rpcFail(&PwdCheckWidget::recoverStartFail));
 		}
 	} else {
-		ConfirmBox *box = new InformBox(lang(lng_signin_no_email_forgot));
-		Ui::showLayer(box);
-		connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
+		Ui::show(Box<InformBox>(lang(lng_signin_no_email_forgot), [this] { showReset(); }));
 	}
 }
 
 void PwdCheckWidget::onToPassword() {
-	ConfirmBox *box = new InformBox(lang(lng_signin_cant_email_forgot));
-	Ui::showLayer(box);
-	connect(box, SIGNAL(destroyed(QObject*)), this, SLOT(onToReset()));
+	Ui::show(Box<InformBox>(lang(lng_signin_cant_email_forgot), [this] { showReset(); }));
 }
 
-void PwdCheckWidget::onToReset() {
+void PwdCheckWidget::showReset() {
 	if (_sentRequest) {
 		MTP::cancel(base::take(_sentRequest));
 	}

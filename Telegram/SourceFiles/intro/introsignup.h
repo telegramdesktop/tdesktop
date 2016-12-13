@@ -61,9 +61,9 @@ private:
 
 	QImage _photoImage;
 
-	ChildWidget<Ui::NewAvatarButton> _photo;
-	ChildWidget<Ui::InputField> _first;
-	ChildWidget<Ui::InputField> _last;
+	object_ptr<Ui::NewAvatarButton> _photo;
+	object_ptr<Ui::InputField> _first;
+	object_ptr<Ui::InputField> _last;
 	QString _firstName, _lastName;
 	mtpRequestId _sentRequest = 0;
 
@@ -71,7 +71,7 @@ private:
 
 	bool _invertOrder = false;
 
-	ChildObject<QTimer> _checkRequest;
+	object_ptr<QTimer> _checkRequest;
 
 };
 

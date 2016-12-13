@@ -45,7 +45,7 @@ public:
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
 
-	void fadeOut();
+	void hideAnimated();
 	void hide();
 
 private:

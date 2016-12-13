@@ -104,24 +104,31 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 }
 
 void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto u = tryConvertUrlToLocal(url());
+	auto urlText = tryConvertUrlToLocal(url());
 
-	if (u.startsWith(qstr("tg://"))) {
-		App::openLocalUrl(u);
+	if (urlText.startsWith(qstr("tg://"))) {
+		App::openLocalUrl(urlText);
 	} else {
-		Ui::showLayer(new ConfirmLinkBox(u));
+		Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + urlText, lang(lng_open_link), [urlText] {
+			Ui::hideLayer();
+			UrlClickHandler::doOpen(urlText);
+		}));
 	}
 }
 
 void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto u = tryConvertUrlToLocal(url());
+	auto urlText = tryConvertUrlToLocal(url());
 
-	if (u.startsWith(qstr("tg://"))) {
-		App::openLocalUrl(u);
+	if (urlText.startsWith(qstr("tg://"))) {
+		App::openLocalUrl(urlText);
 	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
-		doOpen(u);
+		doOpen(urlText);
 	} else {
-		Ui::showLayer(new ConfirmBotGameBox(_bot, u));
+		Ui::show(Box<ConfirmBox>(lng_allow_bot_pass(lt_bot_name, _bot->name), lang(lng_allow_bot), [bot = _bot, urlText] {
+			Ui::hideLayer();
+			Local::makeBotTrusted(bot);
+			UrlClickHandler::doOpen(urlText);
+		}));
 	}
 }
 

@@ -51,11 +51,18 @@ private:
 
 	void refreshButtons();
 	void refreshButton(MediaOverviewType type);
+	void refreshCommonGroups();
 	void refreshVisibility();
+
+	int getCommonGroupsCount() const;
+	void onShowCommonGroups();
+	void slideCommonGroupsDown();
 
 	void resizeButtons(int newWidth, int *top);
 
 	Ui::LeftOutlineButton *_mediaButtons[OverviewCount] = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _commonGroups = { nullptr };
+
 	History *_history;
 	History *_migrated;
 

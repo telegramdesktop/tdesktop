@@ -91,20 +91,20 @@ private:
 
 	void stopCheck();
 
-	ChildWidget<Ui::LinkButton> _noTelegramCode;
+	object_ptr<Ui::LinkButton> _noTelegramCode;
 	mtpRequestId _noTelegramCodeRequestId = 0;
 
-	ChildWidget<CodeInput> _code;
+	object_ptr<CodeInput> _code;
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
 
-	ChildObject<QTimer> _callTimer;
+	object_ptr<QTimer> _callTimer;
 	Widget::Data::CallStatus _callStatus;
 	int _callTimeout;
 	mtpRequestId _callRequestId = 0;
-	ChildWidget<Ui::FlatLabel> _callLabel;
+	object_ptr<Ui::FlatLabel> _callLabel;
 
-	ChildObject<QTimer> _checkRequest;
+	object_ptr<QTimer> _checkRequest;
 
 };
 

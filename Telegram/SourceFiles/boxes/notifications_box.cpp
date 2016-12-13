@@ -108,11 +108,15 @@ private:
 
 };
 
-NotificationsBox::NotificationsBox() : AbstractBox()
-, _chosenCorner(Global::NotificationsCorner())
+NotificationsBox::NotificationsBox(QWidget *parent)
+: _chosenCorner(Global::NotificationsCorner())
 , _oldCount(snap(Global::NotificationsCount(), 1, kMaxNotificationsCount))
-, _countSlider(this)
-, _done(this, lang(lng_about_done), st::defaultBoxButton) {
+, _countSlider(this) {
+}
+
+void NotificationsBox::prepare() {
+	addButton(lang(lng_close), [this] { closeBox(); });
+
 	_sampleOpacities.reserve(kMaxNotificationsCount);
 	for (int i = 0; i != kMaxNotificationsCount; ++i) {
 		_countSlider->addSection(QString::number(i + 1));
@@ -122,15 +126,15 @@ NotificationsBox::NotificationsBox() : AbstractBox()
 	_countSlider->setSectionActivatedCallback([this] { countChanged(); });
 
 	setMouseTracking(true);
-	_done->setClickedCallback([this] { onClose(); });
 
 	prepareNotificationSampleSmall();
 	prepareNotificationSampleLarge();
-	setMaxHeight(st::notificationsBoxHeight);
+
+	setDimensions(st::boxWideWidth, st::notificationsBoxHeight);
 }
 
 void NotificationsBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
@@ -203,14 +207,13 @@ QRect NotificationsBox::getScreenRect() const {
 }
 
 void NotificationsBox::resizeEvent(QResizeEvent *e) {
-	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
+	BoxContent::resizeEvent(e);
 
 	auto screenRect = getScreenRect();
 	auto sliderTop = screenRect.y() + screenRect.height() + st::notificationsBoxCountLabelTop + st::notificationsBoxCountTop;
 	auto contentLeft = getContentLeft();
 	_countSlider->resizeToWidth(width() - 2 * contentLeft);
 	_countSlider->move(contentLeft, sliderTop);
-	AbstractBox::resizeEvent(e);
 }
 
 void NotificationsBox::prepareNotificationSampleSmall() {

@@ -29,19 +29,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "pspecific.h"
 #include "styles/style_boxes.h"
 
-DownloadPathBox::DownloadPathBox() : AbstractBox()
-, _path(Global::DownloadPath())
+DownloadPathBox::DownloadPathBox(QWidget *parent)
+: _path(Global::DownloadPath())
 , _pathBookmark(Global::DownloadPathBookmark())
 , _default(this, qsl("dir_type"), 0, lang(lng_download_path_default_radio), _path.isEmpty(), st::defaultBoxCheckbox)
 , _temp(this, qsl("dir_type"), 1, lang(lng_download_path_temp_radio), (_path == qsl("tmp")), st::defaultBoxCheckbox)
 , _dir(this, qsl("dir_type"), 2, lang(lng_download_path_dir_radio), (!_path.isEmpty() && _path != qsl("tmp")), st::defaultBoxCheckbox)
-, _pathLink(this, QString(), st::boxLinkButton)
-, _save(this, lang(lng_connection_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	setTitleText(lang(lng_download_path_header));
+, _pathLink(this, QString(), st::boxLinkButton) {
+}
 
-	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+void DownloadPathBox::prepare() {
+	addButton(lang(lng_connection_save), [this] { save(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
+
+	setTitle(lang(lng_download_path_header));
 
 	connect(_default, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(_temp, SIGNAL(changed()), this, SLOT(onChange()));
@@ -57,25 +58,25 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 void DownloadPathBox::updateControlsVisibility() {
 	_pathLink->setVisible(_dir->checked());
 
-	int32 h = titleHeight() + st::boxOptionListPadding.top() + _default->heightNoMargins() + st::boxOptionListPadding.top() + _temp->heightNoMargins() + st::boxOptionListPadding.top() + _dir->heightNoMargins();
-	if (_dir->checked()) h += st::downloadPathSkip + _pathLink->height();
-	h += st::boxOptionListPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
+	auto newHeight = st::boxOptionListPadding.top() + _default->heightNoMargins() + st::boxOptionListSkip + _temp->heightNoMargins() + st::boxOptionListSkip + _dir->heightNoMargins();
+	if (_dir->checked()) {
+		newHeight += st::downloadPathSkip + _pathLink->height();
+	}
+	newHeight += st::boxOptionListPadding.bottom();
 
-	setMaxHeight(h);
+	setDimensions(st::boxWideWidth, newHeight);
 }
 
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
-	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), titleHeight() + st::boxOptionListPadding.top());
-	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->bottomNoMargins() + st::boxOptionListPadding.top());
-	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->bottomNoMargins() + st::boxOptionListPadding.top());
-	int32 inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x();
-	int32 inputy = _dir->bottomNoMargins() + st::downloadPathSkip;
+	BoxContent::resizeEvent(e);
+
+	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
+	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->bottomNoMargins() + st::boxOptionListSkip);
+	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->bottomNoMargins() + st::boxOptionListSkip);
+	auto inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultBoxCheckbox.textPosition.x();
+	auto inputy = _dir->bottomNoMargins() + st::downloadPathSkip;
 
 	_pathLink->moveToLeft(inputx, inputy);
-
-	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void DownloadPathBox::onChange() {
@@ -114,15 +115,15 @@ void DownloadPathBox::onEditPath() {
 	cSetDialogLastPath(lastPath);
 }
 
-void DownloadPathBox::onSave() {
+void DownloadPathBox::save() {
 	Global::SetDownloadPath(_default->checked() ? QString() : (_temp->checked() ? qsl("tmp") : _path));
 	Global::SetDownloadPathBookmark((_default->checked() || _temp->checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
 	Global::RefDownloadPathChanged().notify();
-	onClose();
+	closeBox();
 }
 
 void DownloadPathBox::setPathText(const QString &text) {
-	int32 availw = st::boxWideWidth - st::boxPadding.left() - st::defaultBoxCheckbox.textPosition.x() - st::boxPadding.right();
+	auto availw = st::boxWideWidth - st::boxPadding.left() - st::defaultBoxCheckbox.textPosition.x() - st::boxPadding.right();
 	_pathLink->setText(st::boxTextFont->elided(text, availw));
 }

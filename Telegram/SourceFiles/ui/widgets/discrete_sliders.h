@@ -67,7 +67,7 @@ protected:
 	template <typename Lambda>
 	void enumerateSections(Lambda callback);
 
-	virtual void startRipple(int index) {
+	virtual void startRipple(int sectionIndex) {
 	}
 
 	void stopAnimation() {
@@ -108,11 +108,12 @@ protected:
 
 	int resizeGetHeight(int newWidth) override;
 
-	void startRipple(int index) override;
+	void startRipple(int sectionIndex) override;
 
 private:
 	const style::font &getLabelFont() const override;
 	int getAnimationDuration() const override;
+	QImage prepareRippleMask(int sectionIndex, const Section &section);
 
 	void resizeSections(int newWidth);
 

@@ -47,7 +47,6 @@ private slots:
 	void onNotificationsChange();
 	void onManageAdmins();
 	void onInviteLink();
-	void onInviteLinkSure();
 
 private:
 	// Observed notifications.
@@ -58,12 +57,12 @@ private:
 	void refreshManageAdminsButton();
 	void refreshInviteLinkButton();
 
-	ChildWidget<Ui::Checkbox> _enableNotifications;
+	object_ptr<Ui::Checkbox> _enableNotifications;
 
 	// In groups: creator of non-deactivated groups can see this link.
 	// In channels: creator of supergroup can see this link.
-	ChildWidget<Ui::LeftOutlineButton> _manageAdmins = { nullptr };
-	ChildWidget<Ui::LeftOutlineButton> _inviteLink = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _manageAdmins = { nullptr };
+	object_ptr<Ui::LeftOutlineButton> _inviteLink = { nullptr };
 
 };
 

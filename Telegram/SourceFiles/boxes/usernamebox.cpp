@@ -29,42 +29,42 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
 
-UsernameBox::UsernameBox() : AbstractBox(st::boxWidth, lang(lng_username_title))
-, _save(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _username(this, st::defaultInputField, qsl("@username"), App::self()->username, false)
+UsernameBox::UsernameBox(QWidget*)
+: _username(this, st::defaultInputField, qsl("@username"), App::self()->username, false)
 , _link(this, QString(), st::boxLinkButton)
-, _about(st::boxWidth - st::usernamePadding.left()) {
-	setBlockTitle(true);
+, _about(st::boxWidth - st::usernamePadding.left())
+, _checkTimer(this) {
+}
 
+void UsernameBox::prepare() {
 	_goodText = App::self()->username.isEmpty() ? QString() : lang(lng_username_available);
+
+	setTitle(lang(lng_username_title));
+
+	addButton(lang(lng_settings_save), [this] { onSave(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
+
+	connect(_username, SIGNAL(changed()), this, SLOT(onChanged()));
+	connect(_username, SIGNAL(submitted(bool)), this, SLOT(onSave()));
+	connect(_link, SIGNAL(clicked()), this, SLOT(onLinkClick()));
 
 	textstyleSet(&st::usernameTextStyle);
 	_about.setRichText(st::boxTextFont, lang(lng_username_about));
-	resizeMaxHeight(st::boxWidth, titleHeight() + st::usernamePadding.top() + _username->height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom());
+	setDimensions(st::boxWidth, st::usernamePadding.top() + _username->height() + st::usernameSkip + _about.countHeight(st::boxWidth - st::usernamePadding.left()) + 3 * st::usernameTextStyle.lineHeight + st::usernamePadding.bottom());
 	textstyleRestore();
 
-	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(_username, SIGNAL(changed()), this, SLOT(onChanged()));
-	connect(_username, SIGNAL(submitted(bool)), this, SLOT(onSave()));
-
-	connect(_link, SIGNAL(clicked()), this, SLOT(onLinkClick()));
-
-	_checkTimer.setSingleShot(true);
-	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
+	_checkTimer->setSingleShot(true);
+	connect(_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
 	updateLinkText();
-
-	raiseShadow();
 }
 
-void UsernameBox::doSetInnerFocus() {
+void UsernameBox::setInnerFocus() {
 	_username->setFocus();
 }
 
 void UsernameBox::paintEvent(QPaintEvent *e) {
-	AbstractBox::paintEvent(e);
+	BoxContent::paintEvent(e);
 
 	Painter p(this);
 
@@ -99,19 +99,16 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 }
 
 void UsernameBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_username->resize(width() - st::usernamePadding.left() - st::usernamePadding.right(), _username->height());
-	_username->moveToLeft(st::usernamePadding.left(), titleHeight() + st::usernamePadding.top());
+	_username->moveToLeft(st::usernamePadding.left(), st::usernamePadding.top());
 
 	textstyleSet(&st::usernameTextStyle);
 	int32 availw = st::boxWidth - st::usernamePadding.left(), h = _about.countHeight(availw);
 	textstyleRestore();
 	int32 linky = _username->y() + _username->height() + st::usernameSkip + h + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2);
 	_link->moveToLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2));
-
-	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
-
-	AbstractBox::resizeEvent(e);
 }
 
 void UsernameBox::onSave() {
@@ -140,7 +137,7 @@ void UsernameBox::onChanged() {
 			_copiedTextLink = _errorText = _goodText = QString();
 			update();
 		}
-		_checkTimer.stop();
+		_checkTimer->stop();
 	} else {
 		int32 len = name.size();
 		for (int32 i = 0; i < len; ++i) {
@@ -151,7 +148,7 @@ void UsernameBox::onChanged() {
 					_errorText = lang(lng_username_bad_symbols);
 					update();
 				}
-				_checkTimer.stop();
+				_checkTimer->stop();
 				return;
 			}
 		}
@@ -161,13 +158,13 @@ void UsernameBox::onChanged() {
 				_errorText = lang(lng_username_too_short);
 				update();
 			}
-			_checkTimer.stop();
+			_checkTimer->stop();
 		} else {
 			if (!_errorText.isEmpty() || !_goodText.isEmpty() || !_copiedTextLink.isEmpty()) {
 				_copiedTextLink = _errorText = _goodText = QString();
 				update();
 			}
-			_checkTimer.start(UsernameCheckTimeout);
+			_checkTimer->start(UsernameCheckTimeout);
 		}
 	}
 }
@@ -180,7 +177,7 @@ void UsernameBox::onLinkClick() {
 
 void UsernameBox::onUpdateDone(const MTPUser &user) {
 	App::feedUsers(MTP_vector<MTPUser>(1, user));
-	onClose();
+	closeBox();
 }
 
 bool UsernameBox::onUpdateFail(const RPCError &error) {
@@ -190,7 +187,7 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	QString err(error.type());
 	if (err == qstr("USERNAME_NOT_MODIFIED") || _sentUsername == App::self()->username) {
 		App::self()->setName(textOneLine(App::self()->firstName), textOneLine(App::self()->lastName), textOneLine(App::self()->nameOrPhone), textOneLine(_sentUsername));
-		onClose();
+		closeBox();
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
 		_username->setFocus();

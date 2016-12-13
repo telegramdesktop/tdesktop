@@ -24,16 +24,10 @@ using "ui/widgets/widgets.style";
 using "intro/intro.style";
 
 boxDuration: 200;
+boxRadius: 3px;
 
 boxButtonFont: font(boxFontSize semibold);
-defaultBoxButton: RoundButton {
-	textFg: #2f9fea;
-	textFgOver: #2f9fea;
-	secondaryTextFg: #2f9fea;
-	secondaryTextFgOver: #2f9fea;
-	textBg: boxBg;
-	textBgOver: lightButtonBgOver;
-
+defaultBoxButton: RoundButton(defaultLightButton) {
 	width: -24px;
 	height: 36px;
 	padding: margins(0px, 0px, 0px, 0px);
@@ -47,9 +41,7 @@ defaultBoxButton: RoundButton {
 	}
 }
 
-cancelBoxButton: RoundButton(defaultBoxButton) {
-	textFg: #aeaeae;
-}
+cancelBoxButton: defaultBoxButton;
 
 attentionBoxButton: RoundButton(defaultBoxButton) {
 	textFg: attentionButtonFg;
@@ -67,22 +59,40 @@ defaultBoxCheckbox: Checkbox(defaultCheckbox) {
 	font: boxTextFont;
 }
 
-boxBlockTitleHeight: 48px;
-boxBlockTitlePosition: point(18px, 14px);
-boxBlockTitleFont: font(boxFontSize semibold);
-boxBlockTitleAdditionalSkip: 6px;
-boxBlockTitleAdditionalFont: normalFont;
-boxBlockTitleShadow: icon {{ "box_title_shadow", windowShadowFg }};
+boxRoundShadow: Shadow {
+	left: icon {{ "round_shadow_box_left", windowShadowFg }};
+	topLeft: icon {{ "round_shadow_box_top_left", windowShadowFg }};
+	top: icon {{ "round_shadow_box_top", windowShadowFg }};
+	topRight: icon {{ "round_shadow_box_top_left-flip_horizontal", windowShadowFg }};
+	right: icon {{ "round_shadow_box_left-flip_horizontal", windowShadowFg }};
+	bottomRight: icon {{ "round_shadow_box_bottom_left-flip_horizontal", windowShadowFg }};
+	bottom: icon {{ "round_shadow_box_bottom", windowShadowFg }};
+	bottomLeft: icon {{ "round_shadow_box_bottom_left", windowShadowFg }};
+	extend: margins(10px, 10px, 10px, 10px);
+	fallback: windowShadowFgFallback;
+}
 
-boxBlockTitleClose: IconButton(defaultIconButton) {
-	width: boxBlockTitleHeight;
-	height: boxBlockTitleHeight;
+boxTitleFont: font(17px semibold);
+boxTitlePosition: point(23px, 20px);
+boxTitleHeight: 56px;
+boxLayerTitlePosition: point(23px, 16px);
+boxLayerTitleHeight: 56px;
+boxLayerTitleAdditionalSkip: 9px;
+boxLayerTitleAdditionalFont: normalFont;
+boxLayerTitleShadow: #0000001a;
+boxLayerScroll: defaultSolidScroll;
 
-	icon: boxBlockTitleCloseIcon;
-	iconOver: boxBlockTitleCloseIconOver;
+boxTopMargin: 6px;
+
+boxTitleClose: IconButton(defaultIconButton) {
+	width: boxTitleHeight;
+	height: boxTitleHeight;
+
+	icon: boxTitleCloseIcon;
+	iconOver: boxTitleCloseIconOver;
 
 	rippleAreaPosition: point(4px, 4px);
-	rippleAreaSize: 40px;
+	rippleAreaSize: 48px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
@@ -96,33 +106,24 @@ boxLinkButton: LinkButton {
 	overFont: font(boxFontSize underline);
 }
 
-boxOptionListPadding: margins(2px, 20px, 2px, 2px);
+boxOptionListPadding: margins(0px, 0px, 0px, 0px);
+boxOptionListSkip: 20px;
 boxOptionInputSkip: 6px;
 
 boxVerticalMargin: 10px;
 boxWidth: 320px;
 boxWideWidth: 364px;
-boxPadding: margins(26px, 30px, 34px, 8px);
+boxPadding: margins(23px, 30px, 23px, 8px);
 boxMaxListHeight: 600px;
 boxLittleSkip: 10px;
 boxMediumSkip: 20px;
 
-boxTitleFont: font(boxFontSize bold);
-boxTitlePosition: point(26px, 28px);
-boxTitleHeight: 54px;
-
-boxButtonPadding: margins(12px, 16px, 22px, 16px);
+boxButtonPadding: margins(8px, 12px, 13px, 12px);
+boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
 	font: font(boxFontSize);
 	align: align(topleft);
 }
-
-boxScroll: defaultSolidScroll;
-boxScrollSkip: 6px;
-boxScrollShadowBg: #00000012;
-
-boxShadow: icon {{ "box_shadow", windowShadowFg }};
-boxShadowShift: 2px;
 
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
@@ -134,7 +135,7 @@ countryRowBgOver: windowBgOver;
 countryRowCodeFg: windowSubTextFg;
 countryRowCodeFgOver: windowSubTextFgOver;
 countriesSkip: 12px;
-countriesScroll: FlatScroll(boxScroll) {
+countriesScroll: ScrollArea(boxLayerScroll) {
 	deltat: 9px;
 	deltab: 3px;
 }
@@ -145,7 +146,7 @@ boxTextStyle: TextStyle(defaultTextStyle) {
 
 boxPhotoTitleFont: font(16px semibold);
 boxPhotoTitlePosition: point(28px, 26px);
-boxPhotoPadding: margins(28px, 28px, 28px, 0px);
+boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
 boxPhotoTextFg: #808080;
@@ -223,7 +224,7 @@ contactsAdd: TwoIconButton {
 }
 contactsAddPosition: point(14px, 8px);
 
-contactPadding: margins(49px, 2px, 0px, 6px);
+contactPadding: margins(49px, 2px, 0px, 12px);
 contactSkip: 6px;
 contactPhoneSkip: 30px;
 
@@ -240,15 +241,12 @@ contactsAboutFg: windowSubTextFgOver;
 contactsAboutShadow: #0000001F;
 contactsAboutTop: 60px;
 contactsAboutBottom: 19px;
-contactsScroll: FlatScroll(boxScroll) {
-	deltab: 0px;
-}
 
 contactsMultiSelect: MultiSelect {
 	bg: boxSearchBg;
-	padding: margins(8px, 8px, 8px, 8px);
+	padding: margins(8px, 6px, 8px, 6px);
 	maxHeight: 104px;
-	scroll: FlatScroll(defaultSolidScroll) {
+	scroll: ScrollArea(defaultSolidScroll) {
 		deltat: 3px;
 		deltab: 3px;
 		round: 1px;
@@ -302,17 +300,17 @@ contactsMultiSelect: MultiSelect {
 	fieldIconSkip: 36px;
 
 	fieldCancel: CrossButton {
-		width: boxBlockTitleHeight;
-		height: boxBlockTitleHeight;
+		width: 44px;
+		height: 44px;
 
 		cross: CrossAnimation {
-			size: 40px;
-			skip: 14px;
+			size: 36px;
+			skip: 12px;
 			stroke: 2px;
 			minScale: 0.3;
 		}
-		crossFg: boxBlockTitleCloseFg;
-		crossFgOver: boxBlockTitleCloseFgOver;
+		crossFg: boxTitleCloseFg;
+		crossFgOver: boxTitleCloseFgOver;
 		crossPosition: point(4px, 4px);
 
 		duration: 150;
@@ -338,6 +336,11 @@ contactsPhotoDisabledCheckFg: #bbbbbb;
 contactsNameCheckedFg: #2b88b8;
 contactsRipple: defaultRippleAnimation;
 
+contactsMarginTop: 4px;
+contactsMarginBottom: 4px;
+membersMarginTop: 10px;
+membersMarginBottom: 10px;
+
 localStorageBoxSkip: 10px;
 
 shareRowsTop: 12px;
@@ -355,7 +358,7 @@ shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
 
-notificationsBoxHeight: 450px;
+notificationsBoxHeight: 420px;
 notificationsBoxMonitorTop: 63px;
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
@@ -374,8 +377,8 @@ notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
 
-sessionsScroll: boxScroll;
-sessionsHeight: 440px;
+sessionsScroll: boxLayerScroll;
+sessionsHeight: 350px;
 sessionHeight: 70px;
 sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
 sessionCurrentHeight: 118px;
@@ -417,9 +420,10 @@ passcodeSubmit: RoundButton(introNextButton) {
 	width: 225px;
 }
 passcodeSubmitSkip: 40px;
-passcodePadding: margins(0px, 6px, 0px, 13px);
+passcodePadding: margins(0px, 0px, 0px, 12px);
 passcodeTextLine: 28px;
-passcodeSkip: 21px;
+passcodeLittleSkip: 5px;
+passcodeSkip: 20px;
 
 newGroupAboutFg: #808080;
 newGroupPadding: margins(4px, 6px, 4px, 3px);
@@ -453,8 +457,6 @@ newGroupLinkFadeDuration: 5000;
 
 themeWarningWidth: boxWideWidth;
 themeWarningHeight: 150px;
-themeWarningShadow: boxShadow;
-themeWarningShadowShift: boxShadowShift;
 themeWarningTextTop: 60px;
 
 aboutWidth: 390px;
@@ -474,6 +476,9 @@ aboutLabel: FlatLabel(defaultFlatLabel) {
 aboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 22px;
 }
+
+autoDownloadTitlePosition: point(23px, 28px);
+autoDownloadTitleFont: font(15px semibold);
 
 editTextArea: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
@@ -509,9 +514,11 @@ langsButton: Checkbox(defaultBoxCheckbox) {
 
 backgroundPadding: 10px;
 backgroundSize: size(108px, 193px);
-backgroundScroll: FlatScroll(boxScroll) {
+backgroundScroll: ScrollArea(boxLayerScroll) {
+	deltax: 3px;
+	width: 10px;
 	deltat: 10px;
-	deltab: 0px;
+	deltab: 10px;
 }
 
 usernamePadding: margins(23px, 6px, 21px, 12px);

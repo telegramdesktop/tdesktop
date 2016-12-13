@@ -60,22 +60,26 @@ QPoint MembersAddButton::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
 }
 
-MembersBox::MembersBox(ChannelData *channel, MembersFilter filter) : ItemListBox(st::boxScroll)
-, _inner(this, channel, filter) {
-	ItemListBox::init(_inner);
+MembersBox::MembersBox(QWidget*, ChannelData *channel, MembersFilter filter)
+: _channel(channel)
+, _filter(filter) {
+}
 
-	setTitleText(lang(_inner->filter() == MembersFilter::Recent ? lng_channel_members : lng_channel_admins));
-	if (channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilter::Admins)) {
-		_add.create(this, st::contactsAdd);
-		_add->setClickedCallback([this] { onAdd(); });
+void MembersBox::prepare() {
+	setTitle(lang(_filter == MembersFilter::Recent ? lng_channel_members : lng_channel_admins));
+
+	_inner = setInnerWidget(object_ptr<Inner>(this, _channel, _filter), st::boxLayerScroll);
+
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
+	addButton(lang(lng_close), [this] { closeBox(); });
+	if (_channel->amCreator() && (_channel->membersCount() < (_channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!_channel->isMegagroup() && !_channel->isPublic()) || _filter == MembersFilter::Admins)) {
+		addLeftButton(lang((_filter == MembersFilter::Admins) ? lng_channel_add_admin : lng_channel_add_members), [this] { onAdd(); });
 	}
 
-	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
-	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), this, SLOT(onScrollToY(int, int)));
 
-	connect(&_loadTimer, SIGNAL(timeout()), _inner, SLOT(load()));
-
-	raiseShadow();
+	_loadTimer.create(this);
+	connect(_loadTimer, SIGNAL(timeout()), _inner, SLOT(load()));
 }
 
 void MembersBox::keyPressEvent(QKeyEvent *e) {
@@ -84,47 +88,41 @@ void MembersBox::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		_inner->selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner->selectSkipPage(scrollArea()->height(), 1);
+		_inner->selectSkipPage(height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner->selectSkipPage(scrollArea()->height(), -1);
+		_inner->selectSkipPage(height(), -1);
 	} else {
-		ItemListBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void MembersBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
+	BoxContent::resizeEvent(e);
+
 	_inner->resize(width(), _inner->height());
-
-	if (_add) {
-		_add->moveToRight(st::contactsAddPosition.x(), height() - st::contactsAddPosition.y() - _add->height());
-	}
-}
-
-void MembersBox::onScroll() {
-	_inner->loadProfilePhotos(scrollArea()->scrollTop());
 }
 
 void MembersBox::onAdd() {
 	if (_inner->filter() == MembersFilter::Recent && _inner->channel()->membersCount() >= (_inner->channel()->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
-		Ui::showLayer(new MaxInviteBox(_inner->channel()->inviteLink()), KeepOtherLayers);
+		Ui::show(Box<MaxInviteBox>(_inner->channel()->inviteLink()), KeepOtherLayers);
 		return;
 	}
-	ContactsBox *box = new ContactsBox(_inner->channel(), _inner->filter(), _inner->already());
+	auto box = Box<ContactsBox>(_inner->channel(), _inner->filter(), _inner->already());
 	if (_inner->filter() == MembersFilter::Recent) {
-		Ui::showLayer(box);
+		Ui::show(std_::move(box));
 	} else {
-		_addBox = box;
-		connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
-		Ui::showLayer(_addBox, KeepOtherLayers);
+		_addBox = Ui::show(std_::move(box), KeepOtherLayers);
+		if (_addBox) {
+			connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
+		}
 	}
 }
 
 void MembersBox::onAdminAdded() {
 	if (!_addBox) return;
-	_addBox->onClose();
-	_addBox = 0;
-	_loadTimer.start(ReloadChannelMembersTimeout);
+	_addBox->closeBox();
+	_addBox = nullptr;
+	_loadTimer->start(ReloadChannelMembersTimeout);
 }
 
 MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : TWidget(parent)
@@ -169,8 +167,9 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 	_time = unixtime();
 	p.fillRect(r, st::contactsBg);
 
-	int32 yFrom = r.y() - st::membersPadding.top(), yTo = r.y() + r.height() - st::membersPadding.top();
-	p.translate(0, st::membersPadding.top());
+	auto yFrom = r.y() - st::membersMarginTop;
+	auto yTo = r.y() + r.height() - st::membersMarginTop;
+	p.translate(0, st::membersMarginTop);
 	if (_rows.isEmpty()) {
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
@@ -229,26 +228,16 @@ void MembersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_kickDown >= 0 && _kickDown == _kickSel && !_kickRequestId) {
 		_kickConfirm = _rows.at(_kickSel);
 		if (_kickBox) _kickBox->deleteLater();
-		_kickBox = new ConfirmBox((_filter == MembersFilter::Recent ? (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel) : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName));
-		connect(_kickBox, SIGNAL(confirmed()), this, SLOT(onKickConfirm()));
-		connect(_kickBox, SIGNAL(destroyed(QObject*)), this, SLOT(onKickBoxDestroyed(QObject*)));
-		Ui::showLayer(_kickBox, KeepOtherLayers);
+		auto text = (_filter == MembersFilter::Recent ? (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel) : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName);
+		_kickBox = Ui::show(Box<ConfirmBox>(text, base::lambda_guarded(this, [this] {
+			if (_filter == MembersFilter::Recent) {
+				_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&Inner::kickDone), rpcFail(&Inner::kickFail));
+			} else {
+				_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&Inner::kickAdminDone), rpcFail(&Inner::kickFail));
+			}
+		})), KeepOtherLayers);
 	}
 	_kickDown = -1;
-}
-
-void MembersBox::Inner::onKickBoxDestroyed(QObject *obj) {
-	if (_kickBox == obj) {
-		_kickBox = 0;
-	}
-}
-
-void MembersBox::Inner::onKickConfirm() {
-	if (_filter == MembersFilter::Recent) {
-		_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&Inner::kickDone), rpcFail(&Inner::kickFail));
-	} else {
-		_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&Inner::kickAdminDone), rpcFail(&Inner::kickFail));
-	}
 }
 
 void MembersBox::Inner::paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown) {
@@ -317,9 +306,11 @@ void MembersBox::Inner::selectSkipPage(int32 h, int32 dir) {
 	selectSkip(points * dir);
 }
 
-void MembersBox::Inner::loadProfilePhotos(int32 yFrom) {
-	if (!parentWidget()) return;
-	int32 yTo = yFrom + parentWidget()->height() * 5;
+void MembersBox::Inner::loadProfilePhotos() {
+	if (_visibleTop >= _visibleBottom) return;
+
+	auto yFrom = _visibleTop;
+	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
 	MTP::clearLoaderPriorities();
 
 	if (yTo < 0) return;
@@ -349,7 +340,7 @@ void MembersBox::Inner::chooseParticipant() {
 
 void MembersBox::Inner::refresh() {
 	if (_rows.isEmpty()) {
-		resize(width(), st::membersPadding.top() + st::noContactsHeight + st::membersPadding.bottom());
+		resize(width(), st::membersMarginTop + st::noContactsHeight + st::membersMarginBottom);
 		_aboutHeight = 0;
 	} else {
 		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
@@ -357,7 +348,7 @@ void MembersBox::Inner::refresh() {
 		if (_filter != MembersFilter::Recent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
 		}
-		resize(width(), st::membersPadding.top() + _rows.size() * _rowHeight + st::membersPadding.bottom() + _aboutHeight);
+		resize(width(), st::membersMarginTop + _aboutHeight + _rows.size() * _rowHeight + st::membersMarginBottom);
 	}
 	update();
 }
@@ -378,6 +369,12 @@ MembersAlreadyIn MembersBox::Inner::already() const {
 		}
 	}
 	return result;
+}
+
+void MembersBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
+	loadProfilePhotos();
 }
 
 void MembersBox::Inner::clearSel() {
@@ -426,7 +423,7 @@ void MembersBox::Inner::updateSel() {
 	if (!_mouseSel) return;
 
 	QPoint p(mapFromGlobal(_lastMousePos));
-	p.setY(p.y() - st::membersPadding.top());
+	p.setY(p.y() - st::membersMarginTop);
 	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
 	int32 newSel = (in && p.y() >= 0 && p.y() < _rows.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
 	int32 newKickSel = newSel;
@@ -448,7 +445,7 @@ void MembersBox::Inner::peerUpdated(PeerData *peer) {
 
 void MembersBox::Inner::updateSelectedRow() {
 	if (_sel >= 0) {
-		update(0, st::membersPadding.top() + _sel * _rowHeight, width(), _rowHeight);
+		update(0, st::membersMarginTop + _sel * _rowHeight, width(), _rowHeight);
 	}
 }
 
@@ -457,7 +454,7 @@ void MembersBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names 
 		if (_rows.at(i) == peer) {
 			if (_datas.at(i)) {
 				_datas.at(i)->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
-				update(0, st::membersPadding.top() + i * _rowHeight, width(), _rowHeight);
+				update(0, st::membersMarginTop + i * _rowHeight, width(), _rowHeight);
 			} else {
 				break;
 			}
@@ -566,20 +563,20 @@ void MembersBox::Inner::kickDone(const MTPUpdates &result, mtpRequestId req) {
 
 	if (_kickRequestId != req) return;
 	removeKicked();
-	if (_kickBox) _kickBox->onClose();
+	if (_kickBox) _kickBox->closeBox();
 }
 
 void MembersBox::Inner::kickAdminDone(const MTPUpdates &result, mtpRequestId req) {
 	if (_kickRequestId != req) return;
 	if (App::main()) App::main()->sentUpdatesReceived(result);
 	removeKicked();
-	if (_kickBox) _kickBox->onClose();
+	if (_kickBox) _kickBox->closeBox();
 }
 
 bool MembersBox::Inner::kickFail(const RPCError &error, mtpRequestId req) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
-	if (_kickBox) _kickBox->onClose();
+	if (_kickBox) _kickBox->closeBox();
 	load();
 	return true;
 }

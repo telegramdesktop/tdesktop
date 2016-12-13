@@ -55,9 +55,9 @@ private:
 	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
 
-	ChildWidget<Ui::PasswordInput> _passcode;
-	ChildWidget<Ui::RoundButton> _submit;
-	ChildWidget<Ui::LinkButton> _logout;
+	object_ptr<Ui::PasswordInput> _passcode;
+	object_ptr<Ui::RoundButton> _submit;
+	object_ptr<Ui::LinkButton> _logout;
 	QString _error;
 
 };

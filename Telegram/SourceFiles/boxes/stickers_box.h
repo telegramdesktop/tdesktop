@@ -30,13 +30,12 @@ struct RippleAnimation;
 
 namespace Ui {
 class PlainShadow;
-class RoundButton;
 class RippleAnimation;
 class SettingsSlider;
 class SlideAnimation;
 } // namespace Ui
 
-class StickersBox : public ItemListBox, public RPCSender {
+class StickersBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -46,78 +45,85 @@ public:
 		Archived,
 		ArchivedPart,
 	};
-	StickersBox(Section section = Section::Installed);
-	StickersBox(const Stickers::Order &archivedIds);
+	StickersBox(QWidget*, Section section);
+	StickersBox(QWidget*, const Stickers::Order &archivedIds);
+
+	void closeHook() override;
 
 	~StickersBox();
 
-public slots:
-	void onStickersUpdated();
-
-	void onCheckDraggingScroll(int localY);
-	void onNoDraggingScroll();
-	void onScrollTimer();
-
-private slots:
-	void onScroll();
-
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void closePressed() override;
+private slots:
+	void onStickersUpdated();
 
 private:
 	void refreshTabs();
-	void setup();
 	void rebuildList();
 	void updateTabsGeometry();
 	void switchTab();
 	void installSet(uint64 setId);
+	int getTopSkip() const;
 
 	QPixmap grabContentCache();
 
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installFail(uint64 setId, const RPCError &error);
 
-	void updateVisibleTopBottom();
 	void preloadArchivedSets();
 	void requestArchivedSets();
-	void checkLoadMoreArchived();
+	void loadMoreArchived();
 	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
 
-	ChildWidget<Ui::PlainShadow> _topShadow;
-	ChildWidget<Ui::SettingsSlider> _tabs = { nullptr };
+	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
 	QList<Section> _tabIndices;
 
 	class CounterWidget;
-	ChildWidget<CounterWidget> _unreadBadge = { nullptr };
+	object_ptr<CounterWidget> _unreadBadge = { nullptr };
 
 	Section _section;
 
 	class Inner;
-	struct Tab {
-		Tab() : widget(nullptr) {
-		}
+	class Tab {
+	public:
+		Tab() = default;
+
 		template <typename ...Args>
-		Tab(int index, Args&&... args) : index(index), widget(std_::forward<Args>(args)...) {
+		Tab(int index, Args&&... args);
+
+		object_ptr<Inner> takeWidget();
+		void returnWidget(object_ptr<Inner> widget);
+
+		Inner *widget() {
+			return _weak;
+		}
+		int index() const {
+			return _index;
 		}
 
-		int index = 0;
-		ChildWidget<Inner> widget = { nullptr };
-		int scrollTop = 0;
+		void saveScrollTop();
+		int getScrollTop() const {
+			return _scrollTop;
+		}
+
+	private:
+		int _index = 0;
+		object_ptr<Inner> _widget = { nullptr };
+		QPointer<Inner> _weak;
+		int _scrollTop = 0;
+
 	};
 	Tab _installed;
 	Tab _featured;
 	Tab _archived;
 	Tab *_tab = nullptr;
-	ChildWidget<Ui::RoundButton> _done = { nullptr };
-	ChildWidget<ScrollableBoxShadow> _bottomShadow = { nullptr };
 
 	std_::unique_ptr<Ui::SlideAnimation> _slideAnimation;
-
-	QTimer _scrollTimer;
-	int32 _scrollDelta = 0;
+	object_ptr<BoxLayerTitleShadow> _titleShadow = { nullptr };
 
 	int _aboutWidth = 0;
 	Text _about;
@@ -159,9 +165,15 @@ public:
 	void setInstallSetCallback(base::lambda<void(uint64 setId)> &&callback) {
 		_installSetCallback = std_::move(callback);
 	}
+	void setLoadMoreCallback(base::lambda<void()> &&callback) {
+		_loadMoreCallback = std_::move(callback);
+	}
 
-	void setVisibleScrollbar(int32 width);
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+
+	int getVisibleTop() const {
+		return _visibleTop;
+	}
 
 	~Inner();
 
@@ -173,8 +185,7 @@ protected:
 	void leaveEvent(QEvent *e) override;
 
 signals:
-	void checkDraggingScroll(int localY);
-	void noDraggingScroll();
+	void draggingScrollDelta(int delta);
 
 public slots:
 	void onUpdateSelected();
@@ -183,6 +194,8 @@ private:
 	template <typename Check>
 	Stickers::Order collectSets(Check check) const;
 
+	void checkLoadMore();
+	void updateScrollbarWidth();
 	int getRowIndex(uint64 setId) const;
 	void setRowRemoved(int index, bool removed);
 
@@ -249,6 +262,7 @@ private:
 	BasicAnimation _a_shifting;
 
 	base::lambda<void(uint64 setId)> _installSetCallback;
+	base::lambda<void()> _loadMoreCallback;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -272,8 +286,6 @@ private:
 	int _started = -1;
 	int _dragging = -1;
 	int _above = -1;
-
-	Ui::RectShadow _aboveShadow;
 
 	int _scrollbar = 0;
 

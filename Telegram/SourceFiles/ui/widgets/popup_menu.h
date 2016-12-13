@@ -105,7 +105,7 @@ private:
 
 	const style::PopupMenu &_st;
 
-	ChildWidget<Ui::Menu> _menu;
+	object_ptr<Ui::Menu> _menu;
 
 	using Submenus = QMap<QAction*, SubmenuPointer>;
 	Submenus _submenus;

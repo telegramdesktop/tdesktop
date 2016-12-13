@@ -51,9 +51,8 @@ InnerDropdown::InnerDropdown(QWidget *parent, const style::InnerDropdown &st) : 
 }
 
 void InnerDropdown::setOwnedWidget(TWidget *widget) {
-	auto container = new Container(_scroll, widget, _st);
 	connect(widget, SIGNAL(heightUpdated()), this, SLOT(onWidgetHeightUpdated()));
-	_scroll->setOwnedWidget(container);
+	auto container = _scroll->setOwnedWidget(object_ptr<Container>(_scroll, widget, _st));
 	container->resizeToWidth(_scroll->width());
 	container->moveToLeft(0, 0);
 	container->show();

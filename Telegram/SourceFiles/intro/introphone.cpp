@@ -81,7 +81,7 @@ void PhoneWidget::showPhoneError(const QString &text) {
 void PhoneWidget::hidePhoneError() {
 	hideError();
 	if (_signup) {
-		_signup->fadeOut();
+		_signup->hideAnimated();
 		showDescription();
 	}
 }
@@ -90,8 +90,8 @@ void PhoneWidget::showSignup() {
 	showPhoneError(lang(lng_bad_phone_noreg));
 	if (!_signup) {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
-		auto inner = new Ui::FlatLabel(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription, st::introDescriptionTextStyle);
-		_signup.create(this, inner, base::lambda<void()>(), st::introErrorDuration);
+		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription, st::introDescriptionTextStyle);
+		_signup.create(this, std_::move(inner), st::introErrorDuration);
 		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
 		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
 			toSignUp();
@@ -99,7 +99,7 @@ void PhoneWidget::showSignup() {
 		_signup->hideFast();
 		updateSignupGeometry();
 	}
-	_signup->fadeIn();
+	_signup->showAnimated();
 	hideDescription();
 }
 

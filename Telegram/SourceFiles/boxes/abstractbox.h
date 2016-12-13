@@ -24,88 +24,229 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 
 namespace Ui {
+class RoundButton;
 class IconButton;
-class GradientShadow;
 class ScrollArea;
+template <typename Widget>
+class WidgetFadeWrap;
 } // namespace Ui
 
-class AbstractBox : public LayerWidget, protected base::Subscriber {
+class BoxLayerTitleShadow : public Ui::PlainShadow {
+public:
+	BoxLayerTitleShadow(QWidget *parent);
+
+};
+
+class BoxContentDelegate {
+public:
+	virtual void setLayerType(bool layerType) = 0;
+	virtual void setTitle(const QString &title, const QString &additional) = 0;
+
+	virtual void clearButtons() = 0;
+	virtual QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) = 0;
+	virtual void updateButtonsPositions() = 0;
+
+	virtual void setDimensions(int newWidth, int maxHeight) = 0;
+	virtual void setNoContentMargin(bool noContentMargin) = 0;
+	virtual bool isBoxShown() const = 0;
+	virtual void closeBox() = 0;
+
+};
+
+class BoxContent : public TWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
-	AbstractBox(int w = 0, const QString &title = QString());
-	void parentResized() override;
+	BoxContent() {
+		setAttribute(Qt::WA_OpaquePaintEvent);
+	}
 
-	void setTitleText(const QString &title);
-	void setAdditionalTitle(const QString &additionalTitle);
-	void setBlockTitle(bool block, bool withClose = true, bool withShadow = true);
+	void setDelegate(BoxContentDelegate *newDelegate) {
+		_delegate = newDelegate;
+		prepare();
+	}
+	virtual void setInnerFocus() {
+		setFocus();
+	}
+	virtual void closeHook() {
+	}
+
+	bool isBoxShown() const {
+		return getDelegate()->isBoxShown();
+	}
+	void closeBox() {
+		getDelegate()->closeBox();
+	}
 
 public slots:
-	void onClose();
+	void onScrollToY(int top, int bottom = -1);
+
+	void onDraggingScrollDelta(int delta);
+
+protected:
+	virtual void prepare() = 0;
+
+	void setLayerType(bool layerType) {
+		getDelegate()->setLayerType(layerType);
+	}
+	void setTitle(const QString &title, const QString &additional = QString()) {
+		getDelegate()->setTitle(title, additional);
+	}
+
+	void clearButtons() {
+		getDelegate()->clearButtons();
+	}
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback);
+	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback);
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+		return getDelegate()->addButton(text, std_::move(clickCallback), st);
+	}
+	void updateButtonsGeometry() {
+		getDelegate()->updateButtonsPositions();
+	}
+
+	void setNoContentMargin(bool noContentMargin) {
+		if (_noContentMargin != noContentMargin) {
+			_noContentMargin = noContentMargin;
+			setAttribute(Qt::WA_OpaquePaintEvent, !_noContentMargin);
+		}
+		getDelegate()->setNoContentMargin(noContentMargin);
+	}
+	void setDimensions(int newWidth, int maxHeight) {
+		getDelegate()->setDimensions(newWidth, maxHeight);
+	}
+	void setInnerTopSkip(int topSkip, bool scrollBottomFixed = false);
+
+	template <typename Widget>
+	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, const style::ScrollArea &st, int topSkip = 0) {
+		auto result = QPointer<Widget>(inner.data());
+		setInner(std_::move(inner), st);
+		setInnerTopSkip(topSkip);
+		return result;
+	}
+
+	template <typename Widget>
+	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, int topSkip = 0) {
+		auto result = QPointer<Widget>(inner.data());
+		setInner(std_::move(inner));
+		setInnerTopSkip(topSkip);
+		return result;
+	}
+
+	template <typename Widget>
+	object_ptr<Widget> takeInnerWidget() {
+		return static_object_cast<Widget>(doTakeInnerWidget());
+	}
+
+	void setInnerVisible(bool scrollAreaVisible);
+	QPixmap grabInnerCache();
+
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private slots:
+	void onScroll();
+
+	void onDraggingScrollTimer();
+
+private:
+	void setInner(object_ptr<TWidget> inner);
+	void setInner(object_ptr<TWidget> inner, const style::ScrollArea &st);
+	void updateScrollAreaGeometry();
+	object_ptr<TWidget> doTakeInnerWidget();
+
+	BoxContentDelegate *getDelegate() const {
+		t_assert(_delegate != nullptr);
+		return _delegate;
+	}
+	BoxContentDelegate *_delegate = nullptr;
+
+	bool _noContentMargin = false;
+	int _innerTopSkip = 0;
+	object_ptr<Ui::ScrollArea> _scroll = { nullptr };
+	object_ptr<Ui::WidgetFadeWrap<BoxLayerTitleShadow>> _topShadow = { nullptr };
+	object_ptr<BoxLayerTitleShadow> _bottomShadow = { nullptr };
+
+	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
+	int _draggingScrollDelta = 0;
+
+};
+
+class AbstractBox : public LayerWidget, public BoxContentDelegate, protected base::Subscriber {
+public:
+	AbstractBox(object_ptr<BoxContent> content);
+
+	void parentResized() override;
+
+	void setLayerType(bool layerType) override;
+	void setTitle(const QString &title, const QString &additional) override;
+
+	void clearButtons() override;
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) override;
+	void updateButtonsPositions() override;
+
+	void setDimensions(int newWidth, int maxHeight) override;
+
+	void setNoContentMargin(bool noContentMargin) override {
+		if (_noContentMargin != noContentMargin) {
+			_noContentMargin = noContentMargin;
+			updateSize();
+		}
+	}
+
+	bool isBoxShown() const override {
+		return !isHidden();
+	}
+	void closeBox() override {
+		closeLayer();
+	}
 
 protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void raiseShadow();
-	int titleHeight() const;
-	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
-	void setMaxHeight(int32 maxHeight);
-	void resizeMaxHeight(int32 newWidth, int32 maxHeight);
-
-	virtual void closePressed() {
+	void doSetInnerFocus() override {
+		_content->setInnerFocus();
+	}
+	void closeHook() override {
+		_content->closeHook();
 	}
 
 private:
-	void updateBlockTitleGeometry();
-	int countHeight() const;
+	void paintTitle(Painter &p, const QString &title, const QString &additional = QString());
 
-	int _maxHeight = 0;
+	bool hasTitle() const;
+	int titleHeight() const;
+	int buttonsHeight() const;
+	int buttonsTop() const;
+	int contentTop() const;
+	int countFullHeight() const;
+	int countRealHeight() const;
+	void updateSize();
 
-	bool _closed = false;
+	int _fullHeight = 0;
+
+	bool _noContentMargin = false;
+	int _maxContentHeight = 0;
+	object_ptr<BoxContent> _content;
 
 	QString _title;
 	QString _additionalTitle;
-	bool _blockTitle = false;
-	ChildWidget<Ui::IconButton> _blockClose = { nullptr };
-	ChildWidget<Ui::GradientShadow> _blockShadow = { nullptr };
+	bool _layerType = false;
+
+	std_::vector_of_moveable<object_ptr<Ui::RoundButton>> _buttons;
+	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
 
 };
 
-class ScrollableBoxShadow : public Ui::PlainShadow {
-public:
-	ScrollableBoxShadow(QWidget *parent);
-
-};
-
-class ScrollableBox : public AbstractBox {
-public:
-	ScrollableBox(const style::FlatScroll &scroll, int w = 0);
-
-protected:
-	void init(TWidget *inner, int bottomSkip = -1, int topSkip = -1);
-	void setScrollSkips(int bottomSkip = -1, int topSkip = -1);
-
-	void resizeEvent(QResizeEvent *e) override;
-
-	Ui::ScrollArea *scrollArea() {
-		return _scroll;
-	}
-
-private:
-	void updateScrollGeometry();
-
-	ChildWidget<Ui::ScrollArea> _scroll;
-	int _topSkip, _bottomSkip;
-
-};
-
-class ItemListBox : public ScrollableBox {
-public:
-	ItemListBox(const style::FlatScroll &scroll, int32 w = 0);
-
-};
+template <typename BoxType, typename ...Args>
+inline object_ptr<BoxType> Box(Args&&... args) {
+	auto parent = static_cast<QWidget*>(nullptr);
+	return object_ptr<BoxType>(parent, std_::forward<Args>(args)...);
+}
 
 enum CreatingGroupType {
 	CreatingGroupNone,
