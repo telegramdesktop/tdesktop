@@ -283,6 +283,10 @@ void RowPainter::paint(Painter &p, const Row *row, int fullWidth, bool active, b
 			st.muted = history->mute();
 			paintUnreadCount(p, counter, unreadRight, unreadTop, st, &unreadWidth);
 			availableWidth -= unreadWidth + st.padding;
+		} else if (history->isPinnedDialog()) {
+			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+			availableWidth -= icon.width() + st::dialogsUnreadPadding;
 		}
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {

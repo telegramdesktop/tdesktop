@@ -834,10 +834,11 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 	if (activePeer() == peer) {
 		Ui::showChatsList();
 	}
-	if (History *h = App::historyLoaded(peer->id)) {
-		removeDialog(h);
+	if (auto history = App::historyLoaded(peer->id)) {
+		history->setPinnedDialog(false);
+		removeDialog(history);
 		if (peer->isMegagroup() && peer->asChannel()->mgInfo->migrateFromPtr) {
-			if (History *migrated = App::historyLoaded(peer->asChannel()->mgInfo->migrateFromPtr->id)) {
+			if (auto migrated = App::historyLoaded(peer->asChannel()->mgInfo->migrateFromPtr->id)) {
 				if (migrated->lastMsg) { // return initial dialog
 					migrated->setLastMessage(migrated->lastMsg);
 				} else {
@@ -845,9 +846,9 @@ void MainWidget::deleteConversation(PeerData *peer, bool deleteHistory) {
 				}
 			}
 		}
-		h->clear();
-		h->newLoaded = true;
-		h->oldLoaded = deleteHistory;
+		history->clear();
+		history->newLoaded = true;
+		history->oldLoaded = deleteHistory;
 	}
 	if (peer->isChannel()) {
 		peer->asChannel()->ptsWaitingForShortPoll(-1);
@@ -1149,10 +1150,10 @@ void executeParsedCommand(const QString &command) {
 		return;
 	}
 	if (command == qsl("new_version_text")) {
-		App::wnd()->serviceNotification(langNewVersionText());
+		App::wnd()->serviceNotificationLocal(langNewVersionText());
 	} else if (command == qsl("all_new_version_texts")) {
 		for (int i = 0; i < languageCount; ++i) {
-			App::wnd()->serviceNotification(langNewVersionTextForLang(i));
+			App::wnd()->serviceNotificationLocal(langNewVersionTextForLang(i));
 		}
 	}
 }
@@ -1795,15 +1796,14 @@ void MainWidget::dialogsCancelled() {
 	_history->activate();
 }
 
-void MainWidget::serviceNotification(const QString &msg, const MTPMessageMedia &media) {
+void MainWidget::serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date) {
 	MTPDmessage::Flags flags = MTPDmessage::Flag::f_entities | MTPDmessage::Flag::f_from_id | MTPDmessage_ClientFlag::f_clientside_unread;
-	QString sendingText, leftText = msg;
-	EntitiesInText sendingEntities, leftEntities;
-	textParseEntities(leftText, _historyTextNoMonoOptions.flags, &leftEntities);
-	HistoryItem *item = 0;
+	QString sendingText, leftText = message.text;
+	EntitiesInText sendingEntities, leftEntities = message.entities;
+	HistoryItem *item = nullptr;
 	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);
-		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(unixtime()), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
+		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
 	}
 	if (item) {
 		_history->peerMessagesUpdated(item->history()->peer->id);
@@ -1990,6 +1990,32 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 }
 
 void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> &&handler)> &&callback) {
+	auto isPinned = false;
+	if (auto history = App::historyLoaded(peer)) {
+		isPinned = history->isPinnedDialog();
+	}
+	auto pinSubscription = MakeShared<base::Subscription>();
+	auto pinAction = callback(lang(isPinned ? lng_context_unpin_from_top : lng_context_pin_to_top), [peer, pinSubscription] {
+		auto history = App::history(peer);
+		auto isPinned = !history->isPinnedDialog();
+		history->setPinnedDialog(isPinned);
+		auto flags = MTPmessages_ToggleDialogPin::Flags(0);
+		if (isPinned) {
+			flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
+		}
+		MTP::send(MTPmessages_ToggleDialogPin(MTP_flags(flags), peer->input));
+		if (isPinned) {
+			if (auto main = App::main()) {
+				main->dialogsToUp();
+			}
+		}
+	});
+	auto pinChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::PinnedChanged, [pinAction, peer](const Notify::PeerUpdate &update) {
+		if (update.peer != peer) return;
+		pinAction->setText(lang(App::history(peer)->isPinnedDialog() ? lng_context_unpin_from_top : lng_context_pin_to_top));
+	});
+	*pinSubscription = Notify::PeerUpdated().add_subscription(std_::move(pinChangedHandler));
+
 	callback(lang((peer->isChat() || peer->isMegagroup()) ? lng_context_view_group : (peer->isUser() ? lng_context_view_profile : lng_context_view_channel)), [peer] {
 		Ui::showPeerProfile(peer);
 	});
@@ -4734,6 +4760,10 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updateEncryptedMessagesRead();
 	} break;
 
+	case mtpc_updatePhoneCall: {
+		auto &d = update.c_updatePhoneCall();
+	} break;
+
 	case mtpc_updateUserBlocked: {
 		auto &d = update.c_updateUserBlocked();
 		if (auto user = App::userLoaded(d.vuser_id.v)) {
@@ -4742,30 +4772,57 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
-	case mtpc_updateNewAuthorization: {
-		auto &d = update.c_updateNewAuthorization();
-		QDateTime datetime = date(d.vdate);
-
-		QString name = App::self()->firstName;
-		QString day = langDayOfWeekFull(datetime.date()), date = langDayOfMonthFull(datetime.date()), time = datetime.time().toString(cTimeFormat());
-		QString device = qs(d.vdevice), location = qs(d.vlocation);
-		LangString text = lng_new_authorization(lt_name, App::self()->firstName, lt_day, day, lt_date, date, lt_time, time, lt_device, device, lt_location, location);
-		App::wnd()->serviceNotification(text);
-
-		emit App::wnd()->newAuthorization();
-	} break;
-
 	case mtpc_updateServiceNotification: {
 		auto &d = update.c_updateServiceNotification();
-		if (mtpIsTrue(d.vpopup)) {
+		if (d.is_popup()) {
 			Ui::showLayer(new InformBox(qs(d.vmessage)));
 		} else {
-			App::wnd()->serviceNotification(qs(d.vmessage), d.vmedia);
+			App::wnd()->serviceNotification({ qs(d.vmessage), entitiesFromMTP(d.ventities.c_vector().v) }, d.vmedia);
+			emit App::wnd()->checkNewAuthorization();
 		}
 	} break;
 
 	case mtpc_updatePrivacy: {
 		auto &d = update.c_updatePrivacy();
+	} break;
+
+	case mtpc_updatePinnedDialogs: {
+		auto &d = update.c_updatePinnedDialogs();
+		if (d.has_order()) {
+			auto allLoaded = true;
+			auto &order = d.vorder.c_vector().v;
+			for_const (auto &peer, order) {
+				auto peerId = peerFromMTP(peer);
+				if (!App::historyLoaded(peerId)) {
+					allLoaded = false;
+					DEBUG_LOG(("API Error: pinned chat not loaded for peer %1").arg(peerId));
+					break;
+				}
+			}
+			if (allLoaded) {
+				App::histories().clearPinned();
+				for (auto i = order.size(); i != 0;) {
+					auto history = App::historyLoaded(peerFromMTP(order[--i]));
+					t_assert(history != nullptr);
+					history->setPinnedDialog(true);
+				}
+			} else {
+				_dialogs->loadPinnedDialogs();
+			}
+		} else {
+			_dialogs->loadPinnedDialogs();
+		}
+	} break;
+
+	case mtpc_updateDialogPinned: {
+		auto &d = update.c_updateDialogPinned();
+		auto peerId = peerFromMTP(d.vpeer);
+		if (auto history = App::historyLoaded(peerId)) {
+			history->setPinnedDialog(d.is_pinned());
+		} else {
+			DEBUG_LOG(("API Error: pinned chat not loaded for peer %1").arg(peerId));
+			_dialogs->loadPinnedDialogs();
+		}
 	} break;
 
 	/////// Channel updates

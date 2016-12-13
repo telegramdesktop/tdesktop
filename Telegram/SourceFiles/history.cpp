@@ -46,6 +46,8 @@ constexpr int kStatusShowClientsideChooseContact = 6000;
 constexpr int kStatusShowClientsidePlayGame = 10000;
 constexpr int kSetMyActionForMs = 10000;
 
+auto GlobalPinnedIndex = 0;
+
 } // namespace
 
 void historyInit() {
@@ -203,12 +205,12 @@ bool History::updateSendActionNeedsAnimating(UserData *user, const MTPSendMessag
 	case mtpc_sendMessageUploadDocumentAction: _sendActions.insert(user, { Type::UploadFile, ms + kStatusShowClientsideUploadFile, action.c_sendMessageUploadDocumentAction().vprogress.v }); break;
 	case mtpc_sendMessageGeoLocationAction: _sendActions.insert(user, { Type::ChooseLocation, ms + kStatusShowClientsideChooseLocation }); break;
 	case mtpc_sendMessageChooseContactAction: _sendActions.insert(user, { Type::ChooseContact, ms + kStatusShowClientsideChooseContact }); break;
-	//case mtpc_sendMessageGamePlayAction: { // TODO
-	//	auto it = _sendActions.find(user);
-	//	if (it == _sendActions.end() || it->type == Type::PlayGame || it->until <= ms) {
-	//		_sendActions.insert(user, { Type::PlayGame, ms + kStatusShowClientsidePlayGame });
-	//	}
-	//} break;
+	case mtpc_sendMessageGamePlayAction: {
+		auto it = _sendActions.find(user);
+		if (it == _sendActions.end() || it->type == Type::PlayGame || it->until <= ms) {
+			_sendActions.insert(user, { Type::PlayGame, ms + kStatusShowClientsidePlayGame });
+		}
+	} break;
 	default: return false;
 	}
 	return updateSendActionNeedsAnimating(ms, true);
@@ -622,8 +624,8 @@ History *Histories::findOrInsert(const PeerId &peerId, int32 unreadCount, int32 
 void Histories::clear() {
 	App::historyClearMsgs();
 
-	Map temp;
-	std::swap(temp, map);
+	_pinnedDialogs.clear();
+	auto temp = base::take(map);
 	for_const (auto history, temp) {
 		delete history;
 	}
@@ -712,6 +714,32 @@ bool Histories::unreadOnlyMuted() const {
 	return Global::IncludeMuted() ? (_unreadMuted >= _unreadFull) : false;
 }
 
+void Histories::setIsPinned(History *history, bool isPinned) {
+	if (isPinned) {
+		_pinnedDialogs.insert(history);
+		if (_pinnedDialogs.size() > Global::PinnedDialogsCountMax()) {
+			auto minIndex = GlobalPinnedIndex + 1;
+			auto minIndexHistory = (History*)nullptr;
+			for_const (auto pinned, _pinnedDialogs) {
+				if (pinned->getPinnedIndex() < minIndex) {
+					minIndex = pinned->getPinnedIndex();
+					minIndexHistory = pinned;
+				}
+			}
+			t_assert(minIndexHistory != nullptr);
+			minIndexHistory->setPinnedDialog(false);
+		}
+	} else {
+		_pinnedDialogs.remove(history);
+	}
+}
+
+void Histories::clearPinned() {
+	for (auto pinned : base::take(_pinnedDialogs)) {
+		pinned->setPinnedDialog(false);
+	}
+}
+
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	MsgId msgId = 0;
 	switch (msg.type()) {
@@ -779,7 +807,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_webPage:
 			case mtpc_webPageEmpty:
 			case mtpc_webPagePending: break;
-//			case mtpc_webPageNotModified: // TODO
+			case mtpc_webPageNotModified:
 			default: badMedia = 1; break;
 			}
 			break;
@@ -1810,6 +1838,10 @@ inline uint64 dialogPosFromDate(const QDateTime &date) {
 	return (uint64(date.toTime_t()) << 32) | (++_dialogsPosToTopShift);
 }
 
+inline uint64 pinnedDialogPos(int pinnedIndex) {
+	return 0xFFFFFFFF00000000ULL + pinnedIndex;
+}
+
 void History::setLastMessage(HistoryItem *msg) {
 	if (msg) {
 		if (!lastMsg) Local::removeSavedPeer(peer);
@@ -1822,7 +1854,7 @@ void History::setLastMessage(HistoryItem *msg) {
 }
 
 bool History::needUpdateInChatList() const {
-	if (inChatList(Dialogs::Mode::All)) {
+	if (inChatList(Dialogs::Mode::All) || isPinnedDialog()) {
 		return true;
 	} else if (peer->migrateTo()) {
 		return false;
@@ -1831,9 +1863,8 @@ bool History::needUpdateInChatList() const {
 }
 
 void History::setChatsListDate(const QDateTime &date) {
-	bool updateDialog = needUpdateInChatList();
 	if (!lastMsgDate.isNull() && lastMsgDate >= date) {
-		if (!updateDialog || !inChatList(Dialogs::Mode::All)) {
+		if (!needUpdateInChatList() || !inChatList(Dialogs::Mode::All)) {
 			return;
 		}
 	}
@@ -1851,7 +1882,7 @@ void History::updateChatListSortPosition() {
 		return lastMsgDate;
 	};
 
-	_sortKeyInChatList = dialogPosFromDate(chatListDate());
+	_sortKeyInChatList = isPinnedDialog() ? pinnedDialogPos(_pinnedIndex) : dialogPosFromDate(chatListDate());
 	if (auto m = App::main()) {
 		if (needUpdateInChatList()) {
 			if (_sortKeyInChatList) {
@@ -2068,6 +2099,20 @@ void History::updateChatListEntry() const {
 				main->dlgUpdated(Dialogs::Mode::Important, mainChatListLink(Dialogs::Mode::Important));
 			}
 		}
+	}
+}
+
+void History::setPinnedDialog(bool isPinned) {
+	auto pinnedIndex = isPinned ? (++GlobalPinnedIndex) : 0;
+	if (_pinnedIndex != pinnedIndex) {
+		auto wasPinned = isPinnedDialog();
+		_pinnedIndex = pinnedIndex;
+		updateChatListSortPosition();
+		updateChatListEntry();
+		if (wasPinned != isPinnedDialog()) {
+			Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::PinnedChanged);
+		}
+		App::histories().setIsPinned(this, isPinnedDialog());
 	}
 }
 

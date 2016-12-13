@@ -309,7 +309,7 @@ public:
 
 	void checkLastUpdate(bool afterSleep);
 
-	void serviceNotification(const QString &msg, const MTPMessageMedia &media);
+	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date);
 	void serviceHistoryDone(const MTPmessages_Messages &msgs);
 	bool serviceHistoryFail(const RPCError &error);
 

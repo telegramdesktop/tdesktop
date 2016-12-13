@@ -82,6 +82,9 @@ public:
 		}
 	}
 
+	void setIsPinned(History *history, bool isPinned);
+	void clearPinned();
+
 	struct SendActionAnimationUpdate {
 		History *history;
 		int width;
@@ -93,8 +96,10 @@ public:
 	}
 
 private:
-	int _unreadFull, _unreadMuted;
+	int _unreadFull = 0;
+	int _unreadMuted = 0;
 	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
+	OrderedSet<History*> _pinnedDialogs;
 
 };
 
@@ -280,6 +285,14 @@ public:
 	void removeChatListEntryByLetter(Dialogs::Mode list, QChar letter);
 	void addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row);
 	void updateChatListEntry() const;
+
+	bool isPinnedDialog() const {
+		return (_pinnedIndex > 0);
+	}
+	void setPinnedDialog(bool isPinned);
+	int getPinnedIndex() const {
+		return _pinnedIndex;
+	}
 
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
@@ -564,6 +577,7 @@ private:
 	Ui::SendActionAnimation _sendActionAnimation;
 	QMap<SendAction::Type, TimeMs> _mySendActions;
 
+	int _pinnedIndex = 0; // > 0 for pinned dialogs
 
  };
 

@@ -42,11 +42,12 @@ struct PeerUpdate {
 		NotificationsEnabled   = 0x00000010U,
 		SharedMediaChanged     = 0x00000020U,
 		MigrationChanged       = 0x00000040U,
+		PinnedChanged          = 0x00000080U,
 
 		// For chats and channels
-		InviteLinkChanged      = 0x00000020U,
-		MembersChanged         = 0x00000040U,
-		AdminsChanged          = 0x00000080U,
+		InviteLinkChanged      = 0x00000100U,
+		MembersChanged         = 0x00000200U,
+		AdminsChanged          = 0x00000400U,
 
 		// For users
 		UserCanShareContact    = 0x00010000U,

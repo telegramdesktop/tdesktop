@@ -42,7 +42,7 @@ public slots:
 	void onAllTerminated();
 	void onTerminateAll();
 	void onShortPollAuthorizations();
-	void onNewAuthorization();
+	void onCheckNewAuthorization();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

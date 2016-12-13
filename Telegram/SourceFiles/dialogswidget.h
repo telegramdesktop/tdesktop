@@ -280,6 +280,7 @@ public:
 	void searchInPeer(PeerData *peer);
 
 	void loadDialogs();
+	void loadPinnedDialogs();
 	void createDialog(History *history);
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(PeerData *peer, MsgId msgId);
@@ -350,10 +351,11 @@ protected:
 
 private:
 	void animationCallback();
-	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId req);
+	void dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpRequestId requestId);
+	void pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs, mtpRequestId requestId);
 	void contactsReceived(const MTPcontacts_Contacts &result);
-	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req);
-	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId req);
+	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
+	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 
 	void setSearchInPeer(PeerData *peer);
 	void showMainMenu();
@@ -375,8 +377,10 @@ private:
 	int32 _dialogsOffsetDate = 0;
 	MsgId _dialogsOffsetId = 0;
 	PeerData *_dialogsOffsetPeer = nullptr;
-	mtpRequestId _dialogsRequest = 0;
-	mtpRequestId _contactsRequest = 0;
+	mtpRequestId _dialogsRequestId = 0;
+	mtpRequestId _pinnedDialogsRequestId = 0;
+	mtpRequestId _contactsRequestId = 0;
+	bool _pinnedDialogsReceived = false;
 
 	ChildWidget<Ui::IconButton> _forwardCancel = { nullptr };
 	ChildWidget<Ui::IconButton> _mainMenuToggle;

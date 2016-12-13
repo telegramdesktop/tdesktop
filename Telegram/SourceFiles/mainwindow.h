@@ -96,7 +96,8 @@ public:
 	void checkAutoLockIn(int msec);
 	void setupIntro();
 	void setupMain(const MTPUser *user = 0);
-	void serviceNotification(const QString &msg, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
+	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
+	void serviceNotificationLocal(QString text);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();
 
@@ -215,7 +216,7 @@ public slots:
 signals:
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
-	void newAuthorization();
+	void checkNewAuthorization();
 
 private slots:
 	void onStateChanged(Qt::WindowState state);
@@ -236,8 +237,14 @@ private:
 	void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) override;
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
-	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;
-	QVector<DelayedServiceMsg> _delayedServiceMsgs;
+	struct DelayedServiceMsg {
+		DelayedServiceMsg(const TextWithEntities &message, const MTPMessageMedia &media, int32 date) : message(message), media(media), date(date) {
+		}
+		TextWithEntities message;
+		MTPMessageMedia media;
+		int32 date;
+	};
+	QList<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
 
 	ChildWidget<PasscodeWidget> _passcode = { nullptr };

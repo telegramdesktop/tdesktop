@@ -1513,7 +1513,7 @@ namespace {
 			return page;
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
-//		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in feedWebPage().")); break; // TODO
+		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in feedWebPage().")); break;
 		}
 		return nullptr;
 	}

@@ -44,7 +44,7 @@ SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
 	connect(_inner, SIGNAL(allTerminated()), this, SLOT(onAllTerminated()));
 	connect(_inner, SIGNAL(terminateAll()), this, SLOT(onTerminateAll()));
-	connect(App::wnd(), SIGNAL(newAuthorization()), this, SLOT(onNewAuthorization()));
+	connect(App::wnd(), SIGNAL(checkNewAuthorization()), this, SLOT(onCheckNewAuthorization()));
 	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
 	init(_inner, st::boxButtonPadding.bottom() + _done->height() + st::boxButtonPadding.top(), titleHeight());
@@ -216,7 +216,7 @@ void SessionsBox::onShortPollAuthorizations() {
 	}
 }
 
-void SessionsBox::onNewAuthorization() {
+void SessionsBox::onCheckNewAuthorization() {
 	onShortPollAuthorizations();
 //	_shortPollTimer.start(1000);
 }

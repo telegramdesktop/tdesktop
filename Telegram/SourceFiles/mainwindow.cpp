@@ -329,21 +329,26 @@ void MainWindow::setupIntro() {
 	}
 }
 
-void MainWindow::serviceNotification(const QString &msg, const MTPMessageMedia &media, bool force) {
-	History *h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : 0;
+void MainWindow::serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media, int32 date, bool force) {
+	if (date <= 0) date = unixtime();
+	auto h = (_main && App::userLoaded(ServiceUserId)) ? App::history(ServiceUserId) : nullptr;
 	if (!h || (!force && h->isEmpty())) {
-		_delayedServiceMsgs.push_back(DelayedServiceMsg(msg, media));
+		_delayedServiceMsgs.push_back(DelayedServiceMsg(message, media, date));
 		return sendServiceHistoryRequest();
 	}
 
-	_main->serviceNotification(msg, media);
+	_main->serviceNotification(message, media, date);
+}
+
+void MainWindow::serviceNotificationLocal(QString text) {
+	EntitiesInText entities;
+	textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
+	serviceNotification({ text, entities });
 }
 
 void MainWindow::showDelayedServiceMsgs() {
-	QVector<DelayedServiceMsg> toAdd = _delayedServiceMsgs;
-	_delayedServiceMsgs.clear();
-	for (QVector<DelayedServiceMsg>::const_iterator i = toAdd.cbegin(), e = toAdd.cend(); i != e; ++i) {
-		serviceNotification(i->first, i->second, true);
+	for (auto &delayed : base::take(_delayedServiceMsgs)) {
+		serviceNotification(delayed.message, delayed.media, delayed.date, true);
 	}
 }
 

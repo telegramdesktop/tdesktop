@@ -3456,7 +3456,7 @@ void HistoryWidget::updateSendAction(History *history, SendAction::Type type, in
 			case Type::UploadFile: action = MTP_sendMessageUploadDocumentAction(MTP_int(progress)); break;
 			case Type::ChooseLocation: action = MTP_sendMessageGeoLocationAction(); break;
 			case Type::ChooseContact: action = MTP_sendMessageChooseContactAction(); break;
-			case Type::PlayGame: return;// action = MTP_sendMessageGamePlayAction(); break; // TODO
+			case Type::PlayGame: action = MTP_sendMessageGamePlayAction(); break;
 			}
 			_sendActionRequests.insert(qMakePair(history, type), MTP::send(MTPmessages_SetTyping(history->peer->input, action), rpcDone(&HistoryWidget::sendActionDone)));
 			if (type == Type::Typing) _sendActionStopTimer.start(5000);

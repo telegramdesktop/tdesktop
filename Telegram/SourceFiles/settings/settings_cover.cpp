@@ -265,9 +265,6 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
 		refreshNameText();
 	}
-	//if (update.flags & UpdateFlag::UserOnlineChanged) { // TODO
-	//	refreshStatusText();
-	//}
 }
 
 void CoverWidget::refreshNameText() {

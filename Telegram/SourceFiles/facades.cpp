@@ -633,6 +633,7 @@ struct Data {
 	int32 SavedGifsLimit = 200;
 	int32 EditTimeLimit = 172800;
 	int32 StickersRecentLimit = 30;
+	int32 PinnedDialogsCountMax = 5;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
@@ -751,6 +752,7 @@ DefineVar(Global, int32, PushChatLimit);
 DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
 DefineVar(Global, int32, StickersRecentLimit);
+DefineVar(Global, int32, PinnedDialogsCountMax);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 

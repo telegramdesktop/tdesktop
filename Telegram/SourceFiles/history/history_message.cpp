@@ -68,11 +68,13 @@ MediaOverviewType serviceMediaToOverviewType(HistoryMedia *media) {
 
 ApiWrap::RequestMessageDataCallback historyDependentItemCallback(const FullMsgId &msgId) {
 	return [dependent = msgId](ChannelData *channel, MsgId msgId) {
-		if (HistoryItem *item = App::histItemById(dependent)) {
+		if (auto item = App::histItemById(dependent)) {
 			item->updateDependencyItem();
 		}
 	};
 }
+
+constexpr auto kPinnedMessageTextLimit = 16;
 
 } // namespace
 
@@ -687,7 +689,7 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 		case mtpc_webPage: {
 			_media.reset(new HistoryWebPage(this, App::feedWebPage(d.c_webPage())));
 		} break;
-//		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break; // TODO
+		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break;
 		}
 	} break;
 	case mtpc_messageMediaGame: {
@@ -1975,19 +1977,21 @@ bool HistoryService::preparePinnedText(const QString &from, QString *outText, Li
 		} break;
 		}
 		if (mediaText.isEmpty()) {
-			QString original = pinned->msg->originalText().text;
-			int32 cutat = 0, limit = PinnedMessageTextLimit, size = original.size();
-			for (; limit > 0;) {
+			auto original = pinned->msg->originalText().text;
+			auto cutAt = 0;
+			auto limit = kPinnedMessageTextLimit;
+			auto size = original.size();
+			for (; limit != 0;) {
 				--limit;
-				if (cutat >= size) break;
-				if (original.at(cutat).isLowSurrogate() && cutat + 1 < size && original.at(cutat + 1).isHighSurrogate()) {
-					cutat += 2;
+				if (cutAt >= size) break;
+				if (original.at(cutAt).isLowSurrogate() && cutAt + 1 < size && original.at(cutAt + 1).isHighSurrogate()) {
+					cutAt += 2;
 				} else {
-					++cutat;
+					++cutAt;
 				}
 			}
-			if (!limit && cutat + 5 < size) {
-				original = original.mid(0, cutat) + qstr("...");
+			if (!limit && cutAt + 5 < size) {
+				original = original.mid(0, cutAt) + qstr("...");
 			}
 			text = lng_action_pinned_message(lt_from, from, lt_text, textcmdLink(2, original));
 		} else {

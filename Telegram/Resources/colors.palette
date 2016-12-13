@@ -177,7 +177,7 @@ dialogsVerifiedIconFgActive: dialogsBgActive;
 dialogsSendingIconFgActive: #ffffff99;
 dialogsSentIconFgActive: dialogsTextFgActive;
 dialogsUnreadBgActive: dialogsTextFgActive;
-dialogsUnreadBgMutedActive: #d3e2ee;
+dialogsUnreadBgMutedActive: dialogsDraftFgActive;
 dialogsUnreadFgActive: dialogsBgActive;
 
 dialogsForwardBg: dialogsBgActive;

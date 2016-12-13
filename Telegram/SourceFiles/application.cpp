@@ -1069,7 +1069,7 @@ void AppClass::checkMapVersion() {
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
-				_window->serviceNotification(versionFeatures);
+				_window->serviceNotificationLocal(versionFeatures);
 			}
 		}
 	}

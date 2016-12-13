@@ -152,6 +152,9 @@ dialogsSentIconActive: icon {{ "dialogs_sent", dialogsSentIconFgActive, point(10
 dialogsReceivedIcon: icon {{ "dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
 dialogsReceivedIconOver: icon {{ "dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
 dialogsReceivedIconActive: icon {{ "dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
+dialogsPinnedIcon: icon {{ "dialogs_pinned", dialogsUnreadBgMuted }};
+dialogsPinnedIconOver: icon {{ "dialogs_pinned", dialogsUnreadBgMutedOver }};
+dialogsPinnedIconActive: icon {{ "dialogs_pinned", dialogsUnreadBgMutedActive }};
 
 dialogsVerifiedIcon: icon {
 	{ "dialogs_verified_star", dialogsVerifiedIconBg, point(4px, 2px) },
