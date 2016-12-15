@@ -25,6 +25,7 @@ class GypCMakePlugin(snapcraft.BasePlugin):
         schema['properties']['build-type'] = {
             'type': 'string',
             'default': 'Release',
+            'enum': ['Debug', 'Release'],
         }
 
         schema['properties']['built-binaries'] = {
@@ -45,6 +46,7 @@ class GypCMakePlugin(snapcraft.BasePlugin):
     def __init__(self, name, options, project):
         super().__init__(name, options, project)
         self.build_packages.extend([
+            'binutils',
             'cmake',
             'python',
         ])
@@ -72,7 +74,11 @@ class GypCMakePlugin(snapcraft.BasePlugin):
                 dest = os.path.join(self.installdir, 'bin', os.path.basename(bin))
                 snapcraft.file_utils.link_or_copy(
                     os.path.join(build_dir, bin), dest, follow_symlinks=True)
-                self.run(['strip', dest])
+
+                if self.options.build_type == 'Release':
+                    mime_type = self.run_output('file --mime-type -b {}'.format(dest).split())
+                    if 'application/x-executable' in mime_type:
+                        self.run(['strip', dest])
         else:
             self.run(['make', 'install', 'DESTDIR={}'.format(
                 self.installdir)], cwd=build_dir)
