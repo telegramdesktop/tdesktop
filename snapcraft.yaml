@@ -16,7 +16,6 @@ apps:
                     QT_IM_MODULE=xim
                     XDG_DATA_DIRS=$SNAP/usr/share:$XDG_DATADIRS
                     XDG_CACHE_HOME=$HOME/.cache
-                    TMPDIR=$HOME/.cache
                   Telegram\'
     plugs:
       - unity7
@@ -206,6 +205,7 @@ parts:
     qt-source-git: https://code.qt.io/qt/qt5.git
     qt-submodules: ['qtbase', 'qtimageformats']
     qt-patches-base-url: https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches
+    qt-patches-path: patches
     build-packages:
       - libasound2-dev
       - libffi-dev
