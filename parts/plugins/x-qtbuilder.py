@@ -65,6 +65,7 @@ class QtBuilderPlugin(make.MakePlugin):
         super().__init__(name, options, project)
         self.build_packages.extend(['patch', 'perl', 'wget'])
         self.options.source_branch = self.options.qt_version
+        self.options.source_depth = self.options.qt_source_depth
 
     def pull(self):
         if not os.path.exists(os.path.join(self.sourcedir, '.git')) or \
@@ -75,7 +76,7 @@ class QtBuilderPlugin(make.MakePlugin):
             if self.options.source_branch:
                 command.extend(['--branch', self.options.source_branch])
             if self.options.source_depth:
-                command.extend(['--depth', str(self.options.qt_source_depth)])
+                command.extend(['--depth', str(self.options.source_depth)])
 
             self.run(command)
 

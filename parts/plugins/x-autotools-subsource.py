@@ -27,11 +27,13 @@ class AutotoolsSubsourcePlugin(autotools.AutotoolsPlugin):
             'default': [],
         }
 
-        schema['pull-properties'].extend([
-            'sub-sources',
-        ])
-
         return schema
+
+    @classmethod
+    def get_pull_properties(cls):
+        return [
+            'sub-sources',
+        ]
 
     def pull(self):
         super().pull()

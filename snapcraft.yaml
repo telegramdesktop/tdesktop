@@ -204,7 +204,6 @@ parts:
     plugin: qtbuilder
     qt-version: 5.6.2
     qt-source-git: https://code.qt.io/qt/qt5.git
-    qt-source-depth: 1
     qt-submodules: ['qtbase', 'qtimageformats']
     qt-patches-base-url: https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches
     build-packages:

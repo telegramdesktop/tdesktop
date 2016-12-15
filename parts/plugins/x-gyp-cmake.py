@@ -39,9 +39,16 @@ class GypCMakePlugin(snapcraft.BasePlugin):
         }
 
         schema['required'].append('gyp-file')
-        schema['build-properties'].extend(['configflags', 'gyp-file', 'build-type'])
 
         return schema
+
+    @classmethod
+    def get_build_properties(cls):
+        return [
+            'build-type',
+            'configflags',
+            'gyp-file',
+        ]
 
     def __init__(self, name, options, project):
         super().__init__(name, options, project)
