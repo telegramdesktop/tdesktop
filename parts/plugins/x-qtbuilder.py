@@ -36,6 +36,10 @@ class QtBuilderPlugin(make.MakePlugin):
             'type': 'string'
         }
 
+        schema['properties']['qt-patches-path'] = {
+            'type': 'string'
+        }
+
         schema['properties']['qt-submodules'] = {
             'type': 'array',
             'minitems': 0,
@@ -58,6 +62,7 @@ class QtBuilderPlugin(make.MakePlugin):
         return [
             'qt-version',
             'qt-patches-base-url',
+            'qt-patches-path',
             'qt-submodules',
         ]
 
@@ -101,6 +106,17 @@ class QtBuilderPlugin(make.MakePlugin):
                         'touch {touch_file}'.format(
                             patch_uri_template=patch_uri_template,
                             touch_file='.snapcraft-qt-patched')]
+
+            self.run(patch_cmd, cwd=self.sourcedir)
+
+        if self.options.qt_patches_path:
+            patch_uri_template = os.path.join(
+                os.getcwd(), self.options.qt_patches_path,
+                '${{name}}_{}.diff'.format(self.options.qt_version.replace('.', '_')))
+
+            patch_cmd = 'git submodule foreach -q'.split() + \
+                        ['[ -e {patch} ] && git apply {patch} || true'.format(
+                            patch=patch_uri_template)]
 
             self.run(patch_cmd, cwd=self.sourcedir)
 
