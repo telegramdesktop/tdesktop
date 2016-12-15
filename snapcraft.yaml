@@ -18,12 +18,12 @@ apps:
                     XDG_CACHE_HOME=$HOME/.cache
                   Telegram\'
     plugs:
-      - unity7
+      - home
       - network
       - network-manager
       - network-bind
-      - home
       - pulseaudio
+      - unity7
 
 parts:
   telegram:
@@ -41,7 +41,6 @@ parts:
     gyp-file: Telegram/gyp/Telegram.gyp
     build-type: 'Release'
     built-binaries: ['Telegram']
-    stage-packages: ['libx11-xcb1', 'xkb-data']
     configflags:
       - -Dlinux_path_xkbcommon=$SNAPCRAFT_STAGE
       - -Dlinux_path_va=$SNAPCRAFT_STAGE
@@ -62,6 +61,12 @@ parts:
       - libva
       - openal
       - qt
+
+  desktop-integration:
+    plugin: nil
+    stage-packages:
+      - libx11-xcb1
+      - xkb-data
 
   snapd-xdg-open:
     source: https://github.com/ubuntu-core/snapd-xdg-open.git
