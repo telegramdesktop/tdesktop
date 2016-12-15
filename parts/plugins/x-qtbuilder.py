@@ -51,7 +51,6 @@ class QtBuilderPlugin(make.MakePlugin):
         }
 
         schema['required'].append('qt-source-git')
-        schema['required'].append('qt-version')
 
         schema['build-properties'].append('configflags')
 
@@ -95,10 +94,13 @@ class QtBuilderPlugin(make.MakePlugin):
             self.run("git submodule foreach git checkout v{}".format(
                 self.options.qt_version).split(), self.sourcedir)
 
+        patch_file_template = '${{name}}{}.diff'.format(
+            '_' + self.options.qt_version.replace('.', '_') \
+            if self.options.qt_version else '')
+
         if self.options.qt_patches_base_url:
-            patch_uri_template = '{}/${{name}}_{}.diff'.format(
-                self.options.qt_patches_base_url,
-                self.options.qt_version.replace('.', '_'))
+            patch_uri_template = '{}/{}'.format(
+                self.options.qt_patches_base_url, patch_file_template)
 
             patch_cmd = 'git submodule foreach -q'.split() + \
                         ['[ -e {touch_file} ] || ' \
@@ -110,13 +112,12 @@ class QtBuilderPlugin(make.MakePlugin):
             self.run(patch_cmd, cwd=self.sourcedir)
 
         if self.options.qt_patches_path:
-            patch_uri_template = os.path.join(
-                os.getcwd(), self.options.qt_patches_path,
-                '${{name}}_{}.diff'.format(self.options.qt_version.replace('.', '_')))
+            patch_path_template = os.path.join(
+                os.getcwd(), self.options.qt_patches_path, patch_file_template)
 
             patch_cmd = 'git submodule foreach -q'.split() + \
                         ['[ -e {patch} ] && git apply {patch} || true'.format(
-                            patch=patch_uri_template)]
+                            patch=patch_path_template)]
 
             self.run(patch_cmd, cwd=self.sourcedir)
 
