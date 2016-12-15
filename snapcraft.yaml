@@ -63,6 +63,15 @@ parts:
       - openal
       - qt
 
+  snapd-xdg-open:
+    source: https://github.com/ubuntu-core/snapd-xdg-open.git
+    source-depth: 1
+    plugin: dump
+    organize:
+      data/xdg-open: bin/xdg-open
+    snap:
+      - bin
+
   libva:
     source: https://anongit.freedesktop.org/git/libva.git
     source-depth: 1
