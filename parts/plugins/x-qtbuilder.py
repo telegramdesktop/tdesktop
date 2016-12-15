@@ -19,6 +19,15 @@ class QtBuilderPlugin(make.MakePlugin):
             'default': [],
         }
 
+        schema['properties']['qt-source-git'] = {
+            'type': 'string'
+        }
+
+        schema['properties']['qt-source-depth'] = {
+            'type': 'integer',
+            'default': 1
+        }
+
         schema['properties']['qt-version'] = {
             'type': 'string'
         }
@@ -37,17 +46,20 @@ class QtBuilderPlugin(make.MakePlugin):
             'default': [],
         }
 
+        schema['required'].append('qt-source-git')
         schema['required'].append('qt-version')
 
         schema['build-properties'].append('configflags')
 
-        schema['pull-properties'].extend([
+        return schema
+
+    @classmethod
+    def get_pull_properties(cls):
+        return [
             'qt-version',
             'qt-patches-base-url',
             'qt-submodules',
-        ])
-
-        return schema
+        ]
 
     def __init__(self, name, options, project):
         super().__init__(name, options, project)
@@ -59,12 +71,11 @@ class QtBuilderPlugin(make.MakePlugin):
            not os.path.exists(os.path.join(self.sourcedir, 'init-repository')):
             self.run('rm -rf {}'.format(self.sourcedir).split())
             command = 'git clone {} {}'.format(
-                self.options.source, self.sourcedir).split()
-
+                self.options.qt_source_git, self.sourcedir).split()
             if self.options.source_branch:
                 command.extend(['--branch', self.options.source_branch])
             if self.options.source_depth:
-                command.extend(['--depth', str(self.options.source_depth)])
+                command.extend(['--depth', str(self.options.qt_source_depth)])
 
             self.run(command)
 

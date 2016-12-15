@@ -203,10 +203,10 @@ parts:
   qt:
     plugin: qtbuilder
     qt-version: 5.6.2
+    qt-source-git: https://code.qt.io/qt/qt5.git
+    qt-source-depth: 1
     qt-submodules: ['qtbase', 'qtimageformats']
     qt-patches-base-url: https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches
-    source: https://code.qt.io/qt/qt5.git
-    source-depth: 1
     build-packages:
       - libasound2-dev
       - libffi-dev
