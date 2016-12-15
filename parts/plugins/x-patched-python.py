@@ -31,12 +31,17 @@ class PatchedPythonPlugin(python.PythonPlugin):
 
         for patch in self.options.patches:
             patch_name = os.path.basename(patch)
-            patch_stamp = os.path.join(self.sourcedir, '.snapcraft-patched-{}'.format(patch_name))
-            patch_file = os.path.join(self.sourcedir, 'snapcraft-patch-{}'.format(patch_name))
+            patch_stamp = os.path.join(
+                self.sourcedir, '.snapcraft-patched-{}'.format(patch_name))
 
             if not os.path.exists(patch_stamp):
-                with open(patch_file, 'wb') as file:
-                    file.write(requests.get(patch).content)
+                if os.path.exists(patch):
+                    patch_file = os.path.join(os.getcwd(), patch)
+                else:
+                    patch_file = os.path.join(
+                        self.sourcedir, 'snapcraft-patch-{}'.format(patch_name))
+                    with open(patch_file, 'wb') as file:
+                        file.write(requests.get(patch).content)
 
                 patch_cmd = 'git apply {}'.format(patch_file).split()
                 self.run(patch_cmd, cwd=self.sourcedir)
