@@ -1,14 +1,23 @@
 import os
 import snapcraft
 
-from snapcraft.plugins import autotools
+from snapcraft.plugins import make
 
-
-class QtBuilderPlugin(autotools.AutotoolsPlugin):
+class QtBuilderPlugin(make.MakePlugin):
 
     @classmethod
     def schema(cls):
         schema = super().schema()
+
+        schema['properties']['configflags'] = {
+            'type': 'array',
+            'minitems': 1,
+            'uniqueItems': False,
+            'items': {
+                'type': 'string',
+            },
+            'default': [],
+        }
 
         schema['properties']['qt-version'] = {
             'type': 'string'
@@ -28,8 +37,9 @@ class QtBuilderPlugin(autotools.AutotoolsPlugin):
             'default': [],
         }
 
-        schema['properties']['configflags']['uniqueItems'] = False
         schema['required'].append('qt-version')
+
+        schema['build-properties'].append('configflags')
 
         schema['pull-properties'].extend([
             'qt-version',
@@ -82,11 +92,6 @@ class QtBuilderPlugin(autotools.AutotoolsPlugin):
 
             self.run(patch_cmd, cwd=self.sourcedir)
 
-
-    def run(self, cmd, cwd=None, **kwargs):
-        # Hack to avoid rewriting the whole 'autotools' build function
-        if len(cmd) and cmd[0] == './configure':
-            cmd.remove('--prefix=')
-            cmd = [c.replace('--', '-') for c in cmd]
-
-        super().run(cmd, cwd, **kwargs)
+    def build(self):
+        self.run(['./configure'] + self.options.configflags)
+        super().build()
