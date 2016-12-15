@@ -66,6 +66,7 @@ parts:
   desktop-integration:
     plugin: nil
     stage-packages:
+      - libpulse0
       - libx11-data
       - libx11-xcb1
       - xkb-data
