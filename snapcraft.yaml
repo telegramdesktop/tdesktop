@@ -14,6 +14,7 @@ apps:
       bash -c \'mkdir -p $HOME/{.local/share/fonts,.cache} &&
                 env QT_XKB_CONFIG_ROOT=$SNAP/usr/share/X11/xkb
                     QT_IM_MODULE=xim
+                    QTCOMPOSE=$SNAP/usr/share/X11/locale
                     XDG_DATA_DIRS=$SNAP/usr/share:$XDG_DATADIRS
                     XDG_CACHE_HOME=$HOME/.cache
                   Telegram\'
@@ -65,6 +66,7 @@ parts:
   desktop-integration:
     plugin: nil
     stage-packages:
+      - libx11-data
       - libx11-xcb1
       - xkb-data
 
