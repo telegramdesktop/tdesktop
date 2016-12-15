@@ -41,7 +41,9 @@ parts:
       - zlib1g-dev
     gyp-file: Telegram/gyp/Telegram.gyp
     build-type: 'Release'
-    built-binaries: ['Telegram']
+    artifacts: ['Telegram']
+    organize:
+      Telegram: bin/Telegram
     configflags:
       - -Dlinux_path_xkbcommon=$SNAPCRAFT_STAGE
       - -Dlinux_path_va=$SNAPCRAFT_STAGE
