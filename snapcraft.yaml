@@ -1,0 +1,275 @@
+name: telegramdesktop
+version: 0.10.19
+summary: Telegram Desktop
+description: |
+  Telegram is a popular messaging protocol with encryption and security as
+  its key focus.
+
+grade: stable
+confinement: strict
+
+apps:
+  telegramdesktop:
+    command: |
+      bash -c \'mkdir -p $HOME/{.local/share/fonts,.cache} &&
+                env QT_XKB_CONFIG_ROOT=$SNAP/usr/share/X11/xkb
+                    QT_IM_MODULE=xim
+                    XDG_DATA_DIRS=$SNAP/usr/share:$XDG_DATADIRS
+                    XDG_CACHE_HOME=$HOME/.cache
+                    TMPDIR=$HOME/.cache
+                  Telegram\'
+    plugs:
+      - unity7
+      - network
+      - network-manager
+      - network-bind
+      - home
+      - pulseaudio
+
+parts:
+  telegram:
+    plugin: gyp-cmake
+    source: https://github.com/telegramdesktop/tdesktop/archive/v$SNAPCRAFT_PROJECT_VERSION.tar.gz
+    build-packages:
+      - libappindicator-dev
+      - libappindicator3-dev
+      - libexif-dev
+      - libicu-dev
+      - liblzma-dev
+      - libssl-dev
+      - libunity-dev
+      - zlib1g-dev
+    gyp-file: Telegram/gyp/Telegram.gyp
+    build-type: 'Release'
+    built-binaries: ['Telegram']
+    stage-packages: ['libx11-xcb1', 'xkb-data']
+    configflags:
+      - -Dlinux_path_xkbcommon=$SNAPCRAFT_STAGE
+      - -Dlinux_path_va=$SNAPCRAFT_STAGE
+      - -Dlinux_path_ffmpeg=$SNAPCRAFT_STAGE
+      - -Dlinux_path_openal=$SNAPCRAFT_STAGE
+      - -Dlinux_path_qt=$SNAPCRAFT_STAGE
+      - -Dlinux_path_breakpad=$SNAPCRAFT_STAGE
+      - -Dlinux_path_libexif_lib=$SNAPCRAFT_STAGE
+      - -Dlinux_lib_ssl=-lssl
+      - -Dlinux_lib_crypto=-lcrypto
+      - -Dlinux_lib_icu=-licuuc -licutu -licui18n
+      - -Dtravis_defines=TDESKTOP_DISABLE_AUTOUPDATE=1
+      - --depth=.
+    after:
+      - breakpad
+      - ffmpeg
+      - gyp
+      - libva
+      - openal
+      - qt
+
+  libva:
+    source: https://anongit.freedesktop.org/git/libva.git
+    source-depth: 1
+    plugin: autotools
+    build-packages:
+      - libdrm-dev
+      - libegl1-mesa-dev
+      - libgl1-mesa-dev
+      - libx11-dev
+      - libxext-dev
+      - libxfixes-dev
+    configflags:
+      - --enable-static
+    snap: [-./*]
+
+  opus:
+    source: http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz
+    plugin: autotools
+    snap: [-./*]
+
+  ffmpeg:
+    source: https://github.com/FFmpeg/FFmpeg.git
+    source-depth: 1
+    source-branch: release/3.1
+    plugin: autotools
+    build-packages:
+      - libass-dev
+      - libfreetype6-dev
+      - libgpac-dev
+      - libsdl1.2-dev
+      - libtheora-dev
+      - libtool
+      - libva-dev
+      - libvdpau-dev
+      - libvorbis-dev
+      - libxcb1-dev
+      - libxcb-shm0-dev
+      - libxcb-xfixes0-dev
+      - pkg-config
+      - texi2html
+      - yasm
+      - zlib1g-dev
+    configflags:
+      - --prefix=/
+      - --disable-debug
+      - --disable-programs
+      - --disable-doc
+      - --disable-everything
+      - --enable-gpl
+      - --enable-version3
+      - --enable-libopus
+      - --enable-decoder=aac
+      - --enable-decoder=aac_latm
+      - --enable-decoder=aasc
+      - --enable-decoder=flac
+      - --enable-decoder=gif
+      - --enable-decoder=h264
+      - --enable-decoder=h264_vdpau
+      - --enable-decoder=mp1
+      - --enable-decoder=mp1float
+      - --enable-decoder=mp2
+      - --enable-decoder=mp2float
+      - --enable-decoder=mp3
+      - --enable-decoder=mp3adu
+      - --enable-decoder=mp3adufloat
+      - --enable-decoder=mp3float
+      - --enable-decoder=mp3on4
+      - --enable-decoder=mp3on4float
+      - --enable-decoder=mpeg4
+      - --enable-decoder=mpeg4_vdpau
+      - --enable-decoder=msmpeg4v2
+      - --enable-decoder=msmpeg4v3
+      - --enable-decoder=opus
+      - --enable-decoder=vorbis
+      - --enable-decoder=wavpack
+      - --enable-decoder=wmalossless
+      - --enable-decoder=wmapro
+      - --enable-decoder=wmav1
+      - --enable-decoder=wmav2
+      - --enable-decoder=wmavoice
+      - --enable-encoder=libopus
+      - --enable-hwaccel=h264_vaapi
+      - --enable-hwaccel=h264_vdpau
+      - --enable-hwaccel=mpeg4_vaapi
+      - --enable-hwaccel=mpeg4_vdpau
+      - --enable-parser=aac
+      - --enable-parser=aac_latm
+      - --enable-parser=flac
+      - --enable-parser=h264
+      - --enable-parser=mpeg4video
+      - --enable-parser=mpegaudio
+      - --enable-parser=opus
+      - --enable-parser=vorbis
+      - --enable-demuxer=aac
+      - --enable-demuxer=flac
+      - --enable-demuxer=gif
+      - --enable-demuxer=h264
+      - --enable-demuxer=mov
+      - --enable-demuxer=mp3
+      - --enable-demuxer=ogg
+      - --enable-demuxer=wav
+      - --enable-muxer=ogg
+      - --enable-muxer=opus
+    after:
+      - opus
+    snap: [-./*]
+
+  portaudio:
+    source: http://www.portaudio.com/archives/pa_stable_v19_20140130.tgz
+    plugin: autotools
+    snap: [-./*]
+
+  openal:
+    source: http://repo.or.cz/openal-soft.git
+    source-depth: 1
+    plugin: cmake
+    configflags:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DLIBTYPE=STATIC
+    after:
+      - ffmpeg
+      - portaudio
+    snap: [-./*]
+
+  libxkbcommon:
+    source: https://github.com/xkbcommon/libxkbcommon.git
+    source-depth: 1
+    plugin: autotools
+    build-packages:
+      - xutils-dev
+      - bison
+      - python-xcbgen
+    configflags:
+      - --disable-x11
+    snap: [-./*]
+
+  qt:
+    plugin: qtbuilder
+    qt-version: 5.6.2
+    qt-submodules: ['qtbase', 'qtimageformats']
+    qt-patches-base-url: https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches
+    source: https://code.qt.io/qt/qt5.git
+    source-depth: 1
+    build-packages:
+      - libasound2-dev
+      - libffi-dev
+      - libpulse-dev
+      - libssl-dev
+      - libx11-xcb-dev
+      - libxcb-icccm4-dev
+      - libxcb-image0-dev
+      - libxcb-keysyms1-dev
+      - libxcb-randr0-dev
+      - libxcb-render-util0-dev
+      - libxcb-sync-dev
+      - libxcb-util0-dev
+      - libxcb-xfixes0-dev
+      - libxcb1-dev
+      - libxrender-dev
+    configflags:
+      - -prefix
+      - $SNAPCRAFT_STAGE
+      - -release
+      - -force-debug-info
+      - -opensource
+      - -confirm-license
+      - -qt-zlib
+      - -qt-libpng
+      - -qt-libjpeg
+      - -qt-freetype
+      - -qt-harfbuzz
+      - -qt-pcre
+      - -qt-xcb
+      - -qt-xkbcommon-x11
+      - -no-opengl
+      - -no-gtkstyle
+      - -static
+      - -openssl-linked
+      - -no-mirclient
+      - -nomake
+      - examples
+      - -nomake
+      - tests
+    after:
+      - libxkbcommon
+    snap: [-./*]
+
+  breakpad:
+    plugin: autotools-subsource
+    source: https://chromium.googlesource.com/breakpad/breakpad
+    source-type: git
+    source-depth: 1
+    sub-sources:
+      - linux-syscall-support:
+          dest: src/third_party/lss
+          source: https://chromium.googlesource.com/linux-syscall-support
+          source-type: git
+          source-depth: 1
+    snap: [-./*]
+
+  gyp:
+    plugin: patched-python
+    source: https://chromium.googlesource.com/external/gyp
+    source-type: git
+    source-commit: 702ac58e4772
+    python-version: python2
+    patches:
+      - https://raw.githubusercontent.com/telegramdesktop/tdesktop/master/Telegram/Patches/gyp.diff
+    snap: [-./*]
