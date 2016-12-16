@@ -55,7 +55,9 @@ parts:
       - -Dlinux_lib_ssl=-lssl
       - -Dlinux_lib_crypto=-lcrypto
       - -Dlinux_lib_icu=-licuuc -licutu -licui18n
-      - -Dtravis_defines=TDESKTOP_DISABLE_AUTOUPDATE=1
+      - -Dtravis_defines=TDESKTOP_DISABLE_AUTOUPDATE,
+                         TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME,
+                         TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
       - --depth=.
     after:
       - breakpad
