@@ -189,21 +189,17 @@ parts:
       - opus
     snap: [-./*]
 
-  portaudio:
-    source: http://www.portaudio.com/archives/pa_stable_v19_20140130.tgz
-    plugin: autotools
-    snap: [-./*]
-
   openal:
     source: http://repo.or.cz/openal-soft.git
     source-depth: 1
     plugin: cmake
+    build-packages:
+      - portaudio19-dev
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
       - -DLIBTYPE=STATIC
     after:
       - ffmpeg
-      - portaudio
     snap: [-./*]
 
   libxkbcommon:
