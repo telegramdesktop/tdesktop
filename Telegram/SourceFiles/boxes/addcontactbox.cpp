@@ -559,6 +559,9 @@ void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update)
 		return;
 	}
 	_setPhotoFileQueryId = 0;
+	if (update.remoteContent.isEmpty() && update.filePaths.isEmpty()) {
+		return;
+	}
 
 	QImage img;
 	if (!update.remoteContent.isEmpty()) {
