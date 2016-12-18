@@ -176,7 +176,7 @@ echo .
 echo Version %AppVersionStrFull% is ready for deploy!
 echo .
 
-set "FinalReleasePath=Z:\TBuild\tother\tsetup"
+set "FinalReleasePath=Y:\TBuild\tother\tsetup"
 set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
 if not exist "%DeployPath%\%UpdateFile%" goto error

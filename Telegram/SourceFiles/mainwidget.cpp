@@ -722,6 +722,10 @@ void MainWidget::shareContactLayer(UserData *contact) {
 }
 
 void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
+	// Don't allow to insert an inline bot query by share url link.
+	if (url.trimmed().startsWith('@')) {
+		return;
+	}
 	hiderLayer(new HistoryHider(this, url, text));
 }
 
