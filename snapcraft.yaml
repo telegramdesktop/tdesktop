@@ -108,6 +108,7 @@ parts:
       - libass-dev
       - libfreetype6-dev
       - libgpac-dev
+      - liblzma-dev
       - libopus-dev
       - libsdl1.2-dev
       - libtheora-dev
@@ -220,6 +221,7 @@ parts:
     build-packages:
       - libasound2-dev
       - libffi-dev
+      - liblzma-dev
       - libpulse-dev
       - libssl-dev
       - libx11-xcb-dev
