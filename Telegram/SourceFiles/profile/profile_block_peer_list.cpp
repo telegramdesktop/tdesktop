@@ -46,7 +46,7 @@ int PeerListWidget::resizeGetHeight(int newWidth) {
 
 	newHeight += _items.size() * st::profileMemberHeight;
 
-	return newHeight + st::profileBlockMarginBottom;
+	return newHeight + _st.bottom;
 }
 
 void PeerListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -251,7 +251,7 @@ void PeerListWidget::repaintRow(int index) {
 }
 
 int PeerListWidget::getListLeft() const {
-	return st::profileBlockTitlePosition.x() - st::profileMemberPaddingLeft;
+	return _st.left;
 }
 
 int PeerListWidget::rowWidth() const {

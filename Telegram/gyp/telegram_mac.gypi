@@ -62,7 +62,7 @@
     'mac_bundle': '1',
     'mac_bundle_resources': [
       '<!@(python -c "for s in \'<@(langpacks)\'.split(\' \'): print(\'<(res_loc)/langs/\' + s + \'.lproj/Localizable.strings\')")',
-      '../Telegram/Images.xcassets'
+      '../Telegram/Images.xcassets',
     ],
   }], [ 'build_macold', {
     'xcode_settings': {

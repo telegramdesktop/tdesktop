@@ -117,6 +117,8 @@ profileInviteLinkText: FlatLabel(profileBlockTextPart) {
 profileLimitReachedSkip: 6px;
 
 profileMemberItem: ProfilePeerListItem {
+	left: 8px;
+	bottom: profileBlockMarginBottom;
 	button: defaultLeftOutlineButton;
 	statusFg: windowSubTextFg;
 	statusFgOver: #7c99b2;

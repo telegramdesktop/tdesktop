@@ -218,7 +218,7 @@ void SettingsSlider::startRipple(int sectionIndex) {
 
 QImage SettingsSlider::prepareRippleMask(int sectionIndex, const Section &section) {
 	auto size = QSize(section.width, height() - _st.rippleBottomSkip);
-	if (!_st.rippleRoundRadius || sectionIndex > 0 && sectionIndex + 1 < getSectionsCount()) {
+	if (!_st.rippleRoundRadius || (sectionIndex > 0 && sectionIndex + 1 < getSectionsCount())) {
 		return RippleAnimation::rectMask(size);
 	}
 	return RippleAnimation::maskByDrawer(size, false, [this, sectionIndex, width = section.width](QPainter &p) {

@@ -49,6 +49,7 @@ f_SHCreateItemFromParsingName SHCreateItemFromParsingName;
 f_WTSRegisterSessionNotification WTSRegisterSessionNotification;
 f_WTSUnRegisterSessionNotification WTSUnRegisterSessionNotification;
 f_SHQueryUserNotificationState SHQueryUserNotificationState;
+f_SHChangeNotify SHChangeNotify;
 f_SetCurrentProcessExplicitAppUserModelID SetCurrentProcessExplicitAppUserModelID;
 f_RoGetActivationFactory RoGetActivationFactory;
 f_WindowsCreateStringReference WindowsCreateStringReference;
@@ -70,7 +71,12 @@ void start() {
 	load(LibShell32, "SHOpenWithDialog", SHOpenWithDialog);
 	load(LibShell32, "OpenAs_RunDLLW", OpenAs_RunDLL);
 	load(LibShell32, "SHQueryUserNotificationState", SHQueryUserNotificationState);
+	load(LibShell32, "SHChangeNotify", SHChangeNotify);
 	load(LibShell32, "SetCurrentProcessExplicitAppUserModelID", SetCurrentProcessExplicitAppUserModelID);
+
+	if (cBetaVersion() == 10020001 && SHChangeNotify) { // Temp - app icon was changed
+		SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+	}
 
 	LibUxTheme = LoadLibrary(L"UXTHEME.DLL");
 	load(LibUxTheme, "SetWindowTheme", SetWindowTheme);

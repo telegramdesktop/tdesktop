@@ -721,6 +721,8 @@ public:
 	bool cmd_next_chat();
 	bool cmd_previous_chat();
 
+	~HistoryWidget();
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -1089,7 +1091,7 @@ private:
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId = 0;
-	std_::unique_ptr<Ui::IconButton> _inlineBotCancel;
+	object_ptr<Ui::IconButton> _inlineBotCancel = { nullptr };
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 

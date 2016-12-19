@@ -868,6 +868,9 @@ MediaPlayerButton {
 }
 
 ProfilePeerListItem {
+	left: pixels;
+	bottom: pixels;
+
 	button: OutlineButton;
 	statusFg: color;
 	statusFgOver: color;

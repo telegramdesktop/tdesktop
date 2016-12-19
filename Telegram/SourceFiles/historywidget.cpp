@@ -6398,14 +6398,14 @@ void HistoryWidget::clearInlineBot() {
 void HistoryWidget::inlineBotChanged() {
 	bool isInlineBot = _inlineBot && (_inlineBot != Ui::LookingUpInlineBot);
 	if (isInlineBot && !_inlineBotCancel) {
-		_inlineBotCancel = std_::make_unique<Ui::IconButton>(this, st::historyInlineBotCancel);
-		connect(_inlineBotCancel.get(), SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
+		_inlineBotCancel.create(this, st::historyInlineBotCancel);
+		connect(_inlineBotCancel, SIGNAL(clicked()), this, SLOT(onInlineBotCancel()));
 		_inlineBotCancel->setGeometry(_send->geometry());
 		_attachEmoji->raise();
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	} else if (!isInlineBot && _inlineBotCancel) {
-		_inlineBotCancel = nullptr;
+		_inlineBotCancel.destroy();
 		updateFieldSubmitSettings();
 		updateControlsVisibility();
 	}
@@ -8911,3 +8911,5 @@ bool HistoryWidget::touchScroll(const QPoint &delta) {
 	_scroll->scrollToY(scNew);
 	return true;
 }
+
+HistoryWidget::~HistoryWidget() = default;

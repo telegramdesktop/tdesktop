@@ -55,8 +55,8 @@ ContactsBox::ContactsBox(QWidget*, ChatData *chat, MembersFilter filter)
 }
 
 ContactsBox::ContactsBox(QWidget*, ChannelData *channel)
-: _creating(CreatingGroupChannel)
-, _channel(channel)
+: _channel(channel)
+, _creating(CreatingGroupChannel)
 , _select(createMultiSelect())
 , _searchTimer(this) {
 }

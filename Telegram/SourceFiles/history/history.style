@@ -71,16 +71,18 @@ membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
 	scroll: ScrollArea(defaultSolidScroll) {
-		deltat: 3px;
-		deltab: 3px;
+		deltat: 0px;
+		deltab: 0px;
 		round: 1px;
 		width: 8px;
 		deltax: 3px;
 	}
 	scrollMargin: margins(0px, 5px, 0px, 5px);
-	scrollPadding: margins(0px, 3px, 8px, 3px);
+	scrollPadding: margins(0px, 3px, 0px, 3px);
 }
 membersInnerItem: ProfilePeerListItem {
+	left: 0px;
+	bottom: 0px;
 	button: OutlineButton {
 		outlineWidth: 0px;
 
