@@ -99,11 +99,6 @@ parts:
       - --enable-static
     snap: [-./*]
 
-  opus:
-    source: http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz
-    plugin: autotools
-    snap: [-./*]
-
   ffmpeg:
     source: https://github.com/FFmpeg/FFmpeg.git
     source-depth: 1
@@ -113,6 +108,7 @@ parts:
       - libass-dev
       - libfreetype6-dev
       - libgpac-dev
+      - libopus-dev
       - libsdl1.2-dev
       - libtheora-dev
       - libtool
@@ -187,8 +183,6 @@ parts:
       - --enable-demuxer=wav
       - --enable-muxer=ogg
       - --enable-muxer=opus
-    after:
-      - opus
     snap: [-./*]
 
   openal:
