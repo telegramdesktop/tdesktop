@@ -58,6 +58,9 @@ private slots:
 	void onCompressedChange();
 	void onSend(bool ctrlShiftEnter = false);
 	void onCaptionResized();
+	void onClose() {
+		closeBox();
+	}
 
 private:
 	void updateTitleText();
@@ -108,6 +111,9 @@ public:
 public slots:
 	void onCaptionResized();
 	void onSave(bool ctrlShiftEnter = false);
+	void onClose() {
+		closeBox();
+	}
 
 protected:
 	void prepare() override;

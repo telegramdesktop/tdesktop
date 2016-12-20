@@ -859,7 +859,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 	_menu = new Ui::PopupMenu();
 	App::main()->fillPeerMenu(_menuPeer, [this](const QString &text, base::lambda<void()> &&callback) {
 		return _menu->addAction(text, std_::move(callback));
-	});
+	}, true);
 	connect(_menu, SIGNAL(destroyed(QObject*)), this, SLOT(onMenuDestroyed(QObject*)));
 	_menu->popup(e->globalPos());
 	e->accept();

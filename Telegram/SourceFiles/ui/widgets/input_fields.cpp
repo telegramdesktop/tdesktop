@@ -1830,7 +1830,7 @@ void InputArea::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
 	}
 	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, hasFocus() ? 1. : 0.);
+	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
 	auto borderShownDegree = _a_borderShown.current(ms, 1.);
 	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
@@ -2547,7 +2547,7 @@ void InputField::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
 	}
 	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, hasFocus() ? 1. : 0.);
+	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
 	auto borderShownDegree = _a_borderShown.current(ms, 1.);
 	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {
@@ -3307,7 +3307,7 @@ void MaskedInputField::paintEvent(QPaintEvent *e) {
 		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg->b);
 	}
 	auto errorDegree = _a_error.current(ms, _error ? 1. : 0.);
-	auto focusedDegree = _a_focused.current(ms, hasFocus() ? 1. : 0.);
+	auto focusedDegree = _a_focused.current(ms, _focused ? 1. : 0.);
 	auto borderShownDegree = _a_borderShown.current(ms, 1.);
 	auto borderOpacity = _a_borderOpacity.current(ms, _borderVisible ? 1. : 0.);
 	if (_st.borderActive && (borderOpacity > 0.)) {

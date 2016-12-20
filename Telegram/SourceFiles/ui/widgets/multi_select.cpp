@@ -460,7 +460,7 @@ bool MultiSelect::Inner::setInnerFocus() {
 	if (_active >= 0) {
 		setFocus();
 	} else if (!_field->hasFocus()) {
-		_field->setFocus();
+		_field->setFocusFast();
 		return true;
 	}
 	return false;

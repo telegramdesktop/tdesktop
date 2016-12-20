@@ -80,8 +80,10 @@ void ConnectionBox::updateControlsVisibility() {
 }
 
 void ConnectionBox::setInnerFocus() {
-	if (!_hostInput->isHidden()) {
-		_hostInput->setFocus();
+	if (_hostInput->isHidden()) {
+		setFocus();
+	} else {
+		_hostInput->setFocusFast();
 	}
 }
 
@@ -120,9 +122,12 @@ void ConnectionBox::updateControlsPosition() {
 void ConnectionBox::onChange() {
 	updateControlsVisibility();
 	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
-		_hostInput->setFocus();
+		if (!_hostInput->hasFocus() && !_portInput->hasFocus() && !_userInput->hasFocus() && !_passwordInput->hasFocus()) {
+			_hostInput->setFocusFast();
+		}
 		if (_httpProxyRadio->checked() && !_portInput->getLastText().toInt()) {
 			_portInput->setText(qsl("80"));
+			_portInput->finishAnimations();
 		}
 	}
 	update();
@@ -217,7 +222,7 @@ void AutoDownloadBox::prepare() {
 	addButton(lang(lng_connection_save), [this] { onSave(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	setDimensions(st::boxWidth, 3 * _sectionHeight + st::setLittleSkip + _gifPlay->heightNoMargins() + st::setLittleSkip);
+	setDimensions(st::boxWidth, 3 * _sectionHeight - st::autoDownloadTopDelta + st::setLittleSkip + _gifPlay->heightNoMargins() + st::setLittleSkip);
 }
 
 void AutoDownloadBox::paintEvent(QPaintEvent *e) {
@@ -235,13 +240,14 @@ void AutoDownloadBox::paintEvent(QPaintEvent *e) {
 void AutoDownloadBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 
-	_photoPrivate->moveToLeft(st::boxTitlePosition.x(), st::boxTitleHeight + st::setLittleSkip);
+	auto top = st::boxTitleHeight - st::autoDownloadTopDelta;
+	_photoPrivate->moveToLeft(st::boxTitlePosition.x(), top + st::setLittleSkip);
 	_photoGroups->moveToLeft(st::boxTitlePosition.x(), _photoPrivate->bottomNoMargins() + st::setLittleSkip);
 
-	_audioPrivate->moveToLeft(st::boxTitlePosition.x(), _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
+	_audioPrivate->moveToLeft(st::boxTitlePosition.x(), _sectionHeight + top + st::setLittleSkip);
 	_audioGroups->moveToLeft(st::boxTitlePosition.x(), _audioPrivate->bottomNoMargins() + st::setLittleSkip);
 
-	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + st::boxTitleHeight + st::setLittleSkip);
+	_gifPrivate->moveToLeft(st::boxTitlePosition.x(), 2 * _sectionHeight + top + st::setLittleSkip);
 	_gifGroups->moveToLeft(st::boxTitlePosition.x(), _gifPrivate->bottomNoMargins() + st::setLittleSkip);
 	_gifPlay->moveToLeft(st::boxTitlePosition.x(), _gifGroups->bottomNoMargins() + st::setLittleSkip);
 }

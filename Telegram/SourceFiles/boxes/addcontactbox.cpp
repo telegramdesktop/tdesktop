@@ -33,6 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/toast/toast.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -74,21 +75,15 @@ void AddContactBox::prepare() {
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_phone, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 
-	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
-		(_invertOrder ? _last : _first)->setDisplayFocused(true);
-		_phone->finishAnimations();
-	} else {
-		_phone->setDisplayFocused(true);
-	}
-
 	setDimensions(st::boxWideWidth, st::contactPadding.top() + _first->height() + st::contactSkip + _last->height() + st::contactPhoneSkip + _phone->height() + st::contactPadding.bottom() + st::boxPadding.bottom());
 }
 
 void AddContactBox::setInnerFocus() {
 	if ((_first->getLastText().isEmpty() && _last->getLastText().isEmpty()) || !_phone->isEnabled()) {
-		(_invertOrder ? _last : _first)->setFocus();
+		(_invertOrder ? _last : _first)->setFocusFast();
+		_phone->finishAnimations();
 	} else {
-		_phone->setFocus();
+		_phone->setFocusFast();
 	}
 }
 
@@ -284,13 +279,11 @@ void GroupInfoBox::prepare() {
 		notifyFileQueryUpdated(update);
 	});
 
-	_title->setDisplayFocused(true);
-
 	updateMaxHeight();
 }
 
 void GroupInfoBox::setInnerFocus() {
-	_title->setFocus();
+	_title->setFocusFast();
 }
 
 void GroupInfoBox::resizeEvent(QResizeEvent *e) {
@@ -465,7 +458,7 @@ void SetupChannelBox::setInnerFocus() {
 	if (_link->isHidden()) {
 		setFocus();
 	} else {
-		_link->setFocus();
+		_link->setFocusFast();
 	}
 }
 
@@ -517,16 +510,6 @@ void SetupChannelBox::paintEvent(QPaintEvent *e) {
 			p.setFont(_linkOver ? st::boxTextFont->underline() : st::boxTextFont);
 			p.setPen(st::defaultLinkButton.color);
 			p.drawText(_invitationLink, _channel->inviteLink(), option);
-			if (!_goodTextLink.isEmpty()) {
-				auto opacity = _a_goodOpacity.current(getms(), 0.);
-				if (opacity > 0.) {
-					p.setOpacity(opacity);
-					p.setPen(st::boxTextFgGood);
-					p.setFont(st::boxTextFont);
-					p.drawTextRight(st::boxPadding.right(), _link->y() - st::newGroupLinkPadding.top() + st::newGroupLinkTop + st::newGroupLinkFont->ascent - st::boxTextFont->ascent, width(), _goodTextLink);
-					p.setOpacity(1);
-				}
-			}
 		}
 	} else {
 		if (!_errorText.isEmpty()) {
@@ -559,9 +542,10 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		Application::clipboard()->setText(_channel->inviteLink());
-		_goodTextLink = lang(lng_create_channel_link_copied);
-		_a_goodOpacity.finish();
-		_a_goodOpacity.start([this] { update(); }, 1., 0., st::newGroupLinkFadeDuration);
+
+		Ui::Toast::Config toast;
+		toast.text = lang(lng_create_channel_link_copied);
+		Ui::Toast::Show(App::wnd(), toast);
 	}
 }
 
@@ -669,6 +653,7 @@ void SetupChannelBox::onPrivacyChange() {
 			return;
 		}
 		_link->show();
+		_link->setDisplayFocused(true);
 		_link->setFocus();
 	} else {
 		_link->hide();
@@ -812,12 +797,10 @@ void EditNameTitleBox::prepare() {
 	connect(_first, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_last, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	_last->setVisible(!_peer->isChat());
-
-	(_invertOrder ? _last : _first)->setDisplayFocused(true);
 }
 
 void EditNameTitleBox::setInnerFocus() {
-	(_invertOrder ? _last : _first)->setFocus();
+	(_invertOrder ? _last : _first)->setFocusFast();
 }
 
 void EditNameTitleBox::onSubmit() {
@@ -967,13 +950,11 @@ void EditChannelBox::prepare() {
 	_publicLink->setVisible(_channel->canEditUsername());
 	_sign->setVisible(!_channel->isMegagroup());
 
-	_title->setDisplayFocused(true);
-
 	updateMaxHeight();
 }
 
 void EditChannelBox::setInnerFocus() {
-	_title->setFocus();
+	_title->setFocusFast();
 }
 
 void EditChannelBox::keyPressEvent(QKeyEvent *e) {
@@ -1207,7 +1188,7 @@ void RevokePublicLinkBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.translate(0, _rowsTop);
 	for_const (auto &row, _rows) {
-		paintChat(p, row, (row.peer == _selected), (row.peer == _pressed));
+		paintChat(p, row, (row.peer == _selected));
 		p.translate(0, _rowHeight);
 	}
 }
@@ -1218,7 +1199,7 @@ void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
 	_aboutRevoke->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 }
 
-void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected, bool pressed) const {
+void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected) const {
 	auto peer = row.peer;
 	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
@@ -1234,7 +1215,7 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 	row.name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	p.setFont(selected ? st::linkOverFont : st::linkFont);
-	p.setPen(pressed ? st::defaultLinkButton.downColor : st::defaultLinkButton.color);
+	p.setPen(selected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
 	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), lang(lng_channels_too_much_public_revoke), _revokeWidth);
 
 	p.setPen(st::contactsStatusFg);

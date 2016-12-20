@@ -40,6 +40,8 @@ public:
 	};
 	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
 
+	void invalidateCache();
+
 private:
 	struct Icon {
 		Animation fadeIn;
@@ -78,6 +80,10 @@ public:
 	}
 	using SetStyle = RoundCheckbox::SetStyle;
 	void setChecked(bool newChecked, SetStyle speed = SetStyle::Animated);
+
+	void invalidateCache() {
+		_check.invalidateCache();
+	}
 
 private:
 	void prepareWideCache();

@@ -198,11 +198,11 @@ void PasscodeBox::resizeEvent(QResizeEvent *e) {
 
 void PasscodeBox::setInnerFocus() {
 	if (_skipEmailWarning && !_recoverEmail->isHidden()) {
-		_recoverEmail->setFocus();
+		_recoverEmail->setFocusFast();
 	} else if (_oldPasscode->isHidden()) {
-		_newPasscode->setFocus();
+		_newPasscode->setFocusFast();
 	} else {
-		_oldPasscode->setFocus();
+		_oldPasscode->setFocusFast();
 	}
 }
 
@@ -469,7 +469,7 @@ void RecoverBox::resizeEvent(QResizeEvent *e) {
 }
 
 void RecoverBox::setInnerFocus() {
-	_recoverCode->setFocus();
+	_recoverCode->setFocusFast();
 }
 
 void RecoverBox::onSubmit() {

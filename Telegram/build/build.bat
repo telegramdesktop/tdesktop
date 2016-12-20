@@ -45,9 +45,15 @@ set "DeployPath=%ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStrFull%"
 set "SignPath=%HomePath%\..\..\TelegramPrivate\Sign.bat"
 set "BinaryName=Telegram"
 set "DropboxSymbolsPath=X:\Telegram\symbols"
+set "FinalReleasePath=Y:\TBuild\tother\tsetup"
 
 if not exist %DropboxSymbolsPath% (
-  echo Dropbox path not found!
+  echo Dropbox path %DropboxSymbolsPath% not found!
+  exit /b 1
+)
+
+if not exist %FinalReleasePath% (
+  echo Release path %FinalReleasePath% not found!
   exit /b 1
 )
 
@@ -176,7 +182,6 @@ echo .
 echo Version %AppVersionStrFull% is ready for deploy!
 echo .
 
-set "FinalReleasePath=Y:\TBuild\tother\tsetup"
 set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
 if not exist "%DeployPath%\%UpdateFile%" goto error

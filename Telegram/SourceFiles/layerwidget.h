@@ -34,11 +34,13 @@ public:
 	virtual void showFinished() {
 	}
 	void setInnerFocus();
-	void closing() {
+	bool setClosing() {
 		if (!_closing) {
 			_closing = true;
 			closeHook();
+			return true;
 		}
+		return false;
 	}
 
 	bool overlaps(const QRect &globalRect);

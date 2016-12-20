@@ -68,6 +68,6 @@ private:
 	int _rows = 0;
 	int _over = -1;
 	int _overDown = -1;
-	std_::unique_ptr<Ui::RoundCheckbox> _check; // this not a widget
+	std_::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
 
 };

@@ -41,7 +41,7 @@ int LinkButton::naturalWidth() const {
 void LinkButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto &font = (isOver() ? _st.overFont : _st.font);
-	auto &pen = (isDown() ? _st.downColor : (isOver() ? _st.overColor : _st.color));
+	auto &pen = (isOver() ? _st.overColor : _st.color);
 	p.setFont(font);
 	p.setPen(pen);
 	if (_textWidth > width()) {

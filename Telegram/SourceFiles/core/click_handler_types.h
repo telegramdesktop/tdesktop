@@ -115,7 +115,13 @@ class HiddenUrlClickHandler : public UrlClickHandler {
 public:
 	HiddenUrlClickHandler(QString url) : UrlClickHandler(url, false) {
 	}
-	void onClick(Qt::MouseButton button) const override;
+
+	static void doOpen(QString url);
+	void onClick(Qt::MouseButton button) const override {
+		if (button == Qt::LeftButton || button == Qt::MiddleButton) {
+			doOpen(url());
+		}
+	}
 
 	QString getExpandedLinkText(ExpandLinksMode mode, const QStringRef &textPart) const override;
 	TextWithEntities getExpandedLinkTextWithEntities(ExpandLinksMode mode, int entityOffset, const QStringRef &textPart) const override;

@@ -37,6 +37,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "window/window_theme.h"
 #include "boxes/contactsbox.h"
 
 ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
@@ -294,6 +295,20 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 		notifyPeerUpdated(update);
 	}));
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
+		if (update.type == Update::Type::TestingTheme
+			|| update.type == Update::Type::RevertingTheme) {
+			invalidateCache();
+		}
+	});
+}
+
+void ShareBox::Inner::invalidateCache() {
+	for_const (auto data, _dataMap) {
+		data->checkbox.invalidateCache();
+	}
 }
 
 void ShareBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {

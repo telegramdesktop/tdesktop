@@ -128,6 +128,7 @@ public slots:
 
 private:
 	void saveDocumentToFile(DocumentData *document);
+	void invalidateCache();
 
 	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;

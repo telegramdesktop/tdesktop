@@ -144,6 +144,15 @@ void RoundCheckbox::setChecked(bool newChecked, SetStyle speed) {
 	}
 }
 
+void RoundCheckbox::invalidateCache() {
+	if (!_wideCheckBgCache.isNull() || !_wideCheckFullCache.isNull()) {
+		prepareCheckCaches(&_st, _displayInactive, _wideCheckBgCache, _wideCheckFullCache);
+	}
+	if (!_inactiveCacheBg.isNull() || !_inactiveCacheFg.isNull()) {
+		prepareInactiveCache();
+	}
+}
+
 void RoundCheckbox::setDisplayInactive(bool displayInactive) {
 	if (_displayInactive != displayInactive) {
 		_displayInactive = displayInactive;

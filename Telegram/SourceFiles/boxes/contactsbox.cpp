@@ -40,6 +40,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
+#include "window/window_theme.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 
@@ -636,6 +637,32 @@ void ContactsBox::Inner::init() {
 	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData *)));
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
+		if (update.type == Update::Type::TestingTheme
+			|| update.type == Update::Type::RevertingTheme) {
+			invalidateCache();
+		}
+	});
+}
+
+void ContactsBox::Inner::invalidateCache() {
+	for_const (auto data, _contactsData) {
+		if (data->checkbox) {
+			data->checkbox->invalidateCache();
+		}
+	}
+	for_const (auto data, _byUsernameDatas) {
+		if (data->checkbox) {
+			data->checkbox->invalidateCache();
+		}
+	}
+	for_const (auto data, d_byUsername) {
+		if (data->checkbox) {
+			data->checkbox->invalidateCache();
+		}
+	}
 }
 
 void ContactsBox::Inner::initList() {
@@ -894,17 +921,18 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 	return data;
 }
 
+bool ContactsBox::Inner::isRowDisabled(PeerData *peer, ContactData *data) const {
+	if (_chat && _membersFilter == MembersFilter::Admins) {
+		return (_saving || _allAdmins->checked() || peer->id == peerFromUser(_chat->creator));
+	}
+	return (data->disabledChecked || selectedCount() >= Global::MegagroupSizeMax());
+}
+
 void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool selected) {
 	auto user = peer->asUser();
 
-	if (_chat && _membersFilter == MembersFilter::Admins) {
-		if (_allAdmins->checked() || peer->id == peerFromUser(_chat->creator) || _saving) {
-			selected = false;
-		}
-	} else {
-		if (data->disabledChecked || selectedCount() >= Global::MegagroupSizeMax()) {
-			selected = false;
-		}
+	if (isRowDisabled(peer, data)) {
+		selected = false;
 	}
 
 	auto paintDisabledCheck = data->disabledChecked;
@@ -1229,15 +1257,15 @@ void ContactsBox::Inner::mousePressEvent(QMouseEvent *e) {
 	setPressed(_selected);
 	setFilteredPressed(_filteredSelected);
 	setSearchedPressed(_searchedSelected);
-	if (_pressed) {
-		addRipple(contactData(_selected));
+	if (_selected) {
+		addRipple(_selected->history()->peer, contactData(_selected));
 	} else if (_filteredSelected >= 0 && _filteredSelected < _filtered.size()) {
-		addRipple(contactData(_filtered[_filteredSelected]));
+		addRipple(_filtered[_filteredSelected]->history()->peer, contactData(_filtered[_filteredSelected]));
 	} else if (_searchedSelected >= 0) {
 		if (_filter.isEmpty() && _searchedSelected < d_byUsername.size()) {
-			addRipple(d_byUsername[_searchedSelected]);
+			addRipple(_byUsername[_searchedSelected], d_byUsername[_searchedSelected]);
 		} else if (!_filter.isEmpty() && _searchedSelected < d_byUsernameFiltered.size()) {
-			addRipple(d_byUsernameFiltered[_searchedSelected]);
+			addRipple(_byUsernameFiltered[_searchedSelected], d_byUsernameFiltered[_searchedSelected]);
 		}
 	}
 }
@@ -1261,7 +1289,9 @@ void ContactsBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void ContactsBox::Inner::addRipple(ContactData *data) {
+void ContactsBox::Inner::addRipple(PeerData *peer, ContactData *data) {
+	if (isRowDisabled(peer, data)) return;
+
 	auto rowTop = getSelectedRowTop();
 	if (!data->ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
@@ -1420,7 +1450,7 @@ void ContactsBox::Inner::changeCheckState(Dialogs::Row *row) {
 void ContactsBox::Inner::changeCheckState(ContactData *data, PeerData *peer) {
 	t_assert(usingMultiSelect());
 
-	if (_chat && _membersFilter == MembersFilter::Admins && _allAdmins->checked()) {
+	if (isRowDisabled(peer, data)) {
 	} else if (data->checkbox->checked()) {
 		changePeerCheckState(data, peer, false);
 	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {

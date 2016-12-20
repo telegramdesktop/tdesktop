@@ -74,7 +74,7 @@ QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
 	}
 
 	target->grabStart();
-    target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
+	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();
 
 	return std_::move(result);

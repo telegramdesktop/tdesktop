@@ -442,6 +442,10 @@ public:\n\
 	bool load(const QByteArray &cache);\n\
 	bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
 	bool setColor(QLatin1String name, QLatin1String from);\n\
+	void reset() {\n\
+		clear();\n\
+		finalize();\n\
+	}\n\
 \n\
 	// Created not inited, should be finalized before usage.\n\
 	void finalize();\n\
@@ -486,18 +490,24 @@ public:\n\
 	static int32 Checksum();\n\
 \n\
 	~palette() {\n\
+		clear();\n\
+	}\n\
+\n\
+private:\n\
+	void clear() {\n\
 		for (int i = 0; i != " << count << "; ++i) {\n\
 			if (_status[i] != Status::Initial) {\n\
 				data(i)->~ColorData();\n\
+				_status[i] = Status::Initial;\n\
+				_ready = false;\n\
 			}\n\
 		}\n\
 	}\n\
 \n\
-private:\n\
 	struct TempColorData { uchar r, g, b, a; };\n\
 	void compute(int index, int fallbackIndex, TempColorData value) {\n\
 		if (_status[index] == Status::Initial) {\n\
-			if (fallbackIndex >= 0 && _status[fallbackIndex] != Status::Initial) {\n\
+			if (fallbackIndex >= 0 && _status[fallbackIndex] == Status::Loaded) {\n\
 				_status[index] = Status::Loaded;\n\
 				new (data(index)) internal::ColorData(*data(fallbackIndex));\n\
 			} else {\n\
@@ -550,6 +560,7 @@ bool load(const QByteArray &cache);\n\
 bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
 bool setColor(QLatin1String name, QLatin1String from);\n\
 void apply(const palette &other);\n\
+void reset();\n\
 \n\
 } // namespace main_palette\n";
 
@@ -869,6 +880,11 @@ bool setColor(QLatin1String name, QLatin1String from) {\n\
 \n\
 void apply(const palette &other) {\n\
 	_palette = other;\n\
+	style::internal::resetIcons();\n\
+}\n\
+\n\
+void reset() {\n\
+	_palette.reset();\n\
 	style::internal::resetIcons();\n\
 }\n\
 \n\

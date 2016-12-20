@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-class BackgroundRow : public TWidget {
+class BackgroundRow : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -42,8 +42,11 @@ protected:
 signals:
 	void chooseFromGallery();
 	void chooseFromFile();
+	void useDefault();
 
 private:
+	void checkNonDefaultTheme();
+
 	float64 radialProgress() const;
 	bool radialLoading() const;
 	QRect radialRect() const;
@@ -52,6 +55,7 @@ private:
 	void step_radial(TimeMs ms, bool timer);
 
 	QPixmap _background;
+	object_ptr<Ui::LinkButton> _useDefault = { nullptr };
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
 	object_ptr<Ui::LinkButton> _chooseFromFile;
 
@@ -68,6 +72,7 @@ public:
 private slots:
 	void onChooseFromGallery();
 	void onChooseFromFile();
+	void onUseDefault();
 	void onTile();
 	void onAdaptive();
 

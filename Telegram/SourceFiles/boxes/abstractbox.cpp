@@ -53,17 +53,9 @@ void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st
 			connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 
 			_topShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
-			if (_innerTopSkip > 0) {
-				_topShadow->showFast();
-			} else {
-				_topShadow->hideFast();
-			}
-
-			_bottomShadow.create(this);
-			_bottomShadow->show();
-		} else {
-			_scroll->setGeometryToLeft(0, _innerTopSkip, width(), 0);
+			_bottomShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
 		}
+		_scroll->setGeometryToLeft(0, _innerTopSkip, width(), 0);
 		_scroll->setOwnedWidget(std_::move(inner));
 		updateScrollAreaGeometry();
 	} else {
@@ -99,16 +91,27 @@ void BoxContent::onDraggingScrollTimer() {
 	_scroll->scrollToY(_scroll->scrollTop() + delta);
 }
 
+void BoxContent::updateInnerVisibleTopBottom() {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
+		auto top = _scroll->scrollTop();
+		widget->setVisibleTopBottom(top, top + _scroll->height());
+	}
+}
+
 void BoxContent::onScroll() {
 	if (_scroll) {
+		updateInnerVisibleTopBottom();
+
 		auto top = _scroll->scrollTop();
-		if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
-			widget->setVisibleTopBottom(top, top + _scroll->height());
-		}
 		if (top > 0 || _innerTopSkip > 0) {
 			_topShadow->showAnimated();
 		} else {
 			_topShadow->hideAnimated();
+		}
+		if (top < _scroll->scrollTopMax()) {
+			_bottomShadow->showAnimated();
+		} else {
+			_bottomShadow->hideAnimated();
 		}
 	}
 }
@@ -122,11 +125,6 @@ void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {
 			updateScrollAreaGeometry();
 			if (scrollBottomFixed) {
 				_scroll->scrollToY(scrollTopWas + delta);
-			}
-			if (_innerTopSkip > 0) {
-				_topShadow->showFast();
-			} else {
-				_topShadow->hideFast();
 			}
 		}
 	}
@@ -161,10 +159,22 @@ void BoxContent::updateScrollAreaGeometry() {
 	_scroll->setGeometryToLeft(0, _innerTopSkip, width(), newScrollHeight);
 	_topShadow->entity()->resize(width(), st::lineWidth);
 	_topShadow->moveToLeft(0, _innerTopSkip);
-	_bottomShadow->resize(width(), st::lineWidth);
+	_bottomShadow->entity()->resize(width(), st::lineWidth);
 	_bottomShadow->moveToLeft(0, height() - st::lineWidth);
 	if (changed) {
-		onScroll();
+		updateInnerVisibleTopBottom();
+
+		auto top = _scroll->scrollTop();
+		if (top > 0 || _innerTopSkip > 0) {
+			_topShadow->showFast();
+		} else {
+			_topShadow->hideFast();
+		}
+		if (top < _scroll->scrollTopMax()) {
+			_bottomShadow->showFast();
+		} else {
+			_bottomShadow->hideFast();
+		}
 	}
 }
 
@@ -182,8 +192,8 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	}
 }
 
-AbstractBox::AbstractBox(object_ptr<BoxContent> content)
-: _content(std_::move(content)) {
+AbstractBox::AbstractBox(QWidget *parent, object_ptr<BoxContent> content) : LayerWidget(parent)
+, _content(std_::move(content)) {
 	_content->setParent(this);
 	_content->setDelegate(this);
 }

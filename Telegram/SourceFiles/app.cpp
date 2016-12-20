@@ -2211,26 +2211,7 @@ namespace {
 		return MsgRadius;
 	}
 
-	void initMedia() {
-		if (!::monofont) {
-			QString family;
-			tryFontFamily(family, qsl("Consolas"));
-			tryFontFamily(family, qsl("Liberation Mono"));
-			tryFontFamily(family, qsl("Menlo"));
-			tryFontFamily(family, qsl("Courier"));
-			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
-			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
-		}
-		emojiInit();
-		if (!::emoji) {
-			::emoji = new QPixmap(QLatin1String(EName));
-            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
-		}
-		if (!::emojiLarge) {
-			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
-			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
-		}
-
+	void createCorners() {
 		style::color white = { 255, 255, 255, 255 };
 		QImage mask[4];
 		prepareCorners(LargeMaskCorners, msgRadius(), white, nullptr, mask);
@@ -2272,22 +2253,69 @@ namespace {
 		prepareCorners(MessageInSelectedCorners, msgRadius(), st::msgInBgSelected, &st::msgInShadowSelected);
 		prepareCorners(MessageOutCorners, msgRadius(), st::msgOutBg, &st::msgOutShadow);
 		prepareCorners(MessageOutSelectedCorners, msgRadius(), st::msgOutBgSelected, &st::msgOutShadowSelected);
+	}
 
-		static auto subscription = Window::Theme::Background()->add_subscription([](const Window::Theme::BackgroundUpdate &update) {
-			if (update.type != Window::Theme::BackgroundUpdate::Type::New) {
-				return;
+	void clearCorners() {
+		for (int j = 0; j < 4; ++j) {
+			for (int i = 0; i < RoundCornersCount; ++i) {
+				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
 			}
-			for (int i = 0; i < 4; ++i) {
-				delete ::corners[StickerCorners].p[i]; ::corners[StickerCorners].p[i] = nullptr;
-				delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
+			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
+			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
+		}
+		for (auto i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				delete i->p[j];
 			}
-			prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
-			prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
+		}
+		::cornersMap.clear();
+	}
 
-			if (App::main()) {
-				App::main()->updateScrollColors();
+	void initMedia() {
+		if (!::monofont) {
+			QString family;
+			tryFontFamily(family, qsl("Consolas"));
+			tryFontFamily(family, qsl("Liberation Mono"));
+			tryFontFamily(family, qsl("Menlo"));
+			tryFontFamily(family, qsl("Courier"));
+			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
+			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
+		}
+		emojiInit();
+		if (!::emoji) {
+			::emoji = new QPixmap(QLatin1String(EName));
+            if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
+		}
+		if (!::emojiLarge) {
+			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
+		}
+
+		createCorners();
+
+		using Update = Window::Theme::BackgroundUpdate;
+		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
+			if (update.type == Update::Type::TestingTheme) {
+				clearCorners();
+				createCorners();
+
+				if (App::main()) {
+					App::main()->updateScrollColors();
+				}
+				HistoryLayout::serviceColorsUpdated();
+			} else if (update.type == Update::Type::New) {
+				for (int i = 0; i < 4; ++i) {
+					delete ::corners[StickerCorners].p[i]; ::corners[StickerCorners].p[i] = nullptr;
+					delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
+				}
+				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
+				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
+
+				if (App::main()) {
+					App::main()->updateScrollColors();
+				}
+				HistoryLayout::serviceColorsUpdated();
 			}
-			HistoryLayout::serviceColorsUpdated();
 		});
 	}
 
@@ -2305,22 +2333,12 @@ namespace {
 
 	void deinitMedia() {
 		delete ::emoji;
-		::emoji = 0;
+		::emoji = nullptr;
 		delete ::emojiLarge;
-		::emojiLarge = 0;
-		for (int j = 0; j < 4; ++j) {
-			for (int i = 0; i < RoundCornersCount; ++i) {
-				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
-			}
-			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
-			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
-		}
-		for (auto i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				delete i->p[j];
-			}
-		}
-		::cornersMap.clear();
+		::emojiLarge = nullptr;
+
+		clearCorners();
+
 		mainEmojiMap.clear();
 		otherEmojiMap.clear();
 

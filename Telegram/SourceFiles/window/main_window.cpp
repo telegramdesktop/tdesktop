@@ -32,9 +32,10 @@ MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this)
 , _titleText(qsl("Telegram")) {
-	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
-		using Type = Theme::BackgroundUpdate::Type;
-		if (data.type == Type::TestingTheme || data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
+	using Update = Theme::BackgroundUpdate;
+	subscribe(Theme::Background(), [this](const Update &data) {
+		if (data.type == Update::Type::TestingTheme
+			|| data.type == Update::Type::RevertingTheme) {
 			if (_title) {
 				_title->update();
 			}

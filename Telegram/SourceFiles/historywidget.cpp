@@ -4217,6 +4217,9 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		destroyUnreadBar();
 		destroyPinnedBar();
 		_history = _migrated = nullptr;
+		_peer = nullptr;
+		_channel = NoChannel;
+		_canSendMessages = false;
 		updateBotKeyboard();
 	}
 
@@ -4239,10 +4242,11 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	_showAtMsgId = showAtMsgId;
 	_histInited = false;
 
-	_peer = peerId ? App::peer(peerId) : nullptr;
-	_channel = _peer ? peerToChannel(_peer->id) : NoChannel;
-	_canSendMessages = canSendMessages(_peer);
-
+	if (peerId) {
+		_peer = App::peer(peerId);
+		_channel = peerToChannel(_peer->id);
+		_canSendMessages = canSendMessages(_peer);
+	}
 	updateTopBarSelection();
 
 	if (_peer && _peer->isChannel()) {

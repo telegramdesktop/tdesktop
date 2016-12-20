@@ -39,7 +39,6 @@ FlatLabel {
 LinkButton {
 	color: color;
 	overColor: color;
-	downColor: color;
 	font: font;
 	overFont: font;
 }
@@ -441,7 +440,6 @@ defaultFlatLabel: FlatLabel {
 defaultLinkButton: LinkButton {
 	color: windowActiveTextFg;
 	overColor: windowActiveTextFg;
-	downColor: windowActiveTextFg;
 	font: linkFont;
 	overFont: linkOverFont;
 }

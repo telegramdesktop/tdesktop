@@ -289,6 +289,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
 
 "lng_settings_section_background" = "Chat background";
+"lng_settings_bg_use_default" = "Use default color theme";
 "lng_settings_bg_from_gallery" = "Choose from gallery";
 "lng_settings_bg_from_file" = "Choose from file";
 "lng_settings_bg_tile" = "Tile background";
@@ -347,7 +348,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
-"lng_passcode_about" = "When a local passcode is set, a lock icon appears in the top right corner of the window. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about" = "When a local passcode is set, a lock icon appears at the top of your chats list. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";

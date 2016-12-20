@@ -113,7 +113,6 @@ signals:
 public slots:
 	void load();
 
-	void updateSel();
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
 
@@ -127,18 +126,29 @@ protected:
 
 private:
 	struct MemberData {
+		MemberData();
+		~MemberData();
+
+		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		int rippleRowTop = 0;
 		Text name;
 		QString online;
 		bool onlineColor;
 		bool canKick;
 	};
+	void addRipple(MemberData *data);
+	void stopLastRipple(MemberData *data);
+	void setPressed(int pressed);
 
+	void updateSelection();
 	void loadProfilePhotos();
 
+	void updateRowWithTop(int rowTop);
+	int getSelectedRowTop() const;
 	void updateSelectedRow();
 	MemberData *data(int32 index);
 
-	void paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown);
+	void paintDialog(Painter &p, TimeMs ms, PeerData *peer, MemberData *data, bool selected, bool kickSelected);
 
 	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);
 	bool membersFailed(const RPCError &error, mtpRequestId req);
@@ -150,21 +160,25 @@ private:
 
 	void clear();
 
-	int _rowHeight;
+	int _rowHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
-	ChannelData *_channel;
+	ChannelData *_channel = nullptr;
 	MembersFilter _filter;
 
 	QString _kickText;
-	int32 _time, _kickWidth;
+	TimeId _time = 0;
+	int _kickWidth = 0;
 
-	int32 _sel, _kickSel, _kickDown;
-	bool _mouseSel;
+	int _selected = -1;
+	int _pressed = -1;
+	int _kickSelected = -1;
+	int _kickPressed = -1;
+	bool _mouseSelection = false;
 
-	UserData *_kickConfirm;
-	mtpRequestId _kickRequestId;
+	UserData *_kickConfirm = nullptr;
+	mtpRequestId _kickRequestId = 0;
 
 	QPointer<ConfirmBox> _kickBox;
 
@@ -177,8 +191,8 @@ private:
 		Kicked
 	};
 
-	bool _loading;
-	mtpRequestId _loadingRequestId;
+	bool _loading = true;
+	mtpRequestId _loadingRequestId = 0;
 	typedef QVector<UserData*> MemberRows;
 	typedef QVector<QDateTime> MemberDates;
 	typedef QVector<MemberRole> MemberRoles;
@@ -188,9 +202,9 @@ private:
 	MemberRoles _roles;
 	MemberDatas _datas;
 
-	int32 _aboutWidth;
+	int _aboutWidth = 0;
 	Text _about;
-	int32 _aboutHeight;
+	int _aboutHeight = 0;
 
 	QPoint _lastMousePos;
 

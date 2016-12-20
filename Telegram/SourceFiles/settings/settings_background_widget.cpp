@@ -42,6 +42,26 @@ BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
 
 	connect(_chooseFromGallery, SIGNAL(clicked()), this, SIGNAL(chooseFromGallery()));
 	connect(_chooseFromFile, SIGNAL(clicked()), this, SIGNAL(chooseFromFile()));
+	checkNonDefaultTheme();
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
+			checkNonDefaultTheme();
+		}
+	});
+}
+
+void BackgroundRow::checkNonDefaultTheme() {
+	if (Local::hasTheme()) {
+		if (!_useDefault) {
+			_useDefault.create(this, lang(lng_settings_bg_use_default), st::boxLinkButton);
+			_useDefault->show();
+			connect(_useDefault, SIGNAL(clicked()), this, SIGNAL(useDefault()));
+			resizeToWidth(width());
+		}
+	} else if (_useDefault) {
+		_useDefault.destroy();
+		resizeToWidth(width());
+	}
 }
 
 void BackgroundRow::paintEvent(QPaintEvent *e) {
@@ -83,13 +103,19 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 }
 
 int BackgroundRow::resizeGetHeight(int newWidth) {
-	int linkLeft = st::settingsBackgroundSize + st::settingsSmallSkip;
-	int linkWidth = newWidth - linkLeft;
+	auto linkTop = 0;
+	auto linkLeft = st::settingsBackgroundSize + st::settingsSmallSkip;
+	auto linkWidth = newWidth - linkLeft;
 	_chooseFromGallery->resizeToWidth(qMin(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(qMin(linkWidth, _chooseFromFile->naturalWidth()));
-
-	_chooseFromGallery->moveToLeft(linkLeft, 0, newWidth);
-	_chooseFromFile->moveToLeft(linkLeft, _chooseFromGallery->height() + st::settingsSmallSkip, newWidth);
+	if (_useDefault) {
+		_useDefault->resizeToWidth(qMin(linkWidth, _useDefault->naturalWidth()));
+		_useDefault->moveToLeft(linkLeft, linkTop, newWidth);
+		linkTop += _useDefault->height() + st::settingsSmallSkip;
+	}
+	_chooseFromGallery->moveToLeft(linkLeft, linkTop, newWidth);
+	linkTop += _chooseFromGallery->height() + st::settingsSmallSkip;
+	_chooseFromFile->moveToLeft(linkLeft, linkTop, newWidth);
 
 	return st::settingsBackgroundSize;
 }
@@ -194,6 +220,7 @@ void BackgroundWidget::createControls() {
 	addChildRow(_background, margin);
 	connect(_background, SIGNAL(chooseFromGallery()), this, SLOT(onChooseFromGallery()));
 	connect(_background, SIGNAL(chooseFromFile()), this, SLOT(onChooseFromFile()));
+	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefault()));
 
 	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
 	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), SLOT(onAdaptive()), Global::AdaptiveForWide());
@@ -213,11 +240,14 @@ void BackgroundWidget::needBackgroundUpdate(bool tile) {
 
 void BackgroundWidget::onChooseFromFile() {
 	auto imgExtensions = cImgExtensions();
-	auto filters = QStringList(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(")"));
-	filters.push_back(qsl("Theme files (*.tdesktop-theme)"));
+	auto filters = QStringList(qsl("Theme files (*.tdesktop-theme *") + imgExtensions.join(qsl(" *")) + qsl(")"));
 	filters.push_back(filedialogAllFilesFilter());
 
 	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
+}
+
+void BackgroundWidget::onUseDefault() {
+	Window::Theme::ApplyDefault();
 }
 
 void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {

@@ -94,7 +94,17 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case ButtonType::Url: {
 		auto url = QString::fromUtf8(button->data);
-		HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
+		auto skipConfirmation = false;
+		if (auto bot = msg->getMessageBot()) {
+			if (bot->isVerified()) {
+				skipConfirmation = true;
+			}
+		}
+		if (skipConfirmation) {
+			UrlClickHandler::doOpen(url);
+		} else {
+			HiddenUrlClickHandler::doOpen(url);
+		}
 	} break;
 
 	case ButtonType::RequestLocation: {
@@ -539,9 +549,13 @@ void start() {
 	}
 }
 
+bool started() {
+	return (SandboxData != nullptr);
+}
+
 void finish() {
 	delete SandboxData;
-	SandboxData = 0;
+	SandboxData = nullptr;
 }
 
 uint64 UserTag() {

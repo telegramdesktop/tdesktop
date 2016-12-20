@@ -224,18 +224,20 @@ private:
 		bool statusHasOnlineColor = false;
 		bool disabledChecked = false;
 	};
-	void addRipple(ContactData *data);
+	void addRipple(PeerData *peer, ContactData *data);
 	void stopLastRipple(ContactData *data);
 	void setPressed(Dialogs::Row *pressed);
 	void setFilteredPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	void clearSearchedContactDatas();
 
+	bool isRowDisabled(PeerData *peer, ContactData *data) const;
 	void loadProfilePhotos();
 	void addBot();
 
 	void init();
 	void initList();
+	void invalidateCache();
 
 	void updateRowWithTop(int rowTop);
 	int getSelectedRowTop() const;

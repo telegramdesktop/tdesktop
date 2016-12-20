@@ -43,7 +43,10 @@ QMap<QString, QString> url_parse_params(const QString &params, UrlParamNameTrans
 				paramName = param.mid(0, separatorPosition);
 				paramValue = url_decode(param.mid(separatorPosition + 1));
 			}
-			result.insert(transformParamName(paramName), paramValue);
+			paramName = transformParamName(paramName);
+			if (!result.contains(paramName)) {
+				result.insert(paramName, paramValue);
+			}
 		}
 	}
 	return result;

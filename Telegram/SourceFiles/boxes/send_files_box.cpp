@@ -181,12 +181,12 @@ void SendFilesBox::onCaptionResized() {
 }
 
 void SendFilesBox::updateTitleText() {
-	setTitle((_compressConfirm == CompressConfirm::None) ? lng_send_files_selected(lt_count, _files.size()) : lng_send_images_selected(lt_count, _files.size()));
+	_titleText = (_compressConfirm == CompressConfirm::None) ? lng_send_files_selected(lt_count, _files.size()) : lng_send_images_selected(lt_count, _files.size());
 	update();
 }
 
 void SendFilesBox::updateBoxSize() {
-	auto newHeight = 0;
+	auto newHeight = _titleText.isEmpty() ? 0 : st::boxTitleHeight;
 	if (!_preview.isNull()) {
 		newHeight += st::boxPhotoPadding.top() + _previewHeight;
 	} else if (!_fileThumb.isNull()) {
@@ -319,7 +319,7 @@ void SendFilesBox::setInnerFocus() {
 	if (!_caption || _caption->isHidden()) {
 		setFocus();
 	} else {
-		_caption->setFocus();
+		_caption->setFocusFast();
 	}
 }
 
@@ -609,7 +609,7 @@ void EditCaptionBox::resizeEvent(QResizeEvent *e) {
 }
 
 void EditCaptionBox::setInnerFocus() {
-	_field->setFocus();
+	_field->setFocusFast();
 }
 
 void EditCaptionBox::onSave(bool ctrlShiftEnter) {

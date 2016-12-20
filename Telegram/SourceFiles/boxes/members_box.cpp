@@ -130,20 +130,9 @@ MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter fi
 , _channel(channel)
 , _filter(filter)
 , _kickText(lang(lng_profile_kick))
-, _time(0)
 , _kickWidth(st::normalFont->width(_kickText))
-, _sel(-1)
-, _kickSel(-1)
-, _kickDown(-1)
-, _mouseSel(false)
-, _kickConfirm(0)
-, _kickRequestId(0)
-, _kickBox(0)
-, _loading(true)
-, _loadingRequestId(0)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
-, _about(_aboutWidth)
-, _aboutHeight(0) {
+, _about(_aboutWidth) {
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
@@ -167,6 +156,7 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 	_time = unixtime();
 	p.fillRect(r, st::contactsBg);
 
+	auto ms = getms();
 	auto yFrom = r.y() - st::membersMarginTop;
 	auto yTo = r.y() + r.height() - st::membersMarginTop;
 	p.translate(0, st::membersMarginTop);
@@ -179,10 +169,9 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 		int32 to = ceilclamp(yTo, _rowHeight, 0, _rows.size());
 		p.translate(0, from * _rowHeight);
 		for (; from < to; ++from) {
-			bool sel = (from == _sel);
-			bool kickSel = (from == _kickSel && (_kickDown < 0 || from == _kickDown));
-			bool kickDown = kickSel && (from == _kickDown);
-			paintDialog(p, _rows[from], data(from), sel, kickSel, kickDown);
+			auto selected = (_pressed >= 0) ? (from == _pressed) : (from == _selected);
+			auto kickSelected = (_pressed >= 0) ? (from == _kickPressed && from == _kickSelected) : (from == _kickSelected);
+			paintDialog(p, ms, _rows[from], data(from), selected, kickSelected);
 			p.translate(0, _rowHeight);
 		}
 		if (to == _rows.size() && _filter == MembersFilter::Recent && (_rows.size() < _channel->membersCount() || _rows.size() >= Global::ChatSizeMax())) {
@@ -197,53 +186,91 @@ void MembersBox::Inner::enterEvent(QEvent *e) {
 }
 
 void MembersBox::Inner::leaveEvent(QEvent *e) {
-	_mouseSel = false;
+	_mouseSelection = false;
 	setMouseTracking(false);
-	if (_sel >= 0) {
+	if (_selected >= 0) {
 		clearSel();
 	}
 }
 
 void MembersBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	_mouseSel = true;
+	_mouseSelection = true;
 	_lastMousePos = e->globalPos();
-	updateSel();
+	updateSelection();
 }
 
 void MembersBox::Inner::mousePressEvent(QMouseEvent *e) {
-	_mouseSel = true;
+	_mouseSelection = true;
 	_lastMousePos = e->globalPos();
-	updateSel();
-	if (e->button() == Qt::LeftButton && _kickSel < 0) {
-		chooseParticipant();
+	updateSelection();
+	setPressed(_selected);
+	_kickPressed = _kickSelected;
+	if (_selected >= 0 && _selected < _datas.size() && _kickSelected < 0) {
+		addRipple(_datas[_selected]);
 	}
-	_kickDown = _kickSel;
-	update();
 }
 
 void MembersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	_mouseSel = true;
-	_lastMousePos = e->globalPos();
-	updateSel();
-	if (_kickDown >= 0 && _kickDown == _kickSel && !_kickRequestId) {
-		_kickConfirm = _rows.at(_kickSel);
-		if (_kickBox) _kickBox->deleteLater();
-		auto text = (_filter == MembersFilter::Recent ? (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel) : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName);
-		_kickBox = Ui::show(Box<ConfirmBox>(text, base::lambda_guarded(this, [this] {
-			if (_filter == MembersFilter::Recent) {
-				_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&Inner::kickDone), rpcFail(&Inner::kickFail));
-			} else {
-				_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&Inner::kickAdminDone), rpcFail(&Inner::kickFail));
+	auto pressed = _pressed;
+	auto kickPressed = _kickPressed;
+	setPressed(-1);
+	if (e->button() == Qt::LeftButton) {
+		if (pressed == _selected && kickPressed == _kickSelected) {
+			if (kickPressed >= 0) {
+				if (!_kickRequestId) {
+					_kickConfirm = _rows.at(_kickSelected);
+					if (_kickBox) _kickBox->deleteLater();
+					auto text = (_filter == MembersFilter::Recent ? (_channel->isMegagroup() ? lng_profile_sure_kick : lng_profile_sure_kick_channel) : lng_profile_sure_kick_admin)(lt_user, _kickConfirm->firstName);
+					_kickBox = Ui::show(Box<ConfirmBox>(text, base::lambda_guarded(this, [this] {
+						if (_filter == MembersFilter::Recent) {
+							_kickRequestId = MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _kickConfirm->inputUser, MTP_bool(true)), rpcDone(&Inner::kickDone), rpcFail(&Inner::kickFail));
+						} else {
+							_kickRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _kickConfirm->inputUser, MTP_channelRoleEmpty()), rpcDone(&Inner::kickAdminDone), rpcFail(&Inner::kickFail));
+						}
+					})), KeepOtherLayers);
+				}
+			} else if (pressed >= 0) {
+				chooseParticipant();
 			}
-		})), KeepOtherLayers);
+		}
 	}
-	_kickDown = -1;
 }
 
-void MembersBox::Inner::paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown) {
+void MembersBox::Inner::addRipple(MemberData *data) {
+	auto rowTop = getSelectedRowTop();
+	if (!data->ripple) {
+		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
+		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+			updateRowWithTop(data->rippleRowTop);
+		});
+	}
+	data->rippleRowTop = rowTop;
+	data->ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(0, rowTop));
+}
+
+void MembersBox::Inner::stopLastRipple(MemberData *data) {
+	if (data->ripple) {
+		data->ripple->lastStop();
+	}
+}
+
+void MembersBox::Inner::setPressed(int pressed) {
+	if (_pressed >= 0 && _pressed < _datas.size()) {
+		stopLastRipple(_datas[_pressed]);
+	}
+	_pressed = pressed;
+}
+
+void MembersBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, MemberData *data, bool selected, bool kickSelected) {
 	UserData *user = peer->asUser();
 
-	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::contactsBg);
+	p.fillRect(0, 0, width(), _rowHeight, selected ? st::contactsBgOver : st::contactsBg);
+	if (data->ripple) {
+		data->ripple->paint(p, 0, 0, width(), ms);
+		if (data->ripple->empty()) {
+			data->ripple.reset();
+		}
+	}
 	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
 
 	p.setPen(st::contactsNameFg);
@@ -258,43 +285,43 @@ void MembersBox::Inner::paintDialog(Painter &p, PeerData *peer, MemberData *data
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	if (data->canKick) {
-		p.setFont((kickSel ? st::linkOverFont : st::linkFont)->f);
-		p.setPen(kickDown ? st::defaultLinkButton.downColor : st::defaultLinkButton.color);
+		p.setFont(kickSelected ? st::linkOverFont : st::linkFont);
+		p.setPen(kickSelected ? st::defaultLinkButton.overColor : st::defaultLinkButton.color);
 		p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), _kickText, _kickWidth);
 	}
 
 	p.setFont(st::contactsStatusFont->f);
-	p.setPen(data->onlineColor ? st::contactsStatusFgOnline : (sel ? st::contactsStatusFgOver : st::contactsStatusFg));
+	p.setPen(data->onlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
 	p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->online);
 }
 
 void MembersBox::Inner::selectSkip(int32 dir) {
 	_time = unixtime();
-	_mouseSel = false;
+	_mouseSelection = false;
 
 	int cur = -1;
-	if (_sel >= 0) {
-		cur = _sel;
+	if (_selected >= 0) {
+		cur = _selected;
 	}
 	cur += dir;
 	if (cur <= 0) {
-		_sel = _rows.isEmpty() ? -1 : 0;
+		_selected = _rows.isEmpty() ? -1 : 0;
 	} else if (cur >= _rows.size()) {
-		_sel = -1;
+		_selected = -1;
 	} else {
-		_sel = cur;
+		_selected = cur;
 	}
 	if (dir > 0) {
-		if (_sel < 0 || _sel >= _rows.size()) {
-			_sel = -1;
+		if (_selected < 0 || _selected >= _rows.size()) {
+			_selected = -1;
 		}
 	} else {
 		if (!_rows.isEmpty()) {
-			if (_sel < 0) _sel = _rows.size() - 1;
+			if (_selected < 0) _selected = _rows.size() - 1;
 		}
 	}
-	if (_sel >= 0) {
-		emit mustScrollTo(_sel * _rowHeight, (_sel + 1) * _rowHeight);
+	if (_selected >= 0) {
+		emit mustScrollTo(st::membersMarginTop + _selected * _rowHeight, st::membersMarginTop + (_selected + 1) * _rowHeight);
 	}
 
 	update();
@@ -305,6 +332,10 @@ void MembersBox::Inner::selectSkipPage(int32 h, int32 dir) {
 	if (!points) return;
 	selectSkip(points * dir);
 }
+
+MembersBox::Inner::MemberData::MemberData() = default;
+
+MembersBox::Inner::MemberData::~MemberData() = default;
 
 void MembersBox::Inner::loadProfilePhotos() {
 	if (_visibleTop >= _visibleBottom) return;
@@ -331,8 +362,8 @@ void MembersBox::Inner::loadProfilePhotos() {
 }
 
 void MembersBox::Inner::chooseParticipant() {
-	if (_sel < 0 || _sel >= _rows.size()) return;
-	if (PeerData *peer = _rows[_sel]) {
+	if (_selected < 0 || _selected >= _rows.size()) return;
+	if (auto peer = _rows[_selected]) {
 		Ui::hideLayer();
 		Ui::showPeerProfile(peer);
 	}
@@ -379,9 +410,9 @@ void MembersBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 
 void MembersBox::Inner::clearSel() {
 	updateSelectedRow();
-	_sel = _kickSel = _kickDown = -1;
+	_selected = _kickSelected = -1;
 	_lastMousePos = QCursor::pos();
-	updateSel();
+	updateSelection();
 }
 
 MembersBox::Inner::MemberData *MembersBox::Inner::data(int32 index) {
@@ -419,23 +450,23 @@ MembersBox::Inner::~Inner() {
 	clear();
 }
 
-void MembersBox::Inner::updateSel() {
-	if (!_mouseSel) return;
+void MembersBox::Inner::updateSelection() {
+	if (!_mouseSelection) return;
 
 	QPoint p(mapFromGlobal(_lastMousePos));
 	p.setY(p.y() - st::membersMarginTop);
 	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
-	int32 newSel = (in && p.y() >= 0 && p.y() < _rows.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
-	int32 newKickSel = newSel;
-	if (newSel >= 0 && (!data(newSel)->canKick || !QRect(width() - _kickWidth - st::contactsPadding.right() - st::contactsCheckPosition.x(), newSel * _rowHeight + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _kickWidth, st::normalFont->height).contains(p))) {
-		newKickSel = -1;
+	auto selected = (in && p.y() >= 0 && p.y() < _rows.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
+	auto kickSelected = selected;
+	if (selected >= 0 && (!data(selected)->canKick || !QRect(width() - _kickWidth - st::contactsPadding.right() - st::contactsCheckPosition.x(), selected * _rowHeight + st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, _kickWidth, st::normalFont->height).contains(p))) {
+		kickSelected = -1;
 	}
-	if (newSel != _sel || newKickSel != _kickSel) {
+	if (_selected != selected || _kickSelected != kickSelected) {
 		updateSelectedRow();
-		_sel = newSel;
-		_kickSel = newKickSel;
+		_selected = selected;
+		_kickSelected = kickSelected;
 		updateSelectedRow();
-		setCursor(_kickSel >= 0 ? style::cur_pointer : style::cur_default);
+		setCursor(_kickSelected >= 0 ? style::cur_pointer : style::cur_default);
 	}
 }
 
@@ -443,9 +474,21 @@ void MembersBox::Inner::peerUpdated(PeerData *peer) {
 	update();
 }
 
+int MembersBox::Inner::getSelectedRowTop() const {
+	if (_selected >= 0) {
+		return st::membersMarginTop + _selected * _rowHeight;
+	}
+	return -1;
+}
+
+void MembersBox::Inner::updateRowWithTop(int rowTop) {
+	update(0, rowTop, width(), _rowHeight);
+}
+
 void MembersBox::Inner::updateSelectedRow() {
-	if (_sel >= 0) {
-		update(0, st::membersMarginTop + _sel * _rowHeight, width(), _rowHeight);
+	auto rowTop = getSelectedRowTop();
+	if (rowTop >= 0) {
+		updateRowWithTop(rowTop);
 	}
 }
 

@@ -91,17 +91,14 @@ boxTitleClose: IconButton(defaultIconButton) {
 	icon: boxTitleCloseIcon;
 	iconOver: boxTitleCloseIconOver;
 
-	rippleAreaPosition: point(4px, 4px);
-	rippleAreaSize: 48px;
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 44px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
 }
 
-boxLinkButton: LinkButton {
-	color: #0080c0;
-	overColor: #0080c0;
-	downColor: #0073ad;
+boxLinkButton: LinkButton(defaultLinkButton) {
 	font: boxTextFont;
 	overFont: font(boxFontSize underline);
 }
@@ -114,7 +111,7 @@ boxVerticalMargin: 10px;
 boxWidth: 320px;
 boxWideWidth: 364px;
 boxPadding: margins(23px, 30px, 23px, 8px);
-boxMaxListHeight: 600px;
+boxMaxListHeight: 492px;
 boxLittleSkip: 10px;
 boxMediumSkip: 20px;
 
@@ -145,7 +142,7 @@ boxTextStyle: TextStyle(defaultTextStyle) {
 }
 
 boxPhotoTitleFont: font(16px semibold);
-boxPhotoTitlePosition: point(28px, 26px);
+boxPhotoTitlePosition: point(28px, 20px);
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
@@ -173,7 +170,7 @@ confirmInviteTitleTop: 106px;
 confirmInvitePhotoSize: 76px;
 confirmInvitePhotoTop: 20px;
 confirmInviteStatusTop: 136px;
-confirmInviteUserHeight: 80px;
+confirmInviteUserHeight: 84px;
 confirmInviteUserPhotoSize: 56px;
 confirmInviteUserPhotoTop: 166px;
 confirmInviteUserName: FlatLabel(defaultFlatLabel) {
@@ -406,9 +403,8 @@ sessionTerminate: IconButton {
 	}
 }
 sessionTerminateAllButton: LinkButton(boxLinkButton) {
-	color: #d15948;
-	overColor: #d15948;
-	downColor: #db6352;
+	color: attentionButtonFg;
+	overColor: attentionButtonFg;
 }
 
 passcodeHeaderFont: font(19px);
@@ -453,7 +449,6 @@ setupChannelLink: InputField(defaultInputField) {
 }
 
 newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
-newGroupLinkFadeDuration: 5000;
 
 themeWarningWidth: boxWideWidth;
 themeWarningHeight: 150px;
@@ -462,9 +457,8 @@ themeWarningTextTop: 60px;
 aboutWidth: 390px;
 aboutVersionTop: -3px;
 aboutVersionLink: LinkButton(defaultLinkButton) {
-	color: #999999;
-	overColor: #999999;
-	downColor: #999999;
+	color: windowSubTextFg;
+	overColor: windowSubTextFg;
 }
 aboutTextTop: 34px;
 aboutSkip: 14px;
@@ -477,7 +471,8 @@ aboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 22px;
 }
 
-autoDownloadTitlePosition: point(23px, 28px);
+autoDownloadTopDelta: 10px;
+autoDownloadTitlePosition: point(23px, 18px);
 autoDownloadTitleFont: font(15px semibold);
 
 editTextArea: InputField(defaultInputField) {

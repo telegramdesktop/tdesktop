@@ -149,6 +149,10 @@ public:
 	void setActive(bool active);
 	void setPressed(bool pressed);
 
+	void invalidateCache() {
+		_check.invalidateCache();
+	}
+
 private:
 	void startAnimation();
 
@@ -280,6 +284,12 @@ void Photo::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool press
 	ItemBase::clickHandlerPressedChanged(action, pressed);
 	if (_check) {
 		_check->setPressed(pressed);
+	}
+}
+
+void Photo::invalidateCache() {
+	if (_check) {
+		_check->invalidateCache();
 	}
 }
 
@@ -428,6 +438,12 @@ void Video::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool press
 	RadialProgressItem::clickHandlerPressedChanged(action, pressed);
 	if (_check) {
 		_check->setPressed(pressed);
+	}
+}
+
+void Video::invalidateCache() {
+	if (_check) {
+		_check->invalidateCache();
 	}
 }
 

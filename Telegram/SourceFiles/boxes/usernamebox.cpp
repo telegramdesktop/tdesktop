@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/toast/toast.h"
 #include "styles/style_boxes.h"
 
 UsernameBox::UsernameBox(QWidget*)
@@ -60,7 +61,7 @@ void UsernameBox::prepare() {
 }
 
 void UsernameBox::setInnerFocus() {
-	_username->setFocus();
+	_username->setFocusFast();
 }
 
 void UsernameBox::paintEvent(QPaintEvent *e) {
@@ -69,10 +70,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.setFont(st::boxTextFont);
-	if (!_copiedTextLink.isEmpty()) {
-		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(st::usernamePadding.left(), _username->y() + _username->height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _copiedTextLink);
-	} else if (!_errorText.isEmpty()) {
+	if (!_errorText.isEmpty()) {
 		p.setPen(st::boxTextFgError);
 		p.drawTextLeft(st::usernamePadding.left(), _username->y() + _username->height() + ((st::usernameSkip - st::boxTextFont->height) / 2), width(), _errorText);
 	} else if (!_goodText.isEmpty()) {
@@ -134,7 +132,7 @@ void UsernameBox::onChanged() {
 	QString name = getName();
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
-			_copiedTextLink = _errorText = _goodText = QString();
+			_errorText = _goodText = QString();
 			update();
 		}
 		_checkTimer->stop();
@@ -143,8 +141,7 @@ void UsernameBox::onChanged() {
 		for (int32 i = 0; i < len; ++i) {
 			QChar ch = name.at(i);
 			if ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z') && (ch < '0' || ch > '9') && ch != '_' && (ch != '@' || i > 0)) {
-				if (_errorText != lang(lng_username_bad_symbols) || !_copiedTextLink.isEmpty()) {
-					_copiedTextLink = QString();
+				if (_errorText != lang(lng_username_bad_symbols)) {
 					_errorText = lang(lng_username_bad_symbols);
 					update();
 				}
@@ -153,15 +150,14 @@ void UsernameBox::onChanged() {
 			}
 		}
 		if (name.size() < MinUsernameLength) {
-			if (_errorText != lang(lng_username_too_short) || !_copiedTextLink.isEmpty()) {
-				_copiedTextLink = QString();
+			if (_errorText != lang(lng_username_too_short)) {
 				_errorText = lang(lng_username_too_short);
 				update();
 			}
 			_checkTimer->stop();
 		} else {
-			if (!_errorText.isEmpty() || !_goodText.isEmpty() || !_copiedTextLink.isEmpty()) {
-				_copiedTextLink = _errorText = _goodText = QString();
+			if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
+				_errorText = _goodText = QString();
 				update();
 			}
 			_checkTimer->start(UsernameCheckTimeout);
@@ -171,8 +167,10 @@ void UsernameBox::onChanged() {
 
 void UsernameBox::onLinkClick() {
 	Application::clipboard()->setText(qsl("https://telegram.me/") + getName());
-	_copiedTextLink = lang(lng_username_copied);
-	update();
+
+	Ui::Toast::Config toast;
+	toast.text = lang(lng_username_copied);
+	Ui::Toast::Show(App::wnd(), toast);
 }
 
 void UsernameBox::onUpdateDone(const MTPUser &user) {
@@ -192,14 +190,12 @@ bool UsernameBox::onUpdateFail(const RPCError &error) {
 	} else if (err == qstr("USERNAME_INVALID")) {
 		_username->setFocus();
 		_username->showError();
-		_copiedTextLink = QString();
 		_errorText = lang(lng_username_invalid);
 		update();
 		return true;
 	} else if (err == qstr("USERNAME_OCCUPIED") || err == qstr("USERNAMES_UNAVAILABLE")) {
 		_username->setFocus();
 		_username->showError();
-		_copiedTextLink = QString();
 		_errorText = lang(lng_username_occupied);
 		update();
 		return true;
@@ -212,10 +208,9 @@ void UsernameBox::onCheckDone(const MTPBool &result) {
 	_checkRequestId = 0;
 	QString newError = (mtpIsTrue(result) || _checkUsername == App::self()->username) ? QString() : lang(lng_username_occupied);
 	QString newGood = newError.isEmpty() ? lang(lng_username_available) : QString();
-	if (_errorText != newError || _goodText != newGood || !_copiedTextLink.isEmpty()) {
+	if (_errorText != newError || _goodText != newGood) {
 		_errorText = newError;
 		_goodText = newGood;
-		_copiedTextLink = QString();
 		update();
 	}
 }
@@ -235,7 +230,6 @@ bool UsernameBox::onCheckFail(const RPCError &error) {
 		return true;
 	}
 	_goodText = QString();
-	_copiedTextLink = QString();
 	_username->setFocus();
 	return true;
 }

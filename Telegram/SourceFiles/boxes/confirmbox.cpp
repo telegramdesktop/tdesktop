@@ -96,9 +96,18 @@ ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString 
 , _confirmStyle(st::defaultBoxButton)
 , _informative(true)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(base::lambda_copy<void()>(closedCallback))
-, _cancelledCallback(base::lambda_copy<void()>(closedCallback)) {
+, _confirmedCallback(generateInformCallback(closedCallback))
+, _cancelledCallback(generateInformCallback(closedCallback)) {
 	init(text);
+}
+
+base::lambda<void()> ConfirmBox::generateInformCallback(const base::lambda_copy<void()> &closedCallback) {
+	return base::lambda_guarded(this, [this, closedCallback] {
+		closeBox();
+		if (closedCallback) {
+			closedCallback();
+		}
+	});
 }
 
 void ConfirmBox::init(const QString &text) {
@@ -208,6 +217,12 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	textstyleSet(&st::boxTextStyle);
 	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 	textstyleRestore();
+}
+
+InformBox::InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std_::move(closedCallback)) {
+}
+
+InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std_::move(closedCallback)) {
 }
 
 MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
@@ -495,11 +510,11 @@ void ConfirmInviteBox::prepare() {
 
 	auto newHeight = st::confirmInviteStatusTop + _status->height() + st::boxPadding.bottom();
 	if (!_participants.isEmpty()) {
-		int skip = (width() - 4 * st::confirmInviteUserPhotoSize) / 5;
+		int skip = (st::boxWideWidth - 4 * st::confirmInviteUserPhotoSize) / 5;
 		int padding = skip / 2;
 		_userWidth = (st::confirmInviteUserPhotoSize + 2 * padding);
 		int sumWidth = _participants.size() * _userWidth;
-		int left = (width() - sumWidth) / 2;
+		int left = (st::boxWideWidth - sumWidth) / 2;
 		for_const (auto user, _participants) {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);

@@ -151,6 +151,8 @@ void writeBackground(int32 id, const QImage &img);
 bool readBackground();
 
 void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache);
+void clearTheme();
+bool hasTheme();
 
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();

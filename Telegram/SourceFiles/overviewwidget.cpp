@@ -85,10 +85,27 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
+		if (update.type == Update::Type::TestingTheme
+			|| update.type == Update::Type::RevertingTheme) {
+			invalidateCache();
+		}
+	});
+
 	if (_type == OverviewLinks || _type == OverviewFiles) {
 		_search->show();
 	} else {
 		_search->hide();
+	}
+}
+
+void OverviewInner::invalidateCache() {
+	for_const (auto item, _layoutItems) {
+		item->invalidateCache();
+	}
+	for_const (auto item, _layoutDates) {
+		item->invalidateCache();
 	}
 }
 

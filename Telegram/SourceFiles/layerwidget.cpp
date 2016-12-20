@@ -414,7 +414,10 @@ void LayerStackWidget::setCacheImages() {
 }
 
 void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
-	layer->closing();
+	if (!layer->setClosing()) {
+		// This layer is already closing.
+		return;
+	}
 	layer->deleteLater();
 	if (layer == _specialLayer) {
 		hideAll();
@@ -523,7 +526,7 @@ void LayerStackWidget::showBox(object_ptr<BoxContent> box) {
 		auto removingLayer = _layers.front();
 		_layers.pop_front();
 
-		removingLayer->closing();
+		removingLayer->setClosing();
 		removingLayer->hide();
 		removingLayer->deleteLater();
 	}
@@ -615,7 +618,7 @@ LayerWidget *LayerStackWidget::pushBox(object_ptr<BoxContent> box) {
 	if (oldLayer) {
 		oldLayer->hide();
 	}
-	auto layer = object_ptr<AbstractBox>(std_::move(box));
+	auto layer = object_ptr<AbstractBox>(this, std_::move(box));
 	_layers.push_back(layer);
 	initChildLayer(layer);
 
@@ -637,7 +640,7 @@ void LayerStackWidget::prependBox(object_ptr<BoxContent> box) {
 	if (_layers.empty()) {
 		return showBox(std_::move(box));
 	}
-	auto layer = object_ptr<AbstractBox>(std_::move(box));
+	auto layer = object_ptr<AbstractBox>(this, std_::move(box));
 	layer->hide();
 	_layers.push_front(layer);
 	initChildLayer(layer);
@@ -645,7 +648,7 @@ void LayerStackWidget::prependBox(object_ptr<BoxContent> box) {
 
 void LayerStackWidget::clearLayers() {
 	for (auto layer : base::take(_layers)) {
-		layer->closing();
+		layer->setClosing();
 		layer->hide();
 		layer->deleteLater();
 	}
@@ -653,7 +656,7 @@ void LayerStackWidget::clearLayers() {
 
 void LayerStackWidget::clearSpecialLayer() {
 	if (_specialLayer) {
-		_specialLayer->closing();
+		_specialLayer->setClosing();
 		_specialLayer.destroyDelayed();
 	}
 }

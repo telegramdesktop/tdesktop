@@ -539,6 +539,16 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
 }
 
+void ChatBackground::setTestingDefaultTheme() {
+	style::main_palette::reset();
+	if (_id != kDefaultBackground) {
+		saveForRevert();
+		setImage(internal::kTestingDefaultBackground);
+		setTile(false);
+	}
+	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
+}
+
 void ChatBackground::keepApplied() {
 	if (_id == internal::kTestingThemeBackground) {
 		_id = kThemeBackground;
@@ -613,13 +623,24 @@ bool Apply(const QString &filepath) {
 	return true;
 }
 
+void ApplyDefault() {
+	instance.createIfNull();
+	instance->applying.path = QString();
+	instance->applying.content = QByteArray();
+	instance->applying.cached = Cached();
+	if (instance->applying.paletteForRevert.isEmpty()) {
+		instance->applying.paletteForRevert = style::main_palette::save();
+	}
+	Background()->setTestingDefaultTheme();
+}
+
 void KeepApplied() {
-	auto filepath = instance ? instance->applying.path : QString();
-	if (filepath.isEmpty()) {
+	if (!instance) {
 		return;
 	}
-	auto pathRelative = QDir().relativeFilePath(filepath);
-	auto pathAbsolute = QFileInfo(filepath).absoluteFilePath();
+	auto filepath = instance->applying.path;
+	auto pathRelative = filepath.isEmpty() ? QString() : QDir().relativeFilePath(filepath);
+	auto pathAbsolute = filepath.isEmpty() ? QString() : QFileInfo(filepath).absoluteFilePath();
 	Local::writeTheme(pathRelative, pathAbsolute, instance->applying.content, instance->applying.cached);
 	instance->applying = Data::Applying();
 	Background()->keepApplied();

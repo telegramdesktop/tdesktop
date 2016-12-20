@@ -304,7 +304,7 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 }
 
 void SessionsBox::Inner::onTerminate() {
-	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
+	for (auto i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
 		if (i.value()->isOver()) {
 			if (_terminateBox) _terminateBox->deleteLater();
 			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this, terminating = i.key()] {
@@ -313,7 +313,7 @@ void SessionsBox::Inner::onTerminate() {
 					_terminateBox = nullptr;
 				}
 				MTP::send(MTPaccount_ResetAuthorization(MTP_long(terminating)), rpcDone(&Inner::terminateDone, terminating), rpcFail(&Inner::terminateFail, terminating));
-				TerminateButtons::iterator i = _terminateButtons.find(terminating);
+				auto i = _terminateButtons.find(terminating);
 				if (i != _terminateButtons.cend()) {
 					i.value()->clearState();
 					i.value()->hide();
@@ -330,7 +330,7 @@ void SessionsBox::Inner::onTerminateAll() {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
+//		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
 		emit terminateAll();
 	})), KeepOtherLayers);
 }

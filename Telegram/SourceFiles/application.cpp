@@ -40,58 +40,60 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 
 namespace {
-	void mtpStateChanged(int32 dc, int32 state) {
-		if (App::wnd()) {
-			App::wnd()->mtpStateChanged(dc, state);
-		}
-	}
 
-	void mtpSessionReset(int32 dc) {
-		if (App::main() && dc == MTP::maindc()) {
-			App::main()->getDifference();
-		}
-	}
-
-	QChar _toHex(ushort v) {
-		v = v & 0x000F;
-		return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
-	}
-	ushort _fromHex(QChar c) {
-		return ((c.unicode() >= uchar('a')) ? (c.unicode() - uchar('a') + 10) : (c.unicode() - uchar('0'))) & 0x000F;
-	}
-
-	QString _escapeTo7bit(const QString &str) {
-		QString result;
-		result.reserve(str.size() * 2);
-		for (int i = 0, l = str.size(); i != l; ++i) {
-			QChar ch(str.at(i));
-			ushort uch(ch.unicode());
-			if (uch < 32 || uch > 127 || uch == ushort(uchar('%'))) {
-				result.append('%').append(_toHex(uch >> 12)).append(_toHex(uch >> 8)).append(_toHex(uch >> 4)).append(_toHex(uch));
-			} else {
-				result.append(ch);
-			}
-		}
-		return result;
-	}
-
-	QString _escapeFrom7bit(const QString &str) {
-		QString result;
-		result.reserve(str.size());
-		for (int i = 0, l = str.size(); i != l; ++i) {
-			QChar ch(str.at(i));
-			if (ch == QChar::fromLatin1('%') && i + 4 < l) {
-				result.append(QChar(ushort((_fromHex(str.at(i + 1)) << 12) | (_fromHex(str.at(i + 2)) << 8) | (_fromHex(str.at(i + 3)) << 4) | _fromHex(str.at(i + 4)))));
-				i += 4;
-			} else {
-				result.append(ch);
-			}
-		}
-		return result;
+void mtpStateChanged(int32 dc, int32 state) {
+	if (App::wnd()) {
+		App::wnd()->mtpStateChanged(dc, state);
 	}
 }
 
-AppClass *AppObject = 0;
+void mtpSessionReset(int32 dc) {
+	if (App::main() && dc == MTP::maindc()) {
+		App::main()->getDifference();
+	}
+}
+
+QChar _toHex(ushort v) {
+	v = v & 0x000F;
+	return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
+}
+ushort _fromHex(QChar c) {
+	return ((c.unicode() >= uchar('a')) ? (c.unicode() - uchar('a') + 10) : (c.unicode() - uchar('0'))) & 0x000F;
+}
+
+QString _escapeTo7bit(const QString &str) {
+	QString result;
+	result.reserve(str.size() * 2);
+	for (int i = 0, l = str.size(); i != l; ++i) {
+		QChar ch(str.at(i));
+		ushort uch(ch.unicode());
+		if (uch < 32 || uch > 127 || uch == ushort(uchar('%'))) {
+			result.append('%').append(_toHex(uch >> 12)).append(_toHex(uch >> 8)).append(_toHex(uch >> 4)).append(_toHex(uch));
+		} else {
+			result.append(ch);
+		}
+	}
+	return result;
+}
+
+QString _escapeFrom7bit(const QString &str) {
+	QString result;
+	result.reserve(str.size());
+	for (int i = 0, l = str.size(); i != l; ++i) {
+		QChar ch(str.at(i));
+		if (ch == QChar::fromLatin1('%') && i + 4 < l) {
+			result.append(QChar(ushort((_fromHex(str.at(i + 1)) << 12) | (_fromHex(str.at(i + 2)) << 8) | (_fromHex(str.at(i + 3)) << 4) | _fromHex(str.at(i + 4)))));
+			i += 4;
+		} else {
+			result.append(ch);
+		}
+	}
+	return result;
+}
+
+} // namespace
+
+AppClass *AppObject = nullptr;
 
 Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
@@ -468,6 +470,8 @@ void Application::stopUpdate() {
 }
 
 void Application::startUpdateCheck(bool forceWait) {
+	if (!Sandbox::started()) return;
+
 	_updateCheckTimer.stop();
 	if (_updateThread || _updateReply || !cAutoUpdate()) return;
 

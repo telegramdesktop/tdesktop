@@ -482,11 +482,17 @@ void psRegisterCustomScheme() {
 		QFile f(file);
 		if (f.open(QIODevice::WriteOnly)) {
 			QString icon = icons + qsl("telegram.png");
-			if (!QFile(icon).exists()) {
+			auto iconExists = QFile(icon).exists();
+			if (Local::oldSettingsVersion() < 10021 && iconExists) {
+				// Icon was changed.
+				if (QFile(icon).remove()) {
+					iconExists = false;
+				}
+			}
+			if (!iconExists) {
 				if (QFile(qsl(":/gui/art/icon256.png")).copy(icon)) {
 					DEBUG_LOG(("App Info: Icon copied to 'tdata'"));
 				}
-
 			}
 
 			QTextStream s(&f);

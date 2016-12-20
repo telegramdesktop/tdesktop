@@ -63,6 +63,7 @@ private:
 	struct InformBoxTag {
 	};
 	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback);
+	base::lambda<void()> generateInformCallback(const base::lambda_copy<void()> &closedCallback);
 	friend class InformBox;
 
 	void confirmed();
@@ -92,10 +93,8 @@ private:
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>()) : ConfirmBox(ConfirmBox::InformBoxTag(), text, QString(), std_::move(closedCallback)) {
-	}
-	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>()) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std_::move(closedCallback)) {
-	}
+	InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
+	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
 
 };
 

@@ -63,7 +63,7 @@ private:
 
 	mtpRequestId _saveRequestId = 0;
 	mtpRequestId _checkRequestId = 0;
-	QString _sentUsername, _checkUsername, _errorText, _goodText, _copiedTextLink;
+	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	Text _about;
 	object_ptr<QTimer> _checkTimer;

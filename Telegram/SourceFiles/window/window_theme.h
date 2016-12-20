@@ -46,6 +46,7 @@ bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteA
 void Unload();
 
 bool Apply(const QString &filepath);
+void ApplyDefault();
 void KeepApplied();
 void Revert();
 
@@ -85,6 +86,7 @@ public:
 	void reset();
 
 	void setTestingTheme(Instance &&theme);
+	void setTestingDefaultTheme();
 	void keepApplied();
 	void revert();
 

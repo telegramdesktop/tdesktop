@@ -55,7 +55,6 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 	if (_sendCodeRequestId) {
 		return;
 	}
-
 	MTPaccount_SendConfirmPhoneCode::Flags flags = 0;
 	_sendCodeRequestId = MTP::send(MTPaccount_SendConfirmPhoneCode(MTP_flags(flags), MTP_string(_hash), MTPBool()), rpcDone(&ConfirmPhoneBox::sendCodeDone), rpcFail(&ConfirmPhoneBox::sendCodeFail));
 }
@@ -310,7 +309,7 @@ void ConfirmPhoneBox::resizeEvent(QResizeEvent *e) {
 }
 
 void ConfirmPhoneBox::setInnerFocus() {
-	_code->setFocus();
+	_code->setFocusFast();
 }
 
 ConfirmPhoneBox::~ConfirmPhoneBox() {

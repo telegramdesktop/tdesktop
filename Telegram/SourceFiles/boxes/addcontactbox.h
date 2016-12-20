@@ -98,6 +98,9 @@ private slots:
 	void onNext();
 	void onNameSubmit();
 	void onDescriptionResized();
+	void onClose() {
+		closeBox();
+	}
 
 private:
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
@@ -184,9 +187,6 @@ private:
 	mtpRequestId _checkRequestId = 0;
 	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
-	QString _goodTextLink;
-	Animation _a_goodOpacity;
-
 	QTimer _checkTimer;
 
 };
@@ -245,6 +245,9 @@ private slots:
 	void onSave();
 	void onDescriptionResized();
 	void onPublicLink();
+	void onClose() {
+		closeBox();
+	}
 
 private:
 	void updateMaxHeight();
@@ -294,7 +297,7 @@ private:
 		PeerData *peer;
 		Text name, status;
 	};
-	void paintChat(Painter &p, const ChatRow &row, bool selected, bool pressed) const;
+	void paintChat(Painter &p, const ChatRow &row, bool selected) const;
 
 	void getPublicDone(const MTPmessages_Chats &result);
 	bool getPublicFail(const RPCError &error);

@@ -37,6 +37,9 @@ private slots:
 	void onReport();
 	void onChange();
 	void onDescriptionResized();
+	void onClose() {
+		closeBox();
+	}
 
 protected:
 	void prepare() override;

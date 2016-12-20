@@ -412,6 +412,8 @@ void StickersBox::switchTab() {
 		auto slideLeft = wasIndex > nowIndex;
 		_slideAnimation->start(slideLeft, [this] { update(); }, st::slideDuration);
 		setInnerVisible(false);
+
+		setFocus();
 		update();
 	}
 }

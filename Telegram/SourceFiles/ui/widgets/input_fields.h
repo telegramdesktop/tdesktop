@@ -344,6 +344,10 @@ public:
 	}
 	void setDisplayFocused(bool focused);
 	void finishAnimations();
+	void setFocusFast() {
+		setDisplayFocused(true);
+		setFocus();
+	}
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
@@ -517,6 +521,10 @@ public:
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
 	void finishAnimations();
+	void setFocusFast() {
+		setDisplayFocused(true);
+		setFocus();
+	}
 
 	QSize sizeHint() const override;
 	QSize minimumSizeHint() const override;
@@ -698,6 +706,10 @@ public:
 	void setPlaceholderHidden(bool forcePlaceholderHidden);
 	void setDisplayFocused(bool focused);
 	void finishAnimations();
+	void setFocusFast() {
+		setDisplayFocused(true);
+		setFocus();
+	}
 
 	void setText(const QString &text) {
 		QLineEdit::setText(text);

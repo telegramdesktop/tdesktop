@@ -59,6 +59,9 @@ public:
 		return item ? item->id : 0;
 	}
 
+	virtual void invalidateCache() {
+	}
+
 };
 
 class ItemBase : public AbstractItem {
@@ -186,6 +189,8 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
+	void invalidateCache() override;
+
 private:
 	void ensureCheckboxCreated();
 
@@ -210,6 +215,8 @@ public:
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
+
+	void invalidateCache() override;
 
 protected:
 	float64 dataProgress() const override {

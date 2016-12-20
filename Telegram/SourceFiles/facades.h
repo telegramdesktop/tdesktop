@@ -226,6 +226,7 @@ bool CheckBetaVersionDir();
 void WorkingDirReady();
 
 void start();
+bool started();
 void finish();
 
 uint64 UserTag();

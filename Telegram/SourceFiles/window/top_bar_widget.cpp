@@ -126,7 +126,7 @@ void TopBarWidget::showMenu() {
 				_menuToggle->installEventFilter(_menu);
 				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda<void()> &&callback) {
 					return _menu->addAction(text, std_::move(callback));
-				});
+				}, false);
 				_menu->moveToRight(st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);
 			}

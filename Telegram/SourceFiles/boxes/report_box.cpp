@@ -78,7 +78,7 @@ void ReportBox::onChange() {
 			connect(_reasonOtherText, SIGNAL(submitted(bool)), this, SLOT(onReport()));
 			connect(_reasonOtherText, SIGNAL(cancelled()), this, SLOT(onClose()));
 		}
-		_reasonOtherText->setFocus();
+		_reasonOtherText->setFocusFast();
 	} else if (_reasonOtherText) {
 		_reasonOtherText.destroy();
 		updateMaxHeight();
@@ -87,7 +87,7 @@ void ReportBox::onChange() {
 
 void ReportBox::setInnerFocus() {
 	if (_reasonOtherText) {
-		_reasonOtherText->setFocus();
+		_reasonOtherText->setFocusFast();
 	} else {
 		setFocus();
 	}

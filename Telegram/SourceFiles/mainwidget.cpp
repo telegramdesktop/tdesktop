@@ -1975,33 +1975,34 @@ void MainWidget::scheduleViewIncrement(HistoryItem *item) {
 	j.value().insert(item->id, true);
 }
 
-void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> &&handler)> &&callback) {
-	auto isPinned = false;
-	if (auto history = App::historyLoaded(peer)) {
-		isPinned = history->isPinnedDialog();
-	}
-	auto pinSubscription = MakeShared<base::Subscription>();
-	auto pinAction = callback(lang(isPinned ? lng_context_unpin_from_top : lng_context_pin_to_top), [peer, pinSubscription] {
-		auto history = App::history(peer);
-		auto isPinned = !history->isPinnedDialog();
-		history->setPinnedDialog(isPinned);
-		auto flags = MTPmessages_ToggleDialogPin::Flags(0);
-		if (isPinned) {
-			flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
+void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QString &text, base::lambda<void()> &&handler)> &&callback, bool pinToggle) {
+	if (pinToggle) {
+		auto isPinned = false;
+		if (auto history = App::historyLoaded(peer)) {
+			isPinned = history->isPinnedDialog();
 		}
-		MTP::send(MTPmessages_ToggleDialogPin(MTP_flags(flags), peer->input));
-		if (isPinned) {
-			if (auto main = App::main()) {
-				main->dialogsToUp();
+		auto pinSubscription = MakeShared<base::Subscription>();
+		auto pinAction = callback(lang(isPinned ? lng_context_unpin_from_top : lng_context_pin_to_top), [peer, pinSubscription] {
+			auto history = App::history(peer);
+			auto isPinned = !history->isPinnedDialog();
+			history->setPinnedDialog(isPinned);
+			auto flags = MTPmessages_ToggleDialogPin::Flags(0);
+			if (isPinned) {
+				flags |= MTPmessages_ToggleDialogPin::Flag::f_pinned;
 			}
-		}
-	});
-	auto pinChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::PinnedChanged, [pinAction, peer](const Notify::PeerUpdate &update) {
-		if (update.peer != peer) return;
-		pinAction->setText(lang(App::history(peer)->isPinnedDialog() ? lng_context_unpin_from_top : lng_context_pin_to_top));
-	});
-	*pinSubscription = Notify::PeerUpdated().add_subscription(std_::move(pinChangedHandler));
-
+			MTP::send(MTPmessages_ToggleDialogPin(MTP_flags(flags), peer->input));
+			if (isPinned) {
+				if (auto main = App::main()) {
+					main->dialogsToUp();
+				}
+			}
+		});
+		auto pinChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::PinnedChanged, [pinAction, peer](const Notify::PeerUpdate &update) {
+			if (update.peer != peer) return;
+			pinAction->setText(lang(App::history(peer)->isPinnedDialog() ? lng_context_unpin_from_top : lng_context_pin_to_top));
+		});
+		*pinSubscription = Notify::PeerUpdated().add_subscription(std_::move(pinChangedHandler));
+	}
 	callback(lang((peer->isChat() || peer->isMegagroup()) ? lng_context_view_group : (peer->isUser() ? lng_context_view_profile : lng_context_view_channel)), [peer] {
 		Ui::showPeerProfile(peer);
 	});

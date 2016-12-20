@@ -3725,6 +3725,14 @@ bool readThemeUsingKey(FileKey key) {
 }
 
 void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache) {
+	if (content.isEmpty()) {
+		if (_themeKey) {
+			clearKey(_themeKey);
+			_themeKey = 0;
+			writeSettings();
+		}
+		return;
+	}
 	if (!_themeKey) {
 		_themeKey = genKey();
 		writeSettings();
@@ -3743,12 +3751,18 @@ void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const 
 	file.writeEncrypted(data, _settingsKey);
 }
 
+void clearTheme() {
+	writeTheme(QString(), QString(), QByteArray(), Window::Theme::Cached());
+}
+
 void readTheme() {
 	if (_themeKey && !readThemeUsingKey(_themeKey)) {
-		clearKey(_themeKey);
-		_themeKey = 0;
-		writeSettings();
+		clearTheme();
 	}
+}
+
+bool hasTheme() {
+	return (_themeKey != 0);
 }
 
 uint32 _peerSize(PeerData *peer) {

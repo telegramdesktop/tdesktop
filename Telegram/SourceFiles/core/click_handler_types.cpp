@@ -40,7 +40,11 @@ QString tryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	if (auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?telegram\\.me/(.+)$"), url, matchOptions)) {
+	auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?telegram\\.me/(.+)$"), url, matchOptions);
+	if (!telegramMeMatch) {
+		telegramMeMatch = regex_match(qsl("https?://(www\\.)?t\\.me/(.+)$"), url, matchOptions);
+	}
+	if (telegramMeMatch) {
 		auto query = telegramMeMatch->capturedRef(2);
 		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
@@ -103,13 +107,15 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 	return result;
 }
 
-void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto urlText = tryConvertUrlToLocal(url());
+void HiddenUrlClickHandler::doOpen(QString url) {
+	auto urlText = tryConvertUrlToLocal(url);
 
 	if (urlText.startsWith(qstr("tg://"))) {
 		App::openLocalUrl(urlText);
 	} else {
-		Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + urlText, lang(lng_open_link), [urlText] {
+		auto parsedUrl = QUrl::fromUserInput(urlText);
+		auto displayUrl = parsedUrl.isValid() ? parsedUrl.toDisplayString() : urlText;
+		Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + displayUrl, lang(lng_open_link), [urlText] {
 			Ui::hideLayer();
 			UrlClickHandler::doOpen(urlText);
 		}));

@@ -65,6 +65,7 @@ public:
 	void setDelegate(BoxContentDelegate *newDelegate) {
 		_delegate = newDelegate;
 		prepare();
+		setInnerFocus();
 	}
 	virtual void setInnerFocus() {
 		setFocus();
@@ -121,16 +122,16 @@ protected:
 	template <typename Widget>
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, const style::ScrollArea &st, int topSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
-		setInner(std_::move(inner), st);
 		setInnerTopSkip(topSkip);
+		setInner(std_::move(inner), st);
 		return result;
 	}
 
 	template <typename Widget>
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, int topSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
-		setInner(std_::move(inner));
 		setInnerTopSkip(topSkip);
+		setInner(std_::move(inner));
 		return result;
 	}
 
@@ -154,6 +155,7 @@ private:
 	void setInner(object_ptr<TWidget> inner);
 	void setInner(object_ptr<TWidget> inner, const style::ScrollArea &st);
 	void updateScrollAreaGeometry();
+	void updateInnerVisibleTopBottom();
 	object_ptr<TWidget> doTakeInnerWidget();
 
 	BoxContentDelegate *getDelegate() const {
@@ -166,7 +168,7 @@ private:
 	int _innerTopSkip = 0;
 	object_ptr<Ui::ScrollArea> _scroll = { nullptr };
 	object_ptr<Ui::WidgetFadeWrap<BoxLayerTitleShadow>> _topShadow = { nullptr };
-	object_ptr<BoxLayerTitleShadow> _bottomShadow = { nullptr };
+	object_ptr<Ui::WidgetFadeWrap<BoxLayerTitleShadow>> _bottomShadow = { nullptr };
 
 	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
 	int _draggingScrollDelta = 0;
@@ -175,7 +177,7 @@ private:
 
 class AbstractBox : public LayerWidget, public BoxContentDelegate, protected base::Subscriber {
 public:
-	AbstractBox(object_ptr<BoxContent> content);
+	AbstractBox(QWidget *parent, object_ptr<BoxContent> content);
 
 	void parentResized() override;
 

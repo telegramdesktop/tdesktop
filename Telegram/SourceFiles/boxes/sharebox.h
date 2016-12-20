@@ -149,6 +149,7 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void invalidateCache();
 
 	int displayedChatsCount() const;
 
