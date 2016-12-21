@@ -191,6 +191,7 @@ parts:
     source-depth: 1
     plugin: cmake
     build-packages:
+      - oss4-dev
       - portaudio19-dev
     configflags:
       - -DCMAKE_BUILD_TYPE=Release
