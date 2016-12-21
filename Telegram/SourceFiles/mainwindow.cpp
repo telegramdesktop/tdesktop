@@ -574,6 +574,8 @@ void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 		_testingThemeWarning->showAnimated();
 	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
 		_testingThemeWarning->hideAnimated();
+		_testingThemeWarning = nullptr;
+		setInnerFocus();
 	}
 }
 

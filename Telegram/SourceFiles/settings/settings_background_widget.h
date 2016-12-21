@@ -55,7 +55,7 @@ private:
 	void step_radial(TimeMs ms, bool timer);
 
 	QPixmap _background;
-	object_ptr<Ui::LinkButton> _useDefault = { nullptr };
+	object_ptr<Ui::LinkButton> _useDefaultTheme = { nullptr };
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
 	object_ptr<Ui::LinkButton> _chooseFromFile;
 
@@ -72,7 +72,7 @@ public:
 private slots:
 	void onChooseFromGallery();
 	void onChooseFromFile();
-	void onUseDefault();
+	void onUseDefaultTheme();
 	void onTile();
 	void onAdaptive();
 

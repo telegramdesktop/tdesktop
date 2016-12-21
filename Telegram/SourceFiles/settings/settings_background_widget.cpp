@@ -52,14 +52,14 @@ BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
 
 void BackgroundRow::checkNonDefaultTheme() {
 	if (Local::hasTheme()) {
-		if (!_useDefault) {
-			_useDefault.create(this, lang(lng_settings_bg_use_default), st::boxLinkButton);
-			_useDefault->show();
-			connect(_useDefault, SIGNAL(clicked()), this, SIGNAL(useDefault()));
+		if (!_useDefaultTheme) {
+			_useDefaultTheme.create(this, lang(lng_settings_bg_use_default), st::boxLinkButton);
+			_useDefaultTheme->show();
+			connect(_useDefaultTheme, SIGNAL(clicked()), this, SIGNAL(useDefault()));
 			resizeToWidth(width());
 		}
-	} else if (_useDefault) {
-		_useDefault.destroy();
+	} else if (_useDefaultTheme) {
+		_useDefaultTheme.destroy();
 		resizeToWidth(width());
 	}
 }
@@ -108,10 +108,10 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 	auto linkWidth = newWidth - linkLeft;
 	_chooseFromGallery->resizeToWidth(qMin(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(qMin(linkWidth, _chooseFromFile->naturalWidth()));
-	if (_useDefault) {
-		_useDefault->resizeToWidth(qMin(linkWidth, _useDefault->naturalWidth()));
-		_useDefault->moveToLeft(linkLeft, linkTop, newWidth);
-		linkTop += _useDefault->height() + st::settingsSmallSkip;
+	if (_useDefaultTheme) {
+		_useDefaultTheme->resizeToWidth(qMin(linkWidth, _useDefaultTheme->naturalWidth()));
+		_useDefaultTheme->moveToLeft(linkLeft, linkTop, newWidth);
+		linkTop += _useDefaultTheme->height() + st::settingsSmallSkip;
 	}
 	_chooseFromGallery->moveToLeft(linkLeft, linkTop, newWidth);
 	linkTop += _chooseFromGallery->height() + st::settingsSmallSkip;
@@ -220,7 +220,7 @@ void BackgroundWidget::createControls() {
 	addChildRow(_background, margin);
 	connect(_background, SIGNAL(chooseFromGallery()), this, SLOT(onChooseFromGallery()));
 	connect(_background, SIGNAL(chooseFromFile()), this, SLOT(onChooseFromFile()));
-	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefault()));
+	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefaultTheme()));
 
 	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
 	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), SLOT(onAdaptive()), Global::AdaptiveForWide());
@@ -246,7 +246,7 @@ void BackgroundWidget::onChooseFromFile() {
 	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
 }
 
-void BackgroundWidget::onUseDefault() {
+void BackgroundWidget::onUseDefaultTheme() {
 	Window::Theme::ApplyDefault();
 }
 

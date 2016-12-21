@@ -29,6 +29,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/localstoragebox.h"
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
+#include "ui/effects/widget_slide_wrap.h"
+#include "localstorage.h"
+#include "window/window_theme.h"
 
 namespace Settings {
 
@@ -39,6 +42,13 @@ AdvancedWidget::AdvancedWidget(QWidget *parent, UserData *self) : BlockWidget(pa
 		connectionTypeUpdated();
 	});
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
+	if (!self) {
+		subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+			if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
+				checkNonDefaultTheme();
+			}
+		});
+	}
 }
 
 void AdvancedWidget::createControls() {
@@ -63,11 +73,26 @@ void AdvancedWidget::createControls() {
 
 	if (self()) {
 		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
+	} else {
+		style::margins slidedPadding(0, marginLarge.bottom() / 2, 0, marginLarge.bottom() - (marginLarge.bottom() / 2));
+		addChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
+		if (!Local::hasTheme()) {
+			_useDefaultTheme->hideFast();
+		}
 	}
 	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
 	if (self()) {
 		style::margins marginLogout(0, 0, 0, 2 * st::settingsLargeSkip);
 		addChildRow(_logOut, marginLogout, lang(lng_settings_logout), SLOT(onLogOut()));
+	}
+}
+
+void AdvancedWidget::checkNonDefaultTheme() {
+	if (self()) return;
+	if (Local::hasTheme()) {
+		_useDefaultTheme->slideDown();
+	} else {
+		_useDefaultTheme->slideUp();
 	}
 }
 
@@ -99,6 +124,10 @@ void AdvancedWidget::onConnectionType() {
 	Ui::show(Box<ConnectionBox>());
 }
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
+
+void AdvancedWidget::onUseDefaultTheme() {
+	Window::Theme::ApplyDefault();
+}
 
 void AdvancedWidget::onAskQuestion() {
 	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
