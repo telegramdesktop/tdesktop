@@ -135,7 +135,7 @@ void audioInit() {
 	alGenBuffers(1, &notifyBuffer);
 	if (!_checkALError()) return audioFinish();
 
-	QFile notify(st::newMsgSound);
+	QFile notify(":/gui/art/newmsg.wav");
 	if (!notify.open(QIODevice::ReadOnly)) return audioFinish();
 
 	QByteArray blob = notify.readAll();

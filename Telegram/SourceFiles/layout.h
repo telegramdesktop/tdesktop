@@ -54,10 +54,10 @@ enum RoundCorners {
 	BotKeyboardDownCorners,
 	PhotoSelectOverlayCorners,
 
-	DocBlueCorners,
-	DocGreenCorners,
-	DocRedCorners,
-	DocYellowCorners,
+	Doc1Corners,
+	Doc2Corners,
+	Doc3Corners,
+	Doc4Corners,
 
 	InShadowCorners, // for photos without bg
 	InSelectedShadowCorners,

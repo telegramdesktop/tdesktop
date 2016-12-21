@@ -367,7 +367,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			statusX = _width - statusW + statusX;
 			p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
 			p.setFont(st::normalFont);
-			p.setPen(st::msgDateImgColor);
+			p.setPen(st::msgDateImgFg);
 			p.drawTextLeft(statusX, statusY, _width, _status.text(), statusW - 2 * st::msgDateImgPadding.x());
 		}
 	}
@@ -377,7 +377,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 		p.fillRect(rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg);
 		p.setFont(st::normalFont);
-		p.setPen(st::msgDateImgColor);
+		p.setPen(st::msgDateImgFg);
 		p.drawTextLeft(statusX, statusY, _width, _duration, statusW - 2 * st::msgDateImgPadding.x());
 	}
 
@@ -1132,10 +1132,10 @@ void Link::paint(Painter &p, const QRect &clip, TextSelection selection, const P
 		} else {
 			int32 index = _letter.isEmpty() ? 0 : (_letter.at(0).unicode() % 4);
 			switch (index) {
-			case 0: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileRedColor, DocRedCorners); break;
-			case 1: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileYellowColor, DocYellowCorners); break;
-			case 2: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileGreenColor, DocGreenCorners); break;
-			case 3: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFileBlueColor, DocBlueCorners); break;
+			case 0: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFile1Bg, Doc1Corners); break;
+			case 1: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFile2Bg, Doc2Corners); break;
+			case 2: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFile3Bg, Doc3Corners); break;
+			case 3: App::roundRect(p, rtlrect(0, top, st::linksPhotoSize, st::linksPhotoSize, _width), st::msgFile4Bg, Doc4Corners); break;
 			}
 
 			if (!_letter.isEmpty()) {

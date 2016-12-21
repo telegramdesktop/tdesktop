@@ -51,6 +51,7 @@ void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st
 		if (!_scroll) {
 			_scroll.create(this, st);
 			connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+			connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
 
 			_topShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
 			_bottomShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
@@ -92,28 +93,36 @@ void BoxContent::onDraggingScrollTimer() {
 }
 
 void BoxContent::updateInnerVisibleTopBottom() {
-	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll ? _scroll->widget() : nullptr)) {
 		auto top = _scroll->scrollTop();
 		widget->setVisibleTopBottom(top, top + _scroll->height());
 	}
 }
 
-void BoxContent::onScroll() {
-	if (_scroll) {
-		updateInnerVisibleTopBottom();
+void BoxContent::updateShadowsVisibility() {
+	if (!_scroll) return;
 
-		auto top = _scroll->scrollTop();
-		if (top > 0 || _innerTopSkip > 0) {
-			_topShadow->showAnimated();
-		} else {
-			_topShadow->hideAnimated();
-		}
-		if (top < _scroll->scrollTopMax()) {
-			_bottomShadow->showAnimated();
-		} else {
-			_bottomShadow->hideAnimated();
-		}
+	auto top = _scroll->scrollTop();
+	if (top > 0 || _innerTopSkip > 0) {
+		_topShadow->showAnimated();
+	} else {
+		_topShadow->hideAnimated();
 	}
+	if (top < _scroll->scrollTopMax()) {
+		_bottomShadow->showAnimated();
+	} else {
+		_bottomShadow->hideAnimated();
+	}
+}
+
+void BoxContent::onScroll() {
+	updateInnerVisibleTopBottom();
+	updateShadowsVisibility();
+}
+
+void BoxContent::onInnerResize() {
+	updateInnerVisibleTopBottom();
+	updateShadowsVisibility();
 }
 
 void BoxContent::setInnerTopSkip(int innerTopSkip, bool scrollBottomFixed) {

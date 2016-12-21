@@ -177,7 +177,7 @@ void paintPreparedDate(Painter &p, const QString &dateText, int dateTextWidth, i
 	ServiceMessagePainter::paintBubble(p, left, y + st::msgServiceMargin.top(), dateTextWidth + st::msgServicePadding.left() + st::msgServicePadding.left(), height);
 
 	p.setFont(st::msgServiceFont);
-	p.setPen(st::msgServiceColor);
+	p.setPen(st::msgServiceFg);
 	p.drawText(left + st::msgServicePadding.left(), y + st::msgServiceMargin.top() + st::msgServicePadding.top() + st::msgServiceFont->ascent, dateText);
 }
 
@@ -225,7 +225,7 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 	}
 
 	p.setBrush(Qt::NoBrush);
-	p.setPen(st::msgServiceColor);
+	p.setPen(st::msgServiceFg);
 	p.setFont(st::msgServiceFont);
 	message->_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignCenter, 0, -1, context.selection, false);
 

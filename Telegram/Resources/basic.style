@@ -37,10 +37,10 @@ emojiPadding: 1px;
 lineWidth: 1px;
 
 defaultTooltip: Tooltip {
-	textBg: #eef2f5;
-	textFg: #5d6c80;
+	textBg: tooltipBg;
+	textFg: tooltipFg;
 	textFont: normalFont;
-	textBorder: #c9d1db;
+	textBorder: tooltipBorderFg;
 	textPadding: margins(5px, 2px, 5px, 2px);
 
 	shift: point(-20px, 20px);
@@ -50,20 +50,11 @@ defaultTooltip: Tooltip {
 	linesMax: 12;
 }
 
-statusFont: font(fsize);
-statusFg: #999999;
-statusFgActive: #0080c0;
-statusFgTyping: statusFgActive;
-
-versionColor: #777777;
-
-shadowColor: #00000018;
 shadowToggleDuration: 200;
 
 slideDuration: 240;
 slideShift: 100px;
-slideFadeOutBg: #0000003c;
-slideShadow: icon {{ "slide_shadow", windowShadowFg }};
+slideShadow: icon {{ "slide_shadow", slideFadeOutShadowFg }};
 
 linkCropLimit: 360px;
 linkFont: normalFont;
@@ -76,7 +67,7 @@ setLittleSkip: 9px;
 
 noContactsHeight: 100px;
 noContactsFont: font(fsize);
-noContactsColor: #777777;
+noContactsColor: windowSubTextFg;
 
 activeFadeInDuration: 500;
 activeFadeOutDuration: 3000;
@@ -95,54 +86,19 @@ msgPadding: margins(13px, 7px, 13px, 8px);
 msgMargin: margins(16px, 6px, 56px, 2px);
 msgMarginTopAttached: 1px;
 msgLnkPadding: 2px; // for media open / save links
-msgBorder: #f0f0f0;
-msgInBg: #ffffff;
-msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
-msgOutBg: #effdde;
-msgOutBgSelected: #b7dbdb;
-msgSelectOverlay: #358cd44c;
-msgStickerOverlay: #358cd47f;
-msgInServiceFg: windowActiveTextFg;
-msgInServiceFgSelected: windowActiveTextFg;
-msgOutServiceFg: #3a8e26;
-msgOutServiceFgSelected: #367570;
 msgShadow: 2px;
-msgInShadow: #748ea229;
-msgInShadowSelected: #548dbb29;
-msgOutShadow: #3ac34740;
-msgOutShadowSelected: #37a78e40;
-msgInDateFg: #a0acb6;
-msgInDateFgSelected: #6a9cc5;
-msgOutDateFg: #6cc264;
-msgOutDateFgSelected: #50a79c;
 
 msgReplyPadding: margins(6px, 6px, 11px, 6px);
 msgReplyBarPos: point(1px, 0px);
 msgReplyBarSize: size(2px, 36px);
 msgReplyBarSkip: 10px;
-msgInReplyBarColor: activeLineFg;
-msgInReplyBarSelColor: activeLineFg;
-msgOutReplyBarColor: historyOutIconFg;
-msgOutReplyBarSelColor: historyOutIconFgSelected;
-msgImgReplyBarColor: #ffffff;
-
-msgServiceBg: #89a0b47f;
-msgServiceSelectBg: #bbc8d4a2;
-msgServiceColor: #ffffff;
 msgServicePadding: margins(12px, 3px, 12px, 4px);
 msgServiceMargin: margins(10px, 10px, 80px, 2px);
-
-msgColor: #000000;
-msgDateColor: #000000;
 
 msgDateSpace: 12px;
 msgDateDelta: point(2px, 5px);
 
 msgDateImgDelta: 4px;
-msgDateImgColor: #ffffff;
-msgDateImgBg: #00000054;
-msgDateImgBgOver: #00000074;
-msgDateImgBgSelected: #1c4a7187;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
@@ -151,7 +107,7 @@ defaultTextStyle: TextStyle {
 	linkFlagsOver: font(fsize underline);
 	linkFg: windowActiveTextFg;
 	linkFgDown: windowActiveTextFg;
-	monoFg: #777777;
+	monoFg: windowSubTextFg;
 	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 	lineHeight: 0px;
@@ -159,19 +115,19 @@ defaultTextStyle: TextStyle {
 serviceTextStyle: TextStyle(defaultTextStyle) {
 	linkFlags: msgServiceFont;
 	linkFlagsOver: font(fsize semibold underline);
-	linkFg: msgServiceColor;
-	linkFgDown: msgServiceColor;
-	monoFg: msgServiceColor;
-	selectBg: msgServiceSelectBg;
-	selectOverlay: msgServiceSelectBg;
+	linkFg: msgServiceFg;
+	linkFgDown: msgServiceFg;
+	monoFg: msgServiceFg;
+	selectBg: msgServiceBgSelected;
+	selectOverlay: msgServiceBgSelected;
 }
 inTextStyle: TextStyle(defaultTextStyle) {
-	monoFg: #4e7391;
+	monoFg: msgInMonoFg;
 	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
 outTextStyle: TextStyle(defaultTextStyle) {
-	monoFg: #469165;
+	monoFg: msgOutMonoFg;
 	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
@@ -193,9 +149,9 @@ outFwdTextStyleSelected: TextStyle(inFwdTextStyle) {
 	linkFg: msgOutServiceFgSelected;
 	linkFgDown: msgOutServiceFgSelected;
 }
-medviewSaveAsTextStyle: TextStyle(defaultTextStyle) {
-	linkFg: #91d9ff;
-	linkFgDown: #91d9ff;
+mediaviewTextStyle: TextStyle(defaultTextStyle) {
+	linkFg: mediaviewTextLinkFg;
+	linkFgDown: mediaviewTextLinkFg;
 }
 
 mediaPadding: margins(0px, 0px, 0px, 0px);
@@ -204,14 +160,6 @@ mediaInBubbleSkip: 5px;
 mediaThumbSize: 48px;
 mediaNameTop: 3px;
 mediaDetailsShift: 3px;
-mediaInFg: msgInDateFg;
-mediaInFgSelected: msgInDateFgSelected;
-mediaOutFg: msgOutDateFg;
-mediaOutFgSelected: msgOutDateFgSelected;
-mediaInUnreadFg: #999999;
-mediaInUnreadFgSelected: #7b95aa;
-mediaOutUnreadFg: #6aad60;
-mediaOutUnreadFgSelected: #5aa382;
 mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
 mediaUnreadTop: 6px;
@@ -225,23 +173,6 @@ mediaInStyleSelected: TextStyle(defaultTextStyle) {
 	linkFgDown: mediaInFgSelected;
 }
 
-msgFileRedColor: #e47272;
-msgFileYellowColor: #efc274;
-msgFileGreenColor: #61b96e;
-msgFileBlueColor: #72b1df;
-msgFileRedDark: #cd5b5e;
-msgFileYellowDark: #e6a561;
-msgFileGreenDark: #4da859;
-msgFileBlueDark: #5c9ece;
-msgFileRedOver: #c35154;
-msgFileYellowOver: #dc9c5a;
-msgFileGreenOver: #44a050;
-msgFileBlueOver: #5294c4;
-msgFileRedSelected: #9f6a82;
-msgFileYellowSelected: #b19d84;
-msgFileGreenSelected: #46a07e;
-msgFileBlueSelected: #5099d0;
-
 msgFileMenuSize: size(36px, 36px);
 msgFileSize: 44px;
 msgFilePadding: margins(14px, 12px, 11px, 12px);
@@ -250,19 +181,9 @@ msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
 msgFileThumbNameTop: 12px;
 msgFileThumbStatusTop: 32px;
 msgFileThumbLinkTop: 60px;
-msgFileThumbLinkInFg: lightButtonFg;
-msgFileThumbLinkInFgSelected: lightButtonFgOver;
-msgFileThumbLinkOutFg: #5eba5b;
-msgFileThumbLinkOutFgSelected: #31a298;
 msgFileNameTop: 16px;
 msgFileStatusTop: 37px;
 msgFileMinWidth: 294px;
-msgFileInBg: windowBgActive;
-msgFileInBgOver: #4eade3;
-msgFileInBgSelected: #51a3d3;
-msgFileOutBg: #78c67f;
-msgFileOutBgOver: #6bc272;
-msgFileOutBgSelected: #5fb389;
 
 msgFileOverDuration: 200;
 msgFileRadialLine: 3px;
@@ -273,41 +194,16 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
-msgWaveformInActive: windowBgActive;
-msgWaveformInActiveSelected: #51a3d3;
-msgWaveformInInactive: #d4dee6;
-msgWaveformInInactiveSelected: #9cc1e1;
-msgWaveformOutActive: #78c67f;
-msgWaveformOutActiveSelected: #6badad;
-msgWaveformOutInactive: #b3e2b4;
-msgWaveformOutInactiveSelected: #91c3c3;
 
 textRectMargins: margins(-2px, -1px, -2px, -1px);
 
-newMsgSound: ":/gui/art/newmsg.wav";
-
-unreadBarHeight: 32px;
-unreadBarMargin: 8px;
-unreadBarFont: semiboldFont;
-unreadBarBG: #fcfbfa;
-unreadBarBorder: shadowColor;
-unreadBarColor: #538bb4;
-
-searchedBarHeight: unreadBarHeight;
+searchedBarHeight: 32px;
 searchedBarFont: normalFont;
-searchedBarBg: windowBgOver;
-searchedBarBorder: unreadBarBorder;
-searchedBarFg: windowSubTextFgOver;
 searchedBarPosition: point(17px, 7px);
 
-simpleCloseIcon: icon {{ "simple_close", #c7c7c7 }};
-simpleCloseIconOver: icon {{ "simple_close", #a3a3a3 }};
+smallCloseIcon: icon {{ "simple_close", smallCloseIconFg }};
+smallCloseIconOver: icon {{ "simple_close", smallCloseIconFgOver }};
 dialogsForwardCancelIcon: icon {{ "simple_close", dialogsForwardFg }};
-
-forwardMargins: margins(30px, 10px, 30px, 10px);
-forwardFont: font(16px);
-forwardBg: #0000004c;
-forwardFg: #ffffff;
 
 emojiTextFont: font(15px);
 emojiReplaceWidth: 52px;
@@ -315,14 +211,11 @@ emojiReplaceHeight: 56px;
 emojiReplaceInnerHeight: 42px;
 emojiReplacePadding: 14px;
 
-connectingBG: #ffffffee;
-connectingColor: #777777;
 connectingPadding: margins(5px, 5px, 5px, 5px);
 
-dragBg: #ffffff;
 dragFont: font(28px semibold);
 dragSubfont: font(20px semibold);
-dragColor: #777777;
+dragColor: windowSubTextFg;
 dragDropColor: windowActiveTextFg;
 
 dragMargin: margins(0px, 10px, 0px, 10px);
@@ -337,19 +230,17 @@ maxGifSize: 320px;
 maxSignatureSize: 144px;
 
 mvThickFont: semiboldFont;
-mvFont: font(fsize);
+mvFont: normalFont;
 
 mvTextLeft: 16px;
 mvTextSkip: 10px;
 mvHeaderTop: 48px;
 mvTextTop: 24px;
-mvTextColor: #ffffff;
 mvTextOpacity: 0.5;
 mvTextOverOpacity: 1;
 
 mvIconOpacity: 0.45;
 mvIconOverOpacity: 1;
-mvControlFg: #ffffff;
 mvControlBgOpacity: 0.3;
 mvControlMargin: 0px;
 mvControlSize: 90px;
@@ -366,34 +257,28 @@ mvSwipeDistance: 80px;
 mvCaptionPadding: margins(18px, 10px, 18px, 10px);
 mvCaptionMargin: size(11px, 11px);
 mvCaptionRadius: 2px;
-mvCaptionFg: #ffffff;
-mvCaptionBg: #11111180;
 mvCaptionFont: font(fsize);
 
-medviewSaveMsgCheck: icon {{ "mediaview_save_check", #ffffff }};
+medviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
 medviewSaveMsgFont: font(16px);
 medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
 medviewSaveMsgCheckPos: point(23px, 21px);
 medviewSaveMsgShowing: 200;
 medviewSaveMsgShown: 2000;
 medviewSaveMsgHiding: 2500;
-medviewSaveMsgFg: #ffffff;
-medviewSaveMsg: #000000b2;
 
 radialSize: size(50px, 50px);
 radialLine: 3px;
 radialDuration: 350;
 radialPeriod: 3000;
-radialFg: #ffffff;
-radialBg: #00000056;
 
 youtubeIcon: icon {
-	{ "media_youtube_play_bg", #e83131c8 },
-	{ "media_youtube_play", #ffffff, point(24px, 12px) },
+	{ "media_youtube_play_bg", youtubePlayIconBg },
+	{ "media_youtube_play", youtubePlayIconFg, point(24px, 12px) },
 };
 videoIcon: icon {
-	{ "media_video_play_bg", #0000007f },
-	{ "media_video_play", #ffffff, point(12px, 12px) },
+	{ "media_video_play_bg", videoPlayIconBg },
+	{ "media_video_play", videoPlayIconFg, point(12px, 12px) },
 };
 locationSize: size(320px, 240px);
 
@@ -424,7 +309,7 @@ inlineTitleFg: windowFg;
 inlineDescriptionFg: windowSubTextFg;
 inlineRowMargin: 6px;
 inlineRowBorder: 1px;
-inlineRowBorderFg: #eaeaea;
+inlineRowBorderFg: shadowFg;
 inlineRowFileNameTop: 2px;
 inlineRowFileDescriptionTop: 23px;
 inlineResultsMinWidth: 64px;
@@ -433,8 +318,6 @@ inlineDurationMargin: 3px;
 toastFont: normalFont;
 toastMaxWidth: 480px;
 toastMinMargin: 13px;
-toastBg: medviewSaveMsg;
-toastFg: #ffffff;
 toastPadding: margins(19px, 13px, 19px, 12px);
 toastFadeInDuration: 200;
 toastFadeOutDuration: 1000;

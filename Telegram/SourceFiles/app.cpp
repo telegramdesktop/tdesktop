@@ -2226,17 +2226,17 @@ namespace {
 		}
 		prepareCorners(MenuCorners, st::buttonRadius, st::menuBg);
 		prepareCorners(BoxCorners, st::boxRadius, st::boxBg);
-		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBg);
+		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBgAdd);
 		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
-		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
+		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
 		prepareCorners(SelectedOverlayLargeCorners, msgRadius(), st::msgSelectOverlay);
 		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
 		prepareCorners(InShadowCorners, msgRadius(), st::msgInShadow);
 		prepareCorners(InSelectedShadowCorners, msgRadius(), st::msgInShadowSelected);
-		prepareCorners(ForwardCorners, msgRadius(), st::forwardBg);
-		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::medviewSaveMsg);
+		prepareCorners(ForwardCorners, msgRadius(), st::historyForwardChooseBg);
+		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::mediaviewSaveMsgBg);
 		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
 		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);
@@ -2244,10 +2244,10 @@ namespace {
 		prepareCorners(BotKeyboardDownCorners, st::buttonRadius, st::botKbDownBg);
 		prepareCorners(PhotoSelectOverlayCorners, st::buttonRadius, st::overviewPhotoSelectOverlay);
 
-		prepareCorners(DocBlueCorners, st::buttonRadius, st::msgFileBlueColor);
-		prepareCorners(DocGreenCorners, st::buttonRadius, st::msgFileGreenColor);
-		prepareCorners(DocRedCorners, st::buttonRadius, st::msgFileRedColor);
-		prepareCorners(DocYellowCorners, st::buttonRadius, st::msgFileYellowColor);
+		prepareCorners(Doc1Corners, st::buttonRadius, st::msgFile1Bg);
+		prepareCorners(Doc2Corners, st::buttonRadius, st::msgFile2Bg);
+		prepareCorners(Doc3Corners, st::buttonRadius, st::msgFile3Bg);
+		prepareCorners(Doc4Corners, st::buttonRadius, st::msgFile4Bg);
 
 		prepareCorners(MessageInCorners, msgRadius(), st::msgInBg, &st::msgInShadow);
 		prepareCorners(MessageInSelectedCorners, msgRadius(), st::msgInBgSelected, &st::msgInShadowSelected);
@@ -2309,7 +2309,7 @@ namespace {
 					delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
 				}
 				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
-				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
+				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
 
 				if (App::main()) {
 					App::main()->updateScrollColors();

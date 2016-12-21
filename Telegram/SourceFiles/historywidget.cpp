@@ -2430,7 +2430,7 @@ void ReportSpamPanel::resizeEvent(QResizeEvent *e) {
 void ReportSpamPanel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.fillRect(QRect(0, 0, width(), height() - st::lineWidth), st::reportSpamBg);
-	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
+	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, height() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 	if (!_clear->isHidden()) {
 		p.setPen(st::reportSpamFg);
 		p.setFont(st::msgFont);
@@ -2715,7 +2715,7 @@ void HistoryHider::init() {
 	connect(_cancel, SIGNAL(clicked()), this, SLOT(startHide()));
 	subscribe(Global::RefPeerChooseCancel(), [this] { startHide(); });
 
-	_chooseWidth = st::forwardFont->width(lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose));
+	_chooseWidth = st::historyForwardChooseFont->width(lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose));
 
 	resizeEvent(0);
 	_a_opacity.start([this] { update(); }, 0., 1., st::boxDuration);
@@ -2740,7 +2740,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 		p.fillRect(rect(), st::layerBg);
 	}
 	if (_cacheForAnim.isNull() || !_offered) {
-		p.setFont(st::forwardFont);
+		p.setFont(st::historyForwardChooseFont);
 		if (_offered) {
 			Ui::Shadow::paint(p, _box, width(), st::boxRoundShadow);
 			App::roundRect(p, _box, st::boxBg, BoxCorners);
@@ -2750,11 +2750,11 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			_toText.drawLeftElided(p, _box.left() + st::boxPadding.left(), _box.y() + st::boxTopMargin + st::boxPadding.top(), _toTextWidth + 2, width(), 1, style::al_left);
 			textstyleRestore();
 		} else {
-			auto w = st::forwardMargins.left() + _chooseWidth + st::forwardMargins.right();
-			auto h = st::forwardMargins.top() + st::forwardFont->height + st::forwardMargins.bottom();
-			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::forwardBg, ForwardCorners);
+			auto w = st::historyForwardChooseMargins.left() + _chooseWidth + st::historyForwardChooseMargins.right();
+			auto h = st::historyForwardChooseMargins.top() + st::historyForwardChooseFont->height + st::historyForwardChooseMargins.bottom();
+			App::roundRect(p, (width() - w) / 2, (height() - h) / 2, w, h, st::historyForwardChooseBg, ForwardCorners);
 
-			p.setPen(st::forwardFg);
+			p.setPen(st::historyForwardChooseFg);
 			p.drawText(_box, lang(_botAndQuery.isEmpty() ? lng_forward_choose : lng_inline_switch_choose), QTextOption(style::al_center));
 		}
 	} else {
@@ -2844,7 +2844,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 		}
 		h += st::boxTopMargin + qMax(st::boxTextFont->height, st::boxTextStyle.lineHeight) + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom();
 	} else {
-		h += st::forwardFont->height;
+		h += st::historyForwardChooseFont->height;
 		_send->hide();
 		_cancel->hide();
 	}
@@ -3050,7 +3050,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _attachDragDocument(this)
 , _attachDragPhoto(this)
 , _fileLoader(this, FileLoaderQueueStopTimeout)
-, _topShadow(this, st::shadowColor) {
+, _topShadow(this, st::shadowFg) {
 	setAcceptDrops(true);
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
@@ -6186,8 +6186,8 @@ bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
 	auto namewidth = width() - decreaseWidth - st::topBarArrowPadding.left() - st::topBarArrowPadding.right();
 	p.setFont(st::dialogsTextFont);
-	if (!_history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::statusFgActive, ms)) {
-		p.setPen(_titlePeerTextOnline ? st::statusFgActive : st::statusFg);
+	if (!_history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
+		p.setPen(_titlePeerTextOnline ? st::historyStatusFgActive : st::historyStatusFg);
 		p.drawText(nameleft, st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
 	}
 
@@ -7266,7 +7266,7 @@ void HistoryWidget::updateListSize(bool initial, bool loadedDown, const ScrollCh
 		}
 	} else if (_history->showFrom) {
 		toY = _list->itemTop(_history->showFrom);
-		if (toY < _scroll->scrollTopMax() + st::unreadBarHeight) {
+		if (toY < _scroll->scrollTopMax() + st::historyUnreadBarHeight) {
 			_history->addUnreadBar();
 			if (_history->unreadBar) {
 				setMsgId(ShowAtUnreadMsgId);
@@ -7614,7 +7614,7 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 HistoryWidget::PinnedBar::PinnedBar(MsgId msgId, HistoryWidget *parent)
 : msgId(msgId)
 , cancel(parent, st::historyReplyCancel)
-, shadow(parent, st::shadowColor) {
+, shadow(parent, st::shadowFg) {
 }
 
 HistoryWidget::PinnedBar::~PinnedBar() {
@@ -8589,11 +8589,11 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 				} else {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
-				p.setPen(((drawMsgText->toHistoryMessage() && drawMsgText->toHistoryMessage()->emptyText()) || drawMsgText->serviceMsg()) ? st::msgInDateFg : st::msgColor);
+				p.setPen(((drawMsgText->toHistoryMessage() && drawMsgText->toHistoryMessage()->emptyText()) || drawMsgText->serviceMsg()) ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
 				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			} else {
 				p.setFont(st::msgDateFont);
-				p.setPen(st::msgInDateFg);
+				p.setPen(st::historyComposeAreaFgService);
 				p.drawText(replyLeft, backy + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right()));
 			}
 		}
@@ -8613,13 +8613,13 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			}
 			p.setPen(st::historyReplyNameFg);
 			from->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.setPen(serviceColor ? st::msgInDateFg : st::msgColor);
+			p.setPen(serviceColor ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
 			text->drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 		}
 	}
 	if (drawPreview) {
 		int32 previewLeft = st::historyReplySkip + st::webPageLeft;
-		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor->b);
+		p.fillRect(st::historyReplySkip, backy + st::msgReplyPadding.top(), st::webPageBar, st::msgReplyBarSize.height(), st::msgInReplyBarColor);
 		if ((_previewData->photo && !_previewData->photo->thumb->isNull()) || (_previewData->document && !_previewData->document->thumb->isNull())) {
 			ImagePtr replyPreview = _previewData->photo ? _previewData->photo->makeReplyPreview() : _previewData->document->makeReplyPreview();
 			if (!replyPreview->isNull()) {
@@ -8635,7 +8635,7 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		}
 		p.setPen(st::historyReplyNameFg);
 		_previewTitle.drawElided(p, previewLeft, backy + st::msgReplyPadding.top(), width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-		p.setPen(st::msgColor);
+		p.setPen(st::historyComposeAreaFg);
 		_previewDescription.drawElided(p, previewLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - previewLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 	}
 }
@@ -8684,7 +8684,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 
 	if (!editTimeLeftText.isEmpty()) {
 		p.setFont(st::normalFont);
-		p.setPen(st::msgInDateFg);
+		p.setPen(st::historyComposeAreaFgService);
 		p.drawText(left + st::msgServiceNameFont->width(lang(lng_edit_message)) + st::normalFont->spacew, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, editTimeLeftText);
 	}
 }
@@ -8762,11 +8762,11 @@ void HistoryWidget::drawPinnedBar(Painter &p) {
 		p.setFont(st::msgServiceNameFont);
 		p.drawText(left, st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, lang(lng_pinned_message));
 
-		p.setPen((((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::msgInDateFg : st::msgColor)->p);
+		p.setPen(((_pinnedBar->msg->toHistoryMessage() && _pinnedBar->msg->toHistoryMessage()->emptyText()) || _pinnedBar->msg->serviceMsg()) ? st::historyComposeAreaFgService : st::historyComposeAreaFg);
 		_pinnedBar->text.drawElided(p, left, st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right());
 	} else {
 		p.setFont(st::msgDateFont);
-		p.setPen(st::msgInDateFg);
+		p.setPen(st::historyComposeAreaFgService);
 		p.drawText(left, st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2 + st::msgDateFont->ascent, st::msgDateFont->elided(lang(lng_profile_loading), width() - left - _pinnedBar->cancel->width() - st::msgReplyPadding.right()));
 	}
 }
@@ -8856,7 +8856,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 		QRect tr((width() - w) / 2, (height() - _field->height() - 2 * st::historySendPadding - h) / 2, w, h);
 		HistoryLayout::ServiceMessagePainter::paintBubble(p, tr.x(), tr.y(), tr.width(), tr.height());
 
-		p.setPen(st::msgServiceColor->p);
+		p.setPen(st::msgServiceFg);
 		p.setFont(font->f);
 		p.drawText(tr.left() + st::msgPadding.left(), tr.top() + st::msgServicePadding.top() + 1 + font->ascent, lang(lng_willbe_history));
 	}

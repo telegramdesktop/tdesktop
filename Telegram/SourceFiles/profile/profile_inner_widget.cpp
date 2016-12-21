@@ -125,7 +125,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 		int shadowLeft = _blocksLeft + _leftColumnWidth + _columnDivider;
 		int shadowTop = _blocksTop + st::profileBlockMarginTop;
-		p.fillRect(rtlrect(shadowLeft, shadowTop, st::lineWidth, shadowHeight - st::profileBlockMarginTop, width()), st::shadowColor);
+		p.fillRect(rtlrect(shadowLeft, shadowTop, st::lineWidth, shadowHeight - st::profileBlockMarginTop, width()), st::shadowFg);
 	}
 }
 

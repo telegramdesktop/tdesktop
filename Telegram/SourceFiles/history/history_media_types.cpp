@@ -783,7 +783,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 	int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 	App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	p.setFont(st::normalFont);
-	p.setPen(st::msgDateImgColor);
+	p.setPen(st::msgDateImgFg);
 	p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
 
 	// date
@@ -1775,7 +1775,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 			App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 			p.setFont(st::normalFont);
-			p.setPen(st::msgDateImgColor);
+			p.setPen(st::msgDateImgFg);
 			p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
 		}
 	}
@@ -2055,7 +2055,7 @@ void HistorySticker::draw(Painter &p, const QRect &r, TextSelection selection, T
 			// Make the bottom of the rect at the same level as the bottom of the info rect.
 			recty -= st::msgDateImgDelta;
 
-			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceSelectBg : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+			App::roundRect(p, rectx, recty, rectw, recth, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
 			rectx += st::msgReplyPadding.left();
 			rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();
 			if (via) {
@@ -2741,7 +2741,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 				App::roundRect(p, dateX, dateY, dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 
 				p.setFont(st::msgDateFont);
-				p.setPen(st::msgDateImgColor);
+				p.setPen(st::msgDateImgFg);
 				p.drawTextLeft(dateX + st::msgDateImgPadding.x(), dateY + st::msgDateImgPadding.y(), pixwidth, _duration);
 			}
 		}
@@ -3103,7 +3103,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 		App::roundRect(p, rtlrect(gameX, gameY, gameW, gameH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 
 		p.setFont(st::msgDateFont);
-		p.setPen(st::msgDateImgColor);
+		p.setPen(st::msgDateImgFg);
 		p.drawTextLeft(gameX + st::msgDateImgPadding.x(), gameY + st::msgDateImgPadding.y(), pixwidth, lang(lng_game_tag).toUpper());
 
 		p.translate(-attachLeft, -attachTop);

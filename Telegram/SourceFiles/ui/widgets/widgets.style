@@ -118,10 +118,10 @@ Checkbox {
 }
 
 ScrollArea {
-	barColor: color;
-	bgColor: color;
-	barOverColor: color;
-	bgOverColor: color;
+	bg: color;
+	bgOver: color;
+	barBg: color;
+	barBgOver: color;
 
 	round: pixels;
 
@@ -170,7 +170,6 @@ FlatInput {
 	borderWidth: pixels;
 	borderColor: color;
 	borderActive: color;
-	borderError: color;
 
 	phColor: color;
 	phFocusColor: color;
@@ -203,7 +202,6 @@ InputField {
 
 	border: pixels;
 	borderActive: pixels;
-	borderError: pixels;
 
 	font: font;
 
@@ -490,10 +488,10 @@ defaultLightButton: RoundButton(defaultActiveButton) {
 }
 
 defaultScrollArea: ScrollArea {
-	barColor: #00000053;
-	bgColor: #0000001a;
-	barOverColor: #0000007a;
-	bgOverColor: #0000002c;
+	bg: scrollBg;
+	bgOver: scrollBgOver;
+	barBg: scrollBarBg;
+	barBgOver: scrollBarBgOver;
 
 	round: 2px;
 
@@ -505,7 +503,7 @@ defaultScrollArea: ScrollArea {
 
 	topsh: 2px;
 	bottomsh: 2px;
-	shColor: #00000012;
+	shColor: shadowFg;
 
 	duration: 150;
 	hiding: 1000;
@@ -525,9 +523,9 @@ defaultSolidScroll: ScrollArea(defaultScrollArea) {
 
 defaultInputFont: font(17px);
 defaultFlatInput: FlatInput {
-	textColor: #000000;
+	textColor: windowFg;
 	bgColor: windowBgOver;
-	bgActive: #ffffff;
+	bgActive: windowBg;
 	width: 210px;
 	height: 40px;
 	align: align(left);
@@ -536,11 +534,10 @@ defaultFlatInput: FlatInput {
 
 	borderWidth: 2px;
 	borderColor: windowBgOver;
-	borderActive: #54c3f3;
-	borderError: #ed8080;
+	borderActive: filterInputBorderFg;
 
-	phColor: #808080;
-	phFocusColor: #aaaaaa;
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
 	phAlign: align(left);
 	phPos: point(2px, 0px);
 	phShift: 50px;
@@ -549,11 +546,11 @@ defaultFlatInput: FlatInput {
 
 defaultLeftOutlineButton: OutlineButton {
 	outlineWidth: 3px;
-	outlineFg: windowBg;
-	outlineFgOver: windowBgActive;
+	outlineFg: outlineButtonBg;
+	outlineFgOver: outlineButtonOutlineFg;
 
-	textBg: windowBg;
-	textBgOver: #f2f7fa;
+	textBg: outlineButtonBg;
+	textBgOver: outlineButtonBgOver;
 
 	textFg: windowActiveTextFg;
 	textFgOver: windowActiveTextFg;
@@ -562,7 +559,7 @@ defaultLeftOutlineButton: OutlineButton {
 	padding: margins(11px, 5px, 11px, 5px);
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgRipple;
+		color: outlineButtonBgRipple;
 	}
 }
 attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
@@ -594,13 +591,12 @@ defaultInputField: InputField {
 	placeholderFont: font(semibold 14px);
 	duration: 150;
 
-	borderFg: #e0e0e0;
+	borderFg: inputBorderFg;
 	borderFgActive: activeLineFg;
-	borderFgError: #e48383;
+	borderFgError: activeLineFgError;
 
 	border: 1px;
 	borderActive: 2px;
-	borderError: 2px;
 
 	font: boxTextFont;
 
@@ -614,7 +610,7 @@ defaultCheckbox: Checkbox {
 	textFg: windowFg;
 
 	checkBg: transparent;
-	checkFg: #b3b3b3;
+	checkFg: checkboxFg;
 	checkFgActive: windowBgActive;
 
 	width: -44px;
@@ -633,7 +629,7 @@ defaultCheckbox: Checkbox {
 	rippleAreaSize: 38px;
 	rippleAreaPosition: point(0px, 0px);
 	rippleBg: windowBgOver;
-	rippleBgActive: #e0f2fa;
+	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
 }
 
@@ -644,8 +640,8 @@ defaultIconButton: IconButton {
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 
-fieldSearchIcon: icon {{ "box_search", #aaaaaa, point(9px, 8px) }};
-boxFieldSearchIcon: icon {{ "box_search", #aaaaaa, point(10px, 9px) }};
+fieldSearchIcon: icon {{ "box_search", menuIconFg, point(9px, 8px) }};
+boxFieldSearchIcon: icon {{ "box_search", menuIconFg, point(10px, 9px) }};
 
 SettingsSlider {
 	height: pixels;
@@ -671,8 +667,8 @@ defaultSettingsSlider: SettingsSlider {
 	barTop: 5px;
 	barSkip: 3px;
 	barStroke: 3px;
-	barFg: #e1eaef;
-	barFgActive: windowBgActive;
+	barFg: sliderBgInactive;
+	barFgActive: sliderBgActive;
 	labelTop: 17px;
 	labelFont: normalFont;
 	labelFg: windowActiveTextFg;
@@ -687,11 +683,11 @@ defaultTabsSlider: SettingsSlider(defaultSettingsSlider) {
 	barFg: transparent;
 	labelTop: 16px;
 	labelFont: semiboldFont;
-	labelFg: #999999;
+	labelFg: windowSubTextFg;
 	labelFgActive: lightButtonFg;
 	rippleBottomSkip: 1px;
 	rippleBg: windowBgOver;
-	rippleBgActive: #e0f2fa;
+	rippleBgActive: lightButtonBgOver;
 	ripple: defaultRippleAnimation;
 }
 
@@ -732,7 +728,7 @@ defaultRoundCheckbox: RoundCheckbox {
 	duration: 150;
 }
 
-defaultMenuArrow: icon {{ "dropdown_submenu_arrow", #373737 }};
+defaultMenuArrow: icon {{ "dropdown_submenu_arrow", menuSubmenuArrowFg }};
 defaultMenu: Menu {
 	skip: 0px;
 
@@ -740,17 +736,17 @@ defaultMenu: Menu {
 	itemBgOver: windowBgOver;
 	itemFg: windowFg;
 	itemFgOver: windowFgOver;
-	itemFgDisabled: #cccccc;
+	itemFgDisabled: menuFgDisabled;
 	itemFgShortcut: windowSubTextFg;
 	itemFgShortcutOver: windowSubTextFgOver;
-	itemFgShortcutDisabled: #cccccc;
+	itemFgShortcutDisabled: menuFgDisabled;
 	itemIconPosition: point(0px, 0px);
 	itemPadding: margins(17px, 8px, 17px, 7px);
 	itemFont: normalFont;
 
 	separatorPadding: margins(0px, 5px, 0px, 5px);
 	separatorWidth: 1px;
-	separatorFg: #f1f1f1;
+	separatorFg: menuSeparatorFg;
 
 	arrow: defaultMenuArrow;
 
@@ -789,19 +785,19 @@ defaultDropdownMenu: DropdownMenu {
 }
 
 historyToDownBelow: icon {
-	{ "history_down_shadow", #00000040 },
+	{ "history_down_shadow", historyToDownShadow },
 	{ "history_down_circle", windowBg, point(4px, 4px) },
 };
 historyToDownBelowOver: icon {
-	{ "history_down_shadow", #00000040 },
+	{ "history_down_shadow", historyToDownShadow },
 	{ "history_down_circle", windowBgOver, point(4px, 4px) },
 };
 contactsAddIconBelow: icon {
-	{ "history_down_shadow", #00000040 },
+	{ "history_down_shadow", historyToDownShadow },
 	{ "history_down_circle", activeButtonBg, point(4px, 4px) },
 };
 contactsAddIconBelowOver: icon {
-	{ "history_down_shadow", #00000040 },
+	{ "history_down_shadow", historyToDownShadow },
 	{ "history_down_circle", activeButtonBgOver, point(4px, 4px) },
 };
 

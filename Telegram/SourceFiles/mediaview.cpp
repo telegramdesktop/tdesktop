@@ -1612,11 +1612,11 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
                     if (_saveMsgOpacity.current() > 0) {
 						p.setOpacity(_saveMsgOpacity.current());
-						App::roundRect(p, _saveMsg, st::medviewSaveMsg, MediaviewSaveCorners);
+						App::roundRect(p, _saveMsg, st::mediaviewSaveMsgBg, MediaviewSaveCorners);
 						st::medviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::medviewSaveMsgCheckPos, width());
 
-						p.setPen(st::medviewSaveMsgFg);
-						textstyleSet(&st::medviewSaveAsTextStyle);
+						p.setPen(st::mediaviewSaveMsgFg);
+						textstyleSet(&st::mediaviewTextStyle);
 						_saveMsgText.draw(p, _saveMsg.x() + st::medviewSaveMsgPadding.left(), _saveMsg.y() + st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
 						textstyleRestore();
 						p.setOpacity(1);
@@ -1736,7 +1736,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
 		}
 
-		p.setPen(st::mvControlFg);
+		p.setPen(st::mediaviewControlFg);
 		p.setFont(st::mvThickFont);
 
 		// header
@@ -1782,12 +1782,12 @@ void MediaView::paintEvent(QPaintEvent *e) {
 			QRect outer(_captionRect.marginsAdded(st::mvCaptionPadding));
 			if (outer.intersects(r)) {
 				p.setOpacity(co);
-				p.setBrush(st::mvCaptionBg);
+				p.setBrush(st::mediaviewCaptionBg);
 				p.setPen(Qt::NoPen);
 				p.drawRoundedRect(outer, st::mvCaptionRadius, st::mvCaptionRadius);
 				if (_captionRect.intersects(r)) {
-					textstyleSet(&st::medviewSaveAsTextStyle);
-					p.setPen(st::mvCaptionFg);
+					textstyleSet(&st::mediaviewTextStyle);
+					p.setPen(st::mediaviewCaptionFg);
 					_caption.drawElided(p, _captionRect.x(), _captionRect.y(), _captionRect.width(), _captionRect.height() / st::mvCaptionFont->height);
 					textstyleRestore();
 				}

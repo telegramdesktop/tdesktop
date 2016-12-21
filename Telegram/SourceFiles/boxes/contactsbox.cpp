@@ -1103,7 +1103,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
-				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
+				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowFg);
 
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);

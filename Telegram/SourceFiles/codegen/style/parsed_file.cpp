@@ -510,7 +510,7 @@ structure::Value ParsedFile::readStringValue() {
 
 structure::Value ParsedFile::readColorValue() {
 	if (auto numberSign = file_.getToken(BasicType::Number)) {
-		if (options_.isPalette || true) { // enable for now
+		if (options_.isPalette) {
 			auto color = file_.getAnyToken();
 			if (color.type == BasicType::Int || color.type == BasicType::Name) {
 				auto chars = tokenValue(color).toLower();

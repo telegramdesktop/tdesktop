@@ -23,10 +23,6 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 using "overview/overview.style";
 
-mediaPlayerBg: windowBg;
-mediaPlayerActiveFg: windowBgActive;
-mediaPlayerInactiveFg: #dfebf2;
-
 mediaPlayerButton: MediaPlayerButton {
 	playPosition: point(2px, 0px);
 	playOuter: size(17px, 15px);
@@ -159,7 +155,7 @@ mediaPlayerPlayback: FilledSlider {
 	lineWidth: 2px;
 	activeFg: mediaPlayerActiveFg;
 	inactiveFg: mediaPlayerInactiveFg;
-	disabledFg: #9dd1ef;
+	disabledFg: mediaPlayerDisabledFg;
 	duration: 150;
 }
 

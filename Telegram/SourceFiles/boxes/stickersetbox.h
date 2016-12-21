@@ -86,6 +86,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 private slots:
 	void onPreview();
@@ -96,6 +97,7 @@ signals:
 
 private:
 	void updateSelected();
+	void setSelected(int selected);
 	void startOverAnimation(int index, float64 from, float64 to);
 	int stickerFromGlobalPos(const QPoint &p) const;
 

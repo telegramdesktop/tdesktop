@@ -44,7 +44,7 @@ void SlideAnimation::paintContents(Painter &p, const QRect &update) const {
 
 	if (_topBarShadowEnabled) {
 		p.setOpacity(1);
-		p.fillRect(0, st::topBarHeight, _cacheOver.width() / retina, st::lineWidth, st::shadowColor);
+		p.fillRect(0, st::topBarHeight, _cacheOver.width() / retina, st::lineWidth, st::shadowFg);
 	}
 }
 

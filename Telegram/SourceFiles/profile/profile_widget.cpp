@@ -36,7 +36,7 @@ namespace Profile {
 Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this, peer)
-, _fixedBarShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowColor)) {
+, _fixedBarShadow(this, object_ptr<Ui::PlainShadow>(this, st::shadowFg)) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();

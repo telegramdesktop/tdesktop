@@ -148,6 +148,7 @@ protected:
 
 private slots:
 	void onScroll();
+	void onInnerResize();
 
 	void onDraggingScrollTimer();
 
@@ -156,6 +157,7 @@ private:
 	void setInner(object_ptr<TWidget> inner, const style::ScrollArea &st);
 	void updateScrollAreaGeometry();
 	void updateInnerVisibleTopBottom();
+	void updateShadowsVisibility();
 	object_ptr<TWidget> doTakeInnerWidget();
 
 	BoxContentDelegate *getDelegate() const {

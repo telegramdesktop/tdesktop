@@ -328,13 +328,20 @@ QImage prepareBackgroundImage(QImage &&image) {
 	return std_::move(image);
 }
 
+void initColor(const style::color &color, float64 hue, float64 saturation) {
+	auto original = color->c;
+	original.setHslF(hue, saturation, original.lightnessF(), original.alphaF());
+	color.set(original.red(), original.green(), original.blue(), original.alpha());
+}
+
 void initColorsFromBackground(const QImage &img) {
-	uint64 components[3] = { 0 }, componentsScroll[3] = { 0 };
+	uint64 components[3] = { 0 };
+	uint64 componentsScroll[3] = { 0 };
 	auto w = img.width();
 	auto h = img.height();
 	auto size = w * h;
 	if (auto pix = img.constBits()) {
-		for (int i = 0, l = size * 4; i != l; i += 4) {
+		for (auto i = 0, l = size * 4; i != l; i += 4) {
 			components[2] += pix[i + 0];
 			components[1] += pix[i + 1];
 			components[0] += pix[i + 2];
@@ -342,74 +349,20 @@ void initColorsFromBackground(const QImage &img) {
 	}
 
 	if (size) {
-		for (int i = 0; i != 3; ++i) {
+		for (auto i = 0; i != 3; ++i) {
 			components[i] /= size;
 		}
 	}
-	int maxtomin[3] = { 0, 1, 2 };
-	if (components[maxtomin[0]] < components[maxtomin[1]]) {
-		qSwap(maxtomin[0], maxtomin[1]);
-	}
-	if (components[maxtomin[1]] < components[maxtomin[2]]) {
-		qSwap(maxtomin[1], maxtomin[2]);
-		if (components[maxtomin[0]] < components[maxtomin[1]]) {
-			qSwap(maxtomin[0], maxtomin[1]);
-		}
-	}
 
-	uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
-
-	memcpy(componentsScroll, components, sizeof(components));
-
-	if (max != min) {
-		if (min > uint64(qRound(0.77 * max))) {
-			uint64 newmin = qRound(0.77 * max); // min saturation 23%
-			uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
-			components[maxtomin[1]] = newmid;
-			components[maxtomin[2]] = newmin;
-		}
-		uint64 newmin = qRound(0.77 * max); // saturation 23% for scroll
-		uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
-		componentsScroll[maxtomin[1]] = newmid;
-		componentsScroll[maxtomin[2]] = newmin;
-	}
-
-	float64 luminance = 0.299 * componentsScroll[0] + 0.587 * componentsScroll[1] + 0.114 * componentsScroll[2];
-	uint64 maxScroll = max;
-	if (luminance < 0.5 * 0xFF) {
-		maxScroll += qRound(0.2 * 0xFF);
-	} else {
-		maxScroll -= qRound(0.2 * 0xFF);
-	}
-	componentsScroll[maxtomin[2]] = qMin(uint64(float64(componentsScroll[maxtomin[2]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
-	componentsScroll[maxtomin[1]] = qMin(uint64(float64(componentsScroll[maxtomin[1]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
-	componentsScroll[maxtomin[0]] = qMin(maxScroll, 0xFFULL);
-
-	if (max > uint64(qRound(0.2 * 0xFF))) { // brightness greater than 20%
-		max -= qRound(0.2 * 0xFF);
-	} else {
-		max = 0;
-	}
-	components[maxtomin[2]] = uint64(float64(components[maxtomin[2]]) * max / float64(components[maxtomin[0]]));
-	components[maxtomin[1]] = uint64(float64(components[maxtomin[1]]) * max / float64(components[maxtomin[0]]));
-	components[maxtomin[0]] = max;
-
-	uchar r = uchar(components[0]);
-	uchar g = uchar(components[1]);
-	uchar b = uchar(components[2]);
-	st::msgServiceBg.set(r, g, b, st::msgServiceBg->c.alpha());
-
-	float64 alphaSel = st::msgServiceSelectBg->c.alphaF(), addSel = (1. - ((1. - alphaSel) / (1. - st::msgServiceBg->c.alphaF()))) * 0xFF;
-	uchar rsel = snap(qRound(((1. - alphaSel) * r + addSel) / alphaSel), 0, 0xFF);
-	uchar gsel = snap(qRound(((1. - alphaSel) * g + addSel) / alphaSel), 0, 0xFF);
-	uchar bsel = snap(qRound(((1. - alphaSel) * b + addSel) / alphaSel), 0, 0xFF);
-	st::msgServiceSelectBg.set(r, g, b, qRound(alphaSel * 0xFF));
-
-	uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
-	st::historyScroll.barColor.set(rScroll, gScroll, bScroll, st::historyScroll.barColor->c.alpha());
-	st::historyScroll.bgColor.set(rScroll, gScroll, bScroll, st::historyScroll.bgColor->c.alpha());
-	st::historyScroll.barOverColor.set(rScroll, gScroll, bScroll, st::historyScroll.barOverColor->c.alpha());
-	st::historyScroll.bgOverColor.set(rScroll, gScroll, bScroll, st::historyScroll.bgOverColor->c.alpha());
+	auto bgColor = QColor(components[0], components[1], components[2]);
+	auto hue = bgColor.hslHueF();
+	auto saturation = bgColor.hslSaturationF();
+	initColor(st::msgServiceBg, hue, saturation);
+	initColor(st::msgServiceBgSelected, hue, saturation);
+	initColor(st::historyScroll.bg, hue, saturation);
+	initColor(st::historyScroll.bgOver, hue, saturation);
+	initColor(st::historyScroll.barBg, hue, saturation);
+	initColor(st::historyScroll.barBgOver, hue, saturation);
 }
 
 } // namespace
@@ -461,7 +414,9 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 }
 
 void ChatBackground::setPreparedImage(QImage &&image) {
-	initColorsFromBackground(image);
+	if (_id != kThemeBackground && _id != internal::kTestingThemeBackground) {
+		initColorsFromBackground(image);
+	}
 	_image = App::pixmapFromImageInPlace(std_::move(image));
 }
 

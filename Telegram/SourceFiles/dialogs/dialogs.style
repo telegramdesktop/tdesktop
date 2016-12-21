@@ -104,8 +104,8 @@ dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
 
 dialogsFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	phColor: #949494;
-	phFocusColor: #a4a4a4;
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
 
 	width: 240px;
 	height: 32px;
@@ -169,10 +169,10 @@ dialogsVerifiedIconActive: icon {
 	{ "dialogs_verified_check", dialogsVerifiedIconFgActive, point(7px, 7px) },
 };
 
-historySendingIcon: icon {{ "dialogs_sending", #98d292, point(5px, 5px) }};
-historySendingInvertedIcon: icon {{ "dialogs_sending", #ffffffc8, point(5px, 5px) }};
-historyViewsSendingIcon: icon {{ "dialogs_sending", #a0adb5, point(3px, 0px) }};
-historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", #ffffffc8, point(3px, 0px) }};
+historySendingIcon: icon {{ "dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
+historySendingInvertedIcon: icon {{ "dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};
+historyViewsSendingIcon: icon {{ "dialogs_sending", historySendingInIconFg, point(3px, 0px) }};
+historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", historySendingInvertedIconFg, point(3px, 0px) }};
 
 dialogsUpdateButton: FlatButton {
 	color: activeButtonFg;

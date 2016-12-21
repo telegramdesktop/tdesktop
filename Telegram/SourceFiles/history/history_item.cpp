@@ -502,18 +502,18 @@ void HistoryMessageUnreadBar::init(int count) {
 }
 
 int HistoryMessageUnreadBar::height() {
-	return st::unreadBarHeight + st::unreadBarMargin;
+	return st::historyUnreadBarHeight + st::historyUnreadBarMargin;
 }
 
 int HistoryMessageUnreadBar::marginTop() {
-	return st::lineWidth + st::unreadBarMargin;
+	return st::lineWidth + st::historyUnreadBarMargin;
 }
 
 void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
-	p.fillRect(0, y + marginTop(), w, height() - marginTop() - st::lineWidth, st::unreadBarBG);
-	p.fillRect(0, y + height() - st::lineWidth, w, st::lineWidth, st::unreadBarBorder);
-	p.setFont(st::unreadBarFont);
-	p.setPen(st::unreadBarColor);
+	p.fillRect(0, y + marginTop(), w, height() - marginTop() - st::lineWidth, st::historyUnreadBarBg);
+	p.fillRect(0, y + height() - st::lineWidth, w, st::lineWidth, st::historyUnreadBarBorder);
+	p.setFont(st::historyUnreadBarFont);
+	p.setPen(st::historyUnreadBarFg);
 
 	int left = st::msgServiceMargin.left();
 	int maxwidth = w;
@@ -522,7 +522,7 @@ void HistoryMessageUnreadBar::paint(Painter &p, int y, int w) const {
 	}
 	w = maxwidth;
 
-	p.drawText((w - _width) / 2, y + marginTop() + (st::unreadBarHeight - 2 * st::lineWidth - st::unreadBarFont->height) / 2 + st::unreadBarFont->ascent, _text);
+	p.drawText((w - _width) / 2, y + marginTop() + (st::historyUnreadBarHeight - 2 * st::lineWidth - st::historyUnreadBarFont->height) / 2 + st::historyUnreadBarFont->ascent, _text);
 }
 
 void HistoryMessageDate::init(const QDateTime &date) {

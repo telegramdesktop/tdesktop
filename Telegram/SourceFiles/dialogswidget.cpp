@@ -166,8 +166,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 					if (!paintingOther) {
 						auto &tag = result->tag;
 						if (selected) {
-							int skip = (st::mentionHeight - st::simpleCloseIconOver.height()) / 2;
-							st::simpleCloseIconOver.paint(p, QPoint(fullWidth - st::simpleCloseIconOver.width() - skip, skip), width());
+							int skip = (st::mentionHeight - st::smallCloseIconOver.height()) / 2;
+							st::smallCloseIconOver.paint(p, QPoint(fullWidth - st::smallCloseIconOver.width() - skip, skip), width());
 						}
 						auto first = (_hashtagFilter.size() < 2) ? QString() : ('#' + tag.mid(0, _hashtagFilter.size() - 1));
 						auto second = (_hashtagFilter.size() < 2) ? ('#' + tag) : tag.mid(_hashtagFilter.size() - 1);

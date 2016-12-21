@@ -23,10 +23,7 @@ using "basic.style";
 using "ui/widgets/widgets.style";
 
 mediaviewOverDuration: 150;
-mediaviewPlaybackActive: #c7c7c7;
-mediaviewPlaybackInactive: #252525;
-mediaviewPlaybackActiveOver: #ffffff;
-mediaviewPlaybackInactiveOver: #474747;
+
 mediaviewPlayback: MediaSlider {
 	width: 3px;
 	activeFg: mediaviewPlaybackActive;
@@ -42,32 +39,32 @@ mediaviewPlayback: MediaSlider {
 mediaviewControllerSize: size(600px, 50px);
 mediaviewPlayProgressLabel: LabelSimple(defaultLabelSimple) {
 	font: semiboldFont;
-	textFg: #ffffffc7;
+	textFg: mediaviewPlaybackProgressFg;
 }
 mediaviewPlayProgressTop: 11px;
 mediaviewPlayButton: IconButton {
 	width: 25px;
 	height: 24px;
 
-	icon: icon {{ "media_play", #c7c7c7, point(3px, 0px) }};
-	iconOver: icon {{ "media_play", #ffffff, point(3px, 0px) }};
+	icon: icon {{ "media_play", mediaviewPlaybackIconFg, point(3px, 0px) }};
+	iconOver: icon {{ "media_play", mediaviewPlaybackIconFgOver, point(3px, 0px) }};
 	iconPosition: point(3px, 1px);
 
 	duration: mediaviewOverDuration;
 }
-mediaviewPauseIcon: icon {{ "media_pause", #c7c7c7, point(1px, 1px) }};
-mediaviewPauseIconOver: icon {{ "media_pause", #ffffff, point(1px, 1px) }};
+mediaviewPauseIcon: icon {{ "media_pause", mediaviewPlaybackIconFg, point(1px, 1px) }};
+mediaviewPauseIconOver: icon {{ "media_pause", mediaviewPlaybackIconFgOver, point(1px, 1px) }};
 mediaviewPlayPauseLeft: 17px;
 mediaviewFullScreenLeft: 17px;
 mediaviewVolumeLeft: 15px;
 
 mediaviewFullScreenButton: IconButton(mediaviewPlayButton) {
-	icon: icon {{ "media_fullscreen_to", #c7c7c7, point(0px, 0px) }};
-	iconOver: icon {{ "media_fullscreen_to", #ffffff, point(0px, 0px) }};
+	icon: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFg, point(0px, 0px) }};
+	iconOver: icon {{ "media_fullscreen_to", mediaviewPlaybackIconFgOver, point(0px, 0px) }};
 	iconPosition: point(0px, 1px);
 }
-mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", #c7c7c7, point(0px, 0px) }};
-mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", #ffffff, point(0px, 0px) }};
+mediaviewFullScreenOutIcon: icon {{ "media_fullscreen_from", mediaviewPlaybackIconFg, point(0px, 0px) }};
+mediaviewFullScreenOutIconOver: icon {{ "media_fullscreen_from", mediaviewPlaybackIconFgOver, point(0px, 0px) }};
 
 mediaviewPlaybackTop: 28px;
 
@@ -78,11 +75,11 @@ mediaviewVolumeOnIconOver: icon {{ "media_volume", mediaviewPlaybackActiveOver, 
 mediaviewVolumeIconTop: 8px;
 mediaviewControllerRadius: 25px;
 
-mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", #ffffff }};
-mediaviewRight: icon {{ "mediaview_next", #ffffff }};
-mediaviewClose: icon {{ "mediaview_close", #ffffff }};
-mediaviewSave: icon {{ "mediaview_download", #ffffff }};
-mediaviewMore: icon {{ "mediaview_more", #ffffff }};
+mediaviewLeft: icon {{ "mediaview_next-flip_horizontal", mediaviewControlFg }};
+mediaviewRight: icon {{ "mediaview_next", mediaviewControlFg }};
+mediaviewClose: icon {{ "mediaview_close", mediaviewControlFg }};
+mediaviewSave: icon {{ "mediaview_download", mediaviewControlFg }};
+mediaviewMore: icon {{ "mediaview_more", mediaviewControlFg }};
 
 mediaviewFileRed: icon {
 	{ size(25px, 25px), mediaviewFileBg },
@@ -112,13 +109,8 @@ mediaviewFileExtPadding: 10px;
 mediaviewFileLinksTop: 57px;
 mediaviewFileIconSize: 80px;
 
-mediaviewFileLink: LinkButton(defaultLinkButton) {
-	color: #4595d3;
-	overColor: #4595d3;
-}
+mediaviewFileLink: defaultLinkButton;
 
-mediaviewTransparentBg: #ffffff;
-mediaviewTransparentFg: #cccccc;
 mediaviewTransparentSize: 4px;
 
 mediaviewMenu: Menu(defaultMenu) {

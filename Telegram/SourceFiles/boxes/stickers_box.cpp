@@ -210,8 +210,8 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 	if (addedSet) {
 		_archived.widget()->updateSize();
 	} else {
-		_allArchivedLoaded = v.isEmpty() || (offsetId != 0);
-		if (changedSets && !_allArchivedLoaded) {
+		_allArchivedLoaded = v.isEmpty() || (!changedSets && offsetId != 0);
+		if (changedSets) {
 			loadMoreArchived();
 		}
 	}

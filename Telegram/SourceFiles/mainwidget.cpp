@@ -70,7 +70,7 @@ StackItemSection::~StackItemSection() {
 
 MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 , _dialogsWidth(st::dialogsWidthMin)
-, _sideShadow(this, st::shadowColor)
+, _sideShadow(this, st::shadowFg)
 , _dialogs(this)
 , _history(this)
 , _topBar(this)

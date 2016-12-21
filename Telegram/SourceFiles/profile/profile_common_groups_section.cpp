@@ -334,7 +334,7 @@ InnerWidget::~InnerWidget() {
 Widget::Widget(QWidget *parent, PeerData *peer) : Window::SectionWidget(parent)
 , _scroll(this, st::settingsScroll)
 , _fixedBar(this)
-, _fixedBarShadow(this, st::shadowColor) {
+, _fixedBarShadow(this, st::shadowFg) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
 	_fixedBar->show();

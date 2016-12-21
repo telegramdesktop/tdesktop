@@ -50,9 +50,6 @@ OverviewFileLayout {
 overviewLeftMin: 28px;
 overviewLeftMax: 42px;
 
-overviewCheckBg: #00000040;
-overviewCheckFg: windowBg;
-overviewCheckFgActive: windowBg;
 overviewCheckPressedSize: 0.8;
 overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 	bgInactive: overviewCheckBg;
@@ -63,18 +60,16 @@ overviewCheck: RoundCheckbox(defaultRoundCheckbox) {
 overviewCheckSkip: 5px;
 
 overviewPhotoSkip: 10px;
-overviewPhotoBg: #F1F1F1;
+overviewPhotoBg: windowBgOver;
 overviewPhotoMinSize: minPhotoSize;
-overviewPhotoSelectOverlay: #40ace333;
+overviewVideoBg: imageBg;
 
-overviewVideoBg: #000000;
-
-overviewFileThumbBg: #000000;
+overviewFileThumbBg: imageBg;
 overviewFileChecked: windowBgActive;
-overviewFileCheck: #00000066;
+overviewFileCheck: overviewCheckBg;
 overviewFileExtPadding: 5px;
 overviewFileExtTop: 24px;
-overviewFileExtFg: #ffffff;
+overviewFileExtFg: windowFgActive;
 overviewFileExtFont: font(18px semibold);
 
 overviewSongPause: icon {{ "playlist_pause", msgInBg }};
@@ -118,14 +113,14 @@ playlistPadding: 10px;
 
 linksSearchTop: 30px;
 linksMaxWidth: 520px;
-linksLetterFg: #ffffff;
+linksLetterFg: windowFgActive;
 linksLetterFont: font(24px);
 linksMargin: margins(0px, 7px, 0px, 5px);
-linksTextFg: #000000;
+linksTextFg: windowFg;
 linksTextTop: 6px;
 linksBorder: 1px;
-linksBorderFg: #eaeaea;
-linksDateColor: #808080;
+linksBorderFg: shadowFg;
+linksDateColor: windowSubTextFg;
 linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
@@ -140,8 +135,8 @@ overviewLinksChecked: icon {
 
 overviewFilter: FlatInput(defaultFlatInput) {
 	font: font(fsize);
-	phColor: #949494;
-	phFocusColor: #a4a4a4;
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
 	icon: fieldSearchIcon;
 
 	width: 240px;

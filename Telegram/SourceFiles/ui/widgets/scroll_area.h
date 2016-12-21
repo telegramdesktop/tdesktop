@@ -58,12 +58,13 @@ public:
 	ScrollBar(ScrollArea *parent, bool vertical, const style::ScrollArea *st);
 
 	void recountSize();
+	void updateBar(bool force = false);
 
 	void hideTimeout(TimeMs dt);
 
-public slots:
+private slots:
 	void onValueChanged();
-	void updateBar(bool force = false);
+	void onRangeChanged();
 	void onHideTimer();
 
 signals:
@@ -222,6 +223,7 @@ public slots:
 	void scrollToY(int toTop, int toBottom = -1);
 	void disableScroll(bool dis);
 	void onScrolled();
+	void onInnerResized();
 
 	void onTouchTimer();
 	void onTouchScrollTimer();
@@ -233,6 +235,7 @@ public slots:
 
 signals:
 	void scrolled();
+	void innerResized();
 	void scrollStarted();
 	void scrollFinished();
 	void geometryChanged();

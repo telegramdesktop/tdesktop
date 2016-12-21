@@ -277,6 +277,10 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
+void StickerSetBox::Inner::leaveEvent(QEvent *e) {
+	setSelected(-1);
+}
+
 void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_previewShown >= 0) {
 		_previewShown = -1;
@@ -296,13 +300,14 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void StickerSetBox::Inner::updateSelected() {
-	auto index = stickerFromGlobalPos(QCursor::pos());
-	if (isMasksSet()) {
-		index = -1;
-	}
-	if (index != _selected) {
+	auto selected = stickerFromGlobalPos(QCursor::pos());
+	setSelected(isMasksSet() ? -1 : selected);
+}
+
+void StickerSetBox::Inner::setSelected(int selected) {
+	if (_selected != selected) {
 		startOverAnimation(_selected, 1., 0.);
-		_selected = index;
+		_selected = selected;
 		startOverAnimation(_selected, 0., 1.);
 		setCursor(_selected >= 0 ? style::cur_pointer : style::cur_default);
 	}

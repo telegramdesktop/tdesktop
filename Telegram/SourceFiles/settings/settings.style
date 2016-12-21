@@ -53,7 +53,7 @@ settingsNameLabel: FlatLabel(defaultFlatLabel) {
 	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
-	textFg: #333333;
+	textFg: windowBoldFg;
 }
 settingsNameTextStyle: TextStyle(defaultTextStyle) {
 }
@@ -73,7 +73,7 @@ settingsEditButton: IconButton {
 	width: 24px;
 	height: 34px;
 
-	icon: icon {{ "settings_edit_name", #b7b7b7 }};
+	icon: icon {{ "settings_edit_name", menuIconFg }};
 	iconPosition: point(3px, 9px);
 }
 
@@ -84,7 +84,7 @@ settingsBlockMarginRight: 10px;
 settingsBlockMarginBottom: 10px;
 settingsBlockTitleHeight: 31px;
 settingsBlockTitleFont: font(15px semibold);
-settingsBlockTitleFg: #333333;
+settingsBlockTitleFg: windowBoldFg;
 settingsBlockTitleTop: 0px;
 settingsPrimaryLabel: FlatLabel(defaultFlatLabel) {
 	font: boxTextFont;
@@ -106,4 +106,4 @@ settingsActionPadding: margins(0px, 4px, 0px, 5px);
 
 settingsBackgroundSize: 120px;
 
-settingsUpdateFg: #999999;
+settingsUpdateFg: windowSubTextFg;

@@ -23,10 +23,10 @@ using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 
 historyScroll: ScrollArea(defaultScrollArea) {
-	barColor: #89a0b47a;
-	bgColor: #89a0b44c;
-	barOverColor: #89a0b4bc;
-	bgOverColor: #89a0b46b;
+	bg: historyScrollBg;
+	bgOver: historyScrollBgOver;
+	barBg: historyScrollBarBg;
+	barBgOver: historyScrollBarBgOver;
 
 	round: 3px;
 
@@ -42,8 +42,8 @@ historyScroll: ScrollArea(defaultScrollArea) {
 historyPaddingBottom: 8px;
 
 historyToDownPosition: point(12px, 10px);
-historyToDownAbove: icon {{ "history_down_arrow", #b9b9b9, point(17px, 23px) }};
-historyToDownAboveOver: icon {{ "history_down_arrow", #a3a3a3, point(17px, 23px) }};
+historyToDownAbove: icon {{ "history_down_arrow", menuIconFg, point(17px, 23px) }};
+historyToDownAboveOver: icon {{ "history_down_arrow", menuIconFgOver, point(17px, 23px) }};
 historyToDownPaddingTop: 10px;
 historyToDown: TwoIconButton {
 	width: 52px;
@@ -139,62 +139,38 @@ historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, 
 historyViewsSpace: 11px;
 historyViewsWidth: 20px;
 historyViewsTop: -15px;
-historyViewsInIcon: icon {{ "history_views", #a0acb6 }};
-historyViewsInSelectedIcon: icon {{ "history_views", #6a9bc5 }};
+historyViewsInIcon: icon {{ "history_views", msgInDateFg }};
+historyViewsInSelectedIcon: icon {{ "history_views", msgInDateFgSelected }};
 historyViewsOutIcon: icon {{ "history_views", historyOutIconFg }};
 historyViewsOutSelectedIcon: icon {{ "history_views", historyOutIconFgSelected }};
-historyViewsInvertedIcon: icon {{ "history_views", #ffffffe6 }};
+historyViewsInvertedIcon: icon {{ "history_views", historySendingInvertedIconFg }};
 
-historyPeer1NameFg: #c03d33; // red
-historyPeer1UserpicBg: #ed9482;
-historyPeer1UserpicFg: #d3644b;
 historyPeer1UserpicPerson: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_person", historyPeer1UserpicFg }};
 historyPeer1UserpicChat: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_chat", historyPeer1UserpicFg }};
 historyPeer1UserpicChannel: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_channel", historyPeer1UserpicFg }};
-historyPeer2NameFg: #4fad2d; // green
-historyPeer2UserpicBg: #a8db92;
-historyPeer2UserpicFg: #75c057;
 historyPeer2UserpicPerson: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_person", historyPeer2UserpicFg }};
 historyPeer2UserpicChat: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_chat", historyPeer2UserpicFg }};
 historyPeer2UserpicChannel: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_channel", historyPeer2UserpicFg }};
-historyPeer3NameFg: #d09306; // yellow
-historyPeer3UserpicBg: #efd289;
-historyPeer3UserpicFg: #e4a861;
 historyPeer3UserpicPerson: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_person", historyPeer3UserpicFg }};
 historyPeer3UserpicChat: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_chat", historyPeer3UserpicFg }};
 historyPeer3UserpicChannel: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_channel", historyPeer3UserpicFg }};
-historyPeer4NameFg: windowActiveTextFg; // blue
-historyPeer4UserpicBg: #8fbfe9;
-historyPeer4UserpicFg: #649fd3;
 historyPeer4UserpicPerson: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_person", historyPeer4UserpicFg }};
 historyPeer4UserpicChat: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_chat", historyPeer4UserpicFg }};
 historyPeer4UserpicChannel: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_channel", historyPeer4UserpicFg }};
-historyPeer5NameFg: #8544d6; // purple
-historyPeer5UserpicBg: #9992e4;
-historyPeer5UserpicFg: #7b72cf;
 historyPeer5UserpicPerson: icon {{ size(120px, 120px), historyPeer5UserpicBg }, { "userpic_person", historyPeer5UserpicFg }};
-historyPeer6NameFg: #cd4073; // pink
-historyPeer6UserpicBg: #ffa9c3;
-historyPeer6UserpicFg: #e87497;
 historyPeer6UserpicPerson: icon {{ size(120px, 120px), historyPeer6UserpicBg }, { "userpic_person", historyPeer6UserpicFg }};
-historyPeer7NameFg: #2996ad; // sea
-historyPeer7UserpicBg: #8eccdb;
-historyPeer7UserpicFg: #5eb2c7;
 historyPeer7UserpicPerson: icon {{ size(120px, 120px), historyPeer7UserpicBg }, { "userpic_person", historyPeer7UserpicFg }};
-historyPeer8NameFg: #ce671b; // orange
-historyPeer8UserpicBg: #f7b37c;
-historyPeer8UserpicFg: #de8d62;
 historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};
 
 historyComposeField: FlatTextarea {
-	textColor: #000000;
+	textColor: historyComposeAreaFg;
 	bgColor: historyComposeAreaBg;
 	align: align(left);
 	textMrg: margins(5px, 5px, 5px, 5px);
 	font: msgFont;
 
-	phColor: #999999;
-	phFocusColor: #aaaaaa;
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
 	phAlign: align(topleft);
 	phPos: point(2px, 0px);
 	phShift: 50px;
@@ -226,8 +202,8 @@ historyComposeButton: FlatButton {
 	}
 }
 historyUnblock: FlatButton(historyComposeButton) {
-	color: #d15948;
-	overColor: #d15948;
+	color: attentionButtonFg;
+	overColor: attentionButtonFgOver;
 }
 
 historySendIcon: icon {{ "send_control_send", historySendIconFg }};
@@ -288,13 +264,13 @@ historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
 historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
 historyRecordVoiceRippleBgActive: lightButtonBgOver;
-historyRecordSignalColor: #f17077;
+historyRecordSignalColor: attentionButtonFg;
 historyRecordSignalMin: 5px;
 historyRecordSignalMax: 12px;
-historyRecordCancel: #aaaaaa;
-historyRecordCancelActive: #ec6466;
+historyRecordCancel: windowSubTextFg;
+historyRecordCancelActive: windowActiveTextFg;
 historyRecordFont: font(13px);
-historyRecordDurationFg: #000000;
+historyRecordDurationFg: historyComposeAreaFg;
 historyRecordTextTop: 14px;
 
 historySilentToggle: IconButton(historyBotKeyboardShow) {
@@ -349,22 +325,19 @@ reportSpamHide: FlatButton {
 	overFont: font(fsize underline);
 }
 reportSpamSeparator: 30px;
-reportSpamBg: #fffffff0;
-reportSpamFg: #000000;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
-msgBotKbOverBg: #ffffff20;
 msgBotKbIconPadding: 2px;
-msgBotKbUrlIcon: icon {{ "inline_button_url", #ffffff }};
-msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", #ffffff }};
+msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
+msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
 msgBotKbButton: BotKeyboardButton {
 	margin: 5px;
 	padding: 10px;
 	height: 36px;
 	textTop: 8px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: #00000020;
+		color: msgBotKbRippleBg;
 	}
 }
 
@@ -401,12 +374,12 @@ mentionFont: linkFont;
 mentionNameFg: windowFg;
 mentionNameFgOver: windowFgOver;
 mentionPhotoSize: msgPhotoSize;
-mentionBg: #ffffff;
-mentionBgOver: #f5f5f5;
-mentionFg: #777777;
-mentionFgOver: #707070;
-mentionFgActive: #0080c0;
-mentionFgOverActive: #0077b3;
+mentionBg: windowBg;
+mentionBgOver: windowBgOver;
+mentionFg: windowSubTextFg;
+mentionFgOver: windowSubTextFgOver;
+mentionFgActive: windowActiveTextFg;
+mentionFgOverActive: windowActiveTextFg;
 
 historyDateFadeDuration: 200;
 
@@ -420,3 +393,14 @@ historyBubbleTailInRight: icon {{ "bubble_tail-flip_horizontal", msgInBg }};
 historyBubbleTailInRightSelected: icon {{ "bubble_tail-flip_horizontal", msgInBgSelected }};
 historyBubbleTailOutRight: icon {{ "bubble_tail-flip_horizontal", msgOutBg }};
 historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOutBgSelected }};
+
+historyStatusFg: windowSubTextFg;
+historyStatusFgActive: windowActiveTextFg;
+historyStatusFgTyping: historyStatusFgActive;
+
+historyUnreadBarHeight: 32px;
+historyUnreadBarMargin: 8px;
+historyUnreadBarFont: semiboldFont;
+
+historyForwardChooseMargins: margins(30px, 10px, 30px, 10px);
+historyForwardChooseFont: font(16px);

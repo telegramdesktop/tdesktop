@@ -109,7 +109,7 @@ void PasscodeWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
 	_a_show.finish();
 
 	showAll();
-	setFocus();
+	setInnerFocus();
 	_passcode->finishAnimations();
 	(_showBack ? _cacheUnder : _cacheOver) = myGrab(this);
 	hideAll();
@@ -187,5 +187,5 @@ void PasscodeWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void PasscodeWidget::setInnerFocus() {
-	_passcode->setFocus();
+	_passcode->setFocusFast();
 }

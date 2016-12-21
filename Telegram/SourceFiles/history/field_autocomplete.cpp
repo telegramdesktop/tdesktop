@@ -593,9 +593,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			bool selected = (i == _sel);
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver);
-				int skip = (st::mentionHeight - st::simpleCloseIconOver.height()) / 2;
+				int skip = (st::mentionHeight - st::smallCloseIconOver.height()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
-					st::simpleCloseIconOver.paint(p, QPoint(width() - st::simpleCloseIconOver.width() - skip, i * st::mentionHeight + skip), width());
+					st::smallCloseIconOver.paint(p, QPoint(width() - st::smallCloseIconOver.width() - skip, i * st::mentionHeight + skip), width());
 				}
 			}
 			if (!_mrows->isEmpty()) {
@@ -681,9 +681,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
+		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 	}
-	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
+	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 }
 
 void FieldAutocompleteInner::resizeEvent(QResizeEvent *e) {

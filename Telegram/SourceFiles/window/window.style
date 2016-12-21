@@ -33,7 +33,7 @@ windowShadowShift: 1px;
 adaptiveNormalWidth: 640px;
 adaptiveWideWidth: 1366px;
 
-notifyBorder: #f1f1f1;
+notifyBorder: windowShadowFgFallback;
 notifyBorderWidth: 1px;
 notifySlowHide: 4000;
 notifyPhotoSize: 62px;
@@ -44,8 +44,8 @@ notifyClose: IconButton {
 	width: 30px;
 	height: 30px;
 
-	icon: simpleCloseIcon;
-	iconOver: simpleCloseIconOver;
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
 
 	iconPosition: point(10px, 10px);
 
@@ -73,14 +73,14 @@ notifyReplyArea: InputField(defaultInputField) {
 	textMargins: margins(8px, 8px, 8px, 6px);
 	heightMin: 36px;
 	heightMax: 72px;
-	placeholderFgActive: #aaaaaa;
-	placeholderFgError: #aaaaaa;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
 	placeholderMargins: margins(2px, 0px, 2px, 0px);
 	placeholderScale: 0.;
 	placeholderFont: normalFont;
 	border: 0px;
 	borderActive: 0px;
-	borderError: 0px;
 }
 notifySendReply: IconButton(historySend) {
 	width: 36px;
@@ -91,10 +91,7 @@ notifySendReply: IconButton(historySend) {
 titleUnreadCounterTop: 5px;
 titleUnreadCounterRight: 35px;
 
-mainMenuBg: #ffffff;
 mainMenuWidth: 274px;
-mainMenuCoverBg: #419fd9;
-mainMenuCoverFg: windowFgActive;
 mainMenuCoverHeight: 140px;
 mainMenuUserpicLeft: 24px;
 mainMenuUserpicTop: 22px;
@@ -182,7 +179,7 @@ titleButtonClose: IconButton(titleButtonMinimize) {
 topBarHeight: 54px;
 topBarMenuPosition: point(-2px, 35px);
 topBarDuration: 200;
-topBarBackward: icon {{ "title_back", #a3a3a3 }};
+topBarBackward: icon {{ "title_back", menuIconFg }};
 topBarForwardAlpha: 0.6;
 topBarBack: icon {{ "title_back", lightButtonFg }};
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);

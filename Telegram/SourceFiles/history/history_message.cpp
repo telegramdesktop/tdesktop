@@ -282,27 +282,27 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 					p.drawText(x + st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew, y + st::msgReplyPadding.top() + st::msgServiceFont->ascent, _replyToVia->_text);
 				}
 
-				HistoryMessage *replyToAsMsg = replyToMsg->toHistoryMessage();
+				auto replyToAsMsg = replyToMsg->toHistoryMessage();
 				if (!(flags & PaintInBubble)) {
 				} else if ((replyToAsMsg && replyToAsMsg->emptyText()) || replyToMsg->serviceMsg()) {
 					auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
 					p.setPen(date);
 				} else {
-					p.setPen(st::msgColor);
+					p.setPen(outbg ? st::historyTextOutFg : st::historyTextInFg);
 				}
 				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 			}
 		} else {
 			p.setFont(st::msgDateFont);
 			auto &date = outbg ? (selected ? st::msgOutDateFgSelected : st::msgOutDateFg) : (selected ? st::msgInDateFgSelected : st::msgInDateFg);
-			p.setPen((flags & PaintInBubble) ? date : st::msgDateImgColor);
+			p.setPen((flags & PaintInBubble) ? date : st::msgDateImgFg);
 			p.drawTextLeft(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + (st::msgReplyBarSize.height() - st::msgDateFont->height) / 2, w + 2 * x, st::msgDateFont->elided(lang(replyToMsgId ? lng_profile_loading : lng_deleted_message), w - st::msgReplyBarSkip));
 		}
 	}
 }
 
 void HistoryMessage::KeyboardStyle::startPaint(Painter &p) const {
-	p.setPen(st::msgServiceColor);
+	p.setPen(st::msgServiceFg);
 }
 
 style::font HistoryMessage::KeyboardStyle::textFont() const {
@@ -322,7 +322,7 @@ void HistoryMessage::KeyboardStyle::paintButtonBg(Painter &p, const QRect &rect,
 	if (howMuchOver > 0) {
 		auto o = p.opacity();
 		p.setOpacity(o * howMuchOver);
-		App::roundRect(p, rect, st::msgBotKbOverBg, BotKbOverCorners);
+		App::roundRect(p, rect, st::msgBotKbOverBgAdd, BotKbOverCorners);
 		p.setOpacity(o);
 	}
 }
@@ -1139,12 +1139,12 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 	case InfoDisplayOverImage:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
-		p.setPen(st::msgDateImgColor);
+		p.setPen(st::msgDateImgFg);
 	break;
 	case InfoDisplayOverBackground:
 		infoRight -= st::msgDateImgDelta + st::msgDateImgPadding.x();
 		infoBottom -= st::msgDateImgDelta + st::msgDateImgPadding.y();
-		p.setPen(st::msgServiceColor);
+		p.setPen(st::msgServiceFg);
 	break;
 	}
 
@@ -1158,7 +1158,7 @@ void HistoryMessage::drawInfo(Painter &p, int32 right, int32 bottom, int32 width
 		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	} else if (type == InfoDisplayOverBackground) {
 		int32 dateW = infoW + 2 * st::msgDateImgPadding.x(), dateH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
-		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceSelectBg : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+		App::roundRect(p, dateX - st::msgDateImgPadding.x(), dateY - st::msgDateImgPadding.y(), dateW, dateH, selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
 	}
 	dateX += HistoryMessage::timeLeft();
 

@@ -79,7 +79,7 @@ boxLayerTitlePosition: point(23px, 16px);
 boxLayerTitleHeight: 56px;
 boxLayerTitleAdditionalSkip: 9px;
 boxLayerTitleAdditionalFont: normalFont;
-boxLayerTitleShadow: #0000001a;
+boxLayerTitleShadow: shadowFg;
 boxLayerScroll: defaultSolidScroll;
 
 boxTopMargin: 6px;
@@ -146,7 +146,7 @@ boxPhotoTitlePosition: point(28px, 20px);
 boxPhotoPadding: margins(28px, 28px, 28px, 18px);
 boxPhotoCompressedSkip: 20px;
 boxPhotoCaptionSkip: 8px;
-boxPhotoTextFg: #808080;
+boxPhotoTextFg: windowSubTextFg;
 
 cropPointSize: 10px;
 cropSkip: 13px;
@@ -157,7 +157,7 @@ confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	width: 320px;
 	maxHeight: 24px;
-	textFg: #333333;
+	textFg: windowBoldFg;
 }
 confirmInviteStatus: FlatLabel(defaultFlatLabel) {
 	font: font(boxFontSize);
@@ -199,8 +199,8 @@ aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	textFg: windowFg;
 }
 
-contactUserIcon: icon {{ "add_contact_user", #999999 }};
-contactPhoneIcon: icon {{ "add_contact_phone", #999999 }};
+contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
+contactPhoneIcon: icon {{ "add_contact_phone", menuIconFg }};
 contactIconTop: 28px;
 
 contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
@@ -235,7 +235,6 @@ contactsCheckPosition: point(8px, 16px);
 contactsAllAdminsTop: 15px;
 contactsAboutBg: windowBgOver;
 contactsAboutFg: windowSubTextFgOver;
-contactsAboutShadow: #0000001F;
 contactsAboutTop: 60px;
 contactsAboutBottom: 19px;
 
@@ -277,16 +276,15 @@ contactsMultiSelect: MultiSelect {
 		textBg: transparent;
 		textMargins: margins(2px, 7px, 2px, 0px);
 
-		placeholderFg: #999999;
-		placeholderFgActive: #aaaaaa;
-		placeholderFgError: #aaaaaa;
+		placeholderFg: placeholderFg;
+		placeholderFgActive: placeholderFgActive;
+		placeholderFgError: placeholderFgActive;
 		placeholderMargins: margins(2px, 0px, 2px, 0px);
 		placeholderScale: 0.;
 		placeholderFont: normalFont;
 
 		border: 0px;
 		borderActive: 0px;
-		borderError: 0px;
 
 		heightMin: 32px;
 
@@ -329,8 +327,8 @@ contactsPhotoCheckbox: RoundImageCheckbox {
 		check: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
 	}
 }
-contactsPhotoDisabledCheckFg: #bbbbbb;
-contactsNameCheckedFg: #2b88b8;
+contactsPhotoDisabledCheckFg: menuIconFg;
+contactsNameCheckedFg: windowActiveTextFg;
 contactsRipple: defaultRippleAnimation;
 
 contactsMarginTop: 4px;
@@ -360,7 +358,6 @@ notificationsBoxMonitorTop: 63px;
 notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
 notificationsBoxScreenSize: size(280px, 160px);
-notificationsBoxScreenBg: #6389a8;
 notificationsBoxCountLabelTop: 80px;
 notificationsBoxCountTop: 30px;
 
@@ -383,17 +380,17 @@ sessionPadding: margins(21px, 10px, 21px, 0px);
 sessionNameFont: msgNameFont;
 sessionNameFg: boxTextFg;
 sessionWhenFont: msgDateFont;
-sessionWhenFg: #aaaaaa;
+sessionWhenFg: windowSubTextFg;
 sessionInfoFont: msgFont;
-sessionInfoFg: #888888;
+sessionInfoFg: windowSubTextFg;
 sessionTerminateTop: 28px;
 sessionTerminateSkip: 22px;
 sessionTerminate: IconButton {
 	width: 20px;
 	height: 20px;
 
-	icon: simpleCloseIcon;
-	iconOver: simpleCloseIconOver;
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
 	iconPosition: point(5px, 5px);
 
 	rippleAreaPosition: point(0px, 0px);
@@ -421,7 +418,7 @@ passcodeTextLine: 28px;
 passcodeLittleSkip: 5px;
 passcodeSkip: 20px;
 
-newGroupAboutFg: #808080;
+newGroupAboutFg: windowSubTextFg;
 newGroupPadding: margins(4px, 6px, 4px, 3px);
 newGroupSkip: 27px;
 newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
@@ -431,7 +428,7 @@ newGroupLinkTop: 3px;
 newGroupLinkFont: font(16px);
 
 newGroupPhotoSize: 76px;
-newGroupPhotoIcon: icon {{ "new_chat_photo", #ffffff }};
+newGroupPhotoIcon: icon {{ "new_chat_photo", activeButtonFg }};
 newGroupPhotoIconPosition: point(23px, 25px);
 newGroupPhotoDuration: 150;
 
@@ -521,6 +518,6 @@ usernameSkip: 49px;
 usernameTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;
 }
-usernameDefaultFg: #777777;
+usernameDefaultFg: windowSubTextFg;
 
 downloadPathSkip: 10px;

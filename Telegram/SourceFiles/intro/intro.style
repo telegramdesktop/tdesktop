@@ -24,18 +24,15 @@ using "ui/widgets/widgets.style";
 countryRipple: defaultRippleAnimation;
 
 introCoverHeight: 208px;
-introCoverTopBg: #0f89d0;
-introCoverBottomBg: #39b0f0;
-introCoverIconsFg: #5ec6ff;
 introCoverMaxWidth: 880px;
 introCoverIconsMinSkip: 120px;
 introCoverLeft: icon {{ "intro_left", introCoverIconsFg }};
 introCoverRight: icon {{ "intro_right", introCoverIconsFg }};
 introCoverIcon: icon {
-	{ "intro_plane_trace", #5ec6ff69 },
-	{ "intro_plane_inner", #c6d8e8 },
-	{ "intro_plane_outer", #a1bed4 },
-	{ "intro_plane_top", #ffffff },
+	{ "intro_plane_trace", introCoverPlaneTrace },
+	{ "intro_plane_inner", introCoverPlaneInner },
+	{ "intro_plane_outer", introCoverPlaneOuter },
+	{ "intro_plane_top", introCoverPlaneTop },
 };
 introCoverIconLeft: 50px;
 introCoverIconTop: 46px;

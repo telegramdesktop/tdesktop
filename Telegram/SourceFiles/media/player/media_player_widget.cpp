@@ -91,7 +91,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
-, _shadow(this, st::shadowColor)
+, _shadow(this, st::shadowFg)
 , _playback(std_::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);

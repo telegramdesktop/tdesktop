@@ -50,7 +50,7 @@ ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st)
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideTimer()));
 
 	connect(_connected, SIGNAL(valueChanged(int)), this, SLOT(onValueChanged()));
-	connect(_connected, SIGNAL(rangeChanged(int, int)), this, SLOT(updateBar()));
+	connect(_connected, SIGNAL(rangeChanged(int, int)), this, SLOT(onRangeChanged()));
 
 	updateBar();
 }
@@ -61,6 +61,11 @@ void ScrollBar::recountSize() {
 
 void ScrollBar::onValueChanged() {
 	area()->onScrolled();
+	updateBar();
+}
+
+void ScrollBar::onRangeChanged() {
+	area()->onInnerResized();
 	updateBar();
 }
 
@@ -180,9 +185,9 @@ void ScrollBar::paintEvent(QPaintEvent *e) {
 	auto deltal = _vertical ? _st->deltax : 0, deltar = _vertical ? _st->deltax : 0;
 	auto deltat = _vertical ? 0 : _st->deltax, deltab = _vertical ? 0 : _st->deltax;
 	p.setPen(Qt::NoPen);
-	auto bg = anim::color(_st->bgColor, _st->bgOverColor, _a_over.current(ms, (_over || _moving) ? 1. : 0.));
+	auto bg = anim::color(_st->bg, _st->bgOver, _a_over.current(ms, (_over || _moving) ? 1. : 0.));
 	bg.setAlpha(anim::interpolate(0, bg.alpha(), opacity));
-	auto bar = anim::color(_st->barColor, _st->barOverColor, _a_barOver.current(ms, (_overbar || _moving) ? 1. : 0.));
+	auto bar = anim::color(_st->barBg, _st->barBgOver, _a_barOver.current(ms, (_overbar || _moving) ? 1. : 0.));
 	bar.setAlpha(anim::interpolate(0, bar.alpha(), opacity));
 	if (_st->round) {
 		PainterHighQualityEnabler hq(p);
@@ -385,6 +390,10 @@ void ScrollArea::onScrolled() {
 			sendSynteticMouseEvent(this, QEvent::MouseMove, Qt::NoButton);
 		}
 	}
+}
+
+void ScrollArea::onInnerResized() {
+	emit innerResized();
 }
 
 int ScrollArea::scrollWidth() const {

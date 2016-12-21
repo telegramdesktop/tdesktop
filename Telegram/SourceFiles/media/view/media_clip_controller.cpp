@@ -211,7 +211,7 @@ void Controller::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	App::roundRect(p, rect(), st::medviewSaveMsg, MediaviewSaveCorners);
+	App::roundRect(p, rect(), st::mediaviewSaveMsgBg, MediaviewSaveCorners);
 }
 
 void Controller::mousePressEvent(QMouseEvent *e) {
