@@ -39,8 +39,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace {
 
-constexpr int kArchivedLimitFirstRequest = 1;// 10;
-constexpr int kArchivedLimitPerPage = 1;// 30;
+constexpr int kArchivedLimitFirstRequest = 10;
+constexpr int kArchivedLimitPerPage = 30;
 
 } // namespace
 
@@ -401,6 +401,7 @@ void StickersBox::switchTab() {
 		_tab = newTab;
 		_section = newSection;
 		setInnerWidget(_tab->takeWidget(), getTopSkip());
+		_tabs->raise();
 		_tab->widget()->show();
 		rebuildList();
 		onScrollToY(_tab->getScrollTop());
@@ -449,8 +450,6 @@ void StickersBox::installSet(uint64 setId) {
 void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
-	} else {
-		Stickers::applyArchivedResultFake();
 	}
 }
 
@@ -520,22 +519,28 @@ void StickersBox::onStickersUpdated() {
 	}
 }
 
-void StickersBox::rebuildList() {
-	if (_tab == &_installed) {
-		_localOrder = _tab->widget()->getFullOrder();
-		_localRemoved = _tab->widget()->getRemovedSets();
+void StickersBox::rebuildList(Tab *tab) {
+	if (!tab) tab = _tab;
+
+	if (tab == &_installed) {
+		_localOrder = tab->widget()->getFullOrder();
+		_localRemoved = tab->widget()->getRemovedSets();
 	}
-	_tab->widget()->rebuild();
-	if (_tab == &_installed) {
-		_tab->widget()->setFullOrder(_localOrder);
+	tab->widget()->rebuild();
+	if (tab == &_installed) {
+		tab->widget()->setFullOrder(_localOrder);
 	}
-	_tab->widget()->setRemovedSets(_localRemoved);
+	tab->widget()->setRemovedSets(_localRemoved);
 }
 
 void StickersBox::closeHook() {
 	if (!_installed.widget()) {
 		return;
 	}
+
+	// Make sure that our changes in other tabs are applied in the Installed tab.
+	rebuildList(&_installed);
+
 	if (_someArchivedLoaded) {
 		Local::writeArchivedStickers();
 	}

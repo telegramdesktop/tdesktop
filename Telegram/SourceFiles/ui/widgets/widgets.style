@@ -677,11 +677,11 @@ defaultSettingsSlider: SettingsSlider {
 }
 
 defaultTabsSlider: SettingsSlider(defaultSettingsSlider) {
-	height: 49px;
-	barTop: 46px;
+	height: 53px;
+	barTop: 50px;
 	barSkip: 0px;
 	barFg: transparent;
-	labelTop: 16px;
+	labelTop: 19px;
 	labelFont: semiboldFont;
 	labelFg: windowSubTextFg;
 	labelFgActive: lightButtonFg;

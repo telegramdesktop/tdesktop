@@ -48,17 +48,19 @@ void BoxContent::setInner(object_ptr<TWidget> inner) {
 void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st) {
 	if (inner) {
 		getDelegate()->setLayerType(true);
-		if (!_scroll) {
-			_scroll.create(this, st);
-			connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
-			connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
-
+		_scroll.create(this, st);
+		_scroll->setGeometryToLeft(0, _innerTopSkip, width(), 0);
+		_scroll->setOwnedWidget(std_::move(inner));
+		if (_topShadow) {
+			_topShadow->raise();
+			_bottomShadow->raise();
+		} else {
 			_topShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
 			_bottomShadow.create(this, object_ptr<BoxLayerTitleShadow>(this));
 		}
-		_scroll->setGeometryToLeft(0, _innerTopSkip, width(), 0);
-		_scroll->setOwnedWidget(std_::move(inner));
 		updateScrollAreaGeometry();
+		connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+		connect(_scroll, SIGNAL(innerResized()), this, SLOT(onInnerResize()));
 	} else {
 		getDelegate()->setLayerType(false);
 		_scroll.destroyDelayed();

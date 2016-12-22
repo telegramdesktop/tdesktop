@@ -62,31 +62,6 @@ private slots:
 	void onStickersUpdated();
 
 private:
-	void refreshTabs();
-	void rebuildList();
-	void updateTabsGeometry();
-	void switchTab();
-	void installSet(uint64 setId);
-	int getTopSkip() const;
-
-	QPixmap grabContentCache();
-
-	void installDone(const MTPmessages_StickerSetInstallResult &result);
-	bool installFail(uint64 setId, const RPCError &error);
-
-	void preloadArchivedSets();
-	void requestArchivedSets();
-	void loadMoreArchived();
-	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
-
-	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
-	QList<Section> _tabIndices;
-
-	class CounterWidget;
-	object_ptr<CounterWidget> _unreadBadge = { nullptr };
-
-	Section _section;
-
 	class Inner;
 	class Tab {
 	public:
@@ -117,6 +92,32 @@ private:
 		int _scrollTop = 0;
 
 	};
+
+	void refreshTabs();
+	void rebuildList(Tab *tab = nullptr);
+	void updateTabsGeometry();
+	void switchTab();
+	void installSet(uint64 setId);
+	int getTopSkip() const;
+
+	QPixmap grabContentCache();
+
+	void installDone(const MTPmessages_StickerSetInstallResult &result);
+	bool installFail(uint64 setId, const RPCError &error);
+
+	void preloadArchivedSets();
+	void requestArchivedSets();
+	void loadMoreArchived();
+	void getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result);
+
+	object_ptr<Ui::SettingsSlider> _tabs = { nullptr };
+	QList<Section> _tabIndices;
+
+	class CounterWidget;
+	object_ptr<CounterWidget> _unreadBadge = { nullptr };
+
+	Section _section;
+
 	Tab _installed;
 	Tab _featured;
 	Tab _archived;
