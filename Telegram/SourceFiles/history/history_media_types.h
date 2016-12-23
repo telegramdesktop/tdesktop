@@ -295,7 +295,9 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> 
 	mutable QString _link;
 };
 struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned> {
-	Text _caption = { int(st::msgFileMinWidth) - st::msgPadding.left() - st::msgPadding.right() };
+	HistoryDocumentCaptioned();
+
+	Text _caption;
 };
 struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed> {
 	QString _name;
@@ -305,7 +307,7 @@ class HistoryDocument;
 struct HistoryDocumentVoicePlayback {
 	HistoryDocumentVoicePlayback(const HistoryDocument *that);
 
-	int32 _position;
+	int32 _position = 0;
 	anim::value a_progress;
 	BasicAnimation _a_progress;
 };
@@ -384,9 +386,7 @@ public:
 	bool customInfoLayout() const override {
 		return false;
 	}
-	QMargins bubbleMargins() const override {
-		return Get<HistoryDocumentThumbed>() ? QMargins(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbPadding.left(), st::msgFileThumbPadding.bottom()) : st::msgPadding;
-	}
+	QMargins bubbleMargins() const override;
 	bool hideForwardedFrom() const override {
 		return _data->song();
 	}
@@ -631,14 +631,14 @@ public:
 private:
 
 	int32 _userId;
-	UserData *_contact;
+	UserData *_contact = nullptr;
 
-	int32 _phonew;
+	int _phonew = 0;
 	QString _fname, _lname, _phone;
 	Text _name;
 
 	ClickHandlerPtr _linkl;
-	int32 _linkw;
+	int _linkw = 0;
 	QString _link;
 };
 

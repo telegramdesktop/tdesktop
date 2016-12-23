@@ -38,7 +38,7 @@ constexpr int kWaitBeforeRevertMs = 15999;
 WarningWidget::WarningWidget(QWidget *parent) : TWidget(parent)
 , _secondsLeft(kWaitBeforeRevertMs / 1000)
 , _keepChanges(this, lang(lng_theme_keep_changes), st::defaultBoxButton)
-, _revert(this, lang(lng_theme_revert), st::cancelBoxButton) {
+, _revert(this, lang(lng_theme_revert), st::defaultBoxButton) {
 	_keepChanges->setClickedCallback([] { Window::Theme::KeepApplied(); });
 	_revert->setClickedCallback([] { Window::Theme::Revert(); });
 	_timer.setTimeoutHandler([this] { handleTimer(); });

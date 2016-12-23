@@ -205,9 +205,8 @@ MainWindow::MainWindow()
 , iconbig256(qsl(":/gui/art/iconbig256.png"))
 , wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly))
 , _private(std_::make_unique<Private>(this)) {
-	QImage tray(qsl(":/gui/art/osxtray.png"));
-	trayImg = tray.copy(0, cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
-	trayImgSel = tray.copy(tray.width() / (cRetina() ? 2 : 4), cRetina() ? 0 : tray.width() / 2, tray.width() / (cRetina() ? 2 : 4), tray.width() / (cRetina() ? 2 : 4));
+	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
+	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
 
 	_hideAfterFullScreenTimer.setSingleShot(true);
 	connect(&_hideAfterFullScreenTimer, SIGNAL(timeout()), this, SLOT(onHideAfterFullScreen()));
@@ -292,39 +291,45 @@ void MainWindow::psUpdateWorkmode() {
 	}
 }
 
-void _placeCounter(QImage &img, int size, int count, const style::color &bg, const style::color &color) {
+void _placeCounter(QImage &img, int size, int count, style::color bg, style::color color) {
 	if (!count) return;
+	auto savedRatio = img.devicePixelRatio();
+	img.setDevicePixelRatio(1.);
 
-	QPainter p(&img);
-	QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
-	int32 cntSize = cnt.size();
+	{
+		Painter p(&img);
+		PainterHighQualityEnabler hq(p);
 
-	p.setBrush(bg->b);
-	p.setPen(Qt::NoPen);
-	p.setRenderHint(QPainter::Antialiasing);
-	int32 fontSize, skip;
-	if (size == 22) {
-		skip = 1;
-		fontSize = 8;
-	} else {
-		skip = 2;
-		fontSize = 16;
+		auto cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
+		auto cntSize = cnt.size();
+
+		p.setBrush(bg);
+		p.setPen(Qt::NoPen);
+		int32 fontSize, skip;
+		if (size == 22) {
+			skip = 1;
+			fontSize = 8;
+		} else {
+			skip = 2;
+			fontSize = 16;
+		}
+		style::font f(fontSize, 0, 0);
+		int32 w = f->width(cnt), d, r;
+		if (size == 22) {
+			d = (cntSize < 2) ? 3 : 2;
+			r = (cntSize < 2) ? 6 : 5;
+		} else {
+			d = (cntSize < 2) ? 6 : 5;
+			r = (cntSize < 2) ? 9 : 11;
+		}
+		p.drawRoundedRect(QRect(size - w - d * 2 - skip, size - f->height - skip, w + d * 2, f->height), r, r);
+
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		p.setFont(f);
+		p.setPen(color);
+		p.drawText(size - w - d - skip, size - f->height + f->ascent - skip, cnt);
 	}
-	style::font f(fontSize, 0, 0);
-	int32 w = f->width(cnt), d, r;
-	if (size == 22) {
-		d = (cntSize < 2) ? 3 : 2;
-		r = (cntSize < 2) ? 6 : 5;
-	} else {
-		d = (cntSize < 2) ? 6 : 5;
-		r = (cntSize < 2) ? 9 : 11;
-	}
-	p.drawRoundedRect(QRect(size - w - d * 2 - skip, size - f->height - skip, w + d * 2, f->height), r, r);
-
-	p.setCompositionMode(QPainter::CompositionMode_Source);
-	p.setFont(f->f);
-	p.setPen(color->p);
-	p.drawText(size - w - d - skip, size - f->height + f->ascent - skip, cnt);
+	img.setDevicePixelRatio(savedRatio);
 }
 
 void MainWindow::updateTitleCounter() {

@@ -27,6 +27,15 @@ class IconButton;
 class PlainShadow;
 } // namespace Ui
 
+namespace Window {
+namespace Theme {
+
+int DefaultPreviewTitleHeight();
+void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+
+} // namespace Theme
+} // namespace Window
+
 namespace Platform {
 
 class TitleWidget : public Window::TitleWidget, private base::Subscriber {
@@ -62,6 +71,14 @@ private:
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 	return object_ptr<TitleWidget>(parent);
+}
+
+inline int PreviewTitleHeight() {
+	return Window::Theme::DefaultPreviewTitleHeight();
+}
+
+inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
+	return Window::Theme::DefaultPreviewWindowFramePaint(preview, palette, body, outerWidth);
 }
 
 } // namespace Platform

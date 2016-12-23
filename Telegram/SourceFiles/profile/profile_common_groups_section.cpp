@@ -242,7 +242,7 @@ void InnerWidget::paintRow(Painter &p, int index, TimeMs ms) {
 	y += st::profileCommonGroupsNameTop;
 	auto nameWidth = _contentWidth - (x - _contentLeft) - st::profileCommonGroupsPadding.right();
 	if (item->name.isEmpty()) {
-		item->name.setText(st::semiboldFont, App::peerName(item->peer), _textNameOptions);
+		item->name.setText(st::msgNameStyle, App::peerName(item->peer), _textNameOptions);
 	}
 	_items[index]->name.drawLeftElided(p, x, y, nameWidth, width());
 }

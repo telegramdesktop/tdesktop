@@ -26,8 +26,6 @@ class palette;
 
 namespace internal {
 
-void destroyColors();
-
 class Color;
 class ColorData {
 public:
@@ -40,8 +38,10 @@ public:
 	}
 
 private:
-	ColorData();
 	ColorData(uchar r, uchar g, uchar b, uchar a);
+	ColorData(const ColorData &other) = default;
+	ColorData &operator=(const ColorData &other) = default;
+
 	void set(uchar r, uchar g, uchar b, uchar a);
 
 	friend class Color;
@@ -53,52 +53,67 @@ class Color {
 public:
 	Color(Qt::Initialization = Qt::Uninitialized) {
 	}
-	Color(uchar r, uchar g, uchar b, uchar a);
-	Color(const Color &other) = delete;
-	Color &operator=(const Color &other) = delete;
-	Color(Color &&other);
-	Color &operator=(Color &&other);
+	Color(const Color &other) = default;
+	Color &operator=(const Color &other) = default;
 
-	Color clone() const {
-		return Color(ptr);
+	void set(uchar r, uchar g, uchar b, uchar a) const {
+		_data->set(r, g, b, a);
 	}
 
-	void set(uchar r, uchar g, uchar b, uchar a) const;
-
 	operator const QBrush &() const {
-		return ptr->b;
+		return _data->b;
 	}
 
 	operator const QPen &() const {
-		return ptr->p;
+		return _data->p;
 	}
 
 	ColorData *operator->() const {
-		return ptr;
+		return _data;
 	}
 	ColorData *v() const {
-		return ptr;
+		return _data;
 	}
 
 	explicit operator bool() const {
-		return !!ptr;
+		return !!_data;
 	}
 
+	class Proxy;
+	Proxy operator[](const style::palette &paletteOverride) const;
+
 private:
-	Color(ColorData *data);
-	void init(uchar r, uchar g, uchar b, uchar a);
-
-	ColorData *ptr = nullptr;
-
 	friend class style::palette;
+	Color(ColorData *data) : _data(data) {
+	}
+
+	ColorData *_data = nullptr;
 
 };
 
-inline bool operator==(const Color &a, const Color &b) {
+class Color::Proxy {
+public:
+	Proxy(Color color) : _color(color) {
+	}
+	Proxy(const Proxy &other) = default;
+
+	operator const QBrush &() const { return _color; }
+	operator const QPen &() const { return _color; }
+	ColorData *operator->() const { return _color.v(); }
+	ColorData *v() const { return _color.v(); }
+	explicit operator bool() const { return _color ? true : false; }
+	Color clone() const { return _color; }
+
+private:
+	Color _color;
+
+};
+
+inline bool operator==(Color a, Color b) {
 	return a->c == b->c;
 }
 
-inline bool operator!=(const Color &a, const Color &b) {
+inline bool operator!=(Color a, Color b) {
 	return a->c != b->c;
 }
 

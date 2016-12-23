@@ -87,7 +87,7 @@ CodeWidget::CodeWidget(QWidget *parent, Widget::Data *data) : Step(parent, data)
 , _callTimer(this)
 , _callStatus(getData()->callStatus)
 , _callTimeout(getData()->callTimeout)
-, _callLabel(this, st::introDescription, st::introDescriptionTextStyle)
+, _callLabel(this, st::introDescription)
 , _checkRequest(this) {
 	connect(_code, SIGNAL(changed()), this, SLOT(onInputChange()));
 	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onSendCall()));
@@ -153,7 +153,7 @@ void CodeWidget::showCodeError(const QString &text) {
 }
 
 void CodeWidget::setInnerFocus() {
-	_code->setFocus();
+	_code->setFocusFast();
 }
 
 void CodeWidget::activate() {

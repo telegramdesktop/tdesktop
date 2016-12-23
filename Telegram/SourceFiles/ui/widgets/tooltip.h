@@ -17,15 +17,17 @@
  */
 #pragma once
 
+namespace style {
+struct Tooltip;
+} // namespace style
+
 namespace Ui {
 
 class AbstractTooltipShower {
 public:
 	virtual QString tooltipText() const = 0;
 	virtual QPoint tooltipPos() const = 0;
-	virtual const style::Tooltip *tooltipSt() const {
-		return &st::defaultTooltip;
-	}
+	virtual const style::Tooltip *tooltipSt() const;
 	virtual ~AbstractTooltipShower();
 };
 
@@ -36,7 +38,7 @@ public:
 	static void Show(int32 delay, const AbstractTooltipShower *shower);
 	static void Hide();
 
-	private slots:
+private slots:
 	void onShow();
 	void onWndActiveChanged();
 	void onHideByLeave();
@@ -63,6 +65,7 @@ private:
 	const style::Tooltip *_st = nullptr;
 
 	QTimer _hideByLeaveTimer;
+	bool _useTransparency = true;
 
 };
 

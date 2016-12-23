@@ -51,13 +51,13 @@ public:
 	}
 
 private:
-	void paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) override;
+	void paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) override;
 
 };
 
 const TypingAnimation::MetaData TypingAnimation::kMeta = { 0, &TypingAnimation::create };
 
-void TypingAnimation::paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) {
+void TypingAnimation::paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) {
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
@@ -96,13 +96,13 @@ public:
 	}
 
 private:
-	void paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) override;
+	void paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) override;
 
 };
 
 const RecordAnimation::MetaData RecordAnimation::kMeta = { 0, &RecordAnimation::create };
 
-void RecordAnimation::paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) {
+void RecordAnimation::paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) {
 	PainterHighQualityEnabler hq(p);
 	auto pen = color->p;
 	pen.setWidth(st::historySendActionRecordStrokeNumerator / st::historySendActionRecordDenominator);
@@ -140,13 +140,13 @@ public:
 	}
 
 private:
-	void paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) override;
+	void paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) override;
 
 };
 
 const UploadAnimation::MetaData UploadAnimation::kMeta = { 0, &UploadAnimation::create };
 
-void UploadAnimation::paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) {
+void UploadAnimation::paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) {
 	PainterHighQualityEnabler hq(p);
 	auto pen = color->p;
 	pen.setWidth(st::historySendActionUploadStrokeNumerator / st::historySendActionUploadDenominator);

@@ -562,8 +562,8 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 , _membersFilter(membersFilter)
 , _allAdmins(this, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::defaultBoxCheckbox)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
-, _aboutAllAdmins(st::normalFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
-, _aboutAdmins(st::normalFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
+, _aboutAllAdmins(st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
+, _aboutAdmins(st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
 , _customList((membersFilter == MembersFilter::Recent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts((membersFilter == MembersFilter::Recent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
@@ -640,8 +640,7 @@ void ContactsBox::Inner::init() {
 
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
-		if (update.type == Update::Type::TestingTheme
-			|| update.type == Update::Type::RevertingTheme) {
+		if (update.paletteChanged()) {
 			invalidateCache();
 		}
 	});
@@ -897,7 +896,7 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
 				data->checkbox->setChecked(true, Ui::RoundImageCheckbox::SetStyle::Fast);
 			}
-			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+			data->name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 			if (peer->isUser()) {
 				data->statusText = App::onlineText(peer->asUser(), _time);
 				data->statusHasOnlineColor = App::onlineColorUse(peer->asUser(), _time);
@@ -1746,7 +1745,7 @@ void ContactsBox::Inner::peopleReceived(const QString &query, const QVector<MTPP
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
 				data->checkbox->setChecked(true, Ui::RoundImageCheckbox::SetStyle::Fast);
 			}
-			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+			data->name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 			data->statusText = '@' + peer->userName();
 
 			_byUsernameFiltered.push_back(peer);

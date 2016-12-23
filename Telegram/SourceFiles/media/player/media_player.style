@@ -54,7 +54,6 @@ mediaPlayerCloseRight: 0px;
 
 mediaPlayerName: FlatLabel(defaultFlatLabel) {
 	maxHeight: 20px;
-	textFg: windowFg;
 }
 mediaPlayerTime: LabelSimple(defaultLabelSimple) {
 	textFg: windowSubTextFg;

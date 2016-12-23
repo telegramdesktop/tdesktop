@@ -301,7 +301,7 @@ void Widget::updateLabelsGeometry() {
 	widthForName -= _timeLabel->width() + 2 * st::normalFont->spacew;
 	_nameLabel->resizeToWidth(widthForName);
 
-	_nameLabel->moveToLeft(left, st::mediaPlayerNameTop - st::mediaPlayerName.font->ascent);
+	_nameLabel->moveToLeft(left, st::mediaPlayerNameTop - st::mediaPlayerName.style.font->ascent);
 	_timeLabel->moveToRight(right, st::mediaPlayerNameTop - st::mediaPlayerTime.font->ascent);
 }
 

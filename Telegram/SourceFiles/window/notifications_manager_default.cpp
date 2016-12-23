@@ -639,7 +639,7 @@ void Notification::updateNotifyDisplay() {
 			} else if (_forwardedCount > 1) {
 				p.setFont(st::dialogsTextFont);
 				if (_author) {
-					itemTextCache.setText(st::dialogsTextFont, _author->name);
+					itemTextCache.setText(st::dialogsTextStyle, _author->name);
 					p.setPen(st::dialogsTextFgService);
 					itemTextCache.drawElided(p, r.left(), r.top(), r.width(), st::dialogsTextFont->height);
 					r.setTop(r.top() + st::dialogsTextFont->height);

@@ -374,7 +374,7 @@ void MembersBox::Inner::refresh() {
 		resize(width(), st::membersMarginTop + st::noContactsHeight + st::membersMarginBottom);
 		_aboutHeight = 0;
 	} else {
-		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
+		_about.setText(st::boxTextStyle, lng_channel_only_last_shown(lt_count, _rows.size()));
 		_aboutHeight = st::membersAboutLimitPadding.top() + _about.countHeight(_aboutWidth) + st::membersAboutLimitPadding.bottom();
 		if (_filter != MembersFilter::Recent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
@@ -420,7 +420,7 @@ MembersBox::Inner::MemberData *MembersBox::Inner::data(int32 index) {
 		return result;
 	}
 	MemberData *result = _datas[index] = new MemberData();
-	result->name.setText(st::contactsNameFont, _rows[index]->name, _textNameOptions);
+	result->name.setText(st::contactsNameStyle, _rows[index]->name, _textNameOptions);
 	int32 t = unixtime();
 	result->online = App::onlineText(_rows[index], t);// lng_mediaview_date_time(lt_date, _dates[index].date().toString(qsl("dd.MM.yy")), lt_time, _dates[index].time().toString(cTimeFormat()));
 	result->onlineColor = App::onlineColorUse(_rows[index], t);
@@ -496,7 +496,7 @@ void MembersBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names 
 	for (int32 i = 0, l = _rows.size(); i < l; ++i) {
 		if (_rows.at(i) == peer) {
 			if (_datas.at(i)) {
-				_datas.at(i)->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+				_datas.at(i)->name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 				update(0, st::membersMarginTop + i * _rowHeight, width(), _rowHeight);
 			} else {
 				break;

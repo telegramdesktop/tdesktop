@@ -70,7 +70,7 @@ void RadialAnimation::step(TimeMs ms) {
 	_animation.step(ms);
 }
 
-void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, const style::color &color) {
+void RadialAnimation::draw(Painter &p, const QRect &inner, int32 thickness, style::color color) {
 	float64 o = p.opacity();
 	p.setOpacity(o * _opacity);
 

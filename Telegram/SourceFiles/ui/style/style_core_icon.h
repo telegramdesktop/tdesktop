@@ -53,7 +53,7 @@ public:
 	MonoIcon &operator=(const MonoIcon &other) = delete;
 	MonoIcon(MonoIcon &&other) = default;
 	MonoIcon &operator=(MonoIcon &&other) = default;
-	MonoIcon(const IconMask *mask, Color &&color, QPoint offset);
+	MonoIcon(const IconMask *mask, Color color, QPoint offset);
 
 	void reset() const;
 	int width() const;
@@ -64,8 +64,14 @@ public:
 
 	void paint(QPainter &p, const QPoint &pos, int outerw) const;
 	void fill(QPainter &p, const QRect &rect) const;
+
 	void paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const;
 	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const;
+
+	void paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const;
+	void fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const;
+
+	QImage instance(QColor colorOverride, DBIScale scale) const;
 
 	~MonoIcon() {
 	}
@@ -115,6 +121,15 @@ public:
 		}
 	}
 	void fill(QPainter &p, const QRect &rect, QColor colorOverride) const;
+
+	void paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const {
+		for_const (auto &part, _parts) {
+			part.paint(p, pos, outerw, paletteOverride);
+		}
+	}
+	void fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const;
+
+	QImage instance(QColor colorOverride, DBIScale scale) const;
 
 	int width() const;
 	int height() const;
@@ -167,6 +182,16 @@ public:
 		return _data->empty();
 	}
 
+	int width() const {
+		return _data->width();
+	}
+	int height() const {
+		return _data->height();
+	}
+	QSize size() const {
+		return QSize(width(), height());
+	}
+
 	void paint(QPainter &p, const QPoint &pos, int outerw) const {
 		return _data->paint(p, pos, outerw);
 	}
@@ -193,14 +218,41 @@ public:
 		return _data->fill(p, rect, colorOverride);
 	}
 
-	int width() const {
-		return _data->width();
+	QImage instance(QColor colorOverride, DBIScale scale = dbisAuto) const {
+		return _data->instance(colorOverride, scale);
 	}
-	int height() const {
-		return _data->height();
-	}
-	QSize size() const {
-		return QSize(width(), height());
+
+	class Proxy {
+	public:
+		Proxy(const Icon &icon, const style::palette &palette) : _icon(icon), _palette(palette) {
+		}
+		Proxy(const Proxy &other) = default;
+
+		bool empty() const { return _icon.empty(); }
+		int width() const { return _icon.width(); }
+		int height() const { return _icon.height(); }
+		QSize size() const { return _icon.size(); }
+
+		void paint(QPainter &p, const QPoint &pos, int outerw) const {
+			return _icon.paintWithPalette(p, pos, outerw, _palette);
+		}
+		void paint(QPainter &p, int x, int y, int outerw) const {
+			return _icon.paintWithPalette(p, x, y, outerw, _palette);
+		}
+		void paintInCenter(QPainter &p, const QRect &outer) const {
+			return _icon.paintInCenterWithPalette(p, outer, _palette);
+		}
+		void fill(QPainter &p, const QRect &rect) const {
+			return _icon.fillWithPalette(p, rect, _palette);
+		}
+
+	private:
+		const Icon &_icon;
+		const style::palette &_palette;
+
+	};
+	Proxy operator[](const style::palette &paletteOverride) const {
+		return Proxy(*this, paletteOverride);
 	}
 
 	~Icon() {
@@ -212,6 +264,21 @@ public:
 	}
 
 private:
+	friend class Proxy;
+
+	void paintWithPalette(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const {
+		return _data->paint(p, pos, outerw, paletteOverride);
+	}
+	void paintWithPalette(QPainter &p, int x, int y, int outerw, const style::palette &paletteOverride) const {
+		return _data->paint(p, QPoint(x, y), outerw, paletteOverride);
+	}
+	void paintInCenterWithPalette(QPainter &p, const QRect &outer, const style::palette &paletteOverride) const {
+		return _data->paint(p, QPoint(outer.x() + (outer.width() - width()) / 2, outer.y() + (outer.height() - height()) / 2), outer.x() * 2 + outer.width(), paletteOverride);
+	}
+	void fillWithPalette(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const {
+		return _data->fill(p, rect, paletteOverride);
+	}
+
 	IconData *_data = nullptr;
 	bool _owner = false;
 

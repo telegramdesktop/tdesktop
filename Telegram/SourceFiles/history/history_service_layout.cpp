@@ -196,16 +196,15 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 		} else {
 			int skiph = st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
 
-			textstyleSet(&st::inTextStyle);
 			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
 			float64 o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, message->history()->width, message->height() - skiph, textstyleCurrent()->selectOverlay->b);
+			p.fillRect(0, skiph, message->history()->width, message->height() - skiph, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}
 
-	textstyleSet(&st::serviceTextStyle);
+	p.setTextPalette(st::serviceTextPalette);
 
 	if (auto media = message->getMedia()) {
 		height -= st::msgServiceMargin.top() + media->height();
@@ -229,7 +228,7 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 	p.setFont(st::msgServiceFont);
 	message->_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignCenter, 0, -1, context.selection, false);
 
-	textstyleRestore();
+	p.restoreTextPalette();
 }
 
 void ServiceMessagePainter::paintDate(Painter &p, const QDateTime &date, int y, int w) {

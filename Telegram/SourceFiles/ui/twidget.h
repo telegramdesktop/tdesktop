@@ -76,6 +76,19 @@ public:
 		return drawPixmapRight(p.x(), p.y(), outerw, pix);
 	}
 
+	void setTextPalette(const style::TextPalette &palette) {
+		_textPalette = &palette;
+	}
+	void restoreTextPalette() {
+		_textPalette = nullptr;
+	}
+	const style::TextPalette &textPalette() const {
+		return _textPalette ? *_textPalette : st::defaultTextPalette;
+	}
+
+private:
+	const style::TextPalette *_textPalette = nullptr;
+
 };
 
 class PainterHighQualityEnabler {
@@ -278,16 +291,14 @@ protected:
 };
 
 template <typename Widget>
-class WeakPointed {
-public:
-	QPointer<Widget> weak() {
-		return QPointer<Widget>(static_cast<Widget*>(this));
-	}
-	QPointer<const Widget> weak() const {
-		return QPointer<const Widget>(static_cast<const Widget*>(this));
-	}
+QPointer<Widget> weak(Widget *object) {
+	return QPointer<Widget>(object);
+}
 
-};
+template <typename Widget>
+QPointer<const Widget> weak(const Widget *object) {
+	return QPointer<const Widget>(object);
+}
 
 void myEnsureResized(QWidget *target);
 QPixmap myGrab(TWidget *target, QRect rect = QRect(), QColor bg = QColor(255, 255, 255, 0));

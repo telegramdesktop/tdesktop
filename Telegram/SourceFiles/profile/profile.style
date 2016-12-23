@@ -19,7 +19,6 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
-using "basic_types.style";
 
 using "ui/widgets/widgets.style";
 using "window/window.style";
@@ -38,12 +37,14 @@ profileNameLeft: 26px;
 profileNameTop: 9px;
 profileNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
-	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
-}
-profileNameTextStyle: TextStyle(defaultTextStyle) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
 }
 profileStatusLeft: 27px;
 profileStatusTop: 35px;
@@ -135,9 +136,9 @@ profileMemberAdminIcon: icon {{ "profile_admin_star", windowBgActive, point(4px,
 profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {
 	width: 180px;
 	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);
-}
-profileLimitReachedStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 19px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 19px;
+	}
 }
 
 profileReportReasonOther: InputField(defaultInputField) {

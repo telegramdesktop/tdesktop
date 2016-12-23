@@ -19,10 +19,15 @@
 #include "ui/widgets/tooltip.h"
 
 #include "application.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 
 Tooltip *TooltipInstance = nullptr;
+
+const style::Tooltip *AbstractTooltipShower::tooltipSt() const {
+	return &st::defaultTooltip;
+}
 
 AbstractTooltipShower::~AbstractTooltipShower() {
 	if (TooltipInstance && TooltipInstance->_shower == this) {
@@ -35,6 +40,7 @@ Tooltip::Tooltip() : TWidget(nullptr) {
 
 	setWindowFlags(Qt::WindowFlags(Qt::FramelessWindowHint) | Qt::BypassWindowManagerHint | Qt::ToolTip | Qt::NoDropShadowWindowHint);
 	setAttribute(Qt::WA_NoSystemBackground, true);
+	setAttribute(Qt::WA_TranslucentBackground, true);
 
 	_showTimer.setSingleShot(true);
 	connect(&_showTimer, SIGNAL(timeout()), this, SLOT(onShow()));
@@ -92,7 +98,10 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 
 	_point = m;
 	_st = st;
-	_text = Text(_st->textFont, text, _textPlainOptions, _st->widthMax, true);
+	_text = Text(_st->textStyle, text, _textPlainOptions, _st->widthMax, true);
+
+	_useTransparency = Platform::TransparentWindowsSupported(_point);
+	setAttribute(Qt::WA_OpaquePaintEvent, !_useTransparency);
 
 	int32 addw = 2 * st::lineWidth + _st->textPadding.left() + _st->textPadding.right();
 	int32 addh = 2 * st::lineWidth + _st->textPadding.top() + _st->textPadding.bottom();
@@ -103,7 +112,7 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 		s.setWidth(addw + _text.countWidth(_st->widthMax - addw));
 		s.setHeight(addh + _text.countHeight(s.width() - addw));
 	}
-	int32 maxh = addh + (_st->linesMax * _st->textFont->height);
+	int32 maxh = addh + (_st->linesMax * _st->textStyle.font->height);
 	if (s.height() > maxh) {
 		s.setHeight(maxh);
 	}
@@ -141,14 +150,20 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 void Tooltip::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(rect(), _st->textBg);
+	if (_useTransparency) {
+		p.setPen(_st->textBorder);
+		p.setBrush(_st->textBg);
+		PainterHighQualityEnabler hq(p);
+		p.drawRoundedRect(QRectF(0.5, 0.5, width() - 1., height() - 1.), st::buttonRadius, st::buttonRadius);
+	} else {
+		p.fillRect(rect(), _st->textBg);
 
-	p.fillRect(QRect(0, 0, width(), st::lineWidth), _st->textBorder);
-	p.fillRect(QRect(0, height() - st::lineWidth, width(), st::lineWidth), _st->textBorder);
-	p.fillRect(QRect(0, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
-	p.fillRect(QRect(width() - st::lineWidth, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
-
-	int32 lines = qFloor((height() - 2 * st::lineWidth - _st->textPadding.top() - _st->textPadding.bottom()) / _st->textFont->height);
+		p.fillRect(QRect(0, 0, width(), st::lineWidth), _st->textBorder);
+		p.fillRect(QRect(0, height() - st::lineWidth, width(), st::lineWidth), _st->textBorder);
+		p.fillRect(QRect(0, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
+		p.fillRect(QRect(width() - st::lineWidth, st::lineWidth, st::lineWidth, height() - 2 * st::lineWidth), _st->textBorder);
+	}
+	int32 lines = qFloor((height() - 2 * st::lineWidth - _st->textPadding.top() - _st->textPadding.bottom()) / _st->textStyle.font->height);
 
 	p.setPen(_st->textFg);
 	_text.drawElided(p, st::lineWidth + _st->textPadding.left(), st::lineWidth + _st->textPadding.top(), width() - 2 * st::lineWidth - _st->textPadding.left() - _st->textPadding.right(), lines);

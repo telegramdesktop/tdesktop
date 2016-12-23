@@ -200,14 +200,15 @@ void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corn
 	t_assert(!image.isNull());
 
 	QImage **masks = App::cornersMask(radius);
-	auto cornerWidth = masks[0]->width();
-	auto cornerHeight = masks[0]->height();
+	prepareRound(image, masks, corners);
+}
+
+void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners) {
+	auto cornerWidth = cornerMasks[0]->width();
+	auto cornerHeight = cornerMasks[0]->height();
 	auto imageWidth = image.width();
 	auto imageHeight = image.height();
 	if (imageWidth < 2 * cornerWidth || imageHeight < 2 * cornerHeight) {
-		if (radius == ImageRoundRadius::Large) {
-			return prepareRound(image, ImageRoundRadius::Small, corners);
-		}
 		return;
 	}
 	constexpr auto imageIntsPerPixel = 1;
@@ -242,13 +243,13 @@ void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corn
 			imageInts += imageIntsAdded;
 		}
 	};
-	if (corners & ImageRoundCorner::TopLeft) maskCorner(intsTopLeft, masks[0]);
-	if (corners & ImageRoundCorner::TopRight) maskCorner(intsTopRight, masks[1]);
-	if (corners & ImageRoundCorner::BottomLeft) maskCorner(intsBottomLeft, masks[2]);
-	if (corners & ImageRoundCorner::BottomRight) maskCorner(intsBottomRight, masks[3]);
+	if (corners & ImageRoundCorner::TopLeft) maskCorner(intsTopLeft, cornerMasks[0]);
+	if (corners & ImageRoundCorner::TopRight) maskCorner(intsTopRight, cornerMasks[1]);
+	if (corners & ImageRoundCorner::BottomLeft) maskCorner(intsBottomLeft, cornerMasks[2]);
+	if (corners & ImageRoundCorner::BottomRight) maskCorner(intsBottomRight, cornerMasks[3]);
 }
 
-QImage prepareColored(const style::color &add, QImage image) {
+QImage prepareColored(style::color add, QImage image) {
 	auto format = image.format();
 	if (format != QImage::Format_RGB32 && format != QImage::Format_ARGB32_Premultiplied) {
 		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
@@ -547,7 +548,7 @@ const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
 	return i.value();
 }
 
-const QPixmap &Image::pixColored(const style::color &add, int32 w, int32 h) const {
+const QPixmap &Image::pixColored(style::color add, int32 w, int32 h) const {
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -570,7 +571,7 @@ const QPixmap &Image::pixColored(const style::color &add, int32 w, int32 h) cons
 	return i.value();
 }
 
-const QPixmap &Image::pixBlurredColored(const style::color &add, int32 w, int32 h) const {
+const QPixmap &Image::pixBlurredColored(style::color add, int32 w, int32 h) const {
 	checkload();
 
 	if (w <= 0 || !width() || !height()) {
@@ -721,7 +722,7 @@ QPixmap Image::pixNoCache(int w, int h, Images::Options options, int outerw, int
 	return Images::pixmap(_data.toImage(), w, h, options, outerw, outerh);
 }
 
-QPixmap Image::pixColoredNoCache(const style::color &add, int32 w, int32 h, bool smooth) const {
+QPixmap Image::pixColoredNoCache(style::color add, int32 w, int32 h, bool smooth) const {
 	const_cast<Image*>(this)->load();
 	restore();
 	if (_data.isNull()) return blank()->pix();
@@ -734,7 +735,7 @@ QPixmap Image::pixColoredNoCache(const style::color &add, int32 w, int32 h, bool
 	return App::pixmapFromImageInPlace(Images::prepareColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 }
 
-QPixmap Image::pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h) const {
+QPixmap Image::pixBlurredColoredNoCache(style::color add, int32 w, int32 h) const {
 	const_cast<Image*>(this)->load();
 	restore();
 	if (_data.isNull()) return blank()->pix();

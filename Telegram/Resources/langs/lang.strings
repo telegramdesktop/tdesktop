@@ -988,6 +988,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_mediaview_saved" = "Image was saved to your [c]Downloads[/c] folder";
 
+"lng_theme_preview_title" = "Theme Preview";
+"lng_theme_preview_generating" = "Generating color theme preview...";
+"lng_theme_preview_invalid" = "Invalid data in this theme file.";
+"lng_theme_preview_apply" = "Apply this theme";
+
 "lng_new_authorization" = "{name},\nWe detected a login into your account from a new device on {day}, {date} at {time}\n\nDevice: {device}\nLocation: {location}\n\nIf this wasn't you, you can go to Settings — Show all sessions and terminate that session.\n\nIf you think that somebody logged in to your account against your will, you can enable two-step verification in Settings.\n\nSincerely,\nThe Telegram Team";
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";

@@ -124,8 +124,9 @@ namespace Images {
 
 QImage prepareBlur(QImage image);
 void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All);
+void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners = ImageRoundCorner::All);
 void prepareCircle(QImage &image);
-QImage prepareColored(const style::color &add, QImage image);
+QImage prepareColored(style::color add, QImage image);
 QImage prepareOpaque(QImage image);
 
 enum class Option {
@@ -188,15 +189,15 @@ public:
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixRounded(int32 w = 0, int32 h = 0, ImageRoundRadius radius = ImageRoundRadius::None, ImageRoundCorners corners = ImageRoundCorner::All) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixColored(const style::color &add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixColored(style::color add, int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixBlurredColored(style::color add, int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
 	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
 	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
 	const QPixmap &pixBlurredCircled(int32 w = 0, int32 h = 0) const;
 	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1) const;
-	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
-	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
+	QPixmap pixColoredNoCache(style::color add, int32 w = 0, int32 h = 0, bool smooth = false) const;
+	QPixmap pixBlurredColoredNoCache(style::color add, int32 w, int32 h = 0) const;
 
 	int32 width() const {
 		return qMax(countWidth(), 1);

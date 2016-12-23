@@ -262,6 +262,7 @@ void MainWindow::setupPasscode() {
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
+	_mediaView->hide();
 	Ui::hideSettingsAndLayer(true);
 	if (_intro) _intro->hide();
 	if (animated) {
@@ -1291,7 +1292,7 @@ QImage MainWindow::iconLarge() const {
 	return iconbig256;
 }
 
-void MainWindow::placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) {
+void MainWindow::placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) {
 	QPainter p(&img);
 
 	QString cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 10, 1, 10, QChar('0'));
@@ -1329,7 +1330,7 @@ void MainWindow::placeSmallCounter(QImage &img, int size, int count, const style
 
 }
 
-QImage MainWindow::iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) {
+QImage MainWindow::iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) {
 	bool layer = false;
 	if (size < 0) {
 		size = -size;

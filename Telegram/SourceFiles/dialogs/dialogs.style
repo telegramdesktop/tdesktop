@@ -19,7 +19,6 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
-using "basic_types.style";
 
 using "ui/widgets/widgets.style";
 
@@ -32,6 +31,11 @@ dialogsRippleBg: windowBgRipple;
 dialogsRippleBgActive: activeButtonBgRipple;
 
 dialogsTextFont: font(fsize);
+dialogsTextStyle: TextStyle(defaultTextStyle) {
+	font: dialogsTextFont;
+	linkFont: dialogsTextFont;
+	linkFontOver: dialogsTextFont;
+}
 dialogsDateFont: font(13px);
 dialogsDateSkip: 5px;
 dialogsNameTop: 2px;
@@ -55,30 +59,23 @@ dialogsScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: 0px;
 }
 
-dialogsTextStyle: TextStyle(defaultTextStyle) {
+dialogsTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgService;
-	linkFgDown: dialogsTextFgService;
-	linkFlagsOver: font(fsize);
 }
-dialogsTextStyleOver: TextStyle(dialogsTextStyle) {
+dialogsTextPaletteOver: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgServiceOver;
-	linkFgDown: dialogsTextFgServiceOver;
 }
-dialogsTextStyleActive: TextStyle(dialogsTextStyle) {
+dialogsTextPaletteActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgServiceActive;
-	linkFgDown: dialogsTextFgServiceActive;
 }
-dialogsTextStyleDraft: TextStyle(dialogsTextStyle) {
+dialogsTextPaletteDraft: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFg;
-	linkFgDown: dialogsDraftFg;
 }
-dialogsTextStyleDraftOver: TextStyle(dialogsTextStyle) {
+dialogsTextPaletteDraftOver: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFgOver;
-	linkFgDown: dialogsDraftFgOver;
 }
-dialogsTextStyleDraftActive: TextStyle(dialogsTextStyle) {
+dialogsTextPaletteDraftActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFgActive;
-	linkFgDown: dialogsDraftFgActive;
 }
 
 dialogsMenuToggle: IconButton {

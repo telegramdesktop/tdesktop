@@ -203,7 +203,7 @@ static constexpr int kUserColorsCount = 8;
 static constexpr int kChatColorsCount = 4;
 static constexpr int kChannelColorsCount = 4;
 
-const style::color &peerColor(int index);
+style::color peerColor(int index);
 ImagePtr userDefPhoto(int index);
 ImagePtr chatDefPhoto(int index);
 ImagePtr channelDefPhoto(int index);
@@ -289,7 +289,7 @@ public:
 	MTPinputPeer input;
 
 	int colorIndex;
-	const style::color &color;
+	style::color color;
 
 	void setUserpic(ImagePtr userpic);
 	void paintUserpic(Painter &p, int size, int x, int y) const;
@@ -1135,6 +1135,9 @@ public:
 	}
 	bool isGifv() const {
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
+	}
+	bool isTheme() const {
+		return name.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
 		if (auto s = song()) {

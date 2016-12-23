@@ -30,6 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "localstorage.h"
 #include "ui/widgets/popup_menu.h"
+#include "window/window_theme.h"
 
 #include <qpa/qplatformnativeinterface.h>
 
@@ -143,11 +144,11 @@ public:
 	bool init(QColor c) {
 		_fullsize = st::windowShadow.width();
 		_shift = st::windowShadowShift;
-		QImage cornersImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
+		auto cornersImage = QImage(_fullsize, _fullsize, QImage::Format_ARGB32_Premultiplied);
 		{
 			Painter p(&cornersImage);
 			p.setCompositionMode(QPainter::CompositionMode_Source);
-			st::windowShadow.paint(p, 0, 0, _fullsize);
+			st::windowShadow.paint(p, 0, 0, _fullsize, QColor(0, 0, 0));
 		}
 		if (rtl()) cornersImage = cornersImage.mirrored(true, false);
 
@@ -529,7 +530,6 @@ private:
 
 };
 _PsShadowWindows _psShadowWindows;
-QColor _shActive(0, 0, 0)/*, _shInactive(0, 0, 0)*/;
 
 LRESULT CALLBACK _PsShadowWindows::wndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
 	auto wnd = App::wnd();
@@ -618,6 +618,12 @@ MainWindow::MainWindow()
 	if (!_taskbarCreatedMsgId) {
 		_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
 	}
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
+		if (update.paletteChanged()) {
+			_psShadowWindows.setColor(st::windowShadowFg->c);
+		}
+	});
 }
 
 void MainWindow::TaskbarCreated() {
@@ -791,7 +797,7 @@ bool MainWindow::psHasNativeNotifications() {
 
 Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psFirstShow() {
-	_psShadowWindows.init(_shActive);
+	_psShadowWindows.init(st::windowShadowFg->c);
 	_shadowsWorking = true;
 
 	psUpdateMargins();

@@ -422,7 +422,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	bool noHistoryDisplayed = _firstLoading || historyDisplayedEmpty;
 	if (!_firstLoading && _botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
 		if (r.y() < _botAbout->rect.y() + _botAbout->rect.height() && r.y() + r.height() > _botAbout->rect.y()) {
-			textstyleSet(&st::inTextStyle);
+			p.setTextPalette(st::inTextPalette);
 			App::roundRect(p, _botAbout->rect, st::msgInBg, MessageInCorners, &st::msgInShadow);
 
 			p.setFont(st::msgNameFont);
@@ -432,7 +432,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::historyTextInFg);
 			_botAbout->info->text.draw(p, _botAbout->rect.left() + st::msgPadding.left(), _botAbout->rect.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip, _botAbout->width);
 
-			textstyleRestore();
+			p.restoreTextPalette();
 		}
 	} else if (noHistoryDisplayed) {
 		HistoryLayout::paintEmpty(p, width(), height());
@@ -1637,7 +1637,7 @@ void HistoryInner::updateBotInfo(bool recount) {
 	int newh = 0;
 	if (_botAbout && !_botAbout->info->description.isEmpty()) {
 		if (_botAbout->info->text.isEmpty()) {
-			_botAbout->info->text.setText(st::msgFont, _botAbout->info->description, _historyBotNoMonoOptions);
+			_botAbout->info->text.setText(st::messageTextStyle, _botAbout->info->description, _historyBotNoMonoOptions);
 			if (recount) {
 				int32 tw = _scroll->width() - st::msgMargin.left() - st::msgMargin.right();
 				if (tw > st::msgMaxWidth) tw = st::msgMaxWidth;
@@ -2359,9 +2359,9 @@ MessageField::MessageField(HistoryWidget *history, const style::FlatTextarea &st
 }
 
 bool MessageField::hasSendText() const {
-	auto &text(getTextWithTags().text);
+	auto &text = getTextWithTags().text;
 	for (auto *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
-		ushort code = ch->unicode();
+		auto code = ch->unicode();
 		if (code != ' ' && code != '\n' && code != '\r' && !chReplacedBySpace(code)) {
 			return true;
 		}
@@ -2472,11 +2472,11 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 
 void BotKeyboard::Style::startPaint(Painter &p) const {
 	p.setPen(st::botKbColor);
-	p.setFont(st::botKbFont);
+	p.setFont(st::botKbStyle.font);
 }
 
-style::font BotKeyboard::Style::textFont() const {
-	return st::botKbFont;
+const style::TextStyle &BotKeyboard::Style::textStyle() const {
+	return st::botKbStyle;
 }
 
 void BotKeyboard::Style::repaint(const HistoryItem *item) const {
@@ -2677,28 +2677,28 @@ void BotKeyboard::updateSelected() {
 HistoryHider::HistoryHider(MainWidget *parent, bool forwardSelected) : TWidget(parent)
 , _forwardSelected(forwardSelected)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, UserData *sharedContact) : TWidget(parent)
 , _sharedContact(sharedContact)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent) : TWidget(parent)
 , _sendPath(true)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
 HistoryHider::HistoryHider(MainWidget *parent, const QString &botAndQuery) : TWidget(parent)
 , _botAndQuery(botAndQuery)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
@@ -2706,7 +2706,7 @@ HistoryHider::HistoryHider(MainWidget *parent, const QString &url, const QString
 , _shareUrl(url)
 , _shareText(text)
 , _send(this, lang(lng_forward_send), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
+, _cancel(this, lang(lng_cancel), st::defaultBoxButton) {
 	init();
 }
 
@@ -2746,9 +2746,7 @@ void HistoryHider::paintEvent(QPaintEvent *e) {
 			App::roundRect(p, _box, st::boxBg, BoxCorners);
 
 			p.setPen(st::boxTextFg);
-			textstyleSet(&st::boxTextStyle);
 			_toText.drawLeftElided(p, _box.left() + st::boxPadding.left(), _box.y() + st::boxTopMargin + st::boxPadding.top(), _toTextWidth + 2, width(), 1, style::al_left);
-			textstyleRestore();
 		} else {
 			auto w = st::historyForwardChooseMargins.left() + _chooseWidth + st::historyForwardChooseMargins.right();
 			auto h = st::historyForwardChooseMargins.top() + st::historyForwardChooseFont->height + st::historyForwardChooseMargins.bottom();
@@ -2856,7 +2854,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 bool HistoryHider::offerPeer(PeerId peer) {
 	if (!peer) {
 		_offered = nullptr;
-		_toText.setText(st::boxTextFont, QString());
+		_toText.setText(st::boxTextStyle, QString());
 		_toTextWidth = 0;
 		resizeEvent(nullptr);
 		return false;
@@ -2896,9 +2894,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 		return false;
 	}
 
-	textstyleSet(&st::boxTextStyle);
-	_toText.setText(st::boxTextFont, phrase, _textNameOptions);
-	textstyleRestore();
+	_toText.setText(st::boxTextStyle, phrase, _textNameOptions);
 	_toTextWidth = _toText.maxWidth();
 	if (_toTextWidth > _box.width() - st::boxPadding.left() - st::boxLayerButtonPadding.right()) {
 		_toTextWidth = _box.width() - st::boxPadding.left() - st::boxLayerButtonPadding.right();
@@ -6089,7 +6085,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId && fieldEnabled) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
+			_replyEditMsgText.setText(st::messageTextStyle, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel->show();
 			updateMouseTracking();
 		}
@@ -6108,7 +6104,7 @@ void HistoryWidget::onKbToggle(bool manual) {
 		_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 		if (_kbReplyTo && !_editMsgId && !_replyToId) {
 			updateReplyToName();
-			_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
+			_replyEditMsgText.setText(st::messageTextStyle, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 			_fieldBarCancel->show();
 			updateMouseTracking();
 		}
@@ -6180,15 +6176,14 @@ bool HistoryWidget::paintTopBar(Painter &p, int decreaseWidth, TimeMs ms) {
 	if (!_history) return false;
 
 	auto increaseLeft = (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) ? (st::topBarArrowPadding.left() - st::topBarArrowPadding.right()) : 0;
-	decreaseWidth += increaseLeft;
 	auto nameleft = st::topBarArrowPadding.right() + increaseLeft;
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	auto namewidth = width() - decreaseWidth - st::topBarArrowPadding.left() - st::topBarArrowPadding.right();
+	auto namewidth = width() - decreaseWidth - nameleft - st::topBarArrowPadding.right();
 	p.setFont(st::dialogsTextFont);
 	if (!_history->paintSendAction(p, nameleft, statustop, namewidth, width(), st::historyStatusFgTyping, ms)) {
 		p.setPen(_titlePeerTextOnline ? st::historyStatusFgActive : st::historyStatusFg);
-		p.drawText(nameleft, st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height + st::dialogsTextFont->ascent, _titlePeerText);
+		p.drawText(nameleft, statustop + st::dialogsTextFont->ascent, _titlePeerText);
 	}
 
 	p.setPen(st::dialogsNameFg);
@@ -6374,8 +6369,8 @@ void HistoryWidget::moveFieldControls() {
 }
 
 void HistoryWidget::updateFieldSize() {
-	bool kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
-	int fieldWidth = width() - _attachToggle->width();
+	auto kbShowShown = _history && !_kbShown && _keyboard->hasMarkup();
+	auto fieldWidth = width() - _attachToggle->width() - st::historySendRight;
 	fieldWidth -= _send->width();
 	fieldWidth -= _attachEmoji->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
@@ -7382,7 +7377,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 			_kbReplyTo = (_peer->isChat() || _peer->isChannel() || _keyboard->forceReply()) ? App::histItemById(_keyboard->forMsgId()) : 0;
 			if (_kbReplyTo && !_replyToId) {
 				updateReplyToName();
-				_replyEditMsgText.setText(st::msgFont, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
+				_replyEditMsgText.setText(st::messageTextStyle, textClean(_kbReplyTo->inReplyText()), _textDlgOptions);
 				_fieldBarCancel->show();
 				updateMouseTracking();
 			}
@@ -7638,7 +7633,7 @@ void HistoryWidget::updatePinnedBar(bool force) {
 		_pinnedBar->msg = App::histItemById(_history->channelId(), _pinnedBar->msgId);
 	}
 	if (_pinnedBar->msg) {
-		_pinnedBar->text.setText(st::msgFont, textClean(_pinnedBar->msg->notificationText()), _textDlgOptions);
+		_pinnedBar->text.setText(st::messageTextStyle, textClean(_pinnedBar->msg->notificationText()), _textDlgOptions);
 		update();
 	} else if (force) {
 		if (_peer && _peer->isMegagroup()) {
@@ -7870,7 +7865,7 @@ void HistoryWidget::onReplyToMessage() {
 	} else {
 		_replyEditMsg = to;
 		_replyToId = to->id;
-		_replyEditMsgText.setText(st::msgFont, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
+		_replyEditMsgText.setText(st::messageTextStyle, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 
@@ -8207,13 +8202,13 @@ void HistoryWidget::updatePreview() {
 		_fieldBarCancel->show();
 		updateMouseTracking();
 		if (_previewData->pendingTill) {
-			_previewTitle.setText(st::msgServiceNameFont, lang(lng_preview_loading), _textNameOptions);
+			_previewTitle.setText(st::msgNameStyle, lang(lng_preview_loading), _textNameOptions);
 #ifndef OS_MAC_OLD
 			auto linkText = _previewLinks.splitRef(' ').at(0).toString();
 #else // OS_MAC_OLD
 			auto linkText = _previewLinks.split(' ').at(0);
 #endif // OS_MAC_OLD
-			_previewDescription.setText(st::msgFont, textClean(linkText), _textDlgOptions);
+			_previewDescription.setText(st::messageTextStyle, textClean(linkText), _textDlgOptions);
 
 			int32 t = (_previewData->pendingTill - unixtime()) * 1000;
 			if (t <= 0) t = 1;
@@ -8244,8 +8239,8 @@ void HistoryWidget::updatePreview() {
 					title = lang(lng_attach_photo);
 				}
 			}
-			_previewTitle.setText(st::msgServiceNameFont, title, _textNameOptions);
-			_previewDescription.setText(st::msgFont, textClean(desc), _textDlgOptions);
+			_previewTitle.setText(st::msgNameStyle, title, _textNameOptions);
+			_previewDescription.setText(st::messageTextStyle, textClean(desc), _textDlgOptions);
 		}
 	} else if (!readyToForward() && !replyToId() && !_editMsgId) {
 		_fieldBarCancel->hide();
@@ -8509,7 +8504,7 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 		_replyEditMsg = App::histItemById(_channel, _editMsgId ? _editMsgId : _replyToId);
 	}
 	if (_replyEditMsg) {
-		_replyEditMsgText.setText(st::msgFont, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
+		_replyEditMsgText.setText(st::messageTextStyle, textClean(_replyEditMsg->inReplyText()), _textDlgOptions);
 
 		updateBotKeyboard();
 
@@ -8539,7 +8534,7 @@ void HistoryWidget::updateForwarding(bool force) {
 void HistoryWidget::updateReplyToName() {
 	if (_editMsgId) return;
 	if (!_replyEditMsg && (_replyToId || !_kbReplyTo)) return;
-	_replyToName.setText(st::msgServiceNameFont, App::peerName((_replyEditMsg ? _replyEditMsg : _kbReplyTo)->author()), _textNameOptions);
+	_replyToName.setText(st::msgNameStyle, App::peerName((_replyEditMsg ? _replyEditMsg : _kbReplyTo)->author()), _textNameOptions);
 	_replyToNameVersion = (_replyEditMsg ? _replyEditMsg : _kbReplyTo)->author()->nameVersion;
 }
 
@@ -8826,7 +8821,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 			PainterHighQualityEnabler hq(p);
 
 			QRect to, from;
-			App::main()->backgroundParams(fill, to, from);
+			Window::Theme::ComputeBackgroundRects(fill, pix.size(), to, from);
 			to.moveTop(to.top() + fromy);
 			p.drawPixmap(to, pix, from);
 		}

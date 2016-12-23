@@ -326,13 +326,7 @@ QString Generator::typeToDefaultValue(structure::Type type) const {
 QString Generator::valueAssignmentCode(structure::Value value) const {
 	auto copy = value.copyOf();
 	if (!copy.isEmpty()) {
-		auto result = "st::" + copy.back();
-
-		// Copy is disabled for colors.
-		if (value.type().tag == Tag::Color || value.type().tag == Tag::Struct) {
-			result += ".clone()";
-		}
-		return result;
+		return "st::" + copy.back();
 	}
 
 	switch (value.type().tag) {
@@ -343,7 +337,14 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 	case Tag::String: return QString("qsl(%1)").arg(stringToEncodedString(value.String()));
 	case Tag::Color: {
 		auto v(value.Color());
-		return QString("{ %1, %2, %3, %4 }").arg(v.red).arg(v.green).arg(v.blue).arg(v.alpha);
+		if (v.red == v.green && v.red == v.blue && v.red == 0 && v.alpha == 255) {
+			return QString("st::windowFg");
+		} else if (v.red == v.green && v.red == v.blue && v.red == 255 && v.alpha == 0) {
+			return QString("st::transparent");
+		} else {
+			common::logError(common::kErrorInternal, "") << "bad color value";
+			return QString();
+		}
 	} break;
 	case Tag::Point: {
 		auto v(value.Point());
@@ -449,9 +450,13 @@ public:\n\
 \n\
 	// Created not inited, should be finalized before usage.\n\
 	void finalize();\n\
-\n";
+\n\
+	int indexOfColor(color c) const;\n\
+	color colorAtIndex(int index) const;\n\
+\n\
+	inline const color &get_transparent() const { return _colors[0]; }; // special color\n";
 
-	int indexInPalette = 0;
+	int indexInPalette = 1;
 	if (!module_.enumVariables([this, &indexInPalette](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		if (variable.value.type().tag != structure::TypeTag::Color) {
@@ -459,7 +464,7 @@ public:\n\
 		}
 
 		auto index = (indexInPalette++);
-		header_->stream() << "\tinline const color &" << name << "() const { return _colors[" << index << "]; };\n";
+		header_->stream() << "\tinline const color &get_" << name << "() const { return _colors[" << index << "]; };\n";
 		return true;
 	})) return false;
 
@@ -468,7 +473,7 @@ public:\n\
 \n\
 	palette &operator=(const palette &other) {\n\
 		auto wasReady = _ready;\n\
-		for (int i = 0; i != " << count << "; ++i) {\n\
+		for (int i = 0; i != kCount; ++i) {\n\
 			if (other._status[i] == Status::Loaded) {\n\
 				if (_status[i] == Status::Initial) {\n\
 					new (data(i)) internal::ColorData(*other.data(i));\n\
@@ -494,8 +499,10 @@ public:\n\
 	}\n\
 \n\
 private:\n\
+	static constexpr auto kCount = " << count << ";\n\
+\n\
 	void clear() {\n\
-		for (int i = 0; i != " << count << "; ++i) {\n\
+		for (int i = 0; i != kCount; ++i) {\n\
 			if (_status[i] != Status::Initial) {\n\
 				data(i)->~ColorData();\n\
 				_status[i] = Status::Initial;\n\
@@ -540,15 +547,15 @@ private:\n\
 		Loaded,\n\
 	};\n\
 \n\
-	alignas(alignof(internal::ColorData)) char _data[sizeof(internal::ColorData) * " << count << "];\n\
+	alignas(alignof(internal::ColorData)) char _data[sizeof(internal::ColorData) * kCount];\n\
 \n\
-	color _colors[" << count << "] = {\n";
+	color _colors[kCount] = {\n";
 	for (int i = 0; i != count; ++i) {
 		header_->stream() << "\t\tdata(" << i << "),\n";
 	}
 	header_->stream() << "\
 	};\n\
-	Status _status[" << count << "] = { Status::Initial };\n\
+	Status _status[kCount] = { Status::Initial };\n\
 	bool _ready = false;\n\
 \n\
 };\n\
@@ -561,10 +568,9 @@ bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
 bool setColor(QLatin1String name, QLatin1String from);\n\
 void apply(const palette &other);\n\
 void reset();\n\
+int indexOfColor(color c);\n\
 \n\
 } // namespace main_palette\n";
-
-	header_->newline();
 
 	return true;
 }
@@ -601,21 +607,8 @@ bool Generator::writeStructsDefinitions() {
 	}
 
 	bool result = module_.enumStructs([this](const Struct &value) -> bool {
-		QStringList fields;
-		for (auto field : value.fields) {
-			auto clone = field.name.back();
-			if (field.type.tag == Tag::Color || field.type.tag == Tag::Struct) {
-				clone += ".clone()";
-			}
-			fields.push_back(clone);
-		}
 		header_->stream() << "\
-struct " << value.name.back() << " {\n\
-	" << value.name.back() << " clone() const {\n\
-		return { " << fields.join(", ") << " };\n\
-	}\n";
-		if (!fields.empty()) header_->newline();
-
+struct " << value.name.back() << " {\n";
 		for (auto &field : value.fields) {
 			auto type = typeToString(field.type);
 			if (type.isEmpty()) {
@@ -638,6 +631,9 @@ bool Generator::writeRefsDeclarations() {
 
 	header_->pushNamespace("st");
 
+	if (isPalette_) {
+		header_->stream() << "extern const style::color &transparent; // special color\n";
+	}
 	bool result = module_.enumVariables([this](const Variable &value) -> bool {
 		auto name = value.name.back();
 		auto type = typeToString(value.value.type());
@@ -699,6 +695,9 @@ bool Generator::writeRefsDefinition() {
 		return true;
 	}
 
+	if (isPalette_) {
+		source_->stream() << "const style::color &transparent(_palette.get_transparent()); // special color\n";
+	}
 	bool result = module_.enumVariables([this](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto type = typeToString(variable.value.type());
@@ -707,7 +706,7 @@ bool Generator::writeRefsDefinition() {
 		}
 		source_->stream() << "const " << type << " &" << name << "(";
 		if (isPalette_) {
-			source_->stream() << "_palette." << name << "()";
+			source_->stream() << "_palette.get_" << name << "()";
 		} else {
 			source_->stream() << "_" << name;
 		}
@@ -719,13 +718,30 @@ bool Generator::writeRefsDefinition() {
 
 bool Generator::writeSetPaletteColor() {
 	source_->newline();
-	source_->stream() << "\
+	source_->stream() << "\n\
+int palette::indexOfColor(style::color c) const {\n\
+	auto start = data(0);\n\
+	if (c._data >= start && c._data < start + kCount) {\n\
+		return static_cast<int>(c._data - start);\n\
+	}\n\
+	return -1;\n\
+}\n\
+\n\
+color palette::colorAtIndex(int index) const {\n\
+	t_assert(_ready);\n\
+	t_assert(index >= 0 && index < kCount);\n\
+	return _colors[index];\n\
+}\n\
+\n\
 void palette::finalize() {\n\
 	if (_ready) return;\n\
-	_ready = true;\n\n";
+	_ready = true;\n\
+\n\
+	compute(0, -1, { 255, 255, 255, 0}); // special color\n";
 
-	int indexInPalette = 0;
+	int indexInPalette = 1;
 	QByteArray checksumString;
+	checksumString.append("&transparent:{ 255, 255, 255, 0 }");
 	bool result = module_.enumVariables([this, &indexInPalette, &checksumString](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
@@ -735,8 +751,9 @@ void palette::finalize() {\n\
 		}
 		auto color = variable.value.Color();
 		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
-		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", {" << color.red << ", " << color.green << ", " << color.blue << ", " << color.alpha << "});\n";
-		checksumString.append('&' + name + ':' + valueAssignmentCode(variable.value));
+		auto assignment = QString("{ %1, %2, %3, %4 }").arg(color.red).arg(color.green).arg(color.blue).arg(color.alpha);
+		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", " << assignment << ");\n";
+		checksumString.append('&' + name + ':' + assignment);
 		return true;
 	});
 	auto count = indexInPalette;
@@ -886,6 +903,10 @@ void apply(const palette &other) {\n\
 void reset() {\n\
 	_palette.reset();\n\
 	style::internal::resetIcons();\n\
+}\n\
+\n\
+int indexOfColor(color c) {\n\
+	return _palette.indexOfColor(c);\n\
 }\n\
 \n\
 } // namespace main_palette\n\
@@ -1226,8 +1247,12 @@ bool Generator::writeSampleTheme(const QString &filepath) {
 			return false;
 		}
 		auto color = variable.value.Color();
-		auto colorString = paletteColorValue(color);
+		//color.red = uchar(rand() % 256);
+		//color.green = uchar(rand() % 256);
+		//color.blue = uchar(rand() % 256);
+		//auto fallbackIndex = -1;
 		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
+		auto colorString = paletteColorValue(color);
 		if (fallbackIndex >= 0) {
 			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex], module_);
 			if (!fallbackVariable || fallbackVariable->value.type().tag != structure::TypeTag::Color) {

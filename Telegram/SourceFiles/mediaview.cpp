@@ -34,6 +34,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "media/media_audio.h"
 #include "history/history_media_types.h"
+#include "window/window_theme_preview.h"
+#include "core/task_queue.h"
 
 namespace {
 
@@ -71,13 +73,13 @@ MediaView::MediaView() : TWidget(App::wnd())
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
 , _docCancel(this, lang(lng_cancel), st::mediaviewFileLink)
 , _radial(animation(this, &MediaView::step_radial))
-, _lastAction(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction)
+, _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _a_state(animation(this, &MediaView::step_state))
 , _dropdown(this, st::mediaviewDropdownMenu) {
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
-	_saveMsgText.setRichText(st::medviewSaveMsgFont, lang(lng_mediaview_saved), _textDlgOptions, custom);
-	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::medviewSaveMsgPadding.left() + st::medviewSaveMsgPadding.right(), st::medviewSaveMsgFont->height + st::medviewSaveMsgPadding.top() + st::medviewSaveMsgPadding.bottom());
+	_saveMsgText.setRichText(st::mediaviewSaveMsgStyle, lang(lng_mediaview_saved), _textDlgOptions, custom);
+	_saveMsg = QRect(0, 0, _saveMsgText.maxWidth() + st::mediaviewSaveMsgPadding.left() + st::mediaviewSaveMsgPadding.right(), st::mediaviewSaveMsgStyle.font->height + st::mediaviewSaveMsgPadding.top() + st::mediaviewSaveMsgPadding.bottom());
 	_saveMsgText.setLink(1, MakeShared<LambdaClickHandler>([this] { showSaveMsgFile(); }));
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
@@ -132,12 +134,12 @@ void MediaView::moveToScreen() {
 		setGeometry(avail);
 	}
 
-	int32 navSkip = 2 * st::mvControlMargin + st::mvControlSize;
-	_closeNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, st::mvControlMargin, st::mvControlSize, st::mvControlSize);
+	int32 navSkip = 2 * st::mediaviewControlMargin + st::mediaviewControlSize;
+	_closeNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, st::mediaviewControlMargin, st::mediaviewControlSize, st::mediaviewControlSize);
 	_closeNavIcon = centerrect(_closeNav, st::mediaviewClose);
-	_leftNav = myrtlrect(st::mvControlMargin, navSkip, st::mvControlSize, height() - 2 * navSkip);
+	_leftNav = myrtlrect(st::mediaviewControlMargin, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_leftNavIcon = centerrect(_leftNav, st::mediaviewLeft);
-	_rightNav = myrtlrect(width() - st::mvControlMargin - st::mvControlSize, navSkip, st::mvControlSize, height() - 2 * navSkip);
+	_rightNav = myrtlrect(width() - st::mediaviewControlMargin - st::mediaviewControlSize, navSkip, st::mediaviewControlSize, height() - 2 * navSkip);
 	_rightNavIcon = centerrect(_rightNav, st::mediaviewRight);
 
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
@@ -194,6 +196,10 @@ bool MediaView::fileShown() const {
 	return !_current.isNull() || gifShown();
 }
 
+bool MediaView::fileBubbleShown() const {
+	return _doc && !fileShown() && !_themePreviewShown;
+}
+
 bool MediaView::gifShown() const {
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
@@ -220,7 +226,7 @@ void MediaView::stopGif() {
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
-	if (_doc && _doc == doc && !fileShown()) {
+	if (fileBubbleShown() && _doc == doc) {
 		if ((_doc->loading() && _docCancel->isHidden()) || (!_doc->loading() && !_docCancel->isHidden())) {
 			updateControls();
 		} else if (_doc->loading()) {
@@ -238,7 +244,7 @@ void MediaView::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void MediaView::updateDocSize() {
-	if (!_doc || fileShown()) return;
+	if (!fileBubbleShown()) return;
 
 	if (_doc->loading()) {
 		quint64 ready = _doc->loadOffset(), total = _doc->size;
@@ -262,16 +268,16 @@ void MediaView::updateDocSize() {
 	} else {
 		_docSize = formatSizeText(_doc->size);
 	}
-	_docSizeWidth = st::mvFont->width(_docSize);
+	_docSizeWidth = st::mediaviewFont->width(_docSize);
 	int32 maxw = st::mediaviewFileSize.width() - st::mediaviewFileIconSize - st::mediaviewFilePadding * 3;
 	if (_docSizeWidth > maxw) {
-		_docSize = st::mvFont->elided(_docSize, maxw);
-		_docSizeWidth = st::mvFont->width(_docSize);
+		_docSize = st::mediaviewFont->elided(_docSize, maxw);
+		_docSizeWidth = st::mediaviewFont->width(_docSize);
 	}
 }
 
 void MediaView::updateControls() {
-	if (_doc && !fileShown()) {
+	if (fileBubbleShown()) {
 		if (_doc->loading()) {
 			_docDownload->hide();
 			_docSaveAs->hide();
@@ -299,10 +305,12 @@ void MediaView::updateControls() {
 	}
 	radialStart();
 
+	updateThemePreviewGeometry();
+
 	_saveVisible = ((_photo && _photo->loaded()) || (_doc && (_doc->loaded(DocumentData::FilePathResolveChecked) || (!fileShown() && (_photo || _doc)))));
-	_saveNav = myrtlrect(width() - st::mvIconSize.width() * 2, height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
+	_saveNav = myrtlrect(width() - st::mediaviewIconSize.width() * 2, height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_saveNavIcon = centerrect(_saveNav, st::mediaviewSave);
-	_moreNav = myrtlrect(width() - st::mvIconSize.width(), height() - st::mvIconSize.height(), st::mvIconSize.width(), st::mvIconSize.height());
+	_moreNav = myrtlrect(width() - st::mediaviewIconSize.width(), height() - st::mediaviewIconSize.height(), st::mediaviewIconSize.width(), st::mediaviewIconSize.height());
 	_moreNavIcon = centerrect(_moreNav, st::mediaviewMore);
 
 	QDateTime d, dNow(date(unixtime()));
@@ -321,12 +329,12 @@ void MediaView::updateControls() {
 		_dateText = lng_mediaview_date_time(lt_date, d.date().toString(qsl("dd.MM.yy")), lt_time, d.time().toString(cTimeFormat()));
 	}
 	if (_from) {
-		_fromName.setText(st::mvFont, (_from->migrateTo() ? _from->migrateTo() : _from)->name, _textNameOptions);
-		_nameNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mvFont->height);
-		_dateNav = myrtlrect(st::mvTextLeft + _nameNav.width() + st::mvTextSkip, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
+		_fromName.setText(st::mediaviewTextStyle, (_from->migrateTo() ? _from->migrateTo() : _from)->name, _textNameOptions);
+		_nameNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, qMin(_fromName.maxWidth(), width() / 3), st::mediaviewFont->height);
+		_dateNav = myrtlrect(st::mediaviewTextLeft + _nameNav.width() + st::mediaviewTextSkip, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	} else {
 		_nameNav = QRect();
-		_dateNav = myrtlrect(st::mvTextLeft, height() - st::mvTextTop, st::mvFont->width(_dateText), st::mvFont->height);
+		_dateNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewTextTop, st::mediaviewFont->width(_dateText), st::mediaviewFont->height);
 	}
 	updateHeader();
 	if (_photo || (_history && (_overview == OverviewPhotos || _overview == OverviewChatPhotos || _overview == OverviewFiles || _overview == OverviewVideos))) {
@@ -354,9 +362,9 @@ void MediaView::updateControls() {
 
 	if (!_caption.isEmpty()) {
 		int32 skipw = qMax(_dateNav.left() + _dateNav.width(), _headerNav.left() + _headerNav.width());
-		int32 maxw = qMin(qMax(width() - 2 * skipw - st::mvCaptionPadding.left() - st::mvCaptionPadding.right() - 2 * st::mvCaptionMargin.width(), int(st::msgMinWidth)), _caption.maxWidth());
-		int32 maxh = qMin(_caption.countHeight(maxw), int(height() / 4 - st::mvCaptionPadding.top() - st::mvCaptionPadding.bottom() - 2 * st::mvCaptionMargin.height()));
-		_captionRect = QRect((width() - maxw) / 2, height() - maxh - st::mvCaptionPadding.bottom() - st::mvCaptionMargin.height(), maxw, maxh);
+		int32 maxw = qMin(qMax(width() - 2 * skipw - st::mediaviewCaptionPadding.left() - st::mediaviewCaptionPadding.right() - 2 * st::mediaviewCaptionMargin.width(), int(st::msgMinWidth)), _caption.maxWidth());
+		int32 maxh = qMin(_caption.countHeight(maxw), int(height() / 4 - st::mediaviewCaptionPadding.top() - st::mediaviewCaptionPadding.bottom() - 2 * st::mediaviewCaptionMargin.height()));
+		_captionRect = QRect((width() - maxw) / 2, height() - maxh - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height(), maxw, maxh);
 	} else {
 		_captionRect = QRect();
 	}
@@ -410,7 +418,7 @@ void MediaView::step_state(TimeMs ms, bool timer) {
 		case OverMore: update(_moreNav); break;
 		default: break;
 		}
-		float64 dt = float64(ms - start) / st::mvFadeDuration;
+		float64 dt = float64(ms - start) / st::mediaviewFadeDuration;
 		if (dt >= 1) {
 			_animOpacities.remove(i.key());
 			i = _animations.erase(i);
@@ -420,7 +428,7 @@ void MediaView::step_state(TimeMs ms, bool timer) {
 		}
 	}
 	if (_controlsState == ControlsShowing || _controlsState == ControlsHiding) {
-		float64 dt = float64(ms - _controlsAnimStarted) / (_controlsState == ControlsShowing ? st::mvShowDuration : st::mvHideDuration);
+		float64 dt = float64(ms - _controlsAnimStarted) / (_controlsState == ControlsShowing ? st::mediaviewShowDuration : st::mediaviewHideDuration);
 		if (dt >= 1) {
 			a_cOpacity.finish();
 			_controlsState = (_controlsState == ControlsShowing ? ControlsShown : ControlsHidden);
@@ -428,7 +436,7 @@ void MediaView::step_state(TimeMs ms, bool timer) {
 		} else {
 			a_cOpacity.update(dt, anim::linear);
 		}
-		QRegion toUpdate = QRegion() + (_over == OverLeftNav ? _leftNav : _leftNavIcon) + (_over == OverRightNav ? _rightNav : _rightNavIcon) + (_over == OverClose ? _closeNav : _closeNavIcon) + _saveNavIcon + _moreNavIcon + _headerNav + _nameNav + _dateNav + _captionRect.marginsAdded(st::mvCaptionPadding);
+		QRegion toUpdate = QRegion() + (_over == OverLeftNav ? _leftNav : _leftNavIcon) + (_over == OverRightNav ? _rightNav : _rightNavIcon) + (_over == OverClose ? _closeNav : _closeNavIcon) + _saveNavIcon + _moreNavIcon + _headerNav + _nameNav + _dateNav + _captionRect.marginsAdded(st::mediaviewCaptionPadding);
 		update(toUpdate);
 		if (dt < 1) result = true;
 	}
@@ -500,7 +508,7 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		} else {
 			const FileLocation &location(_doc->location(true));
 			if (location.accessEnable()) {
-				if (_doc->isAnimation() || _doc->isVideo() || QImageReader(location.name()).canRead()) {
+				if (_doc->isAnimation() || _doc->isVideo() || _doc->isTheme() || QImageReader(location.name()).canRead()) {
 					displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 				}
 				location.accessDisable();
@@ -626,7 +634,7 @@ void MediaView::close() {
 
 void MediaView::activateControls() {
 	if (!_menu && !_mousePressed) {
-		_controlsHideTimer.start(int(st::mvWaitHide));
+		_controlsHideTimer.start(int(st::mediaviewWaitHide));
 	}
 	if (_fullScreenVideo) {
 		if (_clipController) {
@@ -1120,6 +1128,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 
 void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	stopGif();
+	destroyThemePreview();
 	_doc = nullptr;
 	_fullScreenVideo = false;
 	_photo = photo;
@@ -1132,7 +1141,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	_caption = Text();
 	if (HistoryMessage *itemMsg = item ? item->toHistoryMessage() : nullptr) {
 		if (HistoryPhoto *photoMsg = dynamic_cast<HistoryPhoto*>(itemMsg->getMedia())) {
-			_caption.setMarkedText(st::mvCaptionFont, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
+			_caption.setMarkedText(st::mediaviewCaptionStyle, photoMsg->getCaption(), (item->author()->isUser() && item->author()->asUser()->botInfo) ? _captionBotOptions : _captionTextOptions);
 		}
 	}
 
@@ -1166,13 +1175,24 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	displayFinished();
 }
 
+void MediaView::destroyThemePreview() {
+	_themePreviewShown = false;
+	_themePreview.reset();
+	_themeApply.destroy();
+	_themeCancel.destroy();
+}
+
 void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty messages shown as docs: doc can be NULL
-	if (!doc || (!doc->isAnimation() && !doc->isVideo()) || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history))))) {
+	auto documentChanged = (!doc || doc != _doc || (item && (item->id != _msgid || (item->history() != (_msgmigrated ? _migrated : _history)))));
+	if (documentChanged || (!doc->isAnimation() && !doc->isVideo())) {
 		_fullScreenVideo = false;
 		_current = QPixmap();
 		stopGif();
 	} else if (gifShown()) {
 		_current = QPixmap();
+	}
+	if (documentChanged || !doc->isTheme()) {
+		destroyThemePreview();
 	}
 	_doc = doc;
 	_photo = nullptr;
@@ -1196,6 +1216,8 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 
 			if (_doc->isAnimation() || _doc->isVideo()) {
 				initAnimation();
+			} else if (_doc->isTheme()) {
+				initThemePreview();
 			} else {
 				const FileLocation &location(_doc->location(true));
 				if (location.accessEnable()) {
@@ -1209,10 +1231,10 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 
 	_docIconRect = QRect((width() - st::mediaviewFileIconSize) / 2, (height() - st::mediaviewFileIconSize) / 2, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
-	if (!fileShown()) {
+	if (fileBubbleShown()) {
 		if (!_doc || _doc->thumb->isNull()) {
 			int32 colorIndex = documentColorIndex(_doc, _docExt);
-			_docIconColor = &documentColor(colorIndex);
+			_docIconColor = documentColor(colorIndex);
 			const style::icon *(thumbs[]) = { &st::mediaviewFileBlue, &st::mediaviewFileGreen, &st::mediaviewFileRed, &st::mediaviewFileYellow };
 			_docIcon = thumbs[colorIndex];
 
@@ -1255,6 +1277,8 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 
 		_docRect = QRect((width() - st::mediaviewFileSize.width()) / 2, (height() - st::mediaviewFileSize.height()) / 2, st::mediaviewFileSize.width(), st::mediaviewFileSize.height());
 		_docIconRect = myrtlrect(_docRect.x() + st::mediaviewFilePadding, _docRect.y() + st::mediaviewFilePadding, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+	} else if (_themePreviewShown) {
+		updateThemePreviewGeometry();
 	} else if (!_current.isNull()) {
 		_current.setDevicePixelRatio(cRetinaFactor());
 		_w = convertScale(_current.width());
@@ -1302,6 +1326,25 @@ void MediaView::displayDocument(DocumentData *doc, HistoryItem *item) { // empty
 	}
 	_full = 1;
 	displayFinished();
+}
+
+void MediaView::updateThemePreviewGeometry() {
+	if (_themePreviewShown) {
+		auto previewRect = QRect((width() - st::themePreviewSize.width()) / 2, (height() - st::themePreviewSize.height()) / 2, st::themePreviewSize.width(), st::themePreviewSize.height());
+		_themePreviewRect = previewRect.marginsAdded(st::themePreviewMargin);
+		if (_themeApply) {
+			auto right = width() - _themePreviewRect.x() - _themePreviewRect.width() + st::themePreviewMargin.right();
+			_themeApply->moveToRight(right, _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom() + (st::themePreviewMargin.bottom() - _themeApply->height()) / 2);
+			right += _themeApply->width() + st::themePreviewButtonsSkip;
+			_themeCancel->moveToRight(right, _themeApply->y());
+		}
+
+		// For context menu event.
+		_x = _themePreviewRect.x();
+		_y = _themePreviewRect.y();
+		_w = _themePreviewRect.width();
+		_h = _themePreviewRect.height();
+	}
 }
 
 void MediaView::displayFinished() {
@@ -1363,6 +1406,59 @@ void MediaView::createClipReader() {
 	createClipController();
 }
 
+void MediaView::initThemePreview() {
+	t_assert(_doc && _doc->isTheme());
+
+	auto &location = _doc->location();
+	if (!location.isEmpty() && location.accessEnable()) {
+		_themePreviewShown = true;
+		auto path = _doc->location().name();
+		auto id = _themePreviewId = rand_value<uint64>();
+		auto ready = base::lambda_guarded(this, [this, id](std_::unique_ptr<Window::Theme::Preview> result) {
+			if (id != _themePreviewId) {
+				return;
+			}
+			_themePreviewId = 0;
+			_themePreview = std_::move(result);
+			if (_themePreview) {
+				_themeApply.create(this, lang(lng_theme_preview_apply), st::themePreviewApplyButton);
+				_themeApply->show();
+				_themeApply->setClickedCallback([this] {
+					auto preview = std_::move(_themePreview);
+					close();
+					Window::Theme::Apply(std_::move(preview));
+				});
+				_themeCancel.create(this, lang(lng_cancel), st::themePreviewCancelButton);
+				_themeCancel->show();
+				_themeCancel->setClickedCallback([this] { close(); });
+				updateControls();
+			}
+			update();
+		});
+		struct mutable_ready {
+			mutable_ready(decltype(ready) value) : value(std_::move(value)) {
+			}
+			mutable decltype(ready) value;
+		};
+		struct mutable_result {
+			mutable_result(std_::unique_ptr<Window::Theme::Preview> value) : value(std_::move(value)) {
+			}
+			mutable std_::unique_ptr<Window::Theme::Preview> value;
+		};
+		Window::Theme::CurrentData current;
+		current.backgroundId = Window::Theme::Background()->id();
+		current.backgroundImage = Window::Theme::Background()->image();
+		current.backgroundTiled = Window::Theme::Background()->tile();
+		base::TaskQueue::Normal().Put([path, current, callback = mutable_ready(std_::move(ready))]() {
+			auto preview = Window::Theme::GeneratePreview(path, current);
+			base::TaskQueue::Main().Put([result = mutable_result(std_::move(preview)), callback = std_::move(callback.value)]() {
+				callback(std_::move(result.value));
+			});
+		});
+		location.accessDisable();
+	}
+}
+
 void MediaView::createClipController() {
 	if (!_doc->isVideo()) return;
 
@@ -1389,7 +1485,7 @@ void MediaView::setClipControllerGeometry() {
 	int controllerBottom = _captionRect.isEmpty() ? height() : _captionRect.y();
 	_clipController->setGeometry(
 		(width() - _clipController->width()) / 2,
-		controllerBottom - _clipController->height() - st::mvCaptionPadding.bottom() - st::mvCaptionMargin.height(),
+		controllerBottom - _clipController->height() - st::mediaviewCaptionPadding.bottom() - st::mediaviewCaptionMargin.height(),
 		st::mediaviewControllerSize.width(),
 		st::mediaviewControllerSize.height());
 	myEnsureResized(_clipController);
@@ -1603,26 +1699,26 @@ void MediaView::paintEvent(QPaintEvent *e) {
 
 			if (_saveMsgStarted) {
 				auto ms = getms();
-				float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::medviewSaveMsgShowing - st::medviewSaveMsgShown;
-				if (dt < st::medviewSaveMsgShowing + st::medviewSaveMsgShown + st::medviewSaveMsgHiding) {
+				float64 dt = float64(ms) - _saveMsgStarted, hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
+				if (dt < st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + st::mediaviewSaveMsgHiding) {
 					if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
 						_saveMsgOpacity.start(0);
 					}
-					float64 progress = (hidingDt >= 0) ? (hidingDt / st::medviewSaveMsgHiding) : (dt / st::medviewSaveMsgShowing);
+					float64 progress = (hidingDt >= 0) ? (hidingDt / st::mediaviewSaveMsgHiding) : (dt / st::mediaviewSaveMsgShowing);
 					_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
                     if (_saveMsgOpacity.current() > 0) {
 						p.setOpacity(_saveMsgOpacity.current());
 						App::roundRect(p, _saveMsg, st::mediaviewSaveMsgBg, MediaviewSaveCorners);
-						st::medviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::medviewSaveMsgCheckPos, width());
+						st::mediaviewSaveMsgCheck.paint(p, _saveMsg.topLeft() + st::mediaviewSaveMsgCheckPos, width());
 
 						p.setPen(st::mediaviewSaveMsgFg);
-						textstyleSet(&st::mediaviewTextStyle);
-						_saveMsgText.draw(p, _saveMsg.x() + st::medviewSaveMsgPadding.left(), _saveMsg.y() + st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
-						textstyleRestore();
+						p.setTextPalette(st::mediaviewTextPalette);
+						_saveMsgText.draw(p, _saveMsg.x() + st::mediaviewSaveMsgPadding.left(), _saveMsg.y() + st::mediaviewSaveMsgPadding.top(), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
+						p.restoreTextPalette();
 						p.setOpacity(1);
 					}
 					if (_full >= 1) {
-                        auto nextFrame = (dt < st::medviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::medviewSaveMsgShowing + st::medviewSaveMsgShown + 1 - dt);
+                        auto nextFrame = (dt < st::mediaviewSaveMsgShowing || hidingDt >= 0) ? int(AnimationTimerDelta) : (st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + 1 - dt);
 						_saveMsgUpdater.start(nextFrame);
 					}
 				} else {
@@ -1630,6 +1726,8 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
+	} else if (_themePreviewShown) {
+		paintThemePreview(p, r);
 	} else {
 		if (_docRect.intersects(r)) {
 			p.fillRect(_docRect, st::mediaviewFileBg);
@@ -1642,7 +1740,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 					radialOpacity = _radial.opacity();
 				}
 				if (!_doc || _doc->thumb->isNull()) {
-					p.fillRect(_docIconRect, (*_docIconColor)->b);
+					p.fillRect(_docIconRect, _docIconColor);
 					if ((!_doc || _doc->loaded()) && (!radial || radialOpacity < 1) && _docIcon) {
 						_docIcon->paint(p, _docIconRect.x() + (_docIconRect.width() - _docIcon->width()), _docIconRect.y(), width());
 						p.setPen(st::mediaviewFileExtFg);
@@ -1666,7 +1764,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileNameTop, width(), _docName, _docNameWidth);
 
 				p.setPen(st::mediaviewFileSizeFg);
-				p.setFont(st::mvFont);
+				p.setFont(st::mediaviewFont);
 				p.drawTextLeft(_docRect.x() + 2 * st::mediaviewFilePadding + st::mediaviewFileIconSize, _docRect.y() + st::mediaviewFilePadding + st::mediaviewFileSizeTop, width(), _docSize, _docSizeWidth);
 			}
 		}
@@ -1685,7 +1783,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (_leftNavIcon.intersects(r)) {
-				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+				p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 				st::mediaviewLeft.paintInCenter(p, _leftNavIcon);
 			}
 		}
@@ -1701,7 +1799,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (_rightNavIcon.intersects(r)) {
-				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+				p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 				st::mediaviewRight.paintInCenter(p, _rightNavIcon);
 			}
 		}
@@ -1717,7 +1815,7 @@ void MediaView::paintEvent(QPaintEvent *e) {
 				}
 			}
 			if (_closeNavIcon.intersects(r)) {
-				p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+				p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 				st::mediaviewClose.paintInCenter(p, _closeNavIcon);
 			}
 		}
@@ -1725,71 +1823,71 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		// save button
 		if (_saveVisible && _saveNavIcon.intersects(r)) {
 			auto o = overLevel(OverSave);
-			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			st::mediaviewSave.paintInCenter(p, _saveNavIcon);
 		}
 
 		// more area
 		if (_moreNavIcon.intersects(r)) {
 			auto o = overLevel(OverMore);
-			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			st::mediaviewMore.paintInCenter(p, _moreNavIcon);
 		}
 
 		p.setPen(st::mediaviewControlFg);
-		p.setFont(st::mvThickFont);
+		p.setFont(st::mediaviewThickFont);
 
 		// header
 		if (_headerNav.intersects(r)) {
 			auto o = _headerHasLink ? overLevel(OverHeader) : 0;
-			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-			p.drawText(_headerNav.left(), _headerNav.top() + st::mvThickFont->ascent, _headerText);
+			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
+			p.drawText(_headerNav.left(), _headerNav.top() + st::mediaviewThickFont->ascent, _headerText);
 
 			if (o > 0) {
 				p.setOpacity(o * co);
-				p.drawLine(_headerNav.left(), _headerNav.top() + st::mvThickFont->ascent + 1, _headerNav.right(), _headerNav.top() + st::mvThickFont->ascent + 1);
+				p.drawLine(_headerNav.left(), _headerNav.top() + st::mediaviewThickFont->ascent + 1, _headerNav.right(), _headerNav.top() + st::mediaviewThickFont->ascent + 1);
 			}
 		}
 
-		p.setFont(st::mvFont);
+		p.setFont(st::mediaviewFont);
 
 		// name
 		if (_from && _nameNav.intersects(r)) {
 			float64 o = overLevel(OverName);
-			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
+			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
 			_fromName.drawElided(p, _nameNav.left(), _nameNav.top(), _nameNav.width());
 
 			if (o > 0) {
 				p.setOpacity(o * co);
-				p.drawLine(_nameNav.left(), _nameNav.top() + st::mvFont->ascent + 1, _nameNav.right(), _nameNav.top() + st::mvFont->ascent + 1);
+				p.drawLine(_nameNav.left(), _nameNav.top() + st::mediaviewFont->ascent + 1, _nameNav.right(), _nameNav.top() + st::mediaviewFont->ascent + 1);
 			}
 		}
 
 		// date
 		if (_dateNav.intersects(r)) {
 			float64 o = overLevel(OverDate);
-			p.setOpacity((o * st::mvIconOverOpacity + (1 - o) * st::mvIconOpacity) * co);
-			p.drawText(_dateNav.left(), _dateNav.top() + st::mvFont->ascent, _dateText);
+			p.setOpacity((o * st::mediaviewIconOverOpacity + (1 - o) * st::mediaviewIconOpacity) * co);
+			p.drawText(_dateNav.left(), _dateNav.top() + st::mediaviewFont->ascent, _dateText);
 
 			if (o > 0) {
 				p.setOpacity(o * co);
-				p.drawLine(_dateNav.left(), _dateNav.top() + st::mvFont->ascent + 1, _dateNav.right(), _dateNav.top() + st::mvFont->ascent + 1);
+				p.drawLine(_dateNav.left(), _dateNav.top() + st::mediaviewFont->ascent + 1, _dateNav.right(), _dateNav.top() + st::mediaviewFont->ascent + 1);
 			}
 		}
 
 		// caption
 		if (!_caption.isEmpty()) {
-			QRect outer(_captionRect.marginsAdded(st::mvCaptionPadding));
+			QRect outer(_captionRect.marginsAdded(st::mediaviewCaptionPadding));
 			if (outer.intersects(r)) {
 				p.setOpacity(co);
 				p.setBrush(st::mediaviewCaptionBg);
 				p.setPen(Qt::NoPen);
-				p.drawRoundedRect(outer, st::mvCaptionRadius, st::mvCaptionRadius);
+				p.drawRoundedRect(outer, st::mediaviewCaptionRadius, st::mediaviewCaptionRadius);
 				if (_captionRect.intersects(r)) {
-					textstyleSet(&st::mediaviewTextStyle);
+					p.setTextPalette(st::mediaviewTextPalette);
 					p.setPen(st::mediaviewCaptionFg);
-					_caption.drawElided(p, _captionRect.x(), _captionRect.y(), _captionRect.width(), _captionRect.height() / st::mvCaptionFont->height);
-					textstyleRestore();
+					_caption.drawElided(p, _captionRect.x(), _captionRect.y(), _captionRect.width(), _captionRect.height() / st::mediaviewCaptionStyle.font->height);
+					p.restoreTextPalette();
 				}
 			}
 		}
@@ -1828,6 +1926,49 @@ void MediaView::paintDocRadialLoading(Painter &p, bool radial, float64 radialOpa
 	}
 }
 
+void MediaView::paintThemePreview(Painter &p, QRect clip) {
+	auto fill = _themePreviewRect.intersected(clip);
+	if (!fill.isEmpty()) {
+		if (_themePreview) {
+			p.drawPixmapLeft(_themePreviewRect.x(), _themePreviewRect.y(), width(), _themePreview->preview);
+		} else {
+			p.fillRect(fill, st::themePreviewBg);
+			p.setFont(st::themePreviewLoadingFont);
+			p.setPen(st::themePreviewLoadingFg);
+			p.drawText(_themePreviewRect, lang(_themePreviewId ? lng_theme_preview_generating : lng_theme_preview_invalid), QTextOption(style::al_center));
+		}
+	}
+
+	auto fillOverlay = [this, &p, clip](QRect fill) {
+		auto clipped = fill.intersected(clip);
+		if (!clipped.isEmpty()) {
+			p.setOpacity(st::themePreviewOverlayOpacity);
+			p.fillRect(clipped, st::themePreviewBg);
+			p.setOpacity(1.);
+		}
+	};
+	auto titleRect = QRect(_themePreviewRect.x(), _themePreviewRect.y(), _themePreviewRect.width(), st::themePreviewMargin.top());
+	if (titleRect.x() < 0) {
+		titleRect = QRect(0, _themePreviewRect.y(), width(), st::themePreviewMargin.top());
+	}
+	if (auto fillTitleRect = (titleRect.y() < 0)) {
+		titleRect.moveTop(0);
+		fillOverlay(titleRect);
+	}
+	titleRect = titleRect.marginsRemoved(QMargins(st::themePreviewMargin.left(), st::themePreviewTitleTop, st::themePreviewMargin.right(), titleRect.height() - st::themePreviewTitleTop - st::themePreviewTitleFont->height));
+	if (titleRect.intersects(clip)) {
+		p.setFont(st::themePreviewTitleFont);
+		p.setPen(st::themePreviewTitleFg);
+		p.drawTextLeft(titleRect.x(), titleRect.y(), width(), lang(lng_theme_preview_title));
+	}
+
+	auto buttonsRect = QRect(_themePreviewRect.x(), _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom(), _themePreviewRect.width(), st::themePreviewMargin.bottom());
+	if (auto fillButtonsRect = (buttonsRect.y() + buttonsRect.height() > height())) {
+		buttonsRect.moveTop(height() - buttonsRect.height());
+		fillOverlay(buttonsRect);
+	}
+}
+
 void MediaView::keyPressEvent(QKeyEvent *e) {
 	if (_clipController) {
 		auto toggle1 = (e->key() == Qt::Key_F && e->modifiers().testFlag(Qt::ControlModifier));
@@ -1856,7 +1997,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Copy || (e->key() == Qt::Key_C && e->modifiers().testFlag(Qt::ControlModifier))) {
 		onCopy();
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
-		if (_doc && !_doc->loading() && (!fileShown() || !_doc->loaded())) {
+		if (_doc && !_doc->loading() && (fileBubbleShown() || !_doc->loaded())) {
 			onDocClick();
 		} else if (_doc && _doc->isVideo()) {
 			onVideoPauseResume();
@@ -1957,8 +2098,8 @@ bool MediaView::moveToNext(int32 delta) {
 				_channel = _history ? _history->channelId() : NoChannel;
 				_canForward = _msgid > 0;
 				_canDelete = lastChatPhoto.item->canDelete();
-				stopGif();
-				displayPhoto(lastChatPhoto.photo, lastChatPhoto.item); preloadData(delta);
+				displayPhoto(lastChatPhoto.photo, lastChatPhoto.item);
+				preloadData(delta);
 				return true;
 			} else if (_history && (_history->overviewCount(OverviewChatPhotos) != 0 || (
 				_migrated && _migrated->overviewCount(OverviewChatPhotos) != 0))) {
@@ -1994,7 +2135,7 @@ bool MediaView::moveToNext(int32 delta) {
 				_canForward = _msgid > 0;
 				_canDelete = item->canDelete();
 				stopGif();
-				if (HistoryMedia *media = item->getMedia()) {
+				if (auto media = item->getMedia()) {
 					switch (media->type()) {
 					case MediaTypePhoto: displayPhoto(static_cast<HistoryPhoto*>(item->getMedia())->photo(), item); preloadData(delta); break;
 					case MediaTypeFile:
@@ -2013,7 +2154,6 @@ bool MediaView::moveToNext(int32 delta) {
 			_msgmigrated = false;
 			_canForward = false;
 			_canDelete = false;
-			stopGif();
 			displayPhoto(_additionalChatPhoto, 0);
 		}
 		if (delta < 0 && _index < MediaOverviewStartPerPage) {
@@ -2189,8 +2329,8 @@ void MediaView::snapXY() {
 
 void MediaView::mouseMoveEvent(QMouseEvent *e) {
 	updateOver(e->pos());
-	if (_lastAction.x() >= 0 && (e->pos() - _lastAction).manhattanLength() >= st::mvDeltaFromLastAction) {
-		_lastAction = QPoint(-st::mvDeltaFromLastAction, -st::mvDeltaFromLastAction);
+	if (_lastAction.x() >= 0 && (e->pos() - _lastAction).manhattanLength() >= st::mediaviewDeltaFromLastAction) {
+		_lastAction = QPoint(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction);
 	}
 	if (_pressed) {
 		if (!_dragging && (e->pos() - _mStart).manhattanLength() >= QApplication::startDragDistance()) {
@@ -2267,7 +2407,7 @@ void MediaView::updateOver(QPoint pos) {
 	ClickHandlerHost *lnkhost = nullptr;
 
 	if (_saveMsgStarted && _saveMsg.contains(pos)) {
-		auto textState = _saveMsgText.getState(pos.x() - _saveMsg.x() - st::medviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::medviewSaveMsgPadding.top(), _saveMsg.width() - st::medviewSaveMsgPadding.left() - st::medviewSaveMsgPadding.right());
+		auto textState = _saveMsgText.getState(pos.x() - _saveMsg.x() - st::mediaviewSaveMsgPadding.left(), pos.y() - _saveMsg.y() - st::mediaviewSaveMsgPadding.top(), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
 		lnk = textState.link;
 		lnkhost = this;
 	} else if (_captionRect.contains(pos)) {
@@ -2302,7 +2442,7 @@ void MediaView::updateOver(QPoint pos) {
 		updateOverState(OverHeader);
 	} else if (_saveVisible && _saveNav.contains(pos)) {
 		updateOverState(OverSave);
-	} else if (_doc && !fileShown() && _docIconRect.contains(pos)) {
+	} else if (_doc && fileBubbleShown() && _docIconRect.contains(pos)) {
 		updateOverState(OverIcon);
 	} else if (_moreNav.contains(pos)) {
 		updateOverState(OverMore);
@@ -2358,8 +2498,14 @@ void MediaView::mouseReleaseEvent(QMouseEvent *e) {
 			}
 			_dragging = 0;
 			setCursor(style::cur_default);
-		} else if ((e->pos() - _lastAction).manhattanLength() >= st::mvDeltaFromLastAction && (!_doc || fileShown() || !_docRect.contains(e->pos()))) {
-			close();
+		} else if ((e->pos() - _lastAction).manhattanLength() >= st::mediaviewDeltaFromLastAction) {
+			if (_themePreviewShown) {
+				if (!_themePreviewRect.contains(e->pos())) {
+					close();
+				}
+			} else if (!_doc || fileShown() || !_docRect.contains(e->pos())) {
+				close();
+			}
 		}
 		_pressed = false;
 	}
@@ -2422,7 +2568,7 @@ void MediaView::touchEvent(QTouchEvent *e) {
 		} else if (_touchMove) {
 			if ((!_leftNavVisible || !_leftNav.contains(mapFromGlobal(_touchStart))) && (!_rightNavVisible || !_rightNav.contains(mapFromGlobal(_touchStart)))) {
 				QPoint d = (e->touchPoints().cbegin()->screenPos().toPoint() - _touchStart);
-				if (d.x() * d.x() > d.y() * d.y() && (d.x() > st::mvSwipeDistance || d.x() < -st::mvSwipeDistance)) {
+				if (d.x() * d.x() > d.y() * d.y() && (d.x() > st::mediaviewSwipeDistance || d.x() < -st::mediaviewSwipeDistance)) {
 					moveToNext(d.x() > 0 ? -1 : 1);
 				}
 			}
@@ -2500,6 +2646,7 @@ void MediaView::setVisible(bool visible) {
 		Sandbox::removeEventFilter(this);
 
 		stopGif();
+		destroyThemePreview();
 		_radial.stop();
 		Notify::clipStopperHidden(ClipStopperMediaview);
 	}
@@ -2746,12 +2893,12 @@ void MediaView::updateHeader() {
 		}
 	}
 	_headerHasLink = _history && typeHasMediaOverview(_overview);
-	int32 hwidth = st::mvThickFont->width(_headerText);
+	int32 hwidth = st::mediaviewThickFont->width(_headerText);
 	if (hwidth > width() / 3) {
 		hwidth = width() / 3;
-		_headerText = st::mvThickFont->elided(_headerText, hwidth, Qt::ElideMiddle);
+		_headerText = st::mediaviewThickFont->elided(_headerText, hwidth, Qt::ElideMiddle);
 	}
-	_headerNav = myrtlrect(st::mvTextLeft, height() - st::mvHeaderTop, hwidth, st::mvThickFont->height);
+	_headerNav = myrtlrect(st::mediaviewTextLeft, height() - st::mediaviewHeaderTop, hwidth, st::mediaviewThickFont->height);
 }
 
 float64 MediaView::overLevel(OverState control) const {

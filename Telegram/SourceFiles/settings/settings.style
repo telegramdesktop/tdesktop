@@ -19,7 +19,6 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
-using "basic_types.style";
 using "dialogs/dialogs.style";
 using "ui/widgets/widgets.style";
 using "boxes/boxes.style";
@@ -50,12 +49,14 @@ settingsNameLeft: 26px;
 settingsNameTop: 9px;
 settingsNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
-	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
-}
-settingsNameTextStyle: TextStyle(defaultTextStyle) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
 }
 settingsStatusLeft: 27px;
 settingsStatusTop: 35px;
@@ -87,7 +88,11 @@ settingsBlockTitleFont: font(15px semibold);
 settingsBlockTitleFg: windowBoldFg;
 settingsBlockTitleTop: 0px;
 settingsPrimaryLabel: FlatLabel(defaultFlatLabel) {
-	font: boxTextFont;
+	style: TextStyle(defaultTextStyle) {
+		font: boxTextFont;
+		linkFont: boxTextFont;
+		linkFontOver: font(boxFontSize underline);
+	}
 }
 settingsBlockLabel: FlatLabel(settingsPrimaryLabel) {
 	textFg: windowSubTextFg;

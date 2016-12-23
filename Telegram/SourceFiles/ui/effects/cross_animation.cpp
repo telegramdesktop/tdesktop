@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 
-void CrossAnimation::paint(Painter &p, const style::CrossAnimation &st, const style::color &color, int x, int y, int outerWidth, float64 shown) {
+void CrossAnimation::paint(Painter &p, const style::CrossAnimation &st, style::color color, int x, int y, int outerWidth, float64 shown) {
 	PainterHighQualityEnabler hq(p);
 
 	auto deleteScale = shown + st.minScale * (1. - shown);

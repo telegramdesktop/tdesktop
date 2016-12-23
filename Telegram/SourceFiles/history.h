@@ -339,7 +339,7 @@ public:
 	void unregSendAction(UserData *from);
 	bool updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action);
 	bool mySendActionUpdated(SendAction::Type type, bool doing);
-	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, const style::color &color, TimeMs ms);
+	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, TimeMs ms);
 
 	void clearLastKeyboard();
 

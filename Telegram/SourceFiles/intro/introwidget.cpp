@@ -647,8 +647,7 @@ void Widget::Step::showError(const QString &text) {
 		if (_error) _error->hideAnimated();
 	} else {
 		if (!_error) {
-			auto &st = _errorCentered ? st::introErrorCentered : st::introError;
-			_error.create(this, object_ptr<Ui::FlatLabel>(this, st, st::introErrorTextStyle), st::introErrorDuration);
+			_error.create(this, object_ptr<Ui::FlatLabel>(this, _errorCentered ? st::introErrorCentered : st::introError), st::introErrorDuration);
 			_error->hideFast();
 		}
 		_error->entity()->setText(text);
@@ -660,12 +659,13 @@ void Widget::Step::showError(const QString &text) {
 Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 , _data(data)
 , _hasCover(hasCover)
-, _title(this, _hasCover ? st::introCoverTitle : st::introTitle, st::defaultTextStyle)
-, _description(this, object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription, _hasCover ? st::introCoverDescriptionTextStyle : st::introDescriptionTextStyle), st::introErrorDuration) {
+, _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
+, _description(this, object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription), st::introErrorDuration) {
 	hide();
 }
 
 void Widget::Step::prepareShowAnimated(Step *after) {
+	setInnerFocus();
 	if (hasCover() || after->hasCover()) {
 		_coverAnimation = prepareCoverAnimation(after);
 		prepareCoverMask();

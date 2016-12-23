@@ -37,7 +37,7 @@ constexpr int kWideScale = 3;
 
 class MultiSelect::Inner::Item {
 public:
-	Item(const style::MultiSelectItem &st, uint64 id, const QString &text, const style::color &color, PaintRoundImage &&paintRoundImage);
+	Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage);
 
 	uint64 id() const {
 		return _id;
@@ -104,7 +104,7 @@ private:
 	int _y = -1;
 	int _width = 0;
 	Text _text;
-	const style::color &_color;
+	style::color _color;
 	bool _over = false;
 	QPixmap _cache;
 	Animation _visibility;
@@ -117,7 +117,7 @@ private:
 
 };
 
-MultiSelect::Inner::Item::Item(const style::MultiSelectItem &st, uint64 id, const QString &text, const style::color &color, PaintRoundImage &&paintRoundImage)
+MultiSelect::Inner::Item::Item(const style::MultiSelectItem &st, uint64 id, const QString &text, style::color color, PaintRoundImage &&paintRoundImage)
 : _st(st)
 , _id(id)
 , _color(color)
@@ -126,7 +126,7 @@ MultiSelect::Inner::Item::Item(const style::MultiSelectItem &st, uint64 id, cons
 }
 
 void MultiSelect::Inner::Item::setText(const QString &text) {
-	_text.setText(_st.font, text, _textNameOptions);
+	_text.setText(_st.style, text, _textNameOptions);
 	_width = _st.height + _st.padding.left() + _text.maxWidth() + _st.padding.right();
 	accumulate_min(_width, _st.maxWidth);
 }
@@ -402,7 +402,7 @@ QString MultiSelect::getQuery() const {
 	return _inner->getQuery();
 }
 
-void MultiSelect::addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage &&paintRoundImage, AddItemWay way) {
+void MultiSelect::addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage &&paintRoundImage, AddItemWay way) {
 	_inner->addItem(std_::make_unique<Inner::Item>(_st.item, itemId, text, color, std_::move(paintRoundImage)), way);
 }
 

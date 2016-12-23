@@ -112,7 +112,7 @@ void HistoryMessageSigned::create(UserData *from, const QDateTime &date) {
 	if (timew + namew > st::maxSignatureSize) {
 		name = st::msgDateFont->elided(from->firstName, st::maxSignatureSize - timew);
 	}
-	_signature.setText(st::msgDateFont, name + time, _textNameOptions);
+	_signature.setText(st::msgDateTextStyle, name + time, _textNameOptions);
 }
 
 int HistoryMessageSigned::maxWidth() const {
@@ -123,7 +123,7 @@ void HistoryMessageEdited::create(const QDateTime &editDate, const QDateTime &da
 	_editDate = editDate;
 
 	QString time = date.toString(cTimeFormat());
-	_edited.setText(st::msgDateFont, lang(lng_edited) + ' ' + time, _textNameOptions);
+	_edited.setText(st::msgDateTextStyle, lang(lng_edited) + ' ' + time, _textNameOptions);
 }
 
 int HistoryMessageEdited::maxWidth() const {
@@ -151,9 +151,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		}
 	}
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	textstyleSet(&st::inFwdTextStyle);
-	_text.setText(st::msgServiceNameFont, text, opts);
-	textstyleRestore();
+	_text.setText(st::fwdTextStyle, text, opts);
 	_text.setLink(1, (_originalId && _authorOriginal->isChannel()) ? goToMessageClickHandler(_authorOriginal, _originalId) : _authorOriginal->openLink());
 	if (via) {
 		_text.setLink(2, via->_lnk);
@@ -174,7 +172,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 	}
 
 	if (replyToMsg) {
-		replyToText.setText(st::msgFont, textClean(replyToMsg->inReplyText()), _textDlgOptions);
+		replyToText.setText(st::messageTextStyle, textClean(replyToMsg->inReplyText()), _textDlgOptions);
 
 		updateName();
 
@@ -214,7 +212,7 @@ bool HistoryMessageReply::isNameUpdated() const {
 void HistoryMessageReply::updateName() const {
 	if (replyToMsg) {
 		QString name = (_replyToVia && replyToMsg->author()->isUser()) ? replyToMsg->author()->asUser()->firstName : App::peerName(replyToMsg->author());
-		replyToName.setText(st::msgServiceNameFont, name, _textNameOptions);
+		replyToName.setText(st::fwdTextStyle, name, _textNameOptions);
 		replyToVersion = replyToMsg->author()->nameVersion;
 		bool hasPreview = replyToMsg->getMedia() ? replyToMsg->getMedia()->hasReplyPreview() : false;
 		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
@@ -248,12 +246,12 @@ void HistoryMessageReply::itemRemoved(HistoryMessage *holder, HistoryItem *remov
 void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, int y, int w, PaintFlags flags) const {
 	bool selected = (flags & PaintSelected), outbg = holder->hasOutLayout();
 
-	const style::color *bar = &st::msgImgReplyBarColor;
+	style::color bar = st::msgImgReplyBarColor;
 	if (flags & PaintInBubble) {
-		bar = &((flags & PaintSelected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor));
+		bar = (flags & PaintSelected) ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
 	}
 	QRect rbar(rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
-	p.fillRect(rbar, *bar);
+	p.fillRect(rbar, bar);
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
@@ -266,7 +264,7 @@ void HistoryMessageReply::paint(Painter &p, const HistoryItem *holder, int x, in
 					QRect to(rtlrect(x + st::msgReplyBarSkip, y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height(), w + 2 * x));
 					p.drawPixmap(to.x(), to.y(), replyPreview->pixSingle(replyPreview->width() / cIntRetinaFactor(), replyPreview->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
 					if (selected) {
-						App::roundRect(p, to, textstyleCurrent()->selectOverlay, SelectedOverlaySmallCorners);
+						App::roundRect(p, to, p.textPalette().selectOverlay, SelectedOverlaySmallCorners);
 					}
 				}
 			}
@@ -305,8 +303,8 @@ void HistoryMessage::KeyboardStyle::startPaint(Painter &p) const {
 	p.setPen(st::msgServiceFg);
 }
 
-style::font HistoryMessage::KeyboardStyle::textFont() const {
-	return st::msgServiceFont;
+const style::TextStyle &HistoryMessage::KeyboardStyle::textStyle() const {
+	return st::serviceTextStyle;
 }
 
 void HistoryMessage::KeyboardStyle::repaint(const HistoryItem *item) const {
@@ -1026,22 +1024,18 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 	if (mediaDisplayed && _media->consumeMessageText(textWithEntities)) {
 		setEmptyText();
 	} else {
-		textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
 		if (_media && _media->isDisplayed() && !_media->isAboveMessage()) {
-			_text.setMarkedText(st::msgFont, textWithEntities, itemTextOptions(this));
+			_text.setMarkedText(st::messageTextStyle, textWithEntities, itemTextOptions(this));
 		} else {
-			_text.setMarkedText(st::msgFont, { textWithEntities.text + skipBlock(), textWithEntities.entities }, itemTextOptions(this));
+			_text.setMarkedText(st::messageTextStyle, { textWithEntities.text + skipBlock(), textWithEntities.entities }, itemTextOptions(this));
 		}
-		textstyleRestore();
 		_textWidth = -1;
 		_textHeight = 0;
 	}
 }
 
 void HistoryMessage::setEmptyText() {
-	textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
-	_text.setMarkedText(st::msgFont, { QString(), EntitiesInText() }, itemTextOptions(this));
-	textstyleRestore();
+	_text.setMarkedText(st::messageTextStyle, { QString(), EntitiesInText() }, itemTextOptions(this));
 
 	_textWidth = -1;
 	_textHeight = 0;
@@ -1271,12 +1265,12 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
 			float64 o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, _history->width, height - skiph, textstyleCurrent()->selectOverlay->b);
+			p.fillRect(0, skiph, _history->width, height - skiph, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}
 
-	textstyleSet(&(outbg ? st::outTextStyle : st::inTextStyle));
+	p.setTextPalette(outbg ? st::outTextPalette : st::inTextPalette);
 
 	if (auto keyboard = inlineReplyKeyboard()) {
 		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
@@ -1344,7 +1338,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		p.translate(-left, -top);
 	}
 
-	textstyleRestore();
+	p.restoreTextPalette();
 
 	auto reply = Get<HistoryMessageReply>();
 	if (reply && reply->isNameUpdated()) {
@@ -1382,9 +1376,9 @@ void HistoryMessage::paintForwardedInfo(Painter &p, QRect &trect, bool selected)
 
 		auto fwd = Get<HistoryMessageForwarded>();
 		bool breakEverywhere = (fwd->_text.countHeight(trect.width()) > 2 * serviceFont->height);
-		textstyleSet(&(selected ? (hasOutLayout() ? st::outFwdTextStyleSelected : st::inFwdTextStyleSelected) : (hasOutLayout() ? st::outFwdTextStyle : st::inFwdTextStyle)));
+		p.setTextPalette(selected ? (hasOutLayout() ? st::outFwdTextPaletteSelected : st::inFwdTextPaletteSelected) : (hasOutLayout() ? st::outFwdTextPalette : st::inFwdTextPalette));
 		fwd->_text.drawElided(p, trect.x(), trect.y(), trect.width(), 2, style::al_left, 0, -1, 0, breakEverywhere);
-		textstyleSet(&(hasOutLayout() ? st::outTextStyle : st::inTextStyle));
+		p.setTextPalette(hasOutLayout() ? st::outTextPalette : st::inTextPalette);
 
 		trect.setY(trect.y() + (((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * serviceFont->height));
 	}
@@ -1478,10 +1472,8 @@ int HistoryMessage::performResizeGetHeight(int width) {
 			} else {
 				auto textWidth = qMax(width - st::msgPadding.left() - st::msgPadding.right(), 1);
 				if (textWidth != _textWidth) {
-					textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
 					_textWidth = textWidth;
 					_textHeight = _text.countHeight(textWidth);
-					textstyleRestore();
 				}
 				_height = _textHeight;
 			}
@@ -1676,9 +1668,7 @@ bool HistoryMessage::getStateForwardedInfo(int x, int y, QRect &trect, HistoryTe
 			if (breakEverywhere) {
 				textRequest.flags |= Text::StateRequest::Flag::BreakEverywhere;
 			}
-			textstyleSet(&st::inFwdTextStyle);
 			*outResult = fwd->_text.getState(x - trect.left(), y - trect.top(), trect.width(), textRequest);
-			textstyleRestore();
 			outResult->symbol = 0;
 			outResult->afterSymbol = false;
 			if (breakEverywhere) {
@@ -1722,9 +1712,7 @@ bool HistoryMessage::getStateViaBotIdInfo(int x, int y, QRect &trect, HistoryTex
 
 bool HistoryMessage::getStateText(int x, int y, QRect &trect, HistoryTextState *outResult, const HistoryStateRequest &request) const {
 	if (trect.contains(x, y)) {
-		textstyleSet(&((out() && !isPost()) ? st::outTextStyle : st::inTextStyle));
 		*outResult = _text.getState(x - trect.x(), y - trect.y(), trect.width(), request.forText());
-		textstyleRestore();
 		return true;
 	}
 	return false;
@@ -2105,9 +2093,7 @@ QString HistoryService::inReplyText() const {
 }
 
 void HistoryService::setServiceText(const QString &text, const Links &links) {
-	textstyleSet(&st::serviceTextStyle);
-	_text.setText(st::msgServiceFont, text, _historySrvOptions);
-	textstyleRestore();
+	_text.setText(st::serviceTextStyle, text, _historySrvOptions);
 	for (int i = 0, count = links.size(); i != count; ++i) {
 		_text.setLink(1 + i, links.at(i));
 	}
@@ -2169,9 +2155,7 @@ int32 HistoryService::resizeGetHeight_(int32 width) {
 		int32 nwidth = qMax(width - st::msgServicePadding.left() - st::msgServicePadding.right(), 0);
 		if (nwidth != _textWidth) {
 			_textWidth = nwidth;
-			textstyleSet(&st::serviceTextStyle);
 			_textHeight = _text.countHeight(nwidth);
-			textstyleRestore();
 		}
 		if (width >= _maxw) {
 			_height += _minh;
@@ -2231,11 +2215,9 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 	auto outer = QRect(left, st::msgServiceMargin.top(), width, height);
 	auto trect = outer.marginsAdded(-st::msgServicePadding);
 	if (trect.contains(x, y)) {
-		textstyleSet(&st::serviceTextStyle);
 		auto textRequest = request.forText();
 		textRequest.align = style::al_center;
 		result = _text.getState(x - trect.x(), y - trect.y(), trect.width(), textRequest);
-		textstyleRestore();
 		if (auto gamescore = Get<HistoryServiceGameScore>()) {
 			if (!result.link && result.cursor == HistoryInTextCursorState && outer.contains(x, y)) {
 				result.link = gamescore->lnk;

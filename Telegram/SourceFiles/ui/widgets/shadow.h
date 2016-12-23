@@ -23,7 +23,7 @@ namespace Ui {
 
 class PlainShadow : public TWidget {
 public:
-	PlainShadow(QWidget *parent, const style::color &color) : TWidget(parent), _color(color) {
+	PlainShadow(QWidget *parent, style::color color) : TWidget(parent), _color(color) {
 	}
 
 protected:
@@ -32,7 +32,7 @@ protected:
 	}
 
 private:
-	const style::color &_color;
+	style::color _color;
 
 };
 

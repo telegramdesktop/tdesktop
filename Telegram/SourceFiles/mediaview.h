@@ -32,7 +32,14 @@ class Controller;
 namespace Ui {
 class PopupMenu;
 class LinkButton;
+class RoundButton;
 } // namespace Ui
+
+namespace Window {
+namespace Theme {
+struct Preview;
+} // namespace Theme
+} // namespace Window
 
 struct AudioPlaybackState;
 
@@ -127,6 +134,20 @@ private slots:
 	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
+	enum OverState {
+		OverNone,
+		OverLeftNav,
+		OverRightNav,
+		OverClose,
+		OverHeader,
+		OverName,
+		OverDate,
+		OverSave,
+		OverMore,
+		OverIcon,
+		OverVideo,
+	};
+
 	void showSaveMsgFile();
 
 	void dropdownHidden();
@@ -154,6 +175,10 @@ private:
 
 	void initAnimation();
 	void createClipReader();
+
+	void initThemePreview();
+	void destroyThemePreview();
+	void updateThemePreviewGeometry();
 
 	// Radial animation interface.
 	float64 radialProgress() const;
@@ -187,6 +212,11 @@ private:
 	void zoomUpdate(int32 &newZoom);
 
 	void paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity);
+	void paintThemePreview(Painter &p, QRect clip);
+
+	void updateOverRect(OverState state);
+	bool updateOverState(OverState newState);
+	float64 overLevel(OverState control) const;
 
 	QBrush _transparentBrush;
 
@@ -236,10 +266,11 @@ private:
 
 	bool fileShown() const;
 	bool gifShown() const;
+	bool fileBubbleShown() const;
 	void stopGif();
 
 	const style::icon *_docIcon = nullptr;
-	const style::color *_docIconColor = nullptr;
+	style::color _docIconColor;
 	QString _docName, _docSize, _docExt;
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
@@ -278,19 +309,6 @@ private:
 
 	mtpRequestId _loadRequest = 0;
 
-	enum OverState {
-		OverNone,
-		OverLeftNav,
-		OverRightNav,
-		OverClose,
-		OverHeader,
-		OverName,
-		OverDate,
-		OverSave,
-		OverMore,
-		OverIcon,
-		OverVideo,
-	};
 	OverState _over = OverNone;
 	OverState _down = OverNone;
 	QPoint _lastAction, _lastMouseMovePos;
@@ -340,8 +358,11 @@ private:
 
 	int _verticalWheelDelta = 0;
 
-	void updateOverRect(OverState state);
-	bool updateOverState(OverState newState);
-	float64 overLevel(OverState control) const;
+	bool _themePreviewShown = false;
+	uint64 _themePreviewId = 0;
+	QRect _themePreviewRect;
+	std_::unique_ptr<Window::Theme::Preview> _themePreview;
+	object_ptr<Ui::RoundButton> _themeApply = { nullptr };
+	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
 
 };

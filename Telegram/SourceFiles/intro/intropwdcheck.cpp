@@ -39,7 +39,7 @@ PwdCheckWidget::PwdCheckWidget(QWidget *parent, Widget::Data *data) : Step(paren
 , _hasRecovery(getData()->hasRecovery)
 , _hint(getData()->pwdHint)
 , _pwdField(this, st::introPassword, lang(lng_signin_password))
-, _pwdHint(this, st::introPasswordHint, st::introPasswordHintTextStyle)
+, _pwdHint(this, st::introPasswordHint)
 , _codeField(this, st::introPassword, lang(lng_signin_code))
 , _toRecover(this, lang(lng_signin_recover))
 , _toPassword(this, lang(lng_signin_try_password))
@@ -77,9 +77,9 @@ void PwdCheckWidget::resizeEvent(QResizeEvent *e) {
 
 void PwdCheckWidget::setInnerFocus() {
 	if (_pwdField->isHidden()) {
-		_codeField->setFocus();
+		_codeField->setFocusFast();
 	} else {
-		_pwdField->setFocus();
+		_pwdField->setFocusFast();
 	}
 }
 

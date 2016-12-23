@@ -42,7 +42,7 @@ public:
 		step(getms());
 	}
 
-	void draw(Painter &p, const QRect &inner, int32 thickness, const style::color &color);
+	void draw(Painter &p, const QRect &inner, int32 thickness, style::color color);
 
 private:
 	TimeMs _firstStart = 0;

@@ -32,6 +32,8 @@ static constexpr const int DefaultDuration = 1500;
 struct Config {
 	QString text;
 	int durationMs = DefaultDuration;
+	int maxWidth = 0;
+	QMargins padding;
 };
 void Show(QWidget *parent, const Config &config);
 

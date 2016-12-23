@@ -30,18 +30,8 @@ boxButtonFont: font(boxFontSize semibold);
 defaultBoxButton: RoundButton(defaultLightButton) {
 	width: -24px;
 	height: 36px;
-	padding: margins(0px, 0px, 0px, 0px);
-
-	textTop: 8px;
-
 	font: boxButtonFont;
-
-	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: lightButtonBgRipple;
-	}
 }
-
-cancelBoxButton: defaultBoxButton;
 
 attentionBoxButton: RoundButton(defaultBoxButton) {
 	textFg: attentionButtonFg;
@@ -118,8 +108,12 @@ boxMediumSkip: 20px;
 boxButtonPadding: margins(8px, 12px, 13px, 12px);
 boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
-	font: font(boxFontSize);
 	align: align(topleft);
+	style: TextStyle(defaultTextStyle) {
+		font: font(boxFontSize);
+		linkFont: font(boxFontSize);
+		linkFontOver: font(boxFontSize underline);
+	}
 }
 
 countryRowHeight: 36px;
@@ -153,14 +147,17 @@ cropSkip: 13px;
 cropMinSize: 20px;
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
-	font: font(16px semibold);
 	align: align(center);
 	width: 320px;
 	maxHeight: 24px;
 	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
 }
-confirmInviteStatus: FlatLabel(defaultFlatLabel) {
-	font: font(boxFontSize);
+confirmInviteStatus: FlatLabel(boxLabel) {
 	align: align(center);
 	width: 320px;
 	maxHeight: 20px;
@@ -174,7 +171,6 @@ confirmInviteUserHeight: 84px;
 confirmInviteUserPhotoSize: 56px;
 confirmInviteUserPhotoTop: 166px;
 confirmInviteUserName: FlatLabel(defaultFlatLabel) {
-	font: normalFont;
 	align: align(center);
 	width: 66px;
 	maxHeight: 20px;
@@ -187,16 +183,12 @@ confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
 
-revokePublicLinkStatusStyle: TextStyle(defaultTextStyle) {
+revokePublicLinkStatusPalette: TextPalette(defaultTextPalette) {
 	linkFg: contactsStatusFgOnline;
-	linkFgDown: contactsStatusFgOnline;
-	linkFlagsOver: font(fsize);
 }
 aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
-	font: normalFont;
 	align: align(topleft);
 	width: 320px;
-	textFg: windowFg;
 }
 
 contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
@@ -228,7 +220,11 @@ contactPhoneSkip: 30px;
 contactsPhotoSize: 42px;
 contactsPadding: margins(16px, 7px, 16px, 7px);
 contactsNameTop: 2px;
-contactsNameFont: semiboldFont;
+contactsNameStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+	linkFont: semiboldFont;
+	linkFontOver: semiboldFont;
+}
 contactsStatusTop: 23px;
 contactsStatusFont: font(fsize);
 contactsCheckPosition: point(8px, 16px);
@@ -255,7 +251,7 @@ contactsMultiSelect: MultiSelect {
 		padding: margins(6px, 7px, 12px, 0px);
 		maxWidth: 128px;
 		height: 32px;
-		font: normalFont;
+		style: defaultTextStyle;
 		textBg: contactsBgOver;
 		textFg: windowFg;
 		textActiveBg: activeButtonBg;
@@ -345,7 +341,11 @@ sharePhotoCheckbox: RoundImageCheckbox(contactsPhotoCheckbox) {
 	imageRadius: 28px;
 	imageSmallRadius: 24px;
 }
-shareNameFont: font(11px);
+shareNameStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+	linkFont: font(11px);
+	linkFontOver: font(11px);
+}
 shareNameFg: windowFg;
 shareNameActiveFg: windowActiveTextFg;
 shareNameTop: 6px;
@@ -460,12 +460,11 @@ aboutVersionLink: LinkButton(defaultLinkButton) {
 aboutTextTop: 34px;
 aboutSkip: 14px;
 aboutLabel: FlatLabel(defaultFlatLabel) {
-	font: normalFont;
 	width: 330px;
 	align: align(topleft);
-}
-aboutTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 22px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 22px;
+	}
 }
 
 autoDownloadTopDelta: 10px;
@@ -513,10 +512,16 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 	deltab: 10px;
 }
 
+passcodeTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 20px;
+}
+
 usernamePadding: margins(23px, 6px, 21px, 12px);
 usernameSkip: 49px;
-usernameTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 20px;
+usernameTextStyle: TextStyle(passcodeTextStyle) {
+	font: boxTextFont;
+	linkFont: boxTextFont;
+	linkFontOver: font(boxFontSize underline);
 }
 usernameDefaultFg: windowSubTextFg;
 

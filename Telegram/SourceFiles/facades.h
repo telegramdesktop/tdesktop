@@ -225,6 +225,8 @@ namespace Sandbox {
 bool CheckBetaVersionDir();
 void WorkingDirReady();
 
+void MainThreadTaskAdded();
+
 void start();
 bool started();
 void finish();

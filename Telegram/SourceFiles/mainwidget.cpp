@@ -299,8 +299,8 @@ void MainWidget::updateForwardingTexts() {
 			text = lng_forward_messages(lt_count, _toForward.size());
 		}
 	}
-	_toForwardFrom.setText(st::msgServiceNameFont, from, _textNameOptions);
-	_toForwardText.setText(st::msgFont, textClean(text), _textDlgOptions);
+	_toForwardFrom.setText(st::msgNameStyle, from, _textNameOptions);
+	_toForwardText.setText(st::messageTextStyle, textClean(text), _textDlgOptions);
 	_toForwardNameVersion = version;
 }
 
@@ -1087,7 +1087,7 @@ void MainWidget::onCacheBackground() {
 		_cachedBackground = App::pixmapFromImageInPlace(std_::move(result));
 	} else {
 		QRect to, from;
-		backgroundParams(_willCacheFor, to, from);
+		Window::Theme::ComputeBackgroundRects(_willCacheFor, bg.size(), to, from);
 		_cachedX = to.x();
 		_cachedY = to.y();
 		_cachedBackground = App::pixmapFromImageInPlace(bg.toImage().copy(from).scaled(to.width() * cIntRetinaFactor(), to.height() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
@@ -1852,31 +1852,6 @@ QPixmap MainWidget::cachedBackground(const QRect &forRect, int &x, int &y) {
 		_cacheBackgroundTimer.start(CacheBackgroundTimeout);
 	}
 	return QPixmap();
-}
-
-void MainWidget::backgroundParams(const QRect &forRect, QRect &to, QRect &from) const {
-	auto bg = Window::Theme::Background()->image().size();
-	if (uint64(bg.width()) * forRect.height() > uint64(bg.height()) * forRect.width()) {
-		float64 pxsize = forRect.height() / float64(bg.height());
-		int takewidth = qCeil(forRect.width() / pxsize);
-		if (takewidth > bg.width()) {
-			takewidth = bg.width();
-		} else if ((bg.width() % 2) != (takewidth % 2)) {
-			++takewidth;
-		}
-		to = QRect(int((forRect.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), forRect.height());
-		from = QRect((bg.width() - takewidth) / 2, 0, takewidth, bg.height());
-	} else {
-		float64 pxsize = forRect.width() / float64(bg.width());
-		int takeheight = qCeil(forRect.height() / pxsize);
-		if (takeheight > bg.height()) {
-			takeheight = bg.height();
-		} else if ((bg.height() % 2) != (takeheight % 2)) {
-			++takeheight;
-		}
-		to = QRect(0, int((forRect.height() - takeheight * pxsize) / 2.), forRect.width(), qCeil(takeheight * pxsize));
-		from = QRect(0, (bg.height() - takeheight) / 2, bg.width(), takeheight);
-	}
 }
 
 void MainWidget::updateScrollColors() {

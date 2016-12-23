@@ -337,15 +337,15 @@ FORCE_INLINE QColor color(QColor a, QColor b, float64 b_ratio) {
 
 #endif // SHIFTED_USE_32BIT
 
-FORCE_INLINE QColor color(const style::color &a, QColor b, float64 b_ratio) {
+FORCE_INLINE QColor color(style::color a, QColor b, float64 b_ratio) {
 	return color(a->c, b, b_ratio);
 }
 
-FORCE_INLINE QColor color(QColor a, const style::color &b, float64 b_ratio) {
+FORCE_INLINE QColor color(QColor a, style::color b, float64 b_ratio) {
 	return color(a, b->c, b_ratio);
 }
 
-FORCE_INLINE QColor color(const style::color &a, const style::color &b, float64 b_ratio) {
+FORCE_INLINE QColor color(style::color a, style::color b, float64 b_ratio) {
 	return color(a->c, b->c, b_ratio);
 }
 
@@ -353,15 +353,15 @@ FORCE_INLINE QPen pen(QColor a, QColor b, float64 b_ratio) {
 	return color(a, b, b_ratio);
 }
 
-FORCE_INLINE QPen pen(const style::color &a, QColor b, float64 b_ratio) {
+FORCE_INLINE QPen pen(style::color a, QColor b, float64 b_ratio) {
 	return (b_ratio > 0) ? pen(a->c, b, b_ratio) : a;
 }
 
-FORCE_INLINE QPen pen(QColor a, const style::color &b, float64 b_ratio) {
+FORCE_INLINE QPen pen(QColor a, style::color b, float64 b_ratio) {
 	return (b_ratio < 1) ? pen(a, b->c, b_ratio) : b;
 }
 
-FORCE_INLINE QPen pen(const style::color &a, const style::color &b, float64 b_ratio) {
+FORCE_INLINE QPen pen(style::color a, style::color b, float64 b_ratio) {
 	return (b_ratio > 0) ? ((b_ratio < 1) ? pen(a->c, b->c, b_ratio) : b) : a;
 }
 
@@ -369,15 +369,15 @@ FORCE_INLINE QBrush brush(QColor a, QColor b, float64 b_ratio) {
 	return color(a, b, b_ratio);
 }
 
-FORCE_INLINE QBrush brush(const style::color &a, QColor b, float64 b_ratio) {
+FORCE_INLINE QBrush brush(style::color a, QColor b, float64 b_ratio) {
 	return (b_ratio > 0) ? brush(a->c, b, b_ratio) : a;
 }
 
-FORCE_INLINE QBrush brush(QColor a, const style::color &b, float64 b_ratio) {
+FORCE_INLINE QBrush brush(QColor a, style::color b, float64 b_ratio) {
 	return (b_ratio < 1) ? brush(a, b->c, b_ratio) : b;
 }
 
-FORCE_INLINE QBrush brush(const style::color &a, const style::color &b, float64 b_ratio) {
+FORCE_INLINE QBrush brush(style::color a, style::color b, float64 b_ratio) {
 	return (b_ratio > 0) ? ((b_ratio < 1) ? brush(a->c, b->c, b_ratio) : b) : a;
 }
 

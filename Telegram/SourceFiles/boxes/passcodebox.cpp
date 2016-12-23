@@ -53,19 +53,15 @@ PasscodeBox::PasscodeBox(QWidget*, const QByteArray &newSalt, const QByteArray &
 , _passwordHint(this, st::defaultInputField, lang(curSalt.isEmpty() ? lng_cloud_password_hint : lng_cloud_password_change_hint))
 , _recoverEmail(this, st::defaultInputField, lang(lng_cloud_password_email))
 , _recover(this, lang(lng_signin_recover)) {
-	textstyleSet(&st::usernameTextStyle);
-	if (!hint.isEmpty()) _hintText.setText(st::normalFont, lng_signin_hint(lt_password_hint, hint));
-	textstyleRestore();
+	if (!hint.isEmpty()) _hintText.setText(st::passcodeTextStyle, lng_signin_hint(lt_password_hint, hint));
 }
 
 void PasscodeBox::prepare() {
 	addButton(lang(_turningOff ? lng_passcode_remove_button : lng_settings_save), [this] { onSave(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	textstyleSet(&st::usernameTextStyle);
-	_about.setRichText(st::normalFont, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
+	_about.setRichText(st::passcodeTextStyle, lang(_cloudPwd ? lng_cloud_password_about : lng_passcode_about));
 	_aboutHeight = _about.countHeight(st::boxWidth - st::boxPadding.left() * 1.5);
-	textstyleRestore();
 	if (_turningOff) {
 		_oldPasscode->show();
 		setTitle(lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
@@ -146,8 +142,6 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	textstyleSet(&st::usernameTextStyle);
-
 	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
 	int32 abouty = (_passwordHint->isHidden() ? (_reenterPasscode->isHidden() ? (_oldPasscode->y() + (_hasRecovery && !_hintText.isEmpty() ? st::passcodeTextLine : 0)) : _reenterPasscode->y()) + st::passcodeSkip : _passwordHint->y() + st::passcodeLittleSkip) + _oldPasscode->height() + st::passcodePadding.bottom();
 	p.setPen(st::boxTextFg);
@@ -171,8 +165,6 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::boxTextFgError);
 		p.drawText(QRect(st::boxPadding.left(), _recoverEmail->y() + _recoverEmail->height(), w, st::passcodeTextLine), _emailError, style::al_left);
 	}
-
-	textstyleRestore();
 }
 
 void PasscodeBox::resizeEvent(QResizeEvent *e) {

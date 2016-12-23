@@ -60,18 +60,18 @@ ImagePtr generateUserpicImage(const style::icon &icon) {
 
 } // namespace
 
-const style::color &peerColor(int index) {
-	static const style::color *peerColors[kUserColorsCount] = {
-		&st::historyPeer1NameFg,
-		&st::historyPeer2NameFg,
-		&st::historyPeer3NameFg,
-		&st::historyPeer4NameFg,
-		&st::historyPeer5NameFg,
-		&st::historyPeer6NameFg,
-		&st::historyPeer7NameFg,
-		&st::historyPeer8NameFg,
+style::color peerColor(int index) {
+	static style::color peerColors[kUserColorsCount] = {
+		st::historyPeer1NameFg,
+		st::historyPeer2NameFg,
+		st::historyPeer3NameFg,
+		st::historyPeer4NameFg,
+		st::historyPeer5NameFg,
+		st::historyPeer6NameFg,
+		st::historyPeer7NameFg,
+		st::historyPeer8NameFg,
 	};
-	return *peerColors[index];
+	return peerColors[index];
 }
 
 ImagePtr userDefPhoto(int index) {
@@ -117,7 +117,7 @@ PeerData::PeerData(const PeerId &id) : id(id)
 , colorIndex(peerColorIndex(id))
 , color(peerColor(colorIndex))
 , _userpic(isUser() ? userDefPhoto(colorIndex) : ((isChat() || isMegagroup()) ? chatDefPhoto(colorIndex) : channelDefPhoto(colorIndex))) {
-	nameText.setText(st::msgNameFont, QString(), _textNameOptions);
+	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
 }
 
 void PeerData::updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
@@ -137,7 +137,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 
 	++nameVersion;
 	name = newName;
-	nameText.setText(st::msgNameFont, name, _textNameOptions);
+	nameText.setText(st::msgNameStyle, name, _textNameOptions);
 
 	Notify::PeerUpdate update(this);
 	update.flags |= UpdateFlag::NameChanged;
@@ -207,7 +207,7 @@ QPixmap PeerData::genUserpic(int size) const {
 
 const Text &BotCommand::descriptionText() const {
 	if (_descriptionText.isEmpty() && !_description.isEmpty()) {
-		_descriptionText.setText(st::mentionFont, _description, _textNameOptions);
+		_descriptionText.setText(st::defaultTextStyle, _description, _textNameOptions);
 	}
 	return _descriptionText;
 }
@@ -387,7 +387,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 void UserData::setNameOrPhone(const QString &newNameOrPhone) {
 	if (nameOrPhone != newNameOrPhone) {
 		nameOrPhone = newNameOrPhone;
-		phoneText.setText(st::msgNameFont, nameOrPhone, _textNameOptions);
+		phoneText.setText(st::msgNameStyle, nameOrPhone, _textNameOptions);
 	}
 }
 
@@ -986,11 +986,9 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 	bool playVideo = data->isVideo() && audioPlayer();
 	bool playAnimation = data->isAnimation();
 	auto &location = data->location(true);
-	if (auto applyTheme = data->name.endsWith(qstr(".tdesktop-theme"))) {
+	if (auto applyTheme = data->isTheme()) {
 		if (!location.isEmpty() && location.accessEnable()) {
-			if (!Window::Theme::Apply(location.name())) {
-				// show error?
-			}
+			App::wnd()->showDocument(data, context);
 			location.accessDisable();
 			return;
 		}
@@ -1295,11 +1293,9 @@ void DocumentData::performActionOnLoad() {
 	bool playVoice = voice() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playMusic = song() && audioPlayer() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
 	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
-	if (auto applyTheme = name.endsWith(qstr(".tdesktop-theme"))) {
+	if (auto applyTheme = isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
-			if (!Window::Theme::Apply(loc.name())) {
-				// show error?
-			}
+			App::wnd()->showDocument(this, item);
 			loc.accessDisable();
 			return;
 		}

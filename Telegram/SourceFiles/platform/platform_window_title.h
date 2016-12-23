@@ -22,6 +22,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/window_title.h"
 
+namespace Window {
+namespace Theme {
+
+int DefaultPreviewTitleHeight();
+void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+
+} // namespace Theme
+} // namespace Window
+
 #ifdef Q_OS_MAC
 #include "platform/mac/window_title_mac.h"
 #elif defined Q_OS_WIN // Q_OS_MAC
@@ -32,6 +41,14 @@ namespace Platform {
 
 inline object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent) {
 	return { nullptr };
+}
+
+inline int PreviewTitleHeight() {
+	return Window::Theme::DefaultPreviewTitleHeight();
+}
+
+inline void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth) {
+	return Window::Theme::DefaultPreviewWindowFramePaint(preview, palette, body, outerWidth);
 }
 
 } // namespace Platform

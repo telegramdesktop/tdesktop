@@ -211,7 +211,7 @@ private:
 		int buttonRadius() const override;
 
 		void startPaint(Painter &p) const override;
-		style::font textFont() const override;
+		const style::TextStyle &textStyle() const override;
 		void repaint(const HistoryItem *item) const override;
 
 	protected:

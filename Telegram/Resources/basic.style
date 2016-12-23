@@ -20,7 +20,19 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "colors.palette";
 
-using "basic_types.style";
+TextPalette {
+	linkFg: color;
+	monoFg: color;
+	selectBg: color;
+	selectOverlay: color;
+}
+
+TextStyle {
+	font: font;
+	linkFont: font;
+	linkFontOver: font;
+	lineHeight: pixels;
+}
 
 semibold: "Open Sans Semibold";
 
@@ -36,18 +48,22 @@ emojiPadding: 1px;
 
 lineWidth: 1px;
 
-defaultTooltip: Tooltip {
-	textBg: tooltipBg;
-	textFg: tooltipFg;
-	textFont: normalFont;
-	textBorder: tooltipBorderFg;
-	textPadding: margins(5px, 2px, 5px, 2px);
-
-	shift: point(-20px, 20px);
-	skip: 10px;
-
-	widthMax: 800px;
-	linesMax: 12;
+defaultTextPalette: TextPalette {
+	linkFg: windowActiveTextFg;
+	monoFg: windowSubTextFg;
+	selectBg: msgInBgSelected;
+	selectOverlay: msgSelectOverlay;
+}
+defaultTextStyle: TextStyle {
+	font: normalFont;
+	linkFont: normalFont;
+	linkFontOver: font(fsize underline);
+	lineHeight: 0px;
+}
+semiboldTextStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+	linkFont: semiboldFont;
+	linkFontOver: font(fsize semibold underline);
 }
 
 shadowToggleDuration: 200;
@@ -75,6 +91,7 @@ activeFadeOutDuration: 3000;
 msgMaxWidth: 430px;
 msgFont: font(fsize);
 msgNameFont: semiboldFont;
+msgNameStyle: semiboldTextStyle;
 msgServiceFont: semiboldFont;
 msgServiceNameFont: semiboldFont;
 msgServicePhotoWidth: 100px;
@@ -102,56 +119,43 @@ msgDateImgDelta: 4px;
 msgDateImgPadding: point(8px, 2px);
 msgDateImgCheckSpace: 4px;
 
-defaultTextStyle: TextStyle {
-	linkFlags: font(fsize);
-	linkFlagsOver: font(fsize underline);
-	linkFg: windowActiveTextFg;
-	linkFgDown: windowActiveTextFg;
-	monoFg: windowSubTextFg;
-	selectBg: msgInBgSelected;
-	selectOverlay: msgSelectOverlay;
-	lineHeight: 0px;
-}
-serviceTextStyle: TextStyle(defaultTextStyle) {
-	linkFlags: msgServiceFont;
-	linkFlagsOver: font(fsize semibold underline);
+messageTextStyle: defaultTextStyle;
+msgDateTextStyle: defaultTextStyle;
+serviceTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgServiceFg;
-	linkFgDown: msgServiceFg;
 	monoFg: msgServiceFg;
 	selectBg: msgServiceBgSelected;
 	selectOverlay: msgServiceBgSelected;
 }
-inTextStyle: TextStyle(defaultTextStyle) {
+serviceTextStyle: TextStyle(defaultTextStyle) {
+	font: msgServiceFont;
+	linkFont: msgServiceFont;
+	linkFontOver: font(fsize semibold underline);
+}
+inTextPalette: TextPalette(defaultTextPalette) {
 	monoFg: msgInMonoFg;
 	selectBg: msgInBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
-outTextStyle: TextStyle(defaultTextStyle) {
+outTextPalette: TextPalette(defaultTextPalette) {
 	monoFg: msgOutMonoFg;
 	selectBg: msgOutBgSelected;
 	selectOverlay: msgSelectOverlay;
 }
-inFwdTextStyle: TextStyle(defaultTextStyle) {
-	linkFlags: semiboldFont;
-	linkFlagsOver: semiboldFont;
+fwdTextStyle: TextStyle(semiboldTextStyle) {
+	linkFontOver: semiboldFont;
+}
+inFwdTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgInServiceFg;
-	linkFgDown: msgInServiceFg;
 }
-outFwdTextStyle: TextStyle(inFwdTextStyle) {
+outFwdTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFg;
-	linkFgDown: msgOutServiceFg;
 }
-inFwdTextStyleSelected: TextStyle(inFwdTextStyle) {
+inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgInServiceFgSelected;
-	linkFgDown: msgInServiceFgSelected;
 }
-outFwdTextStyleSelected: TextStyle(inFwdTextStyle) {
+outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFgSelected;
-	linkFgDown: msgOutServiceFgSelected;
-}
-mediaviewTextStyle: TextStyle(defaultTextStyle) {
-	linkFg: mediaviewTextLinkFg;
-	linkFgDown: mediaviewTextLinkFg;
 }
 
 mediaPadding: margins(0px, 0px, 0px, 0px);
@@ -164,36 +168,12 @@ mediaUnreadSize: 7px;
 mediaUnreadSkip: 5px;
 mediaUnreadTop: 6px;
 
-mediaInStyle: TextStyle(defaultTextStyle) {
+mediaInPalette: TextPalette(defaultTextPalette) {
 	linkFg: mediaInFg;
-	linkFgDown: mediaInFg;
 }
-mediaInStyleSelected: TextStyle(defaultTextStyle) {
+mediaInPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: mediaInFgSelected;
-	linkFgDown: mediaInFgSelected;
 }
-
-msgFileMenuSize: size(36px, 36px);
-msgFileSize: 44px;
-msgFilePadding: margins(14px, 12px, 11px, 12px);
-msgFileThumbSize: 72px;
-msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
-msgFileThumbNameTop: 12px;
-msgFileThumbStatusTop: 32px;
-msgFileThumbLinkTop: 60px;
-msgFileNameTop: 16px;
-msgFileStatusTop: 37px;
-msgFileMinWidth: 294px;
-
-msgFileOverDuration: 200;
-msgFileRadialLine: 3px;
-
-msgVideoSize: size(320px, 240px);
-
-msgWaveformBar: 2px;
-msgWaveformSkip: 1px;
-msgWaveformMin: 2px;
-msgWaveformMax: 20px;
 
 textRectMargins: margins(-2px, -1px, -2px, -1px);
 
@@ -229,44 +209,6 @@ maxStickerSize: 256px;
 maxGifSize: 320px;
 maxSignatureSize: 144px;
 
-mvThickFont: semiboldFont;
-mvFont: normalFont;
-
-mvTextLeft: 16px;
-mvTextSkip: 10px;
-mvHeaderTop: 48px;
-mvTextTop: 24px;
-mvTextOpacity: 0.5;
-mvTextOverOpacity: 1;
-
-mvIconOpacity: 0.45;
-mvIconOverOpacity: 1;
-mvControlBgOpacity: 0.3;
-mvControlMargin: 0px;
-mvControlSize: 90px;
-mvIconSize: size(60px, 56px);
-
-mvWaitHide: 2000;
-mvHideDuration: 1000;
-mvShowDuration: 200;
-mvFadeDuration: 150;
-
-mvDeltaFromLastAction: 5px;
-mvSwipeDistance: 80px;
-
-mvCaptionPadding: margins(18px, 10px, 18px, 10px);
-mvCaptionMargin: size(11px, 11px);
-mvCaptionRadius: 2px;
-mvCaptionFont: font(fsize);
-
-medviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
-medviewSaveMsgFont: font(16px);
-medviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
-medviewSaveMsgCheckPos: point(23px, 21px);
-medviewSaveMsgShowing: 200;
-medviewSaveMsgShown: 2000;
-medviewSaveMsgHiding: 2500;
-
 radialSize: size(50px, 50px);
 radialLine: 3px;
 radialDuration: 350;
@@ -285,11 +227,13 @@ locationSize: size(320px, 240px);
 webPageLeft: 10px;
 webPageBar: 2px;
 webPageTitleFont: semiboldFont;
+webPageTitleStyle: semiboldTextStyle;
 webPageTitleOutFg: historyTextOutFg;
 webPageTitleInFg: historyTextInFg;
 webPageDescriptionOutFg: historyTextOutFg;
 webPageDescriptionInFg: historyTextInFg;
 webPageDescriptionFont: normalFont;
+webPageDescriptionStyle: defaultTextStyle;
 webPagePhotoSize: 100px;
 webPagePhotoDelta: 8px;
 
@@ -315,7 +259,7 @@ inlineRowFileDescriptionTop: 23px;
 inlineResultsMinWidth: 64px;
 inlineDurationMargin: 3px;
 
-toastFont: normalFont;
+toastTextStyle: defaultTextStyle;
 toastMaxWidth: 480px;
 toastMinMargin: 13px;
 toastPadding: margins(19px, 13px, 19px, 12px);

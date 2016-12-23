@@ -34,8 +34,7 @@ MainWindow::MainWindow() : QWidget()
 , _titleText(qsl("Telegram")) {
 	using Update = Theme::BackgroundUpdate;
 	subscribe(Theme::Background(), [this](const Update &data) {
-		if (data.type == Update::Type::TestingTheme
-			|| data.type == Update::Type::RevertingTheme) {
+		if (data.paletteChanged()) {
 			if (_title) {
 				_title->update();
 			}

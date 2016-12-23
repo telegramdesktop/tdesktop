@@ -44,31 +44,40 @@ introPhotoIconPosition: point(23px, 25px);
 introPhotoTop: 10px;
 
 introCoverTitle: FlatLabel(defaultFlatLabel) {
-	font: font(22px semibold);
 	textFg: introTitleFg;
 	align: align(center);
+	style: TextStyle(defaultTextStyle) {
+		font: font(22px semibold);
+		linkFont: font(22px semibold);
+		linkFontOver: font(22px semibold underline);
+	}
 }
 introCoverTitleTop: 136px;
 introCoverDescription: FlatLabel(defaultFlatLabel) {
-	font: font(15px);
 	textFg: introDescriptionFg;
 	align: align(center);
-}
-introCoverDescriptionTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 24px;
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px);
+		linkFont: font(15px);
+		linkFontOver: font(15px underline);
+		lineHeight: 24px;
+	}
 }
 introCoverDescriptionTop: 174px;
 introTitle: FlatLabel(defaultFlatLabel) {
-	font: font(17px semibold);
 	textFg: introTitleFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+		linkFont: font(17px semibold);
+		linkFontOver: font(17px semibold underline);
+	}
 }
 introTitleTop: 1px;
 introDescription: FlatLabel(defaultFlatLabel) {
-	font: normalFont;
 	textFg: introDescriptionFg;
-}
-introDescriptionTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 20px;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 20px;
+	}
 }
 introDescriptionTop: 34px;
 
@@ -119,7 +128,6 @@ introPasswordHintTop: 151px;
 introPasswordHint: FlatLabel(introDescription) {
 	textFg: windowFg;
 }
-introPasswordHintTextStyle: introDescriptionTextStyle;
 
 introResetButton: RoundButton(defaultLightButton) {
 	textFg: attentionButtonFg;
@@ -141,11 +149,11 @@ introErrorTop: 235px;
 introErrorBelowLinkTop: 220px;
 introErrorDuration: 200;
 
-introError: introDescription;
+introError: FlatLabel(introDescription) {
+}
 introErrorCentered: FlatLabel(introError) {
 	align: align(center);
 }
-introErrorTextStyle: introDescriptionTextStyle;
 
 introBackButton: IconButton(defaultIconButton) {
 	width: 56px;

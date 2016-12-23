@@ -119,24 +119,22 @@ mainMenuHelp: icon {{ "menu_help", menuIconFg }};
 mainMenuHelpOver: icon {{ "menu_help", menuIconFgOver }};
 mainMenuFooterLeft: 30px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
-	font: semiboldFont;
 	align: align(left);
 	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: font(fsize semibold underline);
+	}
 }
-mainMenuTelegramStyle: TextStyle(defaultTextStyle) {
-	linkFlags: semiboldFont;
-	linkFlagsOver: font(fsize semibold underline);
+mainMenuTelegramPalette: TextPalette(defaultTextPalette) {
 	linkFg: windowSubTextFg;
-	linkFgDown: windowSubTextFg;
 }
 mainMenuTelegramBottom: 43px;
 mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
-	font: normalFont;
+	style: defaultTextStyle;
 }
-mainMenuVersionStyle: TextStyle(mainMenuTelegramStyle) {
-	linkFlags: normalFont;
-	linkFlagsOver: font(fsize underline);
-}
+mainMenuVersionPalette: mainMenuTelegramPalette;
 mainMenuVersionBottom: 21px;
 
 // Windows specific title
@@ -233,3 +231,7 @@ macSelectorTop: 6;
 macAlwaysThisAppTop: 4;
 macAppHintTop: 8;
 macCautionIconSize: 16;
+
+macWindowRoundRadius: 5;
+macWindowShadowTopLeft: icon {{ "mac_window_shadow_top_left", windowShadowFg }};
+macTrayIcon: icon {{ "mac_tray_icon", windowFg }};

@@ -42,6 +42,12 @@ protected:
 
 private:
 	float64 _shownLevel = 0;
+	bool _multiline = false;
+	int _maxWidth = 0;
+	QMargins _padding;
+
+	int _maxTextWidth = 0;
+	int _textWidth = 0;
 	Text _text;
 
 };

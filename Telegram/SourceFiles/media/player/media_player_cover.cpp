@@ -229,7 +229,7 @@ void CoverWidget::updatePlayPrevNextPositions() {
 }
 
 void CoverWidget::updateLabelPositions() {
-	_nameLabel->moveToLeft(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerName.font->ascent);
+	_nameLabel->moveToLeft(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerName.style.font->ascent);
 	_timeLabel->moveToRight(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerTime.font->ascent);
 }
 

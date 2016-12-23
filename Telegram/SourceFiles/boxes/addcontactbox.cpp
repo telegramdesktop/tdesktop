@@ -427,8 +427,8 @@ SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 , _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true, st::defaultBoxCheckbox)
 , _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), false, st::defaultBoxCheckbox)
 , _aboutPublicWidth(width() - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
-, _aboutPublic(st::normalFont, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
-, _aboutPrivate(st::normalFont, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
+, _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
 , _link(this, st::setupChannelLink, QString(), channel->username, true) {
 }
 
@@ -1219,9 +1219,9 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 	p.drawTextRight(st::contactsPadding.right() + st::contactsCheckPosition.x(), st::contactsPadding.top() + (st::contactsPhotoSize - st::normalFont->height) / 2, width(), lang(lng_channels_too_much_public_revoke), _revokeWidth);
 
 	p.setPen(st::contactsStatusFg);
-	textstyleSet(&st::revokePublicLinkStatusStyle);
+	p.setTextPalette(st::revokePublicLinkStatusPalette);
 	row.status.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsStatusTop, namew, width());
-	textstyleRestore();
+	p.restoreTextPalette();
 }
 
 void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
@@ -1232,10 +1232,8 @@ void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 
 				ChatRow row;
 				row.peer = peer;
-				row.name.setText(st::contactsNameFont, peer->name, _textNameOptions);
-				textstyleSet(&st::revokePublicLinkStatusStyle);
-				row.status.setText(st::normalFont, qsl("telegram.me/") + textcmdLink(1, peer->userName()), _textDlgOptions);
-				textstyleRestore();
+				row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
+				row.status.setText(st::defaultTextStyle, qsl("telegram.me/") + textcmdLink(1, peer->userName()), _textDlgOptions);
 				_rows.push_back(std_::move(row));
 			}
 		}

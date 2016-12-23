@@ -38,6 +38,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
 #include "history/history_location_manager.h"
+#include "core/task_queue.h"
 
 namespace {
 
@@ -362,6 +363,10 @@ void Application::closeApplication() {
 	}
 	_updateThread = 0;
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
+}
+
+void Application::onMainThreadTask() {
+	base::TaskQueue::ProcessMainTasks();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE

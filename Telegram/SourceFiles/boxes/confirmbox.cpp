@@ -102,18 +102,17 @@ ConfirmBox::ConfirmBox(const InformBoxTag &, const QString &text, const QString 
 }
 
 base::lambda<void()> ConfirmBox::generateInformCallback(const base::lambda_copy<void()> &closedCallback) {
-	return base::lambda_guarded(this, [this, closedCallback] {
+	auto callback = closedCallback;
+	return base::lambda_guarded(this, [this, callback] {
 		closeBox();
-		if (closedCallback) {
-			closedCallback();
+		if (callback) {
+			callback();
 		}
 	});
 }
 
 void ConfirmBox::init(const QString &text) {
-	textstyleSet(&st::boxTextStyle);
-	_text.setText(st::boxTextFont, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
-	textstyleRestore();
+	_text.setText(st::boxTextStyle, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 }
 
 void ConfirmBox::prepare() {
@@ -125,11 +124,9 @@ void ConfirmBox::prepare() {
 }
 
 void ConfirmBox::textUpdated() {
-	textstyleSet(&st::boxTextStyle);
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
-	textstyleRestore();
 
 	setMouseTracking(_text.hasLinks());
 }
@@ -192,9 +189,7 @@ void ConfirmBox::updateLink() {
 void ConfirmBox::updateHover() {
 	QPoint m(mapFromGlobal(_lastMousePos));
 
-	textstyleSet(&st::boxTextStyle);
 	auto state = _text.getStateLeft(m.x() - st::boxPadding.left(), m.y() - st::boxPadding.top(), _textWidth, width());
-	textstyleRestore();
 
 	ClickHandler::setActive(state.link, this);
 }
@@ -214,9 +209,7 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
-	textstyleSet(&st::boxTextStyle);
 	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
-	textstyleRestore();
 }
 
 InformBox::InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std_::move(closedCallback)) {
@@ -226,7 +219,7 @@ InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, bas
 }
 
 MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
-: _text(st::boxTextFont, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+: _text(st::boxTextStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _link(link) {
 }
 
@@ -309,13 +302,11 @@ void ConvertToSupergroupBox::prepare() {
 	addButton(lang(lng_profile_convert_confirm), [this] { convertToSupergroup(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	textstyleSet(&st::boxTextStyle);
-	_text.setText(st::boxTextFont, text.join('\n'), _confirmBoxTextOptions);
-	_note.setText(st::boxTextFont, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
+	_text.setText(st::boxTextStyle, text.join('\n'), _confirmBoxTextOptions);
+	_note.setText(st::boxTextStyle, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
 	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
 	setDimensions(st::boxWideWidth, _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth));
-	textstyleRestore();
 }
 
 void ConvertToSupergroupBox::convertToSupergroup() {
@@ -368,10 +359,8 @@ void ConvertToSupergroupBox::paintEvent(QPaintEvent *e) {
 
 	// draw box title / text
 	p.setPen(st::boxTextFg);
-	textstyleSet(&st::boxTextStyle);
 	_text.drawLeft(p, st::boxPadding.left(), 0, _textWidth, width());
 	_note.drawLeft(p, st::boxPadding.left(), _textHeight + st::boxPadding.bottom(), _textWidth, width());
-	textstyleRestore();
 }
 
 PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)

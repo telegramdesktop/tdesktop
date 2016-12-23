@@ -298,8 +298,7 @@ ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallbac
 
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
-		if (update.type == Update::Type::TestingTheme
-			|| update.type == Update::Type::RevertingTheme) {
+		if (update.paletteChanged()) {
 			invalidateCache();
 		}
 	});
@@ -362,7 +361,7 @@ void ShareBox::Inner::updateChat(PeerData *peer) {
 }
 
 void ShareBox::Inner::updateChatName(Chat *chat, PeerData *peer) {
-	chat->name.setText(st::shareNameFont, peer->name, _textNameOptions);
+	chat->name.setText(st::shareNameStyle, peer->name, _textNameOptions);
 }
 
 void ShareBox::Inner::repaintChatAtIndex(int index) {
@@ -600,7 +599,7 @@ void ShareBox::Inner::updateUpon(const QPoint &pos) {
 	auto left = _rowsLeft + qFloor(column * _rowWidthReal) + st::shareColumnSkip / 2;
 	auto top = _rowsTop + row * _rowHeight + st::sharePhotoTop;
 	auto xupon = (x >= left) && (x < left + (_rowWidth - st::shareColumnSkip));
-	auto yupon = (y >= top) && (y < top + st::sharePhotoCheckbox.imageRadius * 2 + st::shareNameTop + st::shareNameFont->height * 2);
+	auto yupon = (y >= top) && (y < top + st::sharePhotoCheckbox.imageRadius * 2 + st::shareNameTop + st::shareNameStyle.font->height * 2);
 	auto upon = (xupon && yupon) ? (row * _columnCount + column) : -1;
 	if (upon >= displayedChatsCount()) {
 		upon = -1;

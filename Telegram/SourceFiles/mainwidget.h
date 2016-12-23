@@ -316,7 +316,6 @@ public:
 	bool isIdle() const;
 
 	QPixmap cachedBackground(const QRect &forRect, int &x, int &y);
-	void backgroundParams(const QRect &forRect, QRect &to, QRect &from) const;
 	void updateScrollColors();
 
 	void setChatBackground(const App::WallPaper &wp);

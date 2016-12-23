@@ -90,7 +90,7 @@ void PhoneWidget::showSignup() {
 	showPhoneError(lang(lng_bad_phone_noreg));
 	if (!_signup) {
 		auto signupText = lng_phone_notreg(lt_link_start, textcmdStartLink(1), lt_link_end, textcmdStopLink(), lt_signup_start, textcmdStartLink(2), lt_signup_end, textcmdStopLink());
-		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription, st::introDescriptionTextStyle);
+		auto inner = object_ptr<Ui::FlatLabel>(this, signupText, Ui::FlatLabel::InitType::Rich, st::introDescription);
 		_signup.create(this, std_::move(inner), st::introErrorDuration);
 		_signup->entity()->setLink(1, MakeShared<UrlClickHandler>(qsl("https://telegram.org"), false));
 		_signup->entity()->setLink(2, MakeShared<LambdaClickHandler>([this] {
@@ -231,7 +231,7 @@ void PhoneWidget::selectCountry(const QString &c) {
 }
 
 void PhoneWidget::setInnerFocus() {
-	_phone->setFocus();
+	_phone->setFocusFast();
 }
 
 void PhoneWidget::activate() {

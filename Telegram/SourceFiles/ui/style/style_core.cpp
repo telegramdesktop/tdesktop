@@ -71,7 +71,6 @@ void startManager() {
 void stopManager() {
 	internal::stopModules();
 	internal::destroyFonts();
-	internal::destroyColors();
 	internal::destroyIcons();
 }
 

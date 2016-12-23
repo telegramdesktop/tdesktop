@@ -43,7 +43,7 @@ TextParseOptions _labelMarkedOptions = {
 
 } // namespace
 
-CrossFadeAnimation::CrossFadeAnimation(const style::color &bg) : _bg(bg) {
+CrossFadeAnimation::CrossFadeAnimation(style::color bg) : _bg(bg) {
 }
 
 void CrossFadeAnimation::addLine(Part was, Part now) {
@@ -132,18 +132,16 @@ void LabelSimple::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(0, 0, width(), _text, _textWidth);
 }
 
-FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st, const style::TextStyle &tst) : TWidget(parent)
+FlatLabel::FlatLabel(QWidget *parent, const style::FlatLabel &st) : TWidget(parent)
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
-, _tst(tst)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	init();
 }
 
-FlatLabel::FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st, const style::TextStyle &tst) : TWidget(parent)
+FlatLabel::FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st) : TWidget(parent)
 , _text(st.width ? st.width : QFIXED_MAX)
 , _st(st)
-, _tst(tst)
 , _contextCopyText(lang(lng_context_copy_text)) {
 	if (initType == InitType::Rich) {
 		setRichText(text);
@@ -162,29 +160,27 @@ void FlatLabel::init() {
 
 template <typename SetCallback>
 void FlatLabel::setTextByCallback(SetCallback callback) {
-	textstyleSet(&_tst);
 	callback();
 	refreshSize();
-	textstyleRestore();
 	setMouseTracking(_selectable || _text.hasLinks());
 	update();
 }
 
 void FlatLabel::setText(const QString &text) {
 	setTextByCallback([this, &text]() {
-		_text.setText(_st.font, text, _labelOptions);
+		_text.setText(_st.style, text, _labelOptions);
 	});
 }
 
 void FlatLabel::setRichText(const QString &text) {
 	setTextByCallback([this, &text]() {
-		_text.setRichText(_st.font, text, _labelOptions);
+		_text.setRichText(_st.style, text, _labelOptions);
 	});
 }
 
 void FlatLabel::setMarkedText(const TextWithEntities &textWithEntities) {
 	setTextByCallback([this, &textWithEntities]() {
-		_text.setMarkedText(_st.font, textWithEntities, _labelMarkedOptions);
+		_text.setMarkedText(_st.style, textWithEntities, _labelMarkedOptions);
 	});
 }
 
@@ -211,10 +207,8 @@ void FlatLabel::setBreakEverywhere(bool breakEverywhere) {
 
 int FlatLabel::resizeGetHeight(int newWidth) {
 	_allowedWidth = newWidth;
-	textstyleSet(&_tst);
 	int textWidth = countTextWidth();
 	int textHeight = countTextHeight(textWidth);
-	textstyleRestore();
 	return _st.margin.top() + textHeight + _st.margin.bottom();
 }
 
@@ -599,7 +593,7 @@ void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool a
 	update();
 }
 
-std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLabel *to, const style::color &bg, QPoint fromPosition, QPoint toPosition) {
+std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition, QPoint toPosition) {
 	auto result = std_::make_unique<CrossFadeAnimation>(bg);
 
 	struct Data {
@@ -613,8 +607,8 @@ std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatL
 		result.full = myGrabImage(label, QRect(), bg->c);
 		auto textWidth = label->width() - label->_st.margin.left() - label->_st.margin.right();
 		label->_text.countLineWidths(textWidth, &result.lineWidths);
-		result.lineHeight = label->_st.font->height;
-		auto addedHeight = (label->_tst.lineHeight - result.lineHeight);
+		result.lineHeight = label->_st.style.font->height;
+		auto addedHeight = (label->_st.style.lineHeight - result.lineHeight);
 		if (addedHeight > 0) {
 			result.lineAddTop = addedHeight / 2;
 			result.lineHeight += addedHeight;
@@ -646,7 +640,7 @@ std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatL
 		} else if (label->_st.align & Qt::AlignRight) {
 			left += (fullWidth - lineWidth);
 		}
-		auto snapshotRect = data.full.rect().intersected(QRect(left * cIntRetinaFactor(), top * cIntRetinaFactor(), lineWidth * cIntRetinaFactor(), label->_st.font->height * cIntRetinaFactor()));
+		auto snapshotRect = data.full.rect().intersected(QRect(left * cIntRetinaFactor(), top * cIntRetinaFactor(), lineWidth * cIntRetinaFactor(), label->_st.style.font->height * cIntRetinaFactor()));
 		if (!snapshotRect.isEmpty()) {
 			result.snapshot = App::pixmapFromImageInPlace(data.full.copy(snapshotRect));
 			result.snapshot.setDevicePixelRatio(cRetinaFactor());
@@ -746,12 +740,11 @@ Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 	}
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 
-	textstyleSet(&_tst);
 	Text::StateResult state;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
-		auto lineHeight = qMax(_tst.lineHeight, _st.font->height);
+		auto lineHeight = qMax(_st.style.lineHeight, _st.style.font->height);
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
 		request.lines = lines;
 		if (_breakEverywhere) {
@@ -761,7 +754,6 @@ Text::StateResult FlatLabel::getTextState(const QPoint &m) const {
 	} else {
 		state = _text.getState(m.x() - _st.margin.left(), m.y() - _st.margin.top(), textWidth, request);
 	}
-	textstyleRestore();
 
 	return state;
 }
@@ -775,19 +767,18 @@ void FlatLabel::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setOpacity(_opacity);
 	p.setPen(_st.textFg);
-	textstyleSet(&_tst);
+	p.setTextPalette(_st.palette);
 	int textWidth = width() - _st.margin.left() - _st.margin.right();
 	auto selection = _selection.empty() ? (_contextMenu ? _savedSelection : _selection) : _selection;
 	bool heightExceeded = _st.maxHeight && (_st.maxHeight < _fullTextHeight || textWidth < _text.maxWidth());
 	bool renderElided = _breakEverywhere || heightExceeded;
 	if (renderElided) {
-		auto lineHeight = qMax(_tst.lineHeight, _st.font->height);
+		auto lineHeight = qMax(_st.style.lineHeight, _st.style.font->height);
 		auto lines = _st.maxHeight ? qMax(_st.maxHeight / lineHeight, 1) : ((height() / lineHeight) + 2);
 		_text.drawElided(p, _st.margin.left(), _st.margin.top(), textWidth, lines, _st.align, e->rect().y(), e->rect().bottom(), 0, _breakEverywhere, selection);
 	} else {
 		_text.draw(p, _st.margin.left(), _st.margin.top(), textWidth, _st.align, e->rect().y(), e->rect().bottom(), selection);
 	}
-	textstyleRestore();
 }
 
 } // namespace Ui

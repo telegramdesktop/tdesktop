@@ -239,7 +239,7 @@ bool History::mySendActionUpdated(SendAction::Type type, bool doing) {
 	return true;
 }
 
-bool History::paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, const style::color &color, TimeMs ms) {
+bool History::paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, TimeMs ms) {
 	if (_sendActionAnimation) {
 		_sendActionAnimation.paint(p, color, x, y + st::normalFont->ascent, outerWidth, ms);
 		auto animationWidth = _sendActionAnimation.width();
@@ -324,7 +324,7 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 		}
 		if (_sendActionString != newTypingString) {
 			_sendActionString = newTypingString;
-			_sendActionText.setText(st::dialogsTextFont, _sendActionString, _textNameOptions);
+			_sendActionText.setText(st::dialogsTextStyle, _sendActionString, _textNameOptions);
 		}
 	}
 	auto result = (!_typing.isEmpty() || !_sendActions.isEmpty());

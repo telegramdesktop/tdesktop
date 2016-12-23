@@ -32,7 +32,7 @@ public:
 	int width() const {
 		return _impl ? _impl->width() : 0;
 	}
-	void paint(Painter &p, const style::color &color, int x, int y, int outerWidth, TimeMs ms) {
+	void paint(Painter &p, style::color color, int x, int y, int outerWidth, TimeMs ms) {
 		if (_impl) {
 			_impl->paint(p, color, x, y, outerWidth, ms);
 		}
@@ -57,14 +57,14 @@ public:
 		bool supports(Type type) const;
 
 		virtual int width() const = 0;
-		void paint(Painter &p, const style::color &color, int x, int y, int outerWidth, TimeMs ms) {
+		void paint(Painter &p, style::color color, int x, int y, int outerWidth, TimeMs ms) {
 			paintFrame(p, color, x, y, outerWidth, qMax(ms - _started, 0LL) % _period);
 		}
 
 		virtual ~Impl() = default;
 
 	private:
-		virtual void paintFrame(Painter &p, const style::color &color, int x, int y, int outerWidth, int frameMs) = 0;
+		virtual void paintFrame(Painter &p, style::color color, int x, int y, int outerWidth, int frameMs) = 0;
 
 		int _period = 1;
 		TimeMs _started = 0;

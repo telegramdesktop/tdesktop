@@ -150,3 +150,70 @@ mediaviewDropdownMenu: DropdownMenu(defaultDropdownMenu) {
 		shadow: mediaviewMenuShadow;
 	}
 }
+
+mediaviewSaveMsgCheck: icon {{ "mediaview_save_check", mediaviewSaveMsgFg }};
+mediaviewSaveMsgPadding: margins(55px, 19px, 29px, 20px);
+mediaviewSaveMsgCheckPos: point(23px, 21px);
+mediaviewSaveMsgShowing: 200;
+mediaviewSaveMsgShown: 2000;
+mediaviewSaveMsgHiding: 2500;
+mediaviewSaveMsgStyle: TextStyle(defaultTextStyle) {
+	font: font(16px);
+	linkFont: font(16px);
+	linkFontOver: font(16px underline);
+}
+mediaviewTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: mediaviewTextLinkFg;
+}
+
+mediaviewCaptionStyle: defaultTextStyle;
+
+mediaviewThickFont: semiboldFont;
+mediaviewFont: normalFont;
+mediaviewTextStyle: defaultTextStyle;
+
+mediaviewTextLeft: 16px;
+mediaviewTextSkip: 10px;
+mediaviewHeaderTop: 48px;
+mediaviewTextTop: 24px;
+mediaviewTextOpacity: 0.5;
+mediaviewTextOverOpacity: 1;
+
+mediaviewIconOpacity: 0.45;
+mediaviewIconOverOpacity: 1;
+mediaviewControlBgOpacity: 0.3;
+mediaviewControlMargin: 0px;
+mediaviewControlSize: 90px;
+mediaviewIconSize: size(60px, 56px);
+
+mediaviewWaitHide: 2000;
+mediaviewHideDuration: 1000;
+mediaviewShowDuration: 200;
+mediaviewFadeDuration: 150;
+
+mediaviewDeltaFromLastAction: 5px;
+mediaviewSwipeDistance: 80px;
+
+mediaviewCaptionPadding: margins(18px, 10px, 18px, 10px);
+mediaviewCaptionMargin: size(11px, 11px);
+mediaviewCaptionRadius: 2px;
+
+themePreviewSize: size(903px, 584px);
+themePreviewBg: windowBg;
+themePreviewOverlayOpacity: 0.7;
+themePreviewMargin: margins(36px, 52px, 36px, 88px);
+themePreviewTitleTop: 14px;
+themePreviewTitleFg: windowBoldFg;
+themePreviewTitleFont: font(17px semibold);
+themePreviewLoadingFont: font(16px);
+themePreviewLoadingFg: windowSubTextFg;
+themePreviewApplyButton: RoundButton(defaultActiveButton) {
+	height: 38px;
+	font: font(15px semibold);
+}
+themePreviewCancelButton: RoundButton(defaultLightButton) {
+	height: 38px;
+	font: font(15px semibold);
+}
+themePreviewButtonsSkip: 20px;
+themePreviewDialogsWidth: 312px;

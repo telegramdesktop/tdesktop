@@ -307,16 +307,16 @@ namespace App {
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners);
 
 	QImage **cornersMask(ImageRoundRadius radius);
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
+	inline void roundRect(Painter &p, const QRect &rect, style::color bg, RoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);
 	}
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &shadow, RoundCorners index, RectParts parts = RectPart::Full);
-	inline void roundShadow(Painter &p, const QRect &rect, const style::color &shadow, RoundCorners index, RectParts parts = RectPart::Full) {
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts = RectPart::Full);
+	inline void roundShadow(Painter &p, const QRect &rect, style::color shadow, RoundCorners index, RectParts parts = RectPart::Full) {
 		return roundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index, parts);
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
-	inline void roundRect(Painter &p, const QRect &rect, const style::color &bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
+	inline void roundRect(Painter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
 		return roundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);
 	}
 

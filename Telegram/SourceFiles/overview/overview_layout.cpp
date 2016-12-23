@@ -493,7 +493,7 @@ Voice::Voice(DocumentData *voice, HistoryItem *parent, const style::OverviewFile
 	updateName();
 	QString d = textcmdLink(1, textRichPrepare(langDateTime(date(_data->date))));
 	TextParseOptions opts = { TextParseRichText, 0, 0, Qt::LayoutDirectionAuto };
-	_details.setText(st::normalFont, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
+	_details.setText(st::defaultTextStyle, lng_date_and_duration(lt_date, d, lt_duration, formatDurationText(_data->voice()->duration)), opts);
 	_details.setLink(1, goToMessageClickHandler(parent));
 }
 
@@ -578,9 +578,9 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setPen(selected ? st::mediaInFgSelected : st::mediaInFg);
 		int32 unreadx = nameleft;
 		if (_status.size() == FileStatusSizeLoaded || _status.size() == FileStatusSizeReady) {
-			textstyleSet(&(selected ? st::mediaInStyleSelected : st::mediaInStyle));
+			p.setTextPalette(selected ? st::mediaInPaletteSelected : st::mediaInPalette);
 			_details.drawLeftElided(p, nameleft, statustop, namewidth, _width);
-			textstyleRestore();
+			p.restoreTextPalette();
 			unreadx += _details.maxWidth();
 		} else {
 			int32 statusw = st::normalFont->width(_status.text());
@@ -631,12 +631,12 @@ void Voice::updateName() {
 	int32 version = 0;
 	if (const HistoryMessageForwarded *fwd = _parent->Get<HistoryMessageForwarded>()) {
 		if (_parent->fromOriginal()->isChannel()) {
-			_name.setText(st::semiboldFont, lng_forwarded_channel(lt_channel, App::peerName(_parent->fromOriginal())), _textNameOptions);
+			_name.setText(st::semiboldTextStyle, lng_forwarded_channel(lt_channel, App::peerName(_parent->fromOriginal())), _textNameOptions);
 		} else {
-			_name.setText(st::semiboldFont, lng_forwarded(lt_user, App::peerName(_parent->fromOriginal())), _textNameOptions);
+			_name.setText(st::semiboldTextStyle, lng_forwarded(lt_user, App::peerName(_parent->fromOriginal())), _textNameOptions);
 		}
 	} else {
-		_name.setText(st::semiboldFont, App::peerName(_parent->from()), _textNameOptions);
+		_name.setText(st::semiboldTextStyle, App::peerName(_parent->from()), _textNameOptions);
 	}
 	version = _parent->fromOriginal()->nameVersion;
 	_nameVersion = version;
@@ -675,7 +675,7 @@ Document::Document(DocumentData *document, HistoryItem *parent, const style::Ove
 , _date(langDateTime(date(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
-	_name.setMarkedText(st::normalFont, documentNameWithEntities(_data), _documentNameOptions);
+	_name.setMarkedText(st::defaultTextStyle, documentNameWithEntities(_data), _documentNameOptions);
 
 	AddComponents(Info::Bit());
 
@@ -806,7 +806,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				}
 			}
 			if (selected) {
-				p.fillRect(rthumb, textstyleCurrent()->selectOverlay);
+				p.fillRect(rthumb, st::defaultTextPalette.selectOverlay);
 			}
 
 			if (radial || (!loaded && !_data->loading())) {
@@ -1029,7 +1029,7 @@ Link::Link(HistoryMedia *media, HistoryItem *parent) : ItemBase(parent) {
 	}
 	if (till > from) {
 		TextParseOptions opts = { TextParseMultiline, int32(st::linksMaxWidth), 3 * st::normalFont->height, Qt::LayoutDirectionAuto };
-		_text.setText(st::normalFont, text.mid(from, till - from), opts);
+		_text.setText(st::defaultTextStyle, text.mid(from, till - from), opts);
 	}
 	int32 tw = 0, th = 0;
 	if (_page && _page->photo) {

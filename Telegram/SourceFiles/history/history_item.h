@@ -294,7 +294,7 @@ public:
 		}
 
 		virtual void startPaint(Painter &p) const = 0;
-		virtual style::font textFont() const = 0;
+		virtual const style::TextStyle &textStyle() const = 0;
 
 		int buttonSkip() const;
 		int buttonPadding() const;

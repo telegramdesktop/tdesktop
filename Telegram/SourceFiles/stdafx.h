@@ -66,7 +66,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "ui/style/style_core.h"
 #include "styles/palette.h"
-#include "styles/style_basic_types.h"
 #include "styles/style_basic.h"
 
 #include "ui/animation.h"

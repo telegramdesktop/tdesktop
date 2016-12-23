@@ -102,14 +102,14 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &filepath, QImage image, Comp
 	if (_preview.isNull()) {
 		if (filepath.isEmpty()) {
 			auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-			_nameText.setText(st::semiboldFont, filename, _textNameOptions);
+			_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
 			_statusText = qsl("%1x%2").arg(_image.width()).arg(_image.height());
 			_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
 			_fileIsImage = true;
 		} else {
 			auto fileinfo = QFileInfo(filepath);
 			auto filename = fileinfo.fileName();
-			_nameText.setText(st::semiboldFont, filename, _textNameOptions);
+			_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
 			_statusText = formatSizeText(fileinfo.size());
 			_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
 			_fileIsImage = fileIsImage(filename, mimeTypeForFile(fileinfo).name());
@@ -127,7 +127,7 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &phone, const QString &firstn
 : _contactPhone(phone)
 , _contactFirstName(firstname)
 , _contactLastName(lastname) {
-	_nameText.setText(st::semiboldFont, lng_full_name(lt_first_name, _contactFirstName, lt_last_name, _contactLastName), _textNameOptions);
+	_nameText.setText(st::semiboldTextStyle, lng_full_name(lt_first_name, _contactFirstName, lt_last_name, _contactLastName), _textNameOptions);
 	_statusText = _contactPhone;
 	_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
 }
@@ -400,9 +400,9 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryItem *msg)
 
 		if (doc) {
 			if (doc->voice()) {
-				_name.setText(st::semiboldFont, lang(lng_media_audio), _textNameOptions);
+				_name.setText(st::semiboldTextStyle, lang(lng_media_audio), _textNameOptions);
 			} else {
-				_name.setText(st::semiboldFont, documentName(doc), _textNameOptions);
+				_name.setText(st::semiboldTextStyle, documentName(doc), _textNameOptions);
 			}
 			_status = formatSizeText(doc->size);
 			_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));

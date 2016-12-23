@@ -346,7 +346,11 @@ botKbBg: menuBgOver;
 botKbOverBg: menuBgOver;
 botKbDownBg: menuBgRipple;
 botKbColor: windowBoldFgOver;
-botKbFont: font(15px semibold);
+botKbStyle: TextStyle(defaultTextStyle) {
+	font: font(15px semibold);
+	linkFont: font(15px semibold);
+	linkFontOver: font(15px semibold);
+}
 botKbButton: BotKeyboardButton {
 	margin: 10px;
 	padding: 10px;
@@ -404,3 +408,26 @@ historyUnreadBarFont: semiboldFont;
 
 historyForwardChooseMargins: margins(30px, 10px, 30px, 10px);
 historyForwardChooseFont: font(16px);
+
+msgFileMenuSize: size(36px, 36px);
+msgFileSize: 44px;
+msgFilePadding: margins(14px, 12px, 11px, 12px);
+msgFileThumbSize: 72px;
+msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
+msgFileThumbNameTop: 12px;
+msgFileThumbStatusTop: 32px;
+msgFileThumbLinkTop: 60px;
+msgFileNameTop: 16px;
+msgFileStatusTop: 37px;
+msgFileMinWidth: 294px;
+msgFileTopMinus: 6px;
+
+msgFileOverDuration: 200;
+msgFileRadialLine: 3px;
+
+msgVideoSize: size(320px, 240px);
+
+msgWaveformBar: 2px;
+msgWaveformSkip: 1px;
+msgWaveformMin: 2px;
+msgWaveformMax: 20px;

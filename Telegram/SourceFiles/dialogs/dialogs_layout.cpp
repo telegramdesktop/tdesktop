@@ -87,12 +87,12 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
 				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, textClean(draft->textWithTags.text));
-				history->cloudDraftTextCache.setText(st::dialogsTextFont, draftText, _textDlgOptions);
+				history->cloudDraftTextCache.setText(st::dialogsTextStyle, draftText, _textDlgOptions);
 			}
 			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
-			textstyleSet(&(active ? st::dialogsTextStyleDraftActive : (selected ? st::dialogsTextStyleDraftOver : st::dialogsTextStyleDraft)));
+			p.setTextPalette(active ? st::dialogsTextPaletteDraftActive : (selected ? st::dialogsTextPaletteDraftOver : st::dialogsTextPaletteDraft));
 			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, namewidth, 1);
-			textstyleRestore();
+			p.restoreTextPalette();
 		}
 	} else if (!item) {
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
@@ -127,7 +127,7 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), fullWidth);
 	}
 
-	if (history->peer->isUser() && history->peer->isVerified()) {
+	if (history->peer->isVerified()) {
 		auto icon = &(active ? st::dialogsVerifiedIconActive : (selected ? st::dialogsVerifiedIconOver : st::dialogsVerifiedIcon));
 		rectForName.setWidth(rectForName.width() - icon->width());
 		icon->paint(p, rectForName.topLeft() + QPoint(qMin(history->peer->dialogName().maxWidth(), rectForName.width()), 0), fullWidth);
@@ -144,13 +144,13 @@ struct UnreadBadgeSizeData {
 class UnreadBadgeStyleData : public Data::AbstractStructure {
 public:
 	UnreadBadgeSizeData sizes[UnreadBadgeSizesCount];
-	const style::color *bg[6] = {
-		&st::dialogsUnreadBg,
-		&st::dialogsUnreadBgOver,
-		&st::dialogsUnreadBgActive,
-		&st::dialogsUnreadBgMuted,
-		&st::dialogsUnreadBgMutedOver,
-		&st::dialogsUnreadBgMutedActive
+	style::color bg[6] = {
+		st::dialogsUnreadBg,
+		st::dialogsUnreadBgOver,
+		st::dialogsUnreadBgActive,
+		st::dialogsUnreadBgMuted,
+		st::dialogsUnreadBgMutedOver,
+		st::dialogsUnreadBgMutedActive
 	};
 };
 Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
@@ -161,7 +161,7 @@ void createCircleMask(UnreadBadgeSizeData *data, int size) {
 	data->circle = style::createCircleMask(size);
 }
 
-QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xoffset, const style::color &color) {
+QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xoffset, style::color color) {
 	auto result = style::colorizeImage(data->circle, color, QRect(xoffset, 0, half, size));
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;
@@ -194,14 +194,14 @@ void paintUnreadBadge(Painter &p, const QRect &rect, const UnreadBadgeStyle &st)
 	if (badgeData->left[index].isNull()) {
 		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
 		createCircleMask(badgeData, size);
-		badgeData->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, *bg));
-		badgeData->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, imgsize - imgsizehalf, *bg));
+		badgeData->left[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));
+		badgeData->right[index] = App::pixmapFromImageInPlace(colorizeCircleHalf(badgeData, imgsize, imgsizehalf, imgsize - imgsizehalf, bg));
 	}
 
 	int bar = rect.width() - 2 * sizehalf;
 	p.drawPixmap(rect.x(), rect.y(), badgeData->left[index]);
 	if (bar) {
-		p.fillRect(rect.x() + sizehalf, rect.y(), bar, rect.height(), *bg);
+		p.fillRect(rect.x() + sizehalf, rect.y(), bar, rect.height(), bg);
 	}
 	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), badgeData->right[index]);
 }

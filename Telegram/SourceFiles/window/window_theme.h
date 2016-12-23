@@ -45,17 +45,26 @@ struct Cached {
 bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, Cached &cache);
 void Unload();
 
-bool Apply(const QString &filepath);
-void ApplyDefault();
-void KeepApplied();
-void Revert();
-
 struct Instance {
 	style::palette palette;
 	QImage background;
 	Cached cached;
 	bool tiled = false;
 };
+
+struct Preview {
+	QString path;
+	Instance instance;
+	QByteArray content;
+	QPixmap preview;
+};
+
+bool Apply(const QString &filepath);
+bool Apply(std_::unique_ptr<Preview> preview);
+void ApplyDefault();
+void KeepApplied();
+void Revert();
+
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
 
 struct BackgroundUpdate {
@@ -69,6 +78,9 @@ struct BackgroundUpdate {
 	};
 
 	BackgroundUpdate(Type type, bool tiled) : type(type), tiled(tiled) {
+	}
+	bool paletteChanged() const {
+		return (type == Type::TestingTheme || type == Type::RevertingTheme);
 	}
 	Type type;
 	bool tiled;
@@ -115,6 +127,8 @@ private:
 };
 
 ChatBackground *Background();
+
+void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
 
 } // namespace Theme
 } // namespace Window

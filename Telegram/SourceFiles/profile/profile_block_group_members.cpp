@@ -209,7 +209,7 @@ void GroupMembersWidget::refreshLimitReached() {
 
 	bool limitReachedShown = (itemsCount() >= Global::ChatSizeMax()) && chat->amCreator() && !emptyTitle();
 	if (limitReachedShown && !_limitReachedInfo) {
-		_limitReachedInfo.create(this, st::profileLimitReachedLabel, st::profileLimitReachedStyle);
+		_limitReachedInfo.create(this, st::profileLimitReachedLabel);
 		QString title = textRichPrepare(lng_profile_migrate_reached(lt_count, Global::ChatSizeMax()));
 		QString body = textRichPrepare(lang(lng_profile_migrate_body));
 		QString link = textRichPrepare(lang(lng_profile_migrate_learn_more));

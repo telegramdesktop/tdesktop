@@ -67,8 +67,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
-		if (update.type == Update::Type::TestingTheme
-			|| update.type == Update::Type::RevertingTheme) {
+		if (update.paletteChanged()) {
 			_check->invalidateCache();
 		}
 	});

@@ -81,13 +81,13 @@ void Controller::handleSeekFinished(float64 progress) {
 
 void Controller::showAnimated() {
 	startFading([this]() {
-		_fadeAnimation->fadeIn(st::mvShowDuration);
+		_fadeAnimation->fadeIn(st::mediaviewShowDuration);
 	});
 }
 
 void Controller::hideAnimated() {
 	startFading([this]() {
-		_fadeAnimation->fadeOut(st::mvHideDuration);
+		_fadeAnimation->fadeOut(st::mediaviewHideDuration);
 	});
 }
 

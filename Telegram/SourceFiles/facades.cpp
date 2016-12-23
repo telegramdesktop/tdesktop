@@ -535,7 +535,18 @@ void WorkingDirReady() {
 	}
 }
 
+object_ptr<SingleDelayedCall> MainThreadTaskHandler = { nullptr };
+
+void MainThreadTaskAdded() {
+	if (!started()) {
+		return;
+	}
+
+	MainThreadTaskHandler->call();
+}
+
 void start() {
+	MainThreadTaskHandler.create(QCoreApplication::instance(), "onMainThreadTask");
 	SandboxData = new internal::Data();
 
 	SandboxData->LangSystemISO = psCurrentLanguage();
@@ -556,6 +567,7 @@ bool started() {
 void finish() {
 	delete SandboxData;
 	SandboxData = nullptr;
+	MainThreadTaskHandler.destroy();
 }
 
 uint64 UserTag() {

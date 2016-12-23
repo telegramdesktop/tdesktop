@@ -105,9 +105,9 @@ void SignupWidget::resizeEvent(QResizeEvent *e) {
 
 void SignupWidget::setInnerFocus() {
 	if (_invertOrder || _last->hasFocus()) {
-		_last->setFocus();
+		_last->setFocusFast();
 	} else {
-		_first->setFocus();
+		_first->setFocusFast();
 	}
 }
 

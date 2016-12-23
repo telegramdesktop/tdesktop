@@ -84,10 +84,10 @@ QString formatPlayedText(qint64 played, qint64 duration);
 QString documentName(DocumentData *document);
 TextWithEntities documentNameWithEntities(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
-const style::color &documentColor(int colorIndex);
-const style::color &documentDarkColor(int colorIndex);
-const style::color &documentOverColor(int colorIndex);
-const style::color &documentSelectedColor(int colorIndex);
+style::color documentColor(int colorIndex);
+style::color documentDarkColor(int colorIndex);
+style::color documentOverColor(int colorIndex);
+style::color documentSelectedColor(int colorIndex);
 RoundCorners documentCorners(int colorIndex);
 bool documentIsValidMediaFile(const QString &filepath);
 

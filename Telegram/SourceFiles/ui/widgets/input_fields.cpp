@@ -937,7 +937,7 @@ void FlatTextarea::insertEmoji(EmojiPtr emoji, QTextCursor c) {
 	if (c.charFormat().isAnchor()) {
 		imageFormat.setAnchor(true);
 		imageFormat.setAnchorName(c.charFormat().anchorName());
-		imageFormat.setForeground(st::defaultTextStyle.linkFg);
+		imageFormat.setForeground(st::defaultTextPalette.linkFg);
 	}
 	static QString objectReplacement(QChar::ObjectReplacementCharacter);
 	c.insertText(objectReplacement, imageFormat);
@@ -969,7 +969,7 @@ void prepareFormattingOptimization(QTextDocument *document) {
 	}
 }
 
-void removeTags(const style::color &textFg, QTextDocument *document, int from, int end) {
+void removeTags(style::color textFg, QTextDocument *document, int from, int end) {
 	QTextCursor c(document->docHandle(), 0);
 	c.setPosition(from);
 	c.setPosition(end, QTextCursor::KeepAnchor);
@@ -982,7 +982,7 @@ void removeTags(const style::color &textFg, QTextDocument *document, int from, i
 }
 
 // Returns the position of the first inserted tag or "changedEnd" value if none found.
-int processInsertedTags(const style::color &textFg, QTextDocument *document, int changedPosition, int changedEnd, const FlatTextarea::TagList &tags, FlatTextarea::TagMimeProcessor *processor) {
+int processInsertedTags(style::color textFg, QTextDocument *document, int changedPosition, int changedEnd, const FlatTextarea::TagList &tags, FlatTextarea::TagMimeProcessor *processor) {
 	int firstTagStart = changedEnd;
 	int applyNoTagFrom = changedEnd;
 	for_const (auto &tag, tags) {
@@ -1006,7 +1006,7 @@ int processInsertedTags(const style::color &textFg, QTextDocument *document, int
 			QTextCharFormat format;
 			format.setAnchor(true);
 			format.setAnchorName(tagId + '/' + QString::number(rand_value<uint32>()));
-			format.setForeground(st::defaultTextStyle.linkFg);
+			format.setForeground(st::defaultTextPalette.linkFg);
 			c.mergeCharFormat(format);
 
 			applyNoTagFrom = tagTo;

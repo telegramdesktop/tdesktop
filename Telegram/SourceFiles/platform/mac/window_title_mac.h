@@ -47,4 +47,7 @@ private:
 
 object_ptr<Window::TitleWidget> CreateTitleWidget(QWidget *parent);
 
+int PreviewTitleHeight();
+void PreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+
 } // namespace Platform

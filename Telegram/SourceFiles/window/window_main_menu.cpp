@@ -36,8 +36,8 @@ namespace Window {
 
 MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 , _menu(this, st::mainMenu)
-, _telegram(this, st::mainMenuTelegramLabel, st::mainMenuTelegramStyle)
-, _version(this, st::mainMenuVersionLabel, st::mainMenuVersionStyle) {
+, _telegram(this, st::mainMenuTelegramLabel)
+, _version(this, st::mainMenuVersionLabel) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	subscribe(Global::RefSelfChanged(), [this] {

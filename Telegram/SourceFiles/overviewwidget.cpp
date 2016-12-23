@@ -87,8 +87,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
-		if (update.type == Update::Type::TestingTheme
-			|| update.type == Update::Type::RevertingTheme) {
+		if (update.paletteChanged()) {
 			invalidateCache();
 		}
 	});

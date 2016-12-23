@@ -383,16 +383,6 @@ bool LayerStackWidget::layerShown() const {
 
 void LayerStackWidget::setCacheImages() {
 	auto bodyCache = QPixmap(), mainMenuCache = QPixmap();
-	if (isAncestorOf(App::wnd()->focusWidget())) {
-		setFocus();
-	}
-	if (_mainMenu) {
-		setAttribute(Qt::WA_OpaquePaintEvent, false);
-		hideChildren();
-		bodyCache = myGrab(App::wnd()->bodyWidget());
-		showChildren();
-		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, Ui::Shadow::Side::Right);
-	}
 	auto specialLayerCache = QPixmap();
 	if (_specialLayer) {
 		auto sides = Ui::Shadow::Side::Left | Ui::Shadow::Side::Right;
@@ -407,6 +397,16 @@ void LayerStackWidget::setCacheImages() {
 	auto layerCache = QPixmap();
 	if (auto layer = currentLayer()) {
 		layerCache = Ui::Shadow::grab(layer, st::boxRoundShadow);
+	}
+	if (isAncestorOf(App::wnd()->focusWidget())) {
+		setFocus();
+	}
+	if (_mainMenu) {
+		setAttribute(Qt::WA_OpaquePaintEvent, false);
+		hideChildren();
+		bodyCache = myGrab(App::wnd()->bodyWidget());
+		showChildren();
+		mainMenuCache = Ui::Shadow::grab(_mainMenu, st::boxRoundShadow, Ui::Shadow::Side::Right);
 	}
 	setAttribute(Qt::WA_OpaquePaintEvent, !bodyCache.isNull());
 	updateLayerBoxes();

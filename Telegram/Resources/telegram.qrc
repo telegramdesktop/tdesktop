@@ -8,6 +8,7 @@
     <file>art/bg_initial.png</file>
     <file>art/icon256.png</file>
     <file>art/iconbig256.png</file>
+    <file>art/sunrise.jpg</file>
   </qresource>
   <qresource prefix="/qt-project.org">
     <file>qmime/freedesktop.org.xml</file>

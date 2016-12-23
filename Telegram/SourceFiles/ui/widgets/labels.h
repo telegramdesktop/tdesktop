@@ -28,7 +28,7 @@ class PopupMenu;
 
 class CrossFadeAnimation {
 public:
-	CrossFadeAnimation(const style::color &bg);
+	CrossFadeAnimation(style::color bg);
 
 	struct Part {
 		QPixmap snapshot;
@@ -52,7 +52,7 @@ private:
 	};
 	void paintLine(Painter &p, const Line &line, float64 positionReady, float64 alphaWas, float64 alphaNow);
 
-	const style::color &_bg;
+	style::color _bg;
 	QList<Line> _lines;
 
 };
@@ -82,13 +82,13 @@ class FlatLabel : public TWidget, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
-	FlatLabel(QWidget *parent, const style::FlatLabel &st = st::defaultFlatLabel, const style::TextStyle &tst = st::defaultTextStyle);
+	FlatLabel(QWidget *parent, const style::FlatLabel &st = st::defaultFlatLabel);
 
 	enum class InitType {
 		Simple,
 		Rich,
 	};
-	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st = st::defaultFlatLabel, const style::TextStyle &tst = st::defaultTextStyle);
+	FlatLabel(QWidget *parent, const QString &text, InitType initType, const style::FlatLabel &st = st::defaultFlatLabel);
 
 	void setOpacity(float64 o);
 
@@ -112,7 +112,7 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) override;
 
-	static std_::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, const style::color &bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
+	static std_::unique_ptr<CrossFadeAnimation> CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition = QPoint(), QPoint toPosition = QPoint());
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -166,7 +166,6 @@ private:
 
 	Text _text;
 	const style::FlatLabel &_st;
-	const style::TextStyle &_tst;
 	float64 _opacity = 1.;
 
 	int _allowedWidth = 0;

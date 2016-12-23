@@ -111,7 +111,7 @@ ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 				auto str = row.at(j).text;
 				button.type = row.at(j).type;
 				button.link = MakeShared<ReplyMarkupClickHandler>(item, i, j);
-				button.text.setText(_st->textFont(), textOneLine(str), _textPlainOptions);
+				button.text.setText(_st->textStyle(), textOneLine(str), _textPlainOptions);
 				button.characters = str.isEmpty() ? 1 : str.size();
 			}
 			_rows.push_back(newRow);
@@ -381,12 +381,12 @@ void ReplyKeyboard::Style::paintButton(Painter &p, int outerWidth, const ReplyKe
 	}
 
 	int tx = rect.x(), tw = rect.width();
-	if (tw >= st::botKbFont->elidew + _st->padding * 2) {
+	if (tw >= st::botKbStyle.font->elidew + _st->padding * 2) {
 		tx += _st->padding;
 		tw -= _st->padding * 2;
-	} else if (tw > st::botKbFont->elidew) {
-		tx += (tw - st::botKbFont->elidew) / 2;
-		tw = st::botKbFont->elidew;
+	} else if (tw > st::botKbStyle.font->elidew) {
+		tx += (tw - st::botKbStyle.font->elidew) / 2;
+		tw = st::botKbStyle.font->elidew;
 	}
 	button.text.drawElided(p, tx, rect.y() + _st->textTop + ((rect.height() - _st->height) / 2), tw, 1, style::al_top);
 }
@@ -928,14 +928,14 @@ QString HistoryItem::inDialogsText() const {
 void HistoryItem::drawInDialog(Painter &p, const QRect &r, bool active, bool selected, const HistoryItem *&cacheFor, Text &cache) const {
 	if (cacheFor != this) {
 		cacheFor = this;
-		cache.setText(st::dialogsTextFont, inDialogsText(), _textDlgOptions);
+		cache.setText(st::dialogsTextStyle, inDialogsText(), _textDlgOptions);
 	}
 	if (r.width()) {
-		textstyleSet(&(active ? st::dialogsTextStyleActive : (selected ? st::dialogsTextStyleOver : st::dialogsTextStyle)));
+		p.setTextPalette(active ? st::dialogsTextPaletteActive : (selected ? st::dialogsTextPaletteOver : st::dialogsTextPalette));
 		p.setFont(st::dialogsTextFont);
 		p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
 		cache.drawElided(p, r.left(), r.top(), r.width(), r.height() / st::dialogsTextFont->height);
-		textstyleRestore();
+		p.restoreTextPalette();
 	}
 }
 

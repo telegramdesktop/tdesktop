@@ -28,12 +28,13 @@ LabelSimple {
 }
 
 FlatLabel {
-	font: font;
 	margin: margins;
 	width: pixels;
 	align: align;
 	textFg: color;
 	maxHeight: pixels;
+	style: TextStyle;
+	palette: TextPalette;
 }
 
 LinkButton {
@@ -321,7 +322,7 @@ MultiSelectItem {
 	padding: margins;
 	maxWidth: pixels;
 	height: pixels;
-	font: font;
+	style: TextStyle;
 	textBg: color;
 	textFg: color;
 	textActiveBg: color;
@@ -421,6 +422,20 @@ DropdownMenu {
 	menu: Menu;
 }
 
+Tooltip {
+	textBg: color;
+	textFg: color;
+	textStyle: TextStyle;
+	textBorder: color;
+	textPadding: margins;
+
+	shift: point;
+	skip: pixels;
+
+	widthMax: pixels;
+	linesMax: int;
+}
+
 defaultLabelSimple: LabelSimple {
 	font: normalFont;
 	maxWidth: 0px;
@@ -428,11 +443,12 @@ defaultLabelSimple: LabelSimple {
 }
 
 defaultFlatLabel: FlatLabel {
-	font: font(fsize);
 	width: 0px;
 	maxHeight: 0px;
 	align: align(left);
 	textFg: windowFg;
+	style: defaultTextStyle;
+	palette: defaultTextPalette;
 }
 
 defaultLinkButton: LinkButton {
@@ -782,6 +798,20 @@ defaultDropdownMenu: DropdownMenu {
 		scrollPadding: margins(0px, 8px, 0px, 8px);
 	}
 	menu: defaultMenu;
+}
+
+defaultTooltip: Tooltip {
+	textBg: tooltipBg;
+	textFg: tooltipFg;
+	textStyle: defaultTextStyle;
+	textBorder: tooltipBorderFg;
+	textPadding: margins(5px, 2px, 5px, 2px);
+
+	shift: point(-20px, 20px);
+	skip: 10px;
+
+	widthMax: 800px;
+	linesMax: 12;
 }
 
 historyToDownBelow: icon {

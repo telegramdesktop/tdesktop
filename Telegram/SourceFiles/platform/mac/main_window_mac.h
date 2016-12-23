@@ -49,7 +49,7 @@ public:
 		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
 	}
 
-	virtual QImage iconWithCounter(int size, int count, const style::color &bg, const style::color &fg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
 	void closeWithoutDestroy() override;
 
@@ -99,7 +99,7 @@ protected:
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
-	virtual void placeSmallCounter(QImage &img, int size, int count, const style::color &bg, const QPoint &shift, const style::color &color) = 0;
+	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	QTimer psUpdatedPositionTimer;
 

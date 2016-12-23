@@ -34,9 +34,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 AboutBox::AboutBox(QWidget *parent)
 : _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
-, _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
-, _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel, st::aboutTextStyle)
-, _text3(this, st::aboutLabel, st::aboutTextStyle) {
+, _text1(this, lang(lng_about_text_1), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
+, _text2(this, lang(lng_about_text_2), Ui::FlatLabel::InitType::Rich, st::aboutLabel)
+, _text3(this, st::aboutLabel) {
 }
 
 void AboutBox::prepare() {

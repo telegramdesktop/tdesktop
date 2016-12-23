@@ -202,3 +202,6 @@ hashtagClose: IconButton {
 		color: windowBgOver;
 	}
 }
+
+stickersToastMaxWidth: 340px;
+stickersToastPadding: margins(16px, 13px, 16px, 12px);

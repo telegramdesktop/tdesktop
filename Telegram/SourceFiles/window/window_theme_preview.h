@@ -18,28 +18,20 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
+#pragma once
 
-TextStyle {
-	linkFlags: font;
-	linkFlagsOver: font;
-	linkFg: color;
-	linkFgDown: color;
-	monoFg: color;
-	selectBg: color;
-	selectOverlay: color;
-	lineHeight: pixels;
-}
+#include "window/window_theme.h"
 
-Tooltip {
-	textBg: color;
-	textFg: color;
-	textFont: font;
-	textBorder: color;
-	textPadding: margins;
+namespace Window {
+namespace Theme {
 
-	shift: point;
-	skip: pixels;
+struct CurrentData {
+	int32 backgroundId = 0;
+	QPixmap backgroundImage;
+	bool backgroundTiled = false;
+};
 
-	widthMax: pixels;
-	linesMax: int;
-}
+std_::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data);
+
+} // namespace Theme
+} // namespace Window

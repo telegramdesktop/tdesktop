@@ -27,6 +27,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "localstorage.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
+#include "ui/toast/toast.h"
+#include "styles/style_stickers.h"
 
 namespace Stickers {
 namespace {
@@ -78,16 +81,19 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	}
 	Local::writeInstalledStickers();
 	Local::writeArchivedStickers();
-	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
+
+	Ui::Toast::Config toast;
+	toast.text = lang(lng_stickers_packs_archived);
+	toast.maxWidth = st::stickersToastMaxWidth;
+	toast.padding = st::stickersToastPadding;
+	Ui::Toast::Show(App::wnd(), toast);
+//	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
 
 	emit App::main()->stickersUpdated();
 }
 
 // For testing: Just apply random subset or your sticker sets as archived.
 bool applyArchivedResultFake() {
-	if (rand_value<uint32>() % 128 < 64) {
-		return false;
-	}
 	auto sets = QVector<MTPStickerSetCovered>();
 	for (auto &set : Global::RefStickerSets()) {
 		if ((set.flags & MTPDstickerSet::Flag::f_installed) && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {

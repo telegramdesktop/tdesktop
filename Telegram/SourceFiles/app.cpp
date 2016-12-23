@@ -2163,7 +2163,7 @@ namespace {
 		text = d.second;
 	}
 
-	void prepareCorners(RoundCorners index, int32 radius, const style::color &color, const style::color *shadow = 0, QImage *cors = 0) {
+	void prepareCorners(RoundCorners index, int32 radius, const QBrush &brush, const style::color *shadow = nullptr, QImage *cors = nullptr) {
 		int32 r = radius * cIntRetinaFactor(), s = st::msgShadow * cIntRetinaFactor();
 		QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied), localCors[4];
 		{
@@ -2178,7 +2178,7 @@ namespace {
 				p.setBrush((*shadow)->b);
 				p.drawRoundedRect(0, s, r * 3, r * 3, r, r);
 			}
-			p.setBrush(color->b);
+			p.setBrush(brush);
 			p.drawRoundedRect(0, 0, r * 3, r * 3, r, r);
 		}
 		if (!cors) cors = localCors;
@@ -2212,14 +2212,13 @@ namespace {
 	}
 
 	void createCorners() {
-		style::color white = { 255, 255, 255, 255 };
 		QImage mask[4];
-		prepareCorners(LargeMaskCorners, msgRadius(), white, nullptr, mask);
+		prepareCorners(LargeMaskCorners, msgRadius(), QColor(255, 255, 255), nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
 		}
-		prepareCorners(SmallMaskCorners, st::buttonRadius, white, nullptr, mask);
+		prepareCorners(SmallMaskCorners, st::buttonRadius, QColor(255, 255, 255), nullptr, mask);
 		for (int i = 0; i < 4; ++i) {
 			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
 			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
@@ -2295,7 +2294,7 @@ namespace {
 
 		using Update = Window::Theme::BackgroundUpdate;
 		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
-			if (update.type == Update::Type::TestingTheme) {
+			if (update.paletteChanged()) {
 				clearCorners();
 				createCorners();
 
@@ -2770,7 +2769,7 @@ namespace {
 		if (radius == ImageRoundRadius::Large) {
 			complexAdjustRect(corners, rect, overlayParts);
 		}
-		roundRect(p, rect, textstyleCurrent()->selectOverlay, overlayCorners, nullptr, overlayParts);
+		roundRect(p, rect, p.textPalette().selectOverlay, overlayCorners, nullptr, overlayParts);
 	}
 
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
@@ -2787,7 +2786,8 @@ namespace {
 		}
 		return ::cornersMaskSmall;
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
+
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
 		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
 		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
 		if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
@@ -2831,11 +2831,11 @@ namespace {
 		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *shadow, RectParts parts) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow, RectParts parts) {
 		roundRect(p, x, y, w, h, bg, ::corners[index], shadow, parts);
 	}
 
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &shadow, RoundCorners index, RectParts parts) {
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts) {
 		auto &corner = ::corners[index];
 		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
 		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
@@ -2852,7 +2852,7 @@ namespace {
 		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius, RectParts parts) {
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts) {
 		auto colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
 		auto i = cornersMap.find(colorKey);
 		if (i == cornersMap.cend()) {

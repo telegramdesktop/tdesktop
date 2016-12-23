@@ -328,7 +328,7 @@ QImage prepareBackgroundImage(QImage &&image) {
 	return std_::move(image);
 }
 
-void initColor(const style::color &color, float64 hue, float64 saturation) {
+void initColor(style::color color, float64 hue, float64 saturation) {
 	auto original = color->c;
 	original.setHslF(hue, saturation, original.lightnessF(), original.alphaF());
 	color.set(original.red(), original.green(), original.blue(), original.alpha());
@@ -562,19 +562,23 @@ void Unload() {
 }
 
 bool Apply(const QString &filepath) {
-	QByteArray content;
-	Instance theme;
-	if (!LoadFromFile(filepath, &theme, &content)) {
+	auto preview = std_::make_unique<Preview>();
+	preview->path = filepath;
+	if (!LoadFromFile(preview->path, &preview->instance, &preview->content)) {
 		return false;
 	}
+	return Apply(std_::move(preview));
+}
+
+bool Apply(std_::unique_ptr<Preview> preview) {
 	instance.createIfNull();
-	instance->applying.path = filepath;
-	instance->applying.content = content;
-	instance->applying.cached = theme.cached;
+	instance->applying.path = std_::move(preview->path);
+	instance->applying.content = std_::move(preview->content);
+	instance->applying.cached = std_::move(preview->instance.cached);
 	if (instance->applying.paletteForRevert.isEmpty()) {
 		instance->applying.paletteForRevert = style::main_palette::save();
 	}
-	Background()->setTestingTheme(std_::move(theme));
+	Background()->setTestingTheme(std_::move(preview->instance));
 	return true;
 }
 
@@ -617,6 +621,30 @@ bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {
 	}
 
 	return loadTheme(*outContent,  out->cached, out);
+}
+
+void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from) {
+	if (uint64(imageSize.width()) * wholeFill.height() > uint64(imageSize.height()) * wholeFill.width()) {
+		float64 pxsize = wholeFill.height() / float64(imageSize.height());
+		int takewidth = qCeil(wholeFill.width() / pxsize);
+		if (takewidth > imageSize.width()) {
+			takewidth = imageSize.width();
+		} else if ((imageSize.width() % 2) != (takewidth % 2)) {
+			++takewidth;
+		}
+		to = QRect(int((wholeFill.width() - takewidth * pxsize) / 2.), 0, qCeil(takewidth * pxsize), wholeFill.height());
+		from = QRect((imageSize.width() - takewidth) / 2, 0, takewidth, imageSize.height());
+	} else {
+		float64 pxsize = wholeFill.width() / float64(imageSize.width());
+		int takeheight = qCeil(wholeFill.height() / pxsize);
+		if (takeheight > imageSize.height()) {
+			takeheight = imageSize.height();
+		} else if ((imageSize.height() % 2) != (takeheight % 2)) {
+			++takeheight;
+		}
+		to = QRect(0, int((wholeFill.height() - takeheight * pxsize) / 2.), wholeFill.width(), qCeil(takeheight * pxsize));
+		from = QRect(0, (imageSize.height() - takeheight) / 2, imageSize.width(), takeheight);
+	}
 }
 
 } // namespace Theme

@@ -106,7 +106,7 @@ void TopBarWidget::showMenu() {
 		if (auto peer = main->peer()) {
 			if (!_menu) {
 				_menu.create(App::main());
-				_menu->setHiddenCallback([that = weak(), menu = _menu.data()] {
+				_menu->setHiddenCallback([that = weak(this), menu = _menu.data()] {
 					menu->deleteLater();
 					if (that && that->_menu == menu) {
 						that->_menu = nullptr;
@@ -159,10 +159,12 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
 	if (_clearSelection->isHidden()) {
 		p.save();
-		int decreaseWidth = 0;
+		auto decreaseWidth = 0;
 		if (!_info->isHidden()) {
 			decreaseWidth += _info->width();
-			decreaseWidth -= st::topBarArrowPadding.left();
+		}
+		if (!_menuToggle->isHidden()) {
+			decreaseWidth += _menuToggle->width();
 		}
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();

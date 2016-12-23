@@ -99,7 +99,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 	item->peer->paintUserpicLeft(p, st::profileMemberPhotoSize, x + st::profileMemberPhotoPosition.x(), y + st::profileMemberPhotoPosition.y(), width());
 
 	if (item->name.isEmpty()) {
-		item->name.setText(st::semiboldFont, App::peerName(item->peer), _textNameOptions);
+		item->name.setText(st::msgNameStyle, App::peerName(item->peer), _textNameOptions);
 	}
 	int nameLeft = x + st::profileMemberNamePosition.x();
 	int nameTop = y + st::profileMemberNamePosition.y();

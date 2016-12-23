@@ -148,7 +148,7 @@ StickersBox::StickersBox(QWidget*, const Stickers::Order &archivedIds)
 : _section(Section::ArchivedPart)
 , _archived(0, this, archivedIds)
 , _aboutWidth(st::boxWideWidth - 2 * st::stickersReorderPadding.top())
-, _about(st::boxTextFont, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
+, _about(st::boxTextStyle, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
 }
 
 void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result) {
@@ -691,7 +691,7 @@ void StickersBox::Inner::paintRow(Painter &p, int index, TimeMs ms) {
 	int statusx = namex;
 	int statusy = st::contactsPadding.top() + st::contactsStatusTop;
 
-	p.setFont(st::contactsNameFont);
+	p.setFont(st::contactsNameStyle.font);
 	p.setPen(st::contactsNameFg);
 	p.drawTextLeft(namex, namey, width(), s->title, s->titleWidth);
 
@@ -1225,10 +1225,10 @@ int StickersBox::Inner::fillSetCount(const Stickers::Set &set) const {
 
 QString StickersBox::Inner::fillSetTitle(const Stickers::Set &set, int maxNameWidth, int *outTitleWidth) const {
 	auto result = set.title;
-	int titleWidth = st::contactsNameFont->width(result);
+	int titleWidth = st::contactsNameStyle.font->width(result);
 	if (titleWidth > maxNameWidth) {
-		result = st::contactsNameFont->elided(result, maxNameWidth);
-		titleWidth = st::contactsNameFont->width(result);
+		result = st::contactsNameStyle.font->elided(result, maxNameWidth);
+		titleWidth = st::contactsNameStyle.font->width(result);
 	}
 	if (outTitleWidth) {
 		*outTitleWidth = titleWidth;
