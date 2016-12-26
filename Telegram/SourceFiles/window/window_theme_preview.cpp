@@ -147,7 +147,7 @@ void Generator::prepare() {
 	_dialogs = QRect(_body.x(), _body.y(), st::themePreviewDialogsWidth, _body.height());
 	_dialogsList = _dialogs.marginsRemoved(QMargins(0, st::dialogsFilterPadding.y() + st::dialogsMenuToggle.height + st::dialogsFilterPadding.y(), 0, st::dialogsPadding.y()));
 	_topBar = QRect(_dialogs.x() + _dialogs.width(), _dialogs.y(), _body.width() - _dialogs.width(), st::topBarHeight);
-	_composeArea = QRect(_topBar.x(), _body.y() + _body.height() - st::historySend.height, _topBar.width(), st::historySend.height);
+	_composeArea = QRect(_topBar.x(), _body.y() + _body.height() - st::historySendSize.height(), _topBar.width(), st::historySendSize.height());
 	_history = QRect(_topBar.x(), _topBar.y() + _topBar.height(), _topBar.width(), _body.height() - _topBar.height() - _composeArea.height());
 
 	generateData();
@@ -402,10 +402,10 @@ void Generator::paintTopBar() {
 void Generator::paintComposeArea() {
 	_p->fillRect(_composeArea, st::historyReplyBg[_palette]);
 
-	auto controlsTop = _composeArea.y() + _composeArea.height() - st::historySend.height;
+	auto controlsTop = _composeArea.y() + _composeArea.height() - st::historySendSize.height();
 	st::historyAttach.icon[_palette].paint(*_p, _composeArea.x() + st::historyAttach.iconPosition.x(), controlsTop + st::historyAttach.iconPosition.y(), _rect.width());
-	auto right = st::historySendRight + st::historySend.width;
-	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySend.width, st::historySend.height));
+	auto right = st::historySendRight + st::historySendSize.width();
+	st::historyRecordVoice[_palette].paintInCenter(*_p, QRect(_composeArea.x() + _composeArea.width() - right, controlsTop, st::historySendSize.width(), st::historySendSize.height()));
 
 	right += st::historyAttachEmoji.width;
 	auto attachEmojiLeft = _composeArea.x() + _composeArea.width() - right;
@@ -431,8 +431,8 @@ void Generator::paintComposeArea() {
 
 	auto fieldLeft = _composeArea.x() + st::historyAttach.width + fakeMargin;
 	auto fieldTop = _composeArea.y() + _composeArea.height() - st::historyAttach.height + st::historySendPadding + fakeMargin;
-	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySend.width - st::historySendRight - st::historyAttachEmoji.width - 2 * fakeMargin;
-	auto fieldHeight = st::historySend.height - 2 * st::historySendPadding - 2 * fakeMargin;
+	auto fieldWidth = _composeArea.width() - st::historyAttach.width - st::historySendSize.width() - st::historySendRight - st::historyAttachEmoji.width - 2 * fakeMargin;
+	auto fieldHeight = st::historySendSize.height() - 2 * st::historySendPadding - 2 * fakeMargin;
 	auto field = QRect(fieldLeft, fieldTop, fieldWidth, fieldHeight);
 	_p->fillRect(field, st::historyComposeField.bgColor[_palette]);
 

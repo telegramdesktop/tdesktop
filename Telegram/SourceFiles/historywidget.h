@@ -45,6 +45,7 @@ class PopupMenu;
 class IconButton;
 class HistoryDownButton;
 class EmojiButton;
+class SendButton;
 class FlatButton;
 class LinkButton;
 class RoundButton;
@@ -841,10 +842,14 @@ private slots:
 
 private:
 	void animationCallback();
-	void recordActiveCallback();
+	void updateOverStates(QPoint pos);
+	void recordStartCallback();
+	void recordStopCallback(bool active);
+	void recordUpdateCallback(QPoint globalPos);
 	void chooseAttach();
 	void historyDownAnimationFinish();
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+	void sendButtonClicked();
 	struct SendingFilesLists {
 		QList<QUrl> nonLocalUrls;
 		QStringList directories;
@@ -925,7 +930,6 @@ private:
 
 	void drawField(Painter &p, const QRect &rect);
 	void paintEditHeader(Painter &p, const QRect &rect, int left, int top) const;
-	void drawRecordButton(Painter &p, float64 recordActive, TimeMs ms);
 	void drawRecording(Painter &p, float64 recordActive);
 	void drawPinnedBar(Painter &p);
 
@@ -1091,7 +1095,7 @@ private:
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId = 0;
-	object_ptr<Ui::IconButton> _inlineBotCancel = { nullptr };
+	bool _isInlineBot = false;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 
@@ -1100,10 +1104,13 @@ private:
 	bool isJoinChannel() const;
 	bool isMuteUnmute() const;
 	bool updateCmdStartShown();
+	void updateSendButtonType();
+	bool showRecordButton() const;
+	bool showInlineBotCancel() const;
 
 	object_ptr<ReportSpamPanel> _reportSpamPanel;
 
-	object_ptr<Ui::IconButton> _send;
+	object_ptr<Ui::SendButton> _send;
 	object_ptr<Ui::FlatButton> _unblock;
 	object_ptr<Ui::FlatButton> _botStart;
 	object_ptr<Ui::FlatButton> _joinChannel;
@@ -1119,14 +1126,11 @@ private:
 	bool _cmdStartShown = false;
 	object_ptr<MessageField> _field;
 	bool _recording = false;
-	bool _inRecord = false;
 	bool _inField = false;
 	bool _inReplyEdit = false;
 	bool _inPinnedMsg = false;
 	bool _inClickable = false;
 	int _recordingSamples = 0;
-	Animation _a_recordActive;
-	std_::unique_ptr<Ui::RippleAnimation> _recordRipple;
 	int _recordCancelWidth;
 
 	// This can animate for a very long time (like in music playing),

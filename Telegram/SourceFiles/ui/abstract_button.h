@@ -54,6 +54,13 @@ public:
 		_clickedCallback = std_::move(callback);
 	}
 
+	void setVisible(bool visible) override {
+		TWidget::setVisible(visible);
+		if (!visible) {
+			clearState();
+		}
+	}
+
 protected:
 	void enterEvent(QEvent *e) override;
 	void leaveEvent(QEvent *e) override;

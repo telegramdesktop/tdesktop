@@ -75,6 +75,7 @@ protected:
 	QPoint disabledRippleStartPosition() const {
 		return QPoint(-0x3FFFFFFF, -0x3FFFFFFF);
 	}
+	void resetRipples();
 
 private:
 	void ensureRipple();

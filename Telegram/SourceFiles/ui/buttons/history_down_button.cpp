@@ -26,6 +26,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 
 namespace Ui {
+namespace {
+
+constexpr int kWideScale = 5;
+
+} // namespace
 
 HistoryDownButton::HistoryDownButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
 , _st(st) {
@@ -139,6 +144,149 @@ QPoint EmojiButton::prepareRippleStartPosition() const {
 
 QImage EmojiButton::prepareRippleMask() const {
 	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+}
+
+SendButton::SendButton(QWidget *parent) : RippleButton(parent, st::historyReplyCancel.ripple) {
+	resize(st::historySendSize);
+}
+
+void SendButton::setType(Type type) {
+	if (_type != type) {
+		_contentFrom = grabContent();
+		_type = type;
+		_a_typeChanged.finish();
+		_contentTo = grabContent();
+		_a_typeChanged.start([this] { update(); }, 0., 1., st::historyRecordVoiceDuration);
+		update();
+	}
+	if (_type != Type::Record) {
+		_recordActive = false;
+		_a_recordActive.finish();
+	}
+}
+
+void SendButton::setRecordActive(bool recordActive) {
+	if (_recordActive != recordActive) {
+		_recordActive = recordActive;
+		_a_recordActive.start([this] { recordAnimationCallback(); }, _recordActive ? 0. : 1., _recordActive ? 1. : 0, st::historyRecordVoiceDuration);
+		update();
+	}
+}
+
+void SendButton::finishAnimation() {
+	_a_typeChanged.finish();
+	_a_recordActive.finish();
+	update();
+}
+
+void SendButton::mouseMoveEvent(QMouseEvent *e) {
+	AbstractButton::mouseMoveEvent(e);
+	if (_recording) {
+		if (_recordUpdateCallback) {
+			_recordUpdateCallback(e->globalPos());
+		}
+	}
+}
+
+void SendButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	auto ms = getms();
+	auto over = (isDown() || isOver());
+	auto changed = _a_typeChanged.current(ms, 1.);
+	if (changed < 1.) {
+		PainterHighQualityEnabler hq(p);
+		p.setOpacity(1. - changed);
+		auto targetRect = QRect((1 - kWideScale) / 2 * width(), (1 - kWideScale) / 2 * height(), kWideScale * width(), kWideScale * height());
+		auto hiddenWidth = anim::interpolate(0, (1 - kWideScale) / 2 * width(), changed);
+		auto hiddenHeight = anim::interpolate(0, (1 - kWideScale) / 2 * height(), changed);
+		p.drawPixmap(targetRect.marginsAdded(QMargins(hiddenWidth, hiddenHeight, hiddenWidth, hiddenHeight)), _contentFrom);
+		p.setOpacity(changed);
+		auto shownWidth = anim::interpolate((1 - kWideScale) / 2 * width(), 0, changed);
+		auto shownHeight = anim::interpolate((1 - kWideScale) / 2 * height(), 0, changed);
+		p.drawPixmap(targetRect.marginsAdded(QMargins(shownWidth, shownHeight, shownWidth, shownHeight)), _contentTo);
+	} else if (_type == Type::Record) {
+		auto recordActive = recordActiveRatio();
+		auto rippleColor = anim::color(st::historyAttachEmoji.ripple.color, st::historyRecordVoiceRippleBgActive, recordActive);
+		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), ms, &rippleColor);
+
+		auto fastIcon = [recordActive, over, this] {
+			if (recordActive == 1.) {
+				return &st::historyRecordVoiceActive;
+			} else if (over) {
+				return &st::historyRecordVoiceOver;
+			}
+			return &st::historyRecordVoice;
+		};
+		fastIcon()->paintInCenter(p, rect());
+		if (recordActive > 0. && recordActive < 1.) {
+			p.setOpacity(recordActive);
+			st::historyRecordVoiceActive.paintInCenter(p, rect());
+			p.setOpacity(1.);
+		}
+	} else if (_type == Type::Save) {
+		auto &saveIcon = over ? st::historyEditSaveIconOver : st::historyEditSaveIcon;
+		saveIcon.paint(p, st::historySendIconPosition, width());
+	} else if (_type == Type::Cancel) {
+		paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y(), ms);
+
+		auto &cancelIcon = over ? st::historyReplyCancelIconOver : st::historyReplyCancelIcon;
+		cancelIcon.paintInCenter(p, rect());
+	} else {
+		auto &sendIcon = over ? st::historySendIconOver : st::historySendIcon;
+		sendIcon.paint(p, st::historySendIconPosition, width());
+	}
+}
+
+void SendButton::onStateChanged(State was, StateChangeSource source) {
+	RippleButton::onStateChanged(was, source);
+
+	auto down = (state() & StateFlag::Down);
+	if ((was & StateFlag::Down) != down) {
+		if (down) {
+			if (_type == Type::Record) {
+				_recording = true;
+				if (_recordStartCallback) {
+					_recordStartCallback();
+				}
+			}
+		} else if (_recording) {
+			_recording = false;
+			if (_recordStopCallback) {
+				_recordStopCallback(_recordActive);
+			}
+		}
+	}
+}
+
+QPixmap SendButton::grabContent() {
+	auto result = QImage(kWideScale * size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	{
+		Painter p(&result);
+		p.drawPixmap((kWideScale - 1) / 2 * width(), (kWideScale - 1) / 2 * height(), myGrab(this));
+	}
+	return App::pixmapFromImageInPlace(std_::move(result));
+}
+
+QImage SendButton::prepareRippleMask() const {
+	auto size = (_type == Type::Record) ? st::historyAttachEmoji.rippleAreaSize : st::historyReplyCancel.rippleAreaSize;
+	return Ui::RippleAnimation::ellipseMask(QSize(size, size));
+}
+
+QPoint SendButton::prepareRippleStartPosition() const {
+	auto real = mapFromGlobal(QCursor::pos());
+	auto size = (_type == Type::Record) ? st::historyAttachEmoji.rippleAreaSize : st::historyReplyCancel.rippleAreaSize;
+	auto y = (_type == Type::Record) ? st::historyAttachEmoji.rippleAreaPosition.y() : (height() - st::historyReplyCancel.rippleAreaSize) / 2;
+	return real - QPoint((width() - size) / 2, y);
+}
+
+void SendButton::recordAnimationCallback() {
+	update();
+	if (_recordAnimationCallback) {
+		_recordAnimationCallback();
+	}
 }
 
 } // namespace Ui

@@ -40,7 +40,7 @@ public:
 	void startAnim();
 	void stopAnim();
 	void showAll();
-	void showSelected(uint32 selCount, bool canDelete = false);
+	void showSelected(int selectedCount, bool canDelete = false);
 
 	void updateMembersShowArea();
 
@@ -58,6 +58,9 @@ signals:
 	void clicked();
 
 private:
+	void updateControlsGeometry();
+	void selectedShowCallback();
+
 	void onForwardSelection();
 	void onDeleteSelection();
 	void onClearSelection();
@@ -66,15 +69,18 @@ private:
 	void showMenu();
 
 	void updateAdaptiveLayout();
+	int countSelectedButtonsTop(float64 selectedShown);
 
 	MainWidget *main();
 
 	PeerData *_searchInPeer = nullptr;
-	PeerData *_selPeer = nullptr;
-	int _selCount = 0;
+	PeerData *_selectedInPeer = nullptr;
+	int _selectedCount = 0;
 	bool _canDelete = false;
 
 	bool _animating = false;
+
+	Animation _selectedShown;
 
 	object_ptr<Ui::RoundButton> _clearSelection;
 	object_ptr<Ui::RoundButton> _forward, _delete;

@@ -52,6 +52,8 @@ UpdateStateRow::UpdateStateRow(QWidget *parent) : TWidget(parent)
 	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onFailed()));
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onReady()));
 
+	_versionText = lng_settings_current_version_label(lt_version, currentVersionText());
+
 	switch (Sandbox::updatingState()) {
 	case Application::UpdatingDownload:
 		setState(State::Download, true);
@@ -66,7 +68,7 @@ int UpdateStateRow::resizeGetHeight(int newWidth) {
 	auto labelWidth = [](const QString &label) {
 		return st::linkFont->width(label) + st::linkFont->spacew;
 	};
-	auto checkLeft = (_state == State::Latest) ? labelWidth(lang(lng_settings_latest_installed)) : 0;
+	auto checkLeft = (_state == State::Latest) ? labelWidth(lang(lng_settings_latest_installed)) : labelWidth(_versionText);
 	auto restartLeft = labelWidth(lang(lng_settings_update_ready));
 
 	_check->resizeToWidth(qMin(newWidth, _check->naturalWidth()));
@@ -88,11 +90,11 @@ void UpdateStateRow::paintEvent(QPaintEvent *e) {
 		case State::Download: return _downloadText;
 		case State::Ready: return lang(lng_settings_update_ready);
 		case State::Fail: return lang(lng_settings_update_fail);
-		default: return QString();
+		default: return _versionText;
 		}
 	})();
 	p.setFont(st::linkFont);
-	p.setPen(st::settingsUpdateFg);
+	p.setPen((_state == State::None) ? st::windowFg : st::settingsUpdateFg);
 	p.drawTextLeft(0, 0, width(), text);
 }
 
@@ -176,7 +178,7 @@ void GeneralWidget::refreshControls() {
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	addChildRow(_updateAutomatically, marginSub, lng_settings_update_automatically(lt_version, currentVersionText()), SLOT(onUpdateAutomatically()), cAutoUpdate());
+	addChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), SLOT(onUpdateAutomatically()), cAutoUpdate());
 	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));

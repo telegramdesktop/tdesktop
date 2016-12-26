@@ -70,6 +70,7 @@ private:
 
 	State _state = State::None;
 	QString _downloadText;
+	QString _versionText;
 
 };
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE

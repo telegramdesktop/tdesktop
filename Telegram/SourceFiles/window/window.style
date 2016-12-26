@@ -82,9 +82,12 @@ notifyReplyArea: InputField(defaultInputField) {
 	border: 0px;
 	borderActive: 0px;
 }
-notifySendReply: IconButton(historySend) {
+notifySendReply: IconButton {
 	width: 36px;
 	height: 36px;
+
+	icon: historySendIcon;
+	iconOver: historySendIconOver;
 	iconPosition: point(6px, 6px);
 }
 
@@ -126,15 +129,14 @@ mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 		linkFont: semiboldFont;
 		linkFontOver: font(fsize semibold underline);
 	}
-}
-mainMenuTelegramPalette: TextPalette(defaultTextPalette) {
-	linkFg: windowSubTextFg;
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
 }
 mainMenuTelegramBottom: 43px;
 mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
-mainMenuVersionPalette: mainMenuTelegramPalette;
 mainMenuVersionBottom: 21px;
 
 // Windows specific title
@@ -220,6 +222,7 @@ topBarInfoButton: PeerAvatarButton {
 	size: topBarHeight;
 	photoSize: 42px;
 }
+topBarSlideDuration: 150;
 
 // Mac specific
 

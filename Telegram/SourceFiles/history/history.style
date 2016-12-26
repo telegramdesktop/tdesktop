@@ -208,20 +208,18 @@ historyUnblock: FlatButton(historyComposeButton) {
 
 historySendIcon: icon {{ "send_control_send", historySendIconFg }};
 historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
-historySend: IconButton {
-	width: 46px;
-	height: 46px;
-
-	icon: historySendIcon;
-	iconOver: historySendIconOver;
-	iconPosition: point(11px, 11px);
-}
+historySendIconPosition: point(11px, 11px);
+historySendSize: size(46px, 46px);
 historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
 historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
 
-historyAttach: IconButton(historySend) {
+historyAttach: IconButton {
+	width: 46px;
+	height: 46px;
+
 	icon: icon {{ "send_control_attach", historyComposeIconFg }};
 	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
+	iconPosition: point(11px, 11px);
 
 	rippleAreaPosition: point(3px, 3px);
 	rippleAreaSize: 40px;
@@ -259,7 +257,7 @@ historyBotCommandStart: IconButton(historyAttach) {
 historyRecordVoiceFg: historyComposeIconFg;
 historyRecordVoiceFgOver: historyComposeIconFgOver;
 historyRecordVoiceFgActive: windowBgActive;
-historyRecordVoiceDuration: 200;
+historyRecordVoiceDuration: 120;
 historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
 historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
 historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
@@ -302,11 +300,6 @@ historyReplyCancel: IconButton {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}
-}
-historyInlineBotCancel: IconButton(historyReplyCancel) {
-	height: 46px;
-
-	rippleAreaPosition: point(4px, 3px);
 }
 
 reportSpamHide: FlatButton {

@@ -156,8 +156,13 @@ bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto hasSelected = (_selectedCount > 0);
+	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(getms(), hasSelected ? 1. : 0.));
+
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
-	if (_clearSelection->isHidden()) {
+	if (selectedButtonsTop < 0) {
+		p.translate(0, selectedButtonsTop + st::topBarHeight);
+
 		p.save();
 		auto decreaseWidth = 0;
 		if (!_info->isHidden()) {
@@ -195,32 +200,43 @@ void TopBarWidget::paintUnreadCounter(Painter &p, int outerWidth) {
 }
 
 void TopBarWidget::mousePressEvent(QMouseEvent *e) {
-	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && !_selCount) {
+	if (e->button() == Qt::LeftButton && e->pos().y() < st::topBarHeight && !_selectedCount) {
 		emit clicked();
 	}
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
-	int buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
-	int buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clearSelection->width();
+	updateControlsGeometry();
+}
+
+int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
+	return (1. - selectedShown) * (-st::topBarHeight);
+}
+
+void TopBarWidget::updateControlsGeometry() {
+	auto hasSelected = (_selectedCount > 0);
+	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(hasSelected ? 1. : 0.));
+	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
+	auto buttonsLeft = st::topBarActionSkip + (Adaptive::OneColumn() ? 0 : st::lineWidth);
+	auto buttonsWidth = _forward->contentWidth() + _delete->contentWidth() + _clearSelection->width();
 	buttonsWidth += buttonsLeft + st::topBarActionSkip * 3;
 
-	int widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
+	auto widthLeft = qMin(width() - buttonsWidth, -2 * st::defaultActiveButton.width);
 	_forward->setFullWidth(-(widthLeft / 2));
 	_delete->setFullWidth(-(widthLeft / 2));
 
-	int buttonsTop = (height() - _forward->height()) / 2;
+	selectedButtonsTop += (height() - _forward->height()) / 2;
 
-	_forward->moveToLeft(buttonsLeft, buttonsTop);
+	_forward->moveToLeft(buttonsLeft, selectedButtonsTop);
 	buttonsLeft += _forward->width() + st::topBarActionSkip;
 
-	_delete->moveToLeft(buttonsLeft, buttonsTop);
-	_clearSelection->moveToRight(st::topBarActionSkip, buttonsTop);
+	_delete->moveToLeft(buttonsLeft, selectedButtonsTop);
+	_clearSelection->moveToRight(st::topBarActionSkip, selectedButtonsTop);
 
-	_info->moveToRight(0, 0);
-	_menuToggle->moveToRight(0, 0);
-	_mediaType->moveToRight(0, 0);
-	_search->moveToRight(_info->isHidden() ? _menuToggle->width() : _info->width(), 0);
+	_info->moveToRight(0, otherButtonsTop);
+	_menuToggle->moveToRight(0, otherButtonsTop);
+	_mediaType->moveToRight(0, otherButtonsTop);
+	_search->moveToRight(_info->isHidden() ? _menuToggle->width() : _info->width(), otherButtonsTop);
 }
 
 void TopBarWidget::startAnim() {
@@ -247,31 +263,18 @@ void TopBarWidget::stopAnim() {
 
 void TopBarWidget::showAll() {
 	if (_animating) {
-		resizeEvent(nullptr);
+		updateControlsGeometry();
 		return;
 	}
 	auto historyPeer = App::main() ? App::main()->historyPeer() : nullptr;
 	auto overviewPeer = App::main() ? App::main()->overviewPeer() : nullptr;
-	if (_selCount) {
-		_clearSelection->show();
-		if (_canDelete) {
-			_delete->show();
-		} else {
-			_delete->hide();
-		}
-		_forward->show();
-		_mediaType->hide();
-	} else {
-		_clearSelection->hide();
-		_delete->hide();
-		_forward->hide();
-		if (App::main() && App::main()->mediaTypeSwitch()) {
-			_mediaType->show();
-		} else {
-			_mediaType->hide();
-		}
-	}
-	if (historyPeer && !overviewPeer && _clearSelection->isHidden()) {
+
+	_clearSelection->show();
+	_delete->setVisible(_canDelete);
+	_forward->show();
+
+	_mediaType->setVisible(App::main() ? App::main()->mediaTypeSwitch() : false);
+	if (historyPeer && !overviewPeer) {
 		if (Adaptive::OneColumn() || !App::main()->stackIsEmpty()) {
 			_info->setPeer(historyPeer);
 			_info->show();
@@ -291,18 +294,18 @@ void TopBarWidget::showAll() {
 	if (_membersShowArea) {
 		_membersShowArea->show();
 	}
-	resizeEvent(nullptr);
+	updateControlsGeometry();
 }
 
 void TopBarWidget::updateMembersShowArea() {
 	auto membersShowAreaNeeded = [this]() {
-		if (_selCount || App::main()->overviewPeer() || !_selPeer) {
+		if ((_selectedCount > 0) || App::main()->overviewPeer() || !_selectedInPeer) {
 			return false;
 		}
-		if (auto chat = _selPeer->asChat()) {
+		if (auto chat = _selectedInPeer->asChat()) {
 			return chat->amIn();
 		}
-		if (auto megagroup = _selPeer->asMegagroup()) {
+		if (auto megagroup = _selectedInPeer->asMegagroup()) {
 			return megagroup->canViewMembers() && (megagroup->membersCount() < Global::ChatSizeMax());
 		}
 		return false;
@@ -321,18 +324,36 @@ void TopBarWidget::updateMembersShowArea() {
 	_membersShowArea->setGeometry(App::main()->getMembersShowAreaGeometry());
 }
 
-void TopBarWidget::showSelected(uint32 selCount, bool canDelete) {
-	_selPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
-	_selCount = selCount;
-	if (_selCount > 0) {
-		_canDelete = canDelete;
-		_forward->setSecondaryText(QString::number(_selCount));
-		_delete->setSecondaryText(QString::number(_selCount));
+void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
+	if (_selectedCount == selectedCount) {
+		return;
 	}
-	setCursor(_selCount ? style::cur_default : style::cur_pointer);
 
-	updateMembersShowArea();
-	showAll();
+	auto wasSelected = (_selectedCount > 0);
+	_selectedInPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
+	_selectedCount = selectedCount;
+	if (_selectedCount > 0) {
+		_forward->setSecondaryText(QString::number(_selectedCount));
+		_delete->setSecondaryText(QString::number(_selectedCount));
+	}
+	auto hasSelected = (_selectedCount > 0);
+	if (_canDelete != canDelete) {
+		_canDelete = canDelete;
+		showAll();
+	}
+	if (wasSelected != hasSelected) {
+		setCursor(hasSelected ? style::cur_default : style::cur_pointer);
+
+		updateMembersShowArea();
+		_selectedShown.start([this] { selectedShowCallback(); }, hasSelected ? 0. : 1., hasSelected ? 1. : 0., st::topBarSlideDuration, anim::easeOutCirc);
+	} else {
+		updateControlsGeometry();
+	}
+}
+
+void TopBarWidget::selectedShowCallback() {
+	updateControlsGeometry();
+	update();
 }
 
 void TopBarWidget::updateAdaptiveLayout() {

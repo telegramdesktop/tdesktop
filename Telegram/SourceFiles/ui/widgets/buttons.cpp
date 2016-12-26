@@ -131,6 +131,10 @@ QPoint RippleButton::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos());
 }
 
+void RippleButton::resetRipples() {
+	_ripple.reset();
+}
+
 RippleButton::~RippleButton() = default;
 
 FlatButton::FlatButton(QWidget *parent, const QString &text, const style::FlatButton &st) : RippleButton(parent, st.ripple)
@@ -189,7 +193,6 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 RoundButton::RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st) : RippleButton(parent, st.ripple)
 , _fullText(text)
 , _st(st) {
-	setCursor(style::cur_pointer);
 	updateText();
 }
 
@@ -308,7 +311,6 @@ QPoint RoundButton::prepareRippleStartPosition() const {
 IconButton::IconButton(QWidget *parent, const style::IconButton &st) : RippleButton(parent, st.ripple)
 , _st(st) {
 	resize(_st.width, _st.height);
-	setCursor(style::cur_pointer);
 }
 
 void IconButton::setIconOverride(const style::icon *iconOverride, const style::icon *iconOverOverride) {

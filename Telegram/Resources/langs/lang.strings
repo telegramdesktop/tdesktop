@@ -263,7 +263,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
-"lng_settings_update_automatically" = "Update automatically (ver. {version})";
+"lng_settings_update_automatically" = "Update automatically";
+"lng_settings_current_version_label" = "Version {version}:";
 "lng_settings_current_version" = "Version {version}";
 "lng_settings_check_now" = "Check for updates";
 "lng_settings_update_checking" = "Checking for updates...";

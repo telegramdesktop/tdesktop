@@ -75,4 +75,65 @@ private:
 
 };
 
+class SendButton : public RippleButton {
+public:
+	SendButton(QWidget *parent);
+
+	enum class Type {
+		Send,
+		Save,
+		Record,
+		Cancel,
+	};
+	Type type() const {
+		return _type;
+	}
+	void setType(Type state);
+	void setRecordActive(bool recordActive);
+	void finishAnimation();
+
+	void setRecordStartCallback(base::lambda<void()> &&callback) {
+		_recordStartCallback = std_::move(callback);
+	}
+	void setRecordUpdateCallback(base::lambda<void(QPoint globalPos)> &&callback) {
+		_recordUpdateCallback = std_::move(callback);
+	}
+	void setRecordStopCallback(base::lambda<void(bool active)> &&callback) {
+		_recordStopCallback = std_::move(callback);
+	}
+	void setRecordAnimationCallback(base::lambda<void()> &&callback) {
+		_recordAnimationCallback = std_::move(callback);
+	}
+
+	float64 recordActiveRatio() {
+		return _a_recordActive.current(getms(), _recordActive ? 1. : 0.);
+	}
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	void recordAnimationCallback();
+	QPixmap grabContent();
+
+	Type _type = Type::Send;
+	bool _recordActive = false;
+	QPixmap _contentFrom, _contentTo;
+
+	Animation _a_typeChanged;
+	Animation _a_recordActive;
+
+	bool _recording = false;
+	base::lambda<void()> _recordStartCallback;
+	base::lambda<void(bool active)> _recordStopCallback;
+	base::lambda<void(QPoint globalPos)> _recordUpdateCallback;
+	base::lambda<void()> _recordAnimationCallback;
+
+};
+
 } // namespace Ui
