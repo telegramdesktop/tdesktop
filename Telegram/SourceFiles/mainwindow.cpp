@@ -262,7 +262,7 @@ void MainWindow::setupPasscode() {
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
-	_mediaView->hide();
+	if (_mediaView) _mediaView->hide();
 	Ui::hideSettingsAndLayer(true);
 	if (_intro) _intro->hide();
 	if (animated) {
