@@ -271,7 +271,7 @@ void MembersBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, Membe
 			data->ripple.reset();
 		}
 	}
-	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
+	peer->paintUserpicLeft(p, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
 
 	p.setPen(st::contactsNameFg);
 

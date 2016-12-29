@@ -618,7 +618,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 				user->loadUserpic();
-				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
+				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
 				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
@@ -663,7 +663,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					toHighlight += '@' + user->username;
 				}
 				user->loadUserpic();
-				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
+				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				auto commandText = '/' + toHighlight;
 

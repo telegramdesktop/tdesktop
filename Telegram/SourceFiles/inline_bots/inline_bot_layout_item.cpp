@@ -146,7 +146,11 @@ ImagePtr ItemBase::getResultThumb() const {
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 	if (_result->_type == Result::Type::Contact) {
-		return userDefPhoto(qHash(_result->_id) % kUserColorsCount)->pixCircled(width, height);
+		auto result = EmptyUserpic(qHash(_result->_id) % kUserColorsCount, _result->getLayoutTitle()).generate(width);
+		if (result.height() != height * cIntRetinaFactor()) {
+			result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+		}
+		return std_::move(result);
 	}
 	return QPixmap();
 }

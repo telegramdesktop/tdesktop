@@ -34,6 +34,63 @@ namespace Window {
 namespace Theme {
 namespace {
 
+QString fillLetters(const QString &name) {
+	QList<QString> letters;
+	QList<int> levels;
+	auto level = 0;
+	auto letterFound = false;
+	auto ch = name.constData(), end = ch + name.size();
+	while (ch != end) {
+		auto emojiLength = 0;
+		if (auto emoji = emojiFromText(ch, end, &emojiLength)) {
+			ch += emojiLength;
+		} else if (ch->isHighSurrogate()) {
+			++ch;
+			if (ch != end && ch->isLowSurrogate()) {
+				++ch;
+			}
+		} else if (!letterFound && ch->isLetterOrNumber()) {
+			letterFound = true;
+			if (ch + 1 != end && chIsDiac(*(ch + 1))) {
+				letters.push_back(QString(ch, 2));
+				levels.push_back(level);
+				++ch;
+			} else {
+				letters.push_back(QString(ch, 1));
+				levels.push_back(level);
+			}
+			++ch;
+		} else {
+			if (*ch == ' ') {
+				level = 0;
+				letterFound = false;
+			} else if (letterFound && *ch == '-') {
+				level = 1;
+				letterFound = true;
+			}
+			++ch;
+		}
+	}
+
+	// We prefer the second letter to be after ' ', but it can also be after '-'.
+	auto result = QString();
+	if (!letters.isEmpty()) {
+		result += letters.front();
+		auto bestIndex = 0;
+		auto bestLevel = 2;
+		for (auto i = letters.size(); i != 1;) {
+			if (levels[--i] < bestLevel) {
+				bestIndex = i;
+				bestLevel = levels[i];
+			}
+		}
+		if (bestIndex > 0) {
+			result += letters[bestIndex];
+		}
+	}
+	return result.toUpper();
+}
+
 class Generator {
 public:
 	Generator(const Instance &theme, const CurrentData &current);
@@ -48,6 +105,7 @@ private:
 	};
 	struct Row {
 		Text name;
+		QString letters;
 		enum class Type {
 			User,
 			Group,
@@ -107,7 +165,7 @@ private:
 	void paintBubble(const Bubble &bubble);
 	void paintService(QString text);
 
-	void paintUserpic(int x, int y, Row::Type type, int index);
+	void paintUserpic(int x, int y, Row::Type type, int index, QString letters);
 
 	void setTextPalette(const style::TextPalette &st);
 	void restoreTextPalette();
@@ -156,6 +214,9 @@ void Generator::prepare() {
 void Generator::addRow(QString name, int peerIndex, QString date, QString text) {
 	Row row;
 	row.name.setText(st::msgNameStyle, name, _textNameOptions);
+
+	row.letters = fillLetters(name);
+
 	row.peerIndex = peerIndex;
 	row.date = date;
 	row.text.setRichText(st::dialogsTextStyle, text, _textDlgOptions);
@@ -503,7 +564,7 @@ void Generator::paintRow(const Row &row) {
 	if (row.active || row.selected) {
 		_p->fillRect(fullRect, row.active ? st::dialogsBgActive[_palette] : st::dialogsBgOver[_palette]);
 	}
-	paintUserpic(x + st::dialogsPadding.x(), y + st::dialogsPadding.y(), row.type, row.peerIndex);
+	paintUserpic(x + st::dialogsPadding.x(), y + st::dialogsPadding.y(), row.type, row.peerIndex, row.letters);
 
 	auto nameleft = x + st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
 	auto namewidth = x + fullWidth - nameleft - st::dialogsPadding.x();
@@ -763,38 +824,33 @@ void Generator::paintService(QString text) {
 	_historyBottom = bubbleTop - st::msgServiceMargin.top();
 }
 
-void Generator::paintUserpic(int x, int y, Row::Type type, int index) {
-	const style::icon *userIcons[] = {
-		&st::historyPeer1UserpicPerson,
-		&st::historyPeer2UserpicPerson,
-		&st::historyPeer3UserpicPerson,
-		&st::historyPeer4UserpicPerson,
-		&st::historyPeer5UserpicPerson,
-		&st::historyPeer6UserpicPerson,
-		&st::historyPeer7UserpicPerson,
-		&st::historyPeer8UserpicPerson,
+void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString letters) {
+	style::color colors[] = {
+		st::historyPeer1UserpicBg,
+		st::historyPeer2UserpicBg,
+		st::historyPeer3UserpicBg,
+		st::historyPeer4UserpicBg,
+		st::historyPeer5UserpicBg,
+		st::historyPeer6UserpicBg,
+		st::historyPeer7UserpicBg,
+		st::historyPeer8UserpicBg,
 	};
-	const style::icon *chatIcons[] = {
-		&st::historyPeer1UserpicChat,
-		&st::historyPeer2UserpicChat,
-		&st::historyPeer3UserpicChat,
-		&st::historyPeer4UserpicChat,
-	};
-	const style::icon *channelIcons[] = {
-		&st::historyPeer1UserpicChannel,
-		&st::historyPeer2UserpicChannel,
-		&st::historyPeer3UserpicChannel,
-		&st::historyPeer4UserpicChannel,
-	};
-	auto userpic = (type == Row::Type::User) ? userIcons[index % base::array_size(userIcons)] : (type == Row::Type::Group) ? chatIcons[index % base::array_size(chatIcons)] : channelIcons[index % base::array_size(channelIcons)];
+	auto color = colors[index % base::array_size(colors)];
 
-	auto image = QImage(userpic->width() * cIntRetinaFactor(), userpic->height() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	auto image = QImage(st::dialogsPhotoSize * cIntRetinaFactor(), st::dialogsPhotoSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
+	image.fill(color[_palette]->c);
 	{
 		Painter p(&image);
-		userpic->paint(p, 0, 0, userpic->width());
+		auto fontsize = (st::dialogsPhotoSize * 13) / 33;
+		auto font = st::historyPeerUserpicFont->f;
+		font.setPixelSize(fontsize);
+
+		p.setFont(font);
+		p.setBrush(Qt::NoBrush);
+		p.setPen(st::historyPeerUserpicFg[_palette]);
+		p.drawText(QRect(0, 0, st::dialogsPhotoSize, st::dialogsPhotoSize), letters, QTextOption(style::al_center));
 	}
-	image = std_::move(image).scaled(st::dialogsPhotoSize * cIntRetinaFactor(), st::dialogsPhotoSize * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	Images::prepareCircle(image);
 	_p->drawImage(rtl() ? (_rect.width() - x - st::dialogsPhotoSize) : x, y, image);
 }

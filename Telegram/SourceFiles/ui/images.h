@@ -444,6 +444,11 @@ public:
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
 	ImagePtr(int32 width, int32 height) : Parent(internal::getImage(width, height)) {
 	}
+
+	explicit operator bool() const {
+		return (_data != nullptr) && !_data->isNull();
+	}
+
 };
 
 inline QSize shrinkToKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {

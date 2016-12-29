@@ -553,7 +553,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 
 				// paint the userpic if it intersects the painted rect
 				if (userpicTop + st::msgPhotoSize > r.top()) {
-					message->from()->paintUserpicLeft(p, st::msgPhotoSize, st::historyPhotoLeft, userpicTop, message->history()->width);
+					message->from()->paintUserpicLeft(p, st::historyPhotoLeft, userpicTop, message->history()->width, st::msgPhotoSize);
 				}
 				return true;
 			});

@@ -127,9 +127,11 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &phone, const QString &firstn
 : _contactPhone(phone)
 , _contactFirstName(firstname)
 , _contactLastName(lastname) {
-	_nameText.setText(st::semiboldTextStyle, lng_full_name(lt_first_name, _contactFirstName, lt_last_name, _contactLastName), _textNameOptions);
+	auto name = lng_full_name(lt_first_name, _contactFirstName, lt_last_name, _contactLastName);
+	_nameText.setText(st::semiboldTextStyle, name, _textNameOptions);
 	_statusText = _contactPhone;
 	_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+	_contactPhotoEmpty.set(0, name);
 }
 
 void SendFilesBox::prepare() {
@@ -280,7 +282,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 				auto &icon = _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
 				icon.paintInCenter(p, inner);
 			} else {
-				p.drawPixmapLeft(x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), userDefPhoto(1)->pixCircled(st::msgFileSize));
+				_contactPhotoEmpty.paint(p, x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), st::msgFileSize);
 			}
 		} else {
 			QRect rthumb(rtlrect(x + st::msgFileThumbPadding.left(), y + st::msgFileThumbPadding.top(), st::msgFileThumbSize, st::msgFileThumbSize, width()));

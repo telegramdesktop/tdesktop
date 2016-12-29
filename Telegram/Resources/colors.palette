@@ -258,29 +258,22 @@ historyForwardChooseBg: #0000004c;
 historyForwardChooseFg: windowFgActive;
 
 historyPeer1NameFg: #c03d33; // red
-historyPeer1UserpicBg: #ed9482;
-historyPeer1UserpicFg: #d3644b;
+historyPeer1UserpicBg: #e57979;
 historyPeer2NameFg: #4fad2d; // green
-historyPeer2UserpicBg: #a8db92;
-historyPeer2UserpicFg: #75c057;
+historyPeer2UserpicBg: #80d066;
 historyPeer3NameFg: #d09306; // yellow
-historyPeer3UserpicBg: #efd289;
-historyPeer3UserpicFg: #e4a861;
+historyPeer3UserpicBg: #ecd074;
 historyPeer4NameFg: windowActiveTextFg; // blue
-historyPeer4UserpicBg: #8fbfe9;
-historyPeer4UserpicFg: #649fd3;
+historyPeer4UserpicBg: #6fb1e4;
 historyPeer5NameFg: #8544d6; // purple
-historyPeer5UserpicBg: #9992e4;
-historyPeer5UserpicFg: #7b72cf;
+historyPeer5UserpicBg: #cc90e2;
 historyPeer6NameFg: #cd4073; // pink
-historyPeer6UserpicBg: #ffa9c3;
-historyPeer6UserpicFg: #e87497;
+historyPeer6UserpicBg: #f078ae;
 historyPeer7NameFg: #2996ad; // sea
-historyPeer7UserpicBg: #8eccdb;
-historyPeer7UserpicFg: #5eb2c7;
+historyPeer7UserpicBg: #73cdd0;
 historyPeer8NameFg: #ce671b; // orange
-historyPeer8UserpicBg: #f7b37c;
-historyPeer8UserpicFg: #de8d62;
+historyPeer8UserpicBg: #fba76f;
+historyPeerUserpicFg: windowFgActive;
 
 historyScrollBarBg: #556e837a;
 historyScrollBarBgOver: #556e83bc;

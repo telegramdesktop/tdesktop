@@ -43,7 +43,7 @@ QString cantInviteError();
 
 inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *peer) {
 	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
-		peer->paintUserpicLeft(p, size, x, y, outerWidth);
+		peer->paintUserpicLeft(p, x, y, outerWidth, size);
 	};
 }
 

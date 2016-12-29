@@ -1201,7 +1201,7 @@ void RevokePublicLinkBox::resizeEvent(QResizeEvent *e) {
 
 void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selected) const {
 	auto peer = row.peer;
-	peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
+	peer->paintUserpicLeft(p, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
 
 	p.setPen(st::contactsNameFg);
 

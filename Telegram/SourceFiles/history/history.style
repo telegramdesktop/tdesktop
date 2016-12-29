@@ -145,23 +145,6 @@ historyViewsOutIcon: icon {{ "history_views", historyOutIconFg }};
 historyViewsOutSelectedIcon: icon {{ "history_views", historyOutIconFgSelected }};
 historyViewsInvertedIcon: icon {{ "history_views", historySendingInvertedIconFg }};
 
-historyPeer1UserpicPerson: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_person", historyPeer1UserpicFg }};
-historyPeer1UserpicChat: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_chat", historyPeer1UserpicFg }};
-historyPeer1UserpicChannel: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_channel", historyPeer1UserpicFg }};
-historyPeer2UserpicPerson: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_person", historyPeer2UserpicFg }};
-historyPeer2UserpicChat: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_chat", historyPeer2UserpicFg }};
-historyPeer2UserpicChannel: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_channel", historyPeer2UserpicFg }};
-historyPeer3UserpicPerson: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_person", historyPeer3UserpicFg }};
-historyPeer3UserpicChat: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_chat", historyPeer3UserpicFg }};
-historyPeer3UserpicChannel: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_channel", historyPeer3UserpicFg }};
-historyPeer4UserpicPerson: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_person", historyPeer4UserpicFg }};
-historyPeer4UserpicChat: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_chat", historyPeer4UserpicFg }};
-historyPeer4UserpicChannel: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_channel", historyPeer4UserpicFg }};
-historyPeer5UserpicPerson: icon {{ size(120px, 120px), historyPeer5UserpicBg }, { "userpic_person", historyPeer5UserpicFg }};
-historyPeer6UserpicPerson: icon {{ size(120px, 120px), historyPeer6UserpicBg }, { "userpic_person", historyPeer6UserpicFg }};
-historyPeer7UserpicPerson: icon {{ size(120px, 120px), historyPeer7UserpicBg }, { "userpic_person", historyPeer7UserpicFg }};
-historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};
-
 historyComposeField: FlatTextarea {
 	textColor: historyComposeAreaFg;
 	bgColor: historyComposeAreaBg;
@@ -390,6 +373,8 @@ historyBubbleTailInRight: icon {{ "bubble_tail-flip_horizontal", msgInBg }};
 historyBubbleTailInRightSelected: icon {{ "bubble_tail-flip_horizontal", msgInBgSelected }};
 historyBubbleTailOutRight: icon {{ "bubble_tail-flip_horizontal", msgOutBg }};
 historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOutBgSelected }};
+
+historyPeerUserpicFont: semiboldFont;
 
 historyStatusFg: windowSubTextFg;
 historyStatusFgActive: windowActiveTextFg;

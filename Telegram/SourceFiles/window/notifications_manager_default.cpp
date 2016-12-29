@@ -612,7 +612,7 @@ void Notification::updateNotifyDisplay() {
 
 		if (!options.hideNameAndPhoto) {
 			_history->peer->loadUserpic(true, true);
-			_history->peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
+			_history->peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 		} else {
 			static QPixmap icon = App::pixmapFromImageInPlace(App::wnd()->iconLarge().scaled(st::notifyPhotoSize, st::notifyPhotoSize, Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 			icon.setDevicePixelRatio(cRetinaFactor());
@@ -680,7 +680,7 @@ void Notification::updatePeerPhoto() {
 	auto img = _cache.toImage();
 	{
 		Painter p(&img);
-		_peer->paintUserpicLeft(p, st::notifyPhotoSize, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width());
+		_peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 	}
 	_cache = App::pixmapFromImageInPlace(std_::move(img));
 	update();

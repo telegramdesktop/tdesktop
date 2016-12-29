@@ -236,7 +236,7 @@ void InnerWidget::paintRow(Painter &p, int index, TimeMs ms) {
 
 	x += st::profileCommonGroupsPadding.left();
 	y += st::profileCommonGroupsPadding.top();
-	item->peer->paintUserpic(p, st::profileCommonGroupsPhotoSize, rtl() ? (width() - x - st::profileCommonGroupsPhotoSize) : x, y);
+	item->peer->paintUserpic(p, rtl() ? (width() - x - st::profileCommonGroupsPhotoSize) : x, y, st::profileCommonGroupsPhotoSize);
 
 	x += st::profileCommonGroupsPhotoSize + st::profileCommonGroupsNameLeft;
 	y += st::profileCommonGroupsNameTop;

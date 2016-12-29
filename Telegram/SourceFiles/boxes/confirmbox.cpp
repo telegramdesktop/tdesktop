@@ -462,7 +462,6 @@ void RichDeleteMessageBox::deleteAndClear() {
 ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants)
 : _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
-, _photo(chatDefPhoto(0))
 , _participants(participants) {
 	_title->setText(title);
 	QString status;
@@ -482,6 +481,9 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChat
 				_photo->load();
 			}
 		}
+	}
+	if (!_photo) {
+		_photoEmpty.set(0, title);
 	}
 }
 
@@ -528,12 +530,16 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 
 	Painter p(this);
 
-	p.drawPixmap((width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, _photo->pixCircled(st::confirmInvitePhotoSize, st::confirmInvitePhotoSize));
+	if (_photo) {
+		p.drawPixmap((width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, _photo->pixCircled(st::confirmInvitePhotoSize, st::confirmInvitePhotoSize));
+	} else {
+		_photoEmpty.paint(p, (width() - st::confirmInvitePhotoSize) / 2, st::confirmInvitePhotoTop, width(), st::confirmInvitePhotoSize);
+	}
 
 	int sumWidth = _participants.size() * _userWidth;
 	int left = (width() - sumWidth) / 2;
 	for_const (auto user, _participants) {
-		user->paintUserpicLeft(p, st::confirmInviteUserPhotoSize, left + (_userWidth - st::confirmInviteUserPhotoSize) / 2, st::confirmInviteUserPhotoTop, width());
+		user->paintUserpicLeft(p, left + (_userWidth - st::confirmInviteUserPhotoSize) / 2, st::confirmInviteUserPhotoTop, width(), st::confirmInviteUserPhotoSize);
 		left += _userWidth;
 	}
 }

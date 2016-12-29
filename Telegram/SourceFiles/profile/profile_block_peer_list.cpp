@@ -96,7 +96,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 	}
 	int skip = st::profileMemberPhotoPosition.x();
 
-	item->peer->paintUserpicLeft(p, st::profileMemberPhotoSize, x + st::profileMemberPhotoPosition.x(), y + st::profileMemberPhotoPosition.y(), width());
+	item->peer->paintUserpicLeft(p, x + st::profileMemberPhotoPosition.x(), y + st::profileMemberPhotoPosition.y(), width(), st::profileMemberPhotoSize);
 
 	if (item->name.isEmpty()) {
 		item->name.setText(st::msgNameStyle, App::peerName(item->peer), _textNameOptions);

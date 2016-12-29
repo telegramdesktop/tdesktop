@@ -636,6 +636,7 @@ private:
 	int _phonew = 0;
 	QString _fname, _lname, _phone;
 	Text _name;
+	EmptyUserpic _photoEmpty;
 
 	ClickHandlerPtr _linkl;
 	int _linkw = 0;

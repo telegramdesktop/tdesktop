@@ -36,7 +36,7 @@ PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style:
 void PeerAvatarButton::paintEvent(QPaintEvent *e) {
 	if (_peer) {
 		Painter p(this);
-		_peer->paintUserpic(p, _st.photoSize, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2);
+		_peer->paintUserpic(p, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2, _st.photoSize);
 	}
 }
 

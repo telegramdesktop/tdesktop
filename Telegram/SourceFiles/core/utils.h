@@ -320,21 +320,24 @@ inline T snap(const T &v, const T &_min, const T &_max) {
 template <typename T>
 class ManagedPtr {
 public:
-	ManagedPtr() : ptr(0) {
-	}
-	ManagedPtr(T *p) : ptr(p) {
+	ManagedPtr() = default;
+	ManagedPtr(T *p) : _data(p) {
 	}
 	T *operator->() const {
-		return ptr;
+		return _data;
 	}
 	T *v() const {
-		return ptr;
+		return _data;
+	}
+
+	explicit operator bool() const {
+		return _data != nullptr;
 	}
 
 protected:
+	using Parent = ManagedPtr<T>;
+	T *_data = nullptr;
 
-	T *ptr;
-	typedef ManagedPtr<T> Parent;
 };
 
 QString translitRusEng(const QString &rus);

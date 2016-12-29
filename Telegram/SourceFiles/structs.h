@@ -204,9 +204,30 @@ static constexpr int kChatColorsCount = 4;
 static constexpr int kChannelColorsCount = 4;
 
 style::color peerColor(int index);
-ImagePtr userDefPhoto(int index);
-ImagePtr chatDefPhoto(int index);
-ImagePtr channelDefPhoto(int index);
+
+class EmptyUserpic {
+public:
+	EmptyUserpic();
+	EmptyUserpic(int index, const QString &name);
+
+	void set(int index, const QString &name);
+	void clear();
+
+	explicit operator bool() const {
+		return (_impl != nullptr);
+	}
+
+	void paint(Painter &p, int x, int y, int outerWidth, int size) const;
+	QPixmap generate(int size);
+
+	~EmptyUserpic();
+
+private:
+	class Impl;
+	std_::unique_ptr<Impl> _impl;
+	friend class Impl;
+
+};
 
 static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
 
@@ -292,9 +313,9 @@ public:
 	style::color color;
 
 	void setUserpic(ImagePtr userpic);
-	void paintUserpic(Painter &p, int size, int x, int y) const;
-	void paintUserpicLeft(Painter &p, int size, int x, int y, int w) const {
-		paintUserpic(p, size, rtl() ? (w - x - size) : x, y);
+	void paintUserpic(Painter &p, int x, int y, int size) const;
+	void paintUserpicLeft(Painter &p, int x, int y, int w, int size) const {
+		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
 	void loadUserpic(bool loadFirst = false, bool prior = true) {
 		_userpic->load(loadFirst, prior);
@@ -331,6 +352,7 @@ protected:
 
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
+	mutable EmptyUserpic _userpicEmpty;
 
 private:
 	void fillNames();

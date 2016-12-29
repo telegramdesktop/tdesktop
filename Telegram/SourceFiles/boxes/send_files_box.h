@@ -89,6 +89,7 @@ private:
 	QString _contactPhone;
 	QString _contactFirstName;
 	QString _contactLastName;
+	EmptyUserpic _contactPhotoEmpty;
 
 	base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;

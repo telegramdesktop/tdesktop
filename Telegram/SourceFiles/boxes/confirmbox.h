@@ -207,6 +207,7 @@ private:
 	object_ptr<Ui::FlatLabel> _title;
 	object_ptr<Ui::FlatLabel> _status;
 	ImagePtr _photo;
+	EmptyUserpic _photoEmpty;
 	QVector<UserData*> _participants;
 
 	int _userWidth = 0;

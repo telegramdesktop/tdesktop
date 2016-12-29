@@ -115,7 +115,7 @@ QPixmap UserpicButton::prepareUserpicPixmap() const {
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
-		_peer->paintUserpic(p, width(), 0, 0);
+		_peer->paintUserpic(p, 0, 0, width());
 	}
 	return App::pixmapFromImageInPlace(std_::move(image));
 }

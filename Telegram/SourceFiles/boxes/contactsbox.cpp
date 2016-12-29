@@ -955,7 +955,7 @@ void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, Cont
 		checkedRatio = data->checkbox->checkedAnimationRatio();
 		data->checkbox->paint(p, ms, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else {
-		peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
+		peer->paintUserpicLeft(p, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
 	}
 
 	int namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
@@ -1013,7 +1013,7 @@ void ContactsBox::Inner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, i
 	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
-	peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, width());
+	peer->paintUserpicLeft(p, userpicLeft, userpicTop, width(), userpicRadius * 2);
 
 	{
 		PainterHighQualityEnabler hq(p);

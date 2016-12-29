@@ -2235,16 +2235,17 @@ HistoryContact::HistoryContact(HistoryItem *parent, int32 userId, const QString 
 , _lname(last)
 , _phone(App::formatPhone(phone)) {
 	_name.setText(st::semiboldTextStyle, lng_full_name(lt_first_name, first, lt_last_name, last).trimmed(), _textNameOptions);
-
 	_phonew = st::normalFont->width(_phone);
 }
 
 void HistoryContact::initDimensions() {
 	_maxw = st::msgFileMinWidth;
 
-	_contact = _userId ? App::userLoaded(_userId) : 0;
+	_contact = _userId ? App::userLoaded(_userId) : nullptr;
 	if (_contact) {
 		_contact->loadUserpic();
+	} else {
+		_photoEmpty.set(qAbs(_userId ? _userId : _parent->id) % kUserColorsCount, _name.originalText());
 	}
 	if (_contact && _contact->contact > 0) {
 		_linkl = sendMessageClickHandler(_contact);
@@ -2305,12 +2306,15 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 		QRect rthumb(rtlrect(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, st::msgFileThumbSize, st::msgFileThumbSize, width));
 		if (_contact) {
-			_contact->paintUserpic(p, st::msgFileThumbSize, rthumb.x(), rthumb.y());
+			_contact->paintUserpic(p, rthumb.x(), rthumb.y(), st::msgFileThumbSize);
 		} else {
-			p.drawPixmap(rthumb.topLeft(), userDefPhoto(qAbs(_userId) % kUserColorsCount)->pixCircled(st::msgFileThumbSize, st::msgFileThumbSize));
+			_photoEmpty.paint(p, st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top() - topMinus, width, st::msgFileThumbSize);
 		}
 		if (selected) {
-			App::roundRect(p, rthumb, p.textPalette().selectOverlay, SelectedOverlaySmallCorners);
+			PainterHighQualityEnabler hq(p);
+			p.setBrush(p.textPalette().selectOverlay);
+			p.setPen(Qt::NoPen);
+			p.drawEllipse(rthumb);
 		}
 
 		bool over = ClickHandler::showAsActive(_linkl);
@@ -2323,8 +2327,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 		nameright = st::msgFilePadding.left();
 		statustop = st::msgFileStatusTop - topMinus;
 
-		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, st::msgFileSize, st::msgFileSize, width));
-		p.drawPixmap(inner.topLeft(), userDefPhoto(qAbs(_parent->id) % kUserColorsCount)->pixCircled(st::msgFileSize, st::msgFileSize));
+		_photoEmpty.paint(p, st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, width, st::msgFileSize);
 	}
 	int32 namewidth = width - nameleft - nameright;
 
