@@ -74,9 +74,10 @@ RoundButton {
 	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
 	textBgOver: color;
 
-	secondaryTextFg: color;
-	secondaryTextFgOver: color;
-	secondarySkip: pixels;
+	numbersTextFg: color;
+	numbersTextFgOver: color;
+	numbersSkip: pixels;
+	numbersDuration: int;
 
 	width: pixels;
 	height: pixels;
@@ -470,12 +471,13 @@ emptyRippleAnimation: RippleAnimation {
 defaultActiveButton: RoundButton {
 	textFg: activeButtonFg;
 	textFgOver: activeButtonFgOver;
-	secondaryTextFg: activeButtonSecondaryFg;
-	secondaryTextFgOver: activeButtonSecondaryFgOver;
+	numbersTextFg: activeButtonSecondaryFg;
+	numbersTextFgOver: activeButtonSecondaryFgOver;
 	textBg: activeButtonBg;
 	textBgOver: activeButtonBgOver;
 
-	secondarySkip: 7px;
+	numbersSkip: 7px;
+	numbersDuration: 200;
 
 	width: -34px;
 	height: 34px;
@@ -493,8 +495,8 @@ defaultActiveButton: RoundButton {
 defaultLightButton: RoundButton(defaultActiveButton) {
 	textFg: lightButtonFg;
 	textFgOver: lightButtonFgOver;
-	secondaryTextFg: lightButtonFg;
-	secondaryTextFgOver: lightButtonFgOver;
+	numbersTextFg: lightButtonFg;
+	numbersTextFgOver: lightButtonFgOver;
 	textBg: lightButtonBg;
 	textBgOver: lightButtonBgOver;
 

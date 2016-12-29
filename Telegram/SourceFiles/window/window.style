@@ -222,7 +222,7 @@ topBarInfoButton: PeerAvatarButton {
 	size: topBarHeight;
 	photoSize: 42px;
 }
-topBarSlideDuration: 150;
+topBarSlideDuration: 200;
 
 // Mac specific
 

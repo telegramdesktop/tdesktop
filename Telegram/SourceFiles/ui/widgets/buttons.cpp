@@ -190,6 +190,168 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 	p.drawText(r, _text, style::al_top);
 }
 
+class RoundButton::Numbers {
+public:
+	Numbers(const style::RoundButton &st, base::lambda<void()> &&animationCallback);
+
+	void setWidthChangedCallback(base::lambda<void()> &&callback) {
+		_widthChangedCallback = std_::move(callback);
+	}
+	void setText(const QString &text, int value);
+	void stepAnimation(TimeMs ms);
+	void finishAnimation();
+
+	void paint(Painter &p, int x, int y, int outerWidth);
+	int countWidth() const;
+
+private:
+	struct Digit {
+		QChar from = 0;
+		QChar to = 0;
+		int fromWidth = 0;
+		int toWidth = 0;
+	};
+
+	void animationCallback();
+	void realSetText(QString text, int value);
+
+	const style::RoundButton &_st;
+
+	QList<Digit> _digits;
+	int _digitWidth = 0;
+
+	int _fromWidth = 0;
+	int _toWidth = 0;
+
+	Animation _a_ready;
+	QString _delayedText;
+	int _delayedValue = 0;
+
+	int _value = 0;
+	bool _growing = false;
+
+	base::lambda<void()> _animationCallback;
+	base::lambda<void()> _widthChangedCallback;
+
+};
+
+RoundButton::Numbers::Numbers(const style::RoundButton &st, base::lambda<void()> &&animationCallback)
+: _st(st)
+, _animationCallback(std_::move(animationCallback)) {
+	for (auto ch = '0'; ch != '9'; ++ch) {
+		accumulate_max(_digitWidth, _st.font->m.width(ch));
+	}
+}
+
+void RoundButton::Numbers::setText(const QString &text, int value) {
+	if (_a_ready.animating(getms())) {
+		_delayedText = text;
+		_delayedValue = value;
+	} else {
+		realSetText(text, value);
+	}
+}
+
+void RoundButton::Numbers::animationCallback() {
+	if (_animationCallback) {
+		_animationCallback();
+	}
+	if (_widthChangedCallback) {
+		_widthChangedCallback();
+	}
+	if (!_a_ready.animating()) {
+		if (!_delayedText.isEmpty()) {
+			setText(_delayedText, _delayedValue);
+		}
+	}
+}
+
+void RoundButton::Numbers::realSetText(QString text, int value) {
+	_delayedText = QString();
+	_delayedValue = 0;
+
+	_growing = (value > _value);
+	_value = value;
+
+	auto newSize = text.size();
+	while (_digits.size() < newSize) {
+		_digits.push_front(Digit());
+	}
+	while (_digits.size() > newSize && !_digits.front().to.unicode()) {
+		_digits.pop_front();
+	}
+	auto oldSize = _digits.size();
+	auto animating = false;
+	for (auto i = 0, size = _digits.size(); i != size; ++i) {
+		auto &digit = _digits[i];
+		digit.from = digit.to;
+		digit.fromWidth = digit.toWidth;
+		digit.to = (newSize + i < size) ? QChar(0) : text[newSize + i - size];
+		digit.toWidth = digit.to.unicode() ? _st.font->m.width(digit.to) : 0;
+		if (digit.from != digit.to) {
+			animating = true;
+		}
+		if (!digit.from.unicode()) {
+			--oldSize;
+		}
+	}
+	_fromWidth = oldSize * _digitWidth;
+	_toWidth = newSize * _digitWidth;
+	if (animating) {
+		_a_ready.start([this] { animationCallback(); }, 0., 1., _st.numbersDuration);
+	}
+}
+
+int RoundButton::Numbers::countWidth() const {
+	return anim::interpolate(_fromWidth, _toWidth, anim::easeOutCirc(1., _a_ready.current(1.)));
+}
+
+void RoundButton::Numbers::stepAnimation(TimeMs ms) {
+	_a_ready.step(ms);
+}
+
+void RoundButton::Numbers::finishAnimation() {
+	auto width = countWidth();
+	_a_ready.finish();
+	if (_widthChangedCallback && countWidth() != width) {
+		_widthChangedCallback();
+	}
+	if (!_delayedText.isEmpty()) {
+		setText(_delayedText, _delayedValue);
+	}
+}
+
+void RoundButton::Numbers::paint(Painter &p, int x, int y, int outerWidth) {
+	auto digitsCount = _digits.size();
+	if (!digitsCount) return;
+
+	auto progress = anim::easeOutCirc(1., _a_ready.current(1.));
+	auto width = anim::interpolate(_fromWidth, _toWidth, progress);
+
+	QString singleChar('0');
+	if (rtl()) x = outerWidth - x - width;
+	x += width - _digits.size() * _digitWidth;
+	auto fromTop = anim::interpolate(0, _st.font->height, progress) * (_growing ? 1 : -1);
+	auto toTop = anim::interpolate(_st.font->height, 0, progress) * (_growing ? -1 : 1);
+	for (auto i = 0; i != digitsCount; ++i) {
+		auto &digit = _digits[i];
+		auto from = digit.from;
+		auto to = digit.to;
+		if (from.unicode()) {
+			p.setOpacity(1. - progress);
+			singleChar[0] = from;
+			p.drawText(x + (_digitWidth - digit.fromWidth) / 2, y + fromTop + _st.font->ascent, singleChar);
+		}
+		if (to.unicode()) {
+			p.setOpacity(progress);
+			singleChar[0] = to;
+			p.drawText(x + (_digitWidth - digit.toWidth) / 2, y + toTop + _st.font->ascent, singleChar);
+		}
+		x += _digitWidth;
+	}
+	p.setOpacity(1.);
+}
+
 RoundButton::RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st) : RippleButton(parent, st.ripple)
 , _fullText(text)
 , _st(st) {
@@ -206,9 +368,40 @@ void RoundButton::setText(const QString &text) {
 	updateText();
 }
 
-void RoundButton::setSecondaryText(const QString &secondaryText) {
-	_fullSecondaryText = secondaryText;
+void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
+	if (numbersText.isEmpty()) {
+		_numbers.reset();
+	} else {
+		if (!_numbers) {
+			_numbers = std_::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
+		}
+		_numbers->setText(numbersText, numbers);
+	}
 	updateText();
+}
+
+void RoundButton::setWidthChangedCallback(base::lambda<void()> &&callback) {
+	if (!_numbers) {
+		_numbers = std_::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
+	}
+	_numbers->setWidthChangedCallback(std_::move(callback));
+}
+
+void RoundButton::stepNumbersAnimation(TimeMs ms) {
+	if (_numbers) {
+		_numbers->stepAnimation(ms);
+	}
+}
+
+void RoundButton::finishNumbersAnimation() {
+	if (_numbers) {
+		_numbers->finishAnimation();
+	}
+}
+
+void RoundButton::numbersAnimationCallback() {
+	resizeToText();
+	update();
 }
 
 void RoundButton::setFullWidth(int newFullWidth) {
@@ -219,13 +412,10 @@ void RoundButton::setFullWidth(int newFullWidth) {
 void RoundButton::updateText() {
 	if (_transform == TextTransform::ToUpper) {
 		_text = _fullText.toUpper();
-		_secondaryText = _fullSecondaryText.toUpper();
 	} else {
 		_text = _fullText;
-		_secondaryText = _fullSecondaryText;
 	}
 	_textWidth = _text.isEmpty() ? 0 : _st.font->width(_text);
-	_secondaryTextWidth = _secondaryText.isEmpty() ? 0 : _st.font->width(_secondaryText);
 
 	resizeToText();
 	update();
@@ -251,9 +441,9 @@ void RoundButton::resizeToText() {
 }
 
 int RoundButton::contentWidth() const {
-	int result = _textWidth + _secondaryTextWidth;
-	if (_textWidth > 0 && _secondaryTextWidth > 0) {
-		result += _st.secondarySkip;
+	auto result = _textWidth;
+	if (_numbers) {
+		result += (result ? _st.numbersSkip : 0) + _numbers->countWidth();
 	}
 	return result;
 }
@@ -287,10 +477,10 @@ void RoundButton::paintEvent(QPaintEvent *e) {
 		p.setPen((over || down) ? _st.textFgOver : _st.textFg);
 		p.drawTextLeft(textLeft, textTop, width(), _text);
 	}
-	if (!_secondaryText.isEmpty()) {
-		textLeft += _textWidth + (_textWidth ? _st.secondarySkip : 0);
-		p.setPen((over || down) ? _st.secondaryTextFgOver : _st.secondaryTextFg);
-		p.drawTextLeft(textLeft, textTop, width(), _secondaryText);
+	if (_numbers) {
+		textLeft += _textWidth + (_textWidth ? _st.numbersSkip : 0);
+		p.setPen((over || down) ? _st.numbersTextFgOver : _st.numbersTextFg);
+		_numbers->paint(p, textLeft, textTop, width());
 	}
 	_st.icon.paint(p, QPoint(_st.padding.left(), _st.padding.right()), width());
 }
@@ -307,6 +497,8 @@ QImage RoundButton::prepareRippleMask() const {
 QPoint RoundButton::prepareRippleStartPosition() const {
 	return mapFromGlobal(QCursor::pos()) - QPoint(_st.padding.left(), _st.padding.top());
 }
+
+RoundButton::~RoundButton() = default;
 
 IconButton::IconButton(QWidget *parent, const style::IconButton &st) : RippleButton(parent, st.ripple)
 , _st(st) {

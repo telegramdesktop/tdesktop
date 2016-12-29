@@ -114,7 +114,16 @@ public:
 	RoundButton(QWidget *parent, const QString &text, const style::RoundButton &st);
 
 	void setText(const QString &text);
-	void setSecondaryText(const QString &secondaryText);
+
+	void setNumbersText(const QString &numbersText) {
+		setNumbersText(numbersText, numbersText.toInt());
+	}
+	void setNumbersText(int numbers) {
+		setNumbersText(QString::number(numbers), numbers);
+	}
+	void setWidthChangedCallback(base::lambda<void()> &&callback);
+	void stepNumbersAnimation(TimeMs ms);
+	void finishNumbersAnimation();
 
 	int contentWidth() const;
 
@@ -126,6 +135,8 @@ public:
 	};
 	void setTextTransform(TextTransform transform);
 
+	~RoundButton();
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -133,14 +144,16 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
+	void setNumbersText(const QString &numbersText, int numbers);
+	void numbersAnimationCallback();
 	void updateText();
 	void resizeToText();
 
 	QString _text, _fullText;
 	int _textWidth;
 
-	QString _secondaryText, _fullSecondaryText;
-	int _secondaryTextWidth = 0;
+	class Numbers;
+	std_::unique_ptr<Numbers> _numbers;
 
 	int _fullWidthOverride = 0;
 

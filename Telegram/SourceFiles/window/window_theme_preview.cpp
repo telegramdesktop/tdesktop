@@ -310,21 +310,20 @@ void Generator::generateData() {
 	addRow("Eva Summer", 0, "11:00", "Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago.");
 	_rows.back().active = true;
 	_rows.back().pinned = true;
-	addRow("Alexandra Smith", 1, "10:00", "This is amazing!");
+	addRow("Alexandra Smith", 7, "10:00", "This is amazing!");
 	_rows.back().unreadCounter = 2;
 	addRow("Mike Apple", 2, "9:00", textcmdLink(1, QChar(55357) + QString() + QChar(56836) + " Sticker"));
 	_rows.back().unreadCounter = 2;
 	_rows.back().muted = true;
-	addRow("Evening Club", 3, "8:00", textcmdLink(1, "Eva: Photo"));
+	addRow("Evening Club", 1, "8:00", textcmdLink(1, "Eva: Photo"));
 	_rows.back().type = Row::Type::Group;
-	addRow("Old Pirates", 4, "7:00", textcmdLink(1, "Max:") + " Yo-ho-ho!");
+	addRow("Old Pirates", 6, "7:00", textcmdLink(1, "Max:") + " Yo-ho-ho!");
 	_rows.back().type = Row::Type::Group;
-	addRow("Max Bright", 5, "6:00", "How about some coffee?");
+	addRow("Max Bright", 3, "6:00", "How about some coffee?");
 	_rows.back().status = Status::Received;
-	addRow("Natalie Parker", 6, "5:00", "OK, great)");
+	addRow("Natalie Parker", 4, "5:00", "OK, great)");
 	_rows.back().status = Status::Received;
-	addRow("Davy Jones", 7, "4:00", textcmdLink(1, "Keynote.pdf"));
-	addRow("Eva Summer", 8, "3:00", "Reminds me of a Chinese proverb: the best time to plant a tree was 20 years ago.");
+	addRow("Davy Jones", 5, "4:00", textcmdLink(1, "Keynote.pdf"));
 
 	_topBarName.setText(st::msgNameStyle, "Eva Summer", _textNameOptions);
 	_topBarStatus = "online";

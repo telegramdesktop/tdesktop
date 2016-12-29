@@ -44,7 +44,9 @@ TopBarWidget::TopBarWidget(MainWidget *w) : TWidget(w)
 , _search(this, st::topBarSearch)
 , _menuToggle(this, st::topBarMenuToggle) {
 	_forward->setClickedCallback([this] { onForwardSelection(); });
+	_forward->setWidthChangedCallback([this] { updateControlsGeometry(); });
 	_delete->setClickedCallback([this] { onDeleteSelection(); });
+	_delete->setWidthChangedCallback([this] { updateControlsGeometry(); });
 	_clearSelection->setClickedCallback([this] { onClearSelection(); });
 	_info->setClickedCallback([this] { onInfoClicked(); });
 	_search->setClickedCallback([this] { onSearch(); });
@@ -156,6 +158,9 @@ bool TopBarWidget::eventFilter(QObject *obj, QEvent *e) {
 void TopBarWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto ms = getms();
+	_forward->stepNumbersAnimation(ms);
+	_delete->stepNumbersAnimation(ms);
 	auto hasSelected = (_selectedCount > 0);
 	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.current(getms(), hasSelected ? 1. : 0.));
 
@@ -174,7 +179,6 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 		if (!_search->isHidden()) {
 			decreaseWidth += _search->width();
 		}
-		auto ms = getms();
 		auto paintCounter = main()->paintTopBar(p, decreaseWidth, ms);
 		p.restore();
 
@@ -325,16 +329,24 @@ void TopBarWidget::updateMembersShowArea() {
 }
 
 void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
-	if (_selectedCount == selectedCount) {
+	if (_selectedCount == selectedCount && _canDelete == canDelete) {
 		return;
+	}
+	if (selectedCount == 0) {
+		// Don't change the visible buttons if the selection is cancelled.
+		canDelete = _canDelete;
 	}
 
 	auto wasSelected = (_selectedCount > 0);
 	_selectedInPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
 	_selectedCount = selectedCount;
 	if (_selectedCount > 0) {
-		_forward->setSecondaryText(QString::number(_selectedCount));
-		_delete->setSecondaryText(QString::number(_selectedCount));
+		_forward->setNumbersText(_selectedCount);
+		_delete->setNumbersText(_selectedCount);
+		if (!wasSelected) {
+			_forward->finishNumbersAnimation();
+			_delete->finishNumbersAnimation();
+		}
 	}
 	auto hasSelected = (_selectedCount > 0);
 	if (_canDelete != canDelete) {
