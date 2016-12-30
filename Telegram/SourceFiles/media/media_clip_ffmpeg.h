@@ -103,6 +103,7 @@ private:
 	bool _opened = false;
 	bool _hadFrame = false;
 	bool _frameRead = false;
+	int _skippedInvalidDataPackets = 0;
 
 	int _audioStreamId = -1;
 	uint64 _playId = 0;

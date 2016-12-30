@@ -2,6 +2,7 @@
 
 This is the complete source code and the build instructions for the alpha version of the official desktop client for the [Telegram][telegram] messenger, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
 
+[![GitHub version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop)
 [![Build Status](https://travis-ci.org/telegramdesktop/tdesktop.svg?branch=master)](https://travis-ci.org/telegramdesktop/tdesktop)
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
@@ -12,7 +13,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * Mac OS X 10.8 - Mac OS X 10.11
 * Mac OS X 10.6 - Mac OS X 10.7 (separate build)
 * Ubuntu 12.04 - Ubuntu 16.04
-* Fedora 22
+* Fedora 22 - Fedora 24
 
 ## Third-party
 

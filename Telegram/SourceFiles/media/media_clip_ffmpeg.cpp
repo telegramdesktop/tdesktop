@@ -27,6 +27,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Clip {
 namespace internal {
+namespace {
+
+constexpr int kSkipInvalidDataPackets = 10;
+
+} // namespace
 
 FFMpegReaderImplementation::FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId) : ReaderImplementation(location, data)
 , _playId(playId) {
@@ -54,6 +59,10 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 			if (_mode == Mode::Normal) {
 				return ReadResult::EndOfFile;
 			}
+			if (!_hadFrame) {
+				LOG(("Gif Error: Got EOF before a single frame was read!"));
+				return ReadResult::Error;
+			}
 
 			if ((res = avformat_seek_file(_fmtContext, _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
 				if ((res = av_seek_frame(_fmtContext, _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
@@ -70,11 +79,12 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 			_hadFrame = false;
 			_frameMs = 0;
 			_lastReadVideoMs = _lastReadAudioMs = 0;
+			_skippedInvalidDataPackets = 0;
 
 			continue;
 		} else if (res != AVERROR(EAGAIN)) {
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-			LOG(("Audio Error: Unable to avcodec_receive_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			LOG(("Gif Error: Unable to avcodec_receive_frame() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			return ReadResult::Error;
 		}
 
@@ -100,9 +110,11 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 			finishPacket();
 
 			char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
-			LOG(("Audio Error: Unable to avcodec_send_packet() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+			LOG(("Gif Error: Unable to avcodec_send_packet() %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			if (res == AVERROR_INVALIDDATA) {
-				continue; // try to skip bad packet
+				if (++_skippedInvalidDataPackets < kSkipInvalidDataPackets) {
+					continue; // try to skip bad packet
+				}
 			}
 			return ReadResult::Error;
 		}
@@ -319,11 +331,11 @@ bool FFMpegReaderImplementation::start(Mode mode, int64 &positionMs) {
 
 	_codecContext = avcodec_alloc_context3(nullptr);
 	if (!_codecContext) {
-		LOG(("Audio Error: Unable to avcodec_alloc_context3 %1").arg(logData()));
+		LOG(("Gif Error: Unable to avcodec_alloc_context3 %1").arg(logData()));
 		return false;
 	}
 	if ((res = avcodec_parameters_to_context(_codecContext, _fmtContext->streams[_streamId]->codecpar)) < 0) {
-		LOG(("Audio Error: Unable to avcodec_parameters_to_context %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
+		LOG(("Gif Error: Unable to avcodec_parameters_to_context %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 		return false;
 	}
 	av_codec_set_pkt_timebase(_codecContext, _fmtContext->streams[_streamId]->time_base);
