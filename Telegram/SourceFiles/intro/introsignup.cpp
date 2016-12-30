@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "ui/filedialog.h"
 #include "boxes/photocropbox.h"
+#include "boxes/confirmbox.h"
 #include "lang.h"
 #include "application.h"
 #include "ui/widgets/buttons.h"
@@ -170,7 +171,10 @@ bool SignupWidget::nameSubmitFail(const RPCError &error) {
 
 	stopCheck();
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
+	if (err == qstr("PHONE_NUMBER_FLOOD")) {
+		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
+		return true;
+	} else if (err == qstr("PHONE_NUMBER_INVALID") || err == qstr("PHONE_CODE_EXPIRED") ||
 		err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID") ||
 		err == qstr("PHONE_NUMBER_OCCUPIED")) {
 		goBack();

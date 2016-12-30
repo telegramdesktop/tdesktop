@@ -195,7 +195,7 @@ TaskQueue *TaskQueue::TaskQueueList::TakeFirst(int list_index_) {
 void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
 	QMutexLocker lock(&queues_mutex_);
 
-	queue->tasks_.push_back(new Task(std::move(task)));
+	queue->tasks_.push_back(new Task(std_::move(task)));
 	auto list_was_empty = queue_list_.Empty(kAllQueuesList);
 	auto threads_count = threads_.size();
 	auto all_threads_processing = (threads_count == tasks_in_process_);
@@ -332,7 +332,7 @@ TaskQueue::TaskQueue(Type type, Priority priority)
 
 TaskQueue::~TaskQueue() {
 	if (type_ != Type::Main && type_ != Type::Special) {
-		if (auto thread_pool = weak_thread_pool_.lock()) {
+		if (auto thread_pool = weak_thread_pool_.toStrongRef()) {
 			thread_pool->RemoveQueue(this);
 		}
 	}
@@ -344,12 +344,12 @@ TaskQueue::~TaskQueue() {
 void TaskQueue::Put(Task &&task) {
 	if (type_ == Type::Main) {
 		QMutexLocker lock(&tasks_mutex_);
-		tasks_.push_back(new Task(std::move(task)));
+		tasks_.push_back(new Task(std_::move(task)));
 
 		Sandbox::MainThreadTaskAdded();
 	} else {
 		t_assert(type_ != Type::Special);
-		TaskThreadPool::Instance()->AddQueueTask(this, std::move(task));
+		TaskThreadPool::Instance()->AddQueueTask(this, std_::move(task));
 	}
 }
 

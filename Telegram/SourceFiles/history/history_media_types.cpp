@@ -91,10 +91,10 @@ namespace {
 
 int32 documentMaxStatusWidth(DocumentData *document) {
 	int32 result = st::normalFont->width(formatDownloadText(document->size, document->size));
-	if (SongData *song = document->song()) {
+	if (auto song = document->song()) {
 		result = qMax(result, st::normalFont->width(formatPlayedText(song->duration, song->duration)));
 		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(song->duration, document->size)));
-	} else if (VoiceData *voice = document->voice()) {
+	} else if (auto voice = document->voice()) {
 		result = qMax(result, st::normalFont->width(formatPlayedText(voice->duration, voice->duration)));
 		result = qMax(result, st::normalFont->width(formatDurationAndSizeText(voice->duration, document->size)));
 	} else if (document->isVideo()) {
@@ -1206,22 +1206,22 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	auto namewidth = _width - nameleft - nameright;
 
 	if (auto voice = Get<HistoryDocumentVoice>()) {
-		const VoiceWaveform *wf = 0;
+		const VoiceWaveform *wf = nullptr;
 		uchar norm_value = 0;
 		if (_data->voice()) {
 			wf = &_data->voice()->waveform;
 			if (wf->isEmpty()) {
-				wf = 0;
+				wf = nullptr;
 				if (loaded) {
 					Local::countVoiceWaveform(_data);
 				}
 			} else if (wf->at(0) < 0) {
-				wf = 0;
+				wf = nullptr;
 			} else {
 				norm_value = _data->voice()->wavemax;
 			}
 		}
-		float64 prg = voice->_playback ? voice->_playback->a_progress.current() : 0;
+		auto prg = voice->_playback ? voice->_playback->a_progress.current() : 0.;
 
 		// rescale waveform by going in waveform.size * bar_count 1D grid
 		auto &active = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
@@ -1232,7 +1232,8 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		}
 		int32 bar_count = qMin(availw / int32(st::msgWaveformBar + st::msgWaveformSkip), wf_size);
 		uchar max_value = 0;
-		int32 max_delta = st::msgWaveformMax - st::msgWaveformMin, bottom = st::msgFilePadding.top() + st::msgWaveformMax;
+		auto max_delta = st::msgWaveformMax - st::msgWaveformMin;
+		auto bottom = st::msgFilePadding.top() - topMinus + st::msgWaveformMax;
 		p.setPen(Qt::NoPen);
 		for (int32 i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
 			uchar value = wf ? wf->at(i) : 0;

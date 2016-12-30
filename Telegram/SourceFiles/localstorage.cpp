@@ -3664,6 +3664,11 @@ bool readBackground() {
 		}
 		_backgroundCanWrite = true;
 		return true;
+	} else if (id == Window::Theme::kThemeBackground && pngData.isEmpty()) {
+		_backgroundCanWrite = false;
+		Window::Theme::Background()->setImage(id);
+		_backgroundCanWrite = true;
+		return true;
 	}
 
 	QImage image;

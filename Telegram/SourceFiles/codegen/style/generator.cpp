@@ -1254,7 +1254,7 @@ bool Generator::writeSampleTheme(const QString &filepath) {
 		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
 		auto colorString = paletteColorValue(color);
 		if (fallbackIndex >= 0) {
-			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex], module_);
+			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex - 1], module_);
 			if (!fallbackVariable || fallbackVariable->value.type().tag != structure::TypeTag::Color) {
 				return false;
 			}

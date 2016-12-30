@@ -938,41 +938,52 @@ QString rusKeyboardLayoutSwitch(const QString &from) {
 
 QStringList MimeType::globPatterns() const {
 	switch (_type) {
-	case WebP: return QStringList(qsl("*.webp"));
+	case Known::WebP: return QStringList(qsl("*.webp"));
+	case Known::TDesktopTheme: return QStringList(qsl("*.tdesktop-theme"));
 	default: break;
 	}
 	return _typeStruct.globPatterns();
 }
 QString MimeType::filterString() const {
 	switch (_type) {
-	case WebP: return qsl("WebP image (*.webp)");
+	case Known::WebP: return qsl("WebP image (*.webp)");
+	case Known::TDesktopTheme: return qsl("Theme files (*.tdesktop-theme)");
 	default: break;
 	}
 	return _typeStruct.filterString();
 }
 QString MimeType::name() const {
 	switch (_type) {
-	case WebP: return qsl("image/webp");
+	case Known::WebP: return qsl("image/webp");
+	case Known::TDesktopTheme: return qsl("application/x-tdesktop-theme");
 	default: break;
 	}
 	return _typeStruct.name();
 }
 
 MimeType mimeTypeForName(const QString &mime) {
-	if (mime == qsl("image/webp")) return MimeType(MimeType::WebP);
+	if (mime == qsl("image/webp")) {
+		return MimeType(MimeType::Known::WebP);
+	} else if (mime == qsl("application/x-tdesktop-theme")) {
+		return MimeType(MimeType::Known::TDesktopTheme);
+	}
 	return MimeType(QMimeDatabase().mimeTypeForName(mime));
 }
 
 MimeType mimeTypeForFile(const QFileInfo &file) {
 	QString path = file.absoluteFilePath();
-	if (path.endsWith(qsl(".webp"), Qt::CaseInsensitive)) return MimeType(MimeType::WebP);
+	if (path.endsWith(qsl(".webp"), Qt::CaseInsensitive)) {
+		return MimeType(MimeType::Known::WebP);
+	} else if (path.endsWith(qsl(".tdesktop-theme"), Qt::CaseInsensitive)) {
+		return MimeType(MimeType::Known::TDesktopTheme);
+	}
 	{
 		QFile f(path);
 		if (f.open(QIODevice::ReadOnly)) {
 			QByteArray magic = f.read(12);
 			if (magic.size() >= 12) {
 				if (!memcmp(magic.constData(), "RIFF", 4) && !memcmp(magic.constData() + 8, "WEBP", 4)) {
-					return MimeType(MimeType::WebP);
+					return MimeType(MimeType::Known::WebP);
 				}
 			}
 			f.close();
@@ -984,7 +995,7 @@ MimeType mimeTypeForFile(const QFileInfo &file) {
 MimeType mimeTypeForData(const QByteArray &data) {
 	if (data.size() >= 12) {
 		if (!memcmp(data.constData(), "RIFF", 4) && !memcmp(data.constData() + 8, "WEBP", 4)) {
-			return MimeType(MimeType::WebP);
+			return MimeType(MimeType::Known::WebP);
 		}
 	}
 	return MimeType(QMimeDatabase().mimeTypeForData(data));

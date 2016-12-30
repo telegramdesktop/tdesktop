@@ -125,6 +125,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_gif_error" = "An error has occured while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
 "lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining.";
+"lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
+
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
 "lng_edit_message" = "Edit message";

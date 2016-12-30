@@ -509,6 +509,7 @@ void ChatBackground::keepApplied() {
 		_id = kThemeBackground;
 		_themeImage = _image.toImage();
 		_themeTile = _tile;
+		writeNewBackgroundSettings();
 	} else if (_id == internal::kTestingDefaultBackground) {
 		_id = kDefaultBackground;
 		_themeImage = QImage();

@@ -92,7 +92,7 @@ introStepHeight: 266px;
 introStepHeightAdd: 30px;
 introStepHeightFull: 590px;
 introSlideDuration: 200;
-introCoverDuration: 300;
+introCoverDuration: 200;
 
 introNextButton: RoundButton(defaultActiveButton) {
 	width: 300px;

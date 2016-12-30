@@ -429,24 +429,23 @@ inline QString strMakeFromLetters(const uint32 *letters, int32 len) {
 
 class MimeType {
 public:
-
-	enum TypeEnum {
+	enum class Known {
 		Unknown,
+		TDesktopTheme,
 		WebP,
 	};
 
-	MimeType(const QMimeType &type) : _typeStruct(type), _type(Unknown) {
+	MimeType(const QMimeType &type) : _typeStruct(type) {
 	}
-	MimeType(TypeEnum type) : _type(type) {
+	MimeType(Known type) : _type(type) {
 	}
 	QStringList globPatterns() const;
 	QString filterString() const;
 	QString name() const;
 
 private:
-
 	QMimeType _typeStruct;
-	TypeEnum _type;
+	Known _type = Known::Unknown;
 
 };
 

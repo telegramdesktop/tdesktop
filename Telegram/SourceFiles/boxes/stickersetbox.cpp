@@ -289,7 +289,7 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_previewTimer.isActive()) {
 		_previewTimer.stop();
 		int index = stickerFromGlobalPos(e->globalPos());
-		if (index >= 0 && index < _pack.size()) {
+		if (index >= 0 && index < _pack.size() && !isMasksSet()) {
 			if (auto main = App::main()) {
 				if (main->onSendSticker(_pack.at(index))) {
 					Ui::hideSettingsAndLayer();

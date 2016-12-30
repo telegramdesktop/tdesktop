@@ -29,6 +29,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "core/click_handler_types.h"
+#include "boxes/confirmbox.h"
 
 namespace Intro {
 
@@ -210,7 +211,10 @@ bool PhoneWidget::phoneSubmitFail(const RPCError &error) {
 	stopCheck();
 	_sentRequest = 0;
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
+	if (err == qstr("PHONE_NUMBER_FLOOD")) {
+		Ui::show(Box<InformBox>(lang(lng_error_phone_flood)));
+		return true;
+	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(lang(lng_bad_phone));
 		return true;
 	}
