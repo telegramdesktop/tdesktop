@@ -228,7 +228,8 @@ public:
 	int32 dlgsWidth() const;
 
 	void forwardLayer(int forwardSelected = 0); // -1 - send paths
-	void deleteLayer(int selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
+	void deleteLayer(int selectedCount = 0); // 0 - context item
+	void cancelUploadLayer();
 	void shareContactLayer(UserData *contact);
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);

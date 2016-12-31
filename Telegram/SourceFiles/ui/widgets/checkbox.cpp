@@ -79,6 +79,13 @@ public:
 
 Radiobuttons radiobuttons;
 
+TextParseOptions _checkboxOptions = {
+	TextParseMultiline, // flags
+	0, // maxw
+	0, // maxh
+	Qt::LayoutDirectionAuto, // dir
+};
+
 } // namespace
 
 void RadiobuttonGroup::remove(Radiobutton * const &radio) {
@@ -90,17 +97,11 @@ void RadiobuttonGroup::remove(Radiobutton * const &radio) {
 
 Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : RippleButton(parent, st.ripple)
 , _st(st)
-, _text(text)
-, _fullText(text)
-, _textWidth(st.font->width(text))
+, _text(_st.style, text, _checkboxOptions)
 , _checked(checked) {
 	if (_st.width <= 0) {
-		resizeToWidth(_textWidth - _st.width);
+		resizeToWidth(_text.maxWidth() - _st.width);
 	} else {
-		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
-			_textWidth = _st.font->width(_text);
-		}
 		resizeToWidth(_st.width);
 	}
 	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
@@ -129,7 +130,7 @@ void Checkbox::finishAnimations() {
 }
 
 int Checkbox::naturalWidth() const {
-	return _st.textPosition.x() + _st.font->width(_fullText);
+	return _st.textPosition.x() + _text.maxWidth();
 }
 
 void Checkbox::paintEvent(QPaintEvent *e) {
@@ -157,9 +158,10 @@ void Checkbox::paintEvent(QPaintEvent *e) {
 	}
 	if (_checkRect.contains(e->rect())) return;
 
+	auto textWidth = qMax(width() - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1);
+
 	p.setPen(_st.textFg);
-	p.setFont(_st.font);
-	p.drawTextLeft(_st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), width(), _text, _textWidth);
+	_text.drawLeftElided(p, _st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), textWidth, width());
 }
 
 void Checkbox::onClicked() {
@@ -195,19 +197,13 @@ QPoint Checkbox::prepareRippleStartPosition() const {
 
 Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Checkbox &st) : RippleButton(parent, st.ripple)
 , _st(st)
-, _text(text)
-, _fullText(text)
-, _textWidth(st.font->width(text))
+, _text(_st.style, text, _checkboxOptions)
 , _checked(checked)
 , _group(radiobuttons.reg(group))
 , _value(value) {
 	if (_st.width <= 0) {
-		resizeToWidth(_textWidth - _st.width);
+		resizeToWidth(_text.maxWidth() - _st.width);
 	} else {
-		if (_st.width < _st.textPosition.x() + _textWidth + (_st.textPosition.x() - _st.diameter)) {
-			_text = _st.font->elided(_fullText, qMax(_st.width - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1));
-			_textWidth = _st.font->width(_text);
-		}
 		resizeToWidth(_st.width);
 	}
 	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
@@ -235,7 +231,7 @@ void Radiobutton::setChecked(bool checked) {
 }
 
 int Radiobutton::naturalWidth() const {
-	return _st.textPosition.x() + _st.font->width(_fullText);
+	return _st.textPosition.x() + _text.maxWidth();
 }
 
 void Radiobutton::paintEvent(QPaintEvent *e) {
@@ -278,9 +274,10 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 	}
 	if (_checkRect.contains(e->rect())) return;
 
+	auto textWidth = qMax(width() - (_st.textPosition.x() + (_st.textPosition.x() - _st.diameter)), 1);
+
 	p.setPen(_st.textFg);
-	p.setFont(_st.font);
-	p.drawTextLeft(_st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), width(), _text, _textWidth);
+	_text.drawLeftElided(p, _st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), textWidth, width());
 }
 
 void Radiobutton::onClicked() {

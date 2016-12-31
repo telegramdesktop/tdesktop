@@ -772,6 +772,18 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 	return false;
 }
 
+bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
+	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
+	if (id < 0 || messageToMyself || messageTooOld) return false;
+	if (history()->peer->isChannel()) return false;
+
+	if (auto msg = toHistoryMessage()) {
+		return !isPost() && out();
+	}
+	return false;
+}
+
 bool HistoryItem::unread() const {
 	// Messages from myself are always read.
 	if (history()->peer->isSelf()) return false;

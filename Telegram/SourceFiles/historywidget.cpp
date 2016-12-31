@@ -2848,7 +2848,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 			_send->show();
 			_cancel->show();
 		}
-		h += st::boxTopMargin + qMax(st::boxTextFont->height, st::boxTextStyle.lineHeight) + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom();
+		h += st::boxTopMargin + qMax(st::boxTextFont->height, st::boxLabelStyle.lineHeight) + st::boxButtonPadding.top() + _send->height() + st::boxButtonPadding.bottom();
 	} else {
 		h += st::historyForwardChooseFont->height;
 		_send->hide();
@@ -2862,7 +2862,7 @@ void HistoryHider::resizeEvent(QResizeEvent *e) {
 bool HistoryHider::offerPeer(PeerId peer) {
 	if (!peer) {
 		_offered = nullptr;
-		_toText.setText(st::boxTextStyle, QString());
+		_toText.setText(st::boxLabelStyle, QString());
 		_toTextWidth = 0;
 		resizeEvent(nullptr);
 		return false;
@@ -2902,7 +2902,7 @@ bool HistoryHider::offerPeer(PeerId peer) {
 		return false;
 	}
 
-	_toText.setText(st::boxTextStyle, phrase, _textNameOptions);
+	_toText.setText(st::boxLabelStyle, phrase, _textNameOptions);
 	_toTextWidth = _toText.maxWidth();
 	if (_toTextWidth > _box.width() - st::boxPadding.left() - st::boxLayerButtonPadding.right()) {
 		_toTextWidth = _box.width() - st::boxPadding.left() - st::boxLayerButtonPadding.right();
@@ -8352,8 +8352,13 @@ void HistoryWidget::confirmDeleteContextItem() {
 	auto item = App::contextItem();
 	if (!item || item->type() != HistoryItemMsg) return;
 
-	auto message = item->toHistoryMessage();
-	App::main()->deleteLayer((message && message->uploading()) ? -2 : -1);
+	if (auto message = item->toHistoryMessage()) {
+		if (message->uploading()) {
+			App::main()->cancelUploadLayer();
+			return;
+		}
+	}
+	App::main()->deleteLayer();
 }
 
 void HistoryWidget::confirmDeleteSelectedItems() {

@@ -63,8 +63,7 @@ signals:
 private:
 	const style::Checkbox &_st;
 
-	QString _text, _fullText;
-	int32 _textWidth;
+	Text _text;
 	QRect _checkRect;
 
 	bool _checked;
@@ -76,12 +75,12 @@ class Radiobutton : public RippleButton {
 	Q_OBJECT
 
 public:
-	Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
+	Radiobutton(QWidget *parent, const QString &group, int value, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
 
 	bool checked() const;
 	void setChecked(bool checked);
 
-	int32 val() const {
+	int val() const {
 		return _value;
 	}
 
@@ -112,15 +111,14 @@ private:
 
 	const style::Checkbox &_st;
 
-	QString _text, _fullText;
-	int32 _textWidth;
+	Text _text;
 	QRect _checkRect;
 
 	bool _checked;
 	Animation _a_checked;
 
 	void *_group;
-	int32 _value;
+	int _value;
 
 };
 

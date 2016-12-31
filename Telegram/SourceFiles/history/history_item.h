@@ -704,6 +704,7 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
+	bool canDeleteForEveryone(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {
 		ChannelData *channel = history()->peer->asChannel();

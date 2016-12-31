@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "platform/platform_window_title.h"
 #include "window/window_theme.h"
+#include "mediaview.h"
+#include "mainwindow.h"
 
 namespace Window {
 
@@ -41,6 +43,57 @@ MainWindow::MainWindow() : QWidget()
 		}
 	});
 	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
+}
+
+bool MainWindow::hideNoQuit() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->hide();
+		return true;
+	}
+	if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+		if (minimizeToTray()) {
+			Ui::showChatsList();
+			return true;
+		}
+	} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
+		closeWithoutDestroy();
+		updateIsActive(Global::OfflineBlurTimeout());
+		updateGlobalMenu();
+		Ui::showChatsList();
+		return true;
+	}
+}
+
+void MainWindow::hideMediaview() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->hide();
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+		onReActivate();
+		QTimer::singleShot(200, this, SLOT(onReActivate()));
+#endif
+	}
+}
+
+void MainWindow::onReActivate() {
+	if (auto w = App::wnd()) {
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->windowHandle()->requestActivate();
+		w->activate();
+		if (auto f = QApplication::focusWidget()) {
+			f->clearFocus();
+		}
+		w->setInnerFocus();
+	}
+}
+
+QWidget *MainWindow::filedialogParent() {
+	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView : (QWidget*)this;
+}
+
+void MainWindow::createMediaView() {
+	_mediaView.create(nullptr);
 }
 
 void MainWindow::init() {
@@ -197,11 +250,25 @@ void MainWindow::savePosition(Qt::WindowState state) {
 	}
 }
 
-MainWindow::~MainWindow() {
+bool MainWindow::minimizeToTray() {
+	if (App::quitting() || !psHasTrayIcon()) return false;
+
+	closeWithoutDestroy();
+	if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
+		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
+		cSetSeenTrayTooltip(true);
+		Local::writeSettings();
+	}
+	updateIsActive(Global::OfflineBlurTimeout());
+	updateTrayMenu();
+	updateGlobalMenu();
+	return true;
 }
 
 void MainWindow::closeWithoutDestroy() {
 	hide();
 }
+
+MainWindow::~MainWindow() = default;
 
 } // namespace Window

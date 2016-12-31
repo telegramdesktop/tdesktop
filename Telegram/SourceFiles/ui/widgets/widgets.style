@@ -109,7 +109,7 @@ Checkbox {
 	radioSkip: pixels;
 	checkIcon: icon;
 
-	font: font;
+	style: TextStyle;
 	duration: int;
 
 	rippleAreaPosition: point;
@@ -641,7 +641,7 @@ defaultCheckbox: Checkbox {
 	checkIcon: defaultCheckboxIcon;
 	radioSkip: 65px; // * 0.1
 
-	font: normalFont;
+	style: defaultTextStyle;
 	duration: 120;
 
 	rippleAreaSize: 38px;

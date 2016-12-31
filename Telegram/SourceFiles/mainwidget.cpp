@@ -660,43 +660,39 @@ void MainWidget::forwardLayer(int forwardSelected) {
 }
 
 void MainWidget::deleteLayer(int selectedCount) {
-	if (selectedCount == -1 && !_overview) {
-		if (auto item = App::contextItem()) {
-			if (item->suggestBanReportDeleteAll()) {
-				Ui::show(Box<RichDeleteMessageBox>(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
-				return;
-			}
-		}
-	}
-	auto text = (selectedCount < 0) ? lang(selectedCount < -1 ? lng_selected_cancel_sure_this : lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, selectedCount);
-	auto confirmText = lang((selectedCount < -1) ? lng_selected_upload_stop : lng_box_delete);
-	auto cancelText = lang((selectedCount < -1) ? lng_continue : lng_cancel);
-	if (selectedCount < -1) {
-		if (auto item = App::contextItem()) {
-			App::uploader()->pause(item->fullId());
-		}
-	}
-	Ui::show(Box<ConfirmBox>(text, confirmText, cancelText, base::lambda_guarded(this, [this, selectedCount] {
-		if (selectedCount < 0) {
-			if (_overview) {
-				_overview->deleteContextItem(false);
-			} else {
-				_history->deleteContextItem(false);
-			}
-			if (selectedCount < -1) {
-				App::uploader()->unpause();
-			}
+	if (selectedCount) {
+		auto forDelete = true;
+		SelectedItemSet selected;
+		if (_overview) {
+			_overview->fillSelectedItems(selected, forDelete);
 		} else {
-			if (_overview) {
-				_overview->deleteSelectedItems(false);
-			} else {
-				_history->deleteSelectedItems(false);
-			}
+			_history->fillSelectedItems(selected, forDelete);
 		}
-	}), base::lambda_guarded(this, [selectedCount] {
-		if (selectedCount < -1) {
-			App::uploader()->unpause();
+		if (!selected.isEmpty()) {
+			Ui::show(Box<DeleteMessagesBox>(selected));
 		}
+	} else if (auto item = App::contextItem()) {
+		auto suggestModerateActions = !_overview;
+		Ui::show(Box<DeleteMessagesBox>(item, suggestModerateActions));
+	}
+}
+
+void MainWidget::cancelUploadLayer() {
+	auto item = App::contextItem();
+	if (!item) {
+		return;
+	}
+
+	App::uploader()->pause(item->fullId());
+	Ui::show(Box<ConfirmBox>(lang(lng_selected_cancel_sure_this), lang(lng_selected_upload_stop), lang(lng_continue), base::lambda_guarded(this, [this] {
+		if (_overview) {
+			_overview->deleteContextItem(false);
+		} else {
+			_history->deleteContextItem(false);
+		}
+		App::uploader()->unpause();
+	}), base::lambda_guarded(this, [] {
+		App::uploader()->unpause();
 	})));
 }
 

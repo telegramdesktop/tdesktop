@@ -48,6 +48,14 @@ constexpr int kSetMyActionForMs = 10000;
 
 auto GlobalPinnedIndex = 0;
 
+HistoryItem *createUnsupportedMessage(History *history, MsgId msgId, MTPDmessage::Flags flags, MsgId replyTo, int32 viaBotId, QDateTime date, int32 from) {
+	QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
+	EntitiesInText entities;
+	textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
+	entities.push_front(EntityInText(EntityInTextItalic, 0, text.size()));
+	return HistoryMessage::create(history, msgId, flags, replyTo, viaBotId, date, from, { text, entities });
+}
+
 } // namespace
 
 void historyInit() {
@@ -741,7 +749,7 @@ void Histories::clearPinned() {
 }
 
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
-	MsgId msgId = 0;
+	auto msgId = MsgId(0);
 	switch (msg.type()) {
 	case mtpc_messageEmpty: msgId = msg.c_messageEmpty().vid.v; break;
 	case mtpc_message: msgId = msg.c_message().vid.v; break;
@@ -749,7 +757,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	}
 	if (!msgId) return nullptr;
 
-	HistoryItem *result = App::histItemById(channelId(), msgId);
+	auto result = App::histItemById(channelId(), msgId);
 	if (result) {
 		if (!result->detached() && detachExistingItem) {
 			result->detach();
@@ -769,37 +777,42 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	break;
 
 	case mtpc_message: {
-		const auto &m(msg.c_message());
-		int badMedia = 0; // 1 - unsupported, 2 - empty
+		auto &m = msg.c_message();
+		enum class MediaCheckResult {
+			Good,
+			Unsupported,
+			Empty,
+		};
+		auto badMedia = MediaCheckResult::Good;
 		if (m.has_media()) switch (m.vmedia.type()) {
 		case mtpc_messageMediaEmpty:
 		case mtpc_messageMediaContact: break;
 		case mtpc_messageMediaGeo:
 			switch (m.vmedia.c_messageMediaGeo().vgeo.type()) {
 			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = 2; break;
-			default: badMedia = 1; break;
+			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
 		case mtpc_messageMediaVenue:
 			switch (m.vmedia.c_messageMediaVenue().vgeo.type()) {
 			case mtpc_geoPoint: break;
-			case mtpc_geoPointEmpty: badMedia = 2; break;
-			default: badMedia = 1; break;
+			case mtpc_geoPointEmpty: badMedia = MediaCheckResult::Empty; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
 		case mtpc_messageMediaPhoto:
 			switch (m.vmedia.c_messageMediaPhoto().vphoto.type()) {
 			case mtpc_photo: break;
-			case mtpc_photoEmpty: badMedia = 2; break;
-			default: badMedia = 1; break;
+			case mtpc_photoEmpty: badMedia = MediaCheckResult::Empty; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
 		case mtpc_messageMediaDocument:
 			switch (m.vmedia.c_messageMediaDocument().vdocument.type()) {
 			case mtpc_document: break;
-			case mtpc_documentEmpty: badMedia = 2; break;
-			default: badMedia = 1; break;
+			case mtpc_documentEmpty: badMedia = MediaCheckResult::Empty; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
 		case mtpc_messageMediaWebPage:
@@ -808,25 +821,21 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_webPageEmpty:
 			case mtpc_webPagePending: break;
 			case mtpc_webPageNotModified:
-			default: badMedia = 1; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
 		case mtpc_messageMediaGame:
 		switch (m.vmedia.c_messageMediaGame().vgame.type()) {
 			case mtpc_game: break;
-			default: badMedia = 1; break;
+			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
 		case mtpc_messageMediaUnsupported:
-		default: badMedia = 1; break;
+		default: badMedia = MediaCheckResult::Unsupported; break;
 		}
-		if (badMedia == 1) {
-			QString text(lng_message_unsupported(lt_link, qsl("https://desktop.telegram.org")));
-			EntitiesInText entities;
-			textParseEntities(text, _historyTextNoMonoOptions.flags, &entities);
-			entities.push_front(EntityInText(EntityInTextItalic, 0, text.size()));
-			result = HistoryMessage::create(this, m.vid.v, m.vflags.v, m.vreply_to_msg_id.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v, { text, entities });
-		} else if (badMedia) {
+		if (badMedia == MediaCheckResult::Unsupported) {
+			result = createUnsupportedMessage(this, m.vid.v, m.vflags.v, m.vreply_to_msg_id.v, m.vvia_bot_id.v, date(m.vdate), m.vfrom_id.v);
+		} else if (badMedia == MediaCheckResult::Empty) {
 			result = HistoryService::create(this, m.vid.v, date(m.vdate), lang(lng_message_empty), m.vflags.v, m.has_from_id() ? m.vfrom_id.v : 0);
 		} else {
 			result = HistoryMessage::create(this, m);
@@ -834,18 +843,23 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 	} break;
 
 	case mtpc_messageService: {
-		const auto &d(msg.c_messageService());
-		result = HistoryService::create(this, d);
+		auto &m = msg.c_messageService();
+		if (m.vaction.type() == mtpc_messageActionPhoneCall) {
+			auto viaBotId = 0;
+			result = createUnsupportedMessage(this, m.vid.v, mtpCastFlags(m.vflags.v), m.vreply_to_msg_id.v, viaBotId, date(m.vdate), m.vfrom_id.v);
+		} else {
+			result = HistoryService::create(this, m);
+		}
 
 		if (applyServiceAction) {
-			const auto &action(d.vaction);
-			switch (d.vaction.type()) {
+			auto &action = m.vaction;
+			switch (action.type()) {
 			case mtpc_messageActionChatAddUser: {
-				const auto &d(action.c_messageActionChatAddUser());
+				auto &d = action.c_messageActionChatAddUser();
 				if (peer->isMegagroup()) {
-					const auto &v(d.vusers.c_vector().v);
-					for (int32 i = 0, l = v.size(); i < l; ++i) {
-						if (UserData *user = App::userLoaded(peerFromUser(v.at(i)))) {
+					auto &v = d.vusers.c_vector().v;
+					for (auto i = 0, l = v.size(); i != l; ++i) {
+						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
 							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
 								peer->asChannel()->mgInfo->lastParticipants.push_front(user);
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
@@ -863,7 +877,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatJoinedByLink: {
-				const auto &d(action.c_messageActionChatJoinedByLink());
+				auto &d = action.c_messageActionChatJoinedByLink();
 				if (peer->isMegagroup()) {
 					if (result->from()->isUser()) {
 						if (peer->asChannel()->mgInfo->lastParticipants.indexOf(result->from()->asUser()) < 0) {
@@ -881,13 +895,13 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatDeletePhoto: {
-				ChatData *chat = peer->asChat();
+				auto chat = peer->asChat();
 				if (chat) chat->setPhoto(MTP_chatPhotoEmpty());
 			} break;
 
 			case mtpc_messageActionChatDeleteUser: {
-				const auto &d(action.c_messageActionChatDeleteUser());
-				PeerId uid = peerFromUser(d.vuser_id);
+				auto &d = action.c_messageActionChatDeleteUser();
+				auto uid = peerFromUser(d.vuser_id);
 				if (lastKeyboardFrom == uid) {
 					clearLastKeyboard();
 				}
@@ -952,7 +966,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditTitle: {
-				auto &d(action.c_messageActionChatEditTitle());
+				auto &d = action.c_messageActionChatEditTitle();
 				if (auto chat = peer->asChat()) {
 					chat->setName(qs(d.vtitle));
 				}
@@ -961,18 +975,18 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_messageActionChatMigrateTo: {
 				peer->asChat()->flags |= MTPDchat::Flag::f_deactivated;
 
-				//const auto &d(action.c_messageActionChatMigrateTo());
-				//PeerData *channel = App::channelLoaded(d.vchannel_id.v);
+				//auto &d = action.c_messageActionChatMigrateTo();
+				//auto channel = App::channelLoaded(d.vchannel_id.v);
 			} break;
 
 			case mtpc_messageActionChannelMigrateFrom: {
-				//const auto &d(action.c_messageActionChannelMigrateFrom());
-				//PeerData *chat = App::chatLoaded(d.vchat_id.v);
+				//auto &d = action.c_messageActionChannelMigrateFrom();
+				//auto chat = App::chatLoaded(d.vchat_id.v);
 			} break;
 
 			case mtpc_messageActionPinMessage: {
-				if (d.has_reply_to_msg_id() && result && result->history()->peer->isMegagroup()) {
-					result->history()->peer->asChannel()->mgInfo->pinnedMsgId = d.vreply_to_msg_id.v;
+				if (m.has_reply_to_msg_id() && result && result->history()->peer->isMegagroup()) {
+					result->history()->peer->asChannel()->mgInfo->pinnedMsgId = m.vreply_to_msg_id.v;
 					if (App::main()) emit App::main()->peerUpdated(result->history()->peer);
 				}
 			} break;

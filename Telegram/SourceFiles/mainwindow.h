@@ -80,8 +80,6 @@ public:
 
 	void firstShow();
 
-	QWidget *filedialogParent();
-
 	void inactivePress(bool inactive);
 	bool inactivePress() const;
 
@@ -142,7 +140,6 @@ public:
 	void changingMsgId(HistoryItem *row, MsgId newId);
 
 	bool isActive(bool cached = true) const;
-	void hideMediaview();
 
 	QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) override;
 
@@ -184,7 +181,6 @@ public slots:
 
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
-	bool minimizeToTray();
 	void toggleTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	void toggleDisplayNotifyFromTray();
 
@@ -201,8 +197,6 @@ public slots:
 	void onShowNewChannel();
 	void onLogout();
 	void updateGlobalMenu(); // for OS X top menu
-
-	void onReActivate();
 
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
@@ -282,8 +276,6 @@ private:
 	using NotifyWhenAlert = QMap<TimeMs, PeerData*>;
 	using NotifyWhenAlerts = QMap<History*, NotifyWhenAlert>;
 	NotifyWhenAlerts _notifyWhenAlerts;
-
-	MediaView *_mediaView = nullptr;
 
 };
 

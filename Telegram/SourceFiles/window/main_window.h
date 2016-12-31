@@ -22,6 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "window/window_title.h"
 
+class MediaView;
+
 namespace Window {
 
 class TitleWidget;
@@ -31,6 +33,9 @@ class MainWindow : public QWidget, protected base::Subscriber {
 
 public:
 	MainWindow();
+
+	bool hideNoQuit();
+	void hideMediaview();
 
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
@@ -46,13 +51,16 @@ public:
 		return _titleText;
 	}
 
-	virtual void closeWithoutDestroy();
+	QWidget *filedialogParent();
 
 	virtual ~MainWindow();
 
 	TWidget *bodyWidget() {
 		return _body.data();
 	}
+
+public slots:
+	bool minimizeToTray();
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -71,15 +79,22 @@ protected:
 	virtual void unreadCounterChangedHook() {
 	}
 
+	virtual void closeWithoutDestroy() {
+		hide();
+	}
+
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;
 
 	void setPositionInited();
 
+	void createMediaView();
+
 private slots:
 	void savePositionByTimer() {
 		savePosition();
 	}
+	void onReActivate();
 
 private:
 	void updatePalette();
@@ -94,6 +109,8 @@ private:
 	object_ptr<TWidget> _body;
 
 	QString _titleText;
+
+	object_ptr<MediaView> _mediaView = { nullptr };
 
 };
 

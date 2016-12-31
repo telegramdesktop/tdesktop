@@ -374,7 +374,7 @@ void MembersBox::Inner::refresh() {
 		resize(width(), st::membersMarginTop + st::noContactsHeight + st::membersMarginBottom);
 		_aboutHeight = 0;
 	} else {
-		_about.setText(st::boxTextStyle, lng_channel_only_last_shown(lt_count, _rows.size()));
+		_about.setText(st::boxLabelStyle, lng_channel_only_last_shown(lt_count, _rows.size()));
 		_aboutHeight = st::membersAboutLimitPadding.top() + _about.countHeight(_aboutWidth) + st::membersAboutLimitPadding.bottom();
 		if (_filter != MembersFilter::Recent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;

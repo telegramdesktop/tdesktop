@@ -311,7 +311,8 @@ bool InnerDropdown::eventFilter(QObject *obj, QEvent *e) {
 int InnerDropdown::resizeGetHeight(int newWidth) {
 	auto newHeight = _st.padding.top() + _st.scrollMargin.top() + _st.scrollMargin.bottom() + _st.padding.bottom();
 	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
-		widget->resizeToWidth(newWidth - _st.padding.left() - _st.padding.right() - _st.scrollMargin.left() - _st.scrollMargin.right());
+		auto containerWidth = newWidth - _st.padding.left() - _st.padding.right() - _st.scrollMargin.left() - _st.scrollMargin.right();
+		widget->resizeToWidth(containerWidth);
 		newHeight += widget->height();
 	}
 	if (_maxHeight > 0) {
@@ -332,7 +333,7 @@ void InnerDropdown::Container::setVisibleTopBottom(int visibleTop, int visibleBo
 }
 
 void InnerDropdown::Container::resizeToContent() {
-	auto newWidth = _st.scrollPadding.top() + _st.scrollPadding.bottom();
+	auto newWidth = _st.scrollPadding.left() + _st.scrollPadding.right();
 	auto newHeight = _st.scrollPadding.top() + _st.scrollPadding.bottom();
 	if (auto child = static_cast<TWidget*>(children().front())) {
 		newWidth += child->width();
@@ -344,8 +345,8 @@ void InnerDropdown::Container::resizeToContent() {
 }
 
 int InnerDropdown::Container::resizeGetHeight(int newWidth) {
-	int innerWidth = newWidth - _st.scrollPadding.left() - _st.scrollPadding.right();
-	int result = _st.scrollPadding.top() + _st.scrollPadding.bottom();
+	auto innerWidth = newWidth - _st.scrollPadding.left() - _st.scrollPadding.right();
+	auto result = _st.scrollPadding.top() + _st.scrollPadding.bottom();
 	if (auto child = static_cast<TWidget*>(children().front())) {
 		child->resizeToWidth(innerWidth);
 		child->moveToLeft(_st.scrollPadding.left(), _st.scrollPadding.top());

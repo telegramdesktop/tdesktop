@@ -67,7 +67,7 @@ bool typeHasMediaOverview(MediaOverviewType type) {
 
 } // namespace
 
-MediaView::MediaView() : TWidget(App::wnd())
+MediaView::MediaView(QWidget*) : TWidget(nullptr)
 , _animStarted(getms())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
@@ -75,7 +75,8 @@ MediaView::MediaView() : TWidget(App::wnd())
 , _radial(animation(this, &MediaView::step_radial))
 , _lastAction(-st::mediaviewDeltaFromLastAction, -st::mediaviewDeltaFromLastAction)
 , _a_state(animation(this, &MediaView::step_state))
-, _dropdown(this, st::mediaviewDropdownMenu) {
+, _dropdown(this, st::mediaviewDropdownMenu)
+, _dropdownShowTimer(this) {
 	TextCustomTagsMap custom;
 	custom.insert(QChar('c'), qMakePair(textcmdStartLink(1), textcmdStopLink()));
 	_saveMsgText.setRichText(st::mediaviewSaveMsgStyle, lang(lng_mediaview_saved), _textDlgOptions, custom);
@@ -121,6 +122,8 @@ MediaView::MediaView() : TWidget(App::wnd())
 	connect(_docCancel, SIGNAL(clicked()), this, SLOT(onSaveCancel()));
 
 	_dropdown->setHiddenCallback([this] { dropdownHidden(); });
+	_dropdownShowTimer->setSingleShot(true);
+	connect(_dropdownShowTimer, SIGNAL(timeout()), this, SLOT(onDropdown()));
 }
 
 void MediaView::moveToScreen() {
@@ -1333,8 +1336,9 @@ void MediaView::updateThemePreviewGeometry() {
 		auto previewRect = QRect((width() - st::themePreviewSize.width()) / 2, (height() - st::themePreviewSize.height()) / 2, st::themePreviewSize.width(), st::themePreviewSize.height());
 		_themePreviewRect = previewRect.marginsAdded(st::themePreviewMargin);
 		if (_themeApply) {
-			auto right = width() - _themePreviewRect.x() - _themePreviewRect.width() + st::themePreviewMargin.right();
-			_themeApply->moveToRight(right, _themePreviewRect.y() + _themePreviewRect.height() - st::themePreviewMargin.bottom() + (st::themePreviewMargin.bottom() - _themeApply->height()) / 2);
+			auto right = qMax(width() - _themePreviewRect.x() - _themePreviewRect.width(), 0) + st::themePreviewMargin.right();
+			auto bottom = qMin(height(), _themePreviewRect.y() + _themePreviewRect.height());
+			_themeApply->moveToRight(right, bottom - st::themePreviewMargin.bottom() + (st::themePreviewMargin.bottom() - _themeApply->height()) / 2);
 			right += _themeApply->width() + st::themePreviewButtonsSkip;
 			_themeCancel->moveToRight(right, _themeApply->y());
 		}
@@ -2370,7 +2374,9 @@ bool MediaView::updateOverState(OverState newState) {
 	bool result = true;
 	if (_over != newState) {
 		if (newState == OverMore && !_ignoringDropdown) {
-			QTimer::singleShot(0, this, SLOT(onDropdown()));
+			_dropdownShowTimer->start(0);
+		} else {
+			_dropdownShowTimer->stop();
 		}
 		updateOverRect(_over);
 		updateOverRect(newState);
@@ -2393,7 +2399,7 @@ bool MediaView::updateOverState(OverState newState) {
 			if (i != _animOpacities.end()) {
 				i->start(1);
 			} else {
-				_animOpacities.insert(_over, anim::value());
+				_animOpacities.insert(_over, anim::value(0, 1));
 			}
 			if (!_a_state.animating()) _a_state.start();
 		}

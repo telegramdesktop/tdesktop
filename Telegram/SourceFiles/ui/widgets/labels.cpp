@@ -34,6 +34,7 @@ TextParseOptions _labelOptions = {
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
+
 TextParseOptions _labelMarkedOptions = {
 	TextParseMultiline | TextParseRichText | TextParseLinks | TextParseHashtags | TextParseMentions | TextParseBotCommands | TextParseMono, // flags
 	0, // maxw

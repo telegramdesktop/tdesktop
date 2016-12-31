@@ -148,7 +148,7 @@ StickersBox::StickersBox(QWidget*, const Stickers::Order &archivedIds)
 : _section(Section::ArchivedPart)
 , _archived(0, this, archivedIds)
 , _aboutWidth(st::boxWideWidth - 2 * st::stickersReorderPadding.top())
-, _about(st::boxTextStyle, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
+, _about(st::boxLabelStyle, lang(lng_stickers_packs_archived), _defaultOptions, _aboutWidth) {
 }
 
 void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedStickers &result) {

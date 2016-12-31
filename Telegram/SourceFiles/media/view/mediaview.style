@@ -200,7 +200,7 @@ mediaviewCaptionRadius: 2px;
 
 themePreviewSize: size(903px, 584px);
 themePreviewBg: windowBg;
-themePreviewOverlayOpacity: 0.7;
+themePreviewOverlayOpacity: 0.8;
 themePreviewMargin: margins(36px, 52px, 36px, 88px);
 themePreviewTitleTop: 14px;
 themePreviewTitleFg: windowBoldFg;

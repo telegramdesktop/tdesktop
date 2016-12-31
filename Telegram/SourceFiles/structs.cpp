@@ -927,7 +927,7 @@ void PhotoCancelClickHandler::onClickImpl() const {
 			if (auto media = item->getMedia()) {
 				if (media->type() == MediaTypePhoto && static_cast<HistoryPhoto*>(media)->photo() == data) {
 					App::contextItem(item);
-					App::main()->deleteLayer(-2);
+					App::main()->cancelUploadLayer();
 				}
 			}
 		}
@@ -1240,7 +1240,7 @@ void DocumentCancelClickHandler::onClickImpl() const {
 			if (auto media = item->getMedia()) {
 				if (media->getDocument() == data) {
 					App::contextItem(item);
-					App::main()->deleteLayer(-2);
+					App::main()->cancelUploadLayer();
 				}
 			}
 		}

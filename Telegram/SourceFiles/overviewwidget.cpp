@@ -2276,16 +2276,21 @@ void OverviewWidget::confirmDeleteContextItem() {
 	auto item = App::contextItem();
 	if (!item || item->type() != HistoryItemMsg) return;
 
-	auto message = item->toHistoryMessage();
-	App::main()->deleteLayer((message && message->uploading()) ? -2 : -1);
+	if (auto message = item->toHistoryMessage()) {
+		if (message->uploading()) {
+			App::main()->cancelUploadLayer();
+			return;
+		}
+	}
+	App::main()->deleteLayer();
 }
 
 void OverviewWidget::confirmDeleteSelectedItems() {
-	SelectedItemSet sel;
-	_inner->fillSelectedItems(sel);
-	if (sel.isEmpty()) return;
+	SelectedItemSet selected;
+	_inner->fillSelectedItems(selected);
+	if (selected.isEmpty()) return;
 
-	App::main()->deleteLayer(sel.size());
+	App::main()->deleteLayer(selected.size());
 }
 
 void OverviewWidget::deleteContextItem(bool forEveryone) {

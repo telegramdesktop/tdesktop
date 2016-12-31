@@ -112,7 +112,7 @@ base::lambda<void()> ConfirmBox::generateInformCallback(const base::lambda_copy<
 }
 
 void ConfirmBox::init(const QString &text) {
-	_text.setText(st::boxTextStyle, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
+	_text.setText(st::boxLabelStyle, text, _informative ? _confirmBoxTextOptions : _textPlainOptions);
 }
 
 void ConfirmBox::prepare() {
@@ -125,7 +125,7 @@ void ConfirmBox::prepare() {
 
 void ConfirmBox::textUpdated() {
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
-	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
+	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxPadding.bottom());
 
 	setMouseTracking(_text.hasLinks());
@@ -219,7 +219,7 @@ InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, bas
 }
 
 MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)
-: _text(st::boxTextStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
+: _text(st::boxLabelStyle, lng_participant_invite_sorry(lt_count, Global::ChatSizeMax()), _confirmBoxTextOptions, st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
 , _link(link) {
 }
 
@@ -229,7 +229,7 @@ void MaxInviteBox::prepare() {
 	addButton(lang(lng_box_ok), [this] { closeBox(); });
 
 	_textWidth = st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right();
-	_textHeight = qMin(_text.countHeight(_textWidth), 16 * int(st::boxTextStyle.lineHeight));
+	_textHeight = qMin(_text.countHeight(_textWidth), 16 * st::boxLabelStyle.lineHeight);
 	setDimensions(st::boxWidth, st::boxPadding.top() + _textHeight + st::boxTextFont->height + st::boxTextFont->height * 2 + st::newGroupLinkPadding.bottom());
 }
 
@@ -302,8 +302,8 @@ void ConvertToSupergroupBox::prepare() {
 	addButton(lang(lng_profile_convert_confirm), [this] { convertToSupergroup(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	_text.setText(st::boxTextStyle, text.join('\n'), _confirmBoxTextOptions);
-	_note.setText(st::boxTextStyle, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
+	_text.setText(st::boxLabelStyle, text.join('\n'), _confirmBoxTextOptions);
+	_note.setText(st::boxLabelStyle, lng_profile_convert_warning(lt_bold_start, textcmdStartSemibold(), lt_bold_end, textcmdStopSemibold()), _confirmBoxTextOptions);
 	_textWidth = st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right();
 	_textHeight = _text.countHeight(_textWidth);
 	setDimensions(st::boxWideWidth, _textHeight + st::boxPadding.bottom() + _note.countHeight(_textWidth));
@@ -408,54 +408,135 @@ bool PinMessageBox::pinFail(const RPCError &error) {
 	return true;
 }
 
-RichDeleteMessageBox::RichDeleteMessageBox(QWidget*, ChannelData *channel, UserData *from, MsgId msgId)
-: _channel(channel)
-, _from(from)
-, _msgId(msgId)
-, _text(this, lang(lng_selected_delete_sure_this), Ui::FlatLabel::InitType::Simple, st::boxLabel)
-, _banUser(this, lang(lng_ban_user), false, st::defaultBoxCheckbox)
-, _reportSpam(this, lang(lng_report_spam), false, st::defaultBoxCheckbox)
-, _deleteAll(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox) {
+DeleteMessagesBox::DeleteMessagesBox(QWidget*, HistoryItem *item, bool suggestModerateActions) : _singleItem(true) {
+	_ids.push_back(item->fullId());
+	if (suggestModerateActions && item->suggestBanReportDeleteAll()) {
+		_moderateFrom = item->from()->asUser();
+		_moderateInChannel = item->history()->peer->asChannel();
+	}
 }
 
-void RichDeleteMessageBox::prepare() {
-	t_assert(_channel != nullptr);
+DeleteMessagesBox::DeleteMessagesBox(QWidget*, const SelectedItemSet &selected) {
+	auto count = selected.size();
+	t_assert(count > 0);
+	_ids.reserve(count);
+	for_const (auto item, selected) {
+		_ids.push_back(item->fullId());
+	}
+}
+
+void DeleteMessagesBox::prepare() {
+	auto text = QString();
+	if (_moderateFrom) {
+		t_assert(_moderateInChannel != nullptr);
+		text = lang(lng_selected_delete_sure_this);
+		_banUser.create(this, lang(lng_ban_user), false, st::defaultBoxCheckbox);
+		_reportSpam.create(this, lang(lng_report_spam), false, st::defaultBoxCheckbox);
+		_deleteAll.create(this, lang(lng_delete_all_from), false, st::defaultBoxCheckbox);
+	} else {
+		text = _singleItem ? lang(lng_selected_delete_sure_this) : lng_selected_delete_sure(lt_count, _ids.size());
+		auto canDeleteAllForEveryone = true;
+		auto now = ::date(unixtime());
+		auto deleteForUser = (UserData*)nullptr;
+		auto peer = (PeerData*)nullptr;
+		auto forEveryoneText = lang(lng_delete_for_everyone_check);
+		for_const (auto fullId, _ids) {
+			if (auto item = App::histItemById(fullId)) {
+				peer = item->history()->peer;
+				if (!item->canDeleteForEveryone(now)) {
+					canDeleteAllForEveryone = false;
+					break;
+				} else if (auto user = item->history()->peer->asUser()) {
+					if (!deleteForUser || deleteForUser == user) {
+						deleteForUser = user;
+						forEveryoneText = lng_delete_for_other_check(lt_user, user->firstName);
+					} else {
+						forEveryoneText = lang(lng_delete_for_everyone_check);
+					}
+				}
+			} else {
+				canDeleteAllForEveryone = false;
+			}
+		}
+		if (canDeleteAllForEveryone) {
+			_forEveryone.create(this, forEveryoneText, false, st::defaultBoxCheckbox);
+		} else if (peer && peer->isChannel()) {
+			if (peer->isMegagroup()) {
+				text += qsl("\n\n") + (_singleItem ? lang(lng_delete_for_everyone_this_hint) : lng_delete_for_everyone_hint(lt_count, _ids.size()));
+			}
+		} else if (peer->isChat()) {
+			text += qsl("\n\n") + (_singleItem ? lang(lng_delete_for_me_chat_this_hint) : lng_delete_for_me_chat_hint(lt_count, _ids.size()));
+		} else {
+			text += qsl("\n\n") + (_singleItem ? lang(lng_delete_for_me_this_hint) : lng_delete_for_me_hint(lt_count, _ids.size()));
+		}
+	}
+	_text.create(this, text, Ui::FlatLabel::InitType::Simple, st::boxLabel);
 
 	addButton(lang(lng_box_delete), [this] { deleteAndClear(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
 	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-	setDimensions(st::boxWidth, st::boxPadding.top() + _text->height() + st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins() + st::boxPadding.bottom());
+	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
+	if (_moderateFrom) {
+		fullHeight += st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins();
+	} else if (_forEveryone) {
+		fullHeight += st::boxMediumSkip + _forEveryone->heightNoMargins();
+	}
+	setDimensions(st::boxWidth, fullHeight);
 }
 
-void RichDeleteMessageBox::resizeEvent(QResizeEvent *e) {
+void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
-	_banUser->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
-	_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->bottomNoMargins() + st::boxLittleSkip);
-	_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->bottomNoMargins() + st::boxLittleSkip);
+	if (_moderateFrom) {
+		_banUser->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+		_reportSpam->moveToLeft(st::boxPadding.left(), _banUser->bottomNoMargins() + st::boxLittleSkip);
+		_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->bottomNoMargins() + st::boxLittleSkip);
+	} else if (_forEveryone) {
+		_forEveryone->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+	}
 }
 
-void RichDeleteMessageBox::deleteAndClear() {
-	if (_banUser->checked()) {
-		MTP::send(MTPchannels_KickFromChannel(_channel->inputChannel, _from->inputUser, MTP_boolTrue()), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
+void DeleteMessagesBox::deleteAndClear() {
+	if (!App::main()) {
+		return;
 	}
-	if (_reportSpam->checked()) {
-		MTP::send(MTPchannels_ReportSpam(_channel->inputChannel, _from->inputUser, MTP_vector<MTPint>(1, MTP_int(_msgId))));
-	}
-	if (_deleteAll->checked()) {
-		App::main()->deleteAllFromUser(_channel, _from);
-	}
-	if (auto item = App::histItemById(_channel ? peerToChannel(_channel->id) : 0, _msgId)) {
-		auto wasLast = (item->history()->lastMsg == item);
-		item->destroy();
 
-		if (_msgId > 0) {
-			auto forEveryone = true;
-			App::main()->deleteMessages(_channel, QVector<MTPint>(1, MTP_int(_msgId)), forEveryone);
-		} else if (wasLast) {
-			App::main()->checkPeerHistory(_channel);
+	if (_moderateFrom) {
+		if (_banUser->checked()) {
+			MTP::send(MTPchannels_KickFromChannel(_moderateInChannel->inputChannel, _moderateFrom->inputUser, MTP_boolTrue()), App::main()->rpcDone(&MainWidget::sentUpdatesReceived));
 		}
+		if (_reportSpam->checked()) {
+			MTP::send(MTPchannels_ReportSpam(_moderateInChannel->inputChannel, _moderateFrom->inputUser, MTP_vector<MTPint>(1, MTP_int(_ids[0].msg))));
+		}
+		if (_deleteAll->checked()) {
+			App::main()->deleteAllFromUser(_moderateInChannel, _moderateFrom);
+		}
+	}
+
+	if (!_singleItem) {
+		App::main()->clearSelectedItems();
+	}
+
+	QMap<PeerData*, QVector<MTPint>> idsByPeer;
+	for_const (auto fullId, _ids) {
+		if (auto item = App::histItemById(fullId)) {
+			auto history = item->history();
+			auto wasOnServer = (item->id > 0);
+			auto wasLast = (history->lastMsg == item);
+			item->destroy();
+
+			if (wasOnServer) {
+				idsByPeer[history->peer].push_back(MTP_int(fullId.msg));
+			} else if (wasLast) {
+				App::main()->checkPeerHistory(history->peer);
+			}
+		}
+	}
+
+	auto forEveryone = _forEveryone ? _forEveryone->checked() : false;
+	for (auto i = idsByPeer.cbegin(), e = idsByPeer.cend(); i != e; ++i) {
+		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
 	}
 	Ui::hideLayer();
 }

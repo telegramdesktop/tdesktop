@@ -170,9 +170,10 @@ private:
 
 };
 
-class RichDeleteMessageBox : public BoxContent, public RPCSender {
+class DeleteMessagesBox : public BoxContent, public RPCSender {
 public:
-	RichDeleteMessageBox(QWidget*, ChannelData *channel, UserData *from, MsgId msgId);
+	DeleteMessagesBox(QWidget*, HistoryItem *item, bool suggestModerateActions);
+	DeleteMessagesBox(QWidget*, const SelectedItemSet &selected);
 
 protected:
 	void prepare() override;
@@ -182,14 +183,16 @@ protected:
 private:
 	void deleteAndClear();
 
-	ChannelData *_channel;
-	UserData *_from;
-	MsgId _msgId;
+	QVector<FullMsgId> _ids;
+	bool _singleItem = false;
+	UserData *_moderateFrom = nullptr;
+	ChannelData *_moderateInChannel = nullptr;
 
-	object_ptr<Ui::FlatLabel> _text;
-	object_ptr<Ui::Checkbox> _banUser;
-	object_ptr<Ui::Checkbox> _reportSpam;
-	object_ptr<Ui::Checkbox> _deleteAll;
+	object_ptr<Ui::FlatLabel> _text = { nullptr };
+	object_ptr<Ui::Checkbox> _forEveryone = { nullptr };
+	object_ptr<Ui::Checkbox> _banUser = { nullptr };
+	object_ptr<Ui::Checkbox> _reportSpam = { nullptr };
+	object_ptr<Ui::Checkbox> _deleteAll = { nullptr };
 
 };
 

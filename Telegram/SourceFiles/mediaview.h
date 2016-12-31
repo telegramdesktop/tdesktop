@@ -47,7 +47,7 @@ class MediaView : public TWidget, private base::Subscriber, public RPCSender, pu
 	Q_OBJECT
 
 public:
-	MediaView();
+	MediaView(QWidget*);
 
 	void setVisible(bool visible) override;
 
@@ -330,6 +330,7 @@ private:
 
 	Ui::PopupMenu *_menu = nullptr;
 	object_ptr<Ui::DropdownMenu> _dropdown;
+	object_ptr<QTimer> _dropdownShowTimer;
 
 	struct ActionData {
 		QString text;

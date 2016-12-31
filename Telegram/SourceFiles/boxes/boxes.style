@@ -33,6 +33,16 @@ defaultBoxButton: RoundButton(defaultLightButton) {
 	font: boxButtonFont;
 }
 
+boxTextStyle: TextStyle(defaultTextStyle) {
+	font: font(boxFontSize);
+	linkFont: font(boxFontSize);
+	linkFontOver: font(boxFontSize underline);
+}
+
+boxLabelStyle: TextStyle(boxTextStyle) {
+	lineHeight: 22px;
+}
+
 attentionBoxButton: RoundButton(defaultBoxButton) {
 	textFg: attentionButtonFg;
 	textFgOver: attentionButtonFgOver;
@@ -46,7 +56,7 @@ attentionBoxButton: RoundButton(defaultBoxButton) {
 defaultBoxCheckbox: Checkbox(defaultCheckbox) {
 	width: -46px;
 	textPosition: point(34px, 1px);
-	font: boxTextFont;
+	style: boxTextStyle;
 }
 
 boxRoundShadow: Shadow {
@@ -108,12 +118,9 @@ boxMediumSkip: 20px;
 boxButtonPadding: margins(8px, 12px, 13px, 12px);
 boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
 boxLabel: FlatLabel(defaultFlatLabel) {
+	width: 285px;
 	align: align(topleft);
-	style: TextStyle(defaultTextStyle) {
-		font: font(boxFontSize);
-		linkFont: font(boxFontSize);
-		linkFontOver: font(boxFontSize underline);
-	}
+	style: boxLabelStyle;
 }
 
 countryRowHeight: 36px;
@@ -129,10 +136,6 @@ countriesSkip: 12px;
 countriesScroll: ScrollArea(boxLayerScroll) {
 	deltat: 9px;
 	deltab: 3px;
-}
-
-boxTextStyle: TextStyle(defaultTextStyle) {
-	lineHeight: 22px;
 }
 
 boxPhotoTitleFont: font(16px semibold);

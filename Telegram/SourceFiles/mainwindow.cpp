@@ -204,11 +204,7 @@ void MainWindow::firstShow() {
 	psFirstShow();
 	updateTrayMenu();
 
-	_mediaView = new MediaView();
-}
-
-QWidget *MainWindow::filedialogParent() {
-	return (_mediaView && _mediaView->isVisible()) ? (QWidget*)_mediaView : (QWidget*)this;
+	createMediaView();
 }
 
 void MainWindow::clearWidgets() {
@@ -600,30 +596,6 @@ void MainWindow::layerHidden() {
 	checkHistoryActivation();
 }
 
-void MainWindow::onReActivate() {
-	if (auto w = App::wnd()) {
-		if (auto f = QApplication::focusWidget()) {
-			f->clearFocus();
-		}
-		w->windowHandle()->requestActivate();
-		w->activate();
-		if (auto f = QApplication::focusWidget()) {
-			f->clearFocus();
-		}
-		w->setInnerFocus();
-    }
-}
-
-void MainWindow::hideMediaview() {
-    if (_mediaView && !_mediaView->isHidden()) {
-        _mediaView->hide();
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-		onReActivate();
-		QTimer::singleShot(200, this, SLOT(onReActivate()));
-#endif
-    }
-}
-
 bool MainWindow::contentOverlapped(const QRect &globalRect) {
 	if (_main && _main->contentOverlapped(globalRect)) return true;
 	if (_layerBg && _layerBg->contentOverlapped(globalRect)) return true;
@@ -710,21 +682,6 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 	}
 
 	return Platform::MainWindow::eventFilter(obj, e);
-}
-
-bool MainWindow::minimizeToTray() {
-    if (App::quitting() || !psHasTrayIcon()) return false;
-
-	closeWithoutDestroy();
-    if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
-		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
-		cSetSeenTrayTooltip(true);
-		Local::writeSettings();
-	}
-	updateIsActive(Global::OfflineBlurTimeout());
-	updateTrayMenu();
-	updateGlobalMenu();
-	return true;
 }
 
 void MainWindow::updateTrayMenu(bool force) {
@@ -1450,7 +1407,6 @@ MainWindow::~MainWindow() {
 		_clearManager->stop();
 		_clearManager = nullptr;
 	}
-	delete _mediaView;
 	delete trayIcon;
 	delete trayIconMenu;
 }

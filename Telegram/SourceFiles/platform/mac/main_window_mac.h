@@ -51,8 +51,6 @@ public:
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
-	void closeWithoutDestroy() override;
-
 	int getCustomTitleHeight() const {
 		return _customTitleHeight;
 	}
@@ -102,6 +100,8 @@ protected:
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	QTimer psUpdatedPositionTimer;
+
+	void closeWithoutDestroy() override;
 
 private:
 	void createGlobalMenu();
