@@ -54,7 +54,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
 	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 
-	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged;
+	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged | Notify::PeerUpdate::Flag::PhotoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
@@ -75,7 +75,8 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 }
 
 PhotoData *CoverWidget::validatePhoto() const {
-	PhotoData *photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
+	auto photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
+	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
 	if ((_self->photoId == UnknownPeerPhotoId) || (_self->photoId && (!photo || !photo->date))) {
 		App::api()->requestFullPeer(_self);
 		return nullptr;
@@ -264,6 +265,9 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	}
 	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
 		refreshNameText();
+	}
+	if (update.flags & Notify::PeerUpdate::Flag::PhotoChanged) {
+		validatePhoto();
 	}
 }
 

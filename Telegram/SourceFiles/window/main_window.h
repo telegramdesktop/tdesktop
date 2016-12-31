@@ -82,6 +82,7 @@ private slots:
 	}
 
 private:
+	void updatePalette();
 	void updateControlsGeometry();
 	void updateUnreadCounter();
 	void initSize();

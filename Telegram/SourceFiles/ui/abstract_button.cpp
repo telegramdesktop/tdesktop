@@ -83,8 +83,14 @@ void AbstractButton::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
+void AbstractButton::setPointerCursor(bool enablePointerCursor) {
+	if (_enablePointerCursor != enablePointerCursor) {
+		_enablePointerCursor = enablePointerCursor;
+		updateCursor();
+	}
+}
+
 void AbstractButton::setOver(bool over, StateChangeSource source) {
-	setCursor(over ? style::cur_pointer : style::cur_default);
 	if (over && !(_state & StateFlag::Over)) {
 		auto was = _state;
 		_state |= StateFlag::Over;
@@ -94,6 +100,12 @@ void AbstractButton::setOver(bool over, StateChangeSource source) {
 		_state &= ~State(StateFlag::Over);
 		onStateChanged(was, source);
 	}
+	updateCursor();
+}
+
+void AbstractButton::updateCursor() {
+	auto pointerCursor = _enablePointerCursor && (_state & StateFlag::Over);
+	setCursor(pointerCursor ? style::cur_pointer : style::cur_default);
 }
 
 void AbstractButton::setDisabled(bool disabled) {

@@ -655,13 +655,13 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 	}
 }
 
-void MainWidget::forwardLayer(int32 forwardSelected) {
+void MainWidget::forwardLayer(int forwardSelected) {
 	hiderLayer((forwardSelected < 0) ? object_ptr<HistoryHider>(this) : object_ptr<HistoryHider>(this, forwardSelected > 0));
 }
 
-void MainWidget::deleteLayer(int32 selectedCount) {
+void MainWidget::deleteLayer(int selectedCount) {
 	if (selectedCount == -1 && !_overview) {
-		if (HistoryItem *item = App::contextItem()) {
+		if (auto item = App::contextItem()) {
 			if (item->suggestBanReportDeleteAll()) {
 				Ui::show(Box<RichDeleteMessageBox>(item->history()->peer->asChannel(), item->from()->asUser(), item->id));
 				return;
@@ -679,18 +679,18 @@ void MainWidget::deleteLayer(int32 selectedCount) {
 	Ui::show(Box<ConfirmBox>(text, confirmText, cancelText, base::lambda_guarded(this, [this, selectedCount] {
 		if (selectedCount < 0) {
 			if (_overview) {
-				_overview->onDeleteContextSure();
+				_overview->deleteContextItem(false);
 			} else {
-				_history->onDeleteContextSure();
+				_history->deleteContextItem(false);
 			}
 			if (selectedCount < -1) {
 				App::uploader()->unpause();
 			}
 		} else {
 			if (_overview) {
-				_overview->onDeleteSelectedSure();
+				_overview->deleteSelectedItems(false);
 			} else {
-				_history->onDeleteSelectedSure();
+				_history->deleteSelectedItems(false);
 			}
 		}
 	}), base::lambda_guarded(this, [selectedCount] {
@@ -813,11 +813,15 @@ void MainWidget::deleteHistoryPart(DeleteHistoryRequest request, const MTPmessag
 	MTP::send(MTPmessages_DeleteHistory(MTP_flags(flags), peer->input, MTP_int(0)), rpcDone(&MainWidget::deleteHistoryPart, request));
 }
 
-void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids) {
+void MainWidget::deleteMessages(PeerData *peer, const QVector<MTPint> &ids, bool forEveryone) {
 	if (peer->isChannel()) {
 		MTP::send(MTPchannels_DeleteMessages(peer->asChannel()->inputChannel, MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
 	} else {
-		MTP::send(MTPmessages_DeleteMessages(MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
+		auto flags = MTPmessages_DeleteMessages::Flags(0);
+		if (forEveryone) {
+			flags |= MTPmessages_DeleteMessages::Flag::f_revoke;
+		}
+		MTP::send(MTPmessages_DeleteMessages(MTP_flags(flags), MTP_vector<MTPint>(ids)), rpcDone(&MainWidget::messagesAffected, peer));
 	}
 }
 
@@ -1104,11 +1108,11 @@ void MainWidget::forwardSelectedItems() {
 	}
 }
 
-void MainWidget::deleteSelectedItems() {
+void MainWidget::confirmDeleteSelectedItems() {
 	if (_overview) {
-		_overview->onDeleteSelected();
+		_overview->confirmDeleteSelectedItems();
 	} else {
-		_history->onDeleteSelected();
+		_history->confirmDeleteSelectedItems();
 	}
 }
 

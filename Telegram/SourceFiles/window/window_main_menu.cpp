@@ -80,7 +80,9 @@ void MainMenu::checkSelf() {
 	if (auto self = App::self()) {
 		_userpicButton.create(this, self, st::mainMenuUserpicSize);
 		_userpicButton->setClickedCallback([] {
-			App::wnd()->showSettings();
+			if (auto self = App::self()) {
+				Ui::showPeerHistory(App::history(self), ShowAtUnreadMsgId);
+			}
 		});
 		_userpicButton->show();
 		updateControlsGeometry();

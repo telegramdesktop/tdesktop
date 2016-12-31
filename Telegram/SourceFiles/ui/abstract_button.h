@@ -48,6 +48,8 @@ public:
 		return _state & StateFlag::Disabled;
 	}
 
+	void setPointerCursor(bool enablePointerCursor);
+
 	void setAcceptBoth(bool acceptBoth = true);
 
 	void setClickedCallback(base::lambda<void()> &&callback) {
@@ -96,12 +98,14 @@ protected:
 	}
 
 private:
+	void updateCursor();
 	void checkIfOver(QPoint localPos);
 
 	State _state = StateFlag::None;
 
 	bool _acceptBoth = false;
 	Qt::KeyboardModifiers _modifiers;
+	bool _enablePointerCursor = true;
 
 	base::lambda<void()> _clickedCallback;
 

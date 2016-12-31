@@ -28,6 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "dialogs/dialogs_layout.h"
+#include "window/window_theme.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h"
@@ -505,6 +506,19 @@ Notification::Notification(History *history, PeerData *peer, PeerData *author, H
 
 	prepareActionsCache();
 
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
+		if (data.paletteChanged()) {
+			updateNotifyDisplay();
+			if (!_buttonsCache.isNull()) {
+				prepareActionsCache();
+			}
+			update();
+			if (_background) {
+				_background->update();
+			}
+		}
+	});
+
 	show();
 }
 
@@ -850,6 +864,12 @@ HideAllButton::HideAllButton(QPoint startPosition, int shift, Direction shiftDir
 	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyHideAllHeight);
 	hide();
 	createWinId();
+
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &data) {
+		if (data.paletteChanged()) {
+			update();
+		}
+	});
 
 	show();
 }

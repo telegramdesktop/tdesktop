@@ -227,8 +227,8 @@ public:
 
 	int32 dlgsWidth() const;
 
-	void forwardLayer(int32 forwardSelected = 0); // -1 - send paths
-	void deleteLayer(int32 selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
+	void forwardLayer(int forwardSelected = 0); // -1 - send paths
+	void deleteLayer(int selectedCount = -1); // -1 - context item, else selected, -2 - cancel upload
 	void shareContactLayer(UserData *contact);
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
@@ -251,7 +251,7 @@ public:
 
 	bool leaveChatFailed(PeerData *peer, const RPCError &e);
 	void deleteHistoryAfterLeave(PeerData *peer, const MTPUpdates &updates);
-	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids);
+	void deleteMessages(PeerData *peer, const QVector<MTPint> &ids, bool forEveryone);
 	void deletedContact(UserData *user, const MTPcontacts_Link &result);
 	void deleteConversation(PeerData *peer, bool deleteHistory = true);
 	void deleteAndExit(ChatData *chat);
@@ -271,7 +271,7 @@ public:
 	bool sendMessageFail(const RPCError &error);
 
 	void forwardSelectedItems();
-	void deleteSelectedItems();
+	void confirmDeleteSelectedItems();
 	void clearSelectedItems();
 
 	Dialogs::IndexedList *contactsList();

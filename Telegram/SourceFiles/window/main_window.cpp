@@ -32,12 +32,12 @@ MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this)
 , _titleText(qsl("Telegram")) {
-	using Update = Theme::BackgroundUpdate;
-	subscribe(Theme::Background(), [this](const Update &data) {
+	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			if (_title) {
 				_title->update();
 			}
+			updatePalette();
 		}
 	});
 	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
@@ -49,9 +49,7 @@ void MainWindow::init() {
 	_positionUpdatedTimer->setSingleShot(true);
 	connect(_positionUpdatedTimer, SIGNAL(timeout()), this, SLOT(savePositionByTimer()));
 
-	auto p = palette();
-	p.setColor(QPalette::Window, st::windowBg->c);
-	setPalette(p);
+	updatePalette();
 
 	if ((_title = Platform::CreateTitleWidget(this))) {
 		_title->init();
@@ -59,6 +57,12 @@ void MainWindow::init() {
 
 	initSize();
 	updateUnreadCounter();
+}
+
+void MainWindow::updatePalette() {
+	auto p = palette();
+	p.setColor(QPalette::Window, st::windowBg->c);
+	setPalette(p);
 }
 
 HitTestResult MainWindow::hitTest(const QPoint &p) const {

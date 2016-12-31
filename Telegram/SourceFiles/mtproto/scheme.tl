@@ -253,6 +253,7 @@ messageActionChannelMigrateFrom#b055eaee title:string chat_id:int = MessageActio
 messageActionPinMessage#94bd38ed = MessageAction;
 messageActionHistoryClear#9fbab604 = MessageAction;
 messageActionGameScore#92a72876 game_id:long score:int = MessageAction;
+messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = MessageAction;
 
 dialog#66ffba14 flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
@@ -345,6 +346,7 @@ inputMessagesFilterGif#ffc86587 = MessagesFilter;
 inputMessagesFilterVoice#50f5c392 = MessagesFilter;
 inputMessagesFilterMusic#3751b49e = MessagesFilter;
 inputMessagesFilterChatPhotos#3a20ecb8 = MessagesFilter;
+inputMessagesFilterPhoneCalls#80c99768 flags:# missed:flags.0?true = MessagesFilter;
 
 updateNewMessage#1f2b0afd message:Message pts:int pts_count:int = Update;
 updateMessageID#4e90bfd6 id:int random_id:long = Update;
@@ -875,7 +877,7 @@ messages.getHistory#afa92846 peer:InputPeer offset_id:int offset_date:int add_of
 messages.search#d4569248 flags:# peer:InputPeer q:string filter:MessagesFilter min_date:int max_date:int offset:int max_id:int limit:int = messages.Messages;
 messages.readHistory#e306d3a peer:InputPeer max_id:int = messages.AffectedMessages;
 messages.deleteHistory#1c015b09 flags:# just_clear:flags.0?true peer:InputPeer max_id:int = messages.AffectedHistory;
-messages.deleteMessages#a5f18925 id:Vector<int> = messages.AffectedMessages;
+messages.deleteMessages#e58e95d2 flags:# revoke:flags.0?true id:Vector<int> = messages.AffectedMessages;
 messages.receivedMessages#5a954c0 max_id:int = Vector<ReceivedNotifyMessage>;
 messages.setTyping#a3825e50 peer:InputPeer action:SendMessageAction = Bool;
 messages.sendMessage#fa88427a flags:# no_webpage:flags.1?true silent:flags.5?true background:flags.6?true clear_draft:flags.7?true peer:InputPeer reply_to_msg_id:flags.0?int message:string random_id:long reply_markup:flags.2?ReplyMarkup entities:flags.3?Vector<MessageEntity> = Updates;
@@ -902,6 +904,7 @@ messages.sendEncrypted#a9776773 peer:InputEncryptedChat random_id:long data:byte
 messages.sendEncryptedFile#9a901b66 peer:InputEncryptedChat random_id:long data:bytes file:InputEncryptedFile = messages.SentEncryptedMessage;
 messages.sendEncryptedService#32d439a4 peer:InputEncryptedChat random_id:long data:bytes = messages.SentEncryptedMessage;
 messages.receivedQueue#55a5bb66 max_qts:int = Vector<long>;
+messages.reportEncryptedSpam#4b0c8c0f peer:InputEncryptedChat = Bool;
 messages.readMessageContents#36a73f77 id:Vector<int> = messages.AffectedMessages;
 messages.getAllStickers#1c9618b1 hash:int = messages.AllStickers;
 messages.getWebPagePreview#25223e24 message:string = MessageMedia;
@@ -1008,4 +1011,4 @@ phone.acceptCall#220f0b20 peer:InputPhoneCall g_b:bytes key_fingerprint:long pro
 phone.discardCall#5dfbcddc peer:InputPhoneCall duration:int reason:PhoneCallDiscardReason connection_id:long = Bool;
 phone.receivedCall#17d54f61 peer:InputPhoneCall = Bool;
 
-// LAYER 61
+// LAYER 62

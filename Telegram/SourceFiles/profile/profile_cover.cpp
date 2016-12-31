@@ -69,7 +69,8 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 	auto observeEvents = ButtonsUpdateFlags
 		| UpdateFlag::NameChanged
 		| UpdateFlag::UserOnlineChanged
-		| UpdateFlag::MembersChanged;
+		| UpdateFlag::MembersChanged
+		| UpdateFlag::PhotoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
@@ -90,7 +91,8 @@ CoverWidget::CoverWidget(QWidget *parent, PeerData *peer) : TWidget(parent)
 }
 
 PhotoData *CoverWidget::validatePhoto() const {
-	PhotoData *photo = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId) ? App::photo(_peer->photoId) : nullptr;
+	auto photo = (_peer->photoId && _peer->photoId != UnknownPeerPhotoId) ? App::photo(_peer->photoId) : nullptr;
+	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
 	if ((_peer->photoId == UnknownPeerPhotoId) || (_peer->photoId && (!photo || !photo->date))) {
 		App::api()->requestFullPeer(_peer);
 		return nullptr;
@@ -342,6 +344,9 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	}
 	if (update.flags & UpdateFlag::NameChanged) {
 		refreshNameText();
+	}
+	if (update.flags & UpdateFlag::PhotoChanged) {
+		validatePhoto();
 	}
 	if (update.flags & (UpdateFlag::UserOnlineChanged | UpdateFlag::MembersChanged)) {
 		refreshStatusText();

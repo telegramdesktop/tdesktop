@@ -62,5 +62,7 @@ struct UnreadBadgeStyle {
 };
 void paintUnreadCount(Painter &p, const QString &text, int x, int y, const UnreadBadgeStyle &st, int *outUnreadWidth = nullptr);
 
+void clearUnreadBadgesCache();
+
 } // namespace Layout
 } // namespace Dialogs

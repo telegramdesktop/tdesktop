@@ -109,7 +109,6 @@ public slots:
 	void showContextInFolder();
 
 	void goToMessage();
-	void deleteMessage();
 	void forwardMessage();
 	void selectMessage();
 
@@ -332,6 +331,11 @@ public:
 		RPCSender::rpcClear();
 	}
 
+	void confirmDeleteContextItem();
+	void confirmDeleteSelectedItems();
+	void deleteContextItem(bool forEveryone);
+	void deleteSelectedItems(bool forEveryone);
+
 	void ui_repaintHistoryItem(const HistoryItem *item);
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
@@ -350,9 +354,6 @@ public slots:
 	void onScrollTimer();
 
 	void onForwardSelected();
-	void onDeleteSelected();
-	void onDeleteSelectedSure();
-	void onDeleteContextSure();
 	void onClearSelected();
 
 private:

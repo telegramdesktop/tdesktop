@@ -120,7 +120,7 @@ private:
 
 namespace internal {
 
-class Widget : public TWidget {
+class Widget : public TWidget, protected base::Subscriber {
 public:
 	enum class Direction {
 		Up,

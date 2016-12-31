@@ -28,7 +28,7 @@ namespace Ui {
 
 static UserData * const LookingUpInlineBot = SharedMemoryLocation<UserData, 0>();
 
-class FlatTextarea : public QTextEdit {
+class FlatTextarea : public QTextEdit, private base::Subscriber {
 	Q_OBJECT
 	T_WIDGET
 
@@ -163,6 +163,8 @@ protected:
 	void checkContentHeight();
 
 private:
+	void updatePalette();
+
 	// "start" and "end" are in coordinates of text where emoji are replaced
 	// by ObjectReplacementCharacter. If "end" = -1 means get text till the end.
 	QString getTextPart(int start, int end, TagList *outTagsList, bool *outTagsChanged = nullptr) const;
@@ -240,7 +242,7 @@ inline bool operator!=(const FlatTextarea::LinkRange &a, const FlatTextarea::Lin
 	return !(a == b);
 }
 
-class FlatInput : public QLineEdit {
+class FlatInput : public QLineEdit, private base::Subscriber {
 	Q_OBJECT
 	T_WIDGET
 
@@ -304,6 +306,7 @@ protected:
 	void phPrepare(Painter &p, float64 placeholderFocused);
 
 private:
+	void updatePalette();
 	void updatePlaceholderText();
 
 	QString _oldtext, _ph, _fullph;
@@ -327,7 +330,7 @@ enum class CtrlEnterSubmit {
 	Both,
 };
 
-class InputArea : public TWidget {
+class InputArea : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -450,6 +453,8 @@ private:
 	};
 	friend class Inner;
 
+	void updatePalette();
+
 	bool heightAutoupdated();
 	void checkContentHeight();
 	void createPlaceholderPath();
@@ -503,7 +508,7 @@ private:
 
 };
 
-class InputField : public TWidget {
+class InputField : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -636,6 +641,8 @@ private:
 	};
 	friend class Inner;
 
+	void updatePalette();
+
 	void createPlaceholderPath();
 	void setErrorShown(bool error);
 
@@ -685,7 +692,7 @@ private:
 	bool _correcting = false;
 };
 
-class MaskedInputField : public QLineEdit {
+class MaskedInputField : public QLineEdit, private base::Subscriber {
 	Q_OBJECT
 	T_WIDGET
 
@@ -778,6 +785,7 @@ protected:
 	const style::InputField &_st;
 
 private:
+	void updatePalette();
 	void createPlaceholderPath();
 	void setErrorShown(bool error);
 

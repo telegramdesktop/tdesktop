@@ -238,6 +238,7 @@ void InnerWidget::paintRow(Painter &p, int index, TimeMs ms) {
 	y += st::profileCommonGroupsPadding.top();
 	item->peer->paintUserpic(p, rtl() ? (width() - x - st::profileCommonGroupsPhotoSize) : x, y, st::profileCommonGroupsPhotoSize);
 
+	p.setPen(st::profileMemberNameFg);
 	x += st::profileCommonGroupsPhotoSize + st::profileCommonGroupsNameLeft;
 	y += st::profileCommonGroupsNameTop;
 	auto nameWidth = _contentWidth - (x - _contentLeft) - st::profileCommonGroupsPadding.right();

@@ -698,6 +698,11 @@ public:
 
 	bool isItemVisible(HistoryItem *item);
 
+	void confirmDeleteContextItem();
+	void confirmDeleteSelectedItems();
+	void deleteContextItem(bool forEveryone);
+	void deleteSelectedItems(bool forEveryone);
+
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
@@ -797,7 +802,6 @@ public slots:
 
 	void onWindowVisibleChanged();
 
-	void deleteMessage();
 	void forwardMessage();
 	void selectMessage();
 
@@ -807,9 +811,6 @@ public slots:
 	void onScrollTimer();
 
 	void onForwardSelected();
-	void onDeleteSelected();
-	void onDeleteSelectedSure();
-	void onDeleteContextSure();
 	void onClearSelected();
 
 	void onAnimActiveStep();

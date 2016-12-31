@@ -1703,6 +1703,24 @@ void _serialize_messageActionGameScore(MTPStringLogger &to, int32 stage, int32 l
 	}
 }
 
+void _serialize_messageActionPhoneCall(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDmessageActionPhoneCall::Flags flag(iflag);
+
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messageActionPhoneCall");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  call_id: "); ++stages.back(); types.push_back(mtpc_long+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 2: to.add("  reason: "); ++stages.back(); if (flag & MTPDmessageActionPhoneCall::Flag::f_reason) { types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 3: to.add("  duration: "); ++stages.back(); if (flag & MTPDmessageActionPhoneCall::Flag::f_duration) { types.push_back(mtpc_int+0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); } else { to.add("[ SKIPPED BY BIT 1 IN FIELD flags ]"); } break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_dialog(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	MTPDdialog::Flags flag(iflag);
 
@@ -2383,6 +2401,22 @@ void _serialize_inputMessagesFilterMusic(MTPStringLogger &to, int32 stage, int32
 
 void _serialize_inputMessagesFilterChatPhotos(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	to.add("{ inputMessagesFilterChatPhotos }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_inputMessagesFilterPhoneCalls(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPDinputMessagesFilterPhoneCalls::Flags flag(iflag);
+
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ inputMessagesFilterPhoneCalls");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  missed: "); ++stages.back(); if (flag & MTPDinputMessagesFilterPhoneCalls::Flag::f_missed) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
 }
 
 void _serialize_updateNewMessage(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
@@ -7346,6 +7380,19 @@ void _serialize_messages_readEncryptedHistory(MTPStringLogger &to, int32 stage, 
 	}
 }
 
+void _serialize_messages_reportEncryptedSpam(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	if (stage) {
+		to.add(",\n").addSpaces(lev);
+	} else {
+		to.add("{ messages_reportEncryptedSpam");
+		to.add("\n").addSpaces(lev);
+	}
+	switch (stage) {
+	case 0: to.add("  peer: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
+	}
+}
+
 void _serialize_messages_uninstallStickerSet(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -8407,6 +8454,8 @@ void _serialize_messages_readHistory(MTPStringLogger &to, int32 stage, int32 lev
 }
 
 void _serialize_messages_deleteMessages(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	MTPmessages_deleteMessages::Flags flag(iflag);
+
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
 	} else {
@@ -8414,7 +8463,9 @@ void _serialize_messages_deleteMessages(MTPStringLogger &to, int32 stage, int32 
 		to.add("\n").addSpaces(lev);
 	}
 	switch (stage) {
-	case 0: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int+0); stages.push_back(0); flags.push_back(0); break;
+	case 0: to.add("  flags: "); ++stages.back(); if (start >= end) throw Exception("start >= end in flags"); else flags.back() = *start; types.push_back(mtpc_flags); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;
+	case 1: to.add("  revoke: "); ++stages.back(); if (flag & MTPmessages_deleteMessages::Flag::f_revoke) { to.add("YES [ BY BIT 0 IN FIELD flags ]"); } else { to.add("[ SKIPPED BY BIT 0 IN FIELD flags ]"); } break;
+	case 2: to.add("  id: "); ++stages.back(); types.push_back(0); vtypes.push_back(mtpc_int+0); stages.push_back(0); flags.push_back(0); break;
 	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;
 	}
 }
@@ -9869,6 +9920,7 @@ namespace {
 		_serializers.insert(mtpc_messageActionPinMessage, _serialize_messageActionPinMessage);
 		_serializers.insert(mtpc_messageActionHistoryClear, _serialize_messageActionHistoryClear);
 		_serializers.insert(mtpc_messageActionGameScore, _serialize_messageActionGameScore);
+		_serializers.insert(mtpc_messageActionPhoneCall, _serialize_messageActionPhoneCall);
 		_serializers.insert(mtpc_dialog, _serialize_dialog);
 		_serializers.insert(mtpc_photoEmpty, _serialize_photoEmpty);
 		_serializers.insert(mtpc_photo, _serialize_photo);
@@ -9930,6 +9982,7 @@ namespace {
 		_serializers.insert(mtpc_inputMessagesFilterVoice, _serialize_inputMessagesFilterVoice);
 		_serializers.insert(mtpc_inputMessagesFilterMusic, _serialize_inputMessagesFilterMusic);
 		_serializers.insert(mtpc_inputMessagesFilterChatPhotos, _serialize_inputMessagesFilterChatPhotos);
+		_serializers.insert(mtpc_inputMessagesFilterPhoneCalls, _serialize_inputMessagesFilterPhoneCalls);
 		_serializers.insert(mtpc_updateNewMessage, _serialize_updateNewMessage);
 		_serializers.insert(mtpc_updateMessageID, _serialize_updateMessageID);
 		_serializers.insert(mtpc_updateDeleteMessages, _serialize_updateDeleteMessages);
@@ -10310,6 +10363,7 @@ namespace {
 		_serializers.insert(mtpc_messages_discardEncryption, _serialize_messages_discardEncryption);
 		_serializers.insert(mtpc_messages_setEncryptedTyping, _serialize_messages_setEncryptedTyping);
 		_serializers.insert(mtpc_messages_readEncryptedHistory, _serialize_messages_readEncryptedHistory);
+		_serializers.insert(mtpc_messages_reportEncryptedSpam, _serialize_messages_reportEncryptedSpam);
 		_serializers.insert(mtpc_messages_uninstallStickerSet, _serialize_messages_uninstallStickerSet);
 		_serializers.insert(mtpc_messages_editChatAdmin, _serialize_messages_editChatAdmin);
 		_serializers.insert(mtpc_messages_reorderStickerSets, _serialize_messages_reorderStickerSets);

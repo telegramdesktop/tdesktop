@@ -197,7 +197,7 @@ bool MediaView::fileShown() const {
 }
 
 bool MediaView::fileBubbleShown() const {
-	return _doc && !fileShown() && !_themePreviewShown;
+	return (!_photo && !_doc) || (_doc && !fileShown() && !_themePreviewShown);
 }
 
 bool MediaView::gifShown() const {
@@ -226,7 +226,7 @@ void MediaView::stopGif() {
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
-	if (fileBubbleShown() && _doc == doc) {
+	if (fileBubbleShown() && _doc && _doc == doc) {
 		if ((_doc->loading() && _docCancel->isHidden()) || (!_doc->loading() && !_docCancel->isHidden())) {
 			updateControls();
 		} else if (_doc->loading()) {
@@ -244,7 +244,7 @@ void MediaView::changingMsgId(HistoryItem *row, MsgId newId) {
 }
 
 void MediaView::updateDocSize() {
-	if (!fileBubbleShown()) return;
+	if (!_doc || !fileBubbleShown()) return;
 
 	if (_doc->loading()) {
 		quint64 ready = _doc->loadOffset(), total = _doc->size;
@@ -277,7 +277,7 @@ void MediaView::updateDocSize() {
 }
 
 void MediaView::updateControls() {
-	if (fileBubbleShown()) {
+	if (_doc && fileBubbleShown()) {
 		if (_doc->loading()) {
 			_docDownload->hide();
 			_docSaveAs->hide();
@@ -2144,7 +2144,7 @@ bool MediaView::moveToNext(int32 delta) {
 					case MediaTypeSticker: displayDocument(media->getDocument(), item); preloadData(delta); break;
 					}
 				} else {
-					displayDocument(0, item);
+					displayDocument(nullptr, item);
 					preloadData(delta);
 				}
 			}

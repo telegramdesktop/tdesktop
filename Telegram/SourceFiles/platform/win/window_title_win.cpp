@@ -37,14 +37,17 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 		window()->setWindowState(Qt::WindowMinimized);
 		_minimize->clearState();
 	});
+	_minimize->setPointerCursor(false);
 	_maximizeRestore->setClickedCallback([this]() {
 		window()->setWindowState(_maximized ? Qt::WindowNoState : Qt::WindowMaximized);
 		_maximizeRestore->clearState();
 	});
+	_maximizeRestore->setPointerCursor(false);
 	_close->setClickedCallback([this]() {
 		window()->close();
 		_close->clearState();
 	});
+	_close->setPointerCursor(false);
 
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	resize(width(), st::titleHeight);

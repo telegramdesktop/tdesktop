@@ -85,8 +85,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 	_searchTimer.setSingleShot(true);
 	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchMessages()));
 
-	using Update = Window::Theme::BackgroundUpdate;
-	subscribe(Window::Theme::Background(), [this](const Update &update) {
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			invalidateCache();
 		}
@@ -1227,7 +1226,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
 			if (selectedForDelete == selectedForForward) {
-				_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
+					_overview->confirmDeleteSelectedItems();
+				}));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else if (App::hoveredLinkItem()) {
@@ -1236,7 +1237,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::hoveredLinkItem()->canDelete()) {
-					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+					_menu->addAction(lang(lng_context_delete_msg), base::lambda_guarded(this, [this] {
+						_overview->confirmDeleteContextItem();
+					}));
 				}
 			}
 			if (App::hoveredLinkItem()->id > 0) {
@@ -1256,7 +1259,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (isUponSelected > 1) {
 			_menu->addAction(lang(lng_context_forward_selected), _overview, SLOT(onForwardSelected()));
 			if (selectedForDelete == selectedForForward) {
-				_menu->addAction(lang(lng_context_delete_selected), _overview, SLOT(onDeleteSelected()));
+				_menu->addAction(lang(lng_context_delete_selected), base::lambda_guarded(this, [this] {
+					_overview->confirmDeleteSelectedItems();
+				}));
 			}
 			_menu->addAction(lang(lng_context_clear_selection), _overview, SLOT(onClearSelected()));
 		} else {
@@ -1265,7 +1270,9 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(lang(lng_context_forward_msg), this, SLOT(forwardMessage()))->setEnabled(true);
 				}
 				if (App::mousedItem()->canDelete()) {
-					_menu->addAction(lang(lng_context_delete_msg), this, SLOT(deleteMessage()))->setEnabled(true);
+					_menu->addAction(lang(lng_context_delete_msg), base::lambda_guarded(this, [this] {
+						_overview->confirmDeleteContextItem();
+					}));
 				}
 			}
 			if (App::mousedItem()->id > 0) {
@@ -1402,14 +1409,6 @@ void OverviewInner::forwardMessage() {
 	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
 
 	App::main()->forwardLayer();
-}
-
-void OverviewInner::deleteMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) return;
-
-	HistoryMessage *msg = item->toHistoryMessage();
-	App::main()->deleteLayer((msg && msg->uploading()) ? -2 : -1);
 }
 
 MsgId OverviewInner::complexMsgId(const HistoryItem *item) const {
@@ -2273,7 +2272,15 @@ void OverviewWidget::onForwardSelected() {
 	App::main()->forwardLayer(true);
 }
 
-void OverviewWidget::onDeleteSelected() {
+void OverviewWidget::confirmDeleteContextItem() {
+	auto item = App::contextItem();
+	if (!item || item->type() != HistoryItemMsg) return;
+
+	auto message = item->toHistoryMessage();
+	App::main()->deleteLayer((message && message->uploading()) ? -2 : -1);
+}
+
+void OverviewWidget::confirmDeleteSelectedItems() {
 	SelectedItemSet sel;
 	_inner->fillSelectedItems(sel);
 	if (sel.isEmpty()) return;
@@ -2281,49 +2288,50 @@ void OverviewWidget::onDeleteSelected() {
 	App::main()->deleteLayer(sel.size());
 }
 
-void OverviewWidget::onDeleteSelectedSure() {
+void OverviewWidget::deleteContextItem(bool forEveryone) {
 	Ui::hideLayer();
 
-	SelectedItemSet sel;
-	_inner->fillSelectedItems(sel);
-	if (sel.isEmpty()) return;
-
-	QMap<PeerData*, QVector<MTPint> > ids;
-	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
-		if (i.value()->id > 0) {
-			ids[i.value()->history()->peer].push_back(MTP_int(i.value()->id));
-		}
-	}
-
-	onClearSelected();
-	for (SelectedItemSet::const_iterator i = sel.cbegin(), e = sel.cend(); i != e; ++i) {
-		i.value()->destroy();
-	}
-
-	for (QMap<PeerData*, QVector<MTPint> >::const_iterator i = ids.cbegin(), e = ids.cend(); i != e; ++i) {
-		App::main()->deleteMessages(i.key(), i.value());
-	}
-}
-
-void OverviewWidget::onDeleteContextSure() {
-	Ui::hideLayer();
-
-	HistoryItem *item = App::contextItem();
+	auto item = App::contextItem();
 	if (!item || item->type() != HistoryItemMsg) {
 		return;
 	}
 
-	QVector<MTPint> toDelete(1, MTP_int(item->id));
-	History *h = item->history();
-	bool wasOnServer = (item->id > 0), wasLast = (h->lastMsg == item);
+	auto toDelete = QVector<MTPint>(1, MTP_int(item->id));
+	auto history = item->history();
+	auto wasOnServer = (item->id > 0);
+	auto wasLast = (history->lastMsg == item);
 	item->destroy();
 
-	if (!wasOnServer && wasLast && !h->lastMsg) {
-		App::main()->checkPeerHistory(h->peer);
+	if (!wasOnServer && wasLast && !history->lastMsg) {
+		App::main()->checkPeerHistory(history->peer);
 	}
 
 	if (wasOnServer) {
-		App::main()->deleteMessages(h->peer, toDelete);
+		App::main()->deleteMessages(history->peer, toDelete, forEveryone);
+	}
+}
+
+void OverviewWidget::deleteSelectedItems(bool forEveryone) {
+	Ui::hideLayer();
+
+	SelectedItemSet selected;
+	_inner->fillSelectedItems(selected);
+	if (selected.isEmpty()) return;
+
+	QMap<PeerData*, QVector<MTPint>> idsByPeer;
+	for_const (auto item, selected) {
+		if (item->id > 0) {
+			idsByPeer[item->history()->peer].push_back(MTP_int(item->id));
+		}
+	}
+
+	onClearSelected();
+	for_const (auto item, selected) {
+		item->destroy();
+	}
+
+	for (auto i = idsByPeer.cbegin(), e = idsByPeer.cend(); i != e; ++i) {
+		App::main()->deleteMessages(i.key(), i.value(), forEveryone);
 	}
 }
 

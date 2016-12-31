@@ -452,23 +452,24 @@ class AnimationCallbacksRelative : public AnimationImplementation {
 public:
 	typedef void (Type::*Method)(float64, bool);
 
-	AnimationCallbacksRelative(Type *obj, Method method) : _started(0), _obj(obj), _method(method) {
+	AnimationCallbacksRelative(Type *obj, Method method) : _obj(obj), _method(method) {
 	}
 
 	void start() {
-		_started = float64(getms());
+		_started = getms();
 	}
 
 	void step(BasicAnimation *a, TimeMs ms, bool timer) {
-		(_obj->*_method)(ms - _started, timer);
+		(_obj->*_method)(qMax(ms - _started, TimeMs(0)), timer);
 	}
 
 private:
-	float64 _started;
-	Type *_obj;
-	Method _method;
+	TimeMs _started = 0;
+	Type *_obj = nullptr;
+	Method _method = nullptr;
 
 };
+
 template <typename Type>
 AnimationCallbacks animation(Type *obj, typename AnimationCallbacksRelative<Type>::Method method) {
 	return AnimationCallbacks(new AnimationCallbacksRelative<Type>(obj, method));
@@ -487,10 +488,11 @@ public:
 	}
 
 private:
-	Type *_obj;
-	Method _method;
+	Type *_obj = nullptr;
+	Method _method = nullptr;
 
 };
+
 template <typename Type>
 AnimationCallbacks animation(Type *obj, typename AnimationCallbacksAbsolute<Type>::Method method) {
 	return AnimationCallbacks(new AnimationCallbacksAbsolute<Type>(obj, method));
@@ -501,24 +503,25 @@ class AnimationCallbacksRelativeWithParam : public AnimationImplementation {
 public:
 	typedef void (Type::*Method)(Param, float64, bool);
 
-	AnimationCallbacksRelativeWithParam(Param param, Type *obj, Method method) : _started(0), _param(param), _obj(obj), _method(method) {
+	AnimationCallbacksRelativeWithParam(Param param, Type *obj, Method method) : _param(param), _obj(obj), _method(method) {
 	}
 
 	void start() {
-		_started = float64(getms());
+		_started = getms();
 	}
 
 	void step(BasicAnimation *a, TimeMs ms, bool timer) {
-		(_obj->*_method)(_param, ms - _started, timer);
+		(_obj->*_method)(_param, qMax(ms - _started, TimeMs(0)), timer);
 	}
 
 private:
-	float64 _started;
+	TimeMs _started = 0;
 	Param _param;
-	Type *_obj;
-	Method _method;
+	Type *_obj = nullptr;
+	Method _method = nullptr;
 
 };
+
 template <typename Type, typename Param>
 AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacksRelativeWithParam<Type, Param>::Method method) {
 	return AnimationCallbacks(new AnimationCallbacksRelativeWithParam<Type, Param>(param, obj, method));
@@ -538,10 +541,11 @@ public:
 
 private:
 	Param _param;
-	Type *_obj;
-	Method _method;
+	Type *_obj = nullptr;
+	Method _method = nullptr;
 
 };
+
 template <typename Type, typename Param>
 AnimationCallbacks animation(Param param, Type *obj, typename AnimationCallbacksAbsoluteWithParam<Type, Param>::Method method) {
 	return AnimationCallbacks(new AnimationCallbacksAbsoluteWithParam<Type, Param>(param, obj, method));

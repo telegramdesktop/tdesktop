@@ -2826,9 +2826,12 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto showAnimating = _a_show.animating(ms);
+
+	// This call can finish _a_show animation and destroy _showAnimation.
 	auto opacityAnimating = _a_opacity.animating(ms);
+
 	auto switching = (_slideAnimation != nullptr);
+	auto showAnimating = _a_show.animating(ms);
 	if (_showAnimation && !showAnimating) {
 		_showAnimation.reset();
 		if (!switching && !opacityAnimating) {
@@ -2837,6 +2840,7 @@ void EmojiPan::paintEvent(QPaintEvent *e) {
 	}
 
 	if (showAnimating) {
+		t_assert(_showAnimation != nullptr);
 		if (auto opacity = _a_opacity.current(_hiding ? 0. : 1.)) {
 			_showAnimation->paintFrame(p, 0, 0, width(), _a_show.current(1.), opacity);
 		}

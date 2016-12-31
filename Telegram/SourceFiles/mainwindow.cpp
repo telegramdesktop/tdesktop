@@ -212,6 +212,7 @@ QWidget *MainWindow::filedialogParent() {
 }
 
 void MainWindow::clearWidgets() {
+	auto wasMain = (_main != nullptr);
 	Ui::hideLayer(true);
 	_passcode.destroyDelayed();
 	_main.destroy();
@@ -220,7 +221,9 @@ void MainWindow::clearWidgets() {
 		hideMediaview();
 		_mediaView->rpcClear();
 	}
-	App::clearHistories();
+	if (wasMain) {
+		App::clearHistories();
+	}
 	updateGlobalMenu();
 }
 

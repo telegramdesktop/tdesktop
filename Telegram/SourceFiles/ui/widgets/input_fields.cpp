@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "ui/countryinput.h"
+#include "window/window_theme.h"
 #include "lang.h"
 #include "numbers.h"
 
@@ -145,9 +146,12 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const
 
 	setPlaceholder(pholder);
 
-	QPalette p(palette());
-	p.setColor(QPalette::Text, _st.textColor->c);
-	setPalette(p);
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			updatePalette();
+		}
+	});
+	updatePalette();
 
 	setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -177,6 +181,12 @@ FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const
 	if (!_lastTextWithTags.text.isEmpty()) {
 		setTextWithTags(_lastTextWithTags, ClearUndoHistory);
 	}
+}
+
+void FlatTextarea::updatePalette() {
+	auto p = palette();
+	p.setColor(QPalette::Text, _st.textColor->c);
+	setPalette(p);
 }
 
 TextWithTags FlatTextarea::getTextWithTagsPart(int start, int end) {
@@ -1457,9 +1467,12 @@ FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString 
 	setFont(_st.font->f);
 	setAlignment(_st.align);
 
-	QPalette p(palette());
-	p.setColor(QPalette::Text, _st.textColor->c);
-	setPalette(p);
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			updatePalette();
+		}
+	});
+	updatePalette();
 
 	connect(this, SIGNAL(textChanged(const QString &)), this, SLOT(onTextChange(const QString &)));
 	connect(this, SIGNAL(textEdited(const QString &)), this, SLOT(onTextEdited()));
@@ -1472,6 +1485,12 @@ FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString 
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setSingleShot(true);
 	connect(&_touchTimer, SIGNAL(timeout()), this, SLOT(onTouchTimer()));
+}
+
+void FlatInput::updatePalette() {
+	auto p = palette();
+	p.setColor(QPalette::Text, _st.textColor->c);
+	setPalette(p);
 }
 
 void FlatInput::customUpDown(bool custom) {
@@ -1699,9 +1718,12 @@ InputArea::InputArea(QWidget *parent, const style::InputField &st, const QString
 
 	createPlaceholderPath();
 
-	QPalette p(palette());
-	p.setColor(QPalette::Text, _st.textFg->c);
-	setPalette(p);
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			updatePalette();
+		}
+	});
+	updatePalette();
 
 	_inner->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_inner->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -1734,6 +1756,12 @@ InputArea::InputArea(QWidget *parent, const style::InputField &st, const QString
 	startBorderAnimation();
 	startPlaceholderAnimation();
 	finishAnimations();
+}
+
+void InputArea::updatePalette() {
+	auto p = palette();
+	p.setColor(QPalette::Text, _st.textFg->c);
+	setPalette(p);
 }
 
 void InputArea::onTouchTimer() {
@@ -2443,9 +2471,12 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 
 	createPlaceholderPath();
 
-	QPalette p(palette());
-	p.setColor(QPalette::Text, _st.textFg->c);
-	setPalette(p);
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			updatePalette();
+		}
+	});
+	updatePalette();
 
 	_inner->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_inner->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
@@ -2476,6 +2507,12 @@ InputField::InputField(QWidget *parent, const style::InputField &st, const QStri
 	startPlaceholderAnimation();
 	startBorderAnimation();
 	finishAnimations();
+}
+
+void InputField::updatePalette() {
+	auto p = palette();
+	p.setColor(QPalette::Text, _st.textFg->c);
+	setPalette(p);
 }
 
 void InputField::onTouchTimer() {
@@ -3184,9 +3221,12 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 	setFont(_st.font);
 	setAlignment(_st.textAlign);
 
-	QPalette p(palette());
-	p.setColor(QPalette::Text, _st.textFg->c);
-	setPalette(p);
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			updatePalette();
+		}
+	});
+	updatePalette();
 
 	createPlaceholderPath();
 
@@ -3211,6 +3251,12 @@ MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st,
 	startPlaceholderAnimation();
 	startBorderAnimation();
 	finishAnimations();
+}
+
+void MaskedInputField::updatePalette() {
+	auto p = palette();
+	p.setColor(QPalette::Text, _st.textFg->c);
+	setPalette(p);
 }
 
 void MaskedInputField::setCorrectedText(QString &now, int &nowCursor, const QString &newText, int newPos) {

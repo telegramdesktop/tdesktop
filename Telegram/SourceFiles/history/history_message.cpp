@@ -1887,6 +1887,23 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		prepareGameScoreText(from, &text, &links);
 	} break;
 
+	case mtpc_messageActionPhoneCall: {
+		auto &d = action.c_messageActionPhoneCall();
+		if (d.has_reason()) {
+			switch (d.vreason.type()) {
+			case mtpc_phoneCallDiscardReasonBusy: break;
+			case mtpc_phoneCallDiscardReasonDisconnect: break;
+			case mtpc_phoneCallDiscardReasonHangup: break;
+			case mtpc_phoneCallDiscardReasonMissed: break;
+			}
+		} else {
+
+		}
+		if (d.has_duration()) {
+			d.vduration.v;
+		}
+	} break;
+
 	default: from = QString(); break;
 	}
 

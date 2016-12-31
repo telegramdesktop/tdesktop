@@ -83,7 +83,7 @@ void TopBarWidget::onForwardSelection() {
 }
 
 void TopBarWidget::onDeleteSelection() {
-	if (App::main()) App::main()->deleteSelectedItems();
+	if (App::main()) App::main()->confirmDeleteSelectedItems();
 }
 
 void TopBarWidget::onClearSelection() {

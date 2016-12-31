@@ -336,5 +336,18 @@ void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected
 	}
 }
 
+void clearUnreadBadgesCache() {
+	if (unreadBadgeStyle) {
+		for (auto &data : unreadBadgeStyle->sizes) {
+			for (auto &left : data.left) {
+				left = QPixmap();
+			}
+			for (auto &right : data.right) {
+				right = QPixmap();
+			}
+		}
+	}
+}
+
 } // namespace Layout
 } // namespace Dialogs

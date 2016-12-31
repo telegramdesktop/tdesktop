@@ -276,6 +276,7 @@ void StickersBox::prepare() {
 
 	if (_tabs) {
 		_tabs->raise();
+		_unreadBadge->raise();
 	}
 	rebuildList();
 }
@@ -402,6 +403,7 @@ void StickersBox::switchTab() {
 		_section = newSection;
 		setInnerWidget(_tab->takeWidget(), getTopSkip());
 		_tabs->raise();
+		_unreadBadge->raise();
 		_tab->widget()->show();
 		rebuildList();
 		onScrollToY(_tab->getScrollTop());
