@@ -159,7 +159,7 @@ http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforg
 
 Download [yasm for Win64](http://www.tortall.net/projects/yasm/releases/yasm-1.3.0-win64.exe) from http://yasm.tortall.net/Download.html, rename **yasm-1.3.0-win64.exe** to **yasm.exe** and place it to your Visual C++ **bin** directory, like **\\Program Files (x86)\\Microsoft Visual Studio 14\\VC\\bin\\**
 
-Go to **D:\\msys64** and launch **msys2_shell.bat**, there run
+While still running the VS2015 x86 Native Tools Command Prompt, go to **D:\\msys64** and launch **msys2_shell.bat**. There run
 
     PATH="/c/Program Files (x86)/Microsoft Visual Studio 14.0/VC/BIN:$PATH"
 
@@ -204,7 +204,7 @@ If you already have Windows SDKs then find the library folder and correct it at 
 
 #### Building library
 
-Go to **D:\\TBuild\\Libraries** and run
+Go to **D:\\TBuild\\Libraries\\qt5_6_2** and run
 
     configure -debug-and-release -force-debug-info -opensource -confirm-license -static -I "D:\TBuild\Libraries\openssl\Release\include" -L "C:\Program Files (x86)\Microsoft SDKs\Windows\v7.1A\Lib" -l Gdi32 -no-opengl -openssl-linked OPENSSL_LIBS_DEBUG="D:\TBuild\Libraries\openssl_debug\Debug\lib\ssleay32.lib D:\TBuild\Libraries\openssl_debug\Debug\lib\libeay32.lib" OPENSSL_LIBS_RELEASE="D:\TBuild\Libraries\openssl\Release\lib\ssleay32.lib D:\TBuild\Libraries\openssl\Release\lib\libeay32.lib" -mp -nomake examples -nomake tests -platform win32-msvc2015
     nmake
