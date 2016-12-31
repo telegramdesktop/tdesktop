@@ -201,7 +201,7 @@ void ScrollableBox::resizeEvent(QResizeEvent *e) {
 	AbstractBox::resizeEvent(e);
 }
 
-void ScrollableBox::init(ScrolledWidget *inner, int bottomSkip, int topSkip) {
+void ScrollableBox::init(TWidget *inner, int bottomSkip, int topSkip) {
 	_bottomSkip = bottomSkip;
 	_topSkip = topSkip;
 	_scroll->setOwnedWidget(inner);

@@ -138,7 +138,7 @@ void IntroSignup::paintEvent(QPaintEvent *e) {
 		} else {
 			p.fillRect(phRect, st::newGroupPhotoBg);
 		}
-		p.drawSpriteCenter(phRect, st::newGroupPhotoIcon);
+		st::newGroupPhotoIcon.paintInCenter(p, phRect);
 	} else {
 		p.drawPixmap(_phLeft, _phTop, _photoSmall);
 	}

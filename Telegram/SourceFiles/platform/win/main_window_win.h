@@ -23,7 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/main_window.h"
 #include <windows.h>
 
+namespace Ui {
 class PopupMenu;
+} // namespace Ui
 
 namespace Platform {
 
@@ -109,7 +111,7 @@ protected:
 
 	bool posInited = false;
 	QSystemTrayIcon *trayIcon = nullptr;
-	PopupMenu *trayIconMenu = nullptr;
+	Ui::PopupMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
 	QIcon wndIcon;
 

@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : ScrolledWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
 , _peer(peer)
 , _title(title) {
 }

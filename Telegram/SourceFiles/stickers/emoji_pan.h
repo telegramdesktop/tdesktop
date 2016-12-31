@@ -30,6 +30,10 @@ class ItemBase;
 class Result;
 } // namespace InlineBots
 
+namespace Ui {
+class IconButton;
+} // namesapce Ui
+
 namespace internal {
 
 constexpr int InlineItemsMaxPerRow = 5;
@@ -67,21 +71,20 @@ public:
 
 	void step_appearance(float64 ms, bool timer);
 	void step_selected(uint64 ms, bool timer);
-	void showStart();
 
 	void clearSelection(bool fast = false);
 
-public slots:
+	void hideFast();
 
-	void hideStart(bool fast = false);
+public slots:
+	void showAnimated();
+	void hideAnimated();
 
 signals:
-
 	void emojiSelected(EmojiPtr emoji);
 	void hidden();
 
 private:
-
 	void drawVariant(Painter &p, int variant);
 
 	void updateSelected();
@@ -113,7 +116,7 @@ private:
 };
 
 class EmojiPanel;
-class EmojiPanInner : public ScrolledWidget {
+class EmojiPanInner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -207,7 +210,7 @@ struct StickerIcon {
 	int pixh = 0;
 };
 
-class StickerPanInner : public ScrolledWidget, private base::Subscriber {
+class StickerPanInner : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -456,7 +459,7 @@ private:
 	QString _text, _fullText;
 	uint64 _setId;
 	bool _special, _deleteVisible;
-	IconedButton *_delete;
+	Ui::IconButton *_delete;
 
 };
 
@@ -499,7 +502,7 @@ public:
 
 	bool event(QEvent *e);
 
-	void fastHide();
+	void hideFast();
 	bool hiding() const {
 		return _hiding || _hideTimer.isActive();
 	}
@@ -517,10 +520,10 @@ public:
 	bool overlaps(const QRect &globalRect) {
 		if (isHidden() || !_cache.isNull()) return false;
 
-		return QRect(st::dropdownDef.padding.left(),
-					 st::dropdownDef.padding.top(),
-					 _width - st::dropdownDef.padding.left() - st::dropdownDef.padding.right(),
-					 _height - st::dropdownDef.padding.top() - st::dropdownDef.padding.bottom()
+		return QRect(st::defaultDropdownPadding.left(),
+					 st::defaultDropdownPadding.top(),
+					 _width - st::defaultDropdownPadding.left() - st::defaultDropdownPadding.right(),
+					 _height - st::defaultDropdownPadding.top() - st::defaultDropdownPadding.bottom()
 					 ).contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
@@ -534,7 +537,9 @@ public:
 	}
 
 public slots:
-	void hideStart();
+	void showAnimated();
+	void hideAnimated();
+
 	void refreshStickers();
 
 private slots:
@@ -542,10 +547,8 @@ private slots:
 
 	void hideFinish();
 
-	void showStart();
 	void onWndActiveChanged();
 
-	void onTabChange();
 	void onScrollEmoji();
 	void onScrollStickers();
 	void onSwitch();
@@ -577,6 +580,8 @@ private:
 	bool preventAutoHide() const;
 	void installSetDone(const MTPmessages_StickerSetInstallResult &result);
 	bool installSetFail(uint64 setId, const RPCError &error);
+	void setActiveTab(DBIEmojiTab tab);
+	void setCurrentTabIcon(DBIEmojiTab tab);
 
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
@@ -590,22 +595,20 @@ private:
 	void updateContentHeight();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child);
-	void hideAnimated();
+	void startHideAnimated();
 	void prepareShowHideCache();
 
 	void updateSelected();
 	void updateIcons();
 
-	void prepareTab(int32 &left, int32 top, int32 _width, FlatRadiobutton &tab);
-	void updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int32 st);
+	void prepareTab(int &left, int top, int _width, Ui::IconButton *tab, DBIEmojiTab value);
+	void updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int st);
 
 	void showAll();
 	void hideAll();
 
 	int32 _maxHeight, _contentMaxHeight, _contentHeight, _contentHeightEmoji, _contentHeightStickers;
 	bool _horizontal = false;
-
-	bool _noTabUpdate = false;
 
 	int32 _width, _height, _bottom;
 	bool _hiding = false;
@@ -618,7 +621,15 @@ private:
 
 	Ui::RectShadow _shadow;
 
-	FlatRadiobutton _recent, _people, _nature, _food, _activity, _travel, _objects, _symbols;
+	ChildWidget<Ui::IconButton> _recent;
+	ChildWidget<Ui::IconButton> _people;
+	ChildWidget<Ui::IconButton> _nature;
+	ChildWidget<Ui::IconButton> _food;
+	ChildWidget<Ui::IconButton> _activity;
+	ChildWidget<Ui::IconButton> _travel;
+	ChildWidget<Ui::IconButton> _objects;
+	ChildWidget<Ui::IconButton> _symbols;
+
 	QList<internal::StickerIcon> _icons;
 	QVector<float64> _iconHovers;
 	int _iconOver = -1;

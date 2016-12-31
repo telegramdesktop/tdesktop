@@ -27,7 +27,6 @@ class PeerAvatarButton;
 class RoundButton;
 class IconButton;
 } // namespace Ui
-class IconedButton;
 
 namespace Window {
 

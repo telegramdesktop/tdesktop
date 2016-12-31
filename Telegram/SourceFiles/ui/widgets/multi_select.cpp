@@ -454,7 +454,7 @@ int MultiSelect::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback callback) : ScrolledWidget(parent)
+MultiSelect::Inner::Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback callback) : TWidget(parent)
 , _st(st)
 , _scrollCallback(std_::move(callback))
 , _field(this, _st.field, placeholder)

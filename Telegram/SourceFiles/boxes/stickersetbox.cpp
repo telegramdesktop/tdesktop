@@ -147,7 +147,7 @@ void StickerSetBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-StickerSetBox::Inner::Inner(QWidget *parent, const MTPInputStickerSet &set) : ScrolledWidget(parent)
+StickerSetBox::Inner::Inner(QWidget *parent, const MTPInputStickerSet &set) : TWidget(parent)
 , _input(set) {
 	switch (set.type()) {
 	case mtpc_inputStickerSetID: _setId = set.c_inputStickerSetID().vid.v; _setAccess = set.c_inputStickerSetID().vaccess_hash.v; break;

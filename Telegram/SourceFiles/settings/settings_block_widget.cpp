@@ -22,11 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 
 #include "styles/style_settings.h"
-#include "ui/flatcheckbox.h"
+#include "ui/buttons/checkbox.h"
 
 namespace Settings {
 
-BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : ScrolledWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : TWidget(parent)
 , _self(self)
 , _title(title) {
 }
@@ -84,13 +84,13 @@ void BlockWidget::rowHeightUpdated() {
 	}
 }
 
-void BlockWidget::createChildRow(ChildWidget<Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
-	child = new Checkbox(this, text, checked, st::defaultBoxCheckbox);
+void BlockWidget::createChildRow(ChildWidget<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
+	child = new Ui::Checkbox(this, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
-	child = new Radiobutton(this, group, value, text, checked, st::defaultRadiobutton);
+void BlockWidget::createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
+	child = new Ui::Radiobutton(this, group, value, text, checked, st::defaultRadiobutton);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 

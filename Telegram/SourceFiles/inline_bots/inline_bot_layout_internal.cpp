@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
+#include "styles/style_stickers.h"
 #include "inline_bots/inline_bot_result.h"
 #include "media/media_audio.h"
 #include "media/media_clip_reader.h"
@@ -198,16 +199,16 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 
 	if (_delete && (_state & StateFlag::Over)) {
 		float64 deleteOver = _a_deleteOver.current(context->ms, (_state & StateFlag::DeleteOver) ? 1 : 0);
-		QPoint deletePos = QPoint(_width - st::stickerPanDelete.pxWidth(), 0);
+		QPoint deletePos = QPoint(_width - st::stickerPanDelete.width(), 0);
 		p.setOpacity(deleteOver + (1 - deleteOver) * st::stickerPanDeleteOpacity);
-		p.drawSpriteLeft(deletePos, _width, st::stickerPanDelete);
+		st::stickerPanDelete.paint(p, deletePos, _width);
 		p.setOpacity(1);
 	}
 }
 
 void Gif::getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const {
 	if (x >= 0 && x < _width && y >= 0 && y < st::inlineMediaHeight) {
-		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.pxWidth() && y < st::stickerPanDelete.pxHeight()) {
+		if (_delete && (rtl() ? _width - x : x) >= _width - st::stickerPanDelete.width() && y < st::stickerPanDelete.height()) {
 			link = _delete;
 		} else {
 			link = _send;

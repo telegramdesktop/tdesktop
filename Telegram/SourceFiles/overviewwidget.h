@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/section_widget.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
 
 namespace Overview {
 namespace Layout {
@@ -33,10 +33,12 @@ class Date;
 
 namespace Ui {
 class PlainShadow;
+class PopupMenu;
+class IconButton;
 } // namespace Ui
 
 class OverviewWidget;
-class OverviewInner : public TWidget, public AbstractTooltipShower, public RPCSender, private base::Subscriber {
+class OverviewInner : public TWidget, public Ui::AbstractTooltipShower, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -178,7 +180,7 @@ private:
 	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
 	FlatInput _search;
-	IconedButton _cancelSearch;
+	ChildWidget<Ui::IconButton> _cancelSearch;
 	QVector<MsgId> _results;
 	int32 _itemsToBeLoaded;
 
@@ -263,7 +265,7 @@ private:
 	uint64 _touchTime = 0;
 	QTimer _touchScrollTimer;
 
-	PopupMenu *_menu = nullptr;
+	Ui::PopupMenu *_menu = nullptr;
 };
 
 class OverviewWidget : public TWidget, public RPCSender {

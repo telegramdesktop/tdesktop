@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Ui {
+class Radiobutton;
+} // namespace Ui
+
 class LanguageBox : public AbstractBox {
 	Q_OBJECT
 
@@ -40,7 +44,7 @@ protected:
 	void showAll() override;
 
 private:
-	QVector<Radiobutton*> _langs;
+	QVector<Ui::Radiobutton*> _langs;
 	BoxButton _close;
 
 };

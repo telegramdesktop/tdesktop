@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "ui/flatbutton.h"
-#include "ui/flatcheckbox.h"
+#include "ui/buttons/checkbox.h"
 #include "localstorage.h"
 #include "pspecific.h"
 #include "mainwindow.h"

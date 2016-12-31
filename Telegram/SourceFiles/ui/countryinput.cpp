@@ -261,10 +261,8 @@ void CountrySelectBox::doSetInnerFocus() {
 	_select->setInnerFocus();
 }
 
-CountrySelectBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
-, _rowHeight(st::countryRowHeight)
-, _sel(0)
-, _mouseSel(false) {
+CountrySelectBox::Inner::Inner(QWidget *parent) : TWidget(parent)
+, _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	CountriesByISO2::const_iterator l = _countriesByISO2.constFind(lastValidISO);

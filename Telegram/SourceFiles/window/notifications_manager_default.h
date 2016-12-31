@@ -244,7 +244,7 @@ private:
 	PeerData *_author;
 	HistoryItem *_item;
 	int _forwardedCount;
-	ChildWidget<IconedButton> _close;
+	ChildWidget<Ui::IconButton> _close;
 	ChildWidget<BoxButton> _reply;
 	ChildWidget<Background> _background = { nullptr };
 	ChildWidget<InputArea> _replyArea = { nullptr };

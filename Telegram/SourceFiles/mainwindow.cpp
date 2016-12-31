@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_dialogs.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 #include "zip.h"
 #include "lang.h"
 #include "shortcuts.h"
@@ -185,7 +185,7 @@ void MainWindow::onWindowActiveChanged() {
 
 void MainWindow::firstShow() {
 #ifdef Q_OS_WIN
-	trayIconMenu = new PopupMenu();
+	trayIconMenu = new Ui::PopupMenu();
 	trayIconMenu->deleteOnHide(false);
 #else // Q_OS_WIN
 	trayIconMenu = new QMenu(this);

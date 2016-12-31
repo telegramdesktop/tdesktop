@@ -28,7 +28,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "lang.h"
 #include "localstorage.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 
 #include <qpa/qplatformnativeinterface.h>
 

@@ -42,7 +42,7 @@ OverviewFileLayout {
 	fileDateTop: pixels;
 }
 
-overviewCheckBg: #0006;
+overviewCheckBg: #00000066;
 overviewCheckedBg: #2fa9e2;
 
 overviewPhotoSkip: 10px;
@@ -50,11 +50,11 @@ overviewPhotoBg: #F1F1F1;
 overviewPhotoMinSize: minPhotoSize;
 overviewPhotoCheck: icon {
 	{ size(32px, 32px), overviewCheckBg },
-	{ "overview_photo_check", #fff, point(8px, 10px) },
+	{ "overview_photo_check", #ffffff, point(8px, 10px) },
 };
 overviewPhotoChecked: icon {
 	{ size(32px, 32px), overviewCheckedBg },
-	{ "overview_photo_check", #fff, point(8px, 10px) },
+	{ "overview_photo_check", #ffffff, point(8px, 10px) },
 };
 overviewPhotoSelectOverlay: #0a7bb03f;
 
@@ -104,9 +104,9 @@ linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
 overviewLinksCheck: icon {
 	{ "overview_links_check_bg", overviewCheckBg },
-	{ "overview_links_check", #fff, point(4px, 5px) },
+	{ "overview_links_check", #ffffff, point(4px, 5px) },
 };
 overviewLinksChecked: icon {
 	{ "overview_links_check_bg", overviewCheckedBg },
-	{ "overview_links_check", #fff, point(4px, 5px) },
+	{ "overview_links_check", #ffffff, point(4px, 5px) },
 };

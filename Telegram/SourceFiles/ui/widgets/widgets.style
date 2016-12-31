@@ -27,10 +27,18 @@ LabelSimple {
 	textFg: color;
 }
 
-defaultLabelSimple: LabelSimple {
-	font: normalFont;
-	maxWidth: 0px;
-	textFg: windowTextFg;
+IconButton {
+	width: pixels;
+	height: pixels;
+
+	opacity: double;
+	overOpacity: double;
+
+	icon: icon;
+	iconPosition: point;
+	downIconPosition: point;
+
+	duration: int;
 }
 
 MediaSlider {
@@ -99,6 +107,72 @@ MultiSelect {
 	fieldCancelSkip: pixels;
 }
 
+Menu {
+	skip: pixels;
+
+	itemBg: color;
+	itemBgOver: color;
+	itemFg: color;
+	itemFgOver: color;
+	itemFgDisabled: color;
+	itemFgShortcut: color;
+	itemFgShortcutOver: color;
+	itemFgShortcutDisabled: color;
+	itemPadding: margins;
+	itemIconPosition: point;
+	itemIconOpacity: double;
+	itemIconOverOpacity: double;
+	itemFont: font;
+
+	separatorPadding: margins;
+	separatorWidth: pixels;
+	separatorFg: color;
+
+	arrow: icon;
+
+	widthMin: pixels;
+	widthMax: pixels;
+}
+
+PopupMenu {
+	shadow: icon;
+	shadowShift: pixels;
+
+	menu: Menu;
+
+	duration: int;
+}
+
+InnerDropdown {
+	padding: margins;
+	shadow: icon;
+	shadowShift: pixels;
+
+	duration: int;
+	width: pixels;
+
+	scroll: flatScroll;
+	scrollMargin: margins;
+	scrollPadding: margins;
+}
+
+DropdownMenu {
+	wrap: InnerDropdown;
+	menu: Menu;
+}
+
+defaultLabelSimple: LabelSimple {
+	font: normalFont;
+	maxWidth: 0px;
+	textFg: windowTextFg;
+}
+
+defaultIconButton: IconButton {
+	opacity: 0.78;
+	overOpacity: 1.;
+	duration: 150;
+}
+
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 
@@ -112,3 +186,52 @@ discreteSliderLabelTop: 17px;
 discreteSliderLabelFont: normalFont;
 discreteSliderLabelFg: #1485c2;
 discreteSliderDuration: 200;
+
+defaultMenuArrow: icon {{ "dropdown_submenu_arrow", #373737 }};
+defaultMenu: Menu {
+	skip: 5px;
+
+	itemBg: white;
+	itemBgOver: overBg;
+	itemFg: black;
+	itemFgOver: black;
+	itemFgDisabled: #cccccc;
+	itemFgShortcut: #999999;
+	itemFgShortcutOver: #7c99b2;
+	itemFgShortcutDisabled: #cccccc;
+	itemIconPosition: point(0px, 0px);
+	itemIconOpacity: 1.;
+	itemIconOverOpacity: 1.;
+	itemPadding: margins(17px, 8px, 17px, 7px);
+	itemFont: normalFont;
+
+	separatorPadding: margins(0px, 5px, 0px, 5px);
+	separatorWidth: 1px;
+	separatorFg: #f1f1f1;
+
+	arrow: defaultMenuArrow;
+
+	widthMin: 180px;
+	widthMax: 300px;
+}
+defaultPopupMenu: PopupMenu {
+	shadow: defaultDropdownShadow;
+	shadowShift: defaultDropdownShadowShift;
+
+	menu: defaultMenu;
+
+	duration: 120;
+}
+defaultInnerDropdown: InnerDropdown {
+	padding: margins(10px, 10px, 10px, 10px);
+	shadow: defaultDropdownShadow;
+	shadowShift: defaultDropdownShadowShift;
+
+	duration: 150;
+
+	scroll: solidScroll;
+}
+defaultDropdownMenu: DropdownMenu {
+	wrap: defaultInnerDropdown;
+	menu: defaultMenu;
+}

@@ -194,7 +194,6 @@ QString Generator::typeToString(structure::Type type) const {
 	case Tag::String: return "QString";
 	case Tag::Color: return "style::color";
 	case Tag::Point: return "style::point";
-	case Tag::Sprite: return "style::sprite";
 	case Tag::Size: return "style::size";
 	case Tag::Transition: return "style::transition";
 	case Tag::Cursor: return "style::cursor";
@@ -217,7 +216,6 @@ QString Generator::typeToDefaultValue(structure::Type type) const {
 	case Tag::String: return "QString()";
 	case Tag::Color: return "{ Qt::Uninitialized }";
 	case Tag::Point: return "{ 0, 0 }";
-	case Tag::Sprite: return "{ 0, 0, 0, 0 }";
 	case Tag::Size: return "{ 0, 0 }";
 	case Tag::Transition: return "anim::linear";
 	case Tag::Cursor: return "style::cur_default";
@@ -259,10 +257,6 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 	case Tag::Point: {
 		auto v(value.Point());
 		return QString("{ %1, %2 }").arg(pxValueName(v.x)).arg(pxValueName(v.y));
-	} break;
-	case Tag::Sprite: {
-		auto v(value.Sprite());
-		return QString("{ %1, %2, %3, %4 }").arg(pxValueName(v.left)).arg(pxValueName(v.top)).arg(pxValueName(v.width)).arg(pxValueName(v.height));
 	} break;
 	case Tag::Size: {
 		auto v(value.Size());
@@ -694,13 +688,6 @@ bool Generator::collectUniqueValues() {
 			pxValues_.insert(v.x, true);
 			pxValues_.insert(v.y, true);
 		} break;
-		case Tag::Sprite: {
-			auto v(value.Sprite());
-			pxValues_.insert(v.left, true);
-			pxValues_.insert(v.top, true);
-			pxValues_.insert(v.width, true);
-			pxValues_.insert(v.height, true);
-		} break;
 		case Tag::Size: {
 			auto v(value.Size());
 			pxValues_.insert(v.width, true);
@@ -722,7 +709,7 @@ bool Generator::collectUniqueValues() {
 		} break;
 		case Tag::Icon: {
 			auto v(value.Icon());
-			for (const auto &part : v.parts) {
+			for (auto &part : v.parts) {
 				pxValues_.insert(part.offset.Point().x, true);
 				pxValues_.insert(part.offset.Point().y, true);
 				if (!iconMasks_.contains(part.filename)) {

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 using "basic_types.style";
 using "dialogs/dialogs.style";
+using "ui/widgets/widgets.style";
 
 settingsMaxWidth: 520px;
 settingsMaxPadding: 48px;
@@ -32,18 +33,16 @@ settingsFixedBarFont: font(14px semibold);
 settingsFixedBarFg: windowTextFg;
 settingsFixedBarTextLeft: 20px;
 settingsFixedBarTextTop: 16px;
-settingsFixedBarClose: IconButton {
+settingsFixedBarClose: IconButton(defaultIconButton) {
 	width: settingsFixedBarHeight;
 	height: settingsFixedBarHeight;
 
 	opacity: 0.31;
 	overOpacity: 0.5;
 
-	icon: icon {{ "settings_close", #000000, point(0px, 0px) }};
+	icon: boxCancelIcon;
 	iconPosition: point(20px, 20px);
 	downIconPosition: point(20px, 20px);
-
-	duration: 200;
 }
 settingsFixedBarShadowBg1: #00000021;
 settingsFixedBarShadowBg2: #0000000b;

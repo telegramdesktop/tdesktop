@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 
 #include "styles/style_dialogs.h"
+#include "styles/style_history.h"
 #include "ui/buttons/peer_avatar_button.h"
 #include "ui/buttons/round_button.h"
 #include "ui/widgets/shadow.h"
@@ -29,7 +30,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/section_widget.h"
 #include "window/top_bar_widget.h"
 #include "data/data_drafts.h"
-#include "dropdown.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "dialogswidget.h"
@@ -75,7 +76,7 @@ MainWidget::MainWidget(MainWindow *window) : TWidget(window)
 , _topBar(this)
 , _playerPlaylist(this, Media::Player::Panel::Layout::OnlyPlaylist)
 , _playerPanel(this, Media::Player::Panel::Layout::Full)
-, _mediaType(this)
+, _mediaType(this, st::historyAttachDropdownMenu)
 , _api(new ApiWrap(this)) {
 	setGeometry(QRect(0, st::titleHeight, App::wnd()->width(), App::wnd()->height() - st::titleHeight));
 
@@ -1386,16 +1387,16 @@ void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 			}
 		}
 		if (mask != _mediaTypeMask) {
-			_mediaType->resetButtons();
+			_mediaType->clearActions();
 			for (int32 i = 0; i < OverviewCount; ++i) {
 				if (mask & (1 << i)) {
 					switch (i) {
-					case OverviewPhotos: connect(_mediaType->addButton(new IconedButton(this, st::dropdownMediaPhotos, lang(lng_media_type_photos))), SIGNAL(clicked()), this, SLOT(onPhotosSelect())); break;
-					case OverviewVideos: connect(_mediaType->addButton(new IconedButton(this, st::dropdownMediaVideos, lang(lng_media_type_videos))), SIGNAL(clicked()), this, SLOT(onVideosSelect())); break;
-					case OverviewMusicFiles: connect(_mediaType->addButton(new IconedButton(this, st::dropdownMediaSongs, lang(lng_media_type_songs))), SIGNAL(clicked()), this, SLOT(onSongsSelect())); break;
-					case OverviewFiles: connect(_mediaType->addButton(new IconedButton(this, st::dropdownMediaDocuments, lang(lng_media_type_files))), SIGNAL(clicked()), this, SLOT(onDocumentsSelect())); break;
-					case OverviewVoiceFiles: connect(_mediaType->addButton(new IconedButton(this, st::dropdownMediaAudios, lang(lng_media_type_audios))), SIGNAL(clicked()), this, SLOT(onAudiosSelect())); break;
-					case OverviewLinks: connect(_mediaType->addButton(new IconedButton(this, st::dropdownMediaLinks, lang(lng_media_type_links))), SIGNAL(clicked()), this, SLOT(onLinksSelect())); break;
+					case OverviewPhotos: _mediaType->addAction(lang(lng_media_type_photos), this, SLOT(onPhotosSelect()), &st::historyMediaTypePhoto); break;
+					case OverviewVideos: _mediaType->addAction(lang(lng_media_type_videos), this, SLOT(onVideosSelect()), &st::historyMediaTypeVideo); break;
+					case OverviewMusicFiles: _mediaType->addAction(lang(lng_media_type_songs), this, SLOT(onSongsSelect()), &st::historyMediaTypeSong); break;
+					case OverviewFiles: _mediaType->addAction(lang(lng_media_type_files), this, SLOT(onDocumentsSelect()), &st::historyMediaTypeFile); break;
+					case OverviewVoiceFiles: _mediaType->addAction(lang(lng_media_type_audios), this, SLOT(onAudiosSelect()), &st::historyMediaTypeVoice); break;
+					case OverviewLinks: _mediaType->addAction(lang(lng_media_type_links), this, SLOT(onLinksSelect()), &st::historyMediaTypeLink); break;
 					}
 				}
 			}
@@ -2916,32 +2917,32 @@ void MainWidget::setMembersShowAreaActive(bool active) {
 
 void MainWidget::onPhotosSelect() {
 	if (_overview) _overview->switchType(OverviewPhotos);
-	_mediaType->hideStart();
+	_mediaType->hideAnimated();
 }
 
 void MainWidget::onVideosSelect() {
 	if (_overview) _overview->switchType(OverviewVideos);
-	_mediaType->hideStart();
+	_mediaType->hideAnimated();
 }
 
 void MainWidget::onSongsSelect() {
 	if (_overview) _overview->switchType(OverviewMusicFiles);
-	_mediaType->hideStart();
+	_mediaType->hideAnimated();
 }
 
 void MainWidget::onDocumentsSelect() {
 	if (_overview) _overview->switchType(OverviewFiles);
-	_mediaType->hideStart();
+	_mediaType->hideAnimated();
 }
 
 void MainWidget::onAudiosSelect() {
 	if (_overview) _overview->switchType(OverviewVoiceFiles);
-	_mediaType->hideStart();
+	_mediaType->hideAnimated();
 }
 
 void MainWidget::onLinksSelect() {
 	if (_overview) _overview->switchType(OverviewLinks);
-	_mediaType->hideStart();
+	_mediaType->hideAnimated();
 }
 
 Window::TopBarWidget *MainWidget::topBar() {

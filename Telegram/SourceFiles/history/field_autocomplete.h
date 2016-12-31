@@ -39,8 +39,6 @@ class FieldAutocomplete final : public TWidget {
 public:
 	FieldAutocomplete(QWidget *parent);
 
-	void fastHide();
-
 	bool clearFilteredBotCommands();
 	void showFiltered(PeerData *peer, QString query, bool addInlineBots);
 	void showStickers(EmojiPtr emoji);
@@ -75,6 +73,8 @@ public:
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void hideFast();
+
 	~FieldAutocomplete();
 
 signals:
@@ -86,15 +86,15 @@ signals:
 	void moderateKeyActivate(int key, bool *outHandled) const;
 
 public slots:
-	void hideStart();
-	void hideFinish();
-
-	void showStart();
+	void showAnimated();
+	void hideAnimated();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void hideFinish();
+
 	void updateFiltered(bool resetScroll = false);
 	void recount(bool resetScroll = false);
 

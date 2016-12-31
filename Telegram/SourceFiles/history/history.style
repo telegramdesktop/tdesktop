@@ -20,12 +20,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
 using "dialogs/dialogs.style";
+using "ui/widgets/widgets.style";
 
 historyPaddingBottom: 10px;
 
 historyToDown: icon {
 	{ "history_down_shadow", #00000040 },
-	{ "history_down_circle", #fff, point(2px, 1px) },
+	{ "history_down_circle", #ffffff, point(2px, 1px) },
 };
 historyToDownPosition: point(12px, 10px);
 historyToDownArrow: icon {
@@ -38,16 +39,16 @@ historyToDownBadgeSize: 22px;
 historyEmptyDog: icon {{ "history_empty_dog", #ffffff }};
 historyEmptySize: 128px;
 
-membersInnerScroll: flatScroll(solidScroll) {
-	deltat: 3px;
-	deltab: 3px;
-	round: 1px;
-	width: 8px;
-	deltax: 3px;
-}
 membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
+	scroll: flatScroll(solidScroll) {
+		deltat: 3px;
+		deltab: 3px;
+		round: 1px;
+		width: 8px;
+		deltax: 3px;
+	}
 	scrollMargin: margins(0px, 5px, 0px, 5px);
 	scrollPadding: margins(0px, 3px, 8px, 3px);
 }
@@ -138,3 +139,109 @@ historyPeer8NameFg: #ce671b; // orange
 historyPeer8UserpicBg: #f7b37c;
 historyPeer8UserpicFg: #de8d62;
 historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};
+
+historyMediaTypeFile: icon {{ "media_type_file", #b3b3b3, point(2px, 2px) }};
+historyMediaTypePhoto: icon {{ "media_type_photo", #bebebe, point(2px, 2px) }};
+historyMediaTypeVideo: icon {{ "media_type_video", #bebebe, point(2px, 2px) }};
+historyMediaTypeSong: icon {{ "media_type_song", #bebebe, point(0px, 0px) }};
+historyMediaTypeVoice: icon {{ "media_type_voice", #bebebe, point(2px, 2px) }};
+historyMediaTypeLink: icon {{ "media_type_link", #bebebe, point(2px, 2px) }};
+
+historyAttachDocument: IconButton(defaultIconButton) {
+	width: 46px;
+	height: 46px;
+
+	icon: historyMediaTypeFile;
+	iconPosition: point(9px, 9px);
+	downIconPosition: point(9px, 10px);
+}
+historyAttachPhoto: IconButton(historyAttachDocument) {
+	icon: historyMediaTypePhoto;
+}
+historyAttachEmoji: IconButton(historyAttachDocument) {
+	width: 33px;
+	icon: icon {{ "send_control_emoji", #b9b9b9 }};
+	iconPosition: point(12px, 16px);
+	downIconPosition: point(12px, 16px);
+}
+historyEmojiCircle: size(19px, 19px);
+historyEmojiCirclePeriod: 1500;
+historyEmojiCircleDuration: 500;
+historyEmojiCircleTop: 13px;
+historyEmojiCircleLine: 2px;
+historyEmojiCircleFg: #b9b9b9;
+historyEmojiCirclePart: 3.5;
+historyBotKeyboardShow: IconButton(historyAttachEmoji) {
+	icon: icon {{ "send_control_bot_keyboard", #b3b3b3 }};
+	iconPosition: point(6px, 12px);
+	downIconPosition: point(6px, 12px);
+}
+historyBotKeyboardHide: IconButton(historyAttachEmoji) {
+	icon: icon {{ "send_control_bot_keyboard_hide", #b3b3b3 }};
+	iconPosition: point(5px, 17px);
+	downIconPosition: point(5px, 17px);
+}
+historyBotCommandStart: IconButton(historyBotKeyboardShow) {
+	icon: icon {{ "send_control_bot_command", #b3b3b3 }};
+}
+historyRecordVoice: icon {{ "send_control_record", #b9b9b9 }};
+historyRecordVoiceActive: icon {{ "send_control_record", #58b2ed }};
+historyRecordSignalColor: #f17077;
+historyRecordSignalMin: 5px;
+historyRecordSignalMax: 12px;
+historyRecordCancel: #aaaaaa;
+historyRecordCancelActive: #ec6466;
+historyRecordFont: font(13px);
+historyRecordTextTop: 14px;
+
+historyAttachDropdownMenu: DropdownMenu(defaultDropdownMenu) {
+	menu: Menu(defaultMenu) {
+		skip: 5px;
+
+		itemBgOver: btnWhiteHover;
+		itemIconPosition: point(12px, 6px);
+		itemIconOpacity: 0.78;
+		itemIconOverOpacity: 1.;
+		itemPadding: margins(48px, 11px, 48px, 11px);
+	}
+}
+
+historySilentToggle: IconButton(historyBotKeyboardShow) {
+	icon: icon {{ "send_control_silent_off", #b3b3b3 }};
+}
+historySilentToggleOn: icon {{ "send_control_silent_on", #b3b3b3 }};
+
+historyReplySkip: 51px;
+historyReplyColor: #377aae;
+historyReplyHeight: 49px;
+historyReplyTop: 8px;
+historyReplyBottom: 6px;
+historyReplyIconPosition: point(13px, 13px);
+historyReplyIcon: icon {{ "history_action_reply", #6fa1d2 }};
+historyForwardIcon: icon {{ "history_action_forward", #6fa1d2 }};
+historyEditIcon: icon {{ "history_action_edit", #6fa1d2 }};
+historyReplyCancel: IconButton(defaultIconButton) {
+	width: 49px;
+	height: 49px;
+
+	icon: historyReplyCancelIcon;
+	iconPosition: point(17px, 17px);
+	downIconPosition: point(17px, 18px);
+}
+historyInlineBotCancel: IconButton(historyReplyCancel) {
+	height: 46px;
+	iconPosition: point(-1px, 16px); // < 0 means draw in the center of the button
+	downIconPosition: point(-1px, 17px);
+}
+
+topBarSearch: IconButton(defaultIconButton) {
+	width: 44px;
+	height: topBarHeight;
+
+	icon: icon {{ "title_search", #000000 }};
+	iconPosition: point(13px, 18px);
+	downIconPosition: point(13px, 18px);
+
+	opacity: 0.22;
+	overOpacity: 0.36;
+}

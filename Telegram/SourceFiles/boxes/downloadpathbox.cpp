@@ -19,12 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/downloadpathbox.h"
+
 #include "lang.h"
-
 #include "localstorage.h"
-
-#include "downloadpathbox.h"
 #include "ui/filedialog.h"
+#include "ui/buttons/checkbox.h"
 #include "pspecific.h"
 
 DownloadPathBox::DownloadPathBox() : AbstractBox()
@@ -37,14 +37,14 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 , _save(this, lang(lng_connection_save), st::defaultBoxButton)
 , _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
 
-	connect(&_save, SIGNAL(clicked()), this, SLOT(onSave()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	connect(_save, SIGNAL(clicked()), this, SLOT(onSave()));
+	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
 
-	connect(&_default, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(&_temp, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(&_dir, SIGNAL(changed()), this, SLOT(onChange()));
+	connect(_default, SIGNAL(changed()), this, SLOT(onChange()));
+	connect(_temp, SIGNAL(changed()), this, SLOT(onChange()));
+	connect(_dir, SIGNAL(changed()), this, SLOT(onChange()));
 
-	connect(&_pathLink, SIGNAL(clicked()), this, SLOT(onEditPath()));
+	connect(_pathLink, SIGNAL(clicked()), this, SLOT(onEditPath()));
 	if (!_path.isEmpty() && _path != qsl("tmp")) {
 		setPathText(QDir::toNativeSeparators(_path));
 	}
@@ -52,22 +52,22 @@ DownloadPathBox::DownloadPathBox() : AbstractBox()
 }
 
 void DownloadPathBox::showAll() {
-	_default.show();
-	_temp.show();
-	_dir.show();
+	_default->show();
+	_temp->show();
+	_dir->show();
 
-	if (_dir.checked()) {
-		_pathLink.show();
+	if (_dir->checked()) {
+		_pathLink->show();
 	} else {
-		_pathLink.hide();
+		_pathLink->hide();
 	}
 
-	_save.show();
-	_cancel.show();
+	_save->show();
+	_cancel->show();
 
-	int32 h = st::boxTitleHeight + st::boxOptionListPadding.top() + _default.height() + st::boxOptionListPadding.top() + _temp.height() + st::boxOptionListPadding.top() + _dir.height();
-	if (_dir.checked()) h += st::downloadPathSkip + _pathLink.height();
-	h += st::boxOptionListPadding.bottom() + st::boxButtonPadding.top() + _save.height() + st::boxButtonPadding.bottom();
+	int32 h = st::boxTitleHeight + st::boxOptionListPadding.top() + _default->height() + st::boxOptionListPadding.top() + _temp->height() + st::boxOptionListPadding.top() + _dir->height();
+	if (_dir->checked()) h += st::downloadPathSkip + _pathLink->height();
+	h += st::boxOptionListPadding.bottom() + st::boxButtonPadding.top() + _save->height() + st::boxButtonPadding.bottom();
 
 	setMaxHeight(h);
 }
@@ -80,31 +80,31 @@ void DownloadPathBox::paintEvent(QPaintEvent *e) {
 }
 
 void DownloadPathBox::resizeEvent(QResizeEvent *e) {
-	_default.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
-	_temp.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default.y() + _default.height() + st::boxOptionListPadding.top());
-	_dir.moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp.y() + _temp.height() + st::boxOptionListPadding.top());
+	_default->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
+	_temp->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _default->y() + _default->height() + st::boxOptionListPadding.top());
+	_dir->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _temp->y() + _temp->height() + st::boxOptionListPadding.top());
 	int32 inputx = st::boxPadding.left() + st::boxOptionListPadding.left() + st::defaultRadiobutton.textPosition.x();
-	int32 inputy = _dir.y() + _dir.height() + st::downloadPathSkip;
+	int32 inputy = _dir->y() + _dir->height() + st::downloadPathSkip;
 
-	_pathLink.moveToLeft(inputx, inputy);
+	_pathLink->moveToLeft(inputx, inputy);
 
-	_save.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _save.width() + st::boxButtonPadding.left(), _save.y());
+	_save->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _save->height());
+	_cancel->moveToRight(st::boxButtonPadding.right() + _save->width() + st::boxButtonPadding.left(), _save->y());
 	AbstractBox::resizeEvent(e);
 }
 
 void DownloadPathBox::onChange() {
-	if (_dir.checked()) {
+	if (_dir->checked()) {
 		if (_path.isEmpty() || _path == qsl("tmp")) {
-			(_path.isEmpty() ? _default : _temp).setChecked(true);
+			(_path.isEmpty() ? _default : _temp)->setChecked(true);
 			onEditPath();
 			if (!_path.isEmpty() && _path != qsl("tmp")) {
-				_dir.setChecked(true);
+				_dir->setChecked(true);
 			}
 		} else {
 			setPathText(QDir::toNativeSeparators(_path));
 		}
-	} else if (_temp.checked()) {
+	} else if (_temp->checked()) {
 		_path = qsl("tmp");
 	} else {
 		_path = QString();
@@ -130,8 +130,8 @@ void DownloadPathBox::onEditPath() {
 }
 
 void DownloadPathBox::onSave() {
-	Global::SetDownloadPath(_default.checked() ? QString() : (_temp.checked() ? qsl("tmp") : _path));
-	Global::SetDownloadPathBookmark((_default.checked() || _temp.checked()) ? QByteArray() : _pathBookmark);
+	Global::SetDownloadPath(_default->checked() ? QString() : (_temp->checked() ? qsl("tmp") : _path));
+	Global::SetDownloadPathBookmark((_default->checked() || _temp->checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
 	Global::RefDownloadPathChanged().notify();
 	onClose();
@@ -139,5 +139,5 @@ void DownloadPathBox::onSave() {
 
 void DownloadPathBox::setPathText(const QString &text) {
 	int32 availw = st::boxWideWidth - st::boxPadding.left() - st::defaultRadiobutton.textPosition.x() - st::boxPadding.right();
-	_pathLink.setText(st::boxTextFont->elided(text, availw));
+	_pathLink->setText(st::boxTextFont->elided(text, availw));
 }

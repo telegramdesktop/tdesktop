@@ -24,6 +24,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "localstorage.h"
+#include "styles/style_history.h"
+#include "styles/style_widgets.h"
+#include "styles/style_stickers.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 , _scroll(this, st::mentionScroll)
@@ -333,7 +336,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll) {
 	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.isEmpty()) {
 		if (!isHidden()) {
-			hideStart();
+			hideAnimated();
 		}
 		_mrows.clear();
 		_hrows.clear();
@@ -354,7 +357,7 @@ void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const in
 		update();
 		if (hidden) {
 			hide();
-			showStart();
+			showAnimated();
 		}
 	}
 }
@@ -394,7 +397,7 @@ void FieldAutocomplete::recount(bool resetScroll) {
 	if (resetScroll) _inner->clearSel();
 }
 
-void FieldAutocomplete::fastHide() {
+void FieldAutocomplete::hideFast() {
 	if (_a_appearance.animating()) {
 		_a_appearance.stop();
 	}
@@ -403,18 +406,20 @@ void FieldAutocomplete::fastHide() {
 	hideFinish();
 }
 
-void FieldAutocomplete::hideStart() {
-	if (!_hiding) {
-		if (_cache.isNull()) {
-			_scroll->show();
-			_cache = myGrab(this);
-		}
-		_scroll->hide();
-		_hiding = true;
-		a_opacity.start(0);
-		setAttribute(Qt::WA_OpaquePaintEvent, false);
-		_a_appearance.start();
+void FieldAutocomplete::hideAnimated() {
+	if (isHidden() || _hiding) {
+		return;
 	}
+
+	if (_cache.isNull()) {
+		_scroll->show();
+		_cache = myGrab(this);
+	}
+	_scroll->hide();
+	_hiding = true;
+	a_opacity.start(0);
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
+	_a_appearance.start();
 }
 
 void FieldAutocomplete::hideFinish() {
@@ -424,7 +429,7 @@ void FieldAutocomplete::hideFinish() {
 	_inner->clearSel(true);
 }
 
-void FieldAutocomplete::showStart() {
+void FieldAutocomplete::showAnimated() {
 	if (!isHidden() && a_opacity.current() == 1 && !_hiding) {
 		return;
 	}
@@ -441,7 +446,7 @@ void FieldAutocomplete::showStart() {
 }
 
 void FieldAutocomplete::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / st::dropdownDef.duration;
+	float64 dt = ms / st::defaultDropdownDuration;
 	if (dt >= 1) {
 		_a_appearance.stop();
 		a_opacity.finish();
@@ -544,7 +549,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
-	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+	int32 htagleft = st::historyAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	if (!_srows->isEmpty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
@@ -600,9 +605,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 			bool selected = (i == _sel);
 			if (selected) {
 				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
-				int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
+				int skip = (st::mentionHeight - st::simpleCloseIcon.height()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
-					p.drawSprite(QPoint(width() - st::simpleClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::simpleClose.icon);
+					st::simpleCloseIcon.paint(p, QPoint(width() - st::simpleCloseIcon.width() - skip, i * st::mentionHeight + skip), width());
 				}
 			}
 			p.setPen(st::black->p);
@@ -650,7 +655,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 
-				p.setFont(st::mentionFont->f);
+				p.setFont(st::mentionFont);
 				if (!first.isEmpty()) {
 					p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 					p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);

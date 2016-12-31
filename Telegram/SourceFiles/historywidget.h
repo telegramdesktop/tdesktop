@@ -22,7 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "localimageloader.h"
 #include "ui/effects/rect_shadow.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/buttons/icon_button.h"
 #include "history/history_common.h"
 #include "history/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -36,17 +37,20 @@ class Result;
 } // namespace InlineBots
 
 namespace Ui {
-class HistoryDownButton;
 class InnerDropdown;
+class DropdownMenu;
 class PlainShadow;
+class PopupMenu;
+class IconButton;
+class HistoryDownButton;
+class EmojiButton;
 } // namespace Ui
 
-class Dropdown;
 class DragArea;
 class EmojiPan;
 
 class HistoryWidget;
-class HistoryInner : public TWidget, public AbstractTooltipShower, private base::Subscriber {
+class HistoryInner : public TWidget, public Ui::AbstractTooltipShower, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -256,7 +260,7 @@ private:
 	QTimer _touchScrollTimer;
 
 	// context menu
-	PopupMenu *_menu = nullptr;
+	Ui::PopupMenu *_menu = nullptr;
 
 	// save visible area coords for painting / pressing userpics
 	int _visibleAreaTop = 0;
@@ -351,7 +355,7 @@ private:
 
 };
 
-class BotKeyboard : public TWidget, public AbstractTooltipShower, public ClickHandlerHost {
+class BotKeyboard : public TWidget, public Ui::AbstractTooltipShower, public ClickHandlerHost {
 	Q_OBJECT
 
 public:
@@ -505,17 +509,26 @@ private:
 
 };
 
-class SilentToggle : public FlatCheckbox, public AbstractTooltipShower {
+class SilentToggle : public Ui::IconButton, public Ui::AbstractTooltipShower {
 public:
-
 	SilentToggle(QWidget *parent);
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+
+	void setChecked(bool checked);
+	bool checked() const {
+		return _checked;
+	}
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void leaveEvent(QEvent *e) override;
+
+private:
+	bool _checked = false;
 
 };
 
@@ -868,6 +881,7 @@ private:
 
 	void cancelReplyAfterMediaSend(bool lastKeyboardUsed);
 
+	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
 
 	MsgId _replyToId = 0;
@@ -881,7 +895,7 @@ private:
 	Text _replyEditMsgText;
 	mutable SingleTimer _updateEditTimeLeftDisplay;
 
-	IconedButton _fieldBarCancel;
+	ChildWidget<Ui::IconButton> _fieldBarCancel;
 	void updateReplyEditTexts(bool force = false);
 
 	struct PinnedBar {
@@ -891,7 +905,7 @@ private:
 		MsgId msgId = 0;
 		HistoryItem *msg = nullptr;
 		Text text;
-		ChildWidget<IconedButton> cancel;
+		ChildWidget<Ui::IconButton> cancel;
 		ChildWidget<Ui::PlainShadow> shadow;
 	};
 	std_::unique_ptr<PinnedBar> _pinnedBar;
@@ -1071,7 +1085,7 @@ private:
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;
 	mtpRequestId _inlineBotResolveRequestId = 0;
-	std_::unique_ptr<IconedButton> _inlineBotCancel;
+	std_::unique_ptr<Ui::IconButton> _inlineBotCancel;
 	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
 	bool inlineBotResolveFail(QString name, const RPCError &error);
 
@@ -1086,10 +1100,13 @@ private:
 	FlatButton _send, _unblock, _botStart, _joinChannel, _muteUnmute;
 	mtpRequestId _unblockRequest = 0;
 	mtpRequestId _reportSpamRequest = 0;
-	IconedButton _attachDocument, _attachPhoto;
-	EmojiButton _attachEmoji;
-	IconedButton _kbShow, _kbHide, _cmdStart;
-	SilentToggle _silent;
+	ChildWidget<Ui::IconButton> _attachDocument;
+	ChildWidget<Ui::IconButton> _attachPhoto;
+	ChildWidget<Ui::EmojiButton> _attachEmoji;
+	ChildWidget<Ui::IconButton> _botKeyboardShow;
+	ChildWidget<Ui::IconButton> _botKeyboardHide;
+	ChildWidget<Ui::IconButton> _botCommandStart;
+	ChildWidget<SilentToggle> _silent;
 	bool _cmdStartShown = false;
 	MessageField _field;
 	Animation _a_record, _a_recording;
@@ -1115,7 +1132,7 @@ private:
 	ChildWidget<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;
 
-	ChildWidget<Dropdown> _attachType;
+	ChildWidget<Ui::DropdownMenu> _attachType;
 	ChildWidget<EmojiPan> _emojiPan;
 	DragState _attachDrag = DragStateNone;
 	ChildWidget<DragArea> _attachDragDocument, _attachDragPhoto;

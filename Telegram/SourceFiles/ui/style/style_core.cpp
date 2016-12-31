@@ -65,7 +65,6 @@ void startManager() {
 	}
 
 	internal::registerFontFamily(qsl("Open Sans"));
-	internal::loadSprite();
 	internal::startModules();
 }
 
@@ -74,7 +73,6 @@ void stopManager() {
 	internal::destroyFonts();
 	internal::destroyColors();
 	internal::destroyIcons();
-	internal::destroySprite();
 }
 
 QImage colorizeImage(const QImage &src, const color &c, const QRect &r) {

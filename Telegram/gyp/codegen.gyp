@@ -83,8 +83,6 @@
       '<(src_loc)/codegen/style/parsed_file.h',
       '<(src_loc)/codegen/style/processor.cpp',
       '<(src_loc)/codegen/style/processor.h',
-      '<(src_loc)/codegen/style/sprite_generator.cpp',
-      '<(src_loc)/codegen/style/sprite_generator.h',
       '<(src_loc)/codegen/style/structure_types.cpp',
       '<(src_loc)/codegen/style/structure_types.h',
     ],

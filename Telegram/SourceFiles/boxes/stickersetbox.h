@@ -65,7 +65,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickerSetBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class StickerSetBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

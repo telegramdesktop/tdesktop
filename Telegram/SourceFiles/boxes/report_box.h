@@ -22,6 +22,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "abstractbox.h"
 
+namespace Ui {
+class Radiobutton;
+} // namespace Ui
+
 class ReportBox : public AbstractBox, public RPCSender {
 	Q_OBJECT
 
@@ -50,10 +54,10 @@ private:
 
 	ChannelData *_channel;
 
-	ChildWidget<Radiobutton> _reasonSpam;
-	ChildWidget<Radiobutton> _reasonViolence;
-	ChildWidget<Radiobutton> _reasonPornography;
-	ChildWidget<Radiobutton> _reasonOther;
+	ChildWidget<Ui::Radiobutton> _reasonSpam;
+	ChildWidget<Ui::Radiobutton> _reasonViolence;
+	ChildWidget<Ui::Radiobutton> _reasonPornography;
+	ChildWidget<Ui::Radiobutton> _reasonOther;
 	ChildWidget<InputArea> _reasonOtherText = { nullptr };
 
 	ChildWidget<BoxButton> _report, _cancel;

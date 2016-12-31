@@ -29,11 +29,11 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
-class RoundButton;
+class IconButton;
+class PopupMenu;
 } // namespace Ui
 
 class MainWidget;
-class PopupMenu;
 
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,
@@ -221,7 +221,7 @@ private:
 	void paintDialog(QPainter &p, Dialogs::Row *dialog);
 
 	LinkButton _addContactLnk;
-	IconedButton _cancelSearchInPeer;
+	ChildWidget<Ui::IconButton> _cancelSearchInPeer;
 
 	bool _overDelete = false;
 
@@ -230,7 +230,7 @@ private:
 	PeerData *_menuPeer = nullptr;
 	PeerData *_menuActionPeer = nullptr;
 
-	PopupMenu *_menu = nullptr;
+	Ui::PopupMenu *_menu = nullptr;
 
 };
 
@@ -336,8 +336,9 @@ private:
 	mtpRequestId _dialogsRequest, _contactsRequest;
 
 	FlatInput _filter;
-	ChildWidget<Ui::RoundButton> _newGroup;
-	IconedButton _addContact, _cancelSearch;
+	ChildWidget<Ui::IconButton> _newGroup;
+	ChildWidget<Ui::IconButton> _addContact;
+	ChildWidget<Ui::IconButton> _cancelSearch;
 	ScrollArea _scroll;
 	DialogsInner _inner;
 

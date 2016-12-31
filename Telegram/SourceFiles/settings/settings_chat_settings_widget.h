@@ -105,12 +105,12 @@ private slots:
 private:
 	void createControls();
 
-	ChildWidget<Checkbox> _replaceEmoji = { nullptr };
+	ChildWidget<Ui::Checkbox> _replaceEmoji = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<LinkButton>> _viewList = { nullptr };
-	ChildWidget<Checkbox> _dontAskDownloadPath = { nullptr };
+	ChildWidget<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
-	ChildWidget<Radiobutton> _sendByEnter = { nullptr };
-	ChildWidget<Radiobutton> _sendByCtrlEnter = { nullptr };
+	ChildWidget<Ui::Radiobutton> _sendByEnter = { nullptr };
+	ChildWidget<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
 	ChildWidget<LinkButton> _automaticMediaDownloadSettings = { nullptr };
 	ChildWidget<LinkButton> _manageStickerSets = { nullptr };
 

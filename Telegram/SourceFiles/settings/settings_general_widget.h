@@ -23,10 +23,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 #include "ui/filedialog.h"
 
-class Checkbox;
 class LinkButton;
 
 namespace Ui {
+class Checkbox;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
@@ -116,14 +116,14 @@ private:
 
 	ChildWidget<LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	ChildWidget<Checkbox> _updateAutomatically = { nullptr };
+	ChildWidget<Ui::Checkbox> _updateAutomatically = { nullptr };
 	ChildWidget<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	ChildWidget<Checkbox> _enableTrayIcon = { nullptr };
-	ChildWidget<Checkbox> _enableTaskbarIcon = { nullptr };
-	ChildWidget<Checkbox> _autoStart = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _startMinimized = { nullptr };
-	ChildWidget<Checkbox> _addInSendTo = { nullptr };
+	ChildWidget<Ui::Checkbox> _enableTrayIcon = { nullptr };
+	ChildWidget<Ui::Checkbox> _enableTaskbarIcon = { nullptr };
+	ChildWidget<Ui::Checkbox> _autoStart = { nullptr };
+	ChildWidget<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
+	ChildWidget<Ui::Checkbox> _addInSendTo = { nullptr };
 
 	FileDialog::QueryId _chooseLangFileQueryId = 0;
 	QString _testLanguage;

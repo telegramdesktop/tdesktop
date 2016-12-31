@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
+#include "styles/style_stickers.h"
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
@@ -2367,10 +2368,6 @@ namespace {
 
 	const style::font &monofont() {
 		return ::monofont;
-	}
-
-	const QPixmap &sprite() {
-		return style::spritePixmap();
 	}
 
 	const QPixmap &emoji() {

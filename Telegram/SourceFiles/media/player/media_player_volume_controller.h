@@ -56,9 +56,6 @@ public:
 
 	bool overlaps(const QRect &globalRect);
 
-	void otherEnter();
-	void otherLeave();
-
 	QMargins getMargin() const;
 
 protected:
@@ -75,6 +72,9 @@ private slots:
 	void onWindowActiveChanged();
 
 private:
+	void otherEnter();
+	void otherLeave();
+
 	void appearanceCallback();
 	void hidingFinished();
 	void startAnimation();

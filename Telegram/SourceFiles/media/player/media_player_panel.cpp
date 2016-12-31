@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_list.h"
 #include "media/player/media_player_instance.h"
 #include "styles/style_overview.h"
+#include "styles/style_widgets.h"
 #include "styles/style_media_player.h"
 #include "ui/widgets/shadow.h"
 #include "mainwindow.h"
@@ -34,7 +35,7 @@ namespace Player {
 
 Panel::Panel(QWidget *parent, Layout layout) : TWidget(parent)
 , _layout(layout)
-, _shadow(st::defaultInnerDropdown.shadow)
+, _shadow(st::defaultDropdownShadow)
 , _scroll(this, st::mediaPlayerScroll) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
@@ -90,7 +91,7 @@ void Panel::updateControlsGeometry() {
 	if (scrollHeight > 0) {
 		_scroll->setGeometryToRight(contentRight(), scrollTop, width, scrollHeight);
 	}
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		widget->resizeToWidth(width);
 		onScroll();
 	}
@@ -118,7 +119,7 @@ void Panel::scrollPlaylistToCurrentTrack() {
 }
 
 void Panel::onScroll() {
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		int visibleTop = _scroll->scrollTop();
 		int visibleBottom = visibleTop + _scroll->height();
 		widget->setVisibleTopBottom(visibleTop, visibleBottom);
@@ -153,7 +154,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		if (animating) {
 			p.setOpacity(_a_appearance.current(_hiding ? 0. : 1.));
 		} else if (_hiding || isHidden()) {
-			hidingFinished();
+			hideFinished();
 			return;
 		}
 		p.drawPixmap(0, 0, _cache);
@@ -290,7 +291,7 @@ void Panel::onShowStart() {
 void Panel::hideIgnoringEnterEvents() {
 	_ignoringEnterEvents = true;
 	if (isHidden()) {
-		hidingFinished();
+		hideFinished();
 	} else {
 		onHideStart();
 	}
@@ -317,13 +318,13 @@ void Panel::startAnimation() {
 void Panel::appearanceCallback() {
 	if (!_a_appearance.animating() && _hiding) {
 		_hiding = false;
-		hidingFinished();
+		hideFinished();
 	} else {
 		update();
 	}
 }
 
-void Panel::hidingFinished() {
+void Panel::hideFinished() {
 	hide();
 	_cache = QPixmap();
 	performDestroy();

@@ -40,8 +40,12 @@ void IconButton::paintEvent(QPaintEvent *e) {
 	auto over = _a_over.current(getms(), (_state & StateOver) ? 1. : 0.);
 	p.setOpacity(over * _st.overOpacity + (1. - over) * _st.opacity);
 
+	auto icon = (_iconOverride ? _iconOverride : &_st.icon);
 	auto position = (_state & StateDown) ? _st.downIconPosition : _st.iconPosition;
-	(_iconOverride ? _iconOverride : &_st.icon)->paint(p, position, width());
+	if (position.x() < 0) {
+		position.setX((width() - icon->width()) / 2);
+	}
+	icon->paint(p, position, width());
 }
 
 void IconButton::onStateChanged(int oldState, ButtonStateChangeSource source) {

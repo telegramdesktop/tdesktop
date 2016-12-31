@@ -71,7 +71,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class MultiSelect::Inner : public ScrolledWidget {
+class MultiSelect::Inner : public TWidget {
 	Q_OBJECT
 
 public:

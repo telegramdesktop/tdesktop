@@ -97,7 +97,7 @@ void MembersBox::onAdminAdded() {
 	_loadTimer.start(ReloadChannelMembersTimeout);
 }
 
-MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : ScrolledWidget(parent)
+MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter filter) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _newItemHeight((channel->amCreator() && (channel->membersCount() < (channel->isMegagroup() ? Global::MegagroupSizeMax() : Global::ChatSizeMax()) || (!channel->isMegagroup() && !channel->isPublic()) || filter == MembersFilter::Admins)) ? st::contactsNewItemHeight : 0)
 , _newItemSel(false)
@@ -170,8 +170,8 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 			p.translate(0, _rowHeight);
 		}
 		if (to == _rows.size() && _filter == MembersFilter::Recent && (_rows.size() < _channel->membersCount() || _rows.size() >= Global::ChatSizeMax())) {
-			p.setPen(st::stickersReorderFg);
-			_about.draw(p, st::contactsPadding.left(), st::stickersReorderPadding.top(), _aboutWidth, style::al_center);
+			p.setPen(st::membersAboutFg);
+			_about.draw(p, st::contactsPadding.left(), st::membersAboutPadding.top(), _aboutWidth, style::al_center);
 		}
 	}
 }
@@ -348,7 +348,7 @@ void MembersBox::Inner::refresh() {
 		_aboutHeight = 0;
 	} else {
 		_about.setText(st::boxTextFont, lng_channel_only_last_shown(lt_count, _rows.size()));
-		_aboutHeight = st::stickersReorderPadding.top() + _about.countHeight(_aboutWidth) + st::stickersReorderPadding.bottom();
+		_aboutHeight = st::membersAboutPadding.top() + _about.countHeight(_aboutWidth) + st::membersAboutPadding.bottom();
 		if (_filter != MembersFilter::Recent || (_rows.size() >= _channel->membersCount() && _rows.size() < Global::ChatSizeMax())) {
 			_aboutHeight = 0;
 		}

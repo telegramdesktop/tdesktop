@@ -70,55 +70,6 @@ flatButton {
 	radius: pixels;
 }
 
-iconedButton {
-	icon: sprite;
-	iconPos: point;
-	downIcon: sprite;
-	downIconPos: point;
-
-	color: color;
-	bgColor: color;
-	overBgColor: color;
-	width: pixels;
-	height: pixels;
-	font: font;
-
-	opacity: double;
-	overOpacity: double;
-
-	textPos: point;
-	downTextPos: point;
-
-	duration: int;
-	cursor: cursor;
-}
-
-flatCheckbox {
-	textColor: color;
-	bgColor: color;
-	disColor: color;
-
-	width: pixels;
-	height: pixels;
-	textTop: pixels;
-	textLeft: pixels;
-	font: font;
-	duration: int;
-	bgFunc: transition;
-	cursor: cursor;
-
-	disabledCursor: cursor;
-
-	imageRect: sprite;
-	chkImageRect: sprite;
-	overImageRect: sprite;
-	chkOverImageRect: sprite;
-	disImageRect: sprite;
-	chkDisImageRect: sprite;
-
-	imagePos: point;
-}
-
 flatInput {
 	textColor: color;
 	bgColor: color;
@@ -225,59 +176,6 @@ switcher {
 	activeColor: color;
 
 	duration: int;
-}
-
-dropdown {
-	border: pixels;
-	borderColor: color;
-
-	padding: margins;
-	shadow: icon;
-	shadowShift: pixels;
-
-	duration: int;
-	width: pixels;
-}
-
-InnerDropdown {
-	padding: margins;
-	shadow: icon;
-	shadowShift: pixels;
-
-	duration: int;
-	width: pixels;
-
-	scrollMargin: margins;
-	scrollPadding: margins;
-}
-
-PopupMenu {
-	skip: pixels;
-
-	shadow: icon;
-	shadowShift: pixels;
-
-	itemBg: color;
-	itemBgOver: color;
-	itemFg: color;
-	itemFgOver: color;
-	itemFgDisabled: color;
-	itemFgShortcut: color;
-	itemFgShortcutOver: color;
-	itemFgShortcutDisabled: color;
-	itemPadding: margins;
-	itemFont: font;
-
-	separatorPadding: margins;
-	separatorWidth: pixels;
-	separatorFg: color;
-
-	arrow: icon;
-
-	duration: int;
-
-	widthMin: pixels;
-	widthMax: pixels;
 }
 
 Tooltip {
@@ -438,18 +336,4 @@ OutlineButton {
 
 	font: font;
 	padding: margins;
-}
-
-IconButton {
-	width: pixels;
-	height: pixels;
-
-	opacity: double;
-	overOpacity: double;
-
-	icon: icon;
-	iconPosition: point;
-	downIconPosition: point;
-
-	duration: int;
 }

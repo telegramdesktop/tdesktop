@@ -81,7 +81,7 @@ private:
 
 	void updateSize();
 	void appearanceCallback();
-	void hidingFinished();
+	void hideFinished();
 	int contentLeft() const;
 	int contentTop() const;
 	int contentRight() const;

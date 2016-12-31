@@ -19,16 +19,16 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/sessionsbox.h"
+
 #include "lang.h"
-
 #include "localstorage.h"
-
-#include "sessionsbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
 #include "countries.h"
-#include "confirmbox.h"
+#include "boxes/confirmbox.h"
+#include "ui/buttons/icon_button.h"
+#include "styles/style_boxes.h"
 
 SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
 , _loading(true)
@@ -90,7 +90,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	_shortPollRequest = 0;
 
 	int32 availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
-	int32 availOther = availCurrent - st::sessionTerminate.iconPos.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
+	int32 availOther = availCurrent - st::sessionTerminate.iconPosition.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
 
 	_list.clear();
 	const auto &v(result.c_account_authorizations().vauthorizations.c_vector().v);
@@ -242,7 +242,7 @@ void SessionsBox::onTerminateAll() {
 	}
 }
 
-SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : ScrolledWidget(parent)
+SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : TWidget(parent)
 , _list(list)
 , _current(current)
 , _terminating(0)
@@ -258,7 +258,7 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.fillRect(r, st::white->b);
-	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPos.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
+	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPosition.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
 	int32 w = width();
 
 	if (_current->active.isEmpty() && _list->isEmpty()) {
@@ -414,7 +414,7 @@ void SessionsBox::Inner::listUpdated() {
 	for (int32 i = 0, l = _list->size(); i < l; ++i) {
 		TerminateButtons::iterator j = _terminateButtons.find(_list->at(i).hash);
 		if (j == _terminateButtons.cend()) {
-			j = _terminateButtons.insert(_list->at(i).hash, new IconedButton(this, st::sessionTerminate));
+			j = _terminateButtons.insert(_list->at(i).hash, new Ui::IconButton(this, st::sessionTerminate));
 			connect(j.value(), SIGNAL(clicked()), this, SLOT(onTerminate()));
 		}
 		j.value()->moveToRight(st::sessionTerminateSkip, st::sessionCurrentHeight + i * st::sessionHeight + st::sessionTerminateTop, width());

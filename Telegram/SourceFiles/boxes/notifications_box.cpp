@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "ui/buttons/round_button.h"
+#include "ui/buttons/icon_button.h"
 #include "ui/widgets/discrete_slider.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
@@ -289,7 +290,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 
 		p.setOpacity(st::notifyClose.opacity);
-		p.drawSpriteLeft(w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPos.x(), st::notifyClosePos.y() + st::notifyClose.iconPos.y(), w, st::notifyClose.icon);
+		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
 	}
 
 	_notificationSampleLarge = App::pixmapFromImageInPlace(std_::move(sampleImage));

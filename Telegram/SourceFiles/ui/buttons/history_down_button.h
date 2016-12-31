@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/button.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 
@@ -58,6 +59,33 @@ private:
 	FloatAnimation _a_show;
 
 	int _unreadCount = 0;
+
+};
+
+class EmojiButton : public Button {
+public:
+	EmojiButton(QWidget *parent, const style::IconButton &st);
+
+	void setLoading(bool loading);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+
+private:
+	const style::IconButton &_st;
+
+	FloatAnimation _a_over;
+
+	bool _loading = false;
+	FloatAnimation a_loading;
+	Animation _a_loading;
+
+	void step_loading(uint64 ms, bool timer) {
+		if (timer) {
+			update();
+		}
+	}
 
 };
 

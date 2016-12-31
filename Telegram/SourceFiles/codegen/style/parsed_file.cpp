@@ -64,7 +64,7 @@ QString tokenValue(const BasicToken &token) {
 
 bool isValidColor(const QString &str) {
 	auto len = str.size();
-	if (len != 3 && len != 4 && len != 6 && len != 8) {
+	if (len != 6 && len != 8) {
 		return false;
 	}
 
@@ -89,17 +89,11 @@ uchar readHexUchar(QChar char1, QChar char2) {
 structure::data::color convertWebColor(const QString &str) {
 	uchar r = 0, g = 0, b = 0, a = 255;
 	if (isValidColor(str)) {
-		auto len = str.size();
-		if (len == 3 || len == 4) {
-			r = readHexUchar(str.at(0), str.at(0));
-			g = readHexUchar(str.at(1), str.at(1));
-			b = readHexUchar(str.at(2), str.at(2));
-			if (len == 4) a = readHexUchar(str.at(3), str.at(3));
-		} else {
-			r = readHexUchar(str.at(0), str.at(1));
-			g = readHexUchar(str.at(2), str.at(3));
-			b = readHexUchar(str.at(4), str.at(5));
-			if (len == 8) a = readHexUchar(str.at(6), str.at(7));
+		r = readHexUchar(str.at(0), str.at(1));
+		g = readHexUchar(str.at(2), str.at(3));
+		b = readHexUchar(str.at(4), str.at(5));
+		if (str.size() == 8) {
+			a = readHexUchar(str.at(6), str.at(7));
 		}
 	}
 	return { r, g, b, a };
@@ -120,7 +114,6 @@ std::string logType(const structure::Type &type) {
 		{ structure::TypeTag::String    , "string" },
 		{ structure::TypeTag::Color     , "color" },
 		{ structure::TypeTag::Point     , "point" },
-		{ structure::TypeTag::Sprite    , "sprite" },
 		{ structure::TypeTag::Size      , "size" },
 		{ structure::TypeTag::Transition, "transition" },
 		{ structure::TypeTag::Cursor    , "cursor" },
@@ -285,8 +278,6 @@ structure::Value ParsedFile::readValue() {
 		return colorValue;
 	} else if (auto pointValue = readPointValue()) {
 		return pointValue;
-	} else if (auto spriteValue = readSpriteValue()) {
-		return spriteValue;
 	} else if (auto sizeValue = readSizeValue()) {
 		return sizeValue;
 	} else if (auto transitionValue = readTransitionValue()) {
@@ -509,41 +500,6 @@ structure::Value ParsedFile::readColorValue() {
 		} else {
 			logErrorUnexpectedToken() << "color value in #ccc, #ccca, #cccccc or #ccccccaa format";
 		}
-	} else if (auto rgbaToken = file_.getToken(BasicType::Name)) {
-		if (tokenValue(rgbaToken) == "rgba") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto r = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto g = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto b = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto a = readNumericValue();
-			if (r.type().tag != structure::TypeTag::Int || r.Int() < 0 || r.Int() > 255 ||
-				g.type().tag != structure::TypeTag::Int || g.Int() < 0 || g.Int() > 255 ||
-				b.type().tag != structure::TypeTag::Int || b.Int() < 0 || b.Int() > 255 ||
-				a.type().tag != structure::TypeTag::Int || a.Int() < 0 || a.Int() > 255) {
-				logErrorTypeMismatch() << "expected four 0-255 values for the rgba color";
-			}
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			return { convertIntColor(r.Int(), g.Int(), b.Int(), a.Int()) };
-		} else if (tokenValue(rgbaToken) == "rgb") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto r = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto g = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto b = readNumericValue();
-			if (r.type().tag != structure::TypeTag::Int || r.Int() < 0 || r.Int() > 255 ||
-				g.type().tag != structure::TypeTag::Int || g.Int() < 0 || g.Int() > 255 ||
-				b.type().tag != structure::TypeTag::Int || b.Int() < 0 || b.Int() > 255) {
-				logErrorTypeMismatch() << "expected three int values for the rgb color";
-			}
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			return { convertIntColor(r.Int(), g.Int(), b.Int(), 255) };
-		}
-		file_.putBack();
 	}
 	return {};
 }
@@ -563,31 +519,6 @@ structure::Value ParsedFile::readPointValue() {
 			assertNextToken(BasicType::RightParenthesis);
 
 			return { structure::data::point { x.Int(), y.Int() } };
-		}
-		file_.putBack();
-	}
-	return {};
-}
-
-structure::Value ParsedFile::readSpriteValue() {
-	if (auto font = file_.getToken(BasicType::Name)) {
-		if (tokenValue(font) == "sprite") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto x = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto y = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto w = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto h = readNumericValue();
-			if (x.type().tag != structure::TypeTag::Pixels ||
-				y.type().tag != structure::TypeTag::Pixels ||
-				w.type().tag != structure::TypeTag::Pixels ||
-				h.type().tag != structure::TypeTag::Pixels) {
-				logErrorTypeMismatch() << "expected four px values for the sprite";
-			}
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			return { structure::data::sprite { x.Int(), y.Int(), w.Int(), h.Int() } };
 		}
 		file_.putBack();
 	}

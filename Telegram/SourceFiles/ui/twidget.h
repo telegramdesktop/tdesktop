@@ -20,10 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-namespace App {
-	const QPixmap &sprite();
-}
-
 namespace Fonts {
 	void start();
 }
@@ -78,45 +74,6 @@ public:
 	}
 	void drawPixmapRight(const QPoint &p, int outerw, const QPixmap &pix) {
 		return drawPixmapRight(p.x(), p.y(), outerw, pix);
-	}
-	void drawSprite(int x, int y, const style::sprite &sprite) {
-		return drawPixmap(QPoint(x, y), App::sprite(), sprite.rect());
-	}
-	void drawSprite(const QPoint &p, const style::sprite &sprite) {
-		return drawPixmap(p, App::sprite(), sprite.rect());
-	}
-	void drawSpriteLeft(int x, int y, int outerw, const style::sprite &sprite) {
-		return drawPixmapLeft(x, y, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteLeft(const QPoint &p, int outerw, const style::sprite &sprite) {
-		return drawPixmapLeft(p, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteLeft(int x, int y, int w, int h, int outerw, const style::sprite &sprite) {
-		return drawPixmapLeft(x, y, w, h, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteLeft(const QRect &r, int outerw, const style::sprite &sprite) {
-		return drawPixmapLeft(r, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteRight(int x, int y, int outerw, const style::sprite &sprite) {
-		return drawPixmapRight(x, y, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteRight(const QPoint &p, int outerw, const style::sprite &sprite) {
-		return drawPixmapRight(p, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteRight(int x, int y, int w, int h, int outerw, const style::sprite &sprite) {
-		return drawPixmapRight(x, y, w, h, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteRight(const QRect &r, int outerw, const style::sprite &sprite) {
-		return drawPixmapRight(r, outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteCenter(const QRect &in, const style::sprite &sprite) {
-		return drawPixmap(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), App::sprite(), sprite.rect());
-	}
-	void drawSpriteCenterLeft(const QRect &in, int outerw, const style::sprite &sprite) {
-		return drawPixmapLeft(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), outerw, App::sprite(), sprite.rect());
-	}
-	void drawSpriteCenterRight(const QRect &in, int outerw, const style::sprite &sprite) {
-		return drawPixmapRight(QPoint(in.x() + (in.width() - sprite.pxWidth()) / 2, in.y() + (in.height() - sprite.pxHeight()) / 2), outerw, App::sprite(), sprite.rect());
 	}
 };
 
@@ -227,6 +184,14 @@ public:
 			update();
 		}
 	}
+
+	// Updates the area that is visible inside the scroll container.
+	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	}
+
+signals:
+	// Child widget is responsible for emitting this signal.
+	void heightUpdated();
 
 protected:
 	void enterEventHook(QEvent *e) {

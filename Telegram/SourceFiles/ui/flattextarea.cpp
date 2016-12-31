@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "flattextarea.h"
 
-#include "ui/popupmenu.h"
+#include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 
 QByteArray FlatTextarea::serializeTagsList(const TagList &tags) {
@@ -1421,6 +1421,6 @@ void FlatTextarea::dropEvent(QDropEvent *e) {
 
 void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(menu))->popup(e->globalPos());
 	}
 }

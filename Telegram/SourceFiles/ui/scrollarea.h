@@ -273,19 +273,3 @@ public:
 	}
 	void paintEvent(QPaintEvent *e);
 };
-
-class ScrolledWidget : public TWidget {
-	Q_OBJECT
-
-public:
-	ScrolledWidget(QWidget *parent = nullptr) : TWidget(parent) {
-	}
-
-	// Updates the area that is visible inside the scroll container.
-	virtual void setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	}
-
-signals:
-	void heightUpdated();
-
-};

@@ -27,6 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "confirmbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "ui/buttons/checkbox.h"
 
 AutoLockBox::AutoLockBox() :
 _close(this, lang(lng_box_ok), st::defaultBoxButton) {
@@ -41,7 +42,7 @@ _close(this, lang(lng_box_ok), st::defaultBoxButton) {
 	_options.reserve(cnt);
 	for (int32 i = 0; i < cnt; ++i) {
 		int32 v = opts[i];
-		_options.push_back(new Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (Global::AutoLock() == v), st::langsButton));
+		_options.push_back(new Ui::Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (Global::AutoLock() == v), st::langsButton));
 		_options.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _options.back()->height() + st::boxOptionListPadding.top();
 		connect(_options.back(), SIGNAL(changed()), this, SLOT(onChange()));

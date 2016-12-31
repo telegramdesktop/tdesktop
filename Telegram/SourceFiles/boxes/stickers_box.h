@@ -103,7 +103,7 @@ private:
 int32 stickerPacksCount(bool includeDisabledOfficial = false);
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickersBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class StickersBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:

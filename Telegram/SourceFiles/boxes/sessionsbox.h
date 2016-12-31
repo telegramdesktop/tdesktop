@@ -25,6 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 class ConfirmBox;
 
+namespace Ui {
+class IconButton;
+} // namespace Ui
+
 class SessionsBox : public ScrollableBox, public RPCSender {
 	Q_OBJECT
 
@@ -72,7 +76,7 @@ private:
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class SessionsBox::Inner : public ScrolledWidget, public RPCSender {
+class SessionsBox::Inner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -106,7 +110,7 @@ private:
 	SessionsBox::List *_list;
 	SessionsBox::Data *_current;
 
-	typedef QMap<uint64, IconedButton*> TerminateButtons;
+	typedef QMap<uint64, Ui::IconButton*> TerminateButtons;
 	TerminateButtons _terminateButtons;
 
 	uint64 _terminating;

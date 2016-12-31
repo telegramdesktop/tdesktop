@@ -289,7 +289,7 @@ void ShareBox::onScroll() {
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + scroll->height());
 }
 
-ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback) : ScrolledWidget(parent)
+ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback) : TWidget(parent)
 , _filterCallback(std_::move(filterCallback))
 , _chatsIndexed(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
 	_rowsTop = st::shareRowsTop;

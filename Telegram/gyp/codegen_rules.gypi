@@ -19,24 +19,6 @@
 
 {
   'actions': [{
-    'action_name': 'update_sprites',
-    'inputs': [
-      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
-      '<(res_loc)/basic.style',
-      '<(res_loc)/art/sprite.png',
-      '<(res_loc)/art/sprite_200x.png',
-    ],
-    'outputs': [
-      '<(res_loc)/art/sprite_125x.png',
-      '<(res_loc)/art/sprite_150x.png',
-    ],
-    'action': [
-      '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
-      '-I<(res_loc)', '-I<(src_loc)',
-      '--skip-styles', '<(res_loc)/basic.style',
-    ],
-    'message': 'Updating sprites..',
-  }, {
     'action_name': 'update_dependent_styles',
     'inputs': [
       '<(DEPTH)/update_dependent.py',
@@ -115,7 +97,7 @@
     ],
     'action': [
       '<(PRODUCT_DIR)/codegen_style<(exe_ext)',
-      '-I<(res_loc)', '-I<(src_loc)', '--skip-sprites',
+      '-I<(res_loc)', '-I<(src_loc)',
       '-o<(SHARED_INTERMEDIATE_DIR)/styles',
       '-w<(PRODUCT_DIR)/../..',
 

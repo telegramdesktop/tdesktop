@@ -22,17 +22,16 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/observer.h"
 
+namespace Ui {
 class Checkbox;
 class Radiobutton;
-
-namespace Ui {
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
 
 namespace Settings {
 
-class BlockWidget : public ScrolledWidget, protected base::Subscriber {
+class BlockWidget : public TWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -87,8 +86,8 @@ private:
 		margin.setRight(margin.right() - padding.right());
 		margin.setBottom(margin.bottom() - padding.bottom());
 	}
-	void createChildRow(ChildWidget<Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
-	void createChildRow(ChildWidget<Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
+	void createChildRow(ChildWidget<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
+	void createChildRow(ChildWidget<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
 	void createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::linkButton &st = st::defaultBoxLinkButton);
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);
@@ -106,8 +105,8 @@ private:
 	template <typename Widget>
 	using NotImplementedYet = std_::enable_if_t<
 		!IsWidgetSlideWrap<Widget>::value &&
-		!std_::is_same<Widget, Checkbox>::value &&
-		!std_::is_same<Widget, Radiobutton>::value &&
+		!std_::is_same<Widget, Ui::Checkbox>::value &&
+		!std_::is_same<Widget, Ui::Radiobutton>::value &&
 		!std_::is_same<Widget, LinkButton>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
