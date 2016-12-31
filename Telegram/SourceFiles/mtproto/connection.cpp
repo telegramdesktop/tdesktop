@@ -43,6 +43,9 @@ constexpr auto kRecreateKeyId = AuthKey::KeyId(0xFFFFFFFFFFFFFFFFULL);
 constexpr auto kIntSize = static_cast<int>(sizeof(mtpPrime));
 constexpr auto kMaxModExpSize = 256;
 
+// Don't try to handle messages larger than this size.
+constexpr auto kMaxMessageLength = 16 * 1024 * 1024;
+
 bool IsGoodModExpFirst(const openssl::BigNum &modexp, const openssl::BigNum &prime) {
 	auto diff = prime - modexp;
 	if (modexp.failed() || prime.failed() || diff.failed()) {
@@ -1266,7 +1269,7 @@ void ConnectionPrivate::handleReceived() {
 		constexpr auto kMinimalIntsCount = kExternalHeaderIntsCount + kMinimalEncryptedIntsCount;
 		auto intsCount = uint32(intsBuffer.size());
 		auto ints = intsBuffer.constData();
-		if (intsCount < kMinimalIntsCount) {
+		if ((intsCount < kMinimalIntsCount) || (intsCount > kMaxMessageLength / kIntSize)) {
 			LOG(("TCP Error: bad message received, len %1").arg(intsCount * kIntSize));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
 
@@ -1285,7 +1288,11 @@ void ConnectionPrivate::handleReceived() {
 		auto decryptedBuffer = QByteArray(encryptedBytesCount, Qt::Uninitialized);
 		auto msgKey = *(MTPint128*)(ints + 2);
 
+#ifdef TDESKTOP_MTPROTO_OLD
+		aesIgeDecrypt_oldmtp(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, key, msgKey);
+#else // TDESKTOP_MTPROTO_OLD
 		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, key, msgKey);
+#endif // TDESKTOP_MTPROTO_OLD
 
 		auto decryptedInts = reinterpret_cast<const mtpPrime*>(decryptedBuffer.constData());
 		auto serverSalt = *(uint64*)&decryptedInts[0];
@@ -1295,19 +1302,55 @@ void ConnectionPrivate::handleReceived() {
 		auto needAck = ((seqNo & 0x01) != 0);
 
 		auto messageLength = *(uint32*)&decryptedInts[7];
+		if (messageLength > kMaxMessageLength) {
+			LOG(("TCP Error: bad messageLength %1").arg(messageLength));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
+
+			return restartOnError();
+
+		}
 		auto fullDataLength = kEncryptedHeaderIntsCount * kIntSize + messageLength; // Without padding.
 
-		constexpr auto kMaxPaddingSize = 15U;
-		auto paddingSize = encryptedBytesCount - fullDataLength; // Can underflow.
-		auto badMessageLength = (/*paddingSize < 0 || */paddingSize > kMaxPaddingSize);
+		// Can underflow, but it is an unsigned type, so we just check the range later.
+		auto paddingSize = static_cast<uint32>(encryptedBytesCount) - static_cast<uint32>(fullDataLength);
+
+#ifdef TDESKTOP_MTPROTO_OLD
+		constexpr auto kMinPaddingSize_oldmtp = 0U;
+		constexpr auto kMaxPaddingSize_oldmtp = 15U;
+		auto badMessageLength = (/*paddingSize < kMinPaddingSize_oldmtp || */paddingSize > kMaxPaddingSize_oldmtp);
+
 		auto hashedDataLength = badMessageLength ? encryptedBytesCount : fullDataLength;
 		auto sha1ForMsgKeyCheck = hashSha1(decryptedInts, hashedDataLength);
-		if (memcmp(&msgKey, sha1ForMsgKeyCheck.data() + sha1ForMsgKeyCheck.size() - sizeof(msgKey), sizeof(msgKey)) != 0) {
+
+		constexpr auto kMsgKeyShift_oldmtp = 4U;
+		if (memcmp(&msgKey, sha1ForMsgKeyCheck.data() + kMsgKeyShift_oldmtp, sizeof(msgKey)) != 0) {
 			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message."));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
 			return restartOnError();
 		}
+#else // TDESKTOP_MTPROTO_OLD
+		constexpr auto kMinPaddingSize = 12U;
+		constexpr auto kMaxPaddingSize = 1024U;
+		auto badMessageLength = (paddingSize < kMinPaddingSize || paddingSize > kMaxPaddingSize);
+
+		std::array<uchar, 32> sha256Buffer = { { 0 } };
+
+		SHA256_CTX msgKeyLargeContext;
+		SHA256_Init(&msgKeyLargeContext);
+		SHA256_Update(&msgKeyLargeContext, key->partForMsgKey(false), 32);
+		SHA256_Update(&msgKeyLargeContext, decryptedInts, encryptedBytesCount);
+		SHA256_Final(sha256Buffer.data(), &msgKeyLargeContext);
+
+		constexpr auto kMsgKeyShift = 8U;
+		if (memcmp(&msgKey, sha256Buffer.data() + kMsgKeyShift, sizeof(msgKey)) != 0) {
+			LOG(("TCP Error: bad SHA256 hash after aesDecrypt in message"));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
+
+			return restartOnError();
+		}
+#endif // TDESKTOP_MTPROTO_OLD
+
 		if (badMessageLength || (messageLength & 0x03)) {
 			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(messageLength).arg(encryptedBytesCount));
 			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
@@ -2465,7 +2508,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 		memcpy(_authKeyData->aesIV + 8, sha1nn, 20);
 		memcpy(_authKeyData->aesIV + 28, &_authKeyData->new_nonce, 4);
 
-		aesIgeDecrypt(encDHStr.constData(), &decBuffer[0], encDHLen, _authKeyData->aesKey, _authKeyData->aesIV);
+		aesIgeDecryptRaw(encDHStr.constData(), &decBuffer[0], encDHLen, _authKeyData->aesKey, _authKeyData->aesIV);
 
 		const mtpPrime *from(&decBuffer[5]), *to(from), *end(from + (encDHBufLen - 5));
 		MTPServer_DH_inner_data dh_inner;
@@ -2591,7 +2634,7 @@ std::string ConnectionPrivate::encryptClientDHInner(const MTPClient_DH_Inner_Dat
 
 	auto sdhEncString = std::string(encFullSize * 4, ' ');
 
-	aesIgeEncrypt(&encBuffer[0], &sdhEncString[0], encFullSize * sizeof(mtpPrime), _authKeyData->aesKey, _authKeyData->aesIV);
+	aesIgeEncryptRaw(&encBuffer[0], &sdhEncString[0], encFullSize * sizeof(mtpPrime), _authKeyData->aesKey, _authKeyData->aesIV);
 
 	return sdhEncString;
 }
@@ -2893,7 +2936,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 		return false;
 	}
 
-	AuthKeyPtr key(sessionData->getKey());
+	auto key = sessionData->getKey();
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
 
@@ -2902,7 +2945,6 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 		return false;
 	}
 
-	uint32 padding = fullSize - 4 - messageSize;
 	uint64 session(sessionData->getSession()), salt(sessionData->getSalt());
 
 	memcpy(request->data() + 0, &salt, 2 * sizeof(mtpPrime));
@@ -2910,6 +2952,9 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 
 	const mtpPrime *from = request->constData() + 4;
 	MTP_LOG(_shiftedDcId, ("Send: ") + mtpTextSerialize(from, from + messageSize));
+
+#ifdef TDESKTOP_MTPROTO_OLD
+	uint32 padding = fullSize - 4 - messageSize;
 
 	uchar encryptedSHA[20];
 	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA + 4));
@@ -2920,7 +2965,24 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 	*((uint64*)&result[2]) = keyId;
 	*((MTPint128*)&result[4]) = msgKey;
 
+	aesIgeEncrypt_oldmtp(request->constData(), &result[8], fullSize * sizeof(mtpPrime), key, msgKey);
+#else // TDESKTOP_MTPROTO_OLD
+	uchar encryptedSHA256[32];
+	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA256 + 8));
+
+	SHA256_CTX msgKeyLargeContext;
+	SHA256_Init(&msgKeyLargeContext);
+	SHA256_Update(&msgKeyLargeContext, key->partForMsgKey(true), 32);
+	SHA256_Update(&msgKeyLargeContext, request->constData(), fullSize * sizeof(mtpPrime));
+	SHA256_Final(encryptedSHA256, &msgKeyLargeContext);
+
+	mtpBuffer result;
+	result.resize(9 + fullSize);
+	*((uint64*)&result[2]) = keyId;
+	*((MTPint128*)&result[4]) = msgKey;
+
 	aesIgeEncrypt(request->constData(), &result[8], fullSize * sizeof(mtpPrime), key, msgKey);
+#endif // TDESKTOP_MTPROTO_OLD
 
 	DEBUG_LOG(("MTP Info: sending request, size: %1, num: %2, time: %3").arg(fullSize + 6).arg((*request)[4]).arg((*request)[5]));
 

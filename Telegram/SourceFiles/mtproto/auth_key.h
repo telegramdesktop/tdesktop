@@ -58,39 +58,11 @@ public:
 		return _keyId;
 	}
 
-	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send = true) const {
-		uint32 x = send ? 0 : 8;
+	void prepareAES_oldmtp(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const;
+	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const;
 
-		uchar data_a[16 + 32], sha1_a[20];
-		memcpy(data_a, &msgKey, 16);
-		memcpy(data_a + 16, _key.data() + x, 32);
-		hashSha1(data_a, 16 + 32, sha1_a);
-
-		uchar data_b[16 + 16 + 16], sha1_b[20];
-		memcpy(data_b, _key.data() + 32 + x, 16);
-		memcpy(data_b + 16, &msgKey, 16);
-		memcpy(data_b + 32, _key.data() + 48 + x, 16);
-		hashSha1(data_b, 16 + 16 + 16, sha1_b);
-
-		uchar data_c[32 + 16], sha1_c[20];
-		memcpy(data_c, _key.data() + 64 + x, 32);
-		memcpy(data_c + 32, &msgKey, 16);
-		hashSha1(data_c, 32 + 16, sha1_c);
-
-		uchar data_d[16 + 32], sha1_d[20];
-		memcpy(data_d, &msgKey, 16);
-		memcpy(data_d + 16, _key.data() + 96 + x, 32);
-		hashSha1(data_d, 16 + 32, sha1_d);
-
-		auto key = reinterpret_cast<uchar*>(&aesKey);
-		auto iv = reinterpret_cast<uchar*>(&aesIV);
-		memcpy(key, sha1_a, 8);
-		memcpy(key + 8, sha1_b + 8, 12);
-		memcpy(key + 8 + 12, sha1_c + 4, 12);
-		memcpy(iv, sha1_a + 8, 12);
-		memcpy(iv + 12, sha1_b, 8);
-		memcpy(iv + 12 + 8, sha1_c + 16, 4);
-		memcpy(iv + 12 + 8 + 4, sha1_d, 8);
+	const void *partForMsgKey(bool send) const {
+		return _key.data() + 88 + (send ? 0 : 8);
 	}
 
 	void write(QDataStream &to) const {
@@ -131,35 +103,49 @@ private:
 using AuthKeyPtr = std::shared_ptr<AuthKey>;
 using AuthKeysList = std::vector<AuthKeyPtr>;
 
-void aesIgeEncrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv);
-void aesIgeDecrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv);
+void aesIgeEncryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv);
+void aesIgeDecryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv);
+
+inline void aesIgeEncrypt_oldmtp(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const MTPint128 &msgKey) {
+	MTPint256 aesKey, aesIV;
+	authKey->prepareAES_oldmtp(msgKey, aesKey, aesIV, true);
+
+	return aesIgeEncryptRaw(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
+}
 
 inline void aesIgeEncrypt(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
-	authKey->prepareAES(msgKey, aesKey, aesIV);
+	authKey->prepareAES(msgKey, aesKey, aesIV, true);
 
-	return aesIgeEncrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
+	return aesIgeEncryptRaw(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
 inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
-	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
+	authKey->prepareAES_oldmtp(*(const MTPint128*)key128, aesKey, aesIV, false);
 
-	return aesIgeEncrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
+	return aesIgeEncryptRaw(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
+}
+
+inline void aesIgeDecrypt_oldmtp(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const MTPint128 &msgKey) {
+	MTPint256 aesKey, aesIV;
+	authKey->prepareAES_oldmtp(msgKey, aesKey, aesIV, false);
+
+	return aesIgeDecryptRaw(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
 inline void aesIgeDecrypt(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const MTPint128 &msgKey) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(msgKey, aesKey, aesIV, false);
 
-	return aesIgeDecrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
+	return aesIgeDecryptRaw(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
 inline void aesDecryptLocal(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
-	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
+	authKey->prepareAES_oldmtp(*(const MTPint128*)key128, aesKey, aesIV, false);
 
-	return aesIgeDecrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
+	return aesIgeDecryptRaw(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
 // ctr used inplace, encrypt the data and leave it at the same place

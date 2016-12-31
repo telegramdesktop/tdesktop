@@ -100,7 +100,18 @@ public:
 
 private:
 	static uint32 _padding(uint32 requestSize) {
+#ifdef TDESKTOP_MTPROTO_OLD
 		return ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
+#else // TDESKTOP_MTPROTO_OLD
+		auto result = ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
+
+		// At least 12 bytes of random padding.
+		if (result < 3) {
+			result += 4;
+		}
+
+		return result;
+#endif // TDESKTOP_MTPROTO_OLD
 	}
 
 };

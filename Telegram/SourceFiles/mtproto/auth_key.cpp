@@ -24,7 +24,65 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace MTP {
 
-void aesIgeEncrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv) {
+void AuthKey::prepareAES_oldmtp(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const {
+	uint32 x = send ? 0 : 8;
+
+	uchar data_a[16 + 32], sha1_a[20];
+	memcpy(data_a, &msgKey, 16);
+	memcpy(data_a + 16, _key.data() + x, 32);
+	hashSha1(data_a, 16 + 32, sha1_a);
+
+	uchar data_b[16 + 16 + 16], sha1_b[20];
+	memcpy(data_b, _key.data() + 32 + x, 16);
+	memcpy(data_b + 16, &msgKey, 16);
+	memcpy(data_b + 32, _key.data() + 48 + x, 16);
+	hashSha1(data_b, 16 + 16 + 16, sha1_b);
+
+	uchar data_c[32 + 16], sha1_c[20];
+	memcpy(data_c, _key.data() + 64 + x, 32);
+	memcpy(data_c + 32, &msgKey, 16);
+	hashSha1(data_c, 32 + 16, sha1_c);
+
+	uchar data_d[16 + 32], sha1_d[20];
+	memcpy(data_d, &msgKey, 16);
+	memcpy(data_d + 16, _key.data() + 96 + x, 32);
+	hashSha1(data_d, 16 + 32, sha1_d);
+
+	auto key = reinterpret_cast<uchar*>(&aesKey);
+	auto iv = reinterpret_cast<uchar*>(&aesIV);
+	memcpy(key, sha1_a, 8);
+	memcpy(key + 8, sha1_b + 8, 12);
+	memcpy(key + 8 + 12, sha1_c + 4, 12);
+	memcpy(iv, sha1_a + 8, 12);
+	memcpy(iv + 12, sha1_b, 8);
+	memcpy(iv + 12 + 8, sha1_c + 16, 4);
+	memcpy(iv + 12 + 8 + 4, sha1_d, 8);
+}
+
+void AuthKey::prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send) const {
+	uint32 x = send ? 0 : 8;
+
+	uchar data_a[16 + 36], sha256_a[32];
+	memcpy(data_a, &msgKey, 16);
+	memcpy(data_a + 16, _key.data() + x, 36);
+	hashSha256(data_a, 16 + 36, sha256_a);
+
+	uchar data_b[36 + 16], sha256_b[32];
+	memcpy(data_b, _key.data() + 40 + x, 36);
+	memcpy(data_b + 36, &msgKey, 16);
+	hashSha256(data_b, 36 + 16, sha256_b);
+
+	auto key = reinterpret_cast<uchar*>(&aesKey);
+	auto iv = reinterpret_cast<uchar*>(&aesIV);
+	memcpy(key, sha256_a, 8);
+	memcpy(key + 8, sha256_b + 8, 16);
+	memcpy(key + 8 + 16, sha256_a + 24, 8);
+	memcpy(iv, sha256_b, 8);
+	memcpy(iv + 8, sha256_a + 8, 16);
+	memcpy(iv + 8 + 16, sha256_b + 24, 8);
+}
+
+void aesIgeEncryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv) {
 	uchar aes_key[32], aes_iv[32];
 	memcpy(aes_key, key, 32);
 	memcpy(aes_iv, iv, 32);
@@ -34,7 +92,7 @@ void aesIgeEncrypt(const void *src, void *dst, uint32 len, const void *key, cons
 	AES_ige_encrypt(static_cast<const uchar*>(src), static_cast<uchar*>(dst), len, &aes, aes_iv, AES_ENCRYPT);
 }
 
-void aesIgeDecrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv) {
+void aesIgeDecryptRaw(const void *src, void *dst, uint32 len, const void *key, const void *iv) {
 	uchar aes_key[32], aes_iv[32];
 	memcpy(aes_key, key, 32);
 	memcpy(aes_iv, iv, 32);
