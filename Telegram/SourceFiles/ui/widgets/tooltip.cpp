@@ -50,7 +50,13 @@ Tooltip::Tooltip() : TWidget(nullptr) {
 
 void Tooltip::onShow() {
 	if (_shower) {
-		QString text = (App::wnd() && App::wnd()->isActive(false)) ? _shower->tooltipText() : QString();
+		auto text = QString();
+		if (auto window = App::wnd()) {
+			window->updateIsActive(0);
+			if (window->isActive()) {
+				text = _shower->tooltipText();
+			}
+		}
 		if (text.isEmpty()) {
 			Hide();
 		} else {

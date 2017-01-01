@@ -24,6 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_common.h"
 #include "core/single_timer.h"
 
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 namespace Dialogs {
 class Row;
 } // namespace Dialogs
@@ -260,7 +264,11 @@ public:
 	void deleteAllFromUser(ChannelData *channel, UserData *from);
 
 	void addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users);
-	bool addParticipantFail(UserData *user, const RPCError &e);
+	struct UserAndPeer {
+		UserData *user;
+		PeerData *peer;
+	};
+	bool addParticipantFail(UserAndPeer data, const RPCError &e);
 	bool addParticipantsFail(ChannelData *channel, const RPCError &e); // for multi invite in channels
 
 	void kickParticipant(ChatData *chat, UserData *user);
@@ -302,7 +310,6 @@ public:
 	void searchMessages(const QString &query, PeerData *inPeer);
 	bool preloadOverview(PeerData *peer, MediaOverviewType type);
 	void preloadOverviews(PeerData *peer);
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemEdited(HistoryItem *item);
 
@@ -496,6 +503,7 @@ private:
 
 	void messagesAffected(PeerData *peer, const MTPmessages_AffectedMessages &result);
 	void overviewLoaded(History *history, const MTPmessages_Messages &result, mtpRequestId req);
+	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
 	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back, bool saveInStack);

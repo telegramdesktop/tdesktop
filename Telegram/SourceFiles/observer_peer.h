@@ -91,6 +91,13 @@ inline void peerUpdatedDelayed(PeerData *peer, PeerUpdate::Flags events) {
 }
 void peerUpdatedSendDelayed();
 
+inline void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	PeerUpdate update(peer);
+	update.flags |= PeerUpdate::Flag::SharedMediaChanged;
+	update.mediaTypesMask |= (1 << type);
+	peerUpdatedDelayed(update);
+}
+
 class PeerUpdatedHandler {
 public:
 	template <typename Lambda>

@@ -103,7 +103,12 @@ public:
 	void revert();
 
 	int32 id() const;
-	const QPixmap &image() const;
+	const QPixmap &pixmap() const {
+		return _pixmap;
+	}
+	const QPixmap &pixmapForTiled() const {
+		return _pixmapForTiled;
+	}
 	bool tile() const;
 	bool tileForSave() const;
 
@@ -114,7 +119,8 @@ private:
 	void writeNewBackgroundSettings();
 
 	int32 _id = internal::kUninitializedBackground;
-	QPixmap _image;
+	QPixmap _pixmap;
+	QPixmap _pixmapForTiled;
 	bool _tile = false;
 
 	QImage _themeImage;

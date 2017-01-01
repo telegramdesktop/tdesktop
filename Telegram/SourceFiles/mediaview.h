@@ -41,6 +41,10 @@ struct Preview;
 } // namespace Theme
 } // namespace Window
 
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 struct AudioPlaybackState;
 
 class MediaView : public TWidget, private base::Subscriber, public RPCSender, public ClickHandlerHost {
@@ -67,7 +71,7 @@ public:
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 

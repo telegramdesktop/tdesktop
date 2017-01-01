@@ -195,7 +195,7 @@ void MainWindow::initHook() {
 	setWindowIcon(wndIcon);
 }
 
-bool MainWindow::psHasTrayIcon() const {
+bool MainWindow::hasTrayIcon() const {
 	return trayIcon || ((useAppIndicator || (useStatusIcon && trayIconChecked)) && (cWorkMode() != dbiwmWindowOnly));
 }
 

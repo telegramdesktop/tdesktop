@@ -391,8 +391,6 @@ void MainWindow::psFirstShow() {
 	setPositionInited();
 
 	createGlobalMenu();
-
-	psMacUpdateMenu();
 }
 
 void MainWindow::createGlobalMenu() {
@@ -436,6 +434,8 @@ void MainWindow::createGlobalMenu() {
 	psNewChannel = window->addAction(lang(lng_mac_menu_new_channel), App::wnd(), SLOT(onShowNewChannel()));
 	window->addSeparator();
 	psShowTelegram = window->addAction(lang(lng_mac_menu_show), App::wnd(), SLOT(showFromTray()));
+
+	updateGlobalMenu();
 }
 
 namespace {
@@ -492,10 +492,10 @@ void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
 void MainWindow::psUpdateMargins() {
 }
 
-void MainWindow::psMacUpdateMenu() {
-	if (!positionInited()) return;
+void MainWindow::updateGlobalMenuHook() {
+	if (!App::wnd() || !positionInited()) return;
 
-	QWidget *focused = QApplication::focusWidget();
+	auto focused = QApplication::focusWidget();
 	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
@@ -513,6 +513,7 @@ void MainWindow::psMacUpdateMenu() {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
+	App::wnd()->updateIsActive(0);
 	_forceDisabled(psLogout, !isLogged && !App::passcoded());
 	_forceDisabled(psUndo, !canUndo);
 	_forceDisabled(psRedo, !canRedo);
@@ -525,7 +526,7 @@ void MainWindow::psMacUpdateMenu() {
 	_forceDisabled(psAddContact, !isLogged || App::passcoded());
 	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
 	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
-	_forceDisabled(psShowTelegram, App::wnd()->isActive(false));
+	_forceDisabled(psShowTelegram, App::wnd()->isActive());
 }
 
 void MainWindow::psFlash() {
@@ -540,7 +541,7 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
 		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || qobject_cast<HistoryInner*>(obj)) {
-			psMacUpdateMenu();
+			updateGlobalMenu();
 		}
 	}
 	return Window::MainWindow::eventFilter(obj, evt);

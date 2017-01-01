@@ -1089,7 +1089,7 @@ bool History::addToOverview(MediaOverviewType type, MsgId msgId, AddToOverviewMe
 		if (overviewCountData[type] > 0) {
 			++overviewCountData[type];
 		}
-		if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
+		Notify::mediaOverviewUpdated(peer, type);
 	}
 	return true;
 }
@@ -1110,7 +1110,7 @@ void History::eraseFromOverview(MediaOverviewType type, MsgId msgId) {
 			break;
 		}
 	}
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
+	Notify::mediaOverviewUpdated(peer, type);
 }
 
 HistoryItem *History::addNewItem(HistoryItem *adding, bool newMsg) {
@@ -1375,8 +1375,11 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 				}
 			}
 		}
-		for (int32 t = 0; t < OverviewCount; ++t) {
-			if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
+		if (mask) {
+			Notify::PeerUpdate update(peer);
+			update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+			update.mediaTypesMask |= mask;
+			Notify::peerUpdatedDelayed(update);
 		}
 	}
 
@@ -1453,8 +1456,11 @@ void History::checkAddAllToOverview() {
 			mask |= item->addToOverview(AddToOverviewBack);
 		}
 	}
-	for (int32 t = 0; t < OverviewCount; ++t) {
-		if ((mask & (1 << t)) && App::wnd()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(t));
+	if (mask) {
+		Notify::PeerUpdate update(peer);
+		update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+		update.mediaTypesMask |= mask;
+		Notify::peerUpdatedDelayed(update);
 	}
 }
 
@@ -2009,7 +2015,7 @@ void History::clear(bool leaveItems) {
 			}
 			overview[i].clear();
 			overviewIds[i].clear();
-			if (App::wnd() && !App::quitting()) App::wnd()->mediaOverviewUpdated(peer, MediaOverviewType(i));
+			if (!App::quitting()) Notify::mediaOverviewUpdated(peer, MediaOverviewType(i));
 		}
 	}
 	clearBlocks(leaveItems);

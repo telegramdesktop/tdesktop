@@ -33,7 +33,8 @@ namespace Window {
 MainWindow::MainWindow() : QWidget()
 , _positionUpdatedTimer(this)
 , _body(this)
-, _titleText(qsl("Telegram")) {
+, _titleText(qsl("Telegram"))
+, _isActiveTimer(this) {
 	subscribe(Theme::Background(), [this](const Theme::BackgroundUpdate &data) {
 		if (data.paletteChanged()) {
 			if (_title) {
@@ -43,11 +44,14 @@ MainWindow::MainWindow() : QWidget()
 		}
 	});
 	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
+
+	_isActiveTimer->setSingleShot(true);
+	connect(_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActiveByTimer()));
 }
 
 bool MainWindow::hideNoQuit() {
 	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->hide();
+		hideMediaview();
 		return true;
 	}
 	if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
@@ -62,6 +66,59 @@ bool MainWindow::hideNoQuit() {
 		Ui::showChatsList();
 		return true;
 	}
+	return false;
+}
+
+void MainWindow::clearWidgets() {
+	Ui::hideLayer(true);
+	if (_mediaView) {
+		hideMediaview();
+		_mediaView->rpcClear();
+		_mediaView->clearData();
+	}
+	clearWidgetsHook();
+	updateGlobalMenu();
+}
+
+void MainWindow::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
+	return (!item && lnk->peer()) ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
+}
+
+void MainWindow::showPhoto(PhotoData *photo, HistoryItem *item) {
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	_mediaView->showPhoto(photo, item);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
+void MainWindow::showPhoto(PhotoData *photo, PeerData *peer) {
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	_mediaView->showPhoto(photo, peer);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
+void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
+	if (_mediaView->isHidden()) Ui::hideLayer(true);
+	_mediaView->showDocument(doc, item);
+	_mediaView->activateWindow();
+	_mediaView->setFocus();
+}
+
+bool MainWindow::ui_isMediaViewShown() {
+	return _mediaView && !_mediaView->isHidden();
+}
+
+void MainWindow::updateIsActive(int timeout) {
+	if (timeout) {
+		return _isActiveTimer->start(timeout);
+	}
+	_isActive = computeIsActive();
+	updateIsActiveHook();
+}
+
+bool MainWindow::computeIsActive() const {
+	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
 }
 
 void MainWindow::hideMediaview() {
@@ -251,22 +308,31 @@ void MainWindow::savePosition(Qt::WindowState state) {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (App::quitting() || !psHasTrayIcon()) return false;
+	if (App::quitting() || !hasTrayIcon()) return false;
 
 	closeWithoutDestroy();
-	if (cPlatform() == dbipWindows && trayIcon && !cSeenTrayTooltip()) {
-		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
-		cSetSeenTrayTooltip(true);
-		Local::writeSettings();
-	}
 	updateIsActive(Global::OfflineBlurTimeout());
 	updateTrayMenu();
 	updateGlobalMenu();
+	showTrayTooltip();
 	return true;
 }
 
-void MainWindow::closeWithoutDestroy() {
-	hide();
+void MainWindow::documentUpdated(DocumentData *doc) {
+	if (!_mediaView || _mediaView->isHidden()) return;
+	_mediaView->documentUpdated(doc);
+}
+
+void MainWindow::changingMsgId(HistoryItem *row, MsgId newId) {
+	if (!_mediaView || _mediaView->isHidden()) return;
+	_mediaView->changingMsgId(row, newId);
+}
+
+PeerData *MainWindow::ui_getPeerForMouseAction() {
+	if (_mediaView && !_mediaView->isHidden()) {
+		return _mediaView->ui_getPeerForMouseAction();
+	}
+	return nullptr;
 }
 
 MainWindow::~MainWindow() = default;

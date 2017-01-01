@@ -44,8 +44,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 
-QString cantInviteError() {
-	return lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info)));
+QString PeerFloodErrorText(PeerFloodType type) {
+	auto link = textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info));
+	if (type == PeerFloodType::InviteGroup) {
+		return lng_cant_invite_not_contact(lt_more_info, link);
+	}
+	return lng_cant_send_to_not_contact(lt_more_info, link);
 }
 
 ContactsBox::ContactsBox(QWidget*, ChatData *chat, MembersFilter filter)
@@ -360,6 +364,8 @@ void ContactsBox::inviteParticipants() {
 
 void ContactsBox::createGroup() {
 	if (_saveRequestId) return;
+	Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)), KeepOtherLayers);
+	return;
 
 	auto users = _inner->selectedInputs();
 	if (users.isEmpty() || (users.size() == 1 && users.at(0).type() == mtpc_inputUserSelf)) {
@@ -512,7 +518,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 		_select->entity()->setInnerFocus();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		Ui::show(Box<InformBox>(cantInviteError()), KeepOtherLayers);
+		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::InviteGroup)), KeepOtherLayers);
 		return true;
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
 		Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
@@ -718,7 +724,7 @@ void ContactsBox::Inner::addBot() {
 				history->sendRequestId = requestId;
 			}
 		} else if (!info->startGroupToken.isEmpty()) {
-			MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(info->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+			MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(info->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, { _bot, _addToPeer }));
 		} else {
 			App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 		}

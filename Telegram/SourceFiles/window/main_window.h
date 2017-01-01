@@ -39,6 +39,10 @@ public:
 
 	void init();
 	HitTestResult hitTest(const QPoint &p) const;
+	void updateIsActive(int timeout);
+	bool isActive() const {
+		return _isActive;
+	}
 
 	bool positionInited() const {
 		return _positionInited;
@@ -51,16 +55,33 @@ public:
 		return _titleText;
 	}
 
+	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
+	void showPhoto(PhotoData *photo, HistoryItem *item);
+	void showPhoto(PhotoData *photo, PeerData *item);
+	void showDocument(DocumentData *doc, HistoryItem *item);
+	bool ui_isMediaViewShown();
+
 	QWidget *filedialogParent();
+
+	virtual void updateTrayMenu(bool force = false) {
+	}
+
+	// TODO: rewrite using base::Observable
+	void documentUpdated(DocumentData *doc);
+	virtual void changingMsgId(HistoryItem *row, MsgId newId);
 
 	virtual ~MainWindow();
 
 	TWidget *bodyWidget() {
 		return _body.data();
 	}
+	virtual PeerData *ui_getPeerForMouseAction();
 
 public slots:
 	bool minimizeToTray();
+	void updateGlobalMenu() {
+		updateGlobalMenuHook();
+	}
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -68,6 +89,13 @@ protected:
 	void savePosition(Qt::WindowState state = Qt::WindowActive);
 
 	virtual void initHook() {
+	}
+
+	virtual void updateIsActiveHook() {
+	}
+
+	void clearWidgets();
+	virtual void clearWidgetsHook() {
 	}
 
 	virtual void stateChangedHook(Qt::WindowState state) {
@@ -83,6 +111,15 @@ protected:
 		hide();
 	}
 
+	virtual void updateGlobalMenuHook() {
+	}
+
+	virtual bool hasTrayIcon() const {
+		return false;
+	}
+	virtual void showTrayTooltip() {
+	}
+
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;
 
@@ -95,12 +132,17 @@ private slots:
 		savePosition();
 	}
 	void onReActivate();
+	void updateIsActiveByTimer() {
+		updateIsActive(0);
+	}
 
 private:
 	void updatePalette();
 	void updateControlsGeometry();
 	void updateUnreadCounter();
 	void initSize();
+
+	bool computeIsActive() const;
 
 	object_ptr<QTimer> _positionUpdatedTimer;
 	bool _positionInited = false;
@@ -109,6 +151,9 @@ private:
 	object_ptr<TWidget> _body;
 
 	QString _titleText;
+
+	object_ptr<QTimer> _isActiveTimer;
+	bool _isActive = false;
 
 	object_ptr<MediaView> _mediaView = { nullptr };
 

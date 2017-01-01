@@ -93,7 +93,7 @@ protected:
 	int32 screenNameChecksum(const QString &name) const override;
 	void unreadCounterChangedHook() override;
 
-	bool psHasTrayIcon() const {
+	bool hasTrayIcon() const override {
 		return trayIcon;
 	}
 
@@ -105,6 +105,8 @@ protected:
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
+
+	void showTrayTooltip() override;
 
 	QTimer psUpdatedPositionTimer;
 

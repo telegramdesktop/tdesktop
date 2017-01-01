@@ -693,6 +693,14 @@ void MainWindow::psSetupTrayIcon() {
 	trayIcon->show();
 }
 
+void MainWindow::showTrayTooltip() {
+	if (trayIcon && !cSeenTrayTooltip()) {
+		trayIcon->showMessage(str_const_toString(AppName), lang(lng_tray_icon_text), QSystemTrayIcon::Information, 10000);
+		cSetSeenTrayTooltip(true);
+		Local::writeSettings();
+	}
+}
+
 void MainWindow::psUpdateWorkmode() {
 	switch (cWorkMode()) {
 	case dbiwmWindowAndTray: {
@@ -809,7 +817,7 @@ void MainWindow::psFirstShow() {
 		setWindowState(Qt::WindowMaximized);
 	}
 
-	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
+	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized() && !App::passcoded()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
 		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
 			hide();

@@ -148,6 +148,11 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 
 	subscribe(Adaptive::Changed(), [this]() { updateAdaptiveLayout(); });
 
+	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		mediaOverviewUpdated(update);
+	}));
+
 	_dialogs->show();
 	if (Adaptive::OneColumn()) {
 		_history->hide();
@@ -919,8 +924,9 @@ void MainWidget::clearHistory(PeerData *peer) {
 
 void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData*> &users) {
 	if (chatOrChannel->isChat()) {
-		for (QVector<UserData*>::const_iterator i = users.cbegin(), e = users.cend(); i != e; ++i) {
-			MTP::send(MTPmessages_AddChatUser(chatOrChannel->asChat()->inputChat, (*i)->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, *i), 0, 5);
+		auto chat = chatOrChannel->asChat();
+		for_const (auto user, users) {
+			MTP::send(MTPmessages_AddChatUser(chat->inputChat, user->inputUser, MTP_int(ForwardOnAdd)), rpcDone(&MainWidget::sentUpdatesReceived), rpcFail(&MainWidget::addParticipantFail, { user, chat }), 0, 5);
 		}
 	} else if (chatOrChannel->isChannel()) {
 		QVector<MTPInputUser> inputUsers;
@@ -938,7 +944,7 @@ void MainWidget::addParticipants(PeerData *chatOrChannel, const QVector<UserData
 	}
 }
 
-bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
+bool MainWidget::addParticipantFail(UserAndPeer data, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	QString text = lang(lng_failed_add_participant);
@@ -949,10 +955,10 @@ bool MainWidget::addParticipantFail(UserData *user, const RPCError &error) {
 		text = lang(lng_cant_invite_privacy);
 	} else if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) { // trying to return user who does not have me in contacts
 		text = lang(lng_failed_add_not_mutual);
-	} else if (error.type() == qstr("USER_ALREADY_PARTICIPANT") && user->botInfo) {
+	} else if (error.type() == qstr("USER_ALREADY_PARTICIPANT") && data.user->botInfo) {
 		text = lang(lng_bot_already_in_group);
 	} else if (error.type() == qstr("PEER_FLOOD")) {
-		text = cantInviteError();
+		text = PeerFloodErrorText((data.peer->isChat() || data.peer->isMegagroup()) ? PeerFloodType::InviteGroup : PeerFloodType::InviteChannel);
 	}
 	Ui::show(Box<InformBox>(text));
 	return false;
@@ -970,7 +976,7 @@ bool MainWidget::addParticipantsFail(ChannelData *channel, const RPCError &error
 	} else if (error.type() == qstr("USER_NOT_MUTUAL_CONTACT")) { // trying to return user who does not have me in contacts
 		text = lang(channel->isMegagroup() ? lng_failed_add_not_mutual : lng_failed_add_not_mutual_channel);
 	} else if (error.type() == qstr("PEER_FLOOD")) {
-		text = cantInviteError();
+		text = PeerFloodErrorText(PeerFloodType::InviteGroup);
 	}
 	Ui::show(Box<InformBox>(text));
 	return false;
@@ -1060,22 +1066,30 @@ bool MainWidget::sendMessageFail(const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("PEER_FLOOD")) {
-		Ui::show(Box<InformBox>(cantInviteError()));
+		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)));
 		return true;
 	}
 	return false;
 }
 
 void MainWidget::onCacheBackground() {
-	auto &bg = Window::Theme::Background()->image();
 	if (Window::Theme::Background()->tile()) {
-		QImage result(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
+		auto &bg = Window::Theme::Background()->pixmapForTiled();
+
+		auto result = QImage(_willCacheFor.width() * cIntRetinaFactor(), _willCacheFor.height() * cIntRetinaFactor(), QImage::Format_RGB32);
         result.setDevicePixelRatio(cRetinaFactor());
 		{
 			QPainter p(&result);
-			int left = 0, top = 0, right = _willCacheFor.width(), bottom = _willCacheFor.height();
-			float64 w = bg.width() / cRetinaFactor(), h = bg.height() / cRetinaFactor();
-			int sx = 0, sy = 0, cx = qCeil(_willCacheFor.width() / w), cy = qCeil(_willCacheFor.height() / h);
+			auto left = 0;
+			auto top = 0;
+			auto right = _willCacheFor.width();
+			auto bottom = _willCacheFor.height();
+			auto w = bg.width() / cRetinaFactor();
+			auto h = bg.height() / cRetinaFactor();
+			auto sx = 0;
+			auto sy = 0;
+			auto cx = qCeil(_willCacheFor.width() / w);
+			auto cy = qCeil(_willCacheFor.height() / h);
 			for (int i = sx; i < cx; ++i) {
 				for (int j = sy; j < cy; ++j) {
 					p.drawPixmap(QPointF(i * w, j * h), bg);
@@ -1086,6 +1100,8 @@ void MainWidget::onCacheBackground() {
 		_cachedY = 0;
 		_cachedBackground = App::pixmapFromImageInPlace(std_::move(result));
 	} else {
+		auto &bg = Window::Theme::Background()->pixmap();
+
 		QRect to, from;
 		Window::Theme::ComputeBackgroundRects(_willCacheFor, bg.size(), to, from);
 		_cachedX = to.x();
@@ -1370,12 +1386,13 @@ void MainWidget::overviewPreloaded(PeerData *peer, const MTPmessages_Messages &r
 
 	App::history(peer->id)->overviewSliceDone(type, result, true);
 
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(peer, type);
+	Notify::mediaOverviewUpdated(peer, type);
 }
 
-void MainWidget::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+void MainWidget::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
+	auto peer = update.peer;
 	if (_overview && (_overview->peer() == peer || _overview->peer()->migrateFrom() == peer)) {
-		_overview->mediaOverviewUpdated(peer, type);
+		_overview->mediaOverviewUpdated(update);
 
 		int32 mask = 0;
 		History *h = peer ? App::historyLoaded((peer->migrateTo() ? peer->migrateTo() : peer)->id) : 0;
@@ -1472,7 +1489,7 @@ void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &re
 
 	history->overviewSliceDone(type, result);
 
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(history->peer, type);
+	Notify::mediaOverviewUpdated(history->peer, type);
 }
 
 void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
@@ -2385,7 +2402,13 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	_mediaTypeMask = 0;
 	_topBar->show();
 	resizeEvent(nullptr);
-	mediaOverviewUpdated(peer, type);
+
+	// Send a fake update.
+	Notify::PeerUpdate update(peer);
+	update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+	update.mediaTypesMask |= (1 << type);
+	mediaOverviewUpdated(update);
+
 	_overview->setLastScrollTop(lastScrollTop);
 	if (!animationParams.oldContentCache.isNull()) {
 		_overview->showAnimated(back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight, animationParams);
@@ -4453,11 +4476,11 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (msg.msg) {
 			if (auto msgRow = App::histItemById(msg)) {
 				if (App::histItemById(msg.channel, d.vid.v)) {
-					History *h = msgRow->history();
-					bool wasLast = (h->lastMsg == msgRow);
+					auto history = msgRow->history();
+					auto wasLast = (history->lastMsg == msgRow);
 					msgRow->destroy();
-					if (wasLast && !h->lastMsg) {
-						checkPeerHistory(h->peer);
+					if (wasLast && !history->lastMsg) {
+						checkPeerHistory(history->peer);
 					}
 					_history->peerMessagesUpdated();
 				} else {
@@ -4666,7 +4689,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 				}
 			}
 			App::markPeerUpdated(user);
-			if (App::wnd()) App::wnd()->mediaOverviewUpdated(user, OverviewCount);
+			Notify::mediaOverviewUpdated(user, OverviewCount);
 		}
 	} break;
 

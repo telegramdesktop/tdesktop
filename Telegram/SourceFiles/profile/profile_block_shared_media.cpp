@@ -73,8 +73,8 @@ void SharedMediaWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 		return;
 	}
 
-	bool updated = false;
-	for (int i = 0; i < OverviewCount; ++i) {
+	auto updated = false;
+	for (auto i = 0; i != OverviewCount; ++i) {
 		if (update.mediaTypesMask & (1 << i)) {
 			refreshButton(static_cast<MediaOverviewType>(i));
 			updated = true;

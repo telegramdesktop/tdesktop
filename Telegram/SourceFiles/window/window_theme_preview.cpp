@@ -413,18 +413,26 @@ void Generator::paintHistoryBackground() {
 	}
 	_p->setClipRect(_history);
 	if (tiled) {
-		auto left = _history.x(), top = _history.y(), right = _history.x() + _history.width(), bottom = _history.y() + _history.height();
-		auto w = background.width() / cRetinaFactor();
-		auto h = background.height() / cRetinaFactor();
-		auto sx = qFloor(left / w);
-		auto sy = qFloor((top - fromy) / h);
-		auto cx = qCeil(right / w);
-		auto cy = qCeil((bottom - fromy) / h);
-		for (auto i = sx; i != cx; ++i) {
-			for (auto j = sy; j != cy; ++j) {
-				_p->drawImage(QPointF(_history.x() + i * w, _history.y() + fromy + j * h), background);
+		auto width = background.width();
+		auto height = background.height();
+		auto repeatTimesX = qCeil(_history.width() * cIntRetinaFactor() / float64(width));
+		auto repeatTimesY = qCeil((_history.height() - fromy) * cIntRetinaFactor() / float64(height));
+		auto imageForTiled = QImage(width * repeatTimesX, height * repeatTimesY, QImage::Format_ARGB32_Premultiplied);
+		imageForTiled.setDevicePixelRatio(background.devicePixelRatio());
+		auto imageForTiledBytes = imageForTiled.bits();
+		auto bytesInLine = width * sizeof(uint32);
+		for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
+			auto imageBytes = background.constBits();
+			for (auto y = 0; y != height; ++y) {
+				for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
+					memcpy(imageForTiledBytes, imageBytes, bytesInLine);
+					imageForTiledBytes += bytesInLine;
+				}
+				imageBytes += background.bytesPerLine();
+				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
 			}
 		}
+		_p->drawImage(_history.x(), _history.y() + fromy, imageForTiled);
 	} else {
 		PainterHighQualityEnabler hq(*_p);
 

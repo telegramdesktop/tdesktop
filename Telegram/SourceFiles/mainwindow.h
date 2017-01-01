@@ -98,12 +98,7 @@ public:
 	MainWidget *mainWidget();
 	PasscodeWidget *passcodeWidget();
 
-	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
-	void showPhoto(PhotoData *photo, HistoryItem *item);
-	void showPhoto(PhotoData *photo, PeerData *item);
-	void showDocument(DocumentData *doc, HistoryItem *item);
-
-	bool doWeReadServerHistory() const;
+	bool doWeReadServerHistory();
 
 	void activate();
 
@@ -135,11 +130,7 @@ public:
 
 	void sendPaths();
 
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
-	void documentUpdated(DocumentData *doc);
-	void changingMsgId(HistoryItem *row, MsgId newId);
-
-	bool isActive(bool cached = true) const;
+	void changingMsgId(HistoryItem *row, MsgId newId) override;
 
 	QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) override;
 
@@ -152,15 +143,15 @@ public:
 	}
 
 	void showMainMenu();
+	void updateTrayMenu(bool force = false) override;
 
 	void ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options);
 	void ui_hideSettingsAndLayer(ShowLayerOptions options);
 	bool ui_isLayerShown();
-	bool ui_isMediaViewShown();
 	void ui_showMediaPreview(DocumentData *document);
 	void ui_showMediaPreview(PhotoData *photo);
 	void ui_hideMediaPreview();
-	PeerData *ui_getPeerForMouseAction();
+	PeerData *ui_getPeerForMouseAction() override;
 
 protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
@@ -168,10 +159,10 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 	void initHook() override;
+	void updateIsActiveHook() override;
+	void clearWidgetsHook() override;
 
 public slots:
-	void updateIsActive(int timeout = 0);
-
 	void checkAutoLock();
 
 	void showSettings();
@@ -190,13 +181,11 @@ public slots:
 	void onClearFailed(int task, void *manager);
 
 	void notifyShowNext();
-	void updateTrayMenu(bool force = false);
 
 	void onShowAddContact();
 	void onShowNewGroup();
 	void onShowNewChannel();
 	void onLogout();
-	void updateGlobalMenu(); // for OS X top menu
 
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
@@ -239,15 +228,10 @@ private:
 	object_ptr<LayerStackWidget> _layerBg = { nullptr };
 	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
-	QTimer _isActiveTimer;
-	bool _isActive = false;
-
 	object_ptr<ConnectingWidget> _connecting = { nullptr };
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
-
-	void clearWidgets();
 
 	bool _inactivePress = false;
 	QTimer _inactiveTimer;

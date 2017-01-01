@@ -193,7 +193,10 @@ void GeneralWidget::refreshControls() {
 			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
 
 			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
-			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), cStartMinimized());
+			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), (cStartMinimized() && !Global::LocalPasscode()));
+			subscribe(Global::RefLocalPasscodeChanged(), [this] {
+				_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
+			});
 			if (!cAutoStart()) {
 				_startMinimized->hideFast();
 			}
@@ -310,8 +313,18 @@ void GeneralWidget::onAutoStart() {
 }
 
 void GeneralWidget::onStartMinimized() {
-	cSetStartMinimized(_startMinimized->entity()->checked());
-	Local::writeSettings();
+	auto checked = _startMinimized->entity()->checked();
+	if (Global::LocalPasscode()) {
+		if (checked) {
+			_startMinimized->entity()->setChecked(false);
+			Ui::show(Box<InformBox>(lang(lng_error_start_minimized_passcoded)));
+		}
+		return;
+	}
+	if (cStartMinimized() != checked) {
+		cSetStartMinimized(checked);
+		Local::writeSettings();
+	}
 }
 
 void GeneralWidget::onAddInSendTo() {

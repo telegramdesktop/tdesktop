@@ -61,7 +61,7 @@ protected:
 	void initHook() override;
 	void unreadCounterChangedHook() override;
 
-	bool psHasTrayIcon() const;
+	bool hasTrayIcon() const override;
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;

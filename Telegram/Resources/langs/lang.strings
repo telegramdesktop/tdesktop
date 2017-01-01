@@ -126,6 +126,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_edit_error" = "You cannot edit this message";
 "lng_join_channel_error" = "Sorry, you have joined too many channels and supergroups. Please leave some before joining.";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
+"lng_error_start_minimized_passcoded" = "You have set a local passcode, so the app can't be launched minimized. App will ask you to enter the passcode before it can start working.";
 
 "lng_edit_deleted" = "This message was deleted";
 "lng_edit_too_long" = "Your message text is too long";
@@ -753,9 +754,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_report_spam_sure_group" = "Are you sure you want to report spam in this group?";
 "lng_report_spam_sure_channel" = "Are you sure you want to report spam in this channel?";
 "lng_report_spam_ok" = "Report";
-"lng_cant_send_to_not_contact" = "Sorry, you can only send messages to\nmutual contacts at the moment.\n{more_info}";
-"lng_cant_invite_not_contact" = "Sorry, you can only add mutual contacts\nto groups at the moment.\n{more_info}";
-"lng_cant_invite_not_contact_channel" = "Sorry, you can only add mutual contacts\nto channels at the moment.\n{more_info}";
+"lng_cant_send_to_not_contact" = "You have contacted too many non-contacts today, please try again tomorrow. You will be able to reply today if this user messages you first. {more_info}";
+"lng_cant_invite_not_contact" = "You can't add this user because you have contacted too many non-contacts today. Please try again tomorrow. You can ask another member to add this user to the group. {more_info}";
 "lng_cant_more_info" = "More info »";
 "lng_cant_invite_banned" = "Sorry, only admin can add this user.";
 "lng_cant_invite_privacy" = "Sorry, you cannot add this user to groups because of their privacy settings.";

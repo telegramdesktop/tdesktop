@@ -118,9 +118,6 @@ MainWindow::MainWindow() {
 
 	connect(&_notifyWaitTimer, SIGNAL(timeout()), this, SLOT(notifyShowNext()));
 
-	_isActiveTimer.setSingleShot(true);
-	connect(&_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActive()));
-
 	connect(&_autoLockTimer, SIGNAL(timeout()), this, SLOT(checkAutoLock()));
 
 	subscribe(Global::RefSelfChanged(), [this]() { updateGlobalMenu(); });
@@ -173,7 +170,9 @@ void MainWindow::initHook() {
 
 void MainWindow::onWindowActiveChanged() {
 	checkHistoryActivation();
-	QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
+	QTimer::singleShot(1, base::lambda_slot_once(this, [this] {
+		updateTrayMenu();
+	}), SLOT(action()));
 }
 
 void MainWindow::firstShow() {
@@ -207,20 +206,14 @@ void MainWindow::firstShow() {
 	createMediaView();
 }
 
-void MainWindow::clearWidgets() {
+void MainWindow::clearWidgetsHook() {
 	auto wasMain = (_main != nullptr);
-	Ui::hideLayer(true);
 	_passcode.destroyDelayed();
 	_main.destroy();
 	_intro.destroy();
-	if (_mediaView) {
-		hideMediaview();
-		_mediaView->rpcClear();
-	}
 	if (wasMain) {
 		App::clearHistories();
 	}
-	updateGlobalMenu();
 }
 
 QPixmap MainWindow::grabInner() {
@@ -261,7 +254,7 @@ void MainWindow::setupPasscode() {
 	updateControlsGeometry();
 
 	if (_main) _main->hide();
-	if (_mediaView) _mediaView->hide();
+	hideMediaview();
 	Ui::hideSettingsAndLayer(true);
 	if (_intro) _intro->hide();
 	if (animated) {
@@ -300,9 +293,6 @@ void MainWindow::setupIntro() {
 	cSetDialogsReceived(false);
 	if (_intro && !_intro->isHidden() && !_main) return;
 
-	if (_mediaView) {
-		_mediaView->clearData();
-	}
 	Ui::hideSettingsAndLayer(true);
 
 	auto animated = (_main || _passcode);
@@ -447,31 +437,6 @@ PasscodeWidget *MainWindow::passcodeWidget() {
 	return _passcode;
 }
 
-void MainWindow::showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item) {
-	return (!item && lnk->peer()) ? showPhoto(lnk->photo(), lnk->peer()) : showPhoto(lnk->photo(), item);
-}
-
-void MainWindow::showPhoto(PhotoData *photo, HistoryItem *item) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
-	_mediaView->showPhoto(photo, item);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
-}
-
-void MainWindow::showPhoto(PhotoData *photo, PeerData *peer) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
-	_mediaView->showPhoto(photo, peer);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
-}
-
-void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
-	_mediaView->showDocument(doc, item);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
-}
-
 void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options) {
 	if (box) {
 		if (!_layerBg) {
@@ -504,10 +469,6 @@ bool MainWindow::ui_isLayerShown() {
 	return _layerBg != nullptr;
 }
 
-bool MainWindow::ui_isMediaViewShown() {
-	return _mediaView && !_mediaView->isHidden();
-}
-
 void MainWindow::ui_showMediaPreview(DocumentData *document) {
 	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
 	if (!_mediaPreview) {
@@ -538,8 +499,8 @@ void MainWindow::ui_hideMediaPreview() {
 }
 
 PeerData *MainWindow::ui_getPeerForMouseAction() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		return _mediaView->ui_getPeerForMouseAction();
+	if (Ui::isMediaViewShown()) {
+		return Platform::MainWindow::ui_getPeerForMouseAction();
 	} else if (_main) {
 		return _main->ui_getPeerForMouseAction();
 	}
@@ -579,8 +540,9 @@ void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	}
 }
 
-bool MainWindow::doWeReadServerHistory() const {
-	return isActive(false) && _main && !Ui::isLayerShown() && _main->doWeReadServerHistory();
+bool MainWindow::doWeReadServerHistory() {
+	updateIsActive(0);
+	return isActive() && _main && !Ui::isLayerShown() && _main->doWeReadServerHistory();
 }
 
 void MainWindow::checkHistoryActivation() {
@@ -694,7 +656,8 @@ void MainWindow::updateTrayMenu(bool force) {
 		auto minimizeAction = actions.at(1);
 		minimizeAction->setDisabled(!isVisible());
 	} else {
-		auto active = isActive(false);
+		updateIsActive(0);
+		auto active = isActive();
 		auto toggleAction = actions.at(0);
 		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(minimizeToTray()));
 		disconnect(toggleAction, SIGNAL(triggered(bool)), this, SLOT(showFromTray()));
@@ -752,14 +715,6 @@ void MainWindow::onLogout() {
 	}));
 }
 
-void MainWindow::updateGlobalMenu() {
-#ifdef Q_OS_MAC
-	if (App::wnd()) {
-		psMacUpdateMenu();
-	}
-#endif
-}
-
 void MainWindow::quitFromTray() {
 	App::quit();
 }
@@ -811,20 +766,23 @@ void MainWindow::fixOrder() {
 
 void MainWindow::showFromTray(QSystemTrayIcon::ActivationReason reason) {
 	if (reason != QSystemTrayIcon::Context) {
-        QTimer::singleShot(1, this, SLOT(updateTrayMenu()));
-        QTimer::singleShot(1, this, SLOT(updateGlobalMenu()));
+		QTimer::singleShot(1, base::lambda_slot_once(this, [this] {
+			updateTrayMenu();
+			updateGlobalMenu();
+		}), SLOT(action()));
         activate();
 		Notify::unreadCounterUpdated();
 	}
 }
 
 void MainWindow::toggleTray(QSystemTrayIcon::ActivationReason reason) {
-	if ((cPlatform() == dbipMac || cPlatform() == dbipMacOld) && isActive(false)) return;
+	updateIsActive(0);
+	if ((cPlatform() == dbipMac || cPlatform() == dbipMacOld) && isActive()) return;
 	if (reason == QSystemTrayIcon::Context) {
 		updateTrayMenu(true);
 		QTimer::singleShot(1, this, SLOT(psShowTrayMenu()));
 	} else {
-		if (isActive(false)) {
+		if (isActive()) {
 			minimizeToTray();
 		} else {
 			showFromTray(reason);
@@ -1366,38 +1324,12 @@ void MainWindow::sendPaths() {
 	}
 }
 
-void MainWindow::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	if (_main) _main->mediaOverviewUpdated(peer, type);
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->mediaOverviewUpdated(peer, type);
-	}
-	if (type != OverviewCount) {
-		Notify::PeerUpdate update(peer);
-		update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
-		update.mediaTypesMask |= (1 << type);
-		Notify::peerUpdatedDelayed(update);
-	}
-}
-
-void MainWindow::documentUpdated(DocumentData *doc) {
-	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->documentUpdated(doc);
-}
-
 void MainWindow::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (_main) _main->changingMsgId(row, newId);
-	if (!_mediaView || _mediaView->isHidden()) return;
-	_mediaView->changingMsgId(row, newId);
+	Platform::MainWindow::changingMsgId(row, newId);
 }
 
-bool MainWindow::isActive(bool cached) const {
-	if (cached) return _isActive;
-	return isActiveWindow() && isVisible() && !(windowState() & Qt::WindowMinimized);
-}
-
-void MainWindow::updateIsActive(int timeout) {
-	if (timeout) return _isActiveTimer.start(timeout);
-	_isActive = isActive(false);
+void MainWindow::updateIsActiveHook() {
 	if (_main) _main->updateOnline();
 }
 

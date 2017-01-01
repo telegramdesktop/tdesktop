@@ -43,6 +43,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "history/history_service_layout.h"
 #include "media/media_audio.h"
+#include "observer_peer.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -2164,8 +2165,8 @@ void OverviewWidget::doneShow() {
 	onScroll();
 }
 
-void OverviewWidget::mediaOverviewUpdated(PeerData *p, MediaOverviewType t) {
-	if ((peer() == p || migratePeer() == p) && t == type()) {
+void OverviewWidget::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
+	if ((peer() == update.peer || migratePeer() == update.peer) && (update.mediaTypesMask & (1 << type()))) {
 		_inner->mediaOverviewUpdated();
 		onScroll();
 		updateTopBarSelection();

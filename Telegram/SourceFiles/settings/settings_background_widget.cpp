@@ -173,7 +173,7 @@ void BackgroundRow::updateImage() {
 		Painter p(&back);
 		PainterHighQualityEnabler hq(p);
 
-		auto &pix = Window::Theme::Background()->image();
+		auto &pix = Window::Theme::Background()->pixmap();
 		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();

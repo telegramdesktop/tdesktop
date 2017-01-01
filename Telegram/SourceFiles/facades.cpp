@@ -316,7 +316,7 @@ PeerData *getPeerForMouseAction() {
 bool hideWindowNoQuit() {
 	if (!App::quitting()) {
 		if (auto w = App::wnd()) {
-			w->hideNoQuit();
+			return w->hideNoQuit();
 		}
 	}
 	return false;

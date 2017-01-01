@@ -82,11 +82,11 @@ protected:
 	void unreadCounterChangedHook() override;
 
 	QImage psTrayIcon(bool selected = false) const;
-	bool psHasTrayIcon() const {
+	bool hasTrayIcon() const override {
 		return trayIcon;
 	}
 
-	void psMacUpdateMenu();
+	void updateGlobalMenuHook() override;
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;

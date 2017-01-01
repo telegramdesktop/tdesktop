@@ -36,6 +36,8 @@ constexpr int kThemeFileSizeLimit = 5 * 1024 * 1024;
 constexpr int kThemeBackgroundSizeLimit = 4 * 1024 * 1024;
 constexpr int kThemeSchemeSizeLimit = 1024 * 1024;
 
+constexpr int kMinimumTiledSize = 512;
+
 struct Data {
 	struct Applying {
 		QString path;
@@ -335,6 +337,8 @@ void initColor(style::color color, float64 hue, float64 saturation) {
 }
 
 void initColorsFromBackground(const QImage &img) {
+	t_assert(img.format() == QImage::Format_ARGB32_Premultiplied);
+
 	uint64 components[3] = { 0 };
 	uint64 componentsScroll[3] = { 0 };
 	auto w = img.width();
@@ -409,23 +413,48 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 		Local::writeBackground(_id, (_id == kDefaultBackground || _id == kInitialBackground) ? QImage() : image);
 		setPreparedImage(prepareBackgroundImage(std_::move(image)));
 	}
-	t_assert(!_image.isNull());
+	t_assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
 	notify(BackgroundUpdate(BackgroundUpdate::Type::New, _tile));
 }
 
 void ChatBackground::setPreparedImage(QImage &&image) {
+	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	if (_id != kThemeBackground && _id != internal::kTestingThemeBackground) {
 		initColorsFromBackground(image);
 	}
-	_image = App::pixmapFromImageInPlace(std_::move(image));
+
+	auto width = image.width();
+	auto height = image.height();
+	t_assert(width > 0 && height > 0);
+	auto isSmallForTiled = (width < kMinimumTiledSize || height < kMinimumTiledSize);
+	if (isSmallForTiled) {
+		auto repeatTimesX = qCeil(kMinimumTiledSize / float64(width));
+		auto repeatTimesY = qCeil(kMinimumTiledSize / float64(height));
+		auto imageForTiled = QImage(width * repeatTimesX, height * repeatTimesY, QImage::Format_ARGB32_Premultiplied);
+		imageForTiled.setDevicePixelRatio(image.devicePixelRatio());
+		auto imageForTiledBytes = imageForTiled.bits();
+		auto bytesInLine = width * sizeof(uint32);
+		for (auto timesY = 0; timesY != repeatTimesY; ++timesY) {
+			auto imageBytes = image.constBits();
+			for (auto y = 0; y != height; ++y) {
+				for (auto timesX = 0; timesX != repeatTimesX; ++timesX) {
+					memcpy(imageForTiledBytes, imageBytes, bytesInLine);
+					imageForTiledBytes += bytesInLine;
+				}
+				imageBytes += image.bytesPerLine();
+				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
+			}
+		}
+		_pixmapForTiled = App::pixmapFromImageInPlace(std_::move(imageForTiled));
+	}
+	_pixmap = App::pixmapFromImageInPlace(std_::move(image));
+	if (!isSmallForTiled) {
+		_pixmapForTiled = _pixmap;
+	}
 }
 
 int32 ChatBackground::id() const {
 	return _id;
-}
-
-const QPixmap &ChatBackground::image() const {
-	return _image;
 }
 
 bool ChatBackground::tile() const {
@@ -441,7 +470,7 @@ bool ChatBackground::tileForSave() const {
 }
 
 void ChatBackground::ensureStarted() {
-	if (_image.isNull()) {
+	if (_pixmap.isNull()) {
 		// We should start first, otherwise the default call
 		// to start() will reset this value to _themeTile.
 		start();
@@ -479,7 +508,7 @@ void ChatBackground::saveForRevert() {
 	ensureStarted();
 	if (_id != internal::kTestingThemeBackground && _id != internal::kTestingDefaultBackground) {
 		_idForRevert = _id;
-		_imageForRevert = std_::move(_image).toImage();
+		_imageForRevert = std_::move(_pixmap).toImage();
 		_tileForRevert = _tile;
 	}
 }
@@ -507,7 +536,7 @@ void ChatBackground::setTestingDefaultTheme() {
 void ChatBackground::keepApplied() {
 	if (_id == internal::kTestingThemeBackground) {
 		_id = kThemeBackground;
-		_themeImage = _image.toImage();
+		_themeImage = _pixmap.toImage();
 		_themeTile = _tile;
 		writeNewBackgroundSettings();
 	} else if (_id == internal::kTestingDefaultBackground) {

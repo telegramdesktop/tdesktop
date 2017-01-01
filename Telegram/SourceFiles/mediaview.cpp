@@ -36,6 +36,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "window/window_theme_preview.h"
 #include "core/task_queue.h"
+#include "observer_peer.h"
 
 namespace {
 
@@ -90,6 +91,10 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 			updateControls();
 		}
 	});
+	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
+		mediaOverviewUpdated(update);
+	}));
 
 	generateTransparentBrush();
 
@@ -148,8 +153,8 @@ void MediaView::moveToScreen() {
 	_saveMsg.moveTo((width() - _saveMsg.width()) / 2, (height() - _saveMsg.height()) / 2);
 }
 
-void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
-	if (!_photo && !_doc) return;
+void MediaView::mediaOverviewUpdated(const Notify::PeerUpdate &update) {
+	if (isHidden() || (!_photo && !_doc)) return;
 	if (_photo && _overview == OverviewChatPhotos && _history && !_history->peer->isUser()) {
 		auto lastChatPhoto = computeLastOverviewChatPhoto();
 		if (_index < 0 && _photo == lastChatPhoto.photo && _photo == _additionalChatPhoto) {
@@ -161,7 +166,7 @@ void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 		computeAdditionalChatPhoto(_history->peer, lastChatPhoto.photo);
 	}
 
-	if (_history && (_history->peer == peer || (_migrated && _migrated->peer == peer)) && type == _overview && _msgid) {
+	if (_history && (_history->peer == update.peer || (_migrated && _migrated->peer == update.peer)) && (update.mediaTypesMask & (1 << _overview)) && _msgid) {
 		_index = -1;
 		if (_msgmigrated) {
 			for (int i = 0, l = _migrated->overview[_overview].size(); i < l; ++i) {
@@ -180,7 +185,7 @@ void MediaView::mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 		}
 		updateControls();
 		preloadData(0);
-	} else if (_user == peer && type == OverviewCount) {
+	} else if (_user == update.peer && update.mediaTypesMask & (1 << OverviewCount)) {
 		if (!_photo) return;
 
 		_index = -1;
@@ -243,7 +248,12 @@ void MediaView::changingMsgId(HistoryItem *row, MsgId newId) {
 	if (row->id == _msgid) {
 		_msgid = newId;
 	}
-	mediaOverviewUpdated(row->history()->peer, _overview);
+
+	// Send a fake update.
+	Notify::PeerUpdate update(row->history()->peer);
+	update.flags |= Notify::PeerUpdate::Flag::SharedMediaChanged;
+	update.mediaTypesMask |= (1 << _overview);
+	mediaOverviewUpdated(update);
 }
 
 void MediaView::updateDocSize() {
@@ -767,7 +777,7 @@ void MediaView::onSaveAs() {
 
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + filedialogAllFilesFilter();
-		bool gotName = filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")));
+		auto gotName = filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")));
 		psShowOverAll(this);
 		if (gotName) {
 			if (!file.isEmpty()) {
@@ -1451,7 +1461,7 @@ void MediaView::initThemePreview() {
 		};
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
-		current.backgroundImage = Window::Theme::Background()->image();
+		current.backgroundImage = Window::Theme::Background()->pixmap();
 		current.backgroundTiled = Window::Theme::Background()->tile();
 		base::TaskQueue::Normal().Put([path, current, callback = mutable_ready(std_::move(ready))]() {
 			auto preview = Window::Theme::GeneratePreview(path, current);
@@ -2841,12 +2851,12 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		u->photosCount = 0;
 	}
 
-	for (QVector<MTPPhoto>::const_iterator i = v->cbegin(), e = v->cend(); i != e; ++i) {
-		PhotoData *photo = App::feedPhoto(*i);
+	for (auto i = v->cbegin(), e = v->cend(); i != e; ++i) {
+		auto photo = App::feedPhoto(*i);
 		photo->thumb->load();
 		u->photos.push_back(photo);
 	}
-	if (App::wnd()) App::wnd()->mediaOverviewUpdated(u, OverviewCount);
+	Notify::mediaOverviewUpdated(u, OverviewCount);
 }
 
 void MediaView::updateHeader() {

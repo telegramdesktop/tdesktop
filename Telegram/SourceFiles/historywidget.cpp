@@ -5294,7 +5294,7 @@ void HistoryWidget::onBotStart() {
 		sendBotCommand(_peer, _peer->asUser(), qsl("/start"), 0);
 	} else {
 		uint64 randomId = rand_value<uint64>();
-		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputPeerEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _peer->asUser()));
+		MTP::send(MTPmessages_StartBot(_peer->asUser()->inputUser, MTP_inputPeerEmpty(), MTP_long(randomId), MTP_string(token)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, { _peer->asUser(), (PeerData*)nullptr }));
 
 		_peer->asUser()->botInfo->startToken = QString();
 		if (_keyboard->hasMarkup()) {
@@ -8791,19 +8791,27 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 	int fromy = App::main()->backgroundFromY(), x = 0, y = 0;
 	QPixmap cached = App::main()->cachedBackground(fill, x, y);
 	if (cached.isNull()) {
-		auto &pix = Window::Theme::Background()->image();
 		if (Window::Theme::Background()->tile()) {
-			int left = r.left(), top = r.top(), right = r.left() + r.width(), bottom = r.top() + r.height();
-			float64 w = pix.width() / cRetinaFactor(), h = pix.height() / cRetinaFactor();
-			int sx = qFloor(left / w), sy = qFloor((top - fromy) / h), cx = qCeil(right / w), cy = qCeil((bottom - fromy) / h);
-			for (int i = sx; i < cx; ++i) {
-				for (int j = sy; j < cy; ++j) {
+			auto &pix = Window::Theme::Background()->pixmapForTiled();
+			auto left = r.left();
+			auto top = r.top();
+			auto right = r.left() + r.width();
+			auto bottom = r.top() + r.height();
+			auto w = pix.width() / cRetinaFactor();
+			auto h = pix.height() / cRetinaFactor();
+			auto sx = qFloor(left / w);
+			auto sy = qFloor((top - fromy) / h);
+			auto cx = qCeil(right / w);
+			auto cy = qCeil((bottom - fromy) / h);
+			for (auto i = sx; i < cx; ++i) {
+				for (auto j = sy; j < cy; ++j) {
 					p.drawPixmap(QPointF(i * w, fromy + j * h), pix);
 				}
 			}
 		} else {
 			PainterHighQualityEnabler hq(p);
 
+			auto &pix = Window::Theme::Background()->pixmap();
 			QRect to, from;
 			Window::Theme::ComputeBackgroundRects(fill, pix.size(), to, from);
 			to.moveTop(to.top() + fromy);

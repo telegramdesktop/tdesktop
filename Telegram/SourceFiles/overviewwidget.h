@@ -40,6 +40,10 @@ class FlatInput;
 class CrossButton;
 } // namespace Ui
 
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 class OverviewWidget;
 class OverviewInner : public TWidget, public Ui::AbstractTooltipShower, public RPCSender, private base::Subscriber {
 	Q_OBJECT
@@ -305,7 +309,7 @@ public:
 
 	void doneShow();
 
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 

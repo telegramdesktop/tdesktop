@@ -1720,7 +1720,7 @@ void _writeMtpData() {
 		key->write(data.stream);
 	}
 
-	mtp.writeEncrypted(data, _localKey);
+	mtp.writeEncrypted(data);
 }
 
 void _readMtpData() {

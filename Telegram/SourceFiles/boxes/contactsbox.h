@@ -39,7 +39,12 @@ template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
 
-QString cantInviteError();
+enum class PeerFloodType {
+	Send,
+	InviteGroup,
+	InviteChannel,
+};
+QString PeerFloodErrorText(PeerFloodType type);
 
 inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *peer) {
 	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
