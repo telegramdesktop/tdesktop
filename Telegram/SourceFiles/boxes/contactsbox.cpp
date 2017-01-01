@@ -364,8 +364,6 @@ void ContactsBox::inviteParticipants() {
 
 void ContactsBox::createGroup() {
 	if (_saveRequestId) return;
-	Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::Send)), KeepOtherLayers);
-	return;
 
 	auto users = _inner->selectedInputs();
 	if (users.isEmpty() || (users.size() == 1 && users.at(0).type() == mtpc_inputUserSelf)) {
