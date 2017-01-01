@@ -63,8 +63,7 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 		auto history = App::history(peerId);
 		window->showFromTray();
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-		window->onReActivate();
-		QTimer::singleShot(200, window, SLOT(onReActivate()));
+		window->reActivateWindow();
 #endif
 		if (App::passcoded()) {
 			window->setInnerFocus();

@@ -55,6 +55,11 @@ public:
 		return _titleText;
 	}
 
+	void reActivateWindow() {
+		onReActivate();
+		QTimer::singleShot(200, this, SLOT(onReActivate()));
+	}
+
 	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
 	void showPhoto(PhotoData *photo, HistoryItem *item);
 	void showPhoto(PhotoData *photo, PeerData *item);

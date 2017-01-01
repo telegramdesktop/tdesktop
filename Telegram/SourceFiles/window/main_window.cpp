@@ -125,8 +125,7 @@ void MainWindow::hideMediaview() {
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->hide();
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-		onReActivate();
-		QTimer::singleShot(200, this, SLOT(onReActivate()));
+		reActivateWindow();
 #endif
 	}
 }

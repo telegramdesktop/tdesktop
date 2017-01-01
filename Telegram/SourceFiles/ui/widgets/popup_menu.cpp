@@ -475,8 +475,7 @@ PopupMenu::~PopupMenu() {
 	}
 #if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
 	if (auto w = App::wnd()) {
-		w->onReActivate();
-		QTimer::singleShot(200, w, SLOT(onReActivate()));
+		w->reActivateWindow();
 	}
 #endif
 }
