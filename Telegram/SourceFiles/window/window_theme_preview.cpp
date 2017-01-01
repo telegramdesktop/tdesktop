@@ -411,6 +411,8 @@ void Generator::paintHistoryBackground() {
 			tiled = _current.backgroundTiled;
 		}
 	}
+	background = std_::move(background).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	background.setDevicePixelRatio(cRetinaFactor());
 	_p->setClipRect(_history);
 	if (tiled) {
 		auto width = background.width();

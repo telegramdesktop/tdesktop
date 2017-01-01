@@ -1900,7 +1900,6 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 		}
 		if (d.has_duration()) {
-			d.vduration.v;
 		}
 	} break;
 

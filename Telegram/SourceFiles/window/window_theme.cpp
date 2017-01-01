@@ -419,6 +419,7 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 
 void ChatBackground::setPreparedImage(QImage &&image) {
 	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(cRetinaFactor());
 	if (_id != kThemeBackground && _id != internal::kTestingThemeBackground) {
 		initColorsFromBackground(image);
 	}
