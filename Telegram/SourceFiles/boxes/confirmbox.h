@@ -154,6 +154,7 @@ protected:
 	void prepare() override;
 
 	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void pinMessage();
@@ -179,6 +180,7 @@ protected:
 	void prepare() override;
 
 	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void deleteAndClear();

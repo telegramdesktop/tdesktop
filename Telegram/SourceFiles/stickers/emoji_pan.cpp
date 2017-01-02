@@ -867,7 +867,8 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	InlineBots::Layout::PaintContext context(getms(), false, Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown, false);
+	auto gifPaused = Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown || !App::wnd()->isActive();
+	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
 	int top = st::emojiPanHeader;
 	if (_switchPmButton) {

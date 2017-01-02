@@ -151,8 +151,8 @@ void PopupMenu::handleActivated(QAction *action, int actionTop, TriggeredSource 
 
 void PopupMenu::handleTriggered(QAction *action, int actionTop, TriggeredSource source) {
 	if (!popupSubmenuFromAction(action, actionTop, source)) {
-		hideMenu();
 		_triggering = true;
+		hideMenu();
 		emit action->trigger();
 		_triggering = false;
 		if (_deleteLater) {

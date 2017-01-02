@@ -416,9 +416,10 @@ passcodeSubmit: RoundButton(introNextButton) {
 	width: 225px;
 }
 passcodeSubmitSkip: 40px;
-passcodePadding: margins(0px, 0px, 0px, 12px);
+passcodePadding: margins(0px, 0px, 0px, 5px);
 passcodeTextLine: 28px;
 passcodeLittleSkip: 5px;
+passcodeAboutSkip: 7px;
 passcodeSkip: 20px;
 
 newGroupAboutFg: windowSubTextFg;

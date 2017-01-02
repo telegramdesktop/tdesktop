@@ -65,17 +65,17 @@ void PasscodeBox::prepare() {
 	if (_turningOff) {
 		_oldPasscode->show();
 		setTitle(lang(_cloudPwd ? lng_cloud_password_remove : lng_passcode_remove));
-		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _aboutHeight + st::passcodePadding.bottom());
+		setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 	} else {
 		auto has = _cloudPwd ? (!_curSalt.isEmpty()) : Global::LocalPasscode();
 		if (has) {
 			_oldPasscode->show();
 			setTitle(lang(_cloudPwd ? lng_cloud_password_change : lng_passcode_change));
-			setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + _aboutHeight + st::passcodePadding.bottom());
+			setDimensions(st::boxWidth, st::passcodePadding.top() + _oldPasscode->height() + st::passcodeTextLine + ((_hasRecovery && !_hintText.isEmpty()) ? st::passcodeTextLine : 0) + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + st::passcodePadding.bottom());
 		} else {
 			_oldPasscode->hide();
 			setTitle(lang(_cloudPwd ? lng_cloud_password_create : lng_passcode_create));
-			setDimensions(st::boxWidth, st::passcodePadding.top() + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + _aboutHeight + (_cloudPwd ? st::passcodeLittleSkip + _recoverEmail->height() + st::passcodeSkip : st::passcodePadding.bottom()));
+			setDimensions(st::boxWidth, st::passcodePadding.top() + _newPasscode->height() + st::passcodeLittleSkip + _reenterPasscode->height() + st::passcodeSkip + (_cloudPwd ? _passwordHint->height() + st::passcodeLittleSkip : 0) + st::passcodeAboutSkip + _aboutHeight + (_cloudPwd ? (st::passcodeLittleSkip + _recoverEmail->height() + st::passcodeSkip) : st::passcodePadding.bottom()));
 		}
 	}
 
@@ -143,7 +143,7 @@ void PasscodeBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	int32 w = st::boxWidth - st::boxPadding.left() * 1.5;
-	int32 abouty = (_passwordHint->isHidden() ? (_reenterPasscode->isHidden() ? (_oldPasscode->y() + (_hasRecovery && !_hintText.isEmpty() ? st::passcodeTextLine : 0)) : _reenterPasscode->y()) + st::passcodeSkip : _passwordHint->y() + st::passcodeLittleSkip) + _oldPasscode->height() + st::passcodePadding.bottom();
+	int32 abouty = (_passwordHint->isHidden() ? ((_reenterPasscode->isHidden() ? (_oldPasscode->y() + (_hasRecovery && !_hintText.isEmpty() ? st::passcodeTextLine : 0)) : _reenterPasscode->y()) + st::passcodeSkip) : (_passwordHint->y() + st::passcodeLittleSkip)) + _oldPasscode->height() + st::passcodeLittleSkip + st::passcodeAboutSkip;
 	p.setPen(st::boxTextFg);
 	_about.drawLeft(p, st::boxPadding.left(), abouty, w, width());
 

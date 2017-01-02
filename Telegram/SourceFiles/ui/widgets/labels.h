@@ -143,9 +143,7 @@ private slots:
 
 private:
 	void init();
-
-	template <typename SetCallback>
-	void setTextByCallback(SetCallback callback);
+	void textUpdated();
 
 	Text::StateResult dragActionUpdate();
 	Text::StateResult dragActionStart(const QPoint &p, Qt::MouseButton button);

@@ -81,9 +81,16 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 	if (draft) {
 		paintRowDate(p, date, rectForName, active, selected);
 
+		auto availableWidth = namewidth;
+		if (history->isPinnedDialog()) {
+			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+			availableWidth -= icon.width() + st::dialogsUnreadPadding;
+		}
+
 		p.setFont(st::dialogsTextFont);
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
-		if (!history->paintSendAction(p, nameleft, texttop, namewidth, fullWidth, color, ms)) {
+		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
 				auto draftWrapped = textcmdLink(1, lng_dialogs_text_from_wrapped(lt_from, lang(lng_from_draft)));
 				auto draftText = lng_dialogs_text_with_from(lt_from_part, draftWrapped, lt_message, textClean(draft->textWithTags.text));
@@ -91,7 +98,7 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 			}
 			p.setPen(active ? st::dialogsTextFgActive : (selected ? st::dialogsTextFgOver : st::dialogsTextFg));
 			p.setTextPalette(active ? st::dialogsTextPaletteDraftActive : (selected ? st::dialogsTextPaletteDraftOver : st::dialogsTextPaletteDraft));
-			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, namewidth, 1);
+			history->cloudDraftTextCache.drawElided(p, nameleft, texttop, availableWidth, 1);
 			p.restoreTextPalette();
 		}
 	} else if (!item) {

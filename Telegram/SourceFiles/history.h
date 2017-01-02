@@ -84,6 +84,7 @@ public:
 
 	void setIsPinned(History *history, bool isPinned);
 	void clearPinned();
+	int pinnedCount() const;
 
 	struct SendActionAnimationUpdate {
 		History *history;

@@ -159,30 +159,25 @@ void FlatLabel::init() {
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 }
 
-template <typename SetCallback>
-void FlatLabel::setTextByCallback(SetCallback callback) {
-	callback();
+void FlatLabel::textUpdated() {
 	refreshSize();
 	setMouseTracking(_selectable || _text.hasLinks());
 	update();
 }
 
 void FlatLabel::setText(const QString &text) {
-	setTextByCallback([this, &text]() {
-		_text.setText(_st.style, text, _labelOptions);
-	});
+	_text.setText(_st.style, text, _labelOptions);
+	textUpdated();
 }
 
 void FlatLabel::setRichText(const QString &text) {
-	setTextByCallback([this, &text]() {
-		_text.setRichText(_st.style, text, _labelOptions);
-	});
+	_text.setRichText(_st.style, text, _labelOptions);
+	textUpdated();
 }
 
 void FlatLabel::setMarkedText(const TextWithEntities &textWithEntities) {
-	setTextByCallback([this, &textWithEntities]() {
-		_text.setMarkedText(_st.style, textWithEntities, _labelMarkedOptions);
-	});
+	_text.setMarkedText(_st.style, textWithEntities, _labelMarkedOptions);
+	textUpdated();
 }
 
 void FlatLabel::setSelectable(bool selectable) {

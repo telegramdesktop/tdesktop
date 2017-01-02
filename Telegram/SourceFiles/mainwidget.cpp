@@ -1977,6 +1977,11 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 		auto pinAction = callback(lang(isPinned ? lng_context_unpin_from_top : lng_context_pin_to_top), [peer, pinSubscription] {
 			auto history = App::history(peer);
 			auto isPinned = !history->isPinnedDialog();
+			if (isPinned && App::histories().pinnedCount() >= Global::PinnedDialogsCountMax()) {
+				Ui::show(Box<InformBox>(lng_error_pinned_max(lt_count, Global::PinnedDialogsCountMax())));
+				return;
+			}
+
 			history->setPinnedDialog(isPinned);
 			auto flags = MTPmessages_ToggleDialogPin::Flags(0);
 			if (isPinned) {

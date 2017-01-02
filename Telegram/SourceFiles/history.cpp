@@ -748,6 +748,10 @@ void Histories::clearPinned() {
 	}
 }
 
+int Histories::pinnedCount() const {
+	return _pinnedDialogs.size();
+}
+
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	auto msgId = MsgId(0);
 	switch (msg.type()) {

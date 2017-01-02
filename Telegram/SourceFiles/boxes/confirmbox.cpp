@@ -371,8 +371,6 @@ PinMessageBox::PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId)
 }
 
 void PinMessageBox::prepare() {
-	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
-
 	addButton(lang(lng_pinned_pin), [this] { pinMessage(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
@@ -383,6 +381,14 @@ void PinMessageBox::resizeEvent(QResizeEvent *e) {
 	BoxContent::resizeEvent(e);
 	_text->moveToLeft(st::boxPadding.left(), st::boxPadding.top());
 	_notify->moveToLeft(st::boxPadding.left(), _text->y() + _text->height() + st::boxMediumSkip);
+}
+
+void PinMessageBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		pinMessage();
+	} else {
+		BoxContent::keyPressEvent(e);
+	}
 }
 
 void PinMessageBox::pinMessage() {
@@ -458,16 +464,17 @@ void DeleteMessagesBox::prepare() {
 				canDeleteAllForEveryone = false;
 			}
 		}
+		auto count = qMax(1, _ids.size());
 		if (canDeleteAllForEveryone) {
 			_forEveryone.create(this, forEveryoneText, false, st::defaultBoxCheckbox);
 		} else if (peer && peer->isChannel()) {
 			if (peer->isMegagroup()) {
-				text += qsl("\n\n") + (_singleItem ? lang(lng_delete_for_everyone_this_hint) : lng_delete_for_everyone_hint(lt_count, _ids.size()));
+				text += qsl("\n\n") + lng_delete_for_everyone_hint(lt_count, count);
 			}
 		} else if (peer->isChat()) {
-			text += qsl("\n\n") + (_singleItem ? lang(lng_delete_for_me_chat_this_hint) : lng_delete_for_me_chat_hint(lt_count, _ids.size()));
-		} else {
-			text += qsl("\n\n") + (_singleItem ? lang(lng_delete_for_me_this_hint) : lng_delete_for_me_hint(lt_count, _ids.size()));
+			text += qsl("\n\n") + lng_delete_for_me_chat_hint(lt_count, count);
+		} else if (!peer->isSelf()) {
+			text += qsl("\n\n") + lng_delete_for_me_hint(lt_count, count);
 		}
 	}
 	_text.create(this, text, Ui::FlatLabel::InitType::Simple, st::boxLabel);
@@ -475,7 +482,6 @@ void DeleteMessagesBox::prepare() {
 	addButton(lang(lng_box_delete), [this] { deleteAndClear(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	_text->resizeToWidth(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right());
 	auto fullHeight = st::boxPadding.top() + _text->height() + st::boxPadding.bottom();
 	if (_moderateFrom) {
 		fullHeight += st::boxMediumSkip + _banUser->heightNoMargins() + st::boxLittleSkip + _reportSpam->heightNoMargins() + st::boxLittleSkip + _deleteAll->heightNoMargins();
@@ -494,6 +500,14 @@ void DeleteMessagesBox::resizeEvent(QResizeEvent *e) {
 		_deleteAll->moveToLeft(st::boxPadding.left(), _reportSpam->bottomNoMargins() + st::boxLittleSkip);
 	} else if (_forEveryone) {
 		_forEveryone->moveToLeft(st::boxPadding.left(), _text->bottomNoMargins() + st::boxMediumSkip);
+	}
+}
+
+void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
+	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
+		deleteAndClear();
+	} else {
+		BoxContent::keyPressEvent(e);
 	}
 }
 

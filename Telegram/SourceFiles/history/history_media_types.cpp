@@ -1737,7 +1737,8 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
 		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 	if (animating) {
-		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, roundRadius, roundCorners, (Ui::isLayerShown() || Ui::isMediaViewShown() || Ui::isInlineItemBeingChosen()) ? 0 : ms));
+		auto pauseGif = (Ui::isLayerShown() || Ui::isMediaViewShown() || Ui::isInlineItemBeingChosen() || !App::wnd()->isActive());
+		p.drawPixmap(rthumb.topLeft(), _gif->current(_thumbw, _thumbh, width, height, roundRadius, roundCorners, pauseGif ? 0 : ms));
 	} else {
 		p.drawPixmap(rthumb.topLeft(), _data->thumb->pixBlurredSingle(_thumbw, _thumbh, width, height, roundRadius, roundCorners));
 	}
