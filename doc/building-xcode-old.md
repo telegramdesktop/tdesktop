@@ -127,7 +127,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.1
+    git checkout release/3.2
 
 #####Building libraries
 

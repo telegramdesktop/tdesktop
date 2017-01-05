@@ -267,9 +267,9 @@ historyReplyHeight: 49px;
 historyReplyTop: 8px;
 historyReplyBottom: 6px;
 historyReplyIconPosition: point(13px, 13px);
-historyReplyIcon: icon {{ "history_action_reply", windowBgActive }};
-historyForwardIcon: icon {{ "history_action_forward", windowBgActive }};
-historyEditIcon: icon {{ "history_action_edit", windowBgActive }};
+historyReplyIcon: icon {{ "history_action_reply", historyReplyIconFg }};
+historyForwardIcon: icon {{ "history_action_forward", historyReplyIconFg }};
+historyEditIcon: icon {{ "history_action_edit", historyReplyIconFg }};
 historyReplyCancel: IconButton {
 	width: 49px;
 	height: 49px;

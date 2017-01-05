@@ -30,6 +30,30 @@ namespace internal {
 namespace {
 
 constexpr int kSkipInvalidDataPackets = 10;
+constexpr int kAlignImageBy = 16;
+
+void alignedImageBufferCleanupHandler(void *data) {
+	auto buffer = static_cast<uchar*>(data);
+	delete[] buffer;
+}
+
+// Create a QImage of desired size where all the data is aligned to 16 bytes.
+QImage createAlignedImage(QSize size) {
+	auto width = size.width();
+	auto height = size.height();
+	auto widthalign = kAlignImageBy / 4;
+	auto neededwidth = width + ((width % widthalign) ? (widthalign - (width % widthalign)) : 0);
+	auto bytesperline = neededwidth * 4;
+	auto buffer = new uchar[bytesperline * height + kAlignImageBy];
+	auto cleanupdata = static_cast<void*>(buffer);
+	auto bufferval = reinterpret_cast<uintptr_t>(buffer);
+	auto alignedbuffer = buffer + ((bufferval % kAlignImageBy) ? (bufferval - (bufferval % kAlignImageBy)) : 0);
+	return QImage(alignedbuffer, width, height, bytesperline, QImage::Format_ARGB32, alignedImageBufferCleanupHandler, cleanupdata);
+}
+
+bool isAlignedImage(const QImage &image) {
+	return !(reinterpret_cast<uintptr_t>(image.constBits()) % kAlignImageBy) && !(image.bytesPerLine() % kAlignImageBy);
+}
 
 } // namespace
 
@@ -126,7 +150,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 
 void FFMpegReaderImplementation::processReadFrame() {
 	int64 duration = av_frame_get_pkt_duration(_frame);
-	int64 framePts = (_frame->pkt_pts == AV_NOPTS_VALUE) ? _frame->pkt_dts : _frame->pkt_pts;
+	int64 framePts = _frame->pts;
 	TimeMs frameMs = (framePts * 1000LL * _fmtContext->streams[_streamId]->time_base.num) / _fmtContext->streams[_streamId]->time_base.den;
 	_currentFrameDelay = _nextFrameDelay;
 	if (_frameMs + _currentFrameDelay < frameMs) {
@@ -219,13 +243,12 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 			return false;
 		}
 	}
-
 	QSize toSize(size.isEmpty() ? QSize(_width, _height) : size);
 	if (!size.isEmpty() && rotationSwapWidthHeight()) {
 		toSize.transpose();
 	}
-	if (to.isNull() || to.size() != toSize) {
-		to = QImage(toSize, QImage::Format_ARGB32);
+	if (to.isNull() || to.size() != toSize || !to.isDetached() || !isAlignedImage(to)) {
+		to = createAlignedImage(toSize);
 	}
 	hasAlpha = (_frame->format == AV_PIX_FMT_BGRA || (_frame->format == -1 && _codecContext->pix_fmt == AV_PIX_FMT_BGRA));
 	if (_frame->width == toSize.width() && _frame->height == toSize.height() && hasAlpha) {
@@ -239,8 +262,10 @@ bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const Q
 			_swsSize = toSize;
 			_swsContext = sws_getCachedContext(_swsContext, _frame->width, _frame->height, AVPixelFormat(_frame->format), toSize.width(), toSize.height(), AV_PIX_FMT_BGRA, 0, 0, 0, 0);
 		}
-		uint8_t * toData[1] = { to.bits() };
-		int	toLinesize[1] = { to.bytesPerLine() }, res;
+		// AV_NUM_DATA_POINTERS defined in AVFrame struct
+		uint8_t *toData[AV_NUM_DATA_POINTERS] = { to.bits(), nullptr };
+		int toLinesize[AV_NUM_DATA_POINTERS] = { to.bytesPerLine(), 0 };
+		int res;
 		if ((res = sws_scale(_swsContext, _frame->data, _frame->linesize, 0, _frame->height, toData, toLinesize)) != _swsSize.height()) {
 			LOG(("Gif Error: Unable to sws_scale to good size %1, height %2, should be %3").arg(logData()).arg(res).arg(_swsSize.height()));
 			return false;

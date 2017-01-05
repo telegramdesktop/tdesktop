@@ -379,6 +379,7 @@ historySendIconFg: windowBgActive;
 historySendIconFgOver: windowBgActive;
 historyPinnedBg: historyComposeAreaBg;
 historyReplyBg: historyComposeAreaBg;
+historyReplyIconFg: windowBgActive;
 historyReplyCancelFg: cancelIconFg;
 historyReplyCancelFgOver: cancelIconFgOver;
 
@@ -394,6 +395,8 @@ overviewPhotoSelectOverlay: #40ace333;
 
 // profile
 profileStatusFgOver: #7c99b2;
+profileVerifiedCheckBg: windowBgActive;
+profileVerifiedCheckFg: windowFgActive;
 
 // settings
 notificationsBoxMonitorFg: windowFg;

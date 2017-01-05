@@ -148,8 +148,8 @@ profileReportReasonOther: InputField(defaultInputField) {
 
 profileVerifiedCheckShift: -3px;
 profileVerifiedCheck: icon {
-	{ "profile_verified_star", windowBgActive, point(0px, 7px) },
-	{ "profile_verified_check", windowFgActive, point(4px, 11px) }
+	{ "profile_verified_star", profileVerifiedCheckBg, point(0px, 7px) },
+	{ "profile_verified_check", profileVerifiedCheckFg, point(4px, 11px) }
 };
 
 profileCommonGroupsSkip: 24px;

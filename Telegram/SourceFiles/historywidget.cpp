@@ -234,6 +234,22 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 
 			// binary search should've skipped all the items that are above / below the visible area
 			if (TopToBottom) {
+				if (itembottom <= _visibleAreaTop && (cAlphaVersion() || cBetaVersion())) {
+					// Debugging a crash
+					auto fields = QStringList();
+					fields.append(QString::number(historytop));
+					fields.append(QString::number(history->height));
+					fields.append(QString::number(_visibleAreaTop));
+					fields.append(QString::number(_visibleAreaBottom));
+					fields.append(QString::number(blocktop));
+					fields.append(QString::number(block->height));
+					fields.append(QString::number(itemtop));
+					fields.append(QString::number(item->height()));
+					fields.append(QString::number(itembottom));
+					fields.append(QString::number(history->blocks.size()));
+					fields.append(QString::number(block->items.size()));
+					SignalHandlers::setCrashAnnotation("ItemInfo1", fields.join(','));
+				}
 				t_assert(itembottom > _visibleAreaTop);
 			} else {
 				t_assert(itemtop < _visibleAreaBottom);

@@ -1711,7 +1711,9 @@ void AudioCaptureInner::processFrame(int32 offset, int32 framesize) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	short *srcSamplesDataChannel = (short*)(_captured.data() + offset), **srcSamplesData = &srcSamplesDataChannel;
+	auto srcSamplesDataChannel = (short*)(_captured.data() + offset);
+	auto srcSamplesData = &srcSamplesDataChannel;
+
 //	memcpy(d->srcSamplesData[0], _captured.constData() + offset, framesize);
 	int32 skipSamples = AudioVoiceMsgSkip * AudioVoiceMsgFrequency / 1000, fadeSamples = AudioVoiceMsgFade * AudioVoiceMsgFrequency / 1000;
 	if (d->fullSamples < skipSamples + fadeSamples) {
