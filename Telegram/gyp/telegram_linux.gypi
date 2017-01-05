@@ -63,6 +63,7 @@
       'libva-x11.a',
       'libva-drm.a',
       'libva.a',
+      'libvdpau.a',
       'libdrm.a',
       'libz.a',
 #      '<!(pkg-config 2> /dev/null --libs <@(pkgconfig_libs))',

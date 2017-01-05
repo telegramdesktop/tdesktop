@@ -28,6 +28,9 @@ GYP_PATCH="$UPSTREAM/Telegram/Patches/gyp.diff"
 VA_PATH="$BUILD/libva"
 VA_CACHE_VERSION="2"
 
+VDPAU_PATH="$BUILD/libvdpau"
+VDPAU_CACHE_VERSION="1"
+
 FFMPEG_PATH="$BUILD/ffmpeg"
 FFMPEG_CACHE_VERSION="2"
 
@@ -59,6 +62,9 @@ build() {
 
   # libva
   getVa
+
+  # libvdpau
+  getVdpau
 
   # ffmpeg
   getFFmpeg
@@ -200,6 +206,55 @@ buildVa() {
 
   cd "$EXTERNAL/libva"
   ./autogen.sh --prefix=$VA_PATH --enable-static
+  make $MAKE_ARGS
+  sudo make install
+  sudo ldconfig
+}
+
+getVdpau() {
+  travisStartFold "Getting libvdpau"
+
+  local VDPAU_CACHE="$CACHE/libvdpau"
+  local VDPAU_CACHE_FILE="$VDPAU_CACHE/.cache.txt"
+  local VDPAU_CACHE_KEY="${VDPAU_CACHE_VERSION}"
+  local VDPAU_CACHE_OUTDATED="1"
+
+  if [ ! -d "$VDPAU_CACHE" ]; then
+    mkdir -p "$VDPAU_CACHE"
+  fi
+
+  ln -sf "$VDPAU_CACHE" "$VDPAU_PATH"
+
+  if [ -f "$VDPAU_CACHE_FILE" ]; then
+    local VDPAU_CACHE_KEY_FOUND=`tail -n 1 $VDPAU_CACHE_FILE`
+    if [ "$VDPAU_CACHE_KEY" == "$VDPAU_CACHE_KEY_FOUND" ]; then
+      VDPAU_CACHE_OUTDATED="0"
+    else
+      info_msg "Cache key '$VDPAU_CACHE_KEY_FOUND' does not match '$VDPAU_CACHE_KEY', rebuilding libvdpau"
+    fi
+  fi
+  if [ "$VDPAU_CACHE_OUTDATED" == "1" ]; then
+    buildVdpau
+    sudo echo $VDPAU_CACHE_KEY > "$VDPAU_CACHE_FILE"
+  else
+    info_msg "Using cached libvdpau"
+  fi
+}
+
+buildVdpau() {
+  info_msg "Downloading and building libvdpau"
+
+  if [ -d "$EXTERNAL/libvdpau" ]; then
+    rm -rf "$EXTERNAL/libvdpau"
+  fi
+  cd $VDPAU_PATH
+  rm -rf *
+
+  cd "$EXTERNAL"
+  git clone git://anongit.freedesktop.org/vdpau/libvdpau
+
+  cd "$EXTERNAL/libvdpau"
+  ./autogen.sh --prefix=$VDPAU_PATH --enable-static
   make $MAKE_ARGS
   sudo make install
   sudo ldconfig
