@@ -47,7 +47,7 @@ QImage createAlignedImage(QSize size) {
 	auto buffer = new uchar[bytesperline * height + kAlignImageBy];
 	auto cleanupdata = static_cast<void*>(buffer);
 	auto bufferval = reinterpret_cast<uintptr_t>(buffer);
-	auto alignedbuffer = buffer + ((bufferval % kAlignImageBy) ? (bufferval - (bufferval % kAlignImageBy)) : 0);
+	auto alignedbuffer = buffer + ((bufferval % kAlignImageBy) ? (kAlignImageBy - (bufferval % kAlignImageBy)) : 0);
 	return QImage(alignedbuffer, width, height, bytesperline, QImage::Format_ARGB32, alignedImageBufferCleanupHandler, cleanupdata);
 }
 
