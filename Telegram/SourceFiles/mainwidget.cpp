@@ -2548,12 +2548,13 @@ void MainWidget::showWideSectionAnimated(const Window::SectionMemento *memento, 
 	_wideSection = std_::move(newWideSection);
 	_topBar->hide();
 	resizeEvent(0);
-	auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
-	_wideSection->showAnimated(direction, animationParams);
 	_history->finishAnimation();
 	_history->showHistory(0, 0);
 	_history->hide();
 	if (Adaptive::OneColumn()) _dialogs->hide();
+
+	auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
+	_wideSection->showAnimated(direction, animationParams);
 
 	orderWidgets();
 }

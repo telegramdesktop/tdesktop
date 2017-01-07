@@ -3826,7 +3826,7 @@ void PortInput::correctValue(const QString &was, int32 wasCursor, QString &now, 
 }
 
 UsernameInput::UsernameInput(QWidget *parent, const style::InputField &st, const QString &ph, const QString &val, bool isLink) : MaskedInputField(parent, st, ph, val),
-_linkPlaceholder(isLink ? qsl("telegram.me/") : QString()) {
+_linkPlaceholder(isLink ? CreateInternalLink(QString()) : QString()) {
 	if (!_linkPlaceholder.isEmpty()) {
 		setTextMargins(style::margins(_st.textMargins.left() + _st.font->width(_linkPlaceholder), _st.textMargins.top(), _st.textMargins.right(), _st.textMargins.bottom()));
 		setPlaceholderHidden(true);

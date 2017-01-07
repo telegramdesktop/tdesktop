@@ -192,9 +192,9 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 }
 
 void logOutDelayed() {
-	if (auto w = App::wnd()) {
-		QMetaObject::invokeMethod(w, "onLogoutSure", Qt::QueuedConnection);
-	}
+	App::CallDelayed(1, App::app(), [] {
+		App::logOut();
+	});
 }
 
 } // namespace App

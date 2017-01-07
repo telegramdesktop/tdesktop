@@ -68,7 +68,7 @@ void StickerSetBox::onAddStickers() {
 }
 
 void StickerSetBox::onShareStickers() {
-	QString url = qsl("https://telegram.me/addstickers/") + _inner->shortName();
+	auto url = CreateInternalLinkHttps(qsl("addstickers/") + _inner->shortName());
 	QApplication::clipboard()->setText(url);
 	Ui::show(Box<InformBox>(lang(lng_stickers_copied)));
 }

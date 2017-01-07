@@ -1069,8 +1069,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10021) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Fabulous new material-style design and animations.\n\xe2\x80\x94 This version already supports custom themes that are coming soon.\n\xe2\x80\x94 Pin important chats to the top of the list so that you never miss a new message (right click on a chat, then choose 'Pin to top').\n\xe2\x80\x94 Groups in common. A new option in your contacts' profiles that shows a list of all groups you share with that person.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10026) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 You can use t.me instead of telegram.me\n\xe2\x80\x94 OpenAL updated to the latest version\n\xe2\x80\x94 Bug fixes and other minor improvements");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10018) {
 				versionFeatures = langNewVersionText();
 			} else {

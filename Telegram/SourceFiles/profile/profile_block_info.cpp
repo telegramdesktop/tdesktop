@@ -192,10 +192,10 @@ void InfoWidget::refreshChannelLink() {
 	TextWithEntities channelLinkTextShort;
 	if (auto channel = peer()->asChannel()) {
 		if (!channel->username.isEmpty()) {
-			channelLinkText.text = qsl("https://telegram.me/") + channel->username;
+			channelLinkText.text = CreateInternalLinkHttps(channel->username);
 			channelLinkText.entities.push_back(EntityInText(EntityInTextUrl, 0, channelLinkText.text.size()));
-			channelLinkTextShort.text = qsl("telegram.me/") + channel->username;
-			channelLinkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, channelLinkTextShort.text.size(), qsl("https://telegram.me/") + channel->username));
+			channelLinkTextShort.text = CreateInternalLink(channel->username);
+			channelLinkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, channelLinkTextShort.text.size(), CreateInternalLinkHttps(channel->username)));
 		}
 	}
 	setLabeledText(nullptr, lang(lng_profile_link), &_channelLink, channelLinkText, QString());

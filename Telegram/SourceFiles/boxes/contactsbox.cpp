@@ -45,7 +45,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 
 QString PeerFloodErrorText(PeerFloodType type) {
-	auto link = textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info));
+	auto link = textcmdLink(CreateInternalLinkHttps(qsl("spambot")), lang(lng_cant_more_info));
 	if (type == PeerFloodType::InviteGroup) {
 		return lng_cant_invite_not_contact(lt_more_info, link);
 	}

@@ -249,7 +249,9 @@ void InnerWidget::paintRow(Painter &p, int index, TimeMs ms) {
 }
 
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
-
+	if (e->key() == Qt::Key_Escape) {
+		emit cancelled();
+	}
 }
 
 void InnerWidget::updateSelected(QPoint localPos) {

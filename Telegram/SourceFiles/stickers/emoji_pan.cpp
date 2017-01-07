@@ -247,7 +247,7 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 }
 
 EmojiPanInner::EmojiPanInner(QWidget *parent) : TWidget(parent)
-, _maxHeight(int(st::emojiPanMaxHeight) - st::emojiCategory.height)
+, _maxHeight(st::emojiPanMaxHeight - st::emojiCategory.height)
 , _picker(this) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
 
@@ -774,7 +774,8 @@ int StickerPanInner::featuredRowHeight() const {
 }
 
 int StickerPanInner::countHeight(bool plain) {
-	int result = 0, minLastH = plain ? 0 : (_maxHeight - st::stickerPanPadding);
+	auto result = 0;
+	auto minLastH = plain ? 0 : (_maxHeight - st::stickerPanPadding);
 	if (showingInlineItems()) {
 		result = st::emojiPanHeader;
 		if (_switchPmButton) {
@@ -787,10 +788,13 @@ int StickerPanInner::countHeight(bool plain) {
 		result = st::emojiPanHeader + shownSets().size() * featuredRowHeight();
 	} else {
 		auto &sets = shownSets();
-		for (int i = 0; i < sets.size(); ++i) {
-			int cnt = sets[i].pack.size(), rows = (cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0);
-			int h = st::emojiPanHeader + rows * st::stickerPanSize.height();
-			if (i == sets.size() - 1 && h < minLastH) h = minLastH;
+		for (auto i = 0; i != sets.size(); ++i) {
+			auto cnt = sets[i].pack.size();
+			auto rows = (cnt / StickerPanPerRow) + ((cnt % StickerPanPerRow) ? 1 : 0);
+			auto h = st::emojiPanHeader + rows * st::stickerPanSize.height();
+			if (i == sets.size() - 1 && h < minLastH) {
+				h = minLastH;
+			}
 			result += h;
 		}
 	}
@@ -861,7 +865,7 @@ void StickerPanInner::paintEvent(QPaintEvent *e) {
 }
 
 void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
-	if (_inlineRows.isEmpty()) {
+	if (_inlineRows.isEmpty() && !_switchPmButton) {
 		p.setFont(st::normalFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
@@ -870,23 +874,24 @@ void StickerPanInner::paintInlineItems(Painter &p, const QRect &r) {
 	auto gifPaused = Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown || !App::wnd()->isActive();
 	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
-	int top = st::emojiPanHeader;
+	auto top = st::emojiPanHeader;
 	if (_switchPmButton) {
 		top += _switchPmButton->height() + st::inlineResultsSkip;
 	}
 
-	int fromx = rtl() ? (width() - r.x() - r.width()) : r.x(), tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
-	for (int row = 0, rows = _inlineRows.size(); row < rows; ++row) {
+	auto fromx = rtl() ? (width() - r.x() - r.width()) : r.x();
+	auto tox = rtl() ? (width() - r.x()) : (r.x() + r.width());
+	for (auto row = 0, rows = _inlineRows.size(); row != rows; ++row) {
 		auto &inlineRow = _inlineRows[row];
 		if (top >= r.top() + r.height()) break;
 		if (top + inlineRow.height > r.top()) {
-			int left = st::inlineResultsLeft - st::buttonRadius;
+			auto left = st::inlineResultsLeft - st::buttonRadius;
 			if (row == rows - 1) context.lastRow = true;
 			for (int col = 0, cols = inlineRow.items.size(); col < cols; ++col) {
 				if (left >= tox) break;
 
-				const InlineItem *item = inlineRow.items.at(col);
-				int w = item->width();
+				auto item = inlineRow.items.at(col);
+				auto w = item->width();
 				if (left + w > fromx) {
 					p.translate(left, top);
 					item->paint(p, r.translated(-left, -top), &context);
@@ -1622,12 +1627,13 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 		if (!_switchPmButton) {
 			_switchPmButton.create(this, QString(), st::switchPmButton);
 			_switchPmButton->show();
-			_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, st::emojiPanHeader);
 			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
 		}
 		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
 		_switchPmStartToken = entry->switchPmStartToken;
+		auto buttonTop = entry->results.isEmpty() ? (2 * st::emojiPanHeader) : st::emojiPanHeader;
+		_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, buttonTop);
 	}
 	update();
 }
@@ -2643,7 +2649,6 @@ void EmojiPan::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64 opaci
 }
 
 EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
-, _maxHeight(st::emojiPanMaxHeight)
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _contentHeightEmoji(_contentHeight - st::emojiCategory.height)
@@ -2664,7 +2669,6 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	resize(QRect(0, 0, st::emojiPanWidth, _contentHeight).marginsAdded(innerPadding()).size());
 	_width = width();
 	_height = height();
-	_bottom = 0;
 
 	e_scroll->resize(st::emojiPanWidth - st::buttonRadius, _contentHeightEmoji);
 	s_scroll->resize(st::emojiPanWidth - st::buttonRadius, _contentHeightStickers);
@@ -2741,25 +2745,45 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
-void EmojiPan::setMaxHeight(int maxHeight) {
-	_maxHeight = maxHeight - st::emojiPanMargins.top() - st::emojiPanMargins.bottom();
+void EmojiPan::setMinTop(int minTop) {
+	_minTop = minTop;
+	updateContentHeight();
+}
+
+void EmojiPan::setMinBottom(int minBottom) {
+	_minBottom = minBottom;
+	updateContentHeight();
+}
+
+void EmojiPan::moveBottom(int bottom) {
+	_bottom = bottom;
 	updateContentHeight();
 }
 
 void EmojiPan::updateContentHeight() {
-	int32 h = qMin(_contentMaxHeight, _maxHeight);
-	int32 he = h - st::emojiCategory.height;
-	int32 hs = h - (s_inner->showSectionIcons() ? st::emojiCategory.height : 0);
-	if (h == _contentHeight && he == _contentHeightEmoji && hs == _contentHeightStickers) return;
+	auto wantedBottom = countBottom();
+	auto maxContentHeight = wantedBottom - st::emojiPanMargins.top() - st::emojiPanMargins.bottom();
+	auto contentHeight = qMin(_contentMaxHeight, maxContentHeight);
+	accumulate_max(contentHeight, st::emojiPanMinHeight);
+	auto resultTop = wantedBottom - st::emojiPanMargins.bottom() - contentHeight - st::emojiPanMargins.top();
+	accumulate_max(resultTop, _minTop);
+	auto he = contentHeight - st::emojiCategory.height;
+	auto hs = contentHeight - (s_inner->showSectionIcons() ? st::emojiCategory.height : 0);
+	if (contentHeight == _contentHeight && he == _contentHeightEmoji && hs == _contentHeightStickers) {
+		move(x(), resultTop);
+		return;
+	}
 
-	int32 was = _contentHeight, wase = _contentHeightEmoji, wass = _contentHeightStickers;
-	_contentHeight = h;
+	auto was = _contentHeight;
+	auto wase = _contentHeightEmoji;
+	auto wass = _contentHeightStickers;
+	_contentHeight = contentHeight;
 	_contentHeightEmoji = he;
 	_contentHeightStickers = hs;
 
 	resize(QRect(0, 0, innerRect().width(), _contentHeight).marginsAdded(innerPadding()).size());
 	_height = height();
-	move(x(), _bottom - _height);
+	move(x(), resultTop);
 
 	if (was > _contentHeight || (was == _contentHeight && wass > _contentHeightStickers)) {
 		e_scroll->resize(e_scroll->width(), _contentHeightEmoji);
@@ -2948,18 +2972,21 @@ void EmojiPan::paintContent(Painter &p) {
 	}
 }
 
-void EmojiPan::moveBottom(int bottom, bool force) {
-	_bottom = bottom;
-	if (isHidden() && !force) {
-		move(x(), _bottom - height());
-		return;
-	}
-	if (!_emojiShown && s_inner->inlineResultsShown()) {
+bool EmojiPan::inlineResultsShown() const {
+	return !_emojiShown && s_inner->inlineResultsShown();
+}
+
+int EmojiPan::countBottom() const {
+	return (_origin == Ui::PanelAnimation::Origin::BottomLeft) ? _bottom : (parentWidget()->height() - _minBottom);
+}
+
+void EmojiPan::moveByBottom() {
+	if (inlineResultsShown()) {
 		setOrigin(Ui::PanelAnimation::Origin::BottomLeft);
-		moveToLeft(0, _bottom - height());
+		moveToLeft(0, countBottom() - height());
 	} else {
 		setOrigin(Ui::PanelAnimation::Origin::BottomRight);
-		moveToRight(0, _bottom - height());
+		moveToRight(0, countBottom() - height());
 	}
 }
 
@@ -3353,7 +3380,7 @@ void EmojiPan::showStarted() {
 		s_inner->preloadImages();
 		_a_slide.finish();
 		_slideAnimation.reset();
-		moveBottom(y() + height(), true);
+		moveByBottom();
 		show();
 		startShowAnimation();
 	} else if (_hiding) {
@@ -3391,7 +3418,7 @@ bool EmojiPan::eventFilter(QObject *obj, QEvent *e) {
 void EmojiPan::stickersInstalled(uint64 setId) {
 	_emojiShown = false;
 	if (isHidden()) {
-		moveBottom(y() + height(), true);
+		moveByBottom();
 		startShowAnimation();
 		show();
 	}
@@ -3736,7 +3763,7 @@ bool EmojiPan::overlaps(const QRect &globalRect) const {
 }
 
 bool EmojiPan::hideOnNoInlineResults() {
-	return _inlineBot && !_emojiShown && s_inner->inlineResultsShown() && (_shownFromInlineQuery || _inlineBot->username != cInlineGifBotUsername());
+	return _inlineBot && inlineResultsShown() && (_shownFromInlineQuery || _inlineBot->username != cInlineGifBotUsername());
 }
 
 void EmojiPan::inlineBotChanged() {
@@ -3920,7 +3947,7 @@ int32 EmojiPan::showInlineRows(bool newResults) {
 
 void EmojiPan::recountContentMaxHeight() {
 	if (_shownFromInlineQuery) {
-		_contentMaxHeight = qMin(s_inner->countHeight(true), int(st::emojiPanMaxHeight));
+		_contentMaxHeight = qMin(s_inner->countHeight(true), st::emojiPanMaxHeight);
 	} else {
 		_contentMaxHeight = st::emojiPanMaxHeight;
 	}

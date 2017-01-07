@@ -119,7 +119,7 @@ Go to **D:\\TBuild\\Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout 90349b38
+    git checkout 18bb46163af
     git apply ./../../tdesktop/Telegram/Patches/openal.diff
 
 #### Building library

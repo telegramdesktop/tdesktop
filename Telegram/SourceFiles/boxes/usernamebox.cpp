@@ -86,7 +86,7 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 	if (_link->isHidden()) {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), lang(lng_username_link_willbe));
 		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), qsl("https://telegram.me/username"));
+		p.drawTextLeft(st::usernamePadding.left(), linky + st::usernameTextStyle.lineHeight + ((st::usernameTextStyle.lineHeight - st::boxTextFont->height) / 2), width(), CreateInternalLinkHttps(qsl("username")));
 	} else {
 		p.drawTextLeft(st::usernamePadding.left(), linky, width(), lang(lng_username_link));
 	}
@@ -160,7 +160,7 @@ void UsernameBox::onChanged() {
 }
 
 void UsernameBox::onLinkClick() {
-	Application::clipboard()->setText(qsl("https://telegram.me/") + getName());
+	Application::clipboard()->setText(CreateInternalLinkHttps(getName()));
 
 	Ui::Toast::Config toast;
 	toast.text = lang(lng_username_copied);
@@ -234,7 +234,7 @@ QString UsernameBox::getName() const {
 
 void UsernameBox::updateLinkText() {
 	QString uname = getName();
-	_link->setText(st::boxTextFont->elided(qsl("https://telegram.me/") + uname, st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
+	_link->setText(st::boxTextFont->elided(CreateInternalLinkHttps(uname), st::boxWidth - st::usernamePadding.left() - st::usernamePadding.right()));
 	if (uname.isEmpty()) {
 		if (!_link->isHidden()) {
 			_link->hide();

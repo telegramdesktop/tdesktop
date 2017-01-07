@@ -80,7 +80,7 @@ void InfoWidget::refreshUsername() {
 		usernameText.text = '@' + self()->username;
 		copyText = lang(lng_context_copy_mention);
 	}
-	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), qsl("https://telegram.me/") + self()->username));
+	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), CreateInternalLinkHttps(self()->username)));
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
@@ -94,10 +94,10 @@ void InfoWidget::refreshLink() {
 	TextWithEntities linkText;
 	TextWithEntities linkTextShort;
 	if (!self()->username.isEmpty()) {
-		linkText.text = qsl("https://telegram.me/") + self()->username;
+		linkText.text = CreateInternalLinkHttps(self()->username);
 		linkText.entities.push_back(EntityInText(EntityInTextUrl, 0, linkText.text.size()));
-		linkTextShort.text = qsl("telegram.me/") + self()->username;
-		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), qsl("https://telegram.me/") + self()->username));
+		linkTextShort.text = CreateInternalLink(self()->username);
+		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), CreateInternalLinkHttps(self()->username)));
 	}
 	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
 	if (auto text = _link->entity()->textLabel()) {

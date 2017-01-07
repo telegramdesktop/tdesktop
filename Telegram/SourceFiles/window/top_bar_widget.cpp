@@ -192,10 +192,24 @@ void TopBarWidget::paintUnreadCounter(Painter &p, int outerWidth) {
 	if (!Adaptive::OneColumn()) {
 		return;
 	}
-	if (auto counter = App::histories().unreadBadge()) {
+	auto mutedCount = App::histories().unreadMutedCount();
+	auto fullCounter = App::histories().unreadBadge() + (Global::IncludeMuted() ? 0 : mutedCount);
+
+	// Do not include currently shown chat in the top bar unread counter.
+	if (auto historyShown = App::historyLoaded(App::main()->historyPeer())) {
+		auto shownUnreadCount = historyShown->unreadCount();
+		if (!historyShown->mute() || Global::IncludeMuted()) {
+			fullCounter -= shownUnreadCount;
+		}
+		if (historyShown->mute()) {
+			mutedCount -= shownUnreadCount;
+		}
+	}
+
+	if (auto counter = (fullCounter - (Global::IncludeMuted() ? 0 : mutedCount))) {
 		auto counterText = (counter > 99) ? qsl("..%1").arg(counter % 100) : QString::number(counter);
 		Dialogs::Layout::UnreadBadgeStyle unreadSt;
-		unreadSt.muted = App::histories().unreadOnlyMuted();
+		unreadSt.muted = (mutedCount >= fullCounter);
 		auto unreadRight = st::titleUnreadCounterRight;
 		if (rtl()) unreadRight = outerWidth - st::titleUnreadCounterRight;
 		auto unreadTop = st::titleUnreadCounterTop;
@@ -303,13 +317,14 @@ void TopBarWidget::showAll() {
 
 void TopBarWidget::updateMembersShowArea() {
 	auto membersShowAreaNeeded = [this]() {
-		if ((_selectedCount > 0) || App::main()->overviewPeer() || !_selectedInPeer) {
+		auto peer = App::main()->peer();
+		if ((_selectedCount > 0) || !peer || App::main()->overviewPeer()) {
 			return false;
 		}
-		if (auto chat = _selectedInPeer->asChat()) {
+		if (auto chat = peer->asChat()) {
 			return chat->amIn();
 		}
-		if (auto megagroup = _selectedInPeer->asMegagroup()) {
+		if (auto megagroup = peer->asMegagroup()) {
 			return megagroup->canViewMembers() && (megagroup->membersCount() < Global::ChatSizeMax());
 		}
 		return false;
@@ -338,7 +353,6 @@ void TopBarWidget::showSelected(int selectedCount, bool canDelete) {
 	}
 
 	auto wasSelected = (_selectedCount > 0);
-	_selectedInPeer = App::main()->overviewPeer() ? App::main()->overviewPeer() : App::main()->peer();
 	_selectedCount = selectedCount;
 	if (_selectedCount > 0) {
 		_forward->setNumbersText(_selectedCount);

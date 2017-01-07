@@ -473,9 +473,9 @@ class EmojiPan : public TWidget, public RPCSender {
 public:
 	EmojiPan(QWidget *parent);
 
-	void setMaxHeight(int maxHeight);
-
-	void moveBottom(int bottom, bool force = false);
+	void setMinTop(int minTop);
+	void setMinBottom(int minBottom);
+	void moveBottom(int bottom);
 
 	void hideFast();
 	bool hiding() const {
@@ -554,6 +554,9 @@ signals:
 	void updateStickers();
 
 private:
+	bool inlineResultsShown() const;
+	int countBottom() const;
+	void moveByBottom();
 	void paintContent(Painter &p);
 	void performSwitch();
 
@@ -607,7 +610,8 @@ private:
 	void showAll();
 	void hideAll();
 
-	int _maxHeight = 0;
+	int _minTop = 0;
+	int _minBottom = 0;
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
 	int _contentHeightEmoji = 0;

@@ -34,7 +34,7 @@ constexpr int kNotifyDeletePhotoAfterMs = 60000;
 
 } // namespace
 
-CachedUserpics::CachedUserpics() {
+CachedUserpics::CachedUserpics(Type type) : _type(type) {
 	connect(&_clearTimer, SIGNAL(timeout()), this, SLOT(onClear()));
 	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
 }
@@ -57,7 +57,11 @@ QString CachedUserpics::get(const StorageKey &key, PeerData *peer) {
 		}
 		v.path = cWorkingDir() + qsl("tdata/temp/") + QString::number(rand_value<uint64>(), 16) + qsl(".png");
 		if (key.first || key.second) {
-			peer->saveUserpic(v.path, st::notifyMacPhotoSize);
+			if (_type == Type::Rounded) {
+				peer->saveUserpicRounded(v.path, st::notifyMacPhotoSize);
+			} else {
+				peer->saveUserpic(v.path, st::notifyMacPhotoSize);
+			}
 		} else {
 			App::wnd()->iconLarge().save(v.path, "PNG");
 		}

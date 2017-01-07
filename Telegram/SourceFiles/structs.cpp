@@ -95,8 +95,13 @@ public:
 	}
 
 	void paint(Painter &p, int x, int y, int size);
+	void paintRounded(Painter &p, int x, int y, int size);
+	StorageKey uniqueKey() const;
 
 private:
+	template <typename PaintBackground>
+	void paint(Painter &p, int x, int y, int size, PaintBackground paintBackground);
+
 	void fillString(const QString &name);
 
 	style::color _color;
@@ -104,7 +109,8 @@ private:
 
 };
 
-void EmptyUserpic::Impl::paint(Painter &p, int x, int y, int size) {
+template <typename PaintBackground>
+void EmptyUserpic::Impl::paint(Painter &p, int x, int y, int size, PaintBackground paintBackground) {
 	auto fontsize = (size * 13) / 33;
 	auto font = st::historyPeerUserpicFont->f;
 	font.setPixelSize(fontsize);
@@ -112,12 +118,31 @@ void EmptyUserpic::Impl::paint(Painter &p, int x, int y, int size) {
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(_color);
 	p.setPen(Qt::NoPen);
-	p.drawEllipse(x, y, size, size);
+	paintBackground();
 
 	p.setFont(font);
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st::historyPeerUserpicFg);
 	p.drawText(QRect(x, y, size, size), _string, QTextOption(style::al_center));
+}
+
+void EmptyUserpic::Impl::paint(Painter &p, int x, int y, int size) {
+	paint(p, x, y, size, [&p, x, y, size] {
+		p.drawEllipse(x, y, size, size);
+	});
+}
+
+void EmptyUserpic::Impl::paintRounded(Painter &p, int x, int y, int size) {
+	paint(p, x, y, size, [&p, x, y, size] {
+		p.drawRoundedRect(x, y, size, size, st::buttonRadius, st::buttonRadius);
+	});
+}
+
+StorageKey EmptyUserpic::Impl::uniqueKey() const {
+	auto first = 0xFFFFFFFF00000000ULL | anim::getPremultiplied(_color->c);
+	auto second = uint64(0);
+	memcpy(&second, _string.constData(), qMin(sizeof(second), _string.size() * sizeof(QChar)));
+	return StorageKey(first, second);
 }
 
 void EmptyUserpic::Impl::fillString(const QString &name) {
@@ -193,6 +218,16 @@ void EmptyUserpic::clear() {
 void EmptyUserpic::paint(Painter &p, int x, int y, int outerWidth, int size) const {
 	t_assert(_impl != nullptr);
 	_impl->paint(p, rtl() ? (outerWidth - x - size) : x, y, size);
+}
+
+void EmptyUserpic::paintRounded(Painter &p, int x, int y, int outerWidth, int size) const {
+	t_assert(_impl != nullptr);
+	_impl->paintRounded(p, rtl() ? (outerWidth - x - size) : x, y, size);
+}
+
+StorageKey EmptyUserpic::uniqueKey() const {
+	t_assert(_impl != nullptr);
+	return _impl->uniqueKey();
 }
 
 QPixmap EmptyUserpic::generate(int size) {
@@ -299,9 +334,17 @@ void PeerData::paintUserpic(Painter &p, int x, int y, int size) const {
 	}
 }
 
+void PeerData::paintUserpicRounded(Painter &p, int x, int y, int size) const {
+	if (auto userpic = currentUserpic()) {
+		p.drawPixmap(x, y, userpic->pixRounded(size, size, ImageRoundRadius::Small));
+	} else {
+		_userpicEmpty.paintRounded(p, x, y, x + size + x, size);
+	}
+}
+
 StorageKey PeerData::userpicUniqueKey() const {
 	if (photoLoc.isNull() || !_userpic || !_userpic->loaded()) {
-		return StorageKey(0, (isUser() ? 0x1000 : ((isChat() || isMegagroup()) ? 0x2000 : 0x3000)) | colorIndex);
+		return _userpicEmpty.uniqueKey();
 	}
 	return storageKey(photoLoc);
 }
@@ -310,7 +353,25 @@ void PeerData::saveUserpic(const QString &path, int size) const {
 	genUserpic(size).save(path, "PNG");
 }
 
+void PeerData::saveUserpicRounded(const QString &path, int size) const {
+	genUserpicRounded(size).save(path, "PNG");
+}
+
 QPixmap PeerData::genUserpic(int size) const {
+	if (auto userpic = currentUserpic()) {
+		return userpic->pixCircled(size, size);
+	}
+	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	result.fill(Qt::transparent);
+	{
+		Painter p(&result);
+		paintUserpic(p, 0, 0, size);
+	}
+	return App::pixmapFromImageInPlace(std_::move(result));
+}
+
+QPixmap PeerData::genUserpicRounded(int size) const {
 	if (auto userpic = currentUserpic()) {
 		return userpic->pixRounded(size, size, ImageRoundRadius::Small);
 	}
@@ -319,7 +380,7 @@ QPixmap PeerData::genUserpic(int size) const {
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
-		paintUserpic(p, 0, 0, size);
+		paintUserpicRounded(p, 0, 0, size);
 	}
 	return App::pixmapFromImageInPlace(std_::move(result));
 }

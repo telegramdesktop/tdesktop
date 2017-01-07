@@ -41,7 +41,7 @@ public:
 	using Map = QHash<PeerId, History*>;
 	Map map;
 
-	Histories() : _a_typings(animation(this, &Histories::step_typings)), _unreadFull(0), _unreadMuted(0) {
+	Histories() : _a_typings(animation(this, &Histories::step_typings)) {
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when);
@@ -53,9 +53,6 @@ public:
 
 	void clear();
 	void remove(const PeerId &peer);
-	~Histories() {
-		_unreadFull = _unreadMuted = 0;
-	}
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 

@@ -74,7 +74,6 @@ private:
 	MainWidget *main();
 
 	PeerData *_searchInPeer = nullptr;
-	PeerData *_selectedInPeer = nullptr;
 	int _selectedCount = 0;
 	bool _canDelete = false;
 

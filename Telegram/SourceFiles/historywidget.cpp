@@ -6389,7 +6389,7 @@ void HistoryWidget::moveFieldControls() {
 	_silent->moveToRight(right, buttonsBottom);
 
 	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
-	_emojiPan->moveBottom(_attachEmoji->y());
+	_emojiPan->moveBottom(_field->y() - st::historySendPadding);
 
 	auto fullWidthButtonRect = QRect(0, bottom - _botStart->height(), width(), _botStart->height());
 	_botStart->setGeometry(fullWidthButtonRect);
@@ -7098,7 +7098,8 @@ void HistoryWidget::updateControlsGeometry() {
 
 	updateHistoryDownPosition();
 
-	_emojiPan->setMaxHeight(height() - _attachEmoji->height());
+	_emojiPan->setMinTop(0);
+	_emojiPan->setMinBottom(_attachEmoji->height());
 	if (_membersDropdown) {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 	}

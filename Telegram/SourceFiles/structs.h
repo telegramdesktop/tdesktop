@@ -218,7 +218,9 @@ public:
 	}
 
 	void paint(Painter &p, int x, int y, int outerWidth, int size) const;
+	void paintRounded(Painter &p, int x, int y, int outerWidth, int size) const;
 	QPixmap generate(int size);
+	StorageKey uniqueKey() const;
 
 	~EmptyUserpic();
 
@@ -317,6 +319,7 @@ public:
 	void paintUserpicLeft(Painter &p, int x, int y, int w, int size) const {
 		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
+	void paintUserpicRounded(Painter &p, int x, int y, int size) const;
 	void loadUserpic(bool loadFirst = false, bool prior = true) {
 		_userpic->load(loadFirst, prior);
 	}
@@ -325,7 +328,9 @@ public:
 	}
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
+	void saveUserpicRounded(const QString &path, int size) const;
 	QPixmap genUserpic(int size) const;
+	QPixmap genUserpicRounded(int size) const;
 
 	PhotoId photoId = UnknownPeerPhotoId;
 	StorageImageLocation photoLoc;

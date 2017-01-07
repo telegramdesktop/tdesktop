@@ -870,7 +870,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 						if (media->type() == MediaTypeGame) {
 							auto shortName = static_cast<HistoryGame*>(media)->game()->shortName;
 
-							QApplication::clipboard()->setText(qsl("https://telegram.me/") + bot->username + qsl("?game=") + shortName);
+							QApplication::clipboard()->setText(CreateInternalLinkHttps(bot->username + qsl("?game=") + shortName));
 
 							Ui::Toast::Config toast;
 							toast.text = lang(lng_share_game_link_copied);
