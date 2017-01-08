@@ -1406,6 +1406,7 @@ aboutLabel: flatLabel(labelDefFlat) {
 }
 aboutTextStyle: textStyle(defaultTextStyle) {
 	lineHeight: 22px;
+	color: #000;
 }
 
 emojiTextFont: font(15px);
