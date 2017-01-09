@@ -468,10 +468,10 @@ FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 		avformat_close_input(&_fmtContext);
 	}
 	if (_ioContext) {
-		av_free(_ioContext->buffer);
-		av_free(_ioContext);
+		av_freep(&_ioContext->buffer);
+		av_freep(&_ioContext);
 	} else if (_ioBuffer) {
-		av_free(_ioBuffer);
+		av_freep(&_ioBuffer);
 	}
 	if (_fmtContext) avformat_free_context(_fmtContext);
 	av_frame_free(&_frame);

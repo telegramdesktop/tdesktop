@@ -1604,13 +1604,11 @@ void AudioCaptureInner::onStop(bool needResult) {
 			d->opened = false;
 		}
 		if (d->ioContext) {
-			av_free(d->ioContext->buffer);
-			av_free(d->ioContext);
-			d->ioContext = nullptr;
+			av_freep(&d->ioContext->buffer);
+			av_freep(&d->ioContext);
 			d->ioBuffer = nullptr;
 		} else if (d->ioBuffer) {
-			av_free(d->ioBuffer);
-			d->ioBuffer = nullptr;
+			av_freep(&d->ioBuffer);
 		}
 		if (d->fmtContext) {
 			avformat_free_context(d->fmtContext);
@@ -1746,9 +1744,8 @@ void AudioCaptureInner::processFrame(int32 offset, int32 framesize) {
 	d->dstSamples = av_rescale_rnd(swr_get_delay(d->swrContext, d->codecContext->sample_rate) + d->srcSamples, d->codecContext->sample_rate, d->codecContext->sample_rate, AV_ROUND_UP);
 	if (d->dstSamples > d->maxDstSamples) {
 		d->maxDstSamples = d->dstSamples;
-		av_free(d->dstSamplesData[0]);
-
-		if ((res = av_samples_alloc(d->dstSamplesData, 0, d->codecContext->channels, d->dstSamples, d->codecContext->sample_fmt, 0)) < 0) {
+		av_freep(&d->dstSamplesData[0]);
+		if ((res = av_samples_alloc(d->dstSamplesData, 0, d->codecContext->channels, d->dstSamples, d->codecContext->sample_fmt, 1)) < 0) {
 			LOG(("Audio Error: Unable to av_samples_alloc for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			onStop(false);
 			emit error();

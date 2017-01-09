@@ -616,7 +616,6 @@ void MediaView::clearData() {
 	_photo = _additionalChatPhoto = nullptr;
 	_doc = nullptr;
 	_fullScreenVideo = false;
-	_saveMsgText.clear();
 	_caption.clear();
 }
 

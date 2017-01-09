@@ -2983,11 +2983,12 @@ int EmojiPan::countBottom() const {
 void EmojiPan::moveByBottom() {
 	if (inlineResultsShown()) {
 		setOrigin(Ui::PanelAnimation::Origin::BottomLeft);
-		moveToLeft(0, countBottom() - height());
+		moveToLeft(0, y());
 	} else {
 		setOrigin(Ui::PanelAnimation::Origin::BottomRight);
-		moveToRight(0, countBottom() - height());
+		moveToRight(0, y());
 	}
+	updateContentHeight();
 }
 
 void EmojiPan::enterEvent(QEvent *e) {
