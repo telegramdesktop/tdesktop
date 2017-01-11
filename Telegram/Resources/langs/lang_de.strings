@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Deutsch";
 "lng_switch_to_this" = "Auf Deutsch zurücksetzen";
@@ -1011,7 +1011,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— \"Mitglieder deinen Gruppen hinzufügen\"-Menü in neuer Optik\n— Fehlerbehebungen und Bug fixes and other minor improvements";
+"lng_new_version_text" = "— Telegram Desktop im neuen Material-Design und netten Animationen.\n— Unterstützung eigener Themen! Ein paar Beispiele gibt es hier: @TelegramThemes.\n— Demnächst wird es einfachere Wege geben, eigene Themen zu erstellen.\n\n— Nachrichten für alle löschen. Löschst du eine Nachricht in einer Gruppe oder in einem privaten Chat, so kannst du nun festlegen ob die Nachricht nur bei dir oder bei allen im Chat gelöscht werden soll. Das Ganze funktioniert nur mit kürzlich gesendeten Nachrichten.\n— Wichtige Chats in der Chatliste (oben) anheften. Dazu ein Rechtsklick auf den Chat in der Chatliste und 'Anheften' wählen.\n— Gemeinsame Gruppen. Im Chat mit einem Nutzer auf den Namen oben tippen und anschliessend 'Gemeinsame Gruppen'. So sieht man auf einem Blick, in welchen gemeinsamen Gruppen man sich befindet.\n\nMehr dazu unter:\n{link}";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

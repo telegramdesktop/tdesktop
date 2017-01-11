@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Español";
 "lng_switch_to_this" = "Cambiar a español";
@@ -923,7 +923,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_reply_cant_forward" = "Lo sentimos, no puedes responder un mensaje viejo en un supergrupo :( ¿Quieres reenviarlo y añadir un comentario?";
 
 "lng_share_title" = "Compartir con";
-"lng_share_copy_link" = "Copiar enlace para compartir";
+"lng_share_copy_link" = "Copiar enlace";
 "lng_share_confirm" = "Enviar";
 "lng_share_wrong_user" = "Este juego fue abierto por un usuario diferente.";
 "lng_share_game_link_copied" = "Enlace del juego copiado al portapapeles.";
@@ -1011,7 +1011,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nuevo y lindo diseño para añadir miembros a tus grupos\n— Corrección de errores y otras mejoras menores";
+"lng_new_version_text" = "— Nuevo diseño y animaciones.\n— ¡Soporte para temas personalizados! Revisa algunos aquí: @TelegramThemes.\n— Pronto existirán herramientas para que crees tus propios temas.\n\n— Elimina mensajes para todos: Cuando eliminas tus mensajes en grupos y chats, ahora puedes seleccionar eliminarlos para todos en el chat y no sólo para ti. Esto funciona sólo para mensajes enviados recientemente (igual que la edición).\n— Ancla los chats importantes en la parte de arriba de la lista (haz clic con el botón derecho sobre el chat, luego elige “Anclar”).\n— Grupos en común: Una nueva sección en el perfil de tus contactos que te muestra una lista de todos los grupos que compartes con esa persona.\n\nConoce más sobre esta actualización en:\n{link}";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

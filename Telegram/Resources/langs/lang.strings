@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "English";
 "lng_switch_to_this" = "Switch to English";
@@ -1011,7 +1011,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— New cute design for adding members to your groups\n— Bug fixes and other minor improvements";
+"lng_new_version_text" = "— Fabulous new material-style design and animations.\n— Support for custom themes! Check out some themes here: @TelegramThemes.\n— Convenient tools for building your own themes coming soon.\n\n— Delete messages for everyone. When you delete your messages in groups and one-on-one chats, you can now choose to delete them for everyone in the chat, not just yourself. This works only for recently sent messages (same as editing).\n— Pin important chats to the top of the list so that you never miss a new message (right click on a chat, then choose 'Pin to top').\n— Groups in common. A new option in your contacts' profiles that shows a list of all groups you share with that person.\n\nRead more about this update:\n{link}";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
@@ -24,7 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #define BETA_VERSION_MACRO (0ULL)
 
-constexpr int AppVersion = 10027;
-constexpr str_const AppVersionStr = "0.10.27";
-constexpr bool AppAlphaVersion = true;
+constexpr int AppVersion = 1000000;
+constexpr str_const AppVersionStr = "1.0";
+constexpr bool AppAlphaVersion = false;
 constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;

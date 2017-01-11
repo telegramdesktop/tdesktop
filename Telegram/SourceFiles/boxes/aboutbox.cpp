@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "boxes/aboutbox.h"
@@ -76,7 +76,7 @@ void AboutBox::showVersionHistory() {
 
 		Ui::show(Box<InformBox>("The link to the current private beta version of Telegram Desktop was copied to the clipboard."));
 	} else {
-		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/?_hash=changelog"));
+		QDesktopServices::openUrl(qsl("https://desktop.telegram.org/changelog"));
 	}
 }
 

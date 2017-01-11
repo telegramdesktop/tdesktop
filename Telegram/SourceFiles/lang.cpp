@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "lang.h"
@@ -46,8 +46,8 @@ LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang
 	return lang(LangKey(key0)).tag(tag, sv);
 }
 
-//#define NEW_VER_TAG lt_link
-//#define NEW_VER_TAG_VALUE "https://telegram.org/blog/drafts"
+#define NEW_VER_TAG lt_link
+#define NEW_VER_TAG_VALUE "https://telegram.org/blog/desktop-1-0"
 
 QString langNewVersionText() {
 #ifdef NEW_VER_TAG

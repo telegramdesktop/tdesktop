@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "한국어";
 "lng_switch_to_this" = "한국어로 변경";
@@ -1011,7 +1011,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 그룹대화방에 회원추가 디자인 수정\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 멋지고 새로운 머티리얼 스타일 디자인과 애니메이션이 추가 되었습니다.\n— 커스텀 테마 지원! @TelegramThemes 에서 확인가능합니다.\n— 개인만의 테마를 만들수 있는 툴이 곧 제공됩니다.\n\n— 모두에게 메시지 삭제. 그룹이나 1:1대화에서 메시지를 삭제할떄, 본인 뿐만 아니라 상대방에게도 삭제할 수 있도록 선택 가능. 이 기능은 최근에 대화한 메시지만 가능합니다.(편집과 동일)\n— 중요한 대화를 상단으로 고정할 수 있습니다. (대화창을 오른쪽 클릭 후 '맨위에 고정' 선택)\n— 공통그룹. 연락처 프로필에서 같이 대화하는 상대의 공통 그룹을 볼 수 있습니다.\n\n업데이트 자세한 내용:\n{link}";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

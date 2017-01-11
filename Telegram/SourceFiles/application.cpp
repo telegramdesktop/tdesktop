@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "application.h"
@@ -1069,15 +1069,15 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10027) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Appoint admins in your supergroups from members list context menu\n\xe2\x80\x94 Bug fixes and other minor improvements");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10018) {
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000000) {
+				versionFeatures = langNewVersionText();//QString::fromUtf8("\xe2\x80\x94 Appoint admins in your supergroups from members list context menu\n\xe2\x80\x94 Bug fixes and other minor improvements");
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000000) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
 			}
 			if (!versionFeatures.isEmpty()) {
-				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
+				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/changelog"));
 				_window->serviceNotificationLocal(versionFeatures);
 			}
 		}

@@ -16,7 +16,7 @@ In addition, as a special exception, the copyright holders give permission
 to link the code of portions of this program with the OpenSSL library.
 
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
-Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
 #include "window/window_main_menu.h"
@@ -68,7 +68,7 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_telegram->setRichText(textcmdLink(1, qsl("Telegram Desktop")));
 	_telegram->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org")));
 	_version->setRichText(textcmdLink(1, lng_settings_current_version(lt_version, currentVersionText())) + QChar(' ') + QChar(8211) + QChar(' ') + textcmdLink(2, lang(lng_menu_about)));
-	_version->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org/?_hash=changelog")));
+	_version->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
 	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
