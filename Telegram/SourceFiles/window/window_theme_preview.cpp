@@ -829,6 +829,7 @@ void Generator::paintService(QString text) {
 	auto bubbleLeft = _history.x() + (_history.width() - bubbleWidth) / 2;
 	_p->drawRoundedRect(bubbleLeft, bubbleTop, bubbleWidth, bubbleHeight, radius, radius);
 	_p->setPen(st::msgServiceFg[_palette]);
+	_p->setFont(st::msgServiceFont);
 	_p->drawText(bubbleLeft + st::msgServicePadding.left(), bubbleTop + st::msgServicePadding.top() + st::msgServiceFont->ascent, text);
 	_historyBottom = bubbleTop - st::msgServiceMargin.top();
 }

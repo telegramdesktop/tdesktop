@@ -80,7 +80,7 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(0, 0, _background);
 		} else {
 			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::settingsBackgroundSize);
-			p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, 0, (pix.height() - st::settingsBackgroundSize) / 2, st::settingsBackgroundSize, st::settingsBackgroundSize);
+			p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, 0, (pix.height() - st::settingsBackgroundSize * cIntRetinaFactor()) / 2, st::settingsBackgroundSize * cIntRetinaFactor(), st::settingsBackgroundSize * cIntRetinaFactor());
 		}
 
 		auto outer = radialRect();

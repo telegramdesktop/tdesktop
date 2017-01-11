@@ -399,17 +399,17 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.setOpacity((radial && loaded) ? _radial->opacity() : 1);
 		auto icon = ([radial, loaded, selected] {
 			if (radial) {
-				return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 			} else if (loaded) {
-				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
+				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 			}
-			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		})();
 		icon->paintInCenter(p, inner);
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+			_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 		}
 	}
 
@@ -830,16 +830,16 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					p.setOpacity(radialOpacity);
 					auto icon = ([loaded, this, selected] {
 						if (loaded || _data->loading()) {
-							return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+							return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 						}
-						return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+						return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 					})();
 					icon->paintInCenter(p, inner);
 					if (radial) {
 						p.setOpacity(1);
 
 						QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-						_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+						_radial->draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 					}
 				}
 			}

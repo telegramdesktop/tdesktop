@@ -97,7 +97,7 @@ extern transition easeOutBack;
 extern transition easeInCirc;
 extern transition easeOutCirc;
 extern transition easeInCubic;
-extern transition easeOutCirc;
+extern transition easeOutCubic;
 extern transition easeInQuint;
 extern transition easeOutQuint;
 

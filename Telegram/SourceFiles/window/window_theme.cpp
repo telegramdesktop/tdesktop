@@ -421,7 +421,13 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
 	if (_id != kThemeBackground && _id != internal::kTestingThemeBackground) {
-		initColorsFromBackground(image);
+		auto colorsFromSomeTheme = Local::hasTheme();
+		if (instance && !instance->applying.paletteForRevert.isEmpty()) {
+			colorsFromSomeTheme = !instance->applying.path.isEmpty();
+		}
+		if (colorsFromSomeTheme || (_id != kDefaultBackground && _id != internal::kTestingDefaultBackground)) {
+			initColorsFromBackground(image);
+		}
 	}
 
 	auto width = image.width();
@@ -520,16 +526,22 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		saveForRevert();
 		setImage(internal::kTestingThemeBackground, std_::move(theme.background));
 		setTile(theme.tiled);
+	} else {
+		// Apply current background image so that service bg colors are recounted.
+		setImage(_id, std_::move(_pixmap).toImage());
 	}
 	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
 }
 
 void ChatBackground::setTestingDefaultTheme() {
 	style::main_palette::reset();
-	if (_id != kDefaultBackground) {
+	if (_id == kThemeBackground) {
 		saveForRevert();
 		setImage(internal::kTestingDefaultBackground);
 		setTile(false);
+	} else {
+		// Apply current background image so that service bg colors are recounted.
+		setImage(_id, std_::move(_pixmap).toImage());
 	}
 	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
 }
@@ -560,6 +572,9 @@ void ChatBackground::revert() {
 	if (_id == internal::kTestingThemeBackground || _id == internal::kTestingDefaultBackground) {
 		setTile(_tileForRevert);
 		setImage(_idForRevert, std_::move(_imageForRevert));
+	} else {
+		// Apply current background image so that service bg colors are recounted.
+		setImage(_id, std_::move(_pixmap).toImage());
 	}
 	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, _tile), true);
 }

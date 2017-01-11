@@ -422,26 +422,24 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 			p.drawEllipse(inner);
 		}
 
-		p.setOpacity(radial ? _animation->radial.opacity() : 1);
-
 		p.setOpacity(radialOpacity);
 		auto icon = ([radial, this, selected]() -> const style::icon* {
 			if (radial || _data->loading()) {
 				auto delayed = _data->full->toDelayedStorageImage();
 				if (!delayed || !delayed->location().isNull()) {
-					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
 			}
-			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		})();
 		if (icon) {
 			icon->paintInCenter(p, inner);
 		}
+		p.setOpacity(1);
 		if (radial) {
-			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 		}
 	}
 
@@ -766,16 +764,16 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 
 	auto icon = ([loaded, radial, this, selected] {
 		if (loaded) {
-			return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
+			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		} else if (radial || _data->loading()) {
-			return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 		}
-		return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	})();
 	icon->paintInCenter(p, inner);
 	if (radial) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 	}
 
 	int32 statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
@@ -1135,9 +1133,9 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 			p.setOpacity(radialOpacity);
 			auto icon = ([radial, this, selected] {
 				if (radial || _data->loading()) {
-					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
-				return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+				return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 			})();
 			p.setOpacity((radial && loaded) ? _animation->radial.opacity() : 1);
 			icon->paintInCenter(p, inner);
@@ -1145,7 +1143,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 				p.setOpacity(1);
 
 				QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-				_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+				_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 			}
 		}
 
@@ -1182,8 +1180,8 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 
 		if (radial) {
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			auto &bg = outbg ? (selected ? st::msgOutBgSelected : st::msgOutBg) : (selected ? st::msgInBgSelected : st::msgInBg);
-			_animation->radial.draw(p, rinner, st::msgFileRadialLine, bg);
+			auto fg = outbg ? (selected ? st::historyFileOutRadialFgSelected : st::historyFileOutRadialFg) : (selected ? st::historyFileInRadialFgSelected : st::historyFileInRadialFg);
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, fg);
 		}
 
 		auto icon = ([showPause, radial, this, loaded, outbg, selected] {
@@ -1769,14 +1767,14 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		p.setOpacity(radialOpacity);
 		auto icon = ([this, radial, selected]() -> const style::icon * {
 			if (_data->loaded() && !radial) {
-				return &(selected ? st::historyFileInPlaySelected : st::historyFileInPlay);
+				return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 			} else if (radial || _data->loading()) {
 				if (_parent->id > 0 || _data->uploading()) {
-					return &(selected ? st::historyFileInCancelSelected : st::historyFileInCancel);
+					return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
 				}
 				return nullptr;
 			}
-			return &(selected ? st::historyFileInDownloadSelected : st::historyFileInDownload);
+			return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 		})();
 		if (icon) {
 			icon->paintInCenter(p, inner);
@@ -1784,7 +1782,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		if (radial) {
 			p.setOpacity(1);
 			QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
-			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::msgInBgSelected : st::msgInBg);
+			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 		}
 
 		if (!animating || _parent->id < 0) {

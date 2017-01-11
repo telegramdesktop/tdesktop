@@ -596,6 +596,7 @@ buildTelegram() {
       -Dtravis_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
+      -Dlinux_path_vdpau=$VDPAU_PATH \
       -Dlinux_path_ffmpeg=$FFMPEG_PATH \
       -Dlinux_path_openal=$OPENAL_PATH \
       -Dlinux_path_qt=$QT_PATH \

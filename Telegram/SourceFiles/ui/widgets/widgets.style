@@ -461,7 +461,7 @@ defaultLinkButton: LinkButton {
 
 defaultRippleAnimation: RippleAnimation {
 	color: windowBgRipple;
-	showDuration: 450;
+	showDuration: 650;
 	hideDuration: 200;
 }
 
@@ -542,7 +542,7 @@ defaultSolidScroll: ScrollArea(defaultScrollArea) {
 defaultInputFont: font(17px);
 defaultFlatInput: FlatInput {
 	textColor: windowFg;
-	bgColor: windowBgOver;
+	bgColor: filterInputInactiveBg;
 	bgActive: windowBg;
 	width: 210px;
 	height: 40px;
@@ -551,7 +551,7 @@ defaultFlatInput: FlatInput {
 	font: defaultInputFont;
 
 	borderWidth: 2px;
-	borderColor: windowBgOver;
+	borderColor: filterInputInactiveBg;
 	borderActive: filterInputBorderFg;
 
 	phColor: placeholderFg;

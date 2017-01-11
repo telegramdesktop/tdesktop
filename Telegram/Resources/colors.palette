@@ -93,6 +93,7 @@ placeholderFg: windowSubTextFg;
 placeholderFgActive: #aaaaaa;
 inputBorderFg: #e0e0e0;
 filterInputBorderFg: #54c3f3;
+filterInputInactiveBg: windowBgOver;
 checkboxFg: #b3b3b3;
 
 sliderBgInactive: #e1eaef;
@@ -275,10 +276,10 @@ historyPeer8NameFg: #ce671b; // orange
 historyPeer8UserpicBg: #faa774;
 historyPeerUserpicFg: windowFgActive;
 
-historyScrollBarBg: #556e837a;
-historyScrollBarBgOver: #556e83bc;
-historyScrollBg: #556e834c;
-historyScrollBgOver: #556e836b;
+historyScrollBarBg: #517c417a;
+historyScrollBarBgOver: #517c41bc;
+historyScrollBg: #517c414c;
+historyScrollBgOver: #517c416b;
 
 msgInBg: windowBg;
 msgInBgSelected: #c2dcf2; // #358cd4 with 30% opacity
@@ -299,8 +300,8 @@ msgInDateFgSelected: #6a9cc5;
 msgOutDateFg: #6cc264;
 msgOutDateFgSelected: #50a79c;
 msgServiceFg: windowFgActive;
-msgServiceBg: #556e837f;
-msgServiceBgSelected: #8ca0b3a2;
+msgServiceBg: #517c417f;
+msgServiceBgSelected: #96b38ba2;
 msgInReplyBarColor: activeLineFg;
 msgInReplyBarSelColor: activeLineFg;
 msgOutReplyBarColor: historyOutIconFg;
@@ -340,6 +341,19 @@ msgFile4Bg: #efc274; // yellow
 msgFile4BgDark: #e6a561;
 msgFile4BgOver: #dc9c5a;
 msgFile4BgSelected: #b19d84;
+
+historyFileInIconFg: msgInBg;
+historyFileInIconFgSelected: msgInBgSelected;
+historyFileInRadialFg: historyFileInIconFg;
+historyFileInRadialFgSelected: historyFileInIconFgSelected;
+historyFileOutIconFg: msgOutBg;
+historyFileOutIconFgSelected: msgOutBgSelected;
+historyFileOutRadialFg: historyFileOutIconFg;
+historyFileOutRadialFgSelected: historyFileOutIconFgSelected;
+historyFileThumbIconFg: msgInBg;
+historyFileThumbIconFgSelected: msgInBgSelected;
+historyFileThumbRadialFg: historyFileThumbIconFg;
+historyFileThumbRadialFgSelected: historyFileThumbIconFgSelected;
 
 msgWaveformInActive: windowBgActive;
 msgWaveformInActiveSelected: #51a3d3;
