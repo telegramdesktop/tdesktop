@@ -851,6 +851,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_pin_to_top" = "Vastzetten";
 "lng_context_unpin_from_top" = "Losmaken";
 
+"lng_context_promote_admin" = "Beheerder maken";
+"lng_context_remove_admin" = "Ontslaan als beheerder";
+"lng_context_remove_from_group" = "Uit de groep verwijderen";
+
 "lng_context_copy_link" = "Link kopiëren";
 "lng_context_copy_post_link" = "Berichtlink kopiëren";
 "lng_context_copy_email" = "E-mailadres kopiëren";

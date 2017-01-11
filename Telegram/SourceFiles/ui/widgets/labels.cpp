@@ -496,7 +496,7 @@ void FlatLabel::showContextMenu(QContextMenuEvent *e, ContextMenuReason reason) 
 		uponSelection = hasSelection;
 	}
 
-	_contextMenu = new Ui::PopupMenu();
+	_contextMenu = new Ui::PopupMenu(nullptr);
 
 	_contextMenuClickHandler = ClickHandler::getActive();
 

@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_block_peer_list.h"
 
 #include "ui/effects/ripple_animation.h"
+#include "ui/widgets/popup_menu.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
 
@@ -70,7 +71,7 @@ void PeerListWidget::paintContents(Painter &p) {
 	auto to = ceilclamp(_visibleBottom - top, st::profileMemberHeight, 0, _items.size());
 	for (auto i = from; i < to; ++i) {
 		auto y = top + i * st::profileMemberHeight;
-		auto selected = (_pressed >= 0) ? (i == _pressed) : (i == _selected);
+		auto selected = (_menuRowIndex >= 0) ? (i == _menuRowIndex) : (_pressed >= 0) ? (i == _pressed) : (i == _selected);
 		auto selectedRemove = selected && _selectedRemove;
 		if (_pressed >= 0 && !_pressedRemove) {
 			selectedRemove = false;
@@ -144,6 +145,7 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 	_mousePosition = e->globalPos();
 	updateSelection();
 
+	_pressButton = e->button();
 	_pressed = _selected;
 	_pressedRemove = _selectedRemove;
 	if (_pressed >= 0 && !_pressedRemove) {
@@ -162,9 +164,10 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 }
 
 void PeerListWidget::mouseReleaseEvent(QMouseEvent *e) {
-	_mousePosition = e->globalPos();
-	updateSelection();
+	mousePressReleased(e->button());
+}
 
+void PeerListWidget::mousePressReleased(Qt::MouseButton button) {
 	repaintRow(_pressed);
 	auto pressed = base::take(_pressed, -1);
 	auto pressedRemove = base::take(_pressedRemove);
@@ -172,7 +175,7 @@ void PeerListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		if (auto &ripple = _items[pressed]->ripple) {
 			ripple->lastStop();
 		}
-		if (pressed == _selected && pressedRemove == _selectedRemove) {
+		if (pressed == _selected && pressedRemove == _selectedRemove && button == Qt::LeftButton) {
 			if (auto &callback = (pressedRemove ? _removedCallback : _selectedCallback)) {
 				callback(_items[pressed]->peer);
 			}
@@ -180,6 +183,46 @@ void PeerListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	setCursor(_selectedRemove ? style::cur_pointer : style::cur_default);
 	repaintSelectedRow();
+}
+
+void PeerListWidget::contextMenuEvent(QContextMenuEvent *e) {
+	if (_menu) {
+		_menu->deleteLater();
+		_menu = nullptr;
+	}
+	if (_menuRowIndex >= 0) {
+		repaintRow(_menuRowIndex);
+		_menuRowIndex = -1;
+	}
+
+	if (e->reason() == QContextMenuEvent::Mouse) {
+		_mousePosition = e->globalPos();
+		updateSelection();
+	}
+
+	_menuRowIndex = _selected;
+	if (_pressButton != Qt::LeftButton) {
+		mousePressReleased(_pressButton);
+	}
+
+	if (_selected < 0 || _selected >= _items.size()) {
+		return;
+	}
+
+	_menu = fillPeerMenu(_items[_selected]->peer);
+	if (_menu) {
+		_menu->setDestroyedCallback(base::lambda_guarded(this, [this, menu = _menu] {
+			if (_menu == menu) {
+				_menu = nullptr;
+			}
+			repaintRow(_menuRowIndex);
+			_menuRowIndex = -1;
+			_mousePosition = QCursor::pos();
+			updateSelection();
+		}));
+		_menu->popup(e->globalPos());
+		e->accept();
+	}
 }
 
 void PeerListWidget::enterEvent(QEvent *e) {

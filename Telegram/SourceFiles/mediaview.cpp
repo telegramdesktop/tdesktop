@@ -2534,7 +2534,7 @@ void MediaView::contextMenuEvent(QContextMenuEvent *e) {
 			_menu->deleteLater();
 			_menu = 0;
 		}
-		_menu = new Ui::PopupMenu(st::mediaviewPopupMenu);
+		_menu = new Ui::PopupMenu(nullptr, st::mediaviewPopupMenu);
 		updateActions();
 		for_const (auto &action, _actions) {
 			_menu->addAction(action.text, this, action.member)->setEnabled(true);

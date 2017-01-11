@@ -1452,7 +1452,7 @@ void FlatTextarea::dropEvent(QDropEvent *e) {
 
 void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
 }
 
@@ -1620,7 +1620,7 @@ void FlatInput::updatePlaceholderText() {
 
 void FlatInput::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
 }
 
@@ -2409,7 +2409,7 @@ void InputArea::Inner::keyPressEvent(QKeyEvent *e) {
 
 void InputArea::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
 }
 
@@ -3170,7 +3170,7 @@ void InputField::Inner::keyPressEvent(QKeyEvent *e) {
 
 void InputField::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
 }
 
@@ -3482,7 +3482,7 @@ void MaskedInputField::createPlaceholderPath() {
 
 void MaskedInputField::contextMenuEvent(QContextMenuEvent *e) {
 	if (auto menu = createStandardContextMenu()) {
-		(new Ui::PopupMenu(menu))->popup(e->globalPos());
+		(new Ui::PopupMenu(nullptr, menu))->popup(e->globalPos());
 	}
 }
 

@@ -851,8 +851,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_pin_to_top" = "Anclar";
 "lng_context_unpin_from_top" = "Desanclar";
 
+"lng_context_promote_admin" = "Nombrar administrador";
+"lng_context_remove_admin" = "Eliminar de los administradores";
+"lng_context_remove_from_group" = "Eliminar del grupo";
+
 "lng_context_copy_link" = "Copiar enlace";
-"lng_context_copy_post_link" = "Copiar enlace";
+"lng_context_copy_post_link" = "Copiar enlace de la publicación";
 "lng_context_copy_email" = "Copiar e-mail";
 "lng_context_copy_hashtag" = "Copiar hashtag";
 "lng_context_copy_mention" = "Copiar alias";
@@ -919,7 +923,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_reply_cant_forward" = "Lo sentimos, no puedes responder un mensaje viejo en un supergrupo :( ¿Quieres reenviarlo y añadir un comentario?";
 
 "lng_share_title" = "Compartir con";
-"lng_share_copy_link" = "Copiar enlace";
+"lng_share_copy_link" = "Copiar enlace para compartir";
 "lng_share_confirm" = "Enviar";
 "lng_share_wrong_user" = "Este juego fue abierto por un usuario diferente.";
 "lng_share_game_link_copied" = "Enlace del juego copiado al portapapeles.";

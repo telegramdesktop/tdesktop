@@ -1229,7 +1229,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		isUponSelected = hasSelected;
 	}
 
-	_menu = new Ui::PopupMenu();
+	_menu = new Ui::PopupMenu(nullptr);
 
 	_contextMenuLnk = ClickHandler::getActive();
 	HistoryItem *item = App::hoveredItem() ? App::hoveredItem() : App::hoveredLinkItem();
@@ -2988,6 +2988,7 @@ void SilentToggle::setChecked(bool checked) {
 }
 
 void SilentToggle::leaveEvent(QEvent *e) {
+	IconButton::leaveEvent(e);
 	Ui::Tooltip::Hide();
 }
 

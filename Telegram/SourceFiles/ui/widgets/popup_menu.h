@@ -25,8 +25,8 @@ namespace Ui {
 
 class PopupMenu : public TWidget {
 public:
-	PopupMenu(const style::PopupMenu &st = st::defaultPopupMenu);
-	PopupMenu(QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
+	PopupMenu(QWidget*, const style::PopupMenu &st = st::defaultPopupMenu);
+	PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st = st::defaultPopupMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
@@ -39,6 +39,10 @@ public:
 	void deleteOnHide(bool del);
 	void popup(const QPoint &p);
 	void hideMenu(bool fast = false);
+
+	void setDestroyedCallback(base::lambda<void()> &&callback) {
+		_destroyedCallback = std_::move(callback);
+	}
 
 	~PopupMenu();
 
@@ -129,6 +133,8 @@ private:
 	bool _deleteOnHide = true;
 	bool _triggering = false;
 	bool _deleteLater = false;
+
+	base::lambda<void()> _destroyedCallback;
 
 };
 

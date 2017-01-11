@@ -863,7 +863,7 @@ void DialogsInner::contextMenuEvent(QContextMenuEvent *e) {
 		mousePressReleased(_pressButton);
 	}
 
-	_menu = new Ui::PopupMenu();
+	_menu = new Ui::PopupMenu(nullptr);
 	App::main()->fillPeerMenu(_menuPeer, [this](const QString &text, base::lambda<void()> &&callback) {
 		return _menu->addAction(text, std_::move(callback));
 	}, true);

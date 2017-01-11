@@ -177,7 +177,7 @@ void MainWindow::onWindowActiveChanged() {
 
 void MainWindow::firstShow() {
 #ifdef Q_OS_WIN
-	trayIconMenu = new Ui::PopupMenu();
+	trayIconMenu = new Ui::PopupMenu(nullptr);
 	trayIconMenu->deleteOnHide(false);
 #else // Q_OS_WIN
 	trayIconMenu = new QMenu(this);

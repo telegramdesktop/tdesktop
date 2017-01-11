@@ -1069,8 +1069,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10026) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 You can use t.me instead of telegram.me\n\xe2\x80\x94 OpenAL updated to the latest version\n\xe2\x80\x94 Bug fixes and other minor improvements");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10027) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Appoint admins in your supergroups from members list context menu\n\xe2\x80\x94 Bug fixes and other minor improvements");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10018) {
 				versionFeatures = langNewVersionText();
 			} else {

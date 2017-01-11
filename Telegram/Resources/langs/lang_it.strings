@@ -33,7 +33,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_open_from_tray" = "Apri Telegram";
 "lng_minimize_to_tray" = "Riduci a icona";
 "lng_quit_from_tray" = "Chiudi Telegram";
-"lng_tray_icon_text" = "Telegram è ancora attivo qui,\npuoi cambiarlo nelle impostazioni.\nSe l'icona scompare dall'area di notifica,\npuoi ripristinarla dalle icone nascoste.";
+"lng_tray_icon_text" = "Telegram è ancora attivo qui,\npuoi cambiarlo nelle impostazioni.\nSe l'icona di notifica scompare,\npuoi ripristinarla dalle icone nascoste.";
 
 "lng_month1" = "Gennaio";
 "lng_month2" = "Febbraio";
@@ -850,6 +850,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_view_channel" = "Visualizza info canale";
 "lng_context_pin_to_top" = "Fissa in alto";
 "lng_context_unpin_from_top" = "Togli dall'alto";
+
+"lng_context_promote_admin" = "Rendi amministratore";
+"lng_context_remove_admin" = "Rimuovi dagli amministratori";
+"lng_context_remove_from_group" = "Rimuovi dal gruppo";
 
 "lng_context_copy_link" = "Copia link";
 "lng_context_copy_post_link" = "Copia link post";

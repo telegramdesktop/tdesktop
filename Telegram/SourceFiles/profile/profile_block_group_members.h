@@ -55,6 +55,8 @@ protected:
 
 	void paintContents(Painter &p) override;
 
+	Ui::PopupMenu *fillPeerMenu(PeerData *peer) override;
+
 signals:
 	void onlineCountUpdated(int onlineCount);
 
@@ -65,6 +67,9 @@ private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
 
+	void addAdmin(PeerData *selectedPeer);
+	void removeAdmin(PeerData *selectedPeer);
+	void removePeer(PeerData *selectedPeer);
 	void refreshMembers();
 	void fillChatMembers(ChatData *chat);
 	void fillMegagroupMembers(ChannelData *megagroup);

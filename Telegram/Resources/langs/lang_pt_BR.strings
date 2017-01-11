@@ -851,6 +851,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 "lng_context_pin_to_top" = "Fixar no topo";
 "lng_context_unpin_from_top" = "Desafixar do topo";
 
+"lng_context_promote_admin" = "Promover a administrador";
+"lng_context_remove_admin" = "Remover dos administradores";
+"lng_context_remove_from_group" = "Remover do grupo";
+
 "lng_context_copy_link" = "Copiar Link";
 "lng_context_copy_post_link" = "Copiar Link do Post";
 "lng_context_copy_email" = "Copiar Endereço de Email";

@@ -25,6 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class RippleAnimation;
+class PopupMenu;
 } // namespace Ui
 
 namespace Notify {
@@ -105,6 +106,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
 	void enterEvent(QEvent *e) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override {
 		enterEvent(e);
@@ -114,7 +116,12 @@ protected:
 		leaveEvent(e);
 	}
 
+	virtual Ui::PopupMenu *fillPeerMenu(PeerData *peer) {
+		return nullptr;
+	}
+
 private:
+	void mousePressReleased(Qt::MouseButton button);
 	void updateSelection();
 	void setSelected(int selected, bool selectedRemove);
 	void repaintSelectedRow();
@@ -138,12 +145,16 @@ private:
 
 	int _selected = -1;
 	int _pressed = -1;
+	Qt::MouseButton _pressButton = Qt::LeftButton;
 	bool _selectedRemove = false;
 	bool _pressedRemove = false;
 	QPoint _mousePosition;
 
 	QString _removeText;
 	int _removeWidth = 0;
+
+	Ui::PopupMenu *_menu = nullptr;
+	int _menuRowIndex = -1;
 
 };
 

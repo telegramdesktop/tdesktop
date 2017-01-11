@@ -25,13 +25,13 @@
 
 namespace Ui {
 
-PopupMenu::PopupMenu(const style::PopupMenu &st) : TWidget(nullptr)
+PopupMenu::PopupMenu(QWidget*, const style::PopupMenu &st) : TWidget(nullptr)
 , _st(st)
 , _menu(this, _st.menu) {
 	init();
 }
 
-PopupMenu::PopupMenu(QMenu *menu, const style::PopupMenu &st) : TWidget(nullptr)
+PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidget(nullptr)
 , _st(st)
 , _menu(this, menu, _st.menu) {
 	init();
@@ -478,6 +478,9 @@ PopupMenu::~PopupMenu() {
 		w->reActivateWindow();
 	}
 #endif
+	if (_destroyedCallback) {
+		_destroyedCallback();
+	}
 }
 
 } // namespace Ui
