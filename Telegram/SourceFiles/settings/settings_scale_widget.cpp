@@ -21,13 +21,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settings/settings_scale_widget.h"
 
+#include "styles/style_boxes.h"
 #include "styles/style_settings.h"
+#include "ui/widgets/checkbox.h"
 #include "lang.h"
 #include "localstorage.h"
 #include "mainwindow.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
-#include "ui/widgets/discrete_slider.h"
+#include "ui/widgets/discrete_sliders.h"
 
 namespace Settings {
 namespace {
@@ -51,7 +53,7 @@ ScaleWidget::ScaleWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 void ScaleWidget::createControls() {
 	style::margins margin(0, 0, 0, st::settingsSmallSkip);
 
-	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), SLOT(onAutoChosen()), (cConfigScale() == dbisAuto));
+	addChildRow(_auto, margin, lng_settings_scale_auto(lt_cur, scaleLabel(cScreenScale())), SLOT(onAutoChanged()), (cConfigScale() == dbisAuto));
 	addChildRow(_scale, style::margins(0, 0, 0, 0));
 
 	_scale->addSection(scaleLabel(dbisOne));
@@ -62,7 +64,7 @@ void ScaleWidget::createControls() {
 	_scale->setSectionActivatedCallback([this] { scaleChanged(); });
 }
 
-void ScaleWidget::onAutoChosen() {
+void ScaleWidget::onAutoChanged() {
 	auto newScale = _auto->checked() ? dbisAuto : cEvalScale(cConfigScale());
 	if (newScale == cScreenScale()) {
 		if (newScale != cScale()) {
@@ -80,24 +82,35 @@ void ScaleWidget::onAutoChosen() {
 }
 
 void ScaleWidget::setScale(DBIScale newScale) {
-	if (cConfigScale() == newScale) return;
+	if (_inSetScale) return;
+	_inSetScale = true;
+	auto guard = base::scope_guard([this] { _inSetScale = false; });
 
-	cSetConfigScale(newScale);
-	Local::writeSettings();
-	App::wnd()->getTitle()->updateControlsVisibility();
+	if (newScale == cScreenScale()) newScale = dbisAuto;
 	if (newScale == dbisAuto && !_auto->checked()) {
 		_auto->setChecked(true);
 	} else if (newScale != dbisAuto && _auto->checked()) {
 		_auto->setChecked(false);
 	}
+	_newScale = newScale;
 	if (newScale == dbisAuto) newScale = cScreenScale();
 	if (_scale->activeSection() != newScale - 1) {
 		_scale->setActiveSection(newScale - 1);
 	}
-	if (cEvalScale(cConfigScale()) != cEvalScale(cRealScale())) {
-		auto box = new ConfirmBox(lang(lng_settings_need_restart), lang(lng_settings_restart_now), st::defaultBoxButton, lang(lng_settings_restart_later));
-		connect(box, SIGNAL(confirmed()), this, SLOT(onRestartNow()));
-		Ui::showLayer(box);
+
+	if (cEvalScale(newScale) != cEvalScale(cRealScale())) {
+		Ui::show(Box<ConfirmBox>(lang(lng_settings_need_restart), lang(lng_settings_restart_now), base::lambda_guarded(this, [this] {
+			cSetConfigScale(_newScale);
+			Local::writeSettings();
+			App::restart();
+		}), base::lambda_guarded(this, [this] {
+			App::CallDelayed(st::boxDuration, this, [this] {
+				setScale(cRealScale());
+			});
+		})));
+	} else {
+		cSetConfigScale(newScale);
+		Local::writeSettings();
 	}
 }
 
@@ -109,25 +122,7 @@ void ScaleWidget::scaleChanged() {
 	case 2: newScale = dbisOneAndHalf; break;
 	case 3: newScale = dbisTwo; break;
 	}
-	if (newScale == cScreenScale()) {
-		newScale = dbisAuto;
-	}
 	setScale(newScale);
-}
-
-void ScaleWidget::onRestartNow() {
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	bool updateReady = false;
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
-	if (updateReady) {
-		cSetRestartingUpdate(true);
-	} else {
-		cSetRestarting(true);
-		cSetRestartingToSettings(true);
-	}
-	App::quit();
 }
 
 } // namespace Settings

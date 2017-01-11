@@ -25,7 +25,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace base {
 
 template <typename T, size_t N>
-inline constexpr size_t array_size(T(&)[N]) {
+inline constexpr size_t array_size(const T(&)[N]) {
 	return N;
 }
 
@@ -35,7 +35,64 @@ inline T take(T &source, T &&new_value = T()) {
 	return std_::move(new_value);
 }
 
+namespace internal {
+
+template <typename D, typename T>
+inline constexpr D up_cast_helper(std_::true_type, T object) {
+	return object;
+}
+
+template <typename D, typename T>
+inline constexpr D up_cast_helper(std_::false_type, T object) {
+	return nullptr;
+}
+
+template <typename T>
+constexpr std_::add_const_t<T> &any_as_const(T &&value) noexcept {
+	return value;
+}
+
+} // namespace internal
+
+template <typename D, typename T>
+inline constexpr D up_cast(T object) {
+	using DV = std_::decay_simple_t<decltype(*D())>;
+	using TV = std_::decay_simple_t<decltype(*T())>;
+	return internal::up_cast_helper<D>(std_::integral_constant<bool, std_::is_base_of<DV, TV>::value || std_::is_same<DV, TV>::value>(), object);
+}
+
+template <typename Lambda>
+class scope_guard_helper {
+public:
+	scope_guard_helper(Lambda on_scope_exit) : _handler(std_::move(on_scope_exit)) {
+	}
+	void dismiss() {
+		_dismissed = true;
+	}
+	~scope_guard_helper() {
+		if (!_dismissed) {
+			_handler();
+		}
+	}
+
+private:
+	Lambda _handler;
+	bool _dismissed = false;
+
+};
+
+template <typename Lambda>
+scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
+	return scope_guard_helper<Lambda>(std_::move(on_scope_exit));
+}
+
 } // namespace base
+
+// using for_const instead of plain range-based for loop to ensure usage of const_iterator
+// it is important for the copy-on-write Qt containers
+// if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
+// while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
+#define for_const(range_declaration, range_expression) for (range_declaration : base::internal::any_as_const(range_expression))
 
 template <typename Enum>
 inline QFlags<Enum> qFlags(Enum v) {
@@ -76,6 +133,10 @@ private:
 
 inline QString str_const_toString(const str_const &str) {
 	return QString::fromUtf8(str.c_str(), str.size());
+}
+
+inline QByteArray str_const_toByteArray(const str_const &str) {
+	return QByteArray::fromRawData(str.c_str(), str.size());
 }
 
 template <typename T>
@@ -159,8 +220,9 @@ void finish();
 
 }
 
+using TimeMs = int64;
 bool checkms(); // returns true if time has changed
-uint64 getms(bool checked = false);
+TimeMs getms(bool checked = false);
 
 const static uint32 _md5_block_size = 64;
 class HashMd5 {
@@ -258,21 +320,24 @@ inline T snap(const T &v, const T &_min, const T &_max) {
 template <typename T>
 class ManagedPtr {
 public:
-	ManagedPtr() : ptr(0) {
-	}
-	ManagedPtr(T *p) : ptr(p) {
+	ManagedPtr() = default;
+	ManagedPtr(T *p) : _data(p) {
 	}
 	T *operator->() const {
-		return ptr;
+		return _data;
 	}
 	T *v() const {
-		return ptr;
+		return _data;
+	}
+
+	explicit operator bool() const {
+		return _data != nullptr;
 	}
 
 protected:
+	using Parent = ManagedPtr<T>;
+	T *_data = nullptr;
 
-	T *ptr;
-	typedef ManagedPtr<T> Parent;
 };
 
 QString translitRusEng(const QString &rus);
@@ -300,11 +365,6 @@ enum DBIConnectionType {
 	dbictHttpAuto = 1, // not used
 	dbictHttpProxy = 2,
 	dbictTcpProxy = 3,
-};
-
-enum DBIDefaultAttach {
-	dbidaDocument = 0,
-	dbidaPhoto = 1,
 };
 
 struct ProxyData {
@@ -369,24 +429,23 @@ inline QString strMakeFromLetters(const uint32 *letters, int32 len) {
 
 class MimeType {
 public:
-
-	enum TypeEnum {
+	enum class Known {
 		Unknown,
+		TDesktopTheme,
 		WebP,
 	};
 
-	MimeType(const QMimeType &type) : _typeStruct(type), _type(Unknown) {
+	MimeType(const QMimeType &type) : _typeStruct(type) {
 	}
-	MimeType(TypeEnum type) : _type(type) {
+	MimeType(Known type) : _type(type) {
 	}
 	QStringList globPatterns() const;
 	QString filterString() const;
 	QString name() const;
 
 private:
-
 	QMimeType _typeStruct;
-	TypeEnum _type;
+	Known _type = Known::Unknown;
 
 };
 

@@ -20,28 +20,29 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
-class BoxButton;
+namespace Ui {
 class LinkButton;
+} // namespace Ui
 
-class LocalStorageBox : public AbstractBox {
+class LocalStorageBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	LocalStorageBox();
+	LocalStorageBox(QWidget*);
 
 private slots:
-	void onClear();
 	void onTempDirCleared(int task);
 	void onTempDirClearFailed(int task);
 
 protected:
+	void prepare() override;
+
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAll() override;
-
 private:
+	void clearStorage();
 	void updateControls();
 	void checkLocalStoredCounts();
 
@@ -53,8 +54,7 @@ private:
 	};
 	State _state = State::Normal;
 
-	ChildWidget<LinkButton> _clear;
-	ChildWidget<BoxButton> _close;
+	object_ptr<Ui::LinkButton> _clear;
 
 	int _imagesCount = -1;
 	int _audiosCount = -1;

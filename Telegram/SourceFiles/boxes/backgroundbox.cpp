@@ -19,46 +19,44 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/backgroundbox.h"
 
-#include "backgroundbox.h"
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "styles/style_overview.h"
+#include "styles/style_boxes.h"
+#include "ui/effects/round_checkbox.h"
 
-BackgroundBox::BackgroundBox() : ItemListBox(st::backgroundScroll)
-, _inner(this) {
-	init(_inner);
-
-	connect(_inner, SIGNAL(backgroundChosen(int)), this, SLOT(onBackgroundChosen(int)));
-
-	prepare();
+BackgroundBox::BackgroundBox(QWidget*) {
 }
 
-void BackgroundBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+void BackgroundBox::prepare() {
+	setTitle(lang(lng_backgrounds_header));
 
-	paintTitle(p, lang(lng_backgrounds_header));
+	addButton(lang(lng_close), [this] { closeBox(); });
+
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
+
+	_inner = setInnerWidget(object_ptr<Inner>(this), st::backgroundScroll);
+	_inner->setBackgroundChosenCallback([this](int index) { backgroundChosen(index); });
 }
 
-void BackgroundBox::onBackgroundChosen(int index) {
+void BackgroundBox::backgroundChosen(int index) {
 	if (index >= 0 && index < App::cServerBackgrounds().size()) {
-		const App::WallPaper &paper(App::cServerBackgrounds().at(index));
+		auto &paper = App::cServerBackgrounds()[index];
 		if (App::main()) App::main()->setChatBackground(paper);
 
-		using Update = Window::ChatBackgroundUpdate;
-		Window::chatBackground()->notify(Update(Update::Type::Start, !paper.id));
+		using Update = Window::Theme::BackgroundUpdate;
+		Window::Theme::Background()->notify(Update(Update::Type::Start, !paper.id));
 	}
-	onClose();
+	closeBox();
 }
 
-BackgroundBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
-, _bgCount(0)
-, _rows(0)
-, _over(-1)
-, _overDown(-1) {
+BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
+, _check(std_::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
+	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);
 		MTP::send(MTPaccount_GetWallPapers(), rpcDone(&Inner::gotWallpapers));
@@ -67,20 +65,25 @@ BackgroundBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
 	}
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			_check->invalidateCache();
+		}
+	});
 	setMouseTracking(true);
 }
 
 void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) {
 	App::WallPapers wallpapers;
 
-	wallpapers.push_back(App::WallPaper(0, ImagePtr(st::msgBG0), ImagePtr(st::msgBG0)));
-	const auto &v(result.c_vector().v);
-	for (int i = 0, l = v.size(); i < l; ++i) {
-		const auto &w(v.at(i));
+	auto oldBackground = ImagePtr(qsl(":/gui/art/bg_initial.png"));
+	wallpapers.push_back(App::WallPaper(Window::Theme::kInitialBackground, oldBackground, oldBackground));
+	auto &v = result.c_vector().v;
+	for_const (auto &w, v) {
 		switch (w.type()) {
 		case mtpc_wallPaper: {
-			const auto &d(w.c_wallPaper());
-			const auto &sizes(d.vsizes.c_vector().v);
+			auto &d = w.c_wallPaper();
+			auto &sizes = d.vsizes.c_vector().v;
 			const MTPPhotoSize *thumb = 0, *full = 0;
 			int32 thumbLevel = -1, fullLevel = -1;
 			for (QVector<MTPPhotoSize>::const_iterator j = sizes.cbegin(), e = sizes.cend(); j != e; ++j) {
@@ -88,14 +91,14 @@ void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) 
 				int32 w = 0, h = 0;
 				switch (j->type()) {
 				case mtpc_photoSize: {
-					const auto &s(j->c_photoSize().vtype.c_string().v);
+					auto &s = j->c_photoSize().vtype.c_string().v;
 					if (s.size()) size = s[0];
 					w = j->c_photoSize().vw.v;
 					h = j->c_photoSize().vh.v;
 				} break;
 
 				case mtpc_photoCachedSize: {
-					const auto &s(j->c_photoCachedSize().vtype.c_string().v);
+					auto &s = j->c_photoCachedSize().vtype.c_string().v;
 					if (s.size()) size = s[0];
 					w = j->c_photoCachedSize().vw.v;
 					h = j->c_photoCachedSize().vh.v;
@@ -119,7 +122,7 @@ void BackgroundBox::Inner::gotWallpapers(const MTPVector<MTPWallPaper> &result) 
 		} break;
 
 		case mtpc_wallPaperSolid: {
-			const auto &d(w.c_wallPaperSolid());
+			auto &d = w.c_wallPaperSolid();
 		} break;
 		}
 	}
@@ -161,16 +164,16 @@ void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 				const QPixmap &pix(paper.thumb->pix(st::backgroundSize.width(), st::backgroundSize.height()));
 				p.drawPixmap(x, y, pix);
 
-				if (paper.id == Window::chatBackground()->id()) {
-					int checkPosX = x + st::backgroundSize.width() - st::overviewPhotoChecked.width();
-					int checkPosY = y + st::backgroundSize.height() - st::overviewPhotoChecked.height();
-					st::overviewPhotoChecked.paint(p, QPoint(checkPosX, checkPosY), width());
+				if (paper.id == Window::Theme::Background()->id()) {
+					auto checkLeft = x + st::backgroundSize.width() - st::overviewCheckSkip - st::overviewCheck.size;
+					auto checkTop = y + st::backgroundSize.height() - st::overviewCheckSkip - st::overviewCheck.size;
+					_check->paint(p, getms(), checkLeft, checkTop, width());
 				}
 			}
 		}
 	} else {
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	}
 }
@@ -197,11 +200,12 @@ void BackgroundBox::Inner::mousePressEvent(QMouseEvent *e) {
 
 void BackgroundBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	if (_overDown == _over && _over >= 0) {
-		emit backgroundChosen(_over);
+		if (_backgroundChosenCallback) {
+			_backgroundChosenCallback(_over);
+		}
 	} else if (_over < 0) {
 		setCursor(style::cur_default);
 	}
 }
 
-void BackgroundBox::Inner::resizeEvent(QResizeEvent *e) {
-}
+BackgroundBox::Inner::~Inner() = default;

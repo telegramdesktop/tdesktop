@@ -44,6 +44,7 @@ constexpr int kErrorIdentifierNotFound = 804;
 constexpr int kErrorAlreadyDefined     = 805;
 constexpr int kErrorBadString          = 806;
 constexpr int kErrorIconDuplicate      = 807;
+constexpr int kErrorBadIconModifier    = 808;
 
 QString findInputFile(const Options &options) {
 	for (const auto &dir : options.includePaths) {
@@ -64,7 +65,7 @@ QString tokenValue(const BasicToken &token) {
 
 bool isValidColor(const QString &str) {
 	auto len = str.size();
-	if (len != 3 && len != 4 && len != 6 && len != 8) {
+	if (len != 6 && len != 8) {
 		return false;
 	}
 
@@ -77,6 +78,10 @@ bool isValidColor(const QString &str) {
 	return true;
 }
 
+uchar toGray(uchar r, uchar g, uchar b) {
+	return qMax(qMin(int(0.21 * r + 0.72 * g + 0.07 * b), 255), 0);
+}
+
 uchar readHexUchar(QChar ch) {
 	auto code = ch.unicode();
 	return (code >= '0' && code <= '9') ? ((code - '0') & 0xFF) : ((code + 10 - 'a') & 0xFF);
@@ -86,23 +91,17 @@ uchar readHexUchar(QChar char1, QChar char2) {
 	return ((readHexUchar(char1) & 0x0F) << 4) | (readHexUchar(char2) & 0x0F);
 }
 
-structure::data::color convertWebColor(const QString &str) {
+structure::data::color convertWebColor(const QString &str, const QString &fallback = QString()) {
 	uchar r = 0, g = 0, b = 0, a = 255;
 	if (isValidColor(str)) {
-		auto len = str.size();
-		if (len == 3 || len == 4) {
-			r = readHexUchar(str.at(0), str.at(0));
-			g = readHexUchar(str.at(1), str.at(1));
-			b = readHexUchar(str.at(2), str.at(2));
-			if (len == 4) a = readHexUchar(str.at(3), str.at(3));
-		} else {
-			r = readHexUchar(str.at(0), str.at(1));
-			g = readHexUchar(str.at(2), str.at(3));
-			b = readHexUchar(str.at(4), str.at(5));
-			if (len == 8) a = readHexUchar(str.at(6), str.at(7));
+		r = readHexUchar(str.at(0), str.at(1));
+		g = readHexUchar(str.at(2), str.at(3));
+		b = readHexUchar(str.at(4), str.at(5));
+		if (str.size() == 8) {
+			a = readHexUchar(str.at(6), str.at(7));
 		}
 	}
-	return { r, g, b, a };
+	return { r, g, b, a, fallback };
 }
 
 structure::data::color convertIntColor(int r, int g, int b, int a) {
@@ -120,10 +119,7 @@ std::string logType(const structure::Type &type) {
 		{ structure::TypeTag::String    , "string" },
 		{ structure::TypeTag::Color     , "color" },
 		{ structure::TypeTag::Point     , "point" },
-		{ structure::TypeTag::Sprite    , "sprite" },
 		{ structure::TypeTag::Size      , "size" },
-		{ structure::TypeTag::Transition, "transition" },
-		{ structure::TypeTag::Cursor    , "cursor" },
 		{ structure::TypeTag::Align     , "align" },
 		{ structure::TypeTag::Margins   , "margins" },
 		{ structure::TypeTag::Font      , "font" },
@@ -140,19 +136,30 @@ bool validateAnsiString(const QString &value) {
 	return true;
 }
 
-bool validateTransitionString(const QString &value) {
-	return QRegularExpression("^[a-zA-Z_]+$").match(value).hasMatch();
-}
-
-bool validateCursorString(const QString &value) {
-	return QRegularExpression("^[a-z_]+$").match(value).hasMatch();
-}
-
 bool validateAlignString(const QString &value) {
 	return QRegularExpression("^[a-z_]+$").match(value).hasMatch();
 }
 
 } // namespace
+
+Modifier GetModifier(const QString &name) {
+	static QMap<QString, Modifier> modifiers;
+	if (modifiers.empty()) {
+		modifiers.insert("invert", [](QImage &png100x, QImage &png200x) {
+			png100x.invertPixels();
+			png200x.invertPixels();
+		});
+		modifiers.insert("flip_horizontal", [](QImage &png100x, QImage &png200x) {
+			png100x = png100x.mirrored(true, false);
+			png200x = png200x.mirrored(true, false);
+		});
+		modifiers.insert("flip_vertical", [](QImage &png100x, QImage &png200x) {
+			png100x = png100x.mirrored(false, true);
+			png200x = png200x.mirrored(false, true);
+		});
+	}
+	return modifiers.value(name);
+}
 
 ParsedFile::ParsedFile(const Options &options)
 : filePath_(findInputFile(options))
@@ -223,6 +230,11 @@ ParsedFile::ModulePtr ParsedFile::readIncluded() {
 }
 
 structure::Struct ParsedFile::readStruct(const QString &name) {
+	if (options_.isPalette) {
+		logErrorUnexpectedToken() << "unique color variable for the palette";
+		return {};
+	}
+
 	structure::Struct result = { composeFullName(name) };
 	do {
 		if (auto fieldName = file_.getToken(BasicType::Name)) {
@@ -243,6 +255,10 @@ structure::Variable ParsedFile::readVariable(const QString &name) {
 	structure::Variable result = { composeFullName(name) };
 	if (auto value = readValue()) {
 		result.value = value;
+		if (options_.isPalette && value.type().tag != structure::TypeTag::Color) {
+			logErrorUnexpectedToken() << "unique color variable for the palette";
+			return {};
+		}
 		if (value.type().tag != structure::TypeTag::Struct || !value.copyOf().empty()) {
 			assertNextToken(BasicType::Semicolon);
 		}
@@ -285,14 +301,8 @@ structure::Value ParsedFile::readValue() {
 		return colorValue;
 	} else if (auto pointValue = readPointValue()) {
 		return pointValue;
-	} else if (auto spriteValue = readSpriteValue()) {
-		return spriteValue;
 	} else if (auto sizeValue = readSizeValue()) {
 		return sizeValue;
-	} else if (auto transitionValue = readTransitionValue()) {
-		return transitionValue;
-	} else if (auto cursorValue = readCursorValue()) {
-		return cursorValue;
 	} else if (auto alignValue = readAlignValue()) {
 		return alignValue;
 	} else if (auto marginsValue = readMarginsValue()) {
@@ -500,51 +510,43 @@ structure::Value ParsedFile::readStringValue() {
 
 structure::Value ParsedFile::readColorValue() {
 	if (auto numberSign = file_.getToken(BasicType::Number)) {
-		auto color = file_.getAnyToken();
-		if (color.type == BasicType::Int || color.type == BasicType::Name) {
-			auto chars = tokenValue(color).toLower();
-			if (isValidColor(chars)) {
-				return { convertWebColor(chars) };
+		if (options_.isPalette) {
+			auto color = file_.getAnyToken();
+			if (color.type == BasicType::Int || color.type == BasicType::Name) {
+				auto chars = tokenValue(color).toLower();
+				if (isValidColor(chars)) {
+					if (auto fallbackSeparator = file_.getToken(BasicType::Or)) {
+						if (options_.isPalette) {
+							if (auto fallbackName = file_.getToken(BasicType::Name)) {
+								structure::FullName name = { tokenValue(fallbackName) };
+								if (auto variable = module_->findVariableInModule(name, *module_)) {
+									return { convertWebColor(chars, tokenValue(fallbackName)) };
+								} else {
+									logError(kErrorIdentifierNotFound) << "fallback color name";
+								}
+							} else {
+								logErrorUnexpectedToken() << "fallback color name";
+							}
+						} else {
+							logErrorUnexpectedToken() << "';', color fallbacks are only allowed in palette module";
+						}
+					} else {
+						return { convertWebColor(chars) };
+					}
+				}
+			} else {
+				logErrorUnexpectedToken() << "color value in #ccc, #ccca, #cccccc or #ccccccaa format";
 			}
 		} else {
-			logErrorUnexpectedToken() << "color value in #ccc, #ccca, #cccccc or #ccccccaa format";
+			logErrorUnexpectedToken() << "color value alias, unique color values are only allowed in palette module";
 		}
-	} else if (auto rgbaToken = file_.getToken(BasicType::Name)) {
-		if (tokenValue(rgbaToken) == "rgba") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto r = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto g = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto b = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto a = readNumericValue();
-			if (r.type().tag != structure::TypeTag::Int || r.Int() < 0 || r.Int() > 255 ||
-				g.type().tag != structure::TypeTag::Int || g.Int() < 0 || g.Int() > 255 ||
-				b.type().tag != structure::TypeTag::Int || b.Int() < 0 || b.Int() > 255 ||
-				a.type().tag != structure::TypeTag::Int || a.Int() < 0 || a.Int() > 255) {
-				logErrorTypeMismatch() << "expected four 0-255 values for the rgba color";
-			}
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			return { convertIntColor(r.Int(), g.Int(), b.Int(), a.Int()) };
-		} else if (tokenValue(rgbaToken) == "rgb") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto r = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto g = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto b = readNumericValue();
-			if (r.type().tag != structure::TypeTag::Int || r.Int() < 0 || r.Int() > 255 ||
-				g.type().tag != structure::TypeTag::Int || g.Int() < 0 || g.Int() > 255 ||
-				b.type().tag != structure::TypeTag::Int || b.Int() < 0 || b.Int() > 255) {
-				logErrorTypeMismatch() << "expected three int values for the rgb color";
-			}
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			return { convertIntColor(r.Int(), g.Int(), b.Int(), 255) };
+	} else if (auto transparentName = file_.getToken(BasicType::Name)) {
+		if (tokenValue(transparentName) == "transparent") {
+			return { structure::data::color { 255, 255, 255, 0 } };
 		}
 		file_.putBack();
 	}
+
 	return {};
 }
 
@@ -569,31 +571,6 @@ structure::Value ParsedFile::readPointValue() {
 	return {};
 }
 
-structure::Value ParsedFile::readSpriteValue() {
-	if (auto font = file_.getToken(BasicType::Name)) {
-		if (tokenValue(font) == "sprite") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto x = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto y = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto w = readNumericValue(); assertNextToken(BasicType::Comma);
-			auto h = readNumericValue();
-			if (x.type().tag != structure::TypeTag::Pixels ||
-				y.type().tag != structure::TypeTag::Pixels ||
-				w.type().tag != structure::TypeTag::Pixels ||
-				h.type().tag != structure::TypeTag::Pixels) {
-				logErrorTypeMismatch() << "expected four px values for the sprite";
-			}
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			return { structure::data::sprite { x.Int(), y.Int(), w.Int(), h.Int() } };
-		}
-		file_.putBack();
-	}
-	return {};
-}
-
 structure::Value ParsedFile::readSizeValue() {
 	if (auto font = file_.getToken(BasicType::Name)) {
 		if (tokenValue(font) == "size") {
@@ -609,46 +586,6 @@ structure::Value ParsedFile::readSizeValue() {
 			assertNextToken(BasicType::RightParenthesis);
 
 			return { structure::data::size { w.Int(), h.Int() } };
-		}
-		file_.putBack();
-	}
-	return {};
-}
-
-structure::Value ParsedFile::readTransitionValue() {
-	if (auto font = file_.getToken(BasicType::Name)) {
-		if (tokenValue(font) == "transition") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto transition = tokenValue(assertNextToken(BasicType::Name));
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			if (validateTransitionString(transition)) {
-				return { structure::TypeTag::Transition, transition.toStdString() };
-			} else {
-				logError(kErrorBadString) << "bad transition value";
-			}
-		}
-		file_.putBack();
-	}
-	return {};
-}
-
-structure::Value ParsedFile::readCursorValue() {
-	if (auto font = file_.getToken(BasicType::Name)) {
-		if (tokenValue(font) == "cursor") {
-			assertNextToken(BasicType::LeftParenthesis);
-
-			auto cursor = tokenValue(assertNextToken(BasicType::Name));
-
-			assertNextToken(BasicType::RightParenthesis);
-
-			if (validateCursorString(cursor)) {
-				return { structure::TypeTag::Cursor, cursor.toStdString() };
-			} else {
-				logError(kErrorBadString) << "bad cursor string";
-			}
 		}
 		file_.putBack();
 	}
@@ -850,17 +787,26 @@ structure::data::monoicon ParsedFile::readMonoIconFields() {
 QString ParsedFile::readMonoIconFilename() {
 	if (auto filename = readValue()) {
 		if (filename.type().tag == structure::TypeTag::String) {
-			auto filepath = QString::fromStdString(filename.String());
-			for (const auto &path : options_.includePaths) {
-				QFileInfo fileinfo(path + '/' + filepath + ".png");
-				if (fileinfo.exists()) {
-					return path + '/' + filepath;
+			auto fullpath = QString::fromStdString(filename.String());
+			auto pathAndModifiers = fullpath.split('-');
+			auto filepath = pathAndModifiers[0];
+			auto modifiers = pathAndModifiers.mid(1);
+			for (auto modifierName : modifiers) {
+				if (!GetModifier(modifierName)) {
+					logError(kErrorBadIconModifier) << "unknown modifier: " << modifierName.toStdString();
+					return QString();
 				}
 			}
-			for (const auto &path : options_.includePaths) {
+			for (auto &path : options_.includePaths) {
+				QFileInfo fileinfo(path + '/' + filepath + ".png");
+				if (fileinfo.exists()) {
+					return path + '/' + fullpath;
+				}
+			}
+			for (auto &path : options_.includePaths) {
 				QFileInfo fileinfo(path + "/icons/" + filepath + ".png");
 				if (fileinfo.exists()) {
-					return path + "/icons/" + filepath;
+					return path + "/icons/" + fullpath;
 				}
 			}
 			logError(common::kErrorFileNotFound) << "could not open icon file '" << filename.String() << "'";
@@ -884,6 +830,7 @@ Options ParsedFile::includedOptions(const QString &filepath) {
 	auto result = options_;
 	result.inputPath = filepath;
 	result.includePaths[0] = QFileInfo(filePath_).dir().absolutePath();
+	result.isPalette = (QFileInfo(filepath).suffix() == "palette");
 	return result;
 }
 

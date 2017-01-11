@@ -20,44 +20,119 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 
-class HistoryDownButton : public Button {
+class HistoryDownButton : public RippleButton {
 public:
-	HistoryDownButton(QWidget *parent);
+	HistoryDownButton(QWidget *parent, const style::TwoIconButton &st);
 
 	void setUnreadCount(int unreadCount);
 	int unreadCount() const {
 		return _unreadCount;
 	}
 
-	bool hidden() const;
-
-	void showAnimated();
-	void hideAnimated();
-
-	void finishAnimation();
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override;
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void toggleAnimated();
-	void step_arrowOver(float64 ms, bool timer);
-
-	QPixmap _cache;
-	bool _shown = false;
-
-	anim::fvalue a_arrowOpacity;
-	Animation _a_arrowOver;
-
-	FloatAnimation _a_show;
+	const style::TwoIconButton &_st;
 
 	int _unreadCount = 0;
+
+};
+
+class EmojiButton : public RippleButton {
+public:
+	EmojiButton(QWidget *parent, const style::IconButton &st);
+
+	void setLoading(bool loading);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	const style::IconButton &_st;
+
+	bool _loading = false;
+	Animation a_loading;
+	BasicAnimation _a_loading;
+
+	void step_loading(TimeMs ms, bool timer) {
+		if (timer) {
+			update();
+		}
+	}
+
+};
+
+class SendButton : public RippleButton {
+public:
+	SendButton(QWidget *parent);
+
+	enum class Type {
+		Send,
+		Save,
+		Record,
+		Cancel,
+	};
+	Type type() const {
+		return _type;
+	}
+	void setType(Type state);
+	void setRecordActive(bool recordActive);
+	void finishAnimation();
+
+	void setRecordStartCallback(base::lambda<void()> &&callback) {
+		_recordStartCallback = std_::move(callback);
+	}
+	void setRecordUpdateCallback(base::lambda<void(QPoint globalPos)> &&callback) {
+		_recordUpdateCallback = std_::move(callback);
+	}
+	void setRecordStopCallback(base::lambda<void(bool active)> &&callback) {
+		_recordStopCallback = std_::move(callback);
+	}
+	void setRecordAnimationCallback(base::lambda<void()> &&callback) {
+		_recordAnimationCallback = std_::move(callback);
+	}
+
+	float64 recordActiveRatio() {
+		return _a_recordActive.current(getms(), _recordActive ? 1. : 0.);
+	}
+
+protected:
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void onStateChanged(State was, StateChangeSource source) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	void recordAnimationCallback();
+	QPixmap grabContent();
+
+	Type _type = Type::Send;
+	bool _recordActive = false;
+	QPixmap _contentFrom, _contentTo;
+
+	Animation _a_typeChanged;
+	Animation _a_recordActive;
+
+	bool _recording = false;
+	base::lambda<void()> _recordStartCallback;
+	base::lambda<void(bool active)> _recordStopCallback;
+	base::lambda<void(QPoint globalPos)> _recordUpdateCallback;
+	base::lambda<void()> _recordAnimationCallback;
 
 };
 

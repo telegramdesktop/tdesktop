@@ -25,8 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_list.h"
 #include "media/player/media_player_instance.h"
 #include "styles/style_overview.h"
+#include "styles/style_widgets.h"
 #include "styles/style_media_player.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/scroll_area.h"
 #include "mainwindow.h"
 
 namespace Media {
@@ -34,7 +36,6 @@ namespace Player {
 
 Panel::Panel(QWidget *parent, Layout layout) : TWidget(parent)
 , _layout(layout)
-, _shadow(st::defaultInnerDropdown.shadow)
 , _scroll(this, st::mediaPlayerScroll) {
 	_hideTimer.setSingleShot(true);
 	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(onHideStart()));
@@ -82,7 +83,7 @@ void Panel::updateControlsGeometry() {
 		_cover->moveToRight(contentRight(), scrollTop);
 		scrollTop += _cover->height();
 		if (_scrollShadow) {
-			_scrollShadow->resizeToWidth(width);
+			_scrollShadow->resize(width, st::mediaPlayerScrollShadow.extend.bottom());
 			_scrollShadow->moveToRight(contentRight(), scrollTop);
 		}
 	}
@@ -90,7 +91,7 @@ void Panel::updateControlsGeometry() {
 	if (scrollHeight > 0) {
 		_scroll->setGeometryToRight(contentRight(), scrollTop, width, scrollHeight);
 	}
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		widget->resizeToWidth(width);
 		onScroll();
 	}
@@ -118,7 +119,7 @@ void Panel::scrollPlaylistToCurrentTrack() {
 }
 
 void Panel::onScroll() {
-	if (auto widget = static_cast<ScrolledWidget*>(_scroll->widget())) {
+	if (auto widget = static_cast<TWidget*>(_scroll->widget())) {
 		int visibleTop = _scroll->scrollTop();
 		int visibleBottom = visibleTop + _scroll->height();
 		widget->setVisibleTopBottom(visibleTop, visibleBottom);
@@ -153,7 +154,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 		if (animating) {
 			p.setOpacity(_a_appearance.current(_hiding ? 0. : 1.));
 		} else if (_hiding || isHidden()) {
-			hidingFinished();
+			hideFinished();
 			return;
 		}
 		p.drawPixmap(0, 0, _cache);
@@ -165,14 +166,15 @@ void Panel::paintEvent(QPaintEvent *e) {
 	}
 
 	// draw shadow
-	using Side = Ui::RectShadow::Side;
+	using Side = Ui::Shadow::Side;
 	auto shadowedRect = myrtlrect(contentLeft(), contentTop(), contentWidth(), contentHeight());
 	auto shadowedSides = (rtl() ? Side::Right : Side::Left) | Side::Bottom;
 	if (_layout != Layout::Full) {
 		shadowedSides |= (rtl() ? Side::Left : Side::Right) | Side::Top;
 	}
-	_shadow.paint(p, shadowedRect, st::defaultInnerDropdown.shadowShift, shadowedSides);
-	p.fillRect(shadowedRect, st::windowBg);
+	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
+	auto parts = App::RectPart::Full;
+	App::roundRect(p, shadowedRect, st::menuBg, MenuCorners, nullptr, parts);
 }
 
 void Panel::enterEvent(QEvent *e) {
@@ -223,11 +225,11 @@ void Panel::ensureCreated() {
 		setPinCallback(std_::move(_pinCallback));
 		setCloseCallback(std_::move(_closeCallback));
 
-		_scrollShadow.create(this, st::mediaPlayerScrollShadow);
+		_scrollShadow.create(this, st::mediaPlayerScrollShadow, Ui::Shadow::Side::Bottom);
 	}
-	auto list = std_::make_unique<ListWidget>();
-	connect(list.get(), SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
-	_scroll->setOwnedWidget(list.release());
+	auto list = object_ptr<ListWidget>(this);
+	connect(list, SIGNAL(heightUpdated()), this, SLOT(onListHeightUpdated()));
+	_scroll->setOwnedWidget(std_::move(list));
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {
@@ -244,9 +246,7 @@ void Panel::performDestroy() {
 	if (!_scroll->widget()) return;
 
 	_cover.destroy();
-	auto list = _scroll->takeWidget();
-	list->hide();
-	list->deleteLater();
+	_scroll->takeWidget<ListWidget>().destroyDelayed();
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		if (auto window = App::wnd()) {
@@ -290,7 +290,7 @@ void Panel::onShowStart() {
 void Panel::hideIgnoringEnterEvents() {
 	_ignoringEnterEvents = true;
 	if (isHidden()) {
-		hidingFinished();
+		hideFinished();
 	} else {
 		onHideStart();
 	}
@@ -317,13 +317,13 @@ void Panel::startAnimation() {
 void Panel::appearanceCallback() {
 	if (!_a_appearance.animating() && _hiding) {
 		_hiding = false;
-		hidingFinished();
+		hideFinished();
 	} else {
 		update();
 	}
 }
 
-void Panel::hidingFinished() {
+void Panel::hideFinished() {
 	hide();
 	_cache = QPixmap();
 	performDestroy();

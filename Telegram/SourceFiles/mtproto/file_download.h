@@ -94,7 +94,7 @@ enum LocalLoadStatus {
 	LocalFailed,
 };
 
-typedef void *TaskId; // no interface, just id
+using TaskId = void*; // no interface, just id
 
 enum LoadFromCloudSetting {
 	LoadFromCloudOrLocal,

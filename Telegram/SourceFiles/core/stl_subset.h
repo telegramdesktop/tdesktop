@@ -59,6 +59,8 @@ template <typename T>
 struct remove_reference<T&&> {
 	using type = T;
 };
+template <typename T>
+using remove_reference_t = typename remove_reference<T>::type;
 
 template <typename T>
 struct is_lvalue_reference : false_type {
@@ -156,14 +158,9 @@ template <typename T>
 struct add_const {
 	using type = const T;
 };
+
 template <typename T>
 using add_const_t = typename add_const<T>::type;
-template <typename T>
-constexpr add_const_t<T> &as_const(T& t) noexcept {
-	return t;
-}
-template <typename T>
-void as_const(const T&&) = delete;
 
 // This is not full unique_ptr, but at least with std interface.
 template <typename T>
@@ -203,6 +200,7 @@ public:
 	}
 	~unique_ptr() noexcept {
 		if (_p) {
+			static_assert(sizeof(T) > 0, "can't delete an incomplete type");
 			delete _p;
 			_p = nullptr;
 		}
@@ -231,6 +229,7 @@ public:
 		auto old = _p;
 		_p = p;
 		if (old) {
+			static_assert(sizeof(T) > 0, "can't delete an incomplete type");
 			delete old;
 		}
 	}

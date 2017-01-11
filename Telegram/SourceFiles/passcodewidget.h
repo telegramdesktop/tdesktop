@@ -20,45 +20,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Ui {
+class PasswordInput;
+class LinkButton;
+class RoundButton;
+} // namespace Ui
+
 class PasscodeWidget : public TWidget {
 	Q_OBJECT
 
 public:
-
 	PasscodeWidget(QWidget *parent);
 
-	void paintEvent(QPaintEvent *e);
-	void resizeEvent(QResizeEvent *e);
-	void mousePressEvent(QMouseEvent *e);
-	void keyPressEvent(QKeyEvent *e);
 	void setInnerFocus();
 
-	void animShow(const QPixmap &bgAnimCache, bool back = false);
-	void step_show(float64 ms, bool timer);
-	void stop_show();
+	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	~PasscodeWidget();
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 public slots:
-
-	void onParentResize(const QSize &newSize);
 	void onError();
 	void onChanged();
 	void onSubmit();
 
 private:
+	void animationCallback();
 
 	void showAll();
 	void hideAll();
 
 	Animation _a_show;
+	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_shadow;
 
-	FlatInput _passcode;
-	FlatButton _submit;
-	LinkButton _logout;
+	object_ptr<Ui::PasswordInput> _passcode;
+	object_ptr<Ui::RoundButton> _submit;
+	object_ptr<Ui::LinkButton> _logout;
 	QString _error;
 
 };

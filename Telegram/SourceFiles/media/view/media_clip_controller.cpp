@@ -24,10 +24,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "media/view/media_clip_playback.h"
 #include "media/view/media_clip_volume_controller.h"
 #include "styles/style_mediaview.h"
-#include "ui/widgets/label_simple.h"
-#include "ui/widgets/media_slider.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/effects/widget_fade_wrap.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
 #include "media/media_audio.h"
 
 namespace Media {
@@ -35,7 +35,7 @@ namespace Clip {
 
 Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
-, _playback(new Ui::MediaSlider(this, st::mediaviewPlayback))
+, _playback(std_::make_unique<Playback>(new Ui::MediaSlider(this, st::mediaviewPlayback)))
 , _volumeController(this)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
@@ -62,7 +62,7 @@ Controller::Controller(QWidget *parent) : TWidget(parent)
 void Controller::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		refreshTimeTexts();
@@ -73,7 +73,7 @@ void Controller::handleSeekProgress(float64 progress) {
 void Controller::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 	emit seekFinished(positionMs);
 	refreshTimeTexts();
@@ -81,13 +81,13 @@ void Controller::handleSeekFinished(float64 progress) {
 
 void Controller::showAnimated() {
 	startFading([this]() {
-		_fadeAnimation->fadeIn(st::mvShowDuration);
+		_fadeAnimation->fadeIn(st::mediaviewShowDuration);
 	});
 }
 
 void Controller::hideAnimated() {
 	startFading([this]() {
-		_fadeAnimation->fadeOut(st::mvHideDuration);
+		_fadeAnimation->fadeOut(st::mediaviewHideDuration);
 	});
 }
 
@@ -118,7 +118,7 @@ void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackSt
 		_showPause = showPause;
 		connect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 
-		_playPauseResume->setIcon(_showPause ? &st::mediaviewPauseIcon : nullptr);
+		_playPauseResume->setIconOverride(_showPause ? &st::mediaviewPauseIcon : nullptr, _showPause ? &st::mediaviewPauseIconOver : nullptr);
 	}
 }
 
@@ -169,7 +169,7 @@ void Controller::refreshTimeTexts() {
 }
 
 void Controller::setInFullScreen(bool inFullScreen) {
-	_fullScreenToggle->setIcon(inFullScreen ? &st::mediaviewFullScreenOutIcon : nullptr);
+	_fullScreenToggle->setIconOverride(inFullScreen ? &st::mediaviewFullScreenOutIcon : nullptr, inFullScreen ? &st::mediaviewFullScreenOutIconOver : nullptr);
 	disconnect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(toFullScreenPressed()));
 	disconnect(_fullScreenToggle, SIGNAL(clicked()), this, SIGNAL(fromFullScreenPressed()));
 
@@ -211,15 +211,14 @@ void Controller::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	App::roundRect(p, rect(), st::medviewSaveMsg, MediaviewSaveCorners);
+	App::roundRect(p, rect(), st::mediaviewSaveMsgBg, MediaviewSaveCorners);
 }
 
 void Controller::mousePressEvent(QMouseEvent *e) {
 	e->accept(); // Don't pass event to the MediaView.
 }
 
-Controller::~Controller() {
-}
+Controller::~Controller() = default;
 
 } // namespace Clip
 } // namespace Media

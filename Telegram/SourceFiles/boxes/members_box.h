@@ -20,9 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/single_timer.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
+#include "ui/widgets/buttons.h"
 
 class ContactsBox;
 class ConfirmBox;
@@ -33,35 +34,53 @@ enum class MembersFilter {
 };
 using MembersAlreadyIn = OrderedSet<UserData*>;
 
-class MembersBox : public ItemListBox {
+class MembersAddButton : public Ui::RippleButton {
+public:
+	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
+private:
+	const style::TwoIconButton &_st;
+
+};
+
+class MembersBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	MembersBox(ChannelData *channel, MembersFilter filter);
+	MembersBox(QWidget*, ChannelData *channel, MembersFilter filter);
 
 public slots:
-	void onScroll();
-
-	void onAdd();
 	void onAdminAdded();
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void onAdd();
+
+	ChannelData *_channel = nullptr;
+	MembersFilter _filter = MembersFilter::Recent;
+
 	class Inner;
-	ChildWidget<Inner> _inner;
+	QPointer<Inner> _inner;
 
-	ContactsBox *_addBox = nullptr;
+	QPointer<ContactsBox> _addBox;
 
-	SingleTimer _loadTimer;
+	object_ptr<SingleTimer> _loadTimer = { nullptr };
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class MembersBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class MembersBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -70,7 +89,6 @@ public:
 	void selectSkip(int32 dir);
 	void selectSkipPage(int32 h, int32 dir);
 
-	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 
 	void refresh();
@@ -84,22 +102,19 @@ public:
 	void clearSel();
 
 	MembersAlreadyIn already() const;
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	~Inner();
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
-	void addRequested();
 	void loaded();
 
 public slots:
 	void load();
 
-	void updateSel();
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-	void onKickConfirm();
-	void onKickBoxDestroyed(QObject *obj);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -111,16 +126,29 @@ protected:
 
 private:
 	struct MemberData {
+		MemberData();
+		~MemberData();
+
+		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		int rippleRowTop = 0;
 		Text name;
 		QString online;
 		bool onlineColor;
 		bool canKick;
 	};
+	void addRipple(MemberData *data);
+	void stopLastRipple(MemberData *data);
+	void setPressed(int pressed);
 
+	void updateSelection();
+	void loadProfilePhotos();
+
+	void updateRowWithTop(int rowTop);
+	int getSelectedRowTop() const;
 	void updateSelectedRow();
 	MemberData *data(int32 index);
 
-	void paintDialog(Painter &p, PeerData *peer, MemberData *data, bool sel, bool kickSel, bool kickDown);
+	void paintDialog(Painter &p, TimeMs ms, PeerData *peer, MemberData *data, bool selected, bool kickSelected);
 
 	void membersReceived(const MTPchannels_ChannelParticipants &result, mtpRequestId req);
 	bool membersFailed(const RPCError &error, mtpRequestId req);
@@ -132,22 +160,27 @@ private:
 
 	void clear();
 
-	int32 _rowHeight, _newItemHeight;
-	bool _newItemSel;
+	int _rowHeight = 0;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 
-	ChannelData *_channel;
+	ChannelData *_channel = nullptr;
 	MembersFilter _filter;
 
 	QString _kickText;
-	int32 _time, _kickWidth;
+	TimeId _time = 0;
+	int _kickWidth = 0;
 
-	int32 _sel, _kickSel, _kickDown;
-	bool _mouseSel;
+	int _selected = -1;
+	int _pressed = -1;
+	int _kickSelected = -1;
+	int _kickPressed = -1;
+	bool _mouseSelection = false;
 
-	UserData *_kickConfirm;
-	mtpRequestId _kickRequestId;
+	UserData *_kickConfirm = nullptr;
+	mtpRequestId _kickRequestId = 0;
 
-	ConfirmBox *_kickBox;
+	QPointer<ConfirmBox> _kickBox;
 
 	enum class MemberRole {
 		None,
@@ -158,8 +191,8 @@ private:
 		Kicked
 	};
 
-	bool _loading;
-	mtpRequestId _loadingRequestId;
+	bool _loading = true;
+	mtpRequestId _loadingRequestId = 0;
 	typedef QVector<UserData*> MemberRows;
 	typedef QVector<QDateTime> MemberDates;
 	typedef QVector<MemberRole> MemberRoles;
@@ -169,9 +202,9 @@ private:
 	MemberRoles _roles;
 	MemberDatas _datas;
 
-	int32 _aboutWidth;
+	int _aboutWidth = 0;
 	Text _about;
-	int32 _aboutHeight;
+	int _aboutHeight = 0;
 
 	QPoint _lastMousePos;
 

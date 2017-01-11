@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "dropdown.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/effects/radial_animation.h"
 
 namespace Media {
@@ -29,7 +29,21 @@ class Controller;
 } // namespace Clip
 } // namespace Media
 
+namespace Ui {
 class PopupMenu;
+class LinkButton;
+class RoundButton;
+} // namespace Ui
+
+namespace Window {
+namespace Theme {
+struct Preview;
+} // namespace Theme
+} // namespace Window
+
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
 
 struct AudioPlaybackState;
 
@@ -37,7 +51,7 @@ class MediaView : public TWidget, private base::Subscriber, public RPCSender, pu
 	Q_OBJECT
 
 public:
-	MediaView();
+	MediaView(QWidget*);
 
 	void setVisible(bool visible) override;
 
@@ -57,14 +71,10 @@ public:
 		updateOver(mapFromGlobal(QCursor::pos()));
 	}
 
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 	void documentUpdated(DocumentData *doc);
 	void changingMsgId(HistoryItem *row, MsgId newId);
-	void updateDocSize();
-	void updateControls();
-	void updateDropdown();
 
-	void showSaveMsgFile();
 	void close();
 
 	void activateControls();
@@ -81,9 +91,23 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-public slots:
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	void keyPressEvent(QKeyEvent *e) override;
+	void wheelEvent(QWheelEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseDoubleClickEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void contextMenuEvent(QContextMenuEvent *e) override;
+	void touchEvent(QTouchEvent *e);
+
+	bool event(QEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
+
+private slots:
 	void onHideControls(bool force = false);
-	void onDropdownHiding();
 
 	void onScreenResized(int screen);
 
@@ -106,30 +130,35 @@ public slots:
 
 	void updateImage();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void wheelEvent(QWheelEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseDoubleClickEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void contextMenuEvent(QContextMenuEvent *e) override;
-	void touchEvent(QTouchEvent *e);
-
-	bool event(QEvent *e) override;
-	bool eventFilter(QObject *obj, QEvent *e) override;
-
-private slots:
 	void onVideoPauseResume();
-	void onVideoSeekProgress(int64 positionMs);
-	void onVideoSeekFinished(int64 positionMs);
+	void onVideoSeekProgress(TimeMs positionMs);
+	void onVideoSeekFinished(TimeMs positionMs);
 	void onVideoVolumeChanged(float64 volume);
 	void onVideoToggleFullScreen();
 	void onVideoPlayProgress(const AudioMsgId &audioId);
 
 private:
+	enum OverState {
+		OverNone,
+		OverLeftNav,
+		OverRightNav,
+		OverClose,
+		OverHeader,
+		OverName,
+		OverDate,
+		OverSave,
+		OverMore,
+		OverIcon,
+		OverVideo,
+	};
+
+	void showSaveMsgFile();
+
+	void dropdownHidden();
+	void updateDocSize();
+	void updateControls();
+	void updateActions();
+
 	void displayPhoto(PhotoData *photo, HistoryItem *item);
 	void displayDocument(DocumentData *doc, HistoryItem *item);
 	void displayFinished();
@@ -143,7 +172,7 @@ private:
 
 	void updateVideoPlaybackState(const AudioPlaybackState &state);
 	void updateSilentVideoPlaybackState();
-	void restartVideoAtSeekPosition(int64 positionMs);
+	void restartVideoAtSeekPosition(TimeMs positionMs);
 
 	void createClipController();
 	void setClipControllerGeometry();
@@ -151,12 +180,16 @@ private:
 	void initAnimation();
 	void createClipReader();
 
+	void initThemePreview();
+	void destroyThemePreview();
+	void updateThemePreviewGeometry();
+
 	// Radial animation interface.
 	float64 radialProgress() const;
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	uint64 radialTimeShift() const;
+	TimeMs radialTimeShift() const;
 
 	// Computes the last OverviewChatPhotos PhotoData* from _history or _migrated.
 	struct LastChatPhoto {
@@ -174,8 +207,8 @@ private:
 	void updateHeader();
 	void snapXY();
 
-	void step_state(uint64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void step_state(TimeMs ms, bool timer);
+	void step_radial(TimeMs ms, bool timer);
 
 	void zoomIn();
 	void zoomOut();
@@ -183,6 +216,11 @@ private:
 	void zoomUpdate(int32 &newZoom);
 
 	void paintDocRadialLoading(Painter &p, bool radial, float64 radialOpacity);
+	void paintThemePreview(Painter &p, QRect clip);
+
+	void updateOverRect(OverState state);
+	bool updateOverState(OverState newState);
+	float64 overLevel(OverState control) const;
 
 	QBrush _transparentBrush;
 
@@ -200,7 +238,7 @@ private:
 	QString _dateText;
 	QString _headerText;
 
-	ChildWidget<Media::Clip::Controller> _clipController = { nullptr };
+	object_ptr<Media::Clip::Controller> _clipController = { nullptr };
 	DocumentData *_autoplayVideoDocument = nullptr;
 	bool _fullScreenVideo = false;
 	int _fullScreenZoomCache = 0;
@@ -208,7 +246,7 @@ private:
 	Text _caption;
 	QRect _captionRect;
 
-	uint64 _animStarted;
+	TimeMs _animStarted;
 
 	int _width = 0;
 	int _x = 0, _y = 0, _w = 0, _h = 0;
@@ -226,12 +264,13 @@ private:
 	bool _videoIsSilent = false;
 	bool _videoPaused = false;
 	bool _videoStopped = false;
-	int64 _videoPositionMs = 0;
-	int64 _videoDurationMs = 0;
+	TimeMs _videoPositionMs = 0;
+	TimeMs _videoDurationMs = 0;
 	int32 _videoFrequencyMs = 1000; // 1000 ms per second.
 
 	bool fileShown() const;
 	bool gifShown() const;
+	bool fileBubbleShown() const;
 	void stopGif();
 
 	const style::icon *_docIcon = nullptr;
@@ -240,7 +279,9 @@ private:
 	int _docNameWidth = 0, _docSizeWidth = 0, _docExtWidth = 0;
 	QRect _docRect, _docIconRect;
 	int _docThumbx = 0, _docThumby = 0, _docThumbw = 0;
-	LinkButton _docDownload, _docSaveAs, _docCancel;
+	object_ptr<Ui::LinkButton> _docDownload;
+	object_ptr<Ui::LinkButton> _docSaveAs;
+	object_ptr<Ui::LinkButton> _docCancel;
 
 	QRect _photoRadialRect;
 	Ui::RadialAnimation _radial;
@@ -272,25 +313,12 @@ private:
 
 	mtpRequestId _loadRequest = 0;
 
-	enum OverState {
-		OverNone,
-		OverLeftNav,
-		OverRightNav,
-		OverClose,
-		OverHeader,
-		OverName,
-		OverDate,
-		OverSave,
-		OverMore,
-		OverIcon,
-		OverVideo,
-	};
 	OverState _over = OverNone;
 	OverState _down = OverNone;
 	QPoint _lastAction, _lastMouseMovePos;
 	bool _ignoringDropdown = false;
 
-	Animation _a_state;
+	BasicAnimation _a_state;
 
 	enum ControlsState {
 		ControlsShowing,
@@ -299,15 +327,20 @@ private:
 		ControlsHidden,
 	};
 	ControlsState _controlsState = ControlsShown;
-	uint64 _controlsAnimStarted = 0;
+	TimeMs _controlsAnimStarted = 0;
 	QTimer _controlsHideTimer;
-	anim::fvalue a_cOpacity;
+	anim::value a_cOpacity;
 	bool _mousePressed = false;
 
-	PopupMenu *_menu = nullptr;
-	Dropdown _dropdown;
-	IconedButton *_btnSaveCancel, *_btnToMessage, *_btnShowInFolder, *_btnSaveAs, *_btnCopy, *_btnForward, *_btnDelete, *_btnViewAll;
-	QList<IconedButton*> _btns;
+	Ui::PopupMenu *_menu = nullptr;
+	object_ptr<Ui::DropdownMenu> _dropdown;
+	object_ptr<QTimer> _dropdownShowTimer;
+
+	struct ActionData {
+		QString text;
+		const char *member;
+	};
+	QList<ActionData> _actions;
 
 	bool _receiveMouse = true;
 
@@ -317,21 +350,24 @@ private:
 	QPoint _accumScroll;
 
 	QString _saveMsgFilename;
-	uint64 _saveMsgStarted = 0;
-	anim::fvalue _saveMsgOpacity = { 0 };
+	TimeMs _saveMsgStarted = 0;
+	anim::value _saveMsgOpacity;
 	QRect _saveMsg;
 	QTimer _saveMsgUpdater;
 	Text _saveMsgText;
 
-	typedef QMap<OverState, uint64> Showing;
+	typedef QMap<OverState, TimeMs> Showing;
 	Showing _animations;
-	typedef QMap<OverState, anim::fvalue> ShowingOpacities;
+	typedef QMap<OverState, anim::value> ShowingOpacities;
 	ShowingOpacities _animOpacities;
 
 	int _verticalWheelDelta = 0;
 
-	void updateOverRect(OverState state);
-	bool updateOverState(OverState newState);
-	float64 overLevel(OverState control) const;
+	bool _themePreviewShown = false;
+	uint64 _themePreviewId = 0;
+	QRect _themePreviewRect;
+	std_::unique_ptr<Window::Theme::Preview> _themePreview;
+	object_ptr<Ui::RoundButton> _themeApply = { nullptr };
+	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
 
 };

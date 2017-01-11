@@ -24,22 +24,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "media/player/media_player_instance.h"
 #include "platform/mac/mac_utilities.h"
-
+#include "styles/style_window.h"
 #include "lang.h"
 
 #include <Cocoa/Cocoa.h>
-#include <IOKit/IOKitLib.h>
 #include <CoreFoundation/CFURL.h>
-
+#include <IOKit/IOKitLib.h>
 #include <IOKit/hidsystem/ev_keymap.h>
-
 #include <SPMediaKeyTap.h>
 
 using Platform::Q2NSString;
 using Platform::NSlang;
 using Platform::NS2QString;
-
-bool handleMediaKeyEvent(NSEvent *e);
 
 @interface qVisualize : NSObject {
 }
@@ -152,64 +148,8 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 - (void)mediaKeyTap:(SPMediaKeyTap*)keyTap receivedMediaKeyEvent:(NSEvent*)e {
 	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
-		handleMediaKeyEvent(e);
+		objc_handleMediaKeyEvent(e);
 	}
-}
-
-@end
-
-@interface ObserverHelper : NSObject {
-}
-
-- (id) init:(PsMacWindowPrivate *)aWnd;
-- (void) activeSpaceDidChange:(NSNotification *)aNotification;
-- (void) darkModeChanged:(NSNotification *)aNotification;
-- (void) screenIsLocked:(NSNotification *)aNotification;
-- (void) screenIsUnlocked:(NSNotification *)aNotification;
-
-@end
-
-class PsMacWindowData {
-public:
-	PsMacWindowData(PsMacWindowPrivate *wnd) :
-	wnd(wnd),
-	observerHelper([[ObserverHelper alloc] init:wnd]) {
-	}
-
-	~PsMacWindowData() {
-		[observerHelper release];
-	}
-
-	PsMacWindowPrivate *wnd;
-	ObserverHelper *observerHelper;
-
-};
-
-@implementation ObserverHelper {
-	PsMacWindowPrivate *wnd;
-}
-
-- (id) init:(PsMacWindowPrivate *)aWnd {
-	if (self = [super init]) {
-		wnd = aWnd;
-	}
-	return self;
-}
-
-- (void) activeSpaceDidChange:(NSNotification *)aNotification {
-	wnd->activeSpaceChanged();
-}
-
-- (void) darkModeChanged:(NSNotification *)aNotification {
-	wnd->darkModeChanged();
-}
-
-- (void) screenIsLocked:(NSNotification *)aNotification {
-	Global::SetScreenIsLocked(true);
-}
-
-- (void) screenIsUnlocked:(NSNotification *)aNotification {
-	Global::SetScreenIsLocked(false);
 }
 
 @end
@@ -223,34 +163,6 @@ void SetWatchingMediaKeys(bool watching) {
 }
 
 } // namespace Platform
-
-PsMacWindowPrivate::PsMacWindowPrivate() : data(new PsMacWindowData(this)) {
-	@autoreleasepool {
-
-	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:data->observerHelper selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(darkModeChanged:) name:Q2NSString(strNotificationAboutThemeChange()) object:nil];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsLocked:) name:Q2NSString(strNotificationAboutScreenLocked()) object:nil];
-	[[NSDistributedNotificationCenter defaultCenter] addObserver:data->observerHelper selector:@selector(screenIsUnlocked:) name:Q2NSString(strNotificationAboutScreenUnlocked()) object:nil];
-
-#ifndef OS_MAC_STORE
-	// Register defaults for the whitelist of apps that want to use media keys
-	[[NSUserDefaults standardUserDefaults] registerDefaults:[NSDictionary dictionaryWithObjectsAndKeys:[SPMediaKeyTap defaultMediaKeyUserBundleIdentifiers], kMediaKeyUsingBundleIdentifiersDefaultsKey, nil]];
-#endif // OS_MAC_STORE
-
-	}
-}
-
-void PsMacWindowPrivate::setWindowBadge(const QString &str) {
-	@autoreleasepool {
-
-	[[NSApp dockTile] setBadgeLabel:Q2NSString(str)];
-
-	}
-}
-
-void PsMacWindowPrivate::startBounce() {
-	[NSApp requestUserAttention:NSInformationalRequest];
-}
 
 void objc_holdOnTop(WId winId) {
 	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
@@ -289,7 +201,9 @@ void objc_activateWnd(WId winId) {
 	[wnd orderFront:wnd];
 }
 
-bool handleMediaKeyEvent(NSEvent *e) {
+bool objc_handleMediaKeyEvent(void *ev) {
+	auto e = reinterpret_cast<NSEvent*>(ev);
+
 	int keyCode = (([e data1] & 0xFFFF0000) >> 16);
 	int keyFlags = ([e data1] & 0x0000FFFF);
 	int keyState = (((keyFlags & 0xFF00) >> 8)) == 0xA;
@@ -330,26 +244,6 @@ bool handleMediaKeyEvent(NSEvent *e) {
 	return false;
 }
 
-void PsMacWindowPrivate::enableShadow(WId winId) {
-//	[[(NSView*)winId window] setStyleMask:NSBorderlessWindowMask];
-//	[[(NSView*)winId window] setHasShadow:YES];
-}
-
-bool PsMacWindowPrivate::filterNativeEvent(void *event) {
-	NSEvent *e = static_cast<NSEvent*>(event);
-	if (e && [e type] == NSSystemDefined && [e subtype] == SPSystemDefinedEventMediaKeys) {
-#ifndef OS_MAC_STORE
-		// If event tap is not installed, handle events that reach the app instead
-		if (![SPMediaKeyTap usesGlobalMediaKeyTap]) {
-			return handleMediaKeyEvent(e);
-		}
-#else // !OS_MAC_STORE
-		return handleMediaKeyEvent(e);
-#endif // else for !OS_MAC_STORE
-	}
-	return false;
-}
-
 void objc_debugShowAlert(const QString &str) {
 	@autoreleasepool {
 
@@ -366,16 +260,12 @@ void objc_outputDebugString(const QString &str) {
 	}
 }
 
-PsMacWindowPrivate::~PsMacWindowPrivate() {
-	delete data;
-}
-
 bool objc_idleSupported() {
-	int64 idleTime = 0;
+	auto idleTime = 0LL;
 	return objc_idleTime(idleTime);
 }
 
-bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
+bool objc_idleTime(TimeMs &idleTime) { // taken from https://github.com/trueinteractions/tint/issues/53
 	CFMutableDictionaryRef properties = 0;
 	CFTypeRef obj;
 	mach_port_t masterPort;
@@ -424,7 +314,7 @@ bool objc_idleTime(int64 &idleTime) { // taken from https://github.com/trueinter
 	IOObjectRelease(iter);
 	if (result == err) return false;
 
-	idleTime = int64(result);
+	idleTime = static_cast<TimeMs>(result);
 	return true;
 }
 
@@ -1107,13 +997,6 @@ QString objc_currentLang() {
 	NSLocale *currentLocale = [NSLocale currentLocale];  // get the current locale.
 	NSString *currentLang = [currentLocale objectForKey:NSLocaleLanguageCode];
 	return currentLang ? NS2QString(currentLang) : QString();
-}
-
-QString objc_convertFileUrl(const QString &url) {
-	NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + url).toUtf8().constData()]] filePathURL] path];
-	if (!nsurl) return QString();
-
-	return NS2QString(nsurl);
 }
 
 QByteArray objc_downloadPathBookmark(const QString &path) {

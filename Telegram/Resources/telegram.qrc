@@ -5,13 +5,10 @@
     <file>art/fonts/OpenSans-Semibold.ttf</file>
     <file>art/newmsg.wav</file>
     <file>art/bg.jpg</file>
-    <file>art/bg0.png</file>
-    <file>art/sprite.png</file>
-    <file>art/sprite_125x.png</file>
-    <file>art/sprite_150x.png</file>
-    <file>art/sprite_200x.png</file>
+    <file>art/bg_initial.png</file>
     <file>art/icon256.png</file>
     <file>art/iconbig256.png</file>
+    <file>art/sunrise.jpg</file>
   </qresource>
   <qresource prefix="/qt-project.org">
     <file>qmime/freedesktop.org.xml</file>

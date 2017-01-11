@@ -54,8 +54,8 @@ public:
 signals:
 	void playPressed();
 	void pausePressed();
-	void seekProgress(int64 positionMs);
-	void seekFinished(int64 positionMs);
+	void seekProgress(TimeMs positionMs);
+	void seekFinished(TimeMs positionMs);
 	void volumeChanged(float64 volume);
 	void toFullScreenPressed();
 	void fromFullScreenPressed();
@@ -80,15 +80,15 @@ private:
 
 	bool _showPause = false;
 	QString _timeAlready, _timeLeft;
-	int64 _seekPositionMs = -1;
-	int64 _lastDurationMs = 0;
+	TimeMs _seekPositionMs = -1;
+	TimeMs _lastDurationMs = 0;
 
-	ChildWidget<Ui::IconButton> _playPauseResume;
-	ChildWidget<Playback> _playback;
-	ChildWidget<VolumeController> _volumeController;
-	ChildWidget<Ui::IconButton> _fullScreenToggle;
-	ChildWidget<Ui::LabelSimple> _playedAlready;
-	ChildWidget<Ui::LabelSimple> _toPlayLeft;
+	object_ptr<Ui::IconButton> _playPauseResume;
+	std_::unique_ptr<Playback> _playback;
+	object_ptr<VolumeController> _volumeController;
+	object_ptr<Ui::IconButton> _fullScreenToggle;
+	object_ptr<Ui::LabelSimple> _playedAlready;
+	object_ptr<Ui::LabelSimple> _toPlayLeft;
 
 	std_::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 

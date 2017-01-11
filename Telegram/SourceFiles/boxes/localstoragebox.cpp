@@ -21,44 +21,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "boxes/localstoragebox.h"
 
-#include "localstorage.h"
-#include "ui/flatbutton.h"
-#include "lang.h"
 #include "styles/style_boxes.h"
+#include "ui/widgets/buttons.h"
+#include "localstorage.h"
+#include "lang.h"
 #include "mainwindow.h"
 
-LocalStorageBox::LocalStorageBox() : AbstractBox()
-, _clear(this, lang(lng_local_storage_clear), st::defaultBoxLinkButton)
-, _close(this, lang(lng_box_ok), st::defaultBoxButton) {
-	connect(_clear, SIGNAL(clicked()), this, SLOT(onClear()));
-	connect(_close, SIGNAL(clicked()), this, SLOT(onClose()));
+LocalStorageBox::LocalStorageBox(QWidget *parent)
+: _clear(this, lang(lng_local_storage_clear), st::boxLinkButton) {
+}
+
+void LocalStorageBox::prepare() {
+	setTitle(lang(lng_local_storage_title));
+
+	addButton(lang(lng_box_ok), [this] { closeBox(); });
+
+	_clear->setClickedCallback([this] { clearStorage(); });
 
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
 
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 
+	updateControls();
+
 	checkLocalStoredCounts();
-	prepare();
 }
 
 void LocalStorageBox::updateControls() {
-	int rowsHeight = 0;
+	auto rowsHeight = 0;
 	if (_imagesCount > 0 && _audiosCount > 0) {
 		rowsHeight = 2 * (st::linkFont->height + st::localStorageBoxSkip);
 	} else {
 		rowsHeight = st::linkFont->height + st::localStorageBoxSkip;
 	}
 	_clear->setVisible(_imagesCount > 0 || _audiosCount > 0);
-	setMaxHeight(st::boxTitleHeight + st::localStorageBoxSkip + rowsHeight + _clear->height() + st::boxButtonPadding.top() + _close->height() + st::boxButtonPadding.bottom());
-	_clear->moveToLeft(st::boxPadding.left(), st::boxTitleHeight + st::localStorageBoxSkip + rowsHeight);
-	_close->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close->height());
+	setDimensions(st::boxWidth, st::localStorageBoxSkip + rowsHeight + _clear->height());
+	_clear->moveToLeft(st::boxPadding.left(), st::localStorageBoxSkip + rowsHeight);
 	update();
-}
-
-void LocalStorageBox::showAll() {
-	showChildren();
-	_clear->setVisible(_imagesCount > 0 || _audiosCount > 0);
 }
 
 void LocalStorageBox::checkLocalStoredCounts() {
@@ -75,15 +75,14 @@ void LocalStorageBox::checkLocalStoredCounts() {
 }
 
 void LocalStorageBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	BoxContent::paintEvent(e);
 
-	paintTitle(p, lang(lng_local_storage_title));
+	Painter p(this);
 
 	p.setFont(st::boxTextFont);
-	p.setPen(st::windowTextFg);
+	p.setPen(st::windowFg);
 	checkLocalStoredCounts();
-	int top = st::boxTitleHeight + st::localStorageBoxSkip;
+	auto top = st::localStorageBoxSkip;
 	if (_imagesCount > 0) {
 		auto text = lng_settings_images_cached(lt_count, _imagesCount, lt_size, formatSizeText(Local::storageImagesSize() + Local::storageStickersSize() + Local::storageWebFilesSize()));
 		p.drawTextLeft(st::boxPadding.left(), top, width(), text);
@@ -111,7 +110,7 @@ void LocalStorageBox::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void LocalStorageBox::onClear() {
+void LocalStorageBox::clearStorage() {
 	App::wnd()->tempDirDelete(Local::ClearManagerStorage);
 	_state = State::Clearing;
 	updateControls();

@@ -22,7 +22,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 
+namespace Ui {
 class FlatLabel;
+} // namespace Ui
 
 namespace Notify {
 struct PeerUpdate;
@@ -50,12 +52,8 @@ private:
 
 		void setLabeledText(const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
 
-		FlatLabel *textLabel() {
-			return _text;
-		}
-		FlatLabel *shortTextLabel() {
-			return _shortText;
-		}
+		Ui::FlatLabel *textLabel() const;
+		Ui::FlatLabel *shortTextLabel() const;
 
 		int naturalWidth() const override;
 
@@ -63,20 +61,20 @@ private:
 		int resizeGetHeight(int newWidth) override;
 
 	private:
-		void setLabelText(ChildWidget<FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
+		void setLabelText(object_ptr<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText);
 
-		ChildWidget<FlatLabel> _label = { nullptr };
-		ChildWidget<FlatLabel> _text = { nullptr };
-		ChildWidget<FlatLabel> _shortText = { nullptr };
+		object_ptr<Ui::FlatLabel> _label = { nullptr };
+		object_ptr<Ui::FlatLabel> _text = { nullptr };
+		object_ptr<Ui::FlatLabel> _shortText = { nullptr };
 
 	};
 
 	using LabeledWrap = Ui::WidgetSlideWrap<LabeledWidget>;
-	void setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
+	void setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText);
 
-	ChildWidget<LabeledWrap> _mobileNumber = { nullptr };
-	ChildWidget<LabeledWrap> _username = { nullptr };
-	ChildWidget<LabeledWrap> _link = { nullptr };
+	object_ptr<LabeledWrap> _mobileNumber = { nullptr };
+	object_ptr<LabeledWrap> _username = { nullptr };
+	object_ptr<LabeledWrap> _link = { nullptr };
 
 };
 

@@ -62,6 +62,9 @@ void Manager::notificationActivated(PeerId peerId, MsgId msgId) {
 	if (auto window = App::wnd()) {
 		auto history = App::history(peerId);
 		window->showFromTray();
+#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
+		window->reActivateWindow();
+#endif
 		if (App::passcoded()) {
 			window->setInnerFocus();
 			window->notifyClear();

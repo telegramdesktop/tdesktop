@@ -20,85 +20,92 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "ui/flatbutton.h"
-#include "ui/flatinput.h"
 #include "intro/introwidget.h"
+#include "ui/widgets/input_fields.h"
 
-class CodeInput final : public FlatInput {
+namespace Ui {
+class RoundButton;
+class LinkButton;
+class FlatLabel;
+} // namespace Ui
+
+namespace Intro {
+
+class CodeInput final : public Ui::MaskedInputField {
 	Q_OBJECT
 
 public:
-	CodeInput(QWidget *parent, const style::flatInput &st, const QString &ph);
+	CodeInput(QWidget *parent, const style::InputField &st, const QString &ph);
+
+	void setDigitsCountMax(int digitsCount);
 
 signals:
 	void codeEntered();
 
 protected:
-	void correctValue(const QString &was, QString &now);
+	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
+
+private:
+	int _digitsCountMax = 5;
 
 };
 
-class IntroCode final : public IntroStep {
+class CodeWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
-
-	IntroCode(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
+	CodeWidget(QWidget *parent, Widget::Data *data);
 
 	bool hasBack() const override {
 		return true;
 	}
+	void setInnerFocus() override;
 	void activate() override;
 	void finished() override;
 	void cancelled() override;
-	void onSubmit() override;
-
-	void codeSubmitDone(const MTPauth_Authorization &result);
-	bool codeSubmitFail(const RPCError &error);
+	void submit() override;
 
 	void updateDescText();
 
-public slots:
+protected:
+	void resizeEvent(QResizeEvent *e) override;
 
-	void onSubmitCode();
+private slots:
 	void onNoTelegramCode();
 	void onInputChange();
 	void onSendCall();
 	void onCheckRequest();
 
 private:
+	void updateCallText();
 
-	void showError(const QString &err);
+	void codeSubmitDone(const MTPauth_Authorization &result);
+	bool codeSubmitFail(const RPCError &error);
+
+	void showCodeError(const QString &text);
 	void callDone(const MTPauth_SentCode &v);
 	void gotPassword(const MTPaccount_Password &result);
-
-	void stopCheck();
-
-	QString error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
-
-	FlatButton next;
-
-	Text _desc;
-	LinkButton _noTelegramCode;
-	mtpRequestId _noTelegramCodeRequestId;
-	QRect textRect;
 
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	bool noTelegramCodeFail(const RPCError &result);
 
-	CodeInput code;
-	QString sentCode;
-	mtpRequestId sentRequest;
-	QTimer callTimer;
-	IntroWidget::CallStatus callStatus;
+	void stopCheck();
 
-	QTimer checkRequest;
+	object_ptr<Ui::LinkButton> _noTelegramCode;
+	mtpRequestId _noTelegramCodeRequestId = 0;
+
+	object_ptr<CodeInput> _code;
+	QString _sentCode;
+	mtpRequestId _sentRequest = 0;
+
+	object_ptr<QTimer> _callTimer;
+	Widget::Data::CallStatus _callStatus;
+	int _callTimeout;
+	mtpRequestId _callRequestId = 0;
+	object_ptr<Ui::FlatLabel> _callLabel;
+
+	object_ptr<QTimer> _checkRequest;
+
 };
+
+} // namespace Intro

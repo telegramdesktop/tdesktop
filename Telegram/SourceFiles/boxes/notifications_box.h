@@ -20,21 +20,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-
-class BoxButton;
-class LinkButton;
+#include "boxes/abstractbox.h"
 
 namespace Ui {
-class DiscreteSlider;
+class LinkButton;
+class SettingsSlider;
 } // namespace Ui
 
-class NotificationsBox : public AbstractBox {
+class NotificationsBox : public BoxContent {
 public:
-	NotificationsBox();
+	NotificationsBox(QWidget*);
 	~NotificationsBox();
 
 protected:
+	void prepare() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
@@ -63,7 +63,7 @@ private:
 	QPixmap _notificationSampleSmall;
 	QPixmap _notificationSampleLarge;
 	ScreenCorner _chosenCorner;
-	std_::vector_of_moveable<FloatAnimation> _sampleOpacities;
+	std_::vector_of_moveable<Animation> _sampleOpacities;
 
 	bool _isOverCorner = false;
 	ScreenCorner _overCorner = ScreenCorner::TopLeft;
@@ -71,8 +71,7 @@ private:
 	ScreenCorner _downCorner = ScreenCorner::TopLeft;
 
 	int _oldCount;
-	ChildWidget<Ui::DiscreteSlider> _countSlider;
-	ChildWidget<BoxButton> _done;
+	object_ptr<Ui::SettingsSlider> _countSlider;
 
 	QVector<SampleWidget*> _cornerSamples[4];
 

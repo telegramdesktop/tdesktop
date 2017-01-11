@@ -26,9 +26,8 @@ class FileUploader : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	FileUploader();
-	void uploadMedia(const FullMsgId &msgId, const ReadyLocalMedia &image);
+	void uploadMedia(const FullMsgId &msgId, const SendMediaReady &image);
 	void upload(const FullMsgId &msgId, const FileLoadResultPtr &file);
 
 	int32 currentOffset(const FullMsgId &msgId) const; // -1 means file not found
@@ -41,13 +40,11 @@ public:
 	void clear();
 
 public slots:
-
 	void unpause();
 	void sendNext();
 	void killSessions();
 
 signals:
-
 	void photoReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 	void documentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 	void thumbDocumentReady(const FullMsgId &msgId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb);
@@ -59,19 +56,18 @@ signals:
 	void documentFailed(const FullMsgId &msgId);
 
 private:
-
 	struct File {
-		File(const ReadyLocalMedia &media) : media(media), docSentParts(0) {
+		File(const SendMediaReady &media) : media(media), docSentParts(0) {
 			partsCount = media.parts.size();
-			if (type() == PrepareDocument || type() == PrepareAudio) {
+			if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
 				setDocSize(media.file.isEmpty() ? media.data.size() : media.filesize);
 			} else {
 				docSize = docPartSize = docPartsCount = 0;
 			}
 		}
 		File(const FileLoadResultPtr &file) : file(file), docSentParts(0) {
-			partsCount = (type() == PreparePhoto) ? file->fileparts.size() : file->thumbparts.size();
-			if (type() == PrepareDocument || type() == PrepareAudio) {
+			partsCount = (type() == SendMediaType::Photo) ? file->fileparts.size() : file->thumbparts.size();
+			if (type() == SendMediaType::File || type() == SendMediaType::Audio) {
 				setDocSize(file->filesize);
 			} else {
 				docSize = docPartSize = docPartsCount = 0;
@@ -98,14 +94,14 @@ private:
 		}
 
 		FileLoadResultPtr file;
-		ReadyLocalMedia media;
+		SendMediaReady media;
 		int32 partsCount;
 		mutable int32 fileSentSize;
 
 		uint64 id() const {
 			return file ? file->id : media.id;
 		}
-		PrepareMediaType type() const {
+		SendMediaType type() const {
 			return file ? file->type : media.type;
 		}
 		uint64 thumbId() const {

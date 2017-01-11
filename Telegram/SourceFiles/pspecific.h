@@ -20,10 +20,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QMainWindow>
-#include <QtNetwork/QNetworkReply>
-#include "sysbuttons.h"
-
 #ifdef Q_OS_MAC
 #include "pspecific_mac.h"
 #elif defined Q_OS_LINUX // Q_OS_MAC
@@ -40,6 +36,7 @@ void start();
 void finish();
 
 void SetWatchingMediaKeys(bool watching);
+bool TransparentWindowsSupported(QPoint globalPosition);
 
 namespace ThirdParty {
 

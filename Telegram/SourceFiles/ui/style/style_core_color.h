@@ -21,91 +21,101 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 namespace style {
+
+class palette;
+
 namespace internal {
 
-void destroyColors();
-
-class ColorData;
-class Color {
-public:
-	Color(Qt::Initialization = Qt::Uninitialized) {
-	}
-	Color(const Color &c);
-	explicit Color(const QColor &c);
-	Color(uchar r, uchar g, uchar b, uchar a = 255);
-	Color &operator=(const Color &c);
-	~Color();
-
-	void set(const QColor &newv);
-	void set(uchar r, uchar g, uchar b, uchar a = 255);
-
-	operator const QBrush &() const;
-	operator const QPen &() const;
-
-	ColorData *operator->() const {
-		return ptr;
-	}
-	ColorData *v() const {
-		return ptr;
-	}
-
-	explicit operator bool() const {
-		return !!ptr;
-	}
-
-private:
-	ColorData *ptr = nullptr;
-	bool owner = false;
-
-	void init(uchar r, uchar g, uchar b, uchar a);
-
-	friend void startManager();
-
-	Color(ColorData *p) : ptr(p) {
-	}
-	friend class ColorData;
-
-};
-
+class Color;
 class ColorData {
 public:
-
 	QColor c;
 	QPen p;
 	QBrush b;
 
-private:
+	QColor transparent() const {
+		return QColor(c.red(), c.green(), c.blue(), 0);
+	}
 
+private:
 	ColorData(uchar r, uchar g, uchar b, uchar a);
-	void set(const QColor &c);
+	ColorData(const ColorData &other) = default;
+	ColorData &operator=(const ColorData &other) = default;
+
+	void set(uchar r, uchar g, uchar b, uchar a);
 
 	friend class Color;
+	friend class style::palette;
 
 };
 
-inline bool operator==(const Color &a, const Color &b) {
+class Color {
+public:
+	Color(Qt::Initialization = Qt::Uninitialized) {
+	}
+	Color(const Color &other) = default;
+	Color &operator=(const Color &other) = default;
+
+	void set(uchar r, uchar g, uchar b, uchar a) const {
+		_data->set(r, g, b, a);
+	}
+
+	operator const QBrush &() const {
+		return _data->b;
+	}
+
+	operator const QPen &() const {
+		return _data->p;
+	}
+
+	ColorData *operator->() const {
+		return _data;
+	}
+	ColorData *v() const {
+		return _data;
+	}
+
+	explicit operator bool() const {
+		return !!_data;
+	}
+
+	class Proxy;
+	Proxy operator[](const style::palette &paletteOverride) const;
+
+private:
+	friend class style::palette;
+	Color(ColorData *data) : _data(data) {
+	}
+
+	ColorData *_data = nullptr;
+
+};
+
+class Color::Proxy {
+public:
+	Proxy(Color color) : _color(color) {
+	}
+	Proxy(const Proxy &other) = default;
+
+	operator const QBrush &() const { return _color; }
+	operator const QPen &() const { return _color; }
+	ColorData *operator->() const { return _color.v(); }
+	ColorData *v() const { return _color.v(); }
+	explicit operator bool() const { return _color ? true : false; }
+	Color clone() const { return _color; }
+
+private:
+	Color _color;
+
+};
+
+inline bool operator==(Color a, Color b) {
 	return a->c == b->c;
 }
 
-inline bool operator!=(const Color &a, const Color &b) {
+inline bool operator!=(Color a, Color b) {
 	return a->c != b->c;
 }
 
-inline Color::operator const QBrush &() const {
-	return ptr->b;
-}
-inline Color::operator const QPen &() const {
-	return ptr->p;
-}
-
 } // namespace internal
-
-inline QColor interpolate(const style::internal::Color &a, const style::internal::Color &b, float64 opacity_b) {
-	QColor result;
-	result.setRedF((a->c.redF() * (1. - opacity_b)) + (b->c.redF() * opacity_b));
-	result.setGreenF((a->c.greenF() * (1. - opacity_b)) + (b->c.greenF() * opacity_b));
-	result.setBlueF((a->c.blueF() * (1. - opacity_b)) + (b->c.blueF() * opacity_b));
-	return result;
-}
-
 } // namespace style

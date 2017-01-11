@@ -20,26 +20,40 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "ui/flatbutton.h"
-#include "ui/flatinput.h"
 #include "intro/introwidget.h"
 
-class IntroPwdCheck final : public IntroStep {
+namespace Ui {
+class InputField;
+class PasswordInput;
+class RoundButton;
+class LinkButton;
+} // namespace Ui
+
+namespace Intro {
+
+class PwdCheckWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
+	PwdCheckWidget(QWidget *parent, Widget::Data *data);
 
-	IntroPwdCheck(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
-
+	void setInnerFocus() override;
 	void activate() override;
 	void cancelled() override;
-	void onSubmit() override;
+	void submit() override;
+	QString nextButtonText() const override;
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
+	void onToRecover();
+	void onToPassword();
+	void onInputChange();
+	void onCheckRequest();
+
+private:
+	void showReset();
 
 	void pwdSubmitDone(bool recover, const MTPauth_Authorization &result);
 	bool pwdSubmitFail(const RPCError &error);
@@ -48,44 +62,24 @@ public:
 
 	void recoverStarted(const MTPauth_PasswordRecovery &result);
 
-public slots:
-
-	void onSubmitPwd(bool force = false);
-	void onToRecover();
-	void onToPassword();
-	void onInputChange();
-	void onCheckRequest();
-	void onToReset();
-	void onReset();
-	void onResetSure();
-
-private:
-
-	void showError(const QString &err);
+	void updateDescriptionText();
 	void stopCheck();
-
-	void deleteDone(const MTPBool &result);
-	bool deleteFail(const RPCError &error);
-
-	QString error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
-
-	FlatButton _next;
-
-	QRect textRect;
 
 	QByteArray _salt;
 	bool _hasRecovery;
 	QString _hint, _emailPattern;
 
-	FlatInput _pwdField, _codeField;
-	LinkButton _toRecover, _toPassword, _reset;
-	mtpRequestId sentRequest;
-
-	Text _hintText;
+	object_ptr<Ui::PasswordInput> _pwdField;
+	object_ptr<Ui::FlatLabel> _pwdHint;
+	object_ptr<Ui::InputField> _codeField;
+	object_ptr<Ui::LinkButton> _toRecover;
+	object_ptr<Ui::LinkButton> _toPassword;
+	mtpRequestId _sentRequest = 0;
 
 	QByteArray _pwdSalt;
 
-	QTimer checkRequest;
+	object_ptr<QTimer> _checkRequest;
+
 };
+
+} // namespace Intro

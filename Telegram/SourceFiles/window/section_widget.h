@@ -21,7 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "window/slide_animation.h"
+#include "window/window_slide_animation.h"
 
 namespace Window {
 

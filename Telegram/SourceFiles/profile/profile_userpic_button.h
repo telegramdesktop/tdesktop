@@ -20,6 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "ui/abstract_button.h"
 #include "core/observer.h"
 
 namespace Notify {
@@ -28,9 +29,9 @@ struct PeerUpdate;
 
 namespace Profile {
 
-class UserpicButton final : public Button, private base::Subscriber {
+class UserpicButton : public Ui::AbstractButton, private base::Subscriber {
 public:
-	UserpicButton(QWidget *parent, PeerData *peer);
+	UserpicButton(QWidget *parent, PeerData *peer, int size = 0);
 
 	// If at the first moment the _userpic was not loaded,
 	// we need to show it animated after the profile is fully shown.
@@ -49,10 +50,11 @@ private:
 
 	bool _notShownYet;
 
+	int _size = 0;
 	PeerData *_peer;
 	bool _waiting = false;
 	QPixmap _userpic, _oldUserpic;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 
 };
 

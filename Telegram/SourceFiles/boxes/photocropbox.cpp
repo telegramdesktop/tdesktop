@@ -26,21 +26,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "photocropbox.h"
 #include "fileuploader.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_boxes.h"
 
-PhotoCropBox::PhotoCropBox(const QImage &img, const PeerId &peer) : AbstractBox()
-, _downState(0)
-, _done(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _img(img)
+PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, const PeerId &peer)
+: _img(img)
 , _peerId(peer) {
-	init(img, 0);
+	init(img, nullptr);
 }
 
-PhotoCropBox::PhotoCropBox(const QImage &img, PeerData *peer) : AbstractBox()
-, _downState(0)
-, _done(this, lang(lng_settings_save), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _img(img)
+PhotoCropBox::PhotoCropBox(QWidget*, const QImage &img, PeerData *peer)
+: _img(img)
 , _peerId(peer->id) {
 	init(img, peer);
 }
@@ -53,16 +49,22 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 	} else {
 		_title = lang(lng_settings_crop_profile);
 	}
+}
 
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onSend()));
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+void PhotoCropBox::prepare() {
+	addButton(lang(lng_settings_save), [this] { sendPhoto(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 	if (peerToBareInt(_peerId)) {
 		connect(this, SIGNAL(ready(const QImage&)), this, SLOT(onReady(const QImage&)));
 	}
 
 	int32 s = st::boxWideWidth - st::boxPhotoPadding.left() - st::boxPhotoPadding.right();
-	_thumb = App::pixmapFromImageInPlace(img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	_thumb = App::pixmapFromImageInPlace(_img.scaled(s * cIntRetinaFactor(), s * cIntRetinaFactor(), Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	_thumb.setDevicePixelRatio(cRetinaFactor());
+	_mask = QImage(_thumb.size(), QImage::Format_ARGB32_Premultiplied);
+	_mask.setDevicePixelRatio(cRetinaFactor());
+	_fade = QImage(_thumb.size(), QImage::Format_ARGB32_Premultiplied);
+	_fade.setDevicePixelRatio(cRetinaFactor());
 	_thumbw = _thumb.width() / cIntRetinaFactor();
 	_thumbh = _thumb.height() / cIntRetinaFactor();
 	if (_thumbw > _thumbh) {
@@ -77,23 +79,22 @@ void PhotoCropBox::init(const QImage &img, PeerData *peer) {
 	_thumby = st::boxPhotoPadding.top();
 	setMouseTracking(true);
 
-	resizeMaxHeight(st::boxWideWidth, st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxTextFont->height + st::cropSkip + st::boxButtonPadding.top() + _done.height() + st::boxButtonPadding.bottom());
+	setDimensions(st::boxWideWidth, st::boxPhotoPadding.top() + _thumbh + st::boxPhotoPadding.bottom() + st::boxTextFont->height + st::cropSkip);
 }
 
 void PhotoCropBox::mousePressEvent(QMouseEvent *e) {
-	if (e->button() != Qt::LeftButton) return LayerWidget::mousePressEvent(e);
-
-	_downState = mouseState(e->pos());
-	_fromposx = e->pos().x();
-	_fromposy = e->pos().y();
-	_fromcropx = _cropx;
-	_fromcropy = _cropy;
-	_fromcropw = _cropw;
-
-	return LayerWidget::mousePressEvent(e);
+	if (e->button() == Qt::LeftButton) {
+		_downState = mouseState(e->pos());
+		_fromposx = e->pos().x();
+		_fromposy = e->pos().y();
+		_fromcropx = _cropx;
+		_fromcropy = _cropy;
+		_fromcropw = _cropw;
+	}
+	return BoxContent::mousePressEvent(e);
 }
 
-int32 PhotoCropBox::mouseState(QPoint p) {
+int PhotoCropBox::mouseState(QPoint p) {
 	p -= QPoint(_thumbx, _thumby);
 	int32 delta = st::cropPointSize, mdelta(-delta / 2);
 	if (QRect(_cropx + mdelta, _cropy + mdelta, delta, delta).contains(p)) {
@@ -219,15 +220,16 @@ void PhotoCropBox::mouseMoveEvent(QMouseEvent *e) {
 
 void PhotoCropBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onSend();
+		sendPhoto();
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void PhotoCropBox::paintEvent(QPaintEvent *e) {
+	BoxContent::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	p.setFont(st::boxTextFont);
 	p.setPen(st::boxPhotoTextFg);
@@ -235,35 +237,28 @@ void PhotoCropBox::paintEvent(QPaintEvent *e) {
 
 	p.translate(_thumbx, _thumby);
 	p.drawPixmap(0, 0, _thumb);
-	p.setOpacity(0.5);
-	if (_cropy > 0) {
-		p.fillRect(QRect(0, 0, _cropx + _cropw, _cropy), st::black->b);
-	}
-	if (_cropx + _cropw < _thumbw) {
-		p.fillRect(QRect(_cropx + _cropw, 0, _thumbw - _cropx - _cropw, _cropy + _cropw), st::black->b);
-	}
-	if (_cropy + _cropw < _thumbh) {
-		p.fillRect(QRect(_cropx, _cropy + _cropw, _thumbw - _cropx, _thumbh - _cropy - _cropw), st::black->b);
-	}
-	if (_cropx > 0) {
-		p.fillRect(QRect(0, _cropy, _cropx, _thumbh - _cropy), st::black->b);
-	}
+	_mask.fill(Qt::white);
+	{
+		Painter p(&_mask);
+		PainterHighQualityEnabler hq(p);
 
-	int32 delta = st::cropPointSize, mdelta(-delta / 2);
-	p.fillRect(QRect(_cropx + mdelta, _cropy + mdelta, delta, delta), st::white->b);
-	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + mdelta, delta, delta), st::white->b);
-	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + _cropw + mdelta, delta, delta), st::white->b);
-	p.fillRect(QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta), st::white->b);
+		p.setPen(Qt::NoPen);
+		p.setBrush(Qt::black);
+		p.drawEllipse(_cropx, _cropy, _cropw, _cropw);
+	}
+	style::colorizeImage(_mask, st::photoCropFadeBg->c, &_fade);
+	p.drawImage(0, 0, _fade);
+
+	int delta = st::cropPointSize;
+	int mdelta = -delta / 2;
+	p.fillRect(QRect(_cropx + mdelta, _cropy + mdelta, delta, delta), st::photoCropPointFg);
+	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + mdelta, delta, delta), st::photoCropPointFg);
+	p.fillRect(QRect(_cropx + _cropw + mdelta, _cropy + _cropw + mdelta, delta, delta), st::photoCropPointFg);
+	p.fillRect(QRect(_cropx + mdelta, _cropy + _cropw + mdelta, delta, delta), st::photoCropPointFg);
 }
 
-void PhotoCropBox::resizeEvent(QResizeEvent *e) {
-	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _done.width() + st::boxButtonPadding.left(), _done.y());
-	AbstractBox::resizeEvent(e);
-}
-
-void PhotoCropBox::onSend() {
-	QImage from(_img);
+void PhotoCropBox::sendPhoto() {
+	auto from = _img;
 	if (_img.width() < _thumb.width()) {
 		from = _thumb.toImage();
 	}
@@ -296,14 +291,9 @@ void PhotoCropBox::onSend() {
 	}
 
 	emit ready(tosend);
-	onClose();
+	closeBox();
 }
 
 void PhotoCropBox::onReady(const QImage &tosend) {
 	App::app()->uploadProfilePhoto(tosend, _peerId);
-}
-
-void PhotoCropBox::showAll() {
-	_done.show();
-	_cancel.show();
 }

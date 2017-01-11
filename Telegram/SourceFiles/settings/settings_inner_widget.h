@@ -38,12 +38,9 @@ public:
 	}
 
 	// Updates the area that is visible inside the scroll container.
-	void setVisibleTopBottom(int visibleTop, int visibleBottom);
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	void showFinished();
-
-signals:
-	void heightUpdated();
 
 private slots:
 	void onBlockHeightUpdated();
@@ -59,7 +56,7 @@ private:
 	// Returns the new height value.
 	int refreshBlocksPositions(int newWidth);
 
-	ChildWidget<CoverWidget> _cover = { nullptr };
+	object_ptr<CoverWidget> _cover = { nullptr };
 	QList<BlockWidget*> _blocks;
 
 	UserData *_self = nullptr;

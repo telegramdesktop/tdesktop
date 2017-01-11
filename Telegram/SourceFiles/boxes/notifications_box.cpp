@@ -22,8 +22,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/notifications_box.h"
 
 #include "lang.h"
-#include "ui/buttons/round_button.h"
-#include "ui/widgets/discrete_slider.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/discrete_sliders.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -102,38 +102,41 @@ private:
 
 	NotificationsBox *_owner;
 	QPixmap _cache;
-	FloatAnimation _opacity;
+	Animation _opacity;
 	bool _hiding = false;
 	bool _deleted = false;
 
 };
 
-NotificationsBox::NotificationsBox() : AbstractBox()
-, _chosenCorner(Global::NotificationsCorner())
+NotificationsBox::NotificationsBox(QWidget *parent)
+: _chosenCorner(Global::NotificationsCorner())
 , _oldCount(snap(Global::NotificationsCount(), 1, kMaxNotificationsCount))
-, _countSlider(this)
-, _done(this, lang(lng_about_done), st::defaultBoxButton) {
+, _countSlider(this) {
+}
+
+void NotificationsBox::prepare() {
+	addButton(lang(lng_close), [this] { closeBox(); });
+
 	_sampleOpacities.reserve(kMaxNotificationsCount);
 	for (int i = 0; i != kMaxNotificationsCount; ++i) {
 		_countSlider->addSection(QString::number(i + 1));
-		_sampleOpacities.push_back(FloatAnimation());
+		_sampleOpacities.push_back(Animation());
 	}
 	_countSlider->setActiveSectionFast(_oldCount - 1);
 	_countSlider->setSectionActivatedCallback([this] { countChanged(); });
 
 	setMouseTracking(true);
-	_done->setClickedCallback([this] { onClose(); });
 
 	prepareNotificationSampleSmall();
 	prepareNotificationSampleLarge();
-	setMaxHeight(st::notificationsBoxHeight);
 
-	prepare();
+	setDimensions(st::boxWideWidth, st::notificationsBoxHeight);
 }
 
 void NotificationsBox::paintEvent(QPaintEvent *e) {
+	BoxContent::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
 	auto contentLeft = getContentLeft();
 
@@ -204,14 +207,13 @@ QRect NotificationsBox::getScreenRect() const {
 }
 
 void NotificationsBox::resizeEvent(QResizeEvent *e) {
-	_done->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done->height());
+	BoxContent::resizeEvent(e);
 
 	auto screenRect = getScreenRect();
 	auto sliderTop = screenRect.y() + screenRect.height() + st::notificationsBoxCountLabelTop + st::notificationsBoxCountTop;
 	auto contentLeft = getContentLeft();
 	_countSlider->resizeToWidth(width() - 2 * contentLeft);
 	_countSlider->move(contentLeft, sliderTop);
-	AbstractBox::resizeEvent(e);
 }
 
 void NotificationsBox::prepareNotificationSampleSmall() {
@@ -219,11 +221,12 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 	auto height = st::notificationSampleSize.height();
 	auto sampleImage = QImage(width * cIntRetinaFactor(), height * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	sampleImage.setDevicePixelRatio(cRetinaFactor());
-	sampleImage.fill(st::notifyBg->c);
+	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
+		PainterHighQualityEnabler hq(p);
+
 		p.setPen(Qt::NoPen);
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
 
 		auto padding = height / 8;
 		auto userpicSize = height - 2 * padding;
@@ -262,7 +265,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 	int w = st::notifyWidth, h = st::notifyMinHeight;
 	auto sampleImage = QImage(w * cIntRetinaFactor(), h * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	sampleImage.setDevicePixelRatio(cRetinaFactor());
-	sampleImage.fill(st::notifyBg->c);
+	sampleImage.fill(st::notificationBg->c);
 	{
 		Painter p(&sampleImage);
 		p.fillRect(0, 0, w - st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder->b);
@@ -288,8 +291,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		auto notifyTitle = st::msgNameFont->elided(qsl("Telegram Desktop"), rectForName.width());
 		p.drawText(rectForName.left(), rectForName.top() + st::msgNameFont->ascent, notifyTitle);
 
-		p.setOpacity(st::notifyClose.opacity);
-		p.drawSpriteLeft(w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPos.x(), st::notifyClosePos.y() + st::notifyClose.iconPos.y(), w, st::notifyClose.icon);
+		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
 	}
 
 	_notificationSampleLarge = App::pixmapFromImageInPlace(std_::move(sampleImage));

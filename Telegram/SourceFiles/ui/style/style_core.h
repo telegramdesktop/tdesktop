@@ -55,16 +55,32 @@ public:
 void registerModule(ModuleBase *module);
 void unregisterModule(ModuleBase *module);
 
+// This method is implemented in palette.cpp (codegen).
+bool setPaletteColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);
+
 } // namespace internal
 
 void startManager();
 void stopManager();
 
-QImage colorizeImage(const QImage &src, const color &c, const QRect &r);
+// *outResult must be r.width() x r.height(), ARGB32_Premultiplied.
+// QRect(0, 0, src.width(), src.height()) must contain r.
+void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect = QRect(), QPoint dstPoint = QPoint(0, 0));
+
+inline QImage colorizeImage(const QImage &src, QColor c, QRect srcRect = QRect()) {
+	if (srcRect.isNull()) srcRect = src.rect();
+	auto result = QImage(srcRect.size(), QImage::Format_ARGB32_Premultiplied);
+	colorizeImage(src, c, &result, srcRect);
+	return std_::move(result);
+}
+
+inline QImage colorizeImage(const QImage &src, const color &c, QRect srcRect = QRect()) {
+	return colorizeImage(src, c->c, srcRect);
+}
 
 namespace internal {
 
-QImage createCircleMask(int size, const QColor &bg, const QColor &fg);
+QImage createCircleMask(int size, QColor bg, QColor fg);
 
 } // namespace internal
 
@@ -77,7 +93,3 @@ inline QImage createInvertedCircleMask(int size) {
 }
 
 } // namespace style
-
-inline QRect centersprite(const QRect &inRect, const style::sprite &sprite) {
-	return centerrect(inRect, QRect(QPoint(0, 0), sprite.pxSize()));
-}

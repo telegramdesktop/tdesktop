@@ -22,10 +22,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/buttons/peer_avatar_button.h"
 
 #include "structs.h"
+#include "ui/effects/ripple_animation.h"
+#include "styles/style_boxes.h"
 
 namespace Ui {
 
-PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st) : Button(parent)
+PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st) : AbstractButton(parent)
 , _peer(peer)
 , _st(st) {
 	resize(_st.size, _st.size);
@@ -34,8 +36,45 @@ PeerAvatarButton::PeerAvatarButton(QWidget *parent, PeerData *peer, const style:
 void PeerAvatarButton::paintEvent(QPaintEvent *e) {
 	if (_peer) {
 		Painter p(this);
-		_peer->paintUserpic(p, _st.photoSize, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2);
+		_peer->paintUserpic(p, (_st.size - _st.photoSize) / 2, (_st.size - _st.photoSize) / 2, _st.photoSize);
 	}
+}
+
+NewAvatarButton::NewAvatarButton(QWidget *parent, int size, QPoint position) : RippleButton(parent, st::defaultActiveButton.ripple)
+, _position(position) {
+	resize(size, size);
+}
+
+void NewAvatarButton::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	if (!_image.isNull()) {
+		p.drawPixmap(0, 0, _image);
+		return;
+	}
+
+	p.setPen(Qt::NoPen);
+	p.setBrush(isOver() ? st::defaultActiveButton.textBgOver : st::defaultActiveButton.textBg);
+	{
+		PainterHighQualityEnabler hq(p);
+		p.drawEllipse(rect());
+	}
+
+	paintRipple(p, 0, 0, getms());
+
+	st::newGroupPhotoIcon.paint(p, _position, width());
+}
+
+void NewAvatarButton::setImage(const QImage &image) {
+	auto small = image.scaled(size() * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+	Images::prepareCircle(small);
+	_image = App::pixmapFromImageInPlace(std_::move(small));
+	_image.setDevicePixelRatio(cRetinaFactor());
+	update();
+}
+
+QImage NewAvatarButton::prepareRippleMask() const {
+	return Ui::RippleAnimation::ellipseMask(size());
 }
 
 } // namespace Ui

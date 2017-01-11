@@ -64,8 +64,11 @@ void InnerWidget::refreshBlocks() {
 	}
 	_blocks.clear();
 
+	if (App::quitting()) {
+		return;
+	}
 	if (_self) {
-		_cover = new CoverWidget(this, _self);
+		_cover.create(this, _self);
 		_blocks.push_back(new InfoWidget(this, _self));
 		_blocks.push_back(new NotificationsWidget(this, _self));
 	}

@@ -22,45 +22,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_fixed_bar.h"
 
 #include "styles/style_profile.h"
-#include "ui/buttons/round_button.h"
+#include "styles/style_window.h"
+#include "ui/widgets/buttons.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "observer_peer.h"
+#include "styles/style_boxes.h"
+#include "profile/profile_back_button.h"
 
 namespace Profile {
-
-class BackButton final : public Button {
-public:
-	BackButton(QWidget *parent) : Button(parent) {
-		setCursor(style::cur_pointer);
-	}
-
-protected:
-	int resizeGetHeight(int newWidth) override {
-		return st::profileTopBarHeight;
-	}
-	void paintEvent(QPaintEvent *e) override {
-		Painter p(this);
-
-		p.fillRect(e->rect(), st::profileBg);
-		st::profileTopBarBackIcon.paint(p, st::profileTopBarBackIconPosition, width());
-
-		p.setFont(st::profileTopBarBackFont);
-		p.setPen(st::profileTopBarBackFg);
-		p.drawTextLeft(st::profileTopBarBackPosition.x(), st::profileTopBarBackPosition.y(), width(), lang(lng_menu_back));
-	}
-	void onStateChanged(int oldState, ButtonStateChangeSource source) override {
-		if ((_state & Button::StateDown) && !(oldState & Button::StateDown)) {
-			emit clicked();
-		}
-	}
-
-private:
-
-};
-
 namespace {
 
 using UpdateFlag = Notify::PeerUpdate::Flag;
@@ -77,7 +49,7 @@ FixedBar::FixedBar(QWidget *parent, PeerData *peer) : TWidget(parent)
 , _peerChat(peer->asChat())
 , _peerChannel(peer->asChannel())
 , _peerMegagroup(peer->isMegagroup() ? _peerChannel : nullptr)
-, _backButton(this) {
+, _backButton(this, lang(lng_menu_back)) {
 	_backButton->moveToLeft(0, 0);
 	connect(_backButton, SIGNAL(clicked()), this, SLOT(onBack()));
 
@@ -179,22 +151,22 @@ void FixedBar::onBack() {
 }
 
 void FixedBar::onEditChannel() {
-	Ui::showLayer(new EditChannelBox(_peerMegagroup ? _peerMegagroup : _peerChannel));
+	Ui::show(Box<EditChannelBox>(_peerMegagroup ? _peerMegagroup : _peerChannel));
 }
 
 void FixedBar::onEditGroup() {
-	Ui::showLayer(new EditNameTitleBox(_peerChat));
+	Ui::show(Box<EditNameTitleBox>(_peerChat));
 }
 
 void FixedBar::onAddContact() {
 	auto firstName = _peerUser->firstName;
 	auto lastName = _peerUser->lastName;
 	auto phone = _peerUser->phone().isEmpty() ? App::phoneFromSharedContact(peerToUser(_peer->id)) : _peerUser->phone();
-	Ui::showLayer(new AddContactBox(firstName, lastName, phone));
+	Ui::show(Box<AddContactBox>(firstName, lastName, phone));
 }
 
 void FixedBar::onEditContact() {
-	Ui::showLayer(new AddContactBox(_peerUser));
+	Ui::show(Box<AddContactBox>(_peerUser));
 }
 
 void FixedBar::onShareContact() {
@@ -202,27 +174,21 @@ void FixedBar::onShareContact() {
 }
 
 void FixedBar::onDeleteContact() {
-	ConfirmBox *box = new ConfirmBox(lng_sure_delete_contact(lt_contact, App::peerName(_peerUser)), lang(lng_box_delete));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onDeleteContactSure()));
-	Ui::showLayer(box);
-}
-
-void FixedBar::onDeleteContactSure() {
-	Ui::showChatsList();
-	Ui::hideLayer();
-	MTP::send(MTPcontacts_DeleteContact(_peerUser->inputUser), App::main()->rpcDone(&MainWidget::deletedContact, _peerUser));
+	auto text = lng_sure_delete_contact(lt_contact, App::peerName(_peerUser));
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_delete), base::lambda_guarded(this, [this] {
+		Ui::showChatsList();
+		Ui::hideLayer();
+		MTP::send(MTPcontacts_DeleteContact(_peerUser->inputUser), App::main()->rpcDone(&MainWidget::deletedContact, _peerUser));
+	})));
 }
 
 void FixedBar::onLeaveGroup() {
-	ConfirmBox *box = new ConfirmBox(lng_sure_delete_and_exit(lt_group, App::peerName(_peerChat)), lang(lng_box_leave), st::attentionBoxButton);
-	connect(box, SIGNAL(confirmed()), this, SLOT(onLeaveGroupSure()));
-	Ui::showLayer(box);
-}
-
-void FixedBar::onLeaveGroupSure() {
-	Ui::showChatsList();
-	Ui::hideLayer();
-	App::main()->deleteAndExit(_peerChat);
+	auto text = lng_sure_delete_and_exit(lt_group, App::peerName(_peerChat));
+	Ui::show(Box<ConfirmBox>(text, lang(lng_box_leave), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+		Ui::showChatsList();
+		Ui::hideLayer();
+		App::main()->deleteAndExit(_peerChat);
+	})));
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {

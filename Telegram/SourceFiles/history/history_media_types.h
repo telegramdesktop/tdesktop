@@ -71,23 +71,26 @@ protected:
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
 	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
 
-	void step_thumbOver(float64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void step_radial(TimeMs ms, bool timer);
+	void thumbAnimationCallback();
 
 	void ensureAnimation() const;
-	void checkAnimationFinished();
+	void checkAnimationFinished() const;
 
-	bool isRadialAnimation(uint64 ms) const {
+	bool isRadialAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
 
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
-	bool isThumbAnimation(uint64 ms) const {
-		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
-
-		_animation->_a_thumbOver.step(ms);
-		return _animation && _animation->_a_thumbOver.animating();
+	bool isThumbAnimation(TimeMs ms) const {
+		if (_animation) {
+			if (_animation->a_thumbOver.animating(ms)) {
+				return true;
+			}
+			checkAnimationFinished();
+		}
+		return false;
 	}
 
 	virtual float64 dataProgress() const = 0;
@@ -95,16 +98,13 @@ protected:
 	virtual bool dataLoaded() const = 0;
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&thumbOverCallbacks, AnimationCallbacks &&radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(std_::move(thumbOverCallbacks))
-			, radial(std_::move(radialCallbacks)) {
+		AnimationData(AnimationCallbacks &&radialCallbacks)
+			: radial(std_::move(radialCallbacks)) {
 		}
-		anim::fvalue a_thumbOver;
-		Animation _a_thumbOver;
-
+		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
-	mutable AnimationData *_animation = nullptr;
+	mutable std_::unique_ptr<AnimationData> _animation;
 
 };
 
@@ -125,7 +125,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -172,6 +172,9 @@ public:
 	bool hideFromName() const override {
 		return true;
 	}
+	bool skipBubbleTail() const override {
+		return isBubbleBottom() && _caption.isEmpty();
+	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
 	}
@@ -209,7 +212,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -259,6 +262,9 @@ public:
 	bool hideFromName() const override {
 		return true;
 	}
+	bool skipBubbleTail() const override {
+		return isBubbleBottom() && _caption.isEmpty();
+	}
 
 protected:
 	float64 dataProgress() const override {
@@ -289,7 +295,9 @@ struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed> 
 	mutable QString _link;
 };
 struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned> {
-	Text _caption = { int(st::msgFileMinWidth) - st::msgPadding.left() - st::msgPadding.right() };
+	HistoryDocumentCaptioned();
+
+	Text _caption;
 };
 struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed> {
 	QString _name;
@@ -299,9 +307,9 @@ class HistoryDocument;
 struct HistoryDocumentVoicePlayback {
 	HistoryDocumentVoicePlayback(const HistoryDocument *that);
 
-	int32 _position;
-	anim::fvalue a_progress;
-	Animation _a_progress;
+	int32 _position = 0;
+	anim::value a_progress;
+	BasicAnimation _a_progress;
 };
 struct HistoryDocumentVoice : public RuntimeComponent<HistoryDocumentVoice> {
 	HistoryDocumentVoice &operator=(HistoryDocumentVoice &&other) {
@@ -330,7 +338,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -378,9 +386,7 @@ public:
 	bool customInfoLayout() const override {
 		return false;
 	}
-	QMargins bubbleMargins() const override {
-		return Get<HistoryDocumentThumbed>() ? QMargins(st::msgFileThumbPadding.left(), st::msgFileThumbPadding.top(), st::msgFileThumbPadding.left(), st::msgFileThumbPadding.bottom()) : st::msgPadding;
-	}
+	QMargins bubbleMargins() const override;
 	bool hideForwardedFrom() const override {
 		return _data->song();
 	}
@@ -427,7 +433,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override {
@@ -484,6 +490,9 @@ public:
 	bool hideFromName() const override {
 		return true;
 	}
+	bool skipBubbleTail() const override {
+		return isBubbleBottom() && _caption.isEmpty();
+	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
 	}
@@ -521,7 +530,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
@@ -584,7 +593,7 @@ public:
 
 	void initDimensions() override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
@@ -622,14 +631,15 @@ public:
 private:
 
 	int32 _userId;
-	UserData *_contact;
+	UserData *_contact = nullptr;
 
-	int32 _phonew;
+	int _phonew = 0;
 	QString _fname, _lname, _phone;
 	Text _name;
+	EmptyUserpic _photoEmpty;
 
 	ClickHandlerPtr _linkl;
-	int32 _linkw;
+	int _linkw = 0;
 	QString _link;
 };
 
@@ -647,7 +657,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
@@ -747,7 +757,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
@@ -850,7 +860,7 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int32 width) override;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
@@ -882,6 +892,10 @@ public:
 		return true;
 	}
 
+	bool skipBubbleTail() const override {
+		return isBubbleBottom();
+	}
+
 private:
 	TextSelection toDescriptionSelection(TextSelection selection) const {
 		return internal::unshiftSelection(selection, _title);
@@ -896,23 +910,5 @@ private:
 
 	int32 fullWidth() const;
 	int32 fullHeight() const;
-
-};
-
-class SendMessageClickHandler : public PeerClickHandler {
-public:
-	using PeerClickHandler::PeerClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
-
-class AddContactClickHandler : public MessageClickHandler {
-public:
-	using MessageClickHandler::MessageClickHandler;
-
-protected:
-	void onClickImpl() const override;
 
 };

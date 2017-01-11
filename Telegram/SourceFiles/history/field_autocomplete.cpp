@@ -24,31 +24,28 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "localstorage.h"
+#include "ui/widgets/scroll_area.h"
+#include "styles/style_history.h"
+#include "styles/style_widgets.h"
+#include "styles/style_stickers.h"
 
 FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
-, _scroll(this, st::mentionScroll)
-, _inner(this, &_mrows, &_hrows, &_brows, &_srows)
-, a_opacity(0)
-, _a_appearance(animation(this, &FieldAutocomplete::step_appearance)) {
-	_hideTimer.setSingleShot(true);
-	connect(&_hideTimer, SIGNAL(timeout()), this, SLOT(hideStart()));
-
-	connect(_inner, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)));
-	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
-
-	setFocusPolicy(Qt::NoFocus);
-	_scroll->setFocusPolicy(Qt::NoFocus);
-	_scroll->viewport()->setFocusPolicy(Qt::NoFocus);
-
-	_inner->setGeometry(rect());
+, _scroll(this, st::mentionScroll) {
 	_scroll->setGeometry(rect());
 
-	_scroll->setOwnedWidget(_inner);
+	_inner = _scroll->setOwnedWidget(object_ptr<internal::FieldAutocompleteInner>(this, &_mrows, &_hrows, &_brows, &_srows));
+	_inner->setGeometry(rect());
+
+	connect(_inner, SIGNAL(mentionChosen(UserData*, FieldAutocomplete::ChooseMethod)), this, SIGNAL(mentionChosen(UserData*, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(hashtagChosen(QString, FieldAutocomplete::ChooseMethod)), this, SIGNAL(hashtagChosen(QString, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(botCommandChosen(QString, FieldAutocomplete::ChooseMethod)), this, SIGNAL(botCommandChosen(QString, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(stickerChosen(DocumentData*, FieldAutocomplete::ChooseMethod)), this, SIGNAL(stickerChosen(DocumentData*, FieldAutocomplete::ChooseMethod)));
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), _scroll, SLOT(scrollToY(int, int)));
+
 	_scroll->show();
 	_inner->show();
+
+	hide();
 
 	connect(_scroll, SIGNAL(geometryChanged()), _inner, SLOT(onParentGeometryChanged()));
 }
@@ -56,13 +53,18 @@ FieldAutocomplete::FieldAutocomplete(QWidget *parent) : TWidget(parent)
 void FieldAutocomplete::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	if (_a_appearance.animating()) {
-		p.setOpacity(a_opacity.current());
-		p.drawPixmap(0, 0, _cache);
+	auto opacity = _a_opacity.current(getms(), _hiding ? 0. : 1.);
+	if (opacity < 1.) {
+		if (opacity > 0.) {
+			p.setOpacity(opacity);
+			p.drawPixmap(0, 0, _cache);
+		} else if (_hiding) {
+
+		}
 		return;
 	}
 
-	p.fillRect(rect(), st::white);
+	p.fillRect(rect(), st::mentionBg);
 }
 
 void FieldAutocomplete::showFiltered(PeerData *peer, QString query, bool addInlineBots) {
@@ -333,7 +335,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll) {
 	if (mrows.isEmpty() && hrows.isEmpty() && brows.isEmpty() && srows.isEmpty()) {
 		if (!isHidden()) {
-			hideStart();
+			hideAnimated();
 		}
 		_mrows.clear();
 		_hrows.clear();
@@ -354,7 +356,7 @@ void FieldAutocomplete::rowsUpdated(const internal::MentionRows &mrows, const in
 		update();
 		if (hidden) {
 			hide();
-			showStart();
+			showAnimated();
 		}
 	}
 }
@@ -394,27 +396,24 @@ void FieldAutocomplete::recount(bool resetScroll) {
 	if (resetScroll) _inner->clearSel();
 }
 
-void FieldAutocomplete::fastHide() {
-	if (_a_appearance.animating()) {
-		_a_appearance.stop();
-	}
-	a_opacity = anim::fvalue(0, 0);
-	_hideTimer.stop();
+void FieldAutocomplete::hideFast() {
+	_a_opacity.finish();
 	hideFinish();
 }
 
-void FieldAutocomplete::hideStart() {
-	if (!_hiding) {
-		if (_cache.isNull()) {
-			_scroll->show();
-			_cache = myGrab(this);
-		}
-		_scroll->hide();
-		_hiding = true;
-		a_opacity.start(0);
-		setAttribute(Qt::WA_OpaquePaintEvent, false);
-		_a_appearance.start();
+void FieldAutocomplete::hideAnimated() {
+	if (isHidden() || _hiding) {
+		return;
 	}
+
+	if (_cache.isNull()) {
+		_scroll->show();
+		_cache = myGrab(this);
+	}
+	_scroll->hide();
+	_hiding = true;
+	_a_opacity.start([this] { animationCallback(); }, 1., 0., st::emojiPanDuration);
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
 void FieldAutocomplete::hideFinish() {
@@ -424,8 +423,8 @@ void FieldAutocomplete::hideFinish() {
 	_inner->clearSel(true);
 }
 
-void FieldAutocomplete::showStart() {
-	if (!isHidden() && a_opacity.current() == 1 && !_hiding) {
+void FieldAutocomplete::showAnimated() {
+	if (!isHidden() && !_hiding) {
 		return;
 	}
 	if (_cache.isNull()) {
@@ -435,16 +434,13 @@ void FieldAutocomplete::showStart() {
 	_scroll->hide();
 	_hiding = false;
 	show();
-	a_opacity.start(1);
+	_a_opacity.start([this] { animationCallback(); }, 0., 1., st::emojiPanDuration);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
-	_a_appearance.start();
 }
 
-void FieldAutocomplete::step_appearance(float64 ms, bool timer) {
-	float64 dt = ms / st::dropdownDef.duration;
-	if (dt >= 1) {
-		_a_appearance.stop();
-		a_opacity.finish();
+void FieldAutocomplete::animationCallback() {
+	update();
+	if (!_a_opacity.animating()) {
 		_cache = QPixmap();
 		setAttribute(Qt::WA_OpaquePaintEvent);
 		if (_hiding) {
@@ -453,10 +449,7 @@ void FieldAutocomplete::step_appearance(float64 ms, bool timer) {
 			_scroll->show();
 			_inner->clearSel();
 		}
-	} else {
-		a_opacity.update(dt, anim::linear);
 	}
-	if (timer) update();
 }
 
 const QString &FieldAutocomplete::filter() const {
@@ -544,7 +537,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 	int32 atwidth = st::mentionFont->width('@'), hashwidth = st::mentionFont->width('#');
 	int32 mentionleft = 2 * st::mentionPadding.left() + st::mentionPhotoSize;
 	int32 mentionwidth = width() - mentionleft - 2 * st::mentionPadding.right();
-	int32 htagleft = st::btnAttachPhoto.width + st::taMsgField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
+	int32 htagleft = st::historyAttach.width + st::historyComposeField.textMrg.left() - st::lineWidth, htagwidth = width() - st::mentionPadding.right() - htagleft - st::mentionScroll.width;
 
 	if (!_srows->isEmpty()) {
 		int32 rows = rowscount(_srows->size(), _stickersPerRow);
@@ -599,13 +592,12 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 
 			bool selected = (i == _sel);
 			if (selected) {
-				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver->b);
-				int skip = (st::mentionHeight - st::simpleClose.icon.pxHeight()) / 2;
+				p.fillRect(0, i * st::mentionHeight, width(), st::mentionHeight, st::mentionBgOver);
+				int skip = (st::mentionHeight - st::smallCloseIconOver.height()) / 2;
 				if (!_hrows->isEmpty() || (!_mrows->isEmpty() && i < _recentInlineBotsInRows)) {
-					p.drawSprite(QPoint(width() - st::simpleClose.icon.pxWidth() - skip, i * st::mentionHeight + skip), st::simpleClose.icon);
+					st::smallCloseIconOver.paint(p, QPoint(width() - st::smallCloseIconOver.width() - skip, i * st::mentionHeight + skip), width());
 				}
 			}
-			p.setPen(st::black->p);
 			if (!_mrows->isEmpty()) {
 				UserData *user = _mrows->at(i);
 				QString first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
@@ -626,11 +618,13 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 				user->loadUserpic();
-				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
+				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
+
+				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
 				user->nameText.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
-				p.setFont(st::mentionFont->f);
-				p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
+				p.setFont(st::mentionFont);
+				p.setPen(selected ? st::mentionFgOverActive : st::mentionFgActive);
 				p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 				if (!second.isEmpty()) {
 					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
@@ -650,7 +644,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					}
 				}
 
-				p.setFont(st::mentionFont->f);
+				p.setFont(st::mentionFont);
 				if (!first.isEmpty()) {
 					p.setPen((selected ? st::mentionFgOverActive : st::mentionFgActive)->p);
 					p.drawText(htagleft, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
@@ -669,11 +663,11 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 					toHighlight += '@' + user->username;
 				}
 				user->loadUserpic();
-				user->paintUserpicLeft(p, st::mentionPhotoSize, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width());
+				user->paintUserpicLeft(p, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				auto commandText = '/' + toHighlight;
 
-				p.setPen(st::windowTextFg);
+				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
 				p.setFont(st::semiboldFont);
 				p.drawText(2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop + st::semiboldFont->ascent, commandText);
 
@@ -687,9 +681,9 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				}
 			}
 		}
-		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
+		p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerBottom() - st::lineWidth, width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 	}
-	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowColor->b);
+	p.fillRect(Adaptive::OneColumn() ? 0 : st::lineWidth, _parent->innerTop(), width() - (Adaptive::OneColumn() ? 0 : st::lineWidth), st::lineWidth, st::shadowFg);
 }
 
 void FieldAutocompleteInner::resizeEvent(QResizeEvent *e) {

@@ -19,34 +19,27 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
-using "basic_types.style";
 using "dialogs/dialogs.style";
+using "ui/widgets/widgets.style";
+using "boxes/boxes.style";
+
+settingsScroll: ScrollArea(defaultScrollArea) {
+	bottomsh: 0px;
+	topsh: 0px;
+}
 
 settingsMaxWidth: 520px;
 settingsMaxPadding: 48px;
 settingsMinPadding: 32px;
 settingsMargin: 48px;
 
-settingsFixedBarHeight: 52px;
-settingsFixedBarFont: font(14px semibold);
-settingsFixedBarFg: windowTextFg;
-settingsFixedBarTextLeft: 20px;
-settingsFixedBarTextTop: 16px;
-settingsFixedBarClose: IconButton {
+settingsFixedBarHeight: boxLayerTitleHeight;
+settingsFixedBarFont: boxTitleFont;
+settingsFixedBarTextPosition: boxLayerTitlePosition;
+settingsFixedBarClose: IconButton(boxTitleClose) {
 	width: settingsFixedBarHeight;
 	height: settingsFixedBarHeight;
-
-	opacity: 0.31;
-	overOpacity: 0.5;
-
-	icon: icon {{ "settings_close", #000000, point(0px, 0px) }};
-	iconPosition: point(20px, 20px);
-	downIconPosition: point(20px, 20px);
-
-	duration: 200;
 }
-settingsFixedBarShadowBg1: #00000021;
-settingsFixedBarShadowBg2: #0000000b;
 
 settingsMarginTop: 34px;
 settingsPhotoSize: 112px;
@@ -54,14 +47,16 @@ settingsPhotoLeft: -8px;
 settingsPhotoDuration: 500;
 settingsNameLeft: 26px;
 settingsNameTop: 9px;
-settingsNameLabel: flatLabel(labelDefFlat) {
+settingsNameLabel: FlatLabel(defaultFlatLabel) {
 	margin: margins(10px, 5px, 10px, 5px);
-	font: font(16px semibold);
 	width: 160px;
 	maxHeight: 24px;
-	textFg: #333333;
-}
-settingsNameTextStyle: textStyle(defaultTextStyle) {
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
 }
 settingsStatusLeft: 27px;
 settingsStatusTop: 35px;
@@ -73,30 +68,15 @@ settingsMarginBottom: 35px;
 settingsButtonLeft: 27px;
 settingsButtonTop: 75px;
 settingsButtonSkip: 10px;
-settingsPrimaryButton: RoundButton(defaultActiveButton) {
-}
-settingsSecondaryButton: RoundButton(settingsPrimaryButton) {
-	textFg: semiboldButtonBlueText;
-	textFgOver: semiboldButtonBlueText;
-	textBg: #ffffff;
-	textBgOver: #f2f7fa;
-}
-settingsEditButton: RoundButton {
+settingsPrimaryButton: defaultActiveButton;
+settingsSecondaryButton: defaultLightButton;
+settingsEditButton: IconButton {
 	width: 24px;
 	height: 34px;
-	icon: settingsEditIcon;
 
-	textTop: 0px;
-	downTextTop: 1px;
-
-	textFg: transparent;
-	textFgOver: transparent;
-	secondaryTextFg: transparent;
-	secondaryTextFgOver: transparent;
-	textBg: transparent;
-	textBgOver: transparent;
+	icon: icon {{ "settings_edit_name", menuIconFg }};
+	iconPosition: point(3px, 9px);
 }
-
 
 settingsBlocksTop: 7px;
 settingsBlocksBottom: 20px;
@@ -105,15 +85,19 @@ settingsBlockMarginRight: 10px;
 settingsBlockMarginBottom: 10px;
 settingsBlockTitleHeight: 31px;
 settingsBlockTitleFont: font(15px semibold);
-settingsBlockTitleFg: #333333;
+settingsBlockTitleFg: windowBoldFg;
 settingsBlockTitleTop: 0px;
-settingsPrimaryLabel: flatLabel(labelDefFlat) {
-	font: boxTextFont;
+settingsPrimaryLabel: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: boxTextFont;
+		linkFont: boxTextFont;
+		linkFontOver: font(boxFontSize underline);
+	}
 }
-settingsBlockLabel: flatLabel(settingsPrimaryLabel) {
+settingsBlockLabel: FlatLabel(settingsPrimaryLabel) {
 	textFg: windowSubTextFg;
 }
-settingsBlockOneLineTextPart: flatLabel(settingsPrimaryLabel) {
+settingsBlockOneLineTextPart: FlatLabel(settingsPrimaryLabel) {
 	width: 0px; // No need to set minWidth in one-line text.
 	margin: margins(5px, 5px, 5px, 5px);
 	maxHeight: 20px;
@@ -127,4 +111,4 @@ settingsActionPadding: margins(0px, 4px, 0px, 5px);
 
 settingsBackgroundSize: 120px;
 
-settingsUpdateFg: #999999;
+settingsUpdateFg: windowSubTextFg;

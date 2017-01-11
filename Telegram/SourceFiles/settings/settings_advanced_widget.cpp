@@ -28,6 +28,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/aboutbox.h"
 #include "boxes/localstoragebox.h"
 #include "mainwindow.h"
+#include "ui/widgets/buttons.h"
+#include "ui/effects/widget_slide_wrap.h"
+#include "localstorage.h"
+#include "window/window_theme.h"
 
 namespace Settings {
 
@@ -38,6 +42,13 @@ AdvancedWidget::AdvancedWidget(QWidget *parent, UserData *self) : BlockWidget(pa
 		connectionTypeUpdated();
 	});
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
+	if (!self) {
+		subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+			if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
+				checkNonDefaultTheme();
+			}
+		});
+	}
 }
 
 void AdvancedWidget::createControls() {
@@ -62,6 +73,12 @@ void AdvancedWidget::createControls() {
 
 	if (self()) {
 		addChildRow(_askQuestion, marginSmall, lang(lng_settings_ask_question), SLOT(onAskQuestion()));
+	} else {
+		style::margins slidedPadding(0, marginLarge.bottom() / 2, 0, marginLarge.bottom() - (marginLarge.bottom() / 2));
+		addChildRow(_useDefaultTheme, marginLarge, slidedPadding, lang(lng_settings_bg_use_default), SLOT(onUseDefaultTheme()));
+		if (!Local::hasTheme()) {
+			_useDefaultTheme->hideFast();
+		}
 	}
 	addChildRow(_telegramFAQ, marginLarge, lang(lng_settings_faq), SLOT(onTelegramFAQ()));
 	if (self()) {
@@ -70,38 +87,56 @@ void AdvancedWidget::createControls() {
 	}
 }
 
+void AdvancedWidget::checkNonDefaultTheme() {
+	if (self()) return;
+	if (Local::hasTheme()) {
+		_useDefaultTheme->slideDown();
+	} else {
+		_useDefaultTheme->slideUp();
+	}
+}
+
 void AdvancedWidget::onManageLocalStorage() {
-	Ui::showLayer(new LocalStorageBox());
+	Ui::show(Box<LocalStorageBox>());
 }
 
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 void AdvancedWidget::connectionTypeUpdated() {
-	QString connection;
-	switch (Global::ConnectionType()) {
-	case dbictAuto: {
-		QString transport = MTP::dctransport();
-		connection = transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
-	} break;
-	case dbictHttpProxy:
-	case dbictTcpProxy: {
-		QString transport = MTP::dctransport();
-		connection = transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
-	} break;
-	}
-	_connectionType->link()->setText(connection);
+	auto connection = [] {
+		switch (Global::ConnectionType()) {
+		case dbictHttpProxy:
+		case dbictTcpProxy: {
+			auto transport = MTP::dctransport();
+			return transport.isEmpty() ? lang(lng_connection_proxy_connecting) : lng_connection_proxy(lt_transport, transport);
+		} break;
+		case dbictAuto:
+		default: {
+			auto transport = MTP::dctransport();
+			return transport.isEmpty() ? lang(lng_connection_auto_connecting) : lng_connection_auto(lt_transport, transport);
+		} break;
+		}
+	};
+	_connectionType->link()->setText(connection());
 	resizeToWidth(width());
 }
 
 void AdvancedWidget::onConnectionType() {
-	Ui::showLayer(new ConnectionBox());
+	Ui::show(Box<ConnectionBox>());
 }
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 
+void AdvancedWidget::onUseDefaultTheme() {
+	Window::Theme::ApplyDefault();
+}
+
 void AdvancedWidget::onAskQuestion() {
-	ConfirmBox *box = new ConfirmBox(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), st::defaultBoxButton, lang(lng_settings_faq_button));
-	connect(box, SIGNAL(confirmed()), this, SLOT(onAskQuestionSure()));
-	connect(box, SIGNAL(cancelPressed()), this, SLOT(onTelegramFAQ()));
-	Ui::showLayer(box);
+	auto box = Box<ConfirmBox>(lang(lng_settings_ask_sure), lang(lng_settings_ask_ok), lang(lng_settings_faq_button), base::lambda_guarded(this, [this] {
+		onAskQuestionSure();
+	}), base::lambda_guarded(this, [this] {
+		onTelegramFAQ();
+	}));
+	box->setStrictCancel(true);
+	Ui::show(std_::move(box));
 }
 
 void AdvancedWidget::onAskQuestionSure() {
@@ -126,6 +161,5 @@ void AdvancedWidget::onTelegramFAQ() {
 void AdvancedWidget::onLogOut() {
 	App::wnd()->onLogout();
 }
-
 
 } // namespace Settings

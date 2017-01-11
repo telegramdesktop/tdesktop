@@ -20,31 +20,37 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/single_timer.h"
 
 class ConfirmBox;
 
-class SessionsBox : public ScrollableBox, public RPCSender {
+namespace Ui {
+class IconButton;
+class LinkButton;
+} // namespace Ui
+
+class SessionsBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	SessionsBox();
+	SessionsBox(QWidget*);
 
-public slots:
+protected:
+	void prepare() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+
+private slots:
 	void onOneTerminated();
 	void onAllTerminated();
 	void onTerminateAll();
 	void onShortPollAuthorizations();
-	void onNewAuthorization();
-
-protected:
-	void resizeEvent(QResizeEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-	void showAll() override;
+	void onCheckNewAuthorization();
 
 private:
+	void setLoading(bool loading);
 	struct Data {
 		uint64 hash;
 
@@ -56,23 +62,21 @@ private:
 
 	void gotAuthorizations(const MTPaccount_Authorizations &result);
 
-	bool _loading;
+	bool _loading = false;
 
 	Data _current;
 	List _list;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ScrollableBoxShadow _shadow;
-	BoxButton _done;
+	QPointer<Inner> _inner;
 
-	SingleTimer _shortPollTimer;
-	mtpRequestId _shortPollRequest;
+	object_ptr<SingleTimer> _shortPollTimer;
+	mtpRequestId _shortPollRequest = 0;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class SessionsBox::Inner : public ScrolledWidget, public RPCSender {
+class SessionsBox::Inner : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -91,10 +95,7 @@ signals:
 
 public slots:
 	void onTerminate();
-	void onTerminateSure();
 	void onTerminateAll();
-	void onTerminateAllSure();
-	void onNoTerminateBox(QObject *obj);
 
 private:
 	void terminateDone(uint64 hash, const MTPBool &result);
@@ -106,11 +107,10 @@ private:
 	SessionsBox::List *_list;
 	SessionsBox::Data *_current;
 
-	typedef QMap<uint64, IconedButton*> TerminateButtons;
+	typedef QMap<uint64, Ui::IconButton*> TerminateButtons;
 	TerminateButtons _terminateButtons;
 
-	uint64 _terminating;
-	LinkButton _terminateAll;
-	ConfirmBox *_terminateBox;
+	object_ptr<Ui::LinkButton> _terminateAll;
+	QPointer<ConfirmBox> _terminateBox;
 
 };

@@ -20,28 +20,33 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
-class UsernameBox : public AbstractBox, public RPCSender {
+namespace Ui {
+class UsernameInput;
+class LinkButton;
+} // namespace Ui
+
+class UsernameBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	UsernameBox();
+	UsernameBox(QWidget*);
 
-public slots:
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void onSave();
 
 	void onCheck();
 	void onChanged();
 
 	void onLinkClick();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
-	void doSetInnerFocus() override;
 
 private:
 	void onUpdateDone(const MTPUser &result);
@@ -53,14 +58,14 @@ private:
 	QString getName() const;
 	void updateLinkText();
 
-	BoxButton _save, _cancel;
-	UsernameInput _username;
-	LinkButton _link;
+	object_ptr<Ui::UsernameInput> _username;
+	object_ptr<Ui::LinkButton> _link;
 
-	mtpRequestId _saveRequestId, _checkRequestId;
-	QString _sentUsername, _checkUsername, _errorText, _goodText, _copiedTextLink;
+	mtpRequestId _saveRequestId = 0;
+	mtpRequestId _checkRequestId = 0;
+	QString _sentUsername, _checkUsername, _errorText, _goodText;
 
 	Text _about;
-	QTimer _checkTimer;
+	object_ptr<QTimer> _checkTimer;
 
 };

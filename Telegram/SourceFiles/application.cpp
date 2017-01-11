@@ -28,70 +28,73 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "boxes/confirmbox.h"
 #include "ui/filedialog.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
 #include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
 #include "core/observer.h"
 #include "observer_peer.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
 #include "history/history_location_manager.h"
+#include "core/task_queue.h"
 
 namespace {
-	void mtpStateChanged(int32 dc, int32 state) {
-		if (App::wnd()) {
-			App::wnd()->mtpStateChanged(dc, state);
-		}
-	}
 
-	void mtpSessionReset(int32 dc) {
-		if (App::main() && dc == MTP::maindc()) {
-			App::main()->getDifference();
-		}
-	}
-
-	QChar _toHex(ushort v) {
-		v = v & 0x000F;
-		return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
-	}
-	ushort _fromHex(QChar c) {
-		return ((c.unicode() >= uchar('a')) ? (c.unicode() - uchar('a') + 10) : (c.unicode() - uchar('0'))) & 0x000F;
-	}
-
-	QString _escapeTo7bit(const QString &str) {
-		QString result;
-		result.reserve(str.size() * 2);
-		for (int i = 0, l = str.size(); i != l; ++i) {
-			QChar ch(str.at(i));
-			ushort uch(ch.unicode());
-			if (uch < 32 || uch > 127 || uch == ushort(uchar('%'))) {
-				result.append('%').append(_toHex(uch >> 12)).append(_toHex(uch >> 8)).append(_toHex(uch >> 4)).append(_toHex(uch));
-			} else {
-				result.append(ch);
-			}
-		}
-		return result;
-	}
-
-	QString _escapeFrom7bit(const QString &str) {
-		QString result;
-		result.reserve(str.size());
-		for (int i = 0, l = str.size(); i != l; ++i) {
-			QChar ch(str.at(i));
-			if (ch == QChar::fromLatin1('%') && i + 4 < l) {
-				result.append(QChar(ushort((_fromHex(str.at(i + 1)) << 12) | (_fromHex(str.at(i + 2)) << 8) | (_fromHex(str.at(i + 3)) << 4) | _fromHex(str.at(i + 4)))));
-				i += 4;
-			} else {
-				result.append(ch);
-			}
-		}
-		return result;
+void mtpStateChanged(int32 dc, int32 state) {
+	if (App::wnd()) {
+		App::wnd()->mtpStateChanged(dc, state);
 	}
 }
 
-AppClass *AppObject = 0;
+void mtpSessionReset(int32 dc) {
+	if (App::main() && dc == MTP::maindc()) {
+		App::main()->getDifference();
+	}
+}
+
+QChar _toHex(ushort v) {
+	v = v & 0x000F;
+	return QChar::fromLatin1((v >= 10) ? ('a' + (v - 10)) : ('0' + v));
+}
+ushort _fromHex(QChar c) {
+	return ((c.unicode() >= uchar('a')) ? (c.unicode() - uchar('a') + 10) : (c.unicode() - uchar('0'))) & 0x000F;
+}
+
+QString _escapeTo7bit(const QString &str) {
+	QString result;
+	result.reserve(str.size() * 2);
+	for (int i = 0, l = str.size(); i != l; ++i) {
+		QChar ch(str.at(i));
+		ushort uch(ch.unicode());
+		if (uch < 32 || uch > 127 || uch == ushort(uchar('%'))) {
+			result.append('%').append(_toHex(uch >> 12)).append(_toHex(uch >> 8)).append(_toHex(uch >> 4)).append(_toHex(uch));
+		} else {
+			result.append(ch);
+		}
+	}
+	return result;
+}
+
+QString _escapeFrom7bit(const QString &str) {
+	QString result;
+	result.reserve(str.size());
+	for (int i = 0, l = str.size(); i != l; ++i) {
+		QChar ch(str.at(i));
+		if (ch == QChar::fromLatin1('%') && i + 4 < l) {
+			result.append(QChar(ushort((_fromHex(str.at(i + 1)) << 12) | (_fromHex(str.at(i + 2)) << 8) | (_fromHex(str.at(i + 3)) << 4) | _fromHex(str.at(i + 4)))));
+			i += 4;
+		} else {
+			result.append(ch);
+		}
+	}
+	return result;
+}
+
+} // namespace
+
+AppClass *AppObject = nullptr;
 
 Application::Application(int &argc, char **argv) : QApplication(argc, argv) {
 	QByteArray d(QFile::encodeName(QDir(cWorkingDir()).absolutePath()));
@@ -362,6 +365,10 @@ void Application::closeApplication() {
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 }
 
+void Application::onMainThreadTask() {
+	base::TaskQueue::ProcessMainTasks();
+}
+
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 void Application::updateCheck() {
 	startUpdateCheck(false);
@@ -468,6 +475,8 @@ void Application::stopUpdate() {
 }
 
 void Application::startUpdateCheck(bool forceWait) {
+	if (!Sandbox::started()) return;
+
 	_updateCheckTimer.stop();
 	if (_updateThread || _updateReply || !cAutoUpdate()) return;
 
@@ -676,11 +685,7 @@ namespace Sandbox {
 
 }
 
-AppClass::AppClass() : QObject()
-, _lastActionTime(0)
-, _window(0)
-, _uploader(0)
-, _translator(0) {
+AppClass::AppClass() : QObject() {
 	AppObject = this;
 
 	Fonts::start();
@@ -702,33 +707,7 @@ AppClass::AppClass() : QObject()
 		cSetConfigScale(dbisOne);
 		cSetRealScale(dbisOne);
 	}
-
-	if (cLang() < languageTest) {
-		cSetLang(Sandbox::LangSystem());
-	}
-	if (cLang() == languageTest) {
-		if (QFileInfo(cLangFile()).exists()) {
-			LangLoaderPlain loader(cLangFile());
-			cSetLangErrors(loader.errors());
-			if (!cLangErrors().isEmpty()) {
-				LOG(("Lang load errors: %1").arg(cLangErrors()));
-			} else if (!loader.warnings().isEmpty()) {
-				LOG(("Lang load warnings: %1").arg(loader.warnings()));
-			}
-		} else {
-			cSetLang(languageDefault);
-		}
-	} else if (cLang() > languageDefault && cLang() < languageCount) {
-		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
-		if (!loader.errors().isEmpty()) {
-			LOG(("Lang load errors: %1").arg(loader.errors()));
-		} else if (!loader.warnings().isEmpty()) {
-			LOG(("Lang load warnings: %1").arg(loader.warnings()));
-		}
-	}
-
-	application()->installTranslator(_translator = new Translator());
-
+	loadLanguage();
 	style::startManager();
 	anim::startManager();
 	historyInit();
@@ -740,8 +719,6 @@ AppClass::AppClass() : QObject()
 	application()->installNativeEventFilter(psNativeEventFilter());
 
 	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
-
-	connect(&_mtpUnpauseTimer, SIGNAL(timeout()), this, SLOT(doMtpUnpause()));
 
 	connect(&killDownloadSessionsTimer, SIGNAL(timeout()), this, SLOT(killDownloadSessions()));
 
@@ -780,12 +757,12 @@ AppClass::AppClass() : QObject()
 
 	DEBUG_LOG(("Application Info: showing."));
 	if (state == Local::ReadMapPassNeeded) {
-		_window->setupPasscode(false);
+		_window->setupPasscode();
 	} else {
 		if (MTP::authedId()) {
-			_window->setupMain(false);
+			_window->setupMain();
 		} else {
-			_window->setupIntro(false);
+			_window->setupIntro();
 		}
 	}
 	_window->firstShow();
@@ -812,6 +789,33 @@ AppClass::AppClass() : QObject()
 	}
 }
 
+void AppClass::loadLanguage() {
+	if (cLang() < languageTest) {
+		cSetLang(Sandbox::LangSystem());
+	}
+	if (cLang() == languageTest) {
+		if (QFileInfo(cLangFile()).exists()) {
+			LangLoaderPlain loader(cLangFile());
+			cSetLangErrors(loader.errors());
+			if (!cLangErrors().isEmpty()) {
+				LOG(("Lang load errors: %1").arg(cLangErrors()));
+			} else if (!loader.warnings().isEmpty()) {
+				LOG(("Lang load warnings: %1").arg(loader.warnings()));
+			}
+		} else {
+			cSetLang(languageDefault);
+		}
+	} else if (cLang() > languageDefault && cLang() < languageCount) {
+		LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[cLang()].c_str() + qsl(".strings"));
+		if (!loader.errors().isEmpty()) {
+			LOG(("Lang load errors: %1").arg(loader.errors()));
+		} else if (!loader.warnings().isEmpty()) {
+			LOG(("Lang load warnings: %1").arg(loader.warnings()));
+		}
+	}
+	application()->installTranslator(_translator = new Translator());
+}
+
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
 	photoUpdates.insert(msgId, peer);
 }
@@ -833,19 +837,6 @@ void AppClass::cancelPhotoUpdate(const PeerId &peer) {
 			++i;
 		}
 	}
-}
-
-void AppClass::mtpPause() {
-	MTP::pause();
-	_mtpUnpauseTimer.start(st::slideDuration * 2);
-}
-
-void AppClass::mtpUnpause() {
-	_mtpUnpauseTimer.start(1);
-}
-
-void AppClass::doMtpUnpause() {
-	MTP::unpause();
 }
 
 void AppClass::selfPhotoCleared(const MTPUserProfilePhoto &result) {
@@ -926,7 +917,7 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 		_window->updateIsActive((state == Qt::ApplicationActive) ? Global::OnlineFocusTimeout() : Global::OfflineBlurTimeout());
 	}
 	if (state != Qt::ApplicationActive) {
-		PopupTooltip::Hide();
+		Ui::Tooltip::Hide();
 	}
 }
 
@@ -935,9 +926,7 @@ void AppClass::call_handleHistoryUpdate() {
 }
 
 void AppClass::call_handleUnreadCounterUpdate() {
-	if (auto w = App::wnd()) {
-		w->updateUnreadCounter();
-	}
+	Global::RefUnreadCounterUpdate().notify(true);
 }
 
 void AppClass::call_handleFileDialogQueue() {
@@ -957,8 +946,8 @@ void AppClass::call_handleObservables() {
 }
 
 void AppClass::killDownloadSessions() {
-	uint64 ms = getms(), left = MTPAckSendWaiting + MTPKillFileSessionTimeout;
-	for (QMap<int32, uint64>::iterator i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
+	auto ms = getms(), left = static_cast<TimeMs>(MTPAckSendWaiting) + MTPKillFileSessionTimeout;
+	for (auto i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
 				MTP::stopSession(MTP::dldDcId(i.key(), j));
@@ -998,9 +987,7 @@ void AppClass::onSwitchDebugMode() {
 	if (cDebug()) {
 		QFile(cWorkingDir() + qsl("tdata/withdebug")).remove();
 		cSetDebug(false);
-		cSetRestarting(true);
-		cSetRestartingToSettings(true);
-		App::quit();
+		App::restart();
 	} else {
 		cSetDebug(true);
 		DEBUG_LOG(("Debug logs started."));
@@ -1017,9 +1004,7 @@ void AppClass::onSwitchWorkMode() {
 	Global::SetDialogsModeEnabled(!Global::DialogsModeEnabled());
 	Global::SetDialogsMode(Dialogs::Mode::All);
 	Local::writeUserSettings();
-	cSetRestarting(true);
-	cSetRestartingToSettings(true);
-	App::quit();
+	App::restart();
 }
 
 void AppClass::onSwitchTestMode() {
@@ -1034,9 +1019,7 @@ void AppClass::onSwitchTestMode() {
 		}
 		cSetTestMode(true);
 	}
-	cSetRestarting(true);
-	cSetRestartingToSettings(true);
-	App::quit();
+	App::restart();
 }
 
 FileUploader *AppClass::uploader() {
@@ -1048,15 +1031,15 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	PreparedPhotoThumbs photoThumbs;
 	QVector<MTPPhotoSize> photoSizes;
 
-	QPixmap thumb = App::pixmapFromImageInPlace(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	auto thumb = App::pixmapFromImageInPlace(tosend.scaled(160, 160, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	photoThumbs.insert('a', thumb);
 	photoSizes.push_back(MTP_photoSize(MTP_string("a"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0)));
 
-	QPixmap medium = App::pixmapFromImageInPlace(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+	auto medium = App::pixmapFromImageInPlace(tosend.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 	photoThumbs.insert('b', medium);
 	photoSizes.push_back(MTP_photoSize(MTP_string("b"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(medium.width()), MTP_int(medium.height()), MTP_int(0)));
 
-	QPixmap full = QPixmap::fromImage(tosend, Qt::ColorOnly);
+	auto full = QPixmap::fromImage(tosend, Qt::ColorOnly);
 	photoThumbs.insert('c', full);
 	photoSizes.push_back(MTP_photoSize(MTP_string("c"), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0)));
 
@@ -1073,7 +1056,7 @@ void AppClass::uploadProfilePhoto(const QImage &tosend, const PeerId &peerId) {
 	int32 filesize = 0;
 	QByteArray data;
 
-	ReadyLocalMedia ready(PreparePhoto, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, false, 0);
+	SendMediaReady ready(SendMediaType::Photo, file, filename, filesize, data, id, id, qsl("jpg"), peerId, photo, photoThumbs, MTP_documentEmpty(MTP_long(0)), jpeg, 0);
 
 	connect(App::uploader(), SIGNAL(photoReady(const FullMsgId&,bool,const MTPInputFile&)), App::app(), SLOT(photoUpdated(const FullMsgId&,bool,const MTPInputFile&)), Qt::UniqueConnection);
 
@@ -1086,8 +1069,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10017) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 New cute control for adding members to your groups");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10027) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Appoint admins in your supergroups from members list context menu\n\xe2\x80\x94 Bug fixes and other minor improvements");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 10018) {
 				versionFeatures = langNewVersionText();
 			} else {
@@ -1095,7 +1078,7 @@ void AppClass::checkMapVersion() {
 			}
 			if (!versionFeatures.isEmpty()) {
 				versionFeatures = lng_new_version_wrap(lt_version, QString::fromLatin1(AppVersionStr.c_str()), lt_changes, versionFeatures, lt_link, qsl("https://desktop.telegram.org/#changelog"));
-				_window->serviceNotification(versionFeatures);
+				_window->serviceNotificationLocal(versionFeatures);
 			}
 		}
 	}
@@ -1105,6 +1088,7 @@ AppClass::~AppClass() {
 	Shortcuts::finish();
 
 	delete base::take(_window);
+	App::clearHistories();
 
 	Window::Notifications::finish();
 
@@ -1120,7 +1104,7 @@ AppClass::~AppClass() {
 	delete base::take(_uploader);
 	delete base::take(_translator);
 
-	Window::chatBackground()->reset();
+	Window::Theme::Unload();
 
 	Media::Player::finish();
 	style::stopManager();

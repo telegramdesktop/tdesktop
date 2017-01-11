@@ -22,13 +22,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_inner_widget.h"
 
 #include "styles/style_profile.h"
+#include "styles/style_window.h"
 #include "profile/profile_cover.h"
-#include "profile/profile_info_widget.h"
-#include "profile/profile_settings_widget.h"
-#include "profile/profile_invite_link_widget.h"
-#include "profile/profile_shared_media_widget.h"
-#include "profile/profile_actions_widget.h"
-#include "profile/profile_members_widget.h"
+#include "profile/profile_block_info.h"
+#include "profile/profile_block_settings.h"
+#include "profile/profile_block_invite_link.h"
+#include "profile/profile_block_shared_media.h"
+#include "profile/profile_block_actions.h"
+#include "profile/profile_block_channel_members.h"
+#include "profile/profile_block_group_members.h"
 #include "apiwrap.h"
 
 namespace Profile {
@@ -59,7 +61,7 @@ void InnerWidget::createBlocks() {
 	}
 	_blocks.push_back({ new ActionsWidget(this, _peer), BlockSide::Right });
 	if (chat || megagroup) {
-		auto membersWidget = new MembersWidget(this, _peer);
+		auto membersWidget = new GroupMembersWidget(this, _peer);
 		connect(membersWidget, SIGNAL(onlineCountUpdated(int)), _cover, SLOT(onOnlineCountUpdated(int)));
 		_cover->onOnlineCountUpdated(membersWidget->onlineCount());
 		_blocks.push_back({ membersWidget, BlockSide::Left });
@@ -88,8 +90,23 @@ bool InnerWidget::shareContactButtonShown() const {
 	return _cover->shareContactButtonShown();
 }
 
+void InnerWidget::saveState(SectionMemento *memento) const {
+	for_const (auto &blockData, _blocks) {
+		blockData.block->saveState(memento);
+	}
+}
+
+void InnerWidget::restoreState(const SectionMemento *memento) {
+	for_const (auto &blockData, _blocks) {
+		blockData.block->restoreState(memento);
+	}
+}
+
 void InnerWidget::showFinished() {
 	_cover->showFinished();
+	for_const (auto &blockData, _blocks) {
+		blockData.block->showFinished();
+	}
 }
 
 void InnerWidget::decreaseAdditionalHeight(int removeHeight) {
@@ -108,7 +125,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 		int shadowLeft = _blocksLeft + _leftColumnWidth + _columnDivider;
 		int shadowTop = _blocksTop + st::profileBlockMarginTop;
-		p.fillRect(rtlrect(shadowLeft, shadowTop, st::lineWidth, shadowHeight - st::profileBlockMarginTop, width()), st::shadowColor);
+		p.fillRect(rtlrect(shadowLeft, shadowTop, st::lineWidth, shadowHeight - st::profileBlockMarginTop, width()), st::shadowFg);
 	}
 }
 
@@ -132,7 +149,7 @@ int InnerWidget::countBlocksHeight(BlockSide countSide) const {
 
 int InnerWidget::countBlocksLeft(int newWidth) const {
 	int result = st::profileBlockLeftMin;
-	result += (newWidth - st::wndMinWidth) / 2;
+	result += (newWidth - st::windowMinWidth) / 2;
 	return qMin(result, st::profileBlockLeftMax);
 }
 
@@ -181,6 +198,8 @@ void InnerWidget::refreshBlocksPositions() {
 				continue;
 			}
 			blockData.block->moveToLeft(left, top);
+			blockData.block->setVisibleTopBottom(_visibleTop - top, _visibleBottom - top);
+
 			top += blockData.block->height();
 		}
 	};

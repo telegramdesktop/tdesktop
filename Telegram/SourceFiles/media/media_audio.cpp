@@ -60,7 +60,7 @@ namespace {
 	ALuint notifySource = 0;
 	ALuint notifyBuffer = 0;
 
-	uint64 notifyLengthMs = 0;
+	TimeMs notifyLengthMs = 0;
 
 	QMutex playerMutex;
 	AudioPlayer *player = 0;
@@ -135,7 +135,7 @@ void audioInit() {
 	alGenBuffers(1, &notifyBuffer);
 	if (!_checkALError()) return audioFinish();
 
-	QFile notify(st::newMsgSound);
+	QFile notify(":/gui/art/newmsg.wav");
 	if (!notify.open(QIODevice::ReadOnly)) return audioFinish();
 
 	QByteArray blob = notify.readAll();
@@ -669,12 +669,12 @@ void AudioPlayer::feedFromVideo(VideoSoundPart &&part) {
 	_loader->feedFromVideo(std_::move(part));
 }
 
-int64 AudioPlayer::getVideoCorrectedTime(uint64 playId, int64 frameMs, uint64 systemMs) {
-	int64 result = frameMs;
+TimeMs AudioPlayer::getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs) {
+	auto result = frameMs;
 
 	QMutexLocker videoLock(&_lastVideoMutex);
 	if (_lastVideoPlayId == playId && _lastVideoPlaybackWhen > 0) {
-		result = static_cast<int64>(_lastVideoPlaybackCorrectedMs);
+		result = static_cast<TimeMs>(_lastVideoPlaybackCorrectedMs);
 		if (systemMs > _lastVideoPlaybackWhen) {
 			result += (systemMs - _lastVideoPlaybackWhen);
 		}
@@ -985,13 +985,13 @@ void AudioPlayerFader::onTimer() {
 
 	bool suppressAudioChanged = false, suppressSongChanged = false;
 	if (_suppressAll || _suppressSongAnim) {
-		uint64 ms = getms();
+		auto ms = getms();
 		float64 wasSong = suppressSongGain;
 		if (_suppressAll) {
 			float64 wasAudio = suppressAllGain;
 			if (ms >= _suppressAllStart + notifyLengthMs || ms < _suppressAllStart) {
 				_suppressAll = _suppressAllAnim = false;
-				_suppressAllGain = anim::fvalue(1., 1.);
+				_suppressAllGain = anim::value(1., 1.);
 			} else if (ms > _suppressAllStart + notifyLengthMs - AudioFadeDuration) {
 				if (_suppressAllGain.to() != 1.) _suppressAllGain.start(1.);
 				_suppressAllGain.update(1. - ((_suppressAllStart + notifyLengthMs - ms) / float64(AudioFadeDuration)), anim::linear);
@@ -1604,13 +1604,11 @@ void AudioCaptureInner::onStop(bool needResult) {
 			d->opened = false;
 		}
 		if (d->ioContext) {
-			av_free(d->ioContext->buffer);
-			av_free(d->ioContext);
-			d->ioContext = nullptr;
+			av_freep(&d->ioContext->buffer);
+			av_freep(&d->ioContext);
 			d->ioBuffer = nullptr;
 		} else if (d->ioBuffer) {
-			av_free(d->ioBuffer);
-			d->ioBuffer = nullptr;
+			av_freep(&d->ioBuffer);
 		}
 		if (d->fmtContext) {
 			avformat_free_context(d->fmtContext);
@@ -1711,7 +1709,9 @@ void AudioCaptureInner::processFrame(int32 offset, int32 framesize) {
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 
-	short *srcSamplesDataChannel = (short*)(_captured.data() + offset), **srcSamplesData = &srcSamplesDataChannel;
+	auto srcSamplesDataChannel = (short*)(_captured.data() + offset);
+	auto srcSamplesData = &srcSamplesDataChannel;
+
 //	memcpy(d->srcSamplesData[0], _captured.constData() + offset, framesize);
 	int32 skipSamples = AudioVoiceMsgSkip * AudioVoiceMsgFrequency / 1000, fadeSamples = AudioVoiceMsgFade * AudioVoiceMsgFrequency / 1000;
 	if (d->fullSamples < skipSamples + fadeSamples) {
@@ -1744,9 +1744,8 @@ void AudioCaptureInner::processFrame(int32 offset, int32 framesize) {
 	d->dstSamples = av_rescale_rnd(swr_get_delay(d->swrContext, d->codecContext->sample_rate) + d->srcSamples, d->codecContext->sample_rate, d->codecContext->sample_rate, AV_ROUND_UP);
 	if (d->dstSamples > d->maxDstSamples) {
 		d->maxDstSamples = d->dstSamples;
-		av_free(d->dstSamplesData[0]);
-
-		if ((res = av_samples_alloc(d->dstSamplesData, 0, d->codecContext->channels, d->dstSamples, d->codecContext->sample_fmt, 0)) < 0) {
+		av_freep(&d->dstSamplesData[0]);
+		if ((res = av_samples_alloc(d->dstSamplesData, 0, d->codecContext->channels, d->dstSamples, d->codecContext->sample_fmt, 1)) < 0) {
 			LOG(("Audio Error: Unable to av_samples_alloc for capture, error %1, %2").arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			onStop(false);
 			emit error();

@@ -22,10 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "profile/profile_block_widget.h"
 
 #include "styles/style_profile.h"
+#include "styles/style_widgets.h"
 
 namespace Profile {
 
-BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : ScrolledWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, PeerData *peer, const QString &title) : TWidget(parent)
 , _peer(peer)
 , _title(title) {
 }

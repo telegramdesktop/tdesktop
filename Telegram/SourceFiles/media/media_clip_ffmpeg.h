@@ -37,14 +37,14 @@ class FFMpegReaderImplementation : public ReaderImplementation {
 public:
 	FFMpegReaderImplementation(FileLocation *location, QByteArray *data, uint64 playId);
 
-	ReadResult readFramesTill(int64 frameMs, uint64 systemMs) override;
+	ReadResult readFramesTill(TimeMs frameMs, TimeMs systemMs) override;
 
-	int64 frameRealTime() const override;
-	uint64 framePresentationTime() const override;
+	TimeMs frameRealTime() const override;
+	TimeMs framePresentationTime() const override;
 
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 
-	int64 durationMs() const override;
+	TimeMs durationMs() const override;
 	bool hasAudio() const override {
 		return (_audioStreamId >= 0);
 	}
@@ -68,7 +68,7 @@ private:
 	};
 	PacketResult readPacket(AVPacket *packet);
 	void processPacket(AVPacket *packet);
-	int64 countPacketMs(AVPacket *packet) const;
+	TimeMs countPacketMs(AVPacket *packet) const;
 	PacketResult readAndProcessPacket();
 
 	enum class Rotation {
@@ -107,8 +107,8 @@ private:
 
 	int _audioStreamId = -1;
 	uint64 _playId = 0;
-	int64 _lastReadVideoMs = 0;
-	int64 _lastReadAudioMs = 0;
+	TimeMs _lastReadVideoMs = 0;
+	TimeMs _lastReadAudioMs = 0;
 
 	QQueue<FFMpeg::AVPacketDataWrap> _packetQueue;
 	AVPacket _packetNull; // for final decoding
@@ -121,12 +121,12 @@ private:
 	SwsContext *_swsContext = nullptr;
 	QSize _swsSize;
 
-	int64 _frameMs = 0;
+	TimeMs _frameMs = 0;
 	int _nextFrameDelay = 0;
 	int _currentFrameDelay = 0;
 
-	int64 _frameTime = 0;
-	int64 _frameTimeCorrection = 0;
+	TimeMs _frameTime = 0;
+	TimeMs _frameTimeCorrection = 0;
 
 };
 

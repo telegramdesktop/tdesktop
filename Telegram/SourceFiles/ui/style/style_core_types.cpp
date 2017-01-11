@@ -22,46 +22,4 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/style/style_core_types.h"
 
 namespace style {
-namespace internal {
-namespace {
-
-int spriteWidthValue = 0;
-QPixmap *spriteData = nullptr;
-
-} // namespace
-
-void loadSprite() {
-	QString spriteFilePostfix;
-	if (cRetina() || cScale() == dbisTwo) {
-		spriteFilePostfix = qsl("_200x");
-	} else if (cScale() == dbisOneAndQuarter) {
-		spriteFilePostfix = qsl("_125x");
-	} else if (cScale() == dbisOneAndHalf) {
-		spriteFilePostfix = qsl("_150x");
-	}
-	QString spriteFile = qsl(":/gui/art/sprite") + spriteFilePostfix + qsl(".png");
-	if (rtl()) {
-		spriteData = new QPixmap(App::pixmapFromImageInPlace(QImage(spriteFile).mirrored(true, false)));
-	} else {
-		spriteData = new QPixmap(spriteFile);
-	}
-	if (cRetina()) spriteData->setDevicePixelRatio(cRetinaFactor());
-	spriteWidthValue = spriteData->width();
-}
-
-int spriteWidth() {
-	return spriteWidthValue;
-}
-
-void destroySprite() {
-	delete spriteData;
-	spriteData = nullptr;
-}
-
-} // namespace internal
-
-const QPixmap &spritePixmap() {
-	return *internal::spriteData;
-}
-
 } // namespace style

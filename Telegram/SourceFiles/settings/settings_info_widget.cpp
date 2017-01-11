@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_settings.h"
 #include "lang.h"
-#include "ui/flatlabel.h"
+#include "ui/widgets/labels.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/usernamebox.h"
 #include "observer_peer.h"
@@ -80,11 +80,11 @@ void InfoWidget::refreshUsername() {
 		usernameText.text = '@' + self()->username;
 		copyText = lang(lng_context_copy_mention);
 	}
-	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), qsl("https://telegram.me/") + self()->username));
+	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), CreateInternalLinkHttps(self()->username)));
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new UsernameBox());
+			Ui::show(Box<UsernameBox>());
 			return false;
 		});
 	}
@@ -94,28 +94,28 @@ void InfoWidget::refreshLink() {
 	TextWithEntities linkText;
 	TextWithEntities linkTextShort;
 	if (!self()->username.isEmpty()) {
-		linkText.text = qsl("https://telegram.me/") + self()->username;
+		linkText.text = CreateInternalLinkHttps(self()->username);
 		linkText.entities.push_back(EntityInText(EntityInTextUrl, 0, linkText.text.size()));
-		linkTextShort.text = qsl("telegram.me/") + self()->username;
-		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), qsl("https://telegram.me/") + self()->username));
+		linkTextShort.text = CreateInternalLink(self()->username);
+		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), CreateInternalLinkHttps(self()->username)));
 	}
 	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
 	if (auto text = _link->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new UsernameBox());
+			Ui::show(Box<UsernameBox>());
 			return false;
 		});
 	}
 	if (auto shortText = _link->entity()->shortTextLabel()) {
 		shortText->setExpandLinksMode(ExpandLinksUrlOnly);
 		shortText->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
-			Ui::showLayer(new UsernameBox());
+			Ui::show(Box<UsernameBox>());
 			return false;
 		});
 	}
 }
 
-void InfoWidget::setLabeledText(ChildWidget<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
+void InfoWidget::setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
 	if (textWithEntities.text.isEmpty()) {
 		row->slideUp();
 	} else {
@@ -133,18 +133,26 @@ void InfoWidget::LabeledWidget::setLabeledText(const QString &label, const TextW
 	_shortText.destroy();
 	if (textWithEntities.text.isEmpty()) return;
 
-	_label = new FlatLabel(this, label, FlatLabel::InitType::Simple, st::settingsBlockLabel);
+	_label.create(this, label, Ui::FlatLabel::InitType::Simple, st::settingsBlockLabel);
 	_label->show();
 	setLabelText(_text, textWithEntities, copyText);
 	setLabelText(_shortText, shortTextWithEntities, copyText);
 	resizeToWidth(width());
 }
 
-void InfoWidget::LabeledWidget::setLabelText(ChildWidget<FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
+Ui::FlatLabel *InfoWidget::LabeledWidget::textLabel() const {
+	return _text;
+}
+
+Ui::FlatLabel *InfoWidget::LabeledWidget::shortTextLabel() const {
+	return _shortText;
+}
+
+void InfoWidget::LabeledWidget::setLabelText(object_ptr<Ui::FlatLabel> &text, const TextWithEntities &textWithEntities, const QString &copyText) {
 	text.destroy();
 	if (textWithEntities.text.isEmpty()) return;
 
-	text = new FlatLabel(this, QString(), FlatLabel::InitType::Simple, st::settingsBlockOneLineTextPart);
+	text.create(this, QString(), Ui::FlatLabel::InitType::Simple, st::settingsBlockOneLineTextPart);
 	text->show();
 	text->setMarkedText(textWithEntities);
 	text->setContextCopyText(copyText);

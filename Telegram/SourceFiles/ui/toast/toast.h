@@ -32,6 +32,8 @@ static constexpr const int DefaultDuration = 1500;
 struct Config {
 	QString text;
 	int durationMs = DefaultDuration;
+	int maxWidth = 0;
+	QMargins padding;
 };
 void Show(QWidget *parent, const Config &config);
 
@@ -45,15 +47,16 @@ public:
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
 
-	void fadeOut();
+	void hideAnimated();
 	void hide();
 
 private:
-	void step_fade(float64 ms, bool timer);
-	bool _fadingOut = false;
-	Animation _a_fade;
+	void opacityAnimationCallback();
 
-	const uint64 _hideAtMs;
+	bool _hiding = false;
+	Animation _a_opacity;
+
+	const TimeMs _hideAtMs;
 
 	// ToastManager should reset _widget pointer if _widget is destroyed.
 	friend class internal::Manager;

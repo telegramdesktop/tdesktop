@@ -19,125 +19,109 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/languagebox.h"
+
 #include "lang.h"
-
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
-
-#include "languagebox.h"
-#include "confirmbox.h"
+#include "boxes/confirmbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
 #include "langloaderplain.h"
+#include "styles/style_boxes.h"
 
-LanguageBox::LanguageBox() :
-_close(this, lang(lng_box_ok), st::defaultBoxButton) {
+void LanguageBox::prepare() {
+	addButton(lang(lng_box_ok), [this] { closeBox(); });
 
-	bool haveTestLang = (cLang() == languageTest);
+	setTitle(lang(lng_languages));
 
-	int32 y = st::boxTitleHeight + st::boxOptionListPadding.top();
+	auto haveTestLang = (cLang() == languageTest);
+
+	auto y = st::boxOptionListPadding.top();
 	_langs.reserve(languageCount + (haveTestLang ? 1 : 0));
 	if (haveTestLang) {
-		_langs.push_back(new Radiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langsButton));
+		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), languageTest, qsl("Custom Lang"), (cLang() == languageTest), st::langsButton));
 		_langs.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
-		y += _langs.back()->height() + st::boxOptionListPadding.top();
+		y += _langs.back()->heightNoMargins() + st::boxOptionListSkip;
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
-	for (int32 i = 0; i < languageCount; ++i) {
+	for (auto i = 0; i != languageCount; ++i) {
 		LangLoaderResult result;
 		if (i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lng_language_name));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), langLoaderRequest(lng_language_name));
 			result = loader.found();
 		} else {
 			result.insert(lng_language_name, langOriginal(lng_language_name));
 		}
-		_langs.push_back(new Radiobutton(this, qsl("lang"), i, result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")), (cLang() == i), st::langsButton));
+		_langs.push_back(new Ui::Radiobutton(this, qsl("lang"), i, result.value(lng_language_name, LanguageCodes[i].c_str() + qsl(" language")), (cLang() == i), st::langsButton));
 		_langs.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
-		y += _langs.back()->height() + st::boxOptionListPadding.top();
+		y += _langs.back()->heightNoMargins() + st::boxOptionListSkip;
 		connect(_langs.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
 
-	resizeMaxHeight(st::langsWidth, st::boxTitleHeight + (languageCount + (haveTestLang ? 1 : 0)) * (st::boxOptionListPadding.top() + st::langsButton.height) + st::boxOptionListPadding.bottom() + st::boxPadding.bottom() + st::boxButtonPadding.top() + _close.height() + st::boxButtonPadding.bottom());
-
-	connect(&_close, SIGNAL(clicked()), this, SLOT(onClose()));
-
-	_close.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _close.height());
-	prepare();
-}
-
-void LanguageBox::showAll() {
-	_close.show();
-	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
-		_langs[i]->show();
-	}
+	auto optionsCount = languageCount + (haveTestLang ? 1 : 0);
+	setDimensions(st::langsWidth, st::boxOptionListPadding.top() + optionsCount * st::langsButton.height + (optionsCount - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
 }
 
 void LanguageBox::mousePressEvent(QMouseEvent *e) {
 	if ((e->modifiers() & Qt::CTRL) && (e->modifiers() & Qt::ALT) && (e->modifiers() & Qt::SHIFT)) {
 		for (int32 i = 1; i < languageCount; ++i) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), LangLoaderRequest(lngkeys_cnt));
+			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[i].c_str() + qsl(".strings"), langLoaderRequest(lngkeys_cnt));
 			if (!loader.errors().isEmpty()) {
-				Ui::showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" error :(\n\nError: ") + loader.errors()));
+				Ui::show(Box<InformBox>(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" error :(\n\nError: ") + loader.errors()));
 				return;
 			} else if (!loader.warnings().isEmpty()) {
 				QString warn = loader.warnings();
 				if (warn.size() > 256) warn = warn.mid(0, 253) + qsl("...");
-				Ui::showLayer(new InformBox(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" warnings :(\n\nWarnings: ") + warn));
+				Ui::show(Box<InformBox>(qsl("Lang \"") + LanguageCodes[i].c_str() + qsl("\" warnings :(\n\nWarnings: ") + warn));
 				return;
 			}
 		}
-		Ui::showLayer(new InformBox(qsl("Everything seems great in all %1 languages!").arg(languageCount - 1)));
+		Ui::show(Box<InformBox>(qsl("Everything seems great in all %1 languages!").arg(languageCount - 1)));
 	}
 }
 
-void LanguageBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_languages));
-}
-
 void LanguageBox::onChange() {
-	if (isHidden()) return;
+	if (!isBoxShown()) return;
 
 	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
 		int32 langId = _langs[i]->val();
 		if (_langs[i]->checked() && langId != cLang()) {
 			LangLoaderResult result;
 			if (langId > 0) {
-				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+				LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[langId].c_str() + qsl(".strings"), langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 				result = loader.found();
 			} else if (langId == languageTest) {
-				LangLoaderPlain loader(cLangFile(), LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+				LangLoaderPlain loader(cLangFile(), langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 				result = loader.found();
 			}
-			QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
-			        save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
-					cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-			ConfirmBox *box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
-			connect(box, SIGNAL(confirmed()), this, SLOT(onSave()));
-			connect(box, SIGNAL(cancelled()), this, SLOT(onRestore()));
-			Ui::showLayer(box, KeepOtherLayers);
+			auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
+				save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
+				cancel = result.value(lng_cancel, langOriginal(lng_cancel));
+			Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this] {
+				saveLanguage();
+			}), base::lambda_guarded(this, [this] {
+				restoreLanguage();
+			})), KeepOtherLayers);
 		}
 	}
 }
 
-void LanguageBox::onRestore() {
-	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
+void LanguageBox::restoreLanguage() {
+	for (auto i = 0, l = _langs.size(); i != l; ++i) {
 		if (_langs[i]->val() == cLang()) {
 			_langs[i]->setChecked(true);
 		}
 	}
 }
 
-void LanguageBox::onSave() {
-	for (int32 i = 0, l = _langs.size(); i < l; ++i) {
+void LanguageBox::saveLanguage() {
+	for (auto i = 0, l = _langs.size(); i != l; ++i) {
 		if (_langs[i]->checked()) {
 			cSetLang(_langs[i]->val());
 			Local::writeSettings();
-			cSetRestarting(true);
-			cSetRestartingToSettings(true);
-			App::quit();
+			App::restart();
 		}
 	}
 }

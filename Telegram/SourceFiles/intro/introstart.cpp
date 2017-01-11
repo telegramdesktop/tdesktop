@@ -24,65 +24,24 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "application.h"
 #include "intro/introphone.h"
-#include "langloaderplain.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/labels.h"
 
-IntroStart::IntroStart(IntroWidget *parent) : IntroStep(parent)
-, _intro(this, lang(lng_intro), FlatLabel::InitType::Rich, st::introLabel, st::introLabelTextStyle)
-, _changeLang(this, QString())
-, _next(this, lang(lng_start_msgs), st::btnIntroNext) {
-	_changeLang.hide();
-	if (cLang() == languageDefault) {
-		int32 l = Sandbox::LangSystem();
-		if (l != languageDefault) {
-			LangLoaderPlain loader(qsl(":/langs/lang_") + LanguageCodes[l].c_str() + qsl(".strings"), LangLoaderRequest(lng_switch_to_this));
-			QString text = loader.found().value(lng_switch_to_this);
-			if (!text.isEmpty()) {
-				_changeLang.setText(text);
-				parent->langChangeTo(l);
-				_changeLang.show();
-			}
-		}
-	} else {
-		_changeLang.setText(langOriginal(lng_switch_to_this));
-		parent->langChangeTo(languageDefault);
-		_changeLang.show();
-	}
+namespace Intro {
 
-	_headerWidth = st::introHeaderFont->width(qsl("Telegram Desktop"));
-
-	setGeometry(parent->innerRect());
-
-	connect(&_next, SIGNAL(clicked()), parent, SLOT(onStepSubmit()));
-
-	connect(&_changeLang, SIGNAL(clicked()), parent, SLOT(onChangeLang()));
-
+StartWidget::StartWidget(QWidget *parent, Widget::Data *data) : Step(parent, data, true) {
 	setMouseTracking(true);
+	setTitleText(qsl("Telegram Desktop"));
+	setDescriptionText(lang(lng_intro_about));
+	show();
 }
 
-void IntroStart::paintEvent(QPaintEvent *e) {
-	bool trivial = (rect() == e->rect());
-
-	Painter p(this);
-	if (!trivial) {
-		p.setClipRect(e->rect());
-	}
-	int32 hy = _intro.y() - st::introHeaderFont->height - st::introHeaderSkip + st::introHeaderFont->ascent;
-
-	p.setFont(st::introHeaderFont->f);
-	p.setPen(st::introColor->p);
-	p.drawText((width() - _headerWidth) / 2, hy, qsl("Telegram Desktop"));
-
-	st::aboutIcon.paint(p, QPoint((width() - st::aboutIcon.width()) / 2, hy - st::introIconSkip - st::aboutIcon.height()), width());
+void StartWidget::submit() {
+	goNext(new Intro::PhoneWidget(parentWidget(), getData()));
 }
 
-void IntroStart::resizeEvent(QResizeEvent *e) {
-	if (e->oldSize().width() != width()) {
-		_next.move((width() - _next.width()) / 2, st::introBtnTop);
-		_intro.move((width() - _intro.width()) / 2, _next.y() - _intro.height() - st::introSkip);
-		_changeLang.move((width() - _changeLang.width()) / 2, _next.y() + _next.height() + _changeLang.height());
-	}
+QString StartWidget::nextButtonText() const {
+	return lang(lng_start_msgs);
 }
 
-void IntroStart::onSubmit() {
-	intro()->nextStep(new IntroPhone(intro()));
-}
+} // namespace Intro

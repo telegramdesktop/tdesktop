@@ -77,7 +77,7 @@ public:
 	bool psHasNativeNotifications();
 	void psCleanNotifyPhotosIn(int32 dt);
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, const style::color &bg, bool smallIcon) = 0;
 
 	~PsMainWindow();
 

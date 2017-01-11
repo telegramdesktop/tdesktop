@@ -23,7 +23,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "window/main_window.h"
 #include <windows.h>
 
+namespace Ui {
 class PopupMenu;
+} // namespace Ui
 
 namespace Platform {
 
@@ -33,12 +35,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	MainWindow();
 
-	int32 psResizeRowWidth() const {
-		return 0;//st::wndResizeAreaWidth;
-	}
-
-	void psInitFrameless();
-	void psInitSize();
 	HWND psHwnd() const;
 	HMENU psMenu() const;
 
@@ -46,9 +42,6 @@ public:
 	void psInitSysMenu();
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
-	void psUpdatedPosition();
-
-	bool psHandleTitle();
 
 	void psFlash();
 	void psNotifySettingGot();
@@ -57,15 +50,9 @@ public:
 
 	void psRefreshTaskbarIcon();
 
-	bool psPosInited() const {
-		return posInited;
-	}
-
-	void psUpdateCounter();
-
 	bool psHasNativeNotifications();
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
 	static UINT TaskbarCreatedMsgId() {
 		return _taskbarCreatedMsgId;
@@ -99,26 +86,33 @@ public:
 	~MainWindow();
 
 public slots:
-	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 
 protected:
-	bool psHasTrayIcon() const {
+	void initHook() override;
+	int32 screenNameChecksum(const QString &name) const override;
+	void unreadCounterChangedHook() override;
+
+	bool hasTrayIcon() const override {
 		return trayIcon;
 	}
 
-	bool posInited = false;
 	QSystemTrayIcon *trayIcon = nullptr;
-	PopupMenu *trayIconMenu = nullptr;
+	Ui::PopupMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
 	QIcon wndIcon;
 
 	void psTrayMenuUpdated();
 	void psSetupTrayIcon();
+	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
+
+	void showTrayTooltip() override;
 
 	QTimer psUpdatedPositionTimer;
 
 private:
+	void updateIconCounters();
+
 	void psDestroyIcons();
 
 	static UINT _taskbarCreatedMsgId;

@@ -61,9 +61,7 @@ private slots:
 	void onEditContact();
 	void onShareContact();
 	void onDeleteContact();
-	void onDeleteContactSure();
 	void onLeaveGroup();
-	void onLeaveGroupSure();
 
 private:
 	void notifyPeerUpdate(const Notify::PeerUpdate &update);
@@ -94,7 +92,7 @@ private:
 	ChannelData *_peerChannel;
 	ChannelData *_peerMegagroup;
 
-	ChildWidget<BackButton> _backButton;
+	object_ptr<BackButton> _backButton;
 
 	int _currentAction = 0;
 	struct RightAction {

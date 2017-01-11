@@ -27,20 +27,244 @@ LabelSimple {
 	textFg: color;
 }
 
-defaultLabelSimple: LabelSimple {
-	font: normalFont;
-	maxWidth: 0px;
-	textFg: windowTextFg;
+FlatLabel {
+	margin: margins;
+	width: pixels;
+	align: align;
+	textFg: color;
+	maxHeight: pixels;
+	style: TextStyle;
+	palette: TextPalette;
+}
+
+LinkButton {
+	color: color;
+	overColor: color;
+	font: font;
+	overFont: font;
+}
+
+RippleAnimation {
+	color: color;
+	showDuration: int;
+	hideDuration: int;
+}
+
+FlatButton {
+	color: color;
+	overColor: color;
+
+	bgColor: color;
+	overBgColor: color;
+
+	width: pixels;
+	height: pixels;
+
+	textTop: pixels;
+
+	font: font;
+	overFont: font;
+
+	ripple: RippleAnimation;
+}
+
+RoundButton {
+	textFg: color;
+	textFgOver: color;
+	textBg: color; // rect of textBg with rounded rect of textBgOver upon it
+	textBgOver: color;
+
+	numbersTextFg: color;
+	numbersTextFgOver: color;
+	numbersSkip: pixels;
+	numbersDuration: int;
+
+	width: pixels;
+	height: pixels;
+	padding: margins;
+
+	textTop: pixels;
+
+	icon: icon;
+
+	font: font;
+
+	ripple: RippleAnimation;
+}
+
+Checkbox {
+	textFg: color;
+
+	checkBg: color;
+	checkFg: color;
+	checkFgActive: color;
+
+	width: pixels;
+	height: pixels;
+	margin: margins;
+
+	textPosition: point;
+	diameter: pixels;
+	thickness: pixels;
+	radioSkip: pixels;
+	checkIcon: icon;
+
+	style: TextStyle;
+	duration: int;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	rippleBg: color;
+	rippleBgActive: color;
+	ripple: RippleAnimation;
+}
+
+ScrollArea {
+	bg: color;
+	bgOver: color;
+	barBg: color;
+	barBgOver: color;
+
+	round: pixels;
+
+	width: pixels;
+	minHeight: pixels;
+	deltax: pixels;
+	deltat: pixels;
+	deltab: pixels;
+
+	topsh: pixels;
+	bottomsh: pixels;
+	shColor: color;
+
+	duration: int;
+	hiding: int;
+}
+
+FlatTextarea {
+	textColor: color;
+	bgColor: color;
+	width: pixels;
+	textMrg: margins;
+	align: align;
+	font: font;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: pixels;
+	phDuration: int;
+}
+
+FlatInput {
+	textColor: color;
+	bgColor: color;
+	bgActive: color;
+	width: pixels;
+	height: pixels;
+	textMrg: margins;
+	align: align;
+	font: font;
+
+	icon: icon;
+
+	borderWidth: pixels;
+	borderColor: color;
+	borderActive: color;
+
+	phColor: color;
+	phFocusColor: color;
+	phPos: point;
+	phAlign: align;
+	phShift: pixels;
+	phDuration: int;
+}
+
+InputField {
+	textBg: color;
+	textFg: color;
+	textMargins: margins;
+	textAlign: align;
+
+	placeholderFg: color;
+	placeholderFgActive: color;
+	placeholderFgError: color;
+	placeholderMargins: margins;
+	placeholderAlign: align;
+	placeholderScale: double;
+	placeholderShift: pixels;
+	placeholderFont: font;
+
+	duration: int;
+
+	borderFg: color;
+	borderFgActive: color;
+	borderFgError: color;
+
+	border: pixels;
+	borderActive: pixels;
+
+	font: font;
+
+	width: pixels;
+	heightMin: pixels;
+	heightMax: pixels;
+}
+
+OutlineButton {
+	outlineWidth: pixels;
+	outlineFg: color;
+	outlineFgOver: color;
+
+	textBg: color;
+	textBgOver: color;
+
+	textFg: color;
+	textFgOver: color;
+
+	font: font;
+	padding: margins;
+
+	ripple: RippleAnimation;
+}
+
+IconButton {
+	width: pixels;
+	height: pixels;
+
+	icon: icon;
+	iconOver: icon;
+	iconPosition: point;
+
+	duration: int;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	ripple: RippleAnimation;
+}
+
+Shadow {
+	left: icon;
+	topLeft: icon;
+	top: icon;
+	topRight: icon;
+	right: icon;
+	bottomRight: icon;
+	bottom: icon;
+	bottomLeft: icon;
+	extend: margins;
+	fallback: color;
 }
 
 MediaSlider {
 	width: pixels;
 	activeFg: color;
 	inactiveFg: color;
-	disabledActiveFg: color;
-	disabledInactiveFg: color;
-	activeOpacity: double;
-	inactiveOpacity: double;
+	activeFgOver: color;
+	inactiveFgOver: color;
+	activeFgDisabled: color;
+	inactiveFgDisabled: color;
 	seekSize: size;
 	duration: int;
 }
@@ -54,39 +278,67 @@ FilledSlider {
 	duration: int;
 }
 
+RoundCheckbox {
+	border: color;
+	bgInactive: color;
+	bgActive: color;
+	width: pixels;
+	size: pixels;
+	sizeSmall: double;
+	duration: int;
+	check: icon;
+}
+
 RoundImageCheckbox {
 	imageRadius: pixels;
 	imageSmallRadius: pixels;
 	selectWidth: pixels;
 	selectFg: color;
 	selectDuration: int;
-	checkBorder: color;
-	checkBg: color;
-	checkRadius: pixels;
-	checkSmallRadius: pixels;
-	checkIcon: icon;
+	check: RoundCheckbox;
+}
+
+CrossAnimation {
+	fg: color;
+	size: pixels;
+	skip: pixels;
+	stroke: pixels;
+	minScale: double;
+}
+
+CrossButton {
+	width: pixels;
+	height: pixels;
+
+	cross: CrossAnimation;
+	crossFg: color;
+	crossFgOver:color;
+	crossPosition: point;
+	duration: int;
+
+	ripple: RippleAnimation;
 }
 
 MultiSelectItem {
 	padding: margins;
 	maxWidth: pixels;
 	height: pixels;
-	font: font;
+	style: TextStyle;
 	textBg: color;
 	textFg: color;
 	textActiveBg: color;
 	textActiveFg: color;
-	deleteFg: color;
-	deleteLeft: pixels;
-	deleteStroke: pixels;
 	duration: int;
+	deleteFg: color;
+	deleteCross: CrossAnimation;
 	minScale: double;
 }
 
 MultiSelect {
+	bg: color;
 	padding: margins;
 	maxHeight: pixels;
-	scroll: flatScroll;
+	scroll: ScrollArea;
 
 	item: MultiSelectItem;
 	itemSkip: pixels;
@@ -95,20 +347,558 @@ MultiSelect {
 	fieldMinWidth: pixels;
 	fieldIcon: icon;
 	fieldIconSkip: pixels;
-	fieldCancel: IconButton;
+	fieldCancel: CrossButton;
 	fieldCancelSkip: pixels;
+}
+
+Menu {
+	skip: pixels;
+
+	itemBg: color;
+	itemBgOver: color;
+	itemFg: color;
+	itemFgOver: color;
+	itemFgDisabled: color;
+	itemFgShortcut: color;
+	itemFgShortcutOver: color;
+	itemFgShortcutDisabled: color;
+	itemPadding: margins;
+	itemIconPosition: point;
+	itemFont: font;
+
+	separatorPadding: margins;
+	separatorWidth: pixels;
+	separatorFg: color;
+
+	arrow: icon;
+
+	widthMin: pixels;
+	widthMax: pixels;
+
+	ripple: RippleAnimation;
+}
+
+PanelAnimation {
+	startWidth: double;
+	widthDuration: double;
+	startHeight: double;
+	heightDuration: double;
+	startOpacity: double;
+	opacityDuration: double;
+	startFadeTop: double;
+	fadeHeight: double;
+	fadeOpacity: double;
+	fadeBg: color;
+	shadow: Shadow;
+}
+
+PopupMenu {
+	shadow: Shadow;
+	scrollPadding: margins;
+	animation: PanelAnimation;
+
+	menu: Menu;
+
+	duration: int;
+	showDuration: int;
+}
+
+InnerDropdown {
+	padding: margins;
+	shadow: Shadow;
+	animation: PanelAnimation;
+
+	duration: int;
+	showDuration: int;
+	width: pixels;
+
+	bg: color;
+	scroll: ScrollArea;
+	scrollMargin: margins;
+	scrollPadding: margins;
+}
+
+DropdownMenu {
+	wrap: InnerDropdown;
+	menu: Menu;
+}
+
+Tooltip {
+	textBg: color;
+	textFg: color;
+	textStyle: TextStyle;
+	textBorder: color;
+	textPadding: margins;
+
+	shift: point;
+	skip: pixels;
+
+	widthMax: pixels;
+	linesMax: int;
+}
+
+defaultLabelSimple: LabelSimple {
+	font: normalFont;
+	maxWidth: 0px;
+	textFg: windowFg;
+}
+
+defaultFlatLabel: FlatLabel {
+	width: 0px;
+	maxHeight: 0px;
+	align: align(left);
+	textFg: windowFg;
+	style: defaultTextStyle;
+	palette: defaultTextPalette;
+}
+
+defaultLinkButton: LinkButton {
+	color: windowActiveTextFg;
+	overColor: windowActiveTextFg;
+	font: linkFont;
+	overFont: linkOverFont;
+}
+
+defaultRippleAnimation: RippleAnimation {
+	color: windowBgRipple;
+	showDuration: 650;
+	hideDuration: 200;
+}
+
+emptyRippleAnimation: RippleAnimation {
+}
+
+defaultActiveButton: RoundButton {
+	textFg: activeButtonFg;
+	textFgOver: activeButtonFgOver;
+	numbersTextFg: activeButtonSecondaryFg;
+	numbersTextFgOver: activeButtonSecondaryFgOver;
+	textBg: activeButtonBg;
+	textBgOver: activeButtonBgOver;
+
+	numbersSkip: 7px;
+	numbersDuration: 200;
+
+	width: -34px;
+	height: 34px;
+	padding: margins(0px, 0px, 0px, 0px);
+
+	textTop: 8px;
+
+	font: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonBgRipple;
+	}
+}
+
+defaultLightButton: RoundButton(defaultActiveButton) {
+	textFg: lightButtonFg;
+	textFgOver: lightButtonFgOver;
+	numbersTextFg: lightButtonFg;
+	numbersTextFgOver: lightButtonFgOver;
+	textBg: lightButtonBg;
+	textBgOver: lightButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: lightButtonBgRipple;
+	}
+}
+
+defaultScrollArea: ScrollArea {
+	bg: scrollBg;
+	bgOver: scrollBgOver;
+	barBg: scrollBarBg;
+	barBgOver: scrollBarBgOver;
+
+	round: 2px;
+
+	width: 10px;
+	minHeight: 20px;
+	deltax: 3px;
+	deltat: 3px;
+	deltab: 3px;
+
+	topsh: 2px;
+	bottomsh: 2px;
+	shColor: shadowFg;
+
+	duration: 150;
+	hiding: 1000;
+}
+
+defaultSolidScroll: ScrollArea(defaultScrollArea) {
+	deltax: 5px;
+	width: 14px;
+	deltat: 6px;
+	deltab: 6px;
+
+	topsh: 0px;
+	bottomsh: 0px;
+
+	hiding: 0;
+}
+
+defaultInputFont: font(17px);
+defaultFlatInput: FlatInput {
+	textColor: windowFg;
+	bgColor: filterInputInactiveBg;
+	bgActive: windowBg;
+	width: 210px;
+	height: 40px;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: defaultInputFont;
+
+	borderWidth: 2px;
+	borderColor: filterInputInactiveBg;
+	borderActive: filterInputBorderFg;
+
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
+	phAlign: align(left);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+}
+
+defaultLeftOutlineButton: OutlineButton {
+	outlineWidth: 3px;
+	outlineFg: outlineButtonBg;
+	outlineFgOver: outlineButtonOutlineFg;
+
+	textBg: outlineButtonBg;
+	textBgOver: outlineButtonBgOver;
+
+	textFg: windowActiveTextFg;
+	textFgOver: windowActiveTextFg;
+
+	font: normalFont;
+	padding: margins(11px, 5px, 11px, 5px);
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: outlineButtonBgRipple;
+	}
+}
+attentionLeftOutlineButton: OutlineButton(defaultLeftOutlineButton) {
+	outlineFgOver: attentionButtonFg;
+
+	textBgOver: attentionButtonBgOver;
+
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFg;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
+}
+
+defaultInputField: InputField {
+	textBg: windowBg;
+	textFg: windowFg;
+	textMargins: margins(0px, 26px, 0px, 4px);
+	textAlign: align(topleft);
+
+	placeholderFg: windowSubTextFg;
+	placeholderFgActive: windowActiveTextFg;
+	placeholderFgError: attentionButtonFg;
+	placeholderMargins: margins(0px, 0px, 0px, 0px);
+	placeholderAlign: align(topleft);
+	placeholderScale: 0.9;
+	placeholderShift: -20px;
+	placeholderFont: font(semibold 14px);
+	duration: 150;
+
+	borderFg: inputBorderFg;
+	borderFgActive: activeLineFg;
+	borderFgError: activeLineFgError;
+
+	border: 1px;
+	borderActive: 2px;
+
+	font: boxTextFont;
+
+	heightMin: 52px;
+	heightMax: 148px;
+}
+
+defaultCheckboxIcon: icon {{ "default_checkbox_check", windowFgActive, point(4px, 7px) }};
+
+defaultCheckbox: Checkbox {
+	textFg: windowFg;
+
+	checkBg: transparent;
+	checkFg: checkboxFg;
+	checkFgActive: windowBgActive;
+
+	width: -44px;
+	height: 22px;
+	margin: margins(8px, 8px, 8px, 8px);
+
+	textPosition: point(32px, 2px);
+	diameter: 22px;
+	thickness: 2px;
+	checkIcon: defaultCheckboxIcon;
+	radioSkip: 65px; // * 0.1
+
+	style: defaultTextStyle;
+	duration: 120;
+
+	rippleAreaSize: 38px;
+	rippleAreaPosition: point(0px, 0px);
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+
+defaultIconButton: IconButton {
+	iconPosition: point(-1px, -1px);
 }
 
 widgetSlideDuration: 200;
 widgetFadeDuration: 200;
 
-discreteSliderHeight: 39px;
-discreteSliderTop: 5px;
-discreteSliderSkip: 3px;
-discreteSliderThickness: 3px;
-discreteSliderActiveFg: #4bb5e7;
-discreteSliderInactiveFg: #e1eaef;
-discreteSliderLabelTop: 17px;
-discreteSliderLabelFont: normalFont;
-discreteSliderLabelFg: #1485c2;
-discreteSliderDuration: 200;
+fieldSearchIcon: icon {{ "box_search", menuIconFg, point(9px, 8px) }};
+boxFieldSearchIcon: icon {{ "box_search", menuIconFg, point(10px, 9px) }};
+
+SettingsSlider {
+	height: pixels;
+	barTop: pixels;
+	barSkip: pixels;
+	barStroke: pixels;
+	barFg: color;
+	barFgActive: color;
+	labelTop: pixels;
+	labelFont: font;
+	labelFg: color;
+	labelFgActive: color;
+	duration: int;
+	rippleBottomSkip: pixels;
+	rippleRoundRadius: pixels;
+	rippleBg: color;
+	rippleBgActive: color;
+	ripple: RippleAnimation;
+}
+
+defaultSettingsSlider: SettingsSlider {
+	height: 39px;
+	barTop: 5px;
+	barSkip: 3px;
+	barStroke: 3px;
+	barFg: sliderBgInactive;
+	barFgActive: sliderBgActive;
+	labelTop: 17px;
+	labelFont: normalFont;
+	labelFg: windowActiveTextFg;
+	labelFgActive: windowActiveTextFg;
+	duration: 150;
+}
+
+defaultTabsSlider: SettingsSlider(defaultSettingsSlider) {
+	height: 53px;
+	barTop: 50px;
+	barSkip: 0px;
+	barFg: transparent;
+	labelTop: 19px;
+	labelFont: semiboldFont;
+	labelFg: windowSubTextFg;
+	labelFgActive: lightButtonFg;
+	rippleBottomSkip: 1px;
+	rippleBg: windowBgOver;
+	rippleBgActive: lightButtonBgOver;
+	ripple: defaultRippleAnimation;
+}
+
+defaultRoundShadow: Shadow {
+	left: icon {{ "round_shadow_left", windowShadowFg }};
+	topLeft: icon {{ "round_shadow_top_left", windowShadowFg }};
+	top: icon {{ "round_shadow_top", windowShadowFg }};
+	topRight: icon {{ "round_shadow_top_left-flip_horizontal", windowShadowFg }};
+	right: icon {{ "round_shadow_left-flip_horizontal", windowShadowFg }};
+	bottomRight: icon {{ "round_shadow_bottom_left-flip_horizontal", windowShadowFg }};
+	bottom: icon {{ "round_shadow_bottom", windowShadowFg }};
+	bottomLeft: icon {{ "round_shadow_bottom_left", windowShadowFg }};
+	extend: margins(3px, 2px, 3px, 4px);
+	fallback: windowShadowFgFallback;
+}
+defaultEmptyShadow: Shadow {
+	fallback: windowBg;
+}
+
+defaultPanelAnimation: PanelAnimation {
+	startWidth: 0.5;
+	widthDuration: 0.6;
+	startHeight: 0.3;
+	heightDuration: 0.9;
+	startOpacity: 0.2;
+	opacityDuration: 0.3;
+	startFadeTop: 0.;
+	fadeHeight: 0.2;
+	fadeOpacity: 1.0;
+	fadeBg: menuBg;
+	shadow: defaultRoundShadow;
+}
+
+defaultRoundCheckbox: RoundCheckbox {
+	border: windowBg;
+	bgActive: windowBgActive;
+	width: 2px;
+	duration: 150;
+}
+
+defaultMenuArrow: icon {{ "dropdown_submenu_arrow", menuSubmenuArrowFg }};
+defaultMenu: Menu {
+	skip: 0px;
+
+	itemBg: windowBg;
+	itemBgOver: windowBgOver;
+	itemFg: windowFg;
+	itemFgOver: windowFgOver;
+	itemFgDisabled: menuFgDisabled;
+	itemFgShortcut: windowSubTextFg;
+	itemFgShortcutOver: windowSubTextFgOver;
+	itemFgShortcutDisabled: menuFgDisabled;
+	itemIconPosition: point(0px, 0px);
+	itemPadding: margins(17px, 8px, 17px, 7px);
+	itemFont: normalFont;
+
+	separatorPadding: margins(0px, 5px, 0px, 5px);
+	separatorWidth: 1px;
+	separatorFg: menuSeparatorFg;
+
+	arrow: defaultMenuArrow;
+
+	widthMin: 180px;
+	widthMax: 300px;
+
+	ripple: defaultRippleAnimation;
+}
+defaultPopupMenu: PopupMenu {
+	shadow: defaultRoundShadow;
+	animation: defaultPanelAnimation;
+
+	scrollPadding: margins(0px, 8px, 0px, 8px);
+
+	menu: defaultMenu;
+
+	duration: 150;
+	showDuration: 200;
+}
+defaultInnerDropdown: InnerDropdown {
+	padding: margins(10px, 10px, 10px, 10px);
+	shadow: defaultRoundShadow;
+	animation: defaultPanelAnimation;
+
+	duration: 150;
+	showDuration: 200;
+
+	bg: menuBg;
+	scroll: defaultSolidScroll;
+}
+defaultDropdownMenu: DropdownMenu {
+	wrap: InnerDropdown(defaultInnerDropdown) {
+		scrollPadding: margins(0px, 8px, 0px, 8px);
+	}
+	menu: defaultMenu;
+}
+
+defaultTooltip: Tooltip {
+	textBg: tooltipBg;
+	textFg: tooltipFg;
+	textStyle: defaultTextStyle;
+	textBorder: tooltipBorderFg;
+	textPadding: margins(5px, 2px, 5px, 2px);
+
+	shift: point(-20px, 20px);
+	skip: 10px;
+
+	widthMax: 800px;
+	linesMax: 12;
+}
+
+historyToDownBelow: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", windowBg, point(4px, 4px) },
+};
+historyToDownBelowOver: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", windowBgOver, point(4px, 4px) },
+};
+contactsAddIconBelow: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", activeButtonBg, point(4px, 4px) },
+};
+contactsAddIconBelowOver: icon {
+	{ "history_down_shadow", historyToDownShadow },
+	{ "history_down_circle", activeButtonBgOver, point(4px, 4px) },
+};
+
+BotKeyboardButton {
+	margin: pixels;
+	padding: pixels;
+	height: pixels;
+	textTop: pixels;
+	ripple: RippleAnimation;
+}
+
+TwoIconButton {
+	width: pixels;
+	height: pixels;
+
+	iconBelow: icon;
+	iconAbove: icon;
+	iconBelowOver: icon;
+	iconAboveOver: icon;
+	iconPosition: point;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	ripple: RippleAnimation;
+}
+
+historySendActionTypingDuration: 800;
+historySendActionTypingHalfPeriod: 320;
+historySendActionTypingDeltaTime: 150;
+historySendActionTypingPosition: point(4px, -4px);
+historySendActionTypingDelta: 6px;
+historySendActionTypingLargeNumerator: 28px;
+historySendActionTypingSmallNumerator: 16px;
+historySendActionTypingDenominator: 12.;
+
+historySendActionRecordDuration: 500;
+historySendActionRecordPosition: point(1px, -4px);
+historySendActionRecordDelta: 4px;
+historySendActionRecordStrokeNumerator: 16px;
+historySendActionRecordDenominator: 8.;
+
+historySendActionUploadDuration: 500;
+historySendActionUploadPosition: point(0px, -4px);
+historySendActionUploadDelta: 5px;
+historySendActionUploadStrokeNumerator: 16px;
+historySendActionUploadSizeNumerator: 32px;
+historySendActionUploadDenominator: 8.;
+
+MediaPlayerButton {
+	playPosition: point;
+	playOuter: size;
+	pausePosition: point;
+	pauseOuter: size;
+	pauseStroke: pixels;
+	cancelPosition: point;
+	cancelOuter: size;
+	cancelStroke: pixels;
+
+	rippleAreaPosition: point;
+	rippleAreaSize: pixels;
+	ripple: RippleAnimation;
+}
+
+ProfilePeerListItem {
+	left: pixels;
+	bottom: pixels;
+
+	button: OutlineButton;
+	statusFg: color;
+	statusFgOver: color;
+	statusFgActive: color;
+}

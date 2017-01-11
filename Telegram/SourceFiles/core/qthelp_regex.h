@@ -28,6 +28,14 @@ public:
 	}
 	RegularExpressionMatch(RegularExpressionMatch &&other) : data_(std_::move(other.data_)) {
 	}
+	RegularExpressionMatch &operator=(QRegularExpressionMatch &&match) {
+		data_ = std_::move(match);
+		return *this;
+	}
+	RegularExpressionMatch &operator=(RegularExpressionMatch &&other) {
+		data_ = std_::move(other.data_);
+		return *this;
+	}
 	QRegularExpressionMatch *operator->() {
 		return &data_;
 	}

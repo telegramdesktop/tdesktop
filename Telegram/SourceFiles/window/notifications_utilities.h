@@ -30,7 +30,11 @@ class CachedUserpics : public QObject {
 	Q_OBJECT
 
 public:
-	CachedUserpics();
+	enum class Type {
+		Rounded,
+		Circled,
+	};
+	CachedUserpics(Type type);
 
 	QString get(const StorageKey &key, PeerData *peer);
 
@@ -41,10 +45,11 @@ private slots:
 
 private:
 	void clearInMs(int ms);
-	uint64 clear(uint64 ms);
+	TimeMs clear(TimeMs ms);
 
+	Type _type = Type::Rounded;
 	struct Image {
-		uint64 until;
+		TimeMs until;
 		QString path;
 	};
 	using Images = QMap<StorageKey, Image>;

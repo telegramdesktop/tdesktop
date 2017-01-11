@@ -29,9 +29,9 @@ class Document;
 namespace Media {
 namespace Player {
 
-class ListWidget : public ScrolledWidget, private base::Subscriber {
+class ListWidget : public TWidget, private base::Subscriber {
 public:
-	ListWidget();
+	ListWidget(QWidget *parent);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
 

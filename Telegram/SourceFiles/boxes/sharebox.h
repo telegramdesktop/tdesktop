@@ -20,11 +20,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "core/lambda_wrap.h"
+#include "boxes/abstractbox.h"
 #include "core/observer.h"
 #include "core/vector_of_moveable.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
 
 namespace Dialogs {
 class Row;
@@ -42,18 +41,23 @@ class MultiSelect;
 QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId);
 void shareGameScoreByHash(const QString &hash);
 
-class ShareBox : public ItemListBox, public RPCSender {
+class ShareBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	using CopyCallback = base::lambda_unique<void()>;
-	using SubmitCallback = base::lambda_unique<void(const QVector<PeerData*> &)>;
-	using FilterCallback = base::lambda_unique<bool(PeerData*)>;
-	ShareBox(CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
+	using CopyCallback = base::lambda<void()>;
+	using SubmitCallback = base::lambda<void(const QVector<PeerData*> &)>;
+	using FilterCallback = base::lambda<bool(PeerData*)>;
+	ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback);
+
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private slots:
-	void onScroll();
-
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 
@@ -62,18 +66,13 @@ private slots:
 
 	void onMustScrollTo(int top, int bottom);
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
-
-	void doSetInnerFocus() override;
-
 private:
+	void scrollAnimationCallback();
+
 	void onFilterUpdate(const QString &query);
 	void onSelectedChanged();
-	void moveButtons();
-	void updateButtonsVisibility();
+	void updateButtons();
+	void createButtons();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
 
@@ -85,19 +84,16 @@ private:
 
 	CopyCallback _copyCallback;
 	SubmitCallback _submitCallback;
+	FilterCallback _filterCallback;
+
+	object_ptr<Ui::MultiSelect> _select;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::MultiSelect> _select;
+	QPointer<Inner> _inner;
 
-	ChildWidget<BoxButton> _copy;
-	ChildWidget<BoxButton> _share;
-	ChildWidget<BoxButton> _cancel;
+	bool _hasSelected = false;
 
-	ChildWidget<ScrollableBoxShadow> _topShadow;
-	ChildWidget<ScrollableBoxShadow> _bottomShadow;
-
-	QTimer _searchTimer;
+	object_ptr<QTimer> _searchTimer;
 	QString _peopleQuery;
 	bool _peopleFull = false;
 	mtpRequestId _peopleRequest = 0;
@@ -108,18 +104,18 @@ private:
 	using PeopleQueries = QMap<mtpRequestId, QString>;
 	PeopleQueries _peopleQueries;
 
-	IntAnimation _scrollAnimation;
+	Animation _scrollAnimation;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class ShareBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class ShareBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
 	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
-	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
 	void peerUnselected(PeerData *peer);
 
 	QVector<PeerData*> selected() const;
@@ -153,18 +149,19 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
+	void invalidateCache();
 
 	int displayedChatsCount() const;
 
 	struct Chat {
-		Chat(PeerData *peer, base::lambda_wrap<void()> updateCallback);
+		Chat(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;
 		Text name;
-		ColorAnimation nameFg;
+		Animation nameActive;
 	};
-	void paintChat(Painter &p, uint64 ms, Chat *chat, int index);
+	void paintChat(Painter &p, TimeMs ms, Chat *chat, int index);
 	void updateChat(PeerData *peer);
 	void updateChatName(Chat *chat, PeerData *peer);
 	void repaintChat(PeerData *peer);
@@ -207,7 +204,7 @@ private:
 	using SelectedChats = OrderedSet<PeerData*>;
 	SelectedChats _selected;
 
-	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
+	base::lambda<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
 	ChatData *data(Dialogs::Row *row);
 

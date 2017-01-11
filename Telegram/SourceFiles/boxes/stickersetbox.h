@@ -20,7 +20,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/vector_of_moveable.h"
 
 class ConfirmBox;
@@ -29,43 +29,42 @@ namespace Ui {
 class PlainShadow;
 } // namespace Ui
 
-class StickerSetBox : public ScrollableBox, public RPCSender {
+class StickerSetBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	StickerSetBox(const MTPInputStickerSet &set);
-
-public slots:
-	void onStickersUpdated();
-	void onAddStickers();
-	void onShareStickers();
-	void onUpdateButtons();
-
-	void onScroll();
-
-private slots:
-	void onInstalled(uint64 id);
+	StickerSetBox(QWidget*, const MTPInputStickerSet &set);
 
 signals:
 	void installed(uint64 id);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
+private slots:
+	void onStickersUpdated();
+	void onAddStickers();
+	void onShareStickers();
+	void onUpdateButtons();
+
+	void onInstalled(uint64 id);
 
 private:
+	void updateButtons();
+
+	MTPInputStickerSet _set;
+
 	class Inner;
-	ChildWidget<Inner> _inner;
-	ScrollableBoxShadow _shadow;
-	BoxButton _add, _share, _cancel, _done;
+	QPointer<Inner> _inner;
+
 	QString _title;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class StickerSetBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class StickerSetBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -87,6 +86,7 @@ protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
+	void leaveEvent(QEvent *e) override;
 
 private slots:
 	void onPreview();
@@ -97,6 +97,7 @@ signals:
 
 private:
 	void updateSelected();
+	void setSelected(int selected);
 	void startOverAnimation(int index, float64 from, float64 to);
 	int stickerFromGlobalPos(const QPoint &p) const;
 
@@ -110,7 +111,7 @@ private:
 		return (_setFlags & MTPDstickerSet::Flag::f_masks);
 	}
 
-	std_::vector_of_moveable<FloatAnimation> _packOvers;
+	std_::vector_of_moveable<Animation> _packOvers;
 	StickerPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;

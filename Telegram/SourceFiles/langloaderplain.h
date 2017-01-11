@@ -22,23 +22,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 
-class LangLoaderRequest : public QMap <LangKey, bool> {
-public:
-	LangLoaderRequest() {
-	}
-	LangLoaderRequest(LangKey key1) {
-		insert(key1, true);
-	}
-	LangLoaderRequest(LangKey key1, LangKey key2) {
-		insert(key1, true);
-		insert(key2, true);
-	}
-	LangLoaderRequest(LangKey key1, LangKey key2, LangKey key3) {
-		insert(key1, true);
-		insert(key2, true);
-		insert(key3, true);
+using LangLoaderRequest = OrderedSet<LangKey>;
+
+template <typename ...Args>
+struct LangLoaderRequestHelper;
+
+template <>
+struct LangLoaderRequestHelper<> {
+	static inline void fill(LangLoaderRequest &result) {
 	}
 };
+
+template <typename Arg, typename ...Args>
+struct LangLoaderRequestHelper<Arg, Args...> {
+	static inline void fill(LangLoaderRequest &result, Arg arg, Args ...args) {
+		result.insert(arg);
+		LangLoaderRequestHelper<Args...>::fill(result, args...);
+	}
+};
+
+template <typename ...Args>
+inline LangLoaderRequest langLoaderRequest(Args ...args) {
+	LangLoaderRequest result;
+	LangLoaderRequestHelper<Args...>::fill(result, args...);
+	return result;
+}
 
 using LangLoaderResult = QMap<LangKey, LangString>;
 class LangLoaderPlain : public LangLoader {

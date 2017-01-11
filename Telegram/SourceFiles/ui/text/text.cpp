@@ -32,25 +32,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace {
 
-const style::textStyle *_textStyle = nullptr;
-
-void initDefault() {
-	_textStyle = &st::defaultTextStyle;
-}
-
-inline int32 countBlockHeight(const ITextBlock *b, const style::font &font) {
-	return (b->type() == TextBlockTSkip) ? static_cast<const SkipBlock*>(b)->height() : (_textStyle->lineHeight > font->height) ? _textStyle->lineHeight : font->height;
+inline int32 countBlockHeight(const ITextBlock *b, const style::TextStyle *st) {
+	return (b->type() == TextBlockTSkip) ? static_cast<const SkipBlock*>(b)->height() : (st->lineHeight > st->font->height) ? st->lineHeight : st->font->height;
 }
 
 } // namespace
-
-const style::textStyle *textstyleCurrent() {
-	return _textStyle;
-}
-
-void textstyleSet(const style::textStyle *style) {
-	_textStyle = style ? style : &st::defaultTextStyle;
-}
 
 QString textcmdSkipBlock(ushort w, ushort h) {
 	static QString cmd(5, TextCommand);
@@ -91,18 +77,6 @@ QString textcmdLink(const QString &url, const QString &text) {
 	return result.append(textcmdStartLink(url)).append(text).append(textcmdStopLink());
 }
 
-QString textcmdStartColor(const style::color &color) {
-	QString result;
-	result.reserve(7);
-	return result.append(TextCommand).append(QChar(TextCommandColor)).append(QChar(color->c.red())).append(QChar(color->c.green())).append(QChar(color->c.blue())).append(QChar(color->c.alpha())).append(TextCommand);
-}
-
-QString textcmdStopColor() {
-	QString result;
-	result.reserve(3);
-	return result.append(TextCommand).append(QChar(TextCommandNoColor)).append(TextCommand);
-}
-
 QString textcmdStartSemibold() {
 	QString result;
 	result.reserve(3);
@@ -132,7 +106,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 	case TextCommandNoItalic:
 	case TextCommandUnderline:
 	case TextCommandNoUnderline:
-	case TextCommandNoColor:
 		break;
 
 	case TextCommandLinkIndex:
@@ -144,15 +117,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 		ushort len = result->unicode();
 		if (len >= 4096 || !canLink) return from;
 		result += len + 1;
-	} break;
-
-	case TextCommandColor: {
-		const QChar *e = result + 4;
-		if (e >= end) return from;
-
-		for (; result < e; ++result) {
-			if (result->unicode() >= 256) return from;
-		}
 	} break;
 
 	case TextCommandSkipBlock:
@@ -216,13 +180,13 @@ public:
 			}
 			lastSkipped = false;
 			if (emoji) {
-				_t->_blocks.push_back(new EmojiBlock(_t->_font, _t->_text, blockStart, len, flags, color, lnkIndex, emoji));
+				_t->_blocks.push_back(new EmojiBlock(_t->_st->font, _t->_text, blockStart, len, flags, lnkIndex, emoji));
 				emoji = 0;
 				lastSkipped = true;
 			} else if (newline) {
-				_t->_blocks.push_back(new NewlineBlock(_t->_font, _t->_text, blockStart, len));
+				_t->_blocks.push_back(new NewlineBlock(_t->_st->font, _t->_text, blockStart, len));
 			} else {
-				_t->_blocks.push_back(new TextBlock(_t->_font, _t->_text, _t->_minResizeWidth, blockStart, len, flags, color, lnkIndex));
+				_t->_blocks.push_back(new TextBlock(_t->_st->font, _t->_text, _t->_minResizeWidth, blockStart, len, flags, lnkIndex));
 			}
 			blockStart += len;
 			blockCreated();
@@ -232,7 +196,7 @@ public:
 	void createSkipBlock(int32 w, int32 h) {
 		createBlock();
 		_t->_text.push_back('_');
-		_t->_blocks.push_back(new SkipBlock(_t->_font, _t->_text, blockStart++, w, h, lnkIndex));
+		_t->_blocks.push_back(new SkipBlock(_t->_st->font, _t->_text, blockStart++, w, h, lnkIndex));
 		blockCreated();
 	}
 
@@ -451,23 +415,8 @@ public:
 			lnkIndex = 0x8000 + links.size();
 		} break;
 
-		case TextCommandColor: {
-			style::color c(ptr->unicode(), (ptr + 1)->unicode(), (ptr + 2)->unicode(), (ptr + 3)->unicode());
-			if (color != c) {
-				createBlock();
-				color = c;
-			}
-		} break;
-
 		case TextCommandSkipBlock:
 			createSkipBlock(ptr->unicode(), (ptr + 1)->unicode());
-		break;
-
-		case TextCommandNoColor:
-			if (color) {
-				createBlock();
-				color = style::color();
-			}
 		break;
 		}
 
@@ -594,7 +543,7 @@ public:
 	}
 	void parse(const TextParseOptions &options) {
 		if (options.maxw > 0 && options.maxh > 0) {
-			stopAfterWidth = ((options.maxh / _t->_font->height) + 1) * options.maxw;
+			stopAfterWidth = ((options.maxh / _t->_st->font->height) + 1) * options.maxw;
 		}
 
 		start = src.constData();
@@ -624,7 +573,7 @@ public:
 
 		ch = emojiLookback = 0;
 		lastSkipped = false;
-		checkTilde = !cRetina() && _t->_font->size() == 13 && _t->_font->flags() == 0; // tilde Open Sans fix
+		checkTilde = !cRetina() && _t->_st->font->size() == 13 && _t->_st->font->flags() == 0; // tilde Open Sans fix
 		for (; ptr <= end; ++ptr) {
 			while (checkEntities() || (rich && checkCommand())) {
 			}
@@ -719,7 +668,7 @@ private:
 	void computeLinkText(const QString &linkData, QString *outLinkText, LinkDisplayStatus *outDisplayStatus) {
 		QUrl url(linkData), good(url.isValid() ? url.toEncoded() : "");
 		QString readable = good.isValid() ? good.toDisplayString() : linkData;
-		*outLinkText = _t->_font->elided(readable, st::linkCropLimit);
+		*outLinkText = _t->_st->font->elided(readable, st::linkCropLimit);
 		*outDisplayStatus = (*outLinkText == readable) ? LinkDisplayedFull : LinkDisplayedElided;
 	}
 
@@ -747,7 +696,6 @@ private:
 	int32 diacs; // diac chars skipped without good char
 	QFixed sumWidth, stopAfterWidth; // summary width of all added words
 	bool sumFinished, newlineAwaited;
-	style::color color; // current color, could be invalid
 
 	// current char data
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
@@ -860,7 +808,7 @@ public:
 		return _blockEnd(t, i, e) - (*i)->from();
 	}
 
-	TextPainter(QPainter *p, const Text *t) : _p(p), _t(t) {
+	TextPainter(Painter *p, const Text *t) : _p(p), _t(t) {
 	}
 
 	~TextPainter() {
@@ -932,10 +880,8 @@ public:
 		if (_t->isEmpty()) return;
 
 		_blocksSize = _t->_blocks.size();
-		if (!_textStyle) initDefault();
-
 		if (_p) {
-			_p->setFont(_t->_font->f);
+			_p->setFont(_t->_st->font);
 			_originalPen = _p->pen();
 		}
 
@@ -949,7 +895,7 @@ public:
 		if (_elideLast) {
 			_yToElide = _yTo;
 			if (_elideRemoveFromEnd > 0 && !_t->_blocks.isEmpty()) {
-				int firstBlockHeight = countBlockHeight(_t->_blocks.front(), _t->_font);
+				int firstBlockHeight = countBlockHeight(_t->_blocks.front(), _t->_st);
 				if (_y + firstBlockHeight >= _yToElide) {
 					_wLeft -= _elideRemoveFromEnd;
 				}
@@ -958,7 +904,7 @@ public:
 		_str = _t->_text.unicode();
 
 		if (_p) {
-			QRectF clip = _p->clipBoundingRect();
+			auto clip = _p->hasClipping() ? _p->clipBoundingRect() : QRectF();
 			if (clip.width() > 0 || clip.height() > 0) {
 				if (_yFrom < clip.y()) _yFrom = clip.y();
 				if (_yTo < 0 || _yTo > clip.y() + clip.height()) _yTo = clip.y() + clip.height();
@@ -977,7 +923,7 @@ public:
 		_lineStartBlock = 0;
 
 		_lineHeight = 0;
-		_fontHeight = _t->_font->height;
+		_fontHeight = _t->_st->font->height;
 		QFixed last_rBearing = 0, last_rPadding = 0;
 
 		int32 blockIndex = 0;
@@ -986,7 +932,7 @@ public:
 		for (Text::TextBlocks::const_iterator i = _t->_blocks.cbegin(); i != e; ++i, ++blockIndex) {
 			ITextBlock *b = *i;
 			TextBlockType _btype = b->type();
-			int32 blockHeight = countBlockHeight(b, _t->_font);
+			int32 blockHeight = countBlockHeight(b, _t->_st);
 
 			if (_btype == TextBlockTNewline) {
 				if (!_lineHeight) _lineHeight = blockHeight;
@@ -1129,8 +1075,8 @@ public:
 	void drawElided(int32 left, int32 top, int32 w, style::align align, int32 lines, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) {
 		if (lines <= 0 || _t->isNull()) return;
 
-		if (yTo < 0 || (lines - 1) * _t->_font->height < yTo) {
-			yTo = lines * _t->_font->height;
+		if (yTo < 0 || (lines - 1) * _t->_st->font->height < yTo) {
+			yTo = lines * _t->_st->font->height;
 			_elideLast = true;
 			_elideRemoveFromEnd = removeFromEnd;
 		}
@@ -1165,8 +1111,8 @@ public:
 			_lookupLink = (_lookupRequest.flags & Text::StateRequest::Flag::LookupLink);
 			if (_lookupSymbol || (_lookupX >= 0 && _lookupX < w)) {
 				int yTo = _lookupY + 1;
-				if (yTo < 0 || (request.lines - 1) * _t->_font->height < yTo) {
-					yTo = request.lines * _t->_font->height;
+				if (yTo < 0 || (request.lines - 1) * _t->_st->font->height < yTo) {
+					yTo = request.lines * _t->_st->font->height;
 					_elideLast = true;
 					_elideRemoveFromEnd = request.removeFromEnd;
 				}
@@ -1177,17 +1123,11 @@ public:
 	}
 
 	const QPen &blockPen(ITextBlock *block) {
-		if (block->color()) {
-			return block->color()->p;
-		}
 		if (block->lnkIndex()) {
-			if (ClickHandler::showAsPressed(_t->_links.at(block->lnkIndex() - 1))) {
-				return _textStyle->linkFgDown->p;
-			}
-			return _textStyle->linkFg->p;
+			return _p->textPalette().linkFg->p;
 		}
 		if ((block->flags() & TextBlockFCode) || (block->flags() & TextBlockFPre)) {
-			return _textStyle->monoFg->p;
+			return _p->textPalette().monoFg->p;
 		}
 		return _originalPen;
 	}
@@ -1290,12 +1230,12 @@ public:
 
 			if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 				if (x > _x) {
-					_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _textStyle->selectBg->b);
+					_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
 				}
 			}
 			if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
 				if (x < _x + _wLeft) {
-					_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _textStyle->selectBg->b);
+					_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
 				}
 			}
 		}
@@ -1303,7 +1243,7 @@ public:
 
 		if (!elidedLine) initParagraphBidi(); // if was not inited
 
-		_f = _t->_font;
+		_f = _t->_st->font;
 		QStackTextEngine engine(lineText, _f->f);
 		engine.option.setTextDirection(_parDirection);
 		_e = &engine;
@@ -1356,7 +1296,7 @@ public:
 		currentBlock = _t->_blocks[blockIndex];
 		nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
 
-		int32 textY = _y + _yDelta + _t->_font->ascent, emojiY = (_t->_font->height - st::emojiSize) / 2;
+		int32 textY = _y + _yDelta + _t->_st->font->ascent, emojiY = (_t->_st->font->height - st::emojiSize) / 2;
 
 		eSetFont(currentBlock);
 		if (_p) _p->setPen(blockPen(currentBlock));
@@ -1432,15 +1372,15 @@ public:
 						const QChar *chFrom = _str + currentBlock->from(), *chTo = chFrom + ((nextBlock ? nextBlock->from() : _t->_text.size()) - currentBlock->from());
 						if (_localFrom + si.position >= _selection.from) { // could be without space
 							if (chTo == chFrom || (chTo - 1)->unicode() != QChar::Space || _selection.to >= (chTo - _str)) {
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, si.width.toReal(), _fontHeight), _textStyle->selectBg->b);
+								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, si.width.toReal(), _fontHeight), _p->textPalette().selectBg);
 							} else { // or with space
-								_p->fillRect(QRectF(glyphX.toReal(), _y + _yDelta, currentBlock->f_width().toReal(), _fontHeight), _textStyle->selectBg->b);
+								_p->fillRect(QRectF(glyphX.toReal(), _y + _yDelta, currentBlock->f_width().toReal(), _fontHeight), _p->textPalette().selectBg);
 							}
 						} else if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space && (chTo - 1 - _str) >= _selection.from) {
 							if (rtl) { // rtl space only
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _textStyle->selectBg->b);
+								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
 							} else { // ltr space only
-								_p->fillRect(QRectF((x + currentBlock->f_width()).toReal(), _y + _yDelta, (si.width - currentBlock->f_width()).toReal(), _fontHeight), _textStyle->selectBg->b);
+								_p->fillRect(QRectF((x + currentBlock->f_width()).toReal(), _y + _yDelta, (si.width - currentBlock->f_width()).toReal(), _fontHeight), _p->textPalette().selectBg);
 							}
 						}
 					}
@@ -1563,7 +1503,7 @@ public:
 						}
 					}
 					if (rtl) selX = x + itemWidth - (selX - x) - selWidth;
-					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _textStyle->selectBg->b);
+					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _p->textPalette().selectBg->b);
 				}
 
 				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
@@ -1581,7 +1521,7 @@ public:
 
 		_elideSavedIndex = blockIndex;
 		_elideSavedBlock = _t->_blocks[blockIndex];
-		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->color(), _elideSavedBlock->lnkIndex());
+		const_cast<Text*>(_t)->_blocks[blockIndex] = new TextBlock(_t->_st->font, _t->_text, QFIXED_MAX, elideStart, 0, _elideSavedBlock->flags(), _elideSavedBlock->lnkIndex());
 		_blocksSize = blockIndex + 1;
 		_endBlock = (blockIndex + 1 < _t->_blocks.size() ? _t->_blocks[blockIndex + 1] : 0);
 	}
@@ -1599,7 +1539,7 @@ public:
 	void prepareElidedLine(QString &lineText, int32 lineStart, int32 &lineLength, ITextBlock *&_endBlock, int repeat = 0) {
 		static const QString _Elide = qsl("...");
 
-		_f = _t->_font;
+		_f = _t->_st->font;
 		QStackTextEngine engine(lineText, _f->f);
 		engine.option.setTextDirection(_parDirection);
 		_e = &engine;
@@ -1759,25 +1699,25 @@ public:
 	}
 
 	void eSetFont(ITextBlock *block) {
-		style::font newFont = _t->_font;
+		style::font newFont = _t->_st->font;
 		int flags = block->flags();
 		if (flags) {
-			newFont = applyFlags(flags, _t->_font);
+			newFont = applyFlags(flags, _t->_st->font);
 		}
 		if (block->lnkIndex()) {
 			if (ClickHandler::showAsActive(_t->_links.at(block->lnkIndex() - 1))) {
-				if (_t->_font != _textStyle->linkFlagsOver) {
-					newFont = _textStyle->linkFlagsOver;
+				if (_t->_st->font != _t->_st->linkFontOver) {
+					newFont = _t->_st->linkFontOver;
 				}
 			} else {
-				if (_t->_font != _textStyle->linkFlags) {
-					newFont = _textStyle->linkFlags;
+				if (_t->_st->font != _t->_st->linkFont) {
+					newFont = _t->_st->linkFont;
 				}
 			}
 		}
 		if (newFont != _f) {
-			if (newFont->family() == _t->_font->family()) {
-				newFont = applyFlags(flags | newFont->flags(), _t->_font);
+			if (newFont->family() == _t->_st->font->family()) {
+				newFont = applyFlags(flags | newFont->flags(), _t->_st->font);
 			}
 			_f = newFont;
 			_e->fnt = _f->f;
@@ -2332,7 +2272,7 @@ public:
 
 private:
 
-	QPainter *_p;
+	Painter *_p;
 	const Text *_t;
 	bool _elideLast = false;
 	bool _breakEverywhere = false;
@@ -2389,14 +2329,14 @@ const TextParseOptions _textPlainOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
-Text::Text(int32 minResizeWidth) : _minResizeWidth(minResizeWidth), _maxWidth(0), _minHeight(0), _startDir(Qt::LayoutDirectionAuto) {
+Text::Text(int32 minResizeWidth) : _minResizeWidth(minResizeWidth) {
 }
 
-Text::Text(style::font font, const QString &text, const TextParseOptions &options, int32 minResizeWidth, bool richText) : _minResizeWidth(minResizeWidth) {
+Text::Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options, int32 minResizeWidth, bool richText) : _minResizeWidth(minResizeWidth) {
 	if (richText) {
-		setRichText(font, text, options);
+		setRichText(st, text, options);
 	} else {
-		setText(font, text, options);
+		setText(st, text, options);
 	}
 }
 
@@ -2405,7 +2345,7 @@ Text::Text(const Text &other)
 , _maxWidth(other._maxWidth)
 , _minHeight(other._minHeight)
 , _text(other._text)
-, _font(other._font)
+, _st(other._st)
 , _blocks(other._blocks.size())
 , _links(other._links)
 , _startDir(other._startDir) {
@@ -2419,7 +2359,7 @@ Text::Text(Text &&other)
 , _maxWidth(other._maxWidth)
 , _minHeight(other._minHeight)
 , _text(other._text)
-, _font(other._font)
+, _st(other._st)
 , _blocks(other._blocks)
 , _links(other._links)
 , _startDir(other._startDir) {
@@ -2431,7 +2371,7 @@ Text &Text::operator=(const Text &other) {
 	_maxWidth = other._maxWidth;
 	_minHeight = other._minHeight;
 	_text = other._text;
-	_font = other._font;
+	_st = other._st;
 	_blocks = TextBlocks(other._blocks.size());
 	_links = other._links;
 	_startDir = other._startDir;
@@ -2446,7 +2386,7 @@ Text &Text::operator=(Text &&other) {
 	_maxWidth = other._maxWidth;
 	_minHeight = other._minHeight;
 	_text = other._text;
-	_font = other._font;
+	_st = other._st;
 	_blocks = other._blocks;
 	_links = other._links;
 	_startDir = other._startDir;
@@ -2454,9 +2394,8 @@ Text &Text::operator=(Text &&other) {
 	return *this;
 }
 
-void Text::setText(style::font font, const QString &text, const TextParseOptions &options) {
-	if (!_textStyle) initDefault();
-	_font = font;
+void Text::setText(const style::TextStyle &st, const QString &text, const TextParseOptions &options) {
+	_st = &st;
 	clear();
 	{
 		TextParser parser(this, text, options);
@@ -2474,7 +2413,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		ITextBlock *b = *i;
 		TextBlockType _btype = b->type();
-		int32 blockHeight = countBlockHeight(b, _font);
+		int32 blockHeight = countBlockHeight(b, _st);
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			if (initial) {
@@ -2524,7 +2463,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 		}
 	}
 	if (_width > 0) {
-		if (!lineHeight) lineHeight = countBlockHeight(_blocks.back(), _font);
+		if (!lineHeight) lineHeight = countBlockHeight(_blocks.back(), _st);
 		_minHeight += lineHeight;
 		if (_maxWidth < _width) {
 			_maxWidth = _width;
@@ -2532,9 +2471,8 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	}
 }
 
-void Text::setMarkedText(style::font font, const TextWithEntities &textWithEntities, const TextParseOptions &options) {
-	if (!_textStyle) initDefault();
-	_font = font;
+void Text::setMarkedText(const style::TextStyle &st, const TextWithEntities &textWithEntities, const TextParseOptions &options) {
+	_st = &st;
 	clear();
 	{
 //		QString newText; // utf16 of the text for emoji
@@ -2572,7 +2510,7 @@ void Text::setMarkedText(style::font font, const TextWithEntities &textWithEntit
 	recountNaturalSize(true, options.dir);
 }
 
-void Text::setRichText(style::font font, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
+void Text::setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options, const TextCustomTagsMap &custom) {
 	QString parsed;
 	parsed.reserve(text.size());
 	const QChar *s = text.constData(), *ch = s;
@@ -2647,7 +2585,7 @@ void Text::setRichText(style::font font, const QString &text, TextParseOptions o
 	s = ch;
 
 	options.flags |= TextParseRichText;
-	setText(font, parsed, options);
+	setText(st, parsed, options);
 }
 
 void Text::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
@@ -2671,7 +2609,7 @@ void Text::setSkipBlock(int32 width, int32 height) {
 		_blocks.pop_back();
 	}
 	_text.push_back('_');
-	_blocks.push_back(new SkipBlock(_font, _text, _text.size() - 1, width, height, 0));
+	_blocks.push_back(new SkipBlock(_st->font, _text, _text.size() - 1, width, height, 0));
 	recountNaturalSize(false);
 }
 
@@ -2724,7 +2662,7 @@ void Text::enumerateLines(int w, Callback callback) const {
 	bool longWordLine = true;
 	for_const (auto b, _blocks) {
 		TextBlockType _btype = b->type();
-		int blockHeight = countBlockHeight(b, _font);
+		int blockHeight = countBlockHeight(b, _st);
 
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
@@ -2826,17 +2764,13 @@ void Text::enumerateLines(int w, Callback callback) const {
 	}
 }
 
-void Text::replaceFont(style::font f) {
-	_font = f;
-}
-
-void Text::draw(QPainter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection, bool fullWidthSelection) const {
+void Text::draw(Painter &painter, int32 left, int32 top, int32 w, style::align align, int32 yFrom, int32 yTo, TextSelection selection, bool fullWidthSelection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
 	p.draw(left, top, w, align, yFrom, yTo, selection, fullWidthSelection);
 }
 
-void Text::drawElided(QPainter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
+void Text::drawElided(Painter &painter, int32 left, int32 top, int32 w, int32 lines, style::align align, int32 yFrom, int32 yTo, int32 removeFromEnd, bool breakEverywhere, TextSelection selection) const {
 //	painter.fillRect(QRect(left, top, w, countHeight(w)), QColor(0, 0, 0, 32)); // debug
 	TextPainter p(&painter, this);
 	p.drawElided(left, top, w, align, lines, yFrom, yTo, removeFromEnd, breakEverywhere, selection);

@@ -21,11 +21,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_widget.h"
 
-#include "ui/flatlabel.h"
-#include "ui/widgets/label_simple.h"
-#include "ui/widgets/filled_slider.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/shadow.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/buttons.h"
+#include "ui/effects/ripple_animation.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
 #include "media/player/media_player_button.h"
@@ -39,7 +39,7 @@ namespace Player {
 
 using State = PlayButtonLayout::State;
 
-class Widget::PlayButton : public Button {
+class Widget::PlayButton : public Ui::RippleButton {
 public:
 	PlayButton(QWidget *parent);
 
@@ -53,12 +53,15 @@ public:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
+	QImage prepareRippleMask() const override;
+	QPoint prepareRippleStartPosition() const override;
+
 private:
 	PlayButtonLayout _layout;
 
 };
 
-Widget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
+Widget::PlayButton::PlayButton(QWidget *parent) : Ui::RippleButton(parent, st::mediaPlayerButton.ripple)
 , _layout(st::mediaPlayerButton, [this] { update(); }) {
 	resize(st::mediaPlayerButtonSize);
 	setCursor(style::cur_pointer);
@@ -67,8 +70,18 @@ Widget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
 void Widget::PlayButton::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	paintRipple(p, st::mediaPlayerButton.rippleAreaPosition.x(), st::mediaPlayerButton.rippleAreaPosition.y(), getms());
 	p.translate(st::mediaPlayerButtonPosition.x(), st::mediaPlayerButtonPosition.y());
 	_layout.paint(p, st::mediaPlayerActiveFg);
+}
+
+QImage Widget::PlayButton::prepareRippleMask() const {
+	auto size = QSize(st::mediaPlayerButton.rippleAreaSize, st::mediaPlayerButton.rippleAreaSize);
+	return Ui::RippleAnimation::ellipseMask(size);
+}
+
+QPoint Widget::PlayButton::prepareRippleStartPosition() const {
+	return QPoint(mapFromGlobal(QCursor::pos()) - st::mediaPlayerButton.rippleAreaPosition);
 }
 
 Widget::Widget(QWidget *parent) : TWidget(parent)
@@ -78,11 +91,11 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
-, _shadow(this, st::shadowColor)
-, _playback(new Ui::FilledSlider(this, st::mediaPlayerPlayback)) {
+, _shadow(this, st::shadowFg)
+, _playback(std_::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
-	resize(st::wndMinWidth, st::mediaPlayerHeight + st::lineWidth);
+	resize(width(), st::mediaPlayerHeight + st::lineWidth);
 
 	_nameLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_timeLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -147,7 +160,7 @@ void Widget::updateVolumeToggleIcon() {
 		}
 		return nullptr;
 	};
-	_volumeToggle->setIcon(icon());
+	_volumeToggle->setIconOverride(icon());
 }
 
 void Widget::setCloseCallback(CloseCallback &&callback) {
@@ -179,10 +192,12 @@ void Widget::volumeWidgetCreated(VolumeWidget *widget) {
 	_volumeToggle->installEventFilter(widget);
 }
 
+Widget::~Widget() = default;
+
 void Widget::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
@@ -195,7 +210,7 @@ void Widget::handleSeekProgress(float64 progress) {
 void Widget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 
 	AudioMsgId playing;
@@ -224,7 +239,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto fill = e->rect().intersected(QRect(0, 0, width(), st::mediaPlayerHeight));
 	if (!fill.isEmpty()) {
-		p.fillRect(fill, st::windowBg);
+		p.fillRect(fill, st::mediaPlayerBg);
 	}
 }
 
@@ -286,12 +301,14 @@ void Widget::updateLabelsGeometry() {
 	widthForName -= _timeLabel->width() + 2 * st::normalFont->spacew;
 	_nameLabel->resizeToWidth(widthForName);
 
-	_nameLabel->moveToLeft(left, st::mediaPlayerNameTop - st::mediaPlayerName.font->ascent);
+	_nameLabel->moveToLeft(left, st::mediaPlayerNameTop - st::mediaPlayerName.style.font->ascent);
 	_timeLabel->moveToRight(right, st::mediaPlayerNameTop - st::mediaPlayerTime.font->ascent);
 }
 
 void Widget::updateRepeatTrackIcon() {
-	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatDisabledIcon);
+	auto repeating = instance()->repeatEnabled();
+	_repeatTrack->setIconOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledIcon, repeating ? nullptr : &st::mediaPlayerRepeatDisabledIconOver);
+	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
 void Widget::handleSongUpdate(const UpdatedEvent &e) {
@@ -394,9 +411,11 @@ void Widget::handlePlaylistUpdate() {
 		createPrevNextButtons();
 		auto previousEnabled = (index > 0);
 		auto nextEnabled = (index + 1 < playlist.size());
-		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
+		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPreviousDisabledIcon);
+		_previousTrack->setRippleColorOverride(previousEnabled ? nullptr : &st::mediaPlayerBg);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
-		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
+		_nextTrack->setIconOverride(nextEnabled ? nullptr : &st::mediaPlayerNextDisabledIcon);
+		_nextTrack->setRippleColorOverride(nextEnabled ? nullptr : &st::mediaPlayerBg);
 		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
 	}
 }

@@ -22,18 +22,18 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Shortcuts {
 
-	void start();
-	const QStringList &errors();
+void start();
+const QStringList &errors();
 
-	bool launch(int shortcutId);
-	bool launch(const QString &command);
+bool launch(int shortcutId);
+bool launch(const QString &command);
 
-	// Media shortcuts are not enabled by default, because other
-	// applications also use them. They are enabled only when
-	// the in-app player is active and disabled back after.
-	void enableMediaShortcuts();
-	void disableMediaShortcuts();
+// Media shortcuts are not enabled by default, because other
+// applications also use them. They are enabled only when
+// the in-app player is active and disabled back after.
+void enableMediaShortcuts();
+void disableMediaShortcuts();
 
-	void finish();
+void finish();
 
 }

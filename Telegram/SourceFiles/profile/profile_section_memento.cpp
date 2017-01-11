@@ -25,11 +25,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-Window::SectionWidget *SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
-	auto result = new Widget(parent, _peer);
-	result->setGeometry(geometry);
-	result->setInternalState(this);
-	return result;
+object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
+	auto result = object_ptr<Widget>(parent, _peer);
+	result->setInternalState(geometry, this);
+	return std_::move(result);
 }
 
 } // namespace Profile

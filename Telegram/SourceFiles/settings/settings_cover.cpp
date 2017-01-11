@@ -21,8 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "settings/settings_cover.h"
 
-#include "ui/flatlabel.h"
-#include "ui/buttons/round_button.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "observer_peer.h"
 #include "lang.h"
 #include "application.h"
@@ -32,9 +32,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
 #include "boxes/addcontactbox.h"
-
 #include "styles/style_settings.h"
 #include "styles/style_profile.h" // for divider
+#include "platform/platform_file_dialog.h"
 
 namespace Settings {
 
@@ -42,7 +42,7 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 , _self(App::self())
 , _userpicButton(this, _self)
 , _name(this, st::settingsNameLabel)
-, _editNameInline(this, QString(), st::settingsEditButton)
+, _editNameInline(this, st::settingsEditButton)
 , _setPhoto(this, lang(lng_settings_upload), st::settingsPrimaryButton)
 , _editName(this, lang(lng_settings_edit), st::settingsSecondaryButton) {
 	setAcceptDrops(true);
@@ -50,13 +50,11 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	_name->setSelectable(true);
 	_name->setContextCopyText(lang(lng_profile_copy_fullname));
 
-	_setPhoto->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
-	connect(_setPhoto, SIGNAL(clicked()), this, SLOT(onSetPhoto()));
-	_editName->setTextTransform(Ui::RoundButton::TextTransform::ToUpper);
+	_setPhoto->setClickedCallback(App::LambdaDelayed(st::settingsPrimaryButton.ripple.hideDuration, this, [this] { onSetPhoto(); }));
 	connect(_editName, SIGNAL(clicked()), this, SLOT(onEditName()));
 	connect(_editNameInline, SIGNAL(clicked()), this, SLOT(onEditName()));
 
-	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged;
+	auto observeEvents = Notify::PeerUpdate::Flag::NameChanged | Notify::PeerUpdate::Flag::PhotoChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
@@ -71,11 +69,14 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	validatePhoto();
 
 	refreshNameText();
+
+	subscribe(Global::RefConnectionTypeChanged(), [this] { refreshStatusText(); });
 	refreshStatusText();
 }
 
 PhotoData *CoverWidget::validatePhoto() const {
-	PhotoData *photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
+	auto photo = (_self->photoId && _self->photoId != UnknownPeerPhotoId) ? App::photo(_self->photoId) : nullptr;
+	_userpicButton->setPointerCursor(photo != nullptr && photo->date != 0);
 	if ((_self->photoId == UnknownPeerPhotoId) || (_self->photoId && (!photo || !photo->date))) {
 		App::api()->requestFullPeer(_self);
 		return nullptr;
@@ -123,7 +124,7 @@ int CoverWidget::resizeGetHeight(int newWidth) {
 	newHeight += st::settingsMarginBottom;
 
 	_dividerTop = newHeight;
-	newHeight += st::profileDividerFill.height();
+	newHeight += st::profileDividerLeft.height();
 
 	newHeight += st::settingsBlocksTop;
 
@@ -187,13 +188,12 @@ bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
 	auto &url = urls.at(0);
 	if (!url.isLocalFile()) return false;
 
-	auto file = psConvertFileUrl(url);
+	auto file = Platform::FileDialog::UrlToLocal(url);
 
 	QFileInfo info(file);
 	if (info.isDir()) return false;
 
-	quint64 s = info.size();
-	if (s >= MaxUploadDocumentSize) return false;
+	if (info.size() > App::kImageSizeLimit) return false;
 
 	for (auto &ext : cImgExtensions()) {
 		if (file.endsWith(ext, Qt::CaseInsensitive)) {
@@ -211,7 +211,7 @@ void CoverWidget::dragEnterEvent(QDragEnterEvent *e) {
 	if (!_dropArea) {
 		auto title = lang(lng_profile_drop_area_title);
 		auto subtitle = lang(lng_settings_drop_area_subtitle);
-		_dropArea = new Profile::CoverDropArea(this, title, subtitle);
+		_dropArea.create(this, title, subtitle);
 		resizeDropArea();
 	}
 	_dropArea->showAnimated();
@@ -236,7 +236,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
-				img = App::readImage(psConvertFileUrl(url));
+				img = App::readImage(Platform::FileDialog::UrlToLocal(url));
 			}
 		}
 	}
@@ -250,11 +250,13 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 }
 
 void CoverWidget::paintDivider(Painter &p) {
-	st::profileDividerLeft.paint(p, QPoint(0, _dividerTop), width());
-
-	int toFillLeft = st::profileDividerLeft.width();
-	QRect toFill = rtlrect(toFillLeft, _dividerTop, width() - toFillLeft, st::profileDividerFill.height(), width());
-	st::profileDividerFill.fill(p, toFill);
+	auto dividerHeight = st::profileDividerLeft.height();
+	auto divider = rtlrect(0, _dividerTop, width(), dividerHeight, width());
+	p.fillRect(divider, st::profileDividerBg);
+	auto dividerFillTop = rtlrect(0, _dividerTop, width(), st::profileDividerTop.height(), width());
+	st::profileDividerTop.fill(p, dividerFillTop);
+	auto dividerFillBottom = rtlrect(0, _dividerTop + dividerHeight - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height(), width());
+	st::profileDividerBottom.fill(p, dividerFillBottom);
 }
 
 void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
@@ -264,9 +266,9 @@ void CoverWidget::notifyPeerUpdated(const Notify::PeerUpdate &update) {
 	if (update.flags & Notify::PeerUpdate::Flag::NameChanged) {
 		refreshNameText();
 	}
-	//if (update.flags & UpdateFlag::UserOnlineChanged) { // TODO
-	//	refreshStatusText();
-	//}
+	if (update.flags & Notify::PeerUpdate::Flag::PhotoChanged) {
+		validatePhoto();
+	}
 }
 
 void CoverWidget::refreshNameText() {
@@ -280,7 +282,7 @@ void CoverWidget::refreshStatusText() {
 			_statusText = lang(lng_settings_uploading_photo);
 			_statusTextIsOnline = false;
 			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload = new LinkButton(this, lang(lng_cancel), st::btnDefLink);
+				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
 				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
 				_cancelPhotoUpload->show();
 				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
@@ -291,20 +293,26 @@ void CoverWidget::refreshStatusText() {
 	}
 
 	_cancelPhotoUpload.destroy();
-	_statusText = lang(lng_status_online);
-	_statusTextIsOnline = true;
+	auto state = MTP::dcstate();
+	if (state == MTP::ConnectingState || state == MTP::DisconnectedState || state < 0) {
+		_statusText = lang(lng_status_connecting);
+		_statusTextIsOnline = false;
+	} else {
+		_statusText = lang(lng_status_online);
+		_statusTextIsOnline = true;
+	}
 	update();
 }
 
 void CoverWidget::onSetPhoto() {
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
+	auto imageExtensions = cImgExtensions();
+	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
 
-	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
 }
 
 void CoverWidget::onEditName() {
-	Ui::showLayer(new EditNameTitleBox(self()));
+	Ui::show(Box<EditNameTitleBox>(self()));
 }
 
 void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
@@ -329,13 +337,12 @@ void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) 
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {
 	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		Ui::showLayer(new InformBox(lang(lng_bad_photo)));
+		Ui::show(Box<InformBox>(lang(lng_bad_photo)));
 		return;
 	}
 
-	auto box = new PhotoCropBox(img, _self);
-	connect(box, SIGNAL(closed(LayerWidget*)), this, SLOT(onPhotoUploadStatusChanged()));
-	Ui::showLayer(box);
+	auto box = Ui::show(Box<PhotoCropBox>(img, _self));
+	connect(box, SIGNAL(closed()), this, SLOT(onPhotoUploadStatusChanged()));
 }
 
 void CoverWidget::onPhotoUploadStatusChanged(PeerId peerId) {

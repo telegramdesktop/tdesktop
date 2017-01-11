@@ -51,7 +51,7 @@ struct VideoSoundPart;
 struct AudioPlaybackState {
 	AudioPlayerState state = AudioPlayerStopped;
 	int64 position = 0;
-	int64 duration = 0;
+	TimeMs duration = 0;
 	int32 frequency = 0;
 };
 
@@ -69,7 +69,7 @@ public:
 	// Video player audio stream interface.
 	void initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
-	int64 getVideoCorrectedTime(uint64 playId, int64 frameMs, uint64 systemMs);
+	int64 getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs);
 	AudioPlaybackState currentVideoState(uint64 videoPlayId);
 	void stopFromVideo(uint64 videoPlayId);
 	void pauseFromVideo(uint64 videoPlayId);
@@ -155,8 +155,8 @@ private:
 
 	AudioMsg _videoData;
 	uint64 _lastVideoPlayId = 0;
-	uint64 _lastVideoPlaybackWhen = 0;
-	uint64 _lastVideoPlaybackCorrectedMs = 0;
+	TimeMs _lastVideoPlaybackWhen = 0;
+	TimeMs _lastVideoPlaybackCorrectedMs = 0;
 	QMutex _lastVideoMutex;
 
 	QMutex _mutex;
@@ -257,9 +257,9 @@ private:
 	bool _suppressSong = false;
 	bool _suppressSongAnim = false;
 	bool _songVolumeChanged, _videoVolumeChanged;
-	anim::fvalue _suppressAllGain, _suppressSongGain;
-	uint64 _suppressAllStart = 0;
-	uint64 _suppressSongStart = 0;
+	anim::value _suppressAllGain, _suppressSongGain;
+	TimeMs _suppressAllStart = 0;
+	TimeMs _suppressSongStart = 0;
 
 };
 

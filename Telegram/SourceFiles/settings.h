@@ -102,7 +102,6 @@ struct TWindowPos {
 DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SupportTray);
 DeclareSetting(DBIWorkMode, WorkMode);
-DeclareSetting(DBIDefaultAttach, DefaultAttach);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);
@@ -184,7 +183,7 @@ typedef QMap<EmojiPtr, StickerPack> StickersByEmojiMap;
 
 typedef QVector<DocumentData*> SavedGifs;
 DeclareRefSetting(SavedGifs, SavedGifs);
-DeclareSetting(uint64, LastSavedGifsUpdate);
+DeclareSetting(TimeMs, LastSavedGifsUpdate);
 DeclareSetting(bool, ShowingSavedGifs);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
@@ -198,11 +197,11 @@ DeclareRefSetting(RecentInlineBots, RecentInlineBots);
 DeclareSetting(bool, PasswordRecovered);
 
 DeclareSetting(int32, PasscodeBadTries);
-DeclareSetting(uint64, PasscodeLastTry);
+DeclareSetting(TimeMs, PasscodeLastTry);
 
 inline bool passcodeCanTry() {
 	if (cPasscodeBadTries() < 3) return true;
-	uint64 dt = getms(true) - cPasscodeLastTry();
+	auto dt = getms(true) - cPasscodeLastTry();
 	switch (cPasscodeBadTries()) {
 	case 3: return dt >= 5000;
 	case 4: return dt >= 10000;

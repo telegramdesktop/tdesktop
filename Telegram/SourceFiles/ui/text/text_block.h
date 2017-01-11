@@ -41,8 +41,7 @@ enum TextBlockFlags {
 
 class ITextBlock {
 public:
-
-	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12))/*, _color(color)*/, _lpadding(0) {
+	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)), _lpadding(0) {
 		if (length) {
 			if (str.at(_from + length - 1).unicode() == QChar::Space) {
 				_rpadding = font->spacew;
@@ -91,10 +90,6 @@ public:
 	int32 flags() const {
 		return (_flags & 0xFF);
 	}
-	const style::color &color() const {
-		static style::color tmp;
-		return tmp;//_color;
-	}
 
 	virtual ITextBlock *clone() const = 0;
 	virtual ~ITextBlock() {
@@ -112,7 +107,6 @@ protected:
 
 class NewlineBlock : public ITextBlock {
 public:
-
 	Qt::LayoutDirection nextDirection() const {
 		return _nextDir;
 	}
@@ -122,8 +116,7 @@ public:
 	}
 
 private:
-
-	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length) : ITextBlock(font, str, from, length, 0, st::transparent, 0), _nextDir(Qt::LayoutDirectionAuto) {
+	NewlineBlock(const style::font &font, const QString &str, uint16 from, uint16 length) : ITextBlock(font, str, from, length, 0, 0), _nextDir(Qt::LayoutDirectionAuto) {
 		_flags |= ((TextBlockTNewline & 0x0F) << 8);
 	}
 
@@ -133,6 +126,7 @@ private:
 	friend class TextParser;
 
 	friend class TextPainter;
+
 };
 
 class TextWord {
@@ -176,7 +170,7 @@ public:
 
 private:
 
-	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex);
+	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
 
 	friend class ITextBlock;
 	QFixed real_f_rbearing() const {
@@ -202,7 +196,7 @@ public:
 
 private:
 
-	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, const style::color &color, uint16 lnkIndex, const EmojiData *emoji);
+	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, const EmojiData *emoji);
 
 	const EmojiData *emoji;
 

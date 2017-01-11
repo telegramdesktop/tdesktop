@@ -145,45 +145,50 @@ void Dcenter::destroyKey() {
 }
 
 namespace {
-	ConfigLoader *_configLoader = nullptr;
-	bool loadingConfig = false;
-	void configLoaded(const MTPConfig &result) {
-		loadingConfig = false;
 
-		const auto &data(result.c_config());
+ConfigLoader *_configLoader = nullptr;
+auto loadingConfig = false;
 
-		DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
+void configLoaded(const MTPConfig &result) {
+	loadingConfig = false;
 
-		updateDcOptions(data.vdc_options.c_vector().v);
+	auto &data = result.c_config();
 
-		Global::SetChatSizeMax(data.vchat_size_max.v);
-		Global::SetMegagroupSizeMax(data.vmegagroup_size_max.v);
-		Global::SetForwardedCountMax(data.vforwarded_count_max.v);
-		Global::SetOnlineUpdatePeriod(data.vonline_update_period_ms.v);
-		Global::SetOfflineBlurTimeout(data.voffline_blur_timeout_ms.v);
-		Global::SetOfflineIdleTimeout(data.voffline_idle_timeout_ms.v);
-		Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
-		Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
-		Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
-		Global::SetChatBigSize(data.vchat_big_size.v); // ?
-		Global::SetPushChatPeriod(data.vpush_chat_period_ms.v); // ?
-		Global::SetPushChatLimit(data.vpush_chat_limit.v); // ?
-		Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
-		Global::SetEditTimeLimit(data.vedit_time_limit.v); // ?
-		Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
+	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
-		configLoadedOnce = true;
-		Local::writeSettings();
+	updateDcOptions(data.vdc_options.c_vector().v);
 
-		configLoader()->done();
-	}
-	bool configFailed(const RPCError &error) {
-		if (MTP::isDefaultHandledError(error)) return false;
+	Global::SetChatSizeMax(data.vchat_size_max.v);
+	Global::SetMegagroupSizeMax(data.vmegagroup_size_max.v);
+	Global::SetForwardedCountMax(data.vforwarded_count_max.v);
+	Global::SetOnlineUpdatePeriod(data.vonline_update_period_ms.v);
+	Global::SetOfflineBlurTimeout(data.voffline_blur_timeout_ms.v);
+	Global::SetOfflineIdleTimeout(data.voffline_idle_timeout_ms.v);
+	Global::SetOnlineCloudTimeout(data.vonline_cloud_timeout_ms.v);
+	Global::SetNotifyCloudDelay(data.vnotify_cloud_delay_ms.v);
+	Global::SetNotifyDefaultDelay(data.vnotify_default_delay_ms.v);
+	Global::SetChatBigSize(data.vchat_big_size.v); // ?
+	Global::SetPushChatPeriod(data.vpush_chat_period_ms.v); // ?
+	Global::SetPushChatLimit(data.vpush_chat_limit.v); // ?
+	Global::SetSavedGifsLimit(data.vsaved_gifs_limit.v);
+	Global::SetEditTimeLimit(data.vedit_time_limit.v); // ?
+	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
+	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
 
-		loadingConfig = false;
-		LOG(("MTP Error: failed to get config!"));
-		return false;
-	}
+	configLoadedOnce = true;
+	Local::writeSettings();
+
+	configLoader()->done();
+}
+
+bool configFailed(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	loadingConfig = false;
+	LOG(("MTP Error: failed to get config!"));
+	return false;
+}
+
 };
 
 void updateDcOptions(const QVector<MTPDcOption> &options) {

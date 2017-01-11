@@ -20,14 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "structs.h"
+#include "dialogs/dialogs_common.h"
+#include "ui/effects/send_action_animations.h"
+
 void historyInit();
 
 class HistoryItem;
-
-typedef QMap<int32, HistoryItem*> SelectedItemSet;
-
-#include "structs.h"
-#include "dialogs/dialogs_common.h"
+using SelectedItemSet = QMap<int32, HistoryItem*>;
 
 enum NewMessageType {
 	NewMessageUnread,
@@ -38,14 +38,14 @@ enum NewMessageType {
 class History;
 class Histories {
 public:
-	typedef QHash<PeerId, History*> Map;
+	using Map = QHash<PeerId, History*>;
 	Map map;
 
-	Histories() : _a_typings(animation(this, &Histories::step_typings)), _unreadFull(0), _unreadMuted(0) {
+	Histories() : _a_typings(animation(this, &Histories::step_typings)) {
 	}
 
 	void regSendAction(History *history, UserData *user, const MTPSendMessageAction &action, TimeId when);
-	void step_typings(uint64 ms, bool timer);
+	void step_typings(TimeMs ms, bool timer);
 
 	History *find(const PeerId &peerId);
 	History *findOrInsert(const PeerId &peerId);
@@ -53,15 +53,12 @@ public:
 
 	void clear();
 	void remove(const PeerId &peer);
-	~Histories() {
-		_unreadFull = _unreadMuted = 0;
-	}
 
 	HistoryItem *addNewMessage(const MTPMessage &msg, NewMessageType type);
 
-	typedef QMap<History*, uint64> TypingHistories; // when typing in this history started
+	typedef QMap<History*, TimeMs> TypingHistories; // when typing in this history started
 	TypingHistories typing;
-	Animation _a_typings;
+	BasicAnimation _a_typings;
 
 	int unreadBadge() const;
 	int unreadMutedCount() const {
@@ -82,8 +79,25 @@ public:
 		}
 	}
 
+	void setIsPinned(History *history, bool isPinned);
+	void clearPinned();
+	int pinnedCount() const;
+
+	struct SendActionAnimationUpdate {
+		History *history;
+		int width;
+		int height;
+		bool textUpdated;
+	};
+	base::Observable<SendActionAnimationUpdate> &sendActionAnimationUpdated() {
+		return _sendActionAnimationUpdated;
+	}
+
 private:
-	int _unreadFull, _unreadMuted;
+	int _unreadFull = 0;
+	int _unreadMuted = 0;
+	base::Observable<SendActionAnimationUpdate> _sendActionAnimationUpdated;
+	OrderedSet<History*> _pinnedDialogs;
 
 };
 
@@ -132,27 +146,30 @@ inline MTPMessagesFilter typeToMediaFilter(MediaOverviewType &type) {
 	return MTPMessagesFilter();
 }
 
-enum SendActionType {
-	SendActionTyping,
-	SendActionRecordVideo,
-	SendActionUploadVideo,
-	SendActionRecordVoice,
-	SendActionUploadVoice,
-	SendActionUploadPhoto,
-	SendActionUploadFile,
-	SendActionChooseLocation,
-	SendActionChooseContact,
-	SendActionPlayGame,
-};
-struct SendAction {
-	SendAction(SendActionType type, uint64 until, int32 progress = 0) : type(type), until(until), progress(progress) {
-	}
-	SendActionType type;
-	uint64 until;
-	int32 progress;
+struct TextWithTags {
+	struct Tag {
+		int offset, length;
+		QString id;
+	};
+	using Tags = QVector<Tag>;
+
+	QString text;
+	Tags tags;
 };
 
-using TextWithTags = FlatTextarea::TextWithTags;
+inline bool operator==(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
+	return (a.offset == b.offset) && (a.length == b.length) && (a.id == b.id);
+}
+inline bool operator!=(const TextWithTags::Tag &a, const TextWithTags::Tag &b) {
+	return !(a == b);
+}
+
+inline bool operator==(const TextWithTags &a, const TextWithTags &b) {
+	return (a.text == b.text) && (a.tags == b.tags);
+}
+inline bool operator!=(const TextWithTags &a, const TextWithTags &b) {
+	return !(a == b);
+}
 
 namespace Data {
 struct Draft;
@@ -214,7 +231,6 @@ public:
 	void eraseFromOverview(MediaOverviewType type, MsgId msgId);
 
 	void newItemAdded(HistoryItem *item);
-	void unregTyping(UserData *from);
 
 	int countUnread(MsgId upTo);
 	void updateShowFrom();
@@ -268,6 +284,14 @@ public:
 	void addChatListEntryByLetter(Dialogs::Mode list, QChar letter, Dialogs::Row *row);
 	void updateChatListEntry() const;
 
+	bool isPinnedDialog() const {
+		return (_pinnedIndex > 0);
+	}
+	void setPinnedDialog(bool isPinned);
+	int getPinnedIndex() const {
+		return _pinnedIndex;
+	}
+
 	MsgId minMsgId() const;
 	MsgId maxMsgId() const;
 	MsgId msgIdForRead() const;
@@ -309,7 +333,12 @@ public:
 	}
 
 	void paintDialog(Painter &p, int32 w, bool sel) const;
-	bool updateTyping(uint64 ms, bool force = false);
+	bool updateSendActionNeedsAnimating(TimeMs ms, bool force = false);
+	void unregSendAction(UserData *from);
+	bool updateSendActionNeedsAnimating(UserData *user, const MTPSendMessageAction &action);
+	bool mySendActionUpdated(SendAction::Type type, bool doing);
+	bool paintSendAction(Painter &p, int x, int y, int availableWidth, int outerWidth, style::color color, TimeMs ms);
+
 	void clearLastKeyboard();
 
 	// optimization for userpics displayed on the left
@@ -401,15 +430,6 @@ public:
 
 	mutable const HistoryItem *textCachedFor = nullptr; // cache
 	mutable Text lastItemTextCache;
-
-	using TypingUsers = QMap<UserData*, uint64>;
-	TypingUsers typing;
-	using SendActionUsers = QMap<UserData*, SendAction>;
-	SendActionUsers sendActions;
-	QString typingStr;
-	Text typingText;
-	uint32 typingDots;
-	QMap<SendActionType, uint64> mySendActions;
 
 	typedef QList<MsgId> MediaOverview;
 	MediaOverview overview[OverviewCount];
@@ -545,6 +565,17 @@ private:
 
 	std_::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
 	std_::unique_ptr<Data::Draft> _editDraft;
+
+	using TypingUsers = QMap<UserData*, TimeMs>;
+	TypingUsers _typing;
+	using SendActionUsers = QMap<UserData*, SendAction>;
+	SendActionUsers _sendActions;
+	QString _sendActionString;
+	Text _sendActionText;
+	Ui::SendActionAnimation _sendActionAnimation;
+	QMap<SendAction::Type, TimeMs> _mySendActions;
+
+	int _pinnedIndex = 0; // > 0 for pinned dialogs
 
  };
 

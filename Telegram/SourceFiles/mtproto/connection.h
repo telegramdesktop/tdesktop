@@ -96,12 +96,12 @@ signals:
 	void sessionResetDone();
 
 	void needToSendAsync();
-	void sendAnythingAsync(quint64 msWait);
+	void sendAnythingAsync(qint64 msWait);
 	void sendHttpWaitAsync();
 	void sendPongAsync(quint64 msgId, quint64 pingId);
 	void sendMsgsStateInfoAsync(quint64 msgId, QByteArray data);
-	void resendAsync(quint64 msgId, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
-	void resendManyAsync(QVector<quint64> msgIds, quint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendAsync(quint64 msgId, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
+	void resendManyAsync(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
 	void finished(Connection *connection);
@@ -164,7 +164,13 @@ private:
 	bool sendRequest(mtpRequest &request, bool needAnyResponse, QReadLocker &lockFinished);
 	mtpRequestId wasSent(mtpMsgId msgId) const;
 
-	int32 handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
+	enum class HandleResult {
+		Success,
+		Ignored,
+		RestartConnection,
+		ResetSession,
+	};
+	HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
 	void handleMsgsStates(const QVector<MTPlong> &ids, const std::string &states, QVector<MTPlong> &acked);
 
@@ -174,23 +180,25 @@ private:
 	mutable QReadWriteLock stateConnMutex;
 	int32 _state;
 
-	bool _needSessionReset;
+	bool _needSessionReset = false;
 	void resetSession();
 
-	ShiftedDcId dc;
-	Connection *_owner;
-	AbstractConnection *_conn, *_conn4, *_conn6;
+	ShiftedDcId dc = 0;
+	Connection *_owner = nullptr;
+	AbstractConnection *_conn = nullptr;
+	AbstractConnection *_conn4 = nullptr;
+	AbstractConnection *_conn6 = nullptr;;
 
 	SingleTimer retryTimer; // exp retry timer
-	int retryTimeout;
-	quint64 retryWillFinish;
+	int retryTimeout = 1;
+	qint64 retryWillFinish;
 
 	SingleTimer oldConnectionTimer;
-	bool oldConnection;
+	bool oldConnection = true;
 
 	SingleTimer _waitForConnectedTimer, _waitForReceivedTimer, _waitForIPv4Timer;
 	uint32 _waitForReceived, _waitForConnected;
-	int64 firstSentAt;
+	TimeMs firstSentAt = -1;
 
 	QVector<MTPlong> ackRequestData, resendRequestData;
 
@@ -200,13 +208,14 @@ private:
 	// remove msgs with such ids from sessionData->haveSent, add to sessionData->wereAcked
 	void requestsAcked(const QVector<MTPlong> &ids, bool byResponse = false);
 
-	mtpPingId _pingId, _pingIdToSend;
-	uint64 _pingSendAt;
-	mtpMsgId _pingMsgId;
+	mtpPingId _pingId = 0;
+	mtpPingId _pingIdToSend = 0;
+	TimeMs _pingSendAt = 0;
+	mtpMsgId _pingMsgId = 0;
 	SingleTimer _pingSender;
 
-	void resend(quint64 msgId, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
-	void resendMany(QVector<quint64> msgIds, quint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resend(quint64 msgId, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
+	void resendMany(QVector<quint64> msgIds, qint64 msCanWait = 0, bool forceContainer = false, bool sendMsgStateInfo = false);
 
 	template <typename TRequest>
 	void sendRequestNotSecure(const TRequest &request);
@@ -214,13 +223,14 @@ private:
 	template <typename TResponse>
 	bool readResponseNotSecure(TResponse &response);
 
-	bool restarted, _finished;
+	bool restarted = false;
+	bool _finished = false;
 
-	uint64 keyId;
+	uint64 keyId = 0;
 	QReadWriteLock sessionDataMutex;
-	SessionData *sessionData;
+	SessionData *sessionData = nullptr;
 
-	bool myKeyLock;
+	bool myKeyLock = false;
 	void lockKey();
 	void unlockKey();
 
@@ -228,39 +238,32 @@ private:
 	struct AuthKeyCreateData {
 		AuthKeyCreateData()
 		: new_nonce(*(MTPint256*)((uchar*)new_nonce_buf))
-		, auth_key_aux_hash(*(MTPlong*)((uchar*)new_nonce_buf + 33))
-		, retries(0)
-		, g(0)
-		, req_num(0)
-		, msgs_sent(0) {
-			memset(new_nonce_buf, 0, sizeof(new_nonce_buf));
-			memset(aesKey, 0, sizeof(aesKey));
-			memset(aesIV, 0, sizeof(aesIV));
-			memset(auth_key, 0, sizeof(auth_key));
+		, auth_key_aux_hash(*(MTPlong*)((uchar*)new_nonce_buf + 33)) {
 		}
 		MTPint128 nonce, server_nonce;
-		uchar new_nonce_buf[41]; // 32 bytes new_nonce + 1 check byte + 8 bytes of auth_key_aux_hash
+		uchar new_nonce_buf[41] = { 0 }; // 32 bytes new_nonce + 1 check byte + 8 bytes of auth_key_aux_hash
 		MTPint256 &new_nonce;
 		MTPlong &auth_key_aux_hash;
 
-		uint32 retries;
+		uint32 retries = 0;
 		MTPlong retry_id;
 
-		int32 g;
+		int32 g = 0;
 
-		uchar aesKey[32], aesIV[32];
-		uint32 auth_key[64];
+		uchar aesKey[32] = { 0 };
+		uchar aesIV[32] = { 0 };
+		uint32 auth_key[64] = { 0 };
 		MTPlong auth_key_hash;
 
-		uint32 req_num; // sent not encrypted request number
-		uint32 msgs_sent;
+		uint32 req_num = 0; // sent not encrypted request number
+		uint32 msgs_sent = 0;
 	};
 	struct AuthKeyCreateStrings {
 		QByteArray dh_prime;
 		QByteArray g_a;
 	};
-	AuthKeyCreateData *authKeyData;
-	AuthKeyCreateStrings *authKeyStrings;
+	std_::unique_ptr<AuthKeyCreateData> _authKeyData;
+	std_::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
 
 	void dhClientParamsSend();
 	void authKeyCreated();

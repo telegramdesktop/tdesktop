@@ -119,7 +119,7 @@ public:
 		return insertAt;
 	}
 	inline void push_back(T &&value) {
-		insert(end(), std_::forward<T>(value));
+		insert(end(), std_::move(value));
 	}
 	inline void pop_back() {
 		erase(end() - 1);

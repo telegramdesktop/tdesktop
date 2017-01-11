@@ -22,11 +22,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 
 #include "styles/style_settings.h"
-#include "ui/flatcheckbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 
 namespace Settings {
 
-BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : ScrolledWidget(parent)
+BlockWidget::BlockWidget(QWidget *parent, UserData *self, const QString &title) : TWidget(parent)
 , _self(self)
 , _title(title) {
 }
@@ -43,14 +44,15 @@ int BlockWidget::resizeGetHeight(int newWidth) {
 	int x = contentLeft(), result = contentTop();
 	int availw = newWidth - x;
 	for_const (auto &row, _rows) {
+		auto childMargins = row.child->getMargins();
 		row.child->moveToLeft(x + row.margin.left(), result + row.margin.top(), newWidth);
 		auto availRowWidth = availw - row.margin.left() - row.margin.right() - x;
 		auto natural = row.child->naturalWidth();
 		auto rowWidth = (natural < 0) ? availRowWidth : qMin(natural, availRowWidth);
-		if (row.child->width() != rowWidth) {
+		if (row.child->widthNoMargins() != rowWidth) {
 			row.child->resizeToWidth(rowWidth);
 		}
-		result += row.child->height() + row.margin.top() + row.margin.bottom();
+		result += row.margin.top() + row.child->heightNoMargins() + row.margin.bottom();
 	}
 	result += st::settingsBlockMarginBottom;
 	return result;
@@ -84,18 +86,18 @@ void BlockWidget::rowHeightUpdated() {
 	}
 }
 
-void BlockWidget::createChildRow(ChildWidget<Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
-	child = new Checkbox(this, text, checked, st::defaultBoxCheckbox);
+void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked) {
+	child.create(this, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
-	child = new Radiobutton(this, group, value, text, checked, st::defaultRadiobutton);
+void BlockWidget::createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked) {
+	child .create(this, group, value, text, checked, st::defaultBoxCheckbox);
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(ChildWidget<LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::linkButton &st) {
-	child = new LinkButton(this, text, st);
+void BlockWidget::createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
+	child .create(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }
 

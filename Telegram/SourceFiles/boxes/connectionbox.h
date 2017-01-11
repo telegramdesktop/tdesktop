@@ -20,60 +20,72 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
-class ConnectionBox : public AbstractBox {
+namespace Ui {
+class InputField;
+class PortInput;
+class PasswordInput;
+class Checkbox;
+class Radiobutton;
+} // namespace Ui
+
+class ConnectionBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	ConnectionBox();
+	ConnectionBox(QWidget *parent);
 
-public slots:
+protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
 	void onChange();
 	void onSubmit();
 	void onSave();
 
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
-	void doSetInnerFocus() override;
-
 private:
-	InputField _hostInput;
-	PortInput _portInput;
-	InputField _userInput;
-	PasswordField _passwordInput;
-	Radiobutton _autoRadio, _httpProxyRadio, _tcpProxyRadio;
-	Checkbox _tryIPv6;
+	void updateControlsVisibility();
+	void updateControlsPosition();
 
-	BoxButton _save, _cancel;
+	object_ptr<Ui::InputField> _hostInput;
+	object_ptr<Ui::PortInput> _portInput;
+	object_ptr<Ui::InputField> _userInput;
+	object_ptr<Ui::PasswordInput> _passwordInput;
+	object_ptr<Ui::Radiobutton> _autoRadio;
+	object_ptr<Ui::Radiobutton> _httpProxyRadio;
+	object_ptr<Ui::Radiobutton> _tcpProxyRadio;
+	object_ptr<Ui::Checkbox> _tryIPv6;
 
 };
 
-class AutoDownloadBox : public AbstractBox {
+class AutoDownloadBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	AutoDownloadBox();
-
-public slots:
-	void onSave();
+	AutoDownloadBox(QWidget *parent);
 
 protected:
+	void prepare() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
+private slots:
+	void onSave();
 
 private:
-	Checkbox _photoPrivate, _photoGroups;
-	Checkbox _audioPrivate, _audioGroups;
-	Checkbox _gifPrivate, _gifGroups, _gifPlay;
+	object_ptr<Ui::Checkbox> _photoPrivate;
+	object_ptr<Ui::Checkbox> _photoGroups;
+	object_ptr<Ui::Checkbox> _audioPrivate;
+	object_ptr<Ui::Checkbox> _audioGroups;
+	object_ptr<Ui::Checkbox> _gifPrivate;
+	object_ptr<Ui::Checkbox> _gifGroups;
+	object_ptr<Ui::Checkbox> _gifPlay;
 
-	int32 _sectionHeight;
-
-	BoxButton _save, _cancel;
+	int _sectionHeight = 0;
 
 };

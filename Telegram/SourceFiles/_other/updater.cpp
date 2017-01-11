@@ -468,13 +468,13 @@ static const WCHAR *_exeName = L"Updater.exe";
 LPTOP_LEVEL_EXCEPTION_FILTER _oldWndExceptionFilter = 0;
 
 typedef BOOL (FAR STDAPICALLTYPE *t_miniDumpWriteDump)(
-    _In_ HANDLE hProcess,
-    _In_ DWORD ProcessId,
-    _In_ HANDLE hFile,
-    _In_ MINIDUMP_TYPE DumpType,
-    _In_opt_ PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
-    _In_opt_ PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
-    _In_opt_ PMINIDUMP_CALLBACK_INFORMATION CallbackParam
+	_In_ HANDLE hProcess,
+	_In_ DWORD ProcessId,
+	_In_ HANDLE hFile,
+	_In_ MINIDUMP_TYPE DumpType,
+	_In_opt_ PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,
+	_In_opt_ PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,
+	_In_opt_ PMINIDUMP_CALLBACK_INFORMATION CallbackParam
 );
 t_miniDumpWriteDump miniDumpWriteDump = 0;
 
@@ -483,7 +483,7 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 
 	WCHAR szPath[maxFileLen];
 	wsprintf(szPath, L"%stdata\\", path);
-    if (!CreateDirectory(szPath, NULL)) {
+	if (!CreateDirectory(szPath, NULL)) {
 		if (GetLastError() != ERROR_ALREADY_EXISTS) {
 			return 0;
 		}
@@ -495,7 +495,7 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 		}
 	}
 
-    WCHAR szFileName[maxFileLen];
+	WCHAR szFileName[maxFileLen];
 	WCHAR szExeName[maxFileLen];
 
 	wcscpy_s(szExeName, _exeName);
@@ -504,16 +504,16 @@ HANDLE _generateDumpFileAtPath(const WCHAR *path) {
 		wsprintf(dotFrom, L"");
 	}
 
-    SYSTEMTIME stLocalTime;
+	SYSTEMTIME stLocalTime;
 
-    GetLocalTime(&stLocalTime);
+	GetLocalTime(&stLocalTime);
 
-    wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
-             szPath, szExeName, updaterVersionStr,
-             stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
-             stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
-             GetCurrentProcessId(), GetCurrentThreadId());
-    return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
+	wsprintf(szFileName, L"%s%s-%s-%04d%02d%02d-%02d%02d%02d-%ld-%ld.dmp",
+	         szPath, szExeName, updaterVersionStr,
+	         stLocalTime.wYear, stLocalTime.wMonth, stLocalTime.wDay,
+	         stLocalTime.wHour, stLocalTime.wMinute, stLocalTime.wSecond,
+	         GetCurrentProcessId(), GetCurrentThreadId());
+	return CreateFile(szFileName, GENERIC_READ|GENERIC_WRITE, FILE_SHARE_WRITE|FILE_SHARE_READ, 0, CREATE_ALWAYS, 0, 0);
 }
 
 void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
@@ -553,16 +553,16 @@ void _generateDump(EXCEPTION_POINTERS* pExceptionPointers) {
 	}
 
 	MINIDUMP_EXCEPTION_INFORMATION ExpParam = {0};
-    ExpParam.ThreadId = GetCurrentThreadId();
-    ExpParam.ExceptionPointers = pExceptionPointers;
-    ExpParam.ClientPointers = TRUE;
+	ExpParam.ThreadId = GetCurrentThreadId();
+	ExpParam.ExceptionPointers = pExceptionPointers;
+	ExpParam.ClientPointers = TRUE;
 
-    miniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpWithDataSegs, &ExpParam, NULL, NULL);
+	miniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hDumpFile, MiniDumpWithDataSegs, &ExpParam, NULL, NULL);
 }
 
 LONG CALLBACK _exceptionFilter(EXCEPTION_POINTERS* pExceptionPointers) {
 	_generateDump(pExceptionPointers);
-    return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
+	return _oldWndExceptionFilter ? (*_oldWndExceptionFilter)(pExceptionPointers) : EXCEPTION_CONTINUE_SEARCH;
 }
 
 // see http://www.codeproject.com/Articles/154686/SetUnhandledExceptionFilter-and-the-C-C-Runtime-Li

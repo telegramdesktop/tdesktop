@@ -24,6 +24,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 
 class LayerWidget;
+class BoxContent;
 
 namespace InlineBots {
 namespace Layout {
@@ -32,6 +33,30 @@ class ItemBase;
 } // namespace InlineBots
 
 namespace App {
+namespace internal {
+
+void CallDelayed(int duration, base::lambda<void()> &&lambda);
+
+} // namespace internal
+
+template <int N, typename Lambda>
+inline void CallDelayed(int duration, base::internal::lambda_guard<N, Lambda> &&guarded) {
+	return internal::CallDelayed(duration, [guarded = std_::move(guarded)] { guarded(); });
+}
+
+template <typename Pointer, typename ...PointersAndLambda>
+inline void CallDelayed(int duration, Pointer &&qobject, PointersAndLambda&&... qobjectsAndLambda) {
+	auto guarded = base::lambda_guarded(std_::forward<Pointer>(qobject), std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
+	return CallDelayed(duration, std_::move(guarded));
+}
+
+template <typename ...PointersAndLambda>
+inline base::lambda<void()> LambdaDelayed(int duration, PointersAndLambda&&... qobjectsAndLambda) {
+	auto guarded = base::lambda_guarded(std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
+	return [guarded = std_::move(guarded), duration] {
+		CallDelayed(duration, guarded.clone());
+	};
+}
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo = 0);
 bool insertBotCommand(const QString &cmd, bool specialGif = false);
@@ -52,12 +77,23 @@ void logOutDelayed();
 } // namespace App
 
 namespace Ui {
+namespace internal {
+
+void showBox(object_ptr<BoxContent> content, ShowLayerOptions options);
+
+} // namespace internal
 
 void showMediaPreview(DocumentData *document);
 void showMediaPreview(PhotoData *photo);
 void hideMediaPreview();
 
-void showLayer(LayerWidget *box, ShowLayerOptions options = CloseOtherLayers);
+template <typename BoxType>
+QPointer<BoxType> show(object_ptr<BoxType> content, ShowLayerOptions options = CloseOtherLayers) {
+	auto result = QPointer<BoxType>(content.data());
+	internal::showBox(std_::move(content), options);
+	return result;
+}
+
 void hideLayer(bool fast = false);
 void hideSettingsAndLayer(bool fast = false);
 bool isLayerShown();
@@ -189,7 +225,10 @@ namespace Sandbox {
 bool CheckBetaVersionDir();
 void WorkingDirReady();
 
+void MainThreadTaskAdded();
+
 void start();
+bool started();
 void finish();
 
 uint64 UserTag();
@@ -304,6 +343,7 @@ DeclareVar(int32, PushChatLimit);
 DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
 DeclareVar(int32, StickersRecentLimit);
+DeclareVar(int32, PinnedDialogsCountMax);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);
@@ -313,11 +353,12 @@ DeclareRefVar(PendingItemsMap, PendingRepaintItems);
 
 DeclareVar(Stickers::Sets, StickerSets);
 DeclareVar(Stickers::Order, StickerSetsOrder);
-DeclareVar(uint64, LastStickersUpdate);
-DeclareVar(uint64, LastRecentStickersUpdate);
+DeclareVar(TimeMs, LastStickersUpdate);
+DeclareVar(TimeMs, LastRecentStickersUpdate);
 DeclareVar(Stickers::Order, FeaturedStickerSetsOrder);
 DeclareVar(int, FeaturedStickerSetsUnreadCount);
-DeclareVar(uint64, LastFeaturedStickersUpdate);
+DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
+DeclareVar(TimeMs, LastFeaturedStickersUpdate);
 DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 
 DeclareVar(MTP::DcOptions, DcOptions);
@@ -355,6 +396,8 @@ DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
 
 DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
+DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
+DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
 } // namespace Global
 

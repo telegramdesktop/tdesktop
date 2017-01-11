@@ -25,6 +25,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class IconButton;
+class RoundButton;
+class InputArea;
 } // namespace Ui
 
 namespace Window {
@@ -112,13 +114,13 @@ private:
 	using QueuedNotifications = QList<QueuedNotification>;
 	QueuedNotifications _queuedNotifications;
 
-	FloatAnimation _demoMasterOpacity;
+	Animation _demoMasterOpacity;
 
 };
 
 namespace internal {
 
-class Widget : public TWidget {
+class Widget : public TWidget, protected base::Subscriber {
 public:
 	enum class Direction {
 		Up,
@@ -148,23 +150,20 @@ protected:
 	virtual void updateGeometry(int x, int y, int width, int height);
 
 private:
+	void opacityAnimationCallback();
 	void destroyDelayed();
 	void moveByShift();
-	void hideAnimated(float64 duration, anim::transition func);
-	void step_opacity(float64 ms, bool timer);
+	void hideAnimated(float64 duration, const anim::transition &func);
 	void step_shift(float64 ms, bool timer);
 
 	bool _hiding = false;
 	bool _deleted = false;
-	float64 _opacityDuration;
-	anim::fvalue a_opacity;
-	anim::transition a_func;
 	Animation _a_opacity;
 
 	QPoint _startPosition;
 	Direction _direction;
-	anim::ivalue a_shift;
-	Animation _a_shift;
+	anim::value a_shift;
+	BasicAnimation _a_shift;
 
 };
 
@@ -193,7 +192,7 @@ public:
 		return !_history;
 	}
 	bool isReplying() const {
-		return (_replyArea != nullptr) && !isUnlinked();
+		return _replyArea && !isUnlinked();
 	}
 
 	// Called only by Manager.
@@ -232,11 +231,11 @@ private:
 
 	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
-	FloatAnimation a_actionsOpacity;
+	Animation a_actionsOpacity;
 	QPixmap _buttonsCache;
 
 #if defined Q_OS_WIN && !defined Q_OS_WINRT
-	uint64 _started;
+	TimeMs _started;
 #endif // Q_OS_WIN && !Q_OS_WINRT
 
 	History *_history;
@@ -244,11 +243,11 @@ private:
 	PeerData *_author;
 	HistoryItem *_item;
 	int _forwardedCount;
-	ChildWidget<IconedButton> _close;
-	ChildWidget<BoxButton> _reply;
-	ChildWidget<Background> _background = { nullptr };
-	ChildWidget<InputArea> _replyArea = { nullptr };
-	ChildWidget<Ui::IconButton> _replySend = { nullptr };
+	object_ptr<Ui::IconButton> _close;
+	object_ptr<Ui::RoundButton> _reply;
+	object_ptr<Background> _background = { nullptr };
+	object_ptr<Ui::InputArea> _replyArea = { nullptr };
+	object_ptr<Ui::IconButton> _replySend = { nullptr };
 	bool _waitingForInput = true;
 
 	QTimer _hideTimer;

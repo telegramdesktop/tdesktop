@@ -38,23 +38,26 @@ private slots:
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void onAskQuestion();
 	void onAskQuestionSure();
+	void onUseDefaultTheme();
 	void onTelegramFAQ();
 	void onLogOut();
 
 private:
 	void createControls();
+	void checkNonDefaultTheme();
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
 	void connectionTypeUpdated();
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	void supportGot(const MTPhelp_Support &support);
 
-	ChildWidget<LinkButton> _manageLocalStorage = { nullptr };
+	object_ptr<Ui::LinkButton> _manageLocalStorage = { nullptr };
 #ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-	ChildWidget<LabeledLink> _connectionType = { nullptr };
+	object_ptr<LabeledLink> _connectionType = { nullptr };
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
-	ChildWidget<LinkButton> _askQuestion = { nullptr };
-	ChildWidget<LinkButton> _telegramFAQ = { nullptr };
-	ChildWidget<LinkButton> _logOut = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _useDefaultTheme = { nullptr };
+	object_ptr<Ui::LinkButton> _askQuestion = { nullptr };
+	object_ptr<Ui::LinkButton> _telegramFAQ = { nullptr };
+	object_ptr<Ui::LinkButton> _logOut = { nullptr };
 
 	mtpRequestId _supportGetRequest = 0;
 

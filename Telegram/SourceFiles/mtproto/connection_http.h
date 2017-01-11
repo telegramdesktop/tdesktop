@@ -30,7 +30,6 @@ class HTTPConnection : public AbstractConnection {
 	Q_OBJECT
 
 public:
-
 	HTTPConnection(QThread *thread);
 
 	void sendData(mtpBuffer &buffer) override;
@@ -46,15 +45,13 @@ public:
 
 	QString transport() const override;
 
-	public slots:
-
+public slots:
 	void requestFinished(QNetworkReply *reply);
 
 	static mtpBuffer handleResponse(QNetworkReply *reply);
 	static bool handleError(QNetworkReply *reply); // returnes "maybe bad key"
 
 private:
-
 	enum Status {
 		WaitingHttp = 0,
 		UsingHttp,

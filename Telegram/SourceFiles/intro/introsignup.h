@@ -20,64 +20,59 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include <QtWidgets/QWidget>
-#include "ui/flatbutton.h"
-#include "ui/flatinput.h"
 #include "intro/introwidget.h"
+#include "ui/filedialog.h"
 
-class IntroSignup final : public IntroStep {
+namespace Ui {
+class RoundButton;
+class InputField;
+class NewAvatarButton;
+} // namespace Ui
+
+namespace Intro {
+
+class SignupWidget : public Widget::Step, private base::Subscriber {
 	Q_OBJECT
 
 public:
+	SignupWidget(QWidget *parent, Widget::Data *data);
 
-	IntroSignup(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
-	void step_photo(float64 ms, bool timer);
-
+	void setInnerFocus() override;
 	void activate() override;
 	void cancelled() override;
-	void onSubmit() override;
+	void submit() override;
+	QString nextButtonText() const override;
 
-	void nameSubmitDone(const MTPauth_Authorization &result);
-	bool nameSubmitFail(const RPCError &error);
+protected:
+	void resizeEvent(QResizeEvent *e) override;
 
-public slots:
-
-	void onSubmitName(bool force = false);
+private slots:
 	void onInputChange();
 	void onCheckRequest();
 	void onPhotoReady(const QImage &img);
 
 private:
+	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	void showError(const QString &err);
+	void nameSubmitDone(const MTPauth_Authorization &result);
+	bool nameSubmitFail(const RPCError &error);
+
 	void stopCheck();
 
-	QString error;
-	anim::fvalue a_errorAlpha, a_photoOver;
-	Animation _a_error;
-	Animation _a_photo;
+	QImage _photoImage;
 
-	FlatButton next;
+	object_ptr<Ui::NewAvatarButton> _photo;
+	object_ptr<Ui::InputField> _first;
+	object_ptr<Ui::InputField> _last;
+	QString _firstName, _lastName;
+	mtpRequestId _sentRequest = 0;
 
-	QRect textRect;
+	FileDialog::QueryId _readPhotoFileQueryId = 0;
 
-	bool _photoOver;
-	QImage _photoBig;
-	QPixmap _photoSmall;
-	int32 _phLeft, _phTop;
+	bool _invertOrder = false;
 
-	FlatInput first, last;
-	QString firstName, lastName;
-	mtpRequestId sentRequest;
+	object_ptr<QTimer> _checkRequest;
 
-	bool _invertOrder;
-
-	QTimer checkRequest;
 };
+
+} // namespace Intro

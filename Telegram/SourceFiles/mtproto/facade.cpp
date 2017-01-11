@@ -51,7 +51,7 @@ namespace {
 	RequestMap requestMap;
 	QReadWriteLock requestMapLock;
 
-	typedef QPair<mtpRequestId, uint64> DelayedRequest;
+	typedef QPair<mtpRequestId, TimeMs> DelayedRequest;
 	typedef QList<DelayedRequest> DelayedRequestsList;
 	DelayedRequestsList delayedRequests;
 
@@ -226,7 +226,7 @@ namespace {
 				secs = m.captured(1).toInt();
 //				if (secs >= 60) return false;
 			}
-			uint64 sendAt = getms(true) + secs * 1000 + 10;
+			auto sendAt = getms(true) + secs * 1000 + 10;
 			DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();
 			for (; i != e; ++i) {
 				if (i->first == requestId) return true;
@@ -340,7 +340,6 @@ namespace {
 						}
 					}
 				} else {
-					uint64 at = 0;
 					DelayedRequestsList::iterator i = delayedRequests.begin(), e = delayedRequests.end();
 					for (; i != e; ++i) {
 						if (i->first == requestId) return true;
@@ -359,7 +358,7 @@ namespace {
 		return false;
 	}
 
-	bool _paused = false;
+int PauseLevel = 0;
 
 } // namespace
 
@@ -380,7 +379,20 @@ Session *getSession(ShiftedDcId shiftedDcId) {
 }
 
 bool paused() {
-	return _paused;
+	return PauseLevel > 0;
+}
+
+void pause() {
+	++PauseLevel;
+}
+
+void unpause() {
+	--PauseLevel;
+	if (_started) {
+		for_const (auto session, sessions) {
+			session->unpaused();
+		}
+	}
 }
 
 void registerRequest(mtpRequestId requestId, int32 dcWithShift) {
@@ -587,7 +599,7 @@ GlobalSlotCarrier::GlobalSlotCarrier() {
 }
 
 void GlobalSlotCarrier::checkDelayed() {
-	uint64 now = getms(true);
+	auto now = getms(true);
 	while (!delayedRequests.isEmpty() && now >= delayedRequests.front().second) {
 		mtpRequestId requestId = delayedRequests.front().first;
 		delayedRequests.pop_front();
@@ -686,19 +698,6 @@ void restart(int32 dcMask) {
 	}
 }
 
-void pause() {
-	if (!_started) return;
-	_paused = true;
-}
-
-void unpause() {
-	if (!_started) return;
-	_paused = false;
-	for (Sessions::const_iterator i = sessions.cbegin(), e = sessions.cend(); i != e; ++i) {
-		i.value()->unpaused();
-	}
-}
-
 void configure(int32 dc, int32 user) {
 	if (_started) return;
 	internal::setDC(dc);
@@ -754,7 +753,7 @@ void ping() {
 }
 
 void cancel(mtpRequestId requestId) {
-	if (!_started) return;
+	if (!_started || !requestId) return;
 
 	mtpMsgId msgId = 0;
 	requestsDelays.remove(requestId);

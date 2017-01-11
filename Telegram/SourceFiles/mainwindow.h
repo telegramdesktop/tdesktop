@@ -20,108 +20,89 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "title.h"
 #include "pspecific.h"
-#include "ui/effects/rect_shadow.h"
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
 
 class MediaView;
-class TitleWidget;
 class PasscodeWidget;
-class IntroWidget;
 class MainWidget;
 class LayerStackWidget;
-class LayerWidget;
+class BoxContent;
+
+namespace Intro {
+class Widget;
+} // namespace Intro
 
 namespace Local {
 class ClearManager;
 } // namespace Local
 
-namespace Settings {
-class Widget;
-} // namespace Settings
+namespace Window {
+namespace Theme {
+struct BackgroundUpdate;
+class WarningWidget;
+} // namespace Theme
+} // namespace Window
 
-class ConnectingWidget : public QWidget {
+namespace Ui {
+class LinkButton;
+} // namespace Ui
+
+class ConnectingWidget : public TWidget {
 	Q_OBJECT
 
 public:
 	ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect);
 	void set(const QString &text, const QString &reconnect);
-	void paintEvent(QPaintEvent *e);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
 
 public slots:
 	void onReconnect();
 
 private:
-	Ui::RectShadow _shadow;
 	QString _text;
-	int32 _textWidth;
-	LinkButton _reconnect;
+	int _textWidth = 0;
+	object_ptr<Ui::LinkButton> _reconnect;
 
 };
 
 class MediaPreviewWidget;
 
-class MainWindow : public Platform::MainWindow, private base::Subscriber {
+class MainWindow : public Platform::MainWindow {
 	Q_OBJECT
 
 public:
 	MainWindow();
 	~MainWindow();
 
-	void init();
 	void firstShow();
-
-	QWidget *filedialogParent();
-
-	bool eventFilter(QObject *obj, QEvent *evt);
 
 	void inactivePress(bool inactive);
 	bool inactivePress() const;
 
-	void wStartDrag(QMouseEvent *e);
-	void mouseMoveEvent(QMouseEvent *e);
-	void mouseReleaseEvent(QMouseEvent *e);
-	void closeEvent(QCloseEvent *e);
-
-	void paintEvent(QPaintEvent *e);
-
-	void resizeEvent(QResizeEvent *e);
-
-	void setupPasscode(bool anim);
+	void setupPasscode();
 	void clearPasscode();
 	void checkAutoLockIn(int msec);
-	void setupIntro(bool anim);
-	void setupMain(bool anim, const MTPUser *user = 0);
-	void serviceNotification(const QString &msg, const MTPMessageMedia &media = MTP_messageMediaEmpty(), bool force = false);
+	void setupIntro();
+	void setupMain(const MTPUser *user = 0);
+	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
+	void serviceNotificationLocal(QString text);
 	void sendServiceHistoryRequest();
 	void showDelayedServiceMsgs();
 
 	void mtpStateChanged(int32 dc, int32 state);
 
-	TitleWidget *getTitle();
-
-	HitTestType hitTest(const QPoint &p) const;
-	QRect iconRect() const;
-
-	QRect clientRect() const;
-	QRect photoRect() const;
-
-	IntroWidget *introWidget();
 	MainWidget *mainWidget();
 	PasscodeWidget *passcodeWidget();
 
-	void showPhoto(const PhotoOpenClickHandler *lnk, HistoryItem *item = 0);
-	void showPhoto(PhotoData *photo, HistoryItem *item);
-	void showPhoto(PhotoData *photo, PeerData *item);
-	void showDocument(DocumentData *doc, HistoryItem *item);
-
-	bool doWeReadServerHistory() const;
+	bool doWeReadServerHistory();
 
 	void activate();
 
-	void noIntro(IntroWidget *was);
+	void noIntro(Intro::Widget *was);
 	void noMain(MainWidget *was);
 	void noLayerStack(LayerStackWidget *was);
 	void layerFinishedHide(LayerStackWidget *was);
@@ -149,16 +130,9 @@ public:
 
 	void sendPaths();
 
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
-	void documentUpdated(DocumentData *doc);
-	void changingMsgId(HistoryItem *row, MsgId newId);
+	void changingMsgId(HistoryItem *row, MsgId newId) override;
 
-	bool isActive(bool cached = true) const;
-	void hideMediaview();
-
-	void updateUnreadCounter();
-
-	QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon);
+	QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) override;
 
 	bool contentOverlapped(const QRect &globalRect);
 	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
@@ -168,18 +142,27 @@ public:
 		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
 	}
 
-	void ui_showLayer(LayerWidget *box, ShowLayerOptions options);
+	void showMainMenu();
+	void updateTrayMenu(bool force = false) override;
+
+	void ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options);
 	void ui_hideSettingsAndLayer(ShowLayerOptions options);
 	bool ui_isLayerShown();
-	bool ui_isMediaViewShown();
 	void ui_showMediaPreview(DocumentData *document);
 	void ui_showMediaPreview(PhotoData *photo);
 	void ui_hideMediaPreview();
-	PeerData *ui_getPeerForMouseAction();
+	PeerData *ui_getPeerForMouseAction() override;
+
+protected:
+	bool eventFilter(QObject *o, QEvent *e) override;
+	void closeEvent(QCloseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+	void initHook() override;
+	void updateIsActiveHook() override;
+	void clearWidgetsHook() override;
 
 public slots:
-	void updateIsActive(int timeout = 0);
-
 	void checkAutoLock();
 
 	void showSettings();
@@ -189,7 +172,6 @@ public slots:
 
 	void quitFromTray();
 	void showFromTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
-	bool minimizeToTray();
 	void toggleTray(QSystemTrayIcon::ActivationReason reason = QSystemTrayIcon::Unknown);
 	void toggleDisplayNotifyFromTray();
 
@@ -199,28 +181,21 @@ public slots:
 	void onClearFailed(int task, void *manager);
 
 	void notifyShowNext();
-	void updateTrayMenu(bool force = false);
 
 	void onShowAddContact();
 	void onShowNewGroup();
 	void onShowNewChannel();
 	void onLogout();
-	void onLogoutSure();
-	void updateGlobalMenu(); // for OS X top menu
-
-	void onReActivate();
 
 	void app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button);
 
 signals:
-	void resized(const QSize &size);
 	void tempDirCleared(int task);
 	void tempDirClearFailed(int task);
-	void newAuthorization();
+	void checkNewAuthorization();
 
 private slots:
 	void onStateChanged(Qt::WindowState state);
-	void onSettingsDestroyed(QObject *was);
 
 	void onWindowActiveChanged();
 
@@ -228,56 +203,53 @@ private:
 	void showConnecting(const QString &text, const QString &reconnect = QString());
 	void hideConnecting();
 
+	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
+
 	void updateControlsGeometry();
 
 	QPixmap grabInner();
 
-	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color);
+	void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) override;
 	QImage icon16, icon32, icon64, iconbig16, iconbig32, iconbig64;
 
-	QWidget *centralwidget;
-
-	typedef QPair<QString, MTPMessageMedia> DelayedServiceMsg;
-	QVector<DelayedServiceMsg> _delayedServiceMsgs;
+	struct DelayedServiceMsg {
+		DelayedServiceMsg(const TextWithEntities &message, const MTPMessageMedia &media, int32 date) : message(message), media(media), date(date) {
+		}
+		TextWithEntities message;
+		MTPMessageMedia media;
+		int32 date;
+	};
+	QList<DelayedServiceMsg> _delayedServiceMsgs;
 	mtpRequestId _serviceHistoryRequest = 0;
 
-	TitleWidget *title = nullptr;
-	PasscodeWidget *_passcode = nullptr;
-	IntroWidget *intro = nullptr;
-	MainWidget *main = nullptr;
-	ChildWidget<Settings::Widget> settings = { nullptr };
-	ChildWidget<LayerStackWidget> layerBg = { nullptr };
-	std_::unique_ptr<MediaPreviewWidget> _mediaPreview;
+	object_ptr<PasscodeWidget> _passcode = { nullptr };
+	object_ptr<Intro::Widget> _intro = { nullptr };
+	object_ptr<MainWidget> _main = { nullptr };
+	object_ptr<LayerStackWidget> _layerBg = { nullptr };
+	object_ptr<MediaPreviewWidget> _mediaPreview = { nullptr };
 
-	QTimer _isActiveTimer;
-	bool _isActive = false;
-
-	ChildWidget<ConnectingWidget> _connecting = { nullptr };
+	object_ptr<ConnectingWidget> _connecting = { nullptr };
+	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 	Local::ClearManager *_clearManager = nullptr;
-
-	void clearWidgets();
-
-	bool dragging = false;
-	QPoint dragStart;
 
 	bool _inactivePress = false;
 	QTimer _inactiveTimer;
 
 	SingleTimer _autoLockTimer;
-	uint64 _shouldLockAt = 0;
+	TimeMs _shouldLockAt = 0;
 
-	using NotifyWhenMap = QMap<MsgId, uint64>;
+	using NotifyWhenMap = QMap<MsgId, TimeMs>;
 	using NotifyWhenMaps = QMap<History*, NotifyWhenMap>;
 	NotifyWhenMaps _notifyWhenMaps;
 	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, uint64 when, PeerData *notifyByFrom)
+		NotifyWaiter(MsgId msg, TimeMs when, PeerData *notifyByFrom)
 		: msg(msg)
 		, when(when)
 		, notifyByFrom(notifyByFrom) {
 		}
 		MsgId msg;
-		uint64 when;
+		TimeMs when;
 		PeerData *notifyByFrom;
 	};
 	using NotifyWaiters = QMap<History*, NotifyWaiter>;
@@ -285,11 +257,9 @@ private:
 	NotifyWaiters _notifySettingWaiters;
 	SingleTimer _notifyWaitTimer;
 
-	using NotifyWhenAlert = QMap<uint64, PeerData*>;
+	using NotifyWhenAlert = QMap<TimeMs, PeerData*>;
 	using NotifyWhenAlerts = QMap<History*, NotifyWhenAlert>;
 	NotifyWhenAlerts _notifyWhenAlerts;
-
-	MediaView *_mediaView = nullptr;
 
 };
 

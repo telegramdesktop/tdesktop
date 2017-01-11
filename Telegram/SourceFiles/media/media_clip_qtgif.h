@@ -31,14 +31,14 @@ public:
 
 	QtGifReaderImplementation(FileLocation *location, QByteArray *data);
 
-	ReadResult readFramesTill(int64 frameMs, uint64 systemMs) override;
+	ReadResult readFramesTill(TimeMs frameMs, TimeMs systemMs) override;
 
-	int64 frameRealTime() const override;
-	uint64 framePresentationTime() const override;
+	TimeMs frameRealTime() const override;
+	TimeMs framePresentationTime() const override;
 
 	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
 
-	int64 durationMs() const override;
+	TimeMs durationMs() const override;
 	bool hasAudio() const override {
 		return false;
 	}
@@ -47,7 +47,7 @@ public:
 	void resumeAudio() override {
 	}
 
-	bool start(Mode mode, int64 &positionMs) override;
+	bool start(Mode mode, TimeMs &positionMs) override;
 
 	~QtGifReaderImplementation();
 
@@ -59,8 +59,8 @@ private:
 
 	QImageReader *_reader = nullptr;
 	int _framesLeft = 0;
-	int64 _frameRealTime = 0;
-	int64 _frameTime = 0;
+	TimeMs _frameRealTime = 0;
+	TimeMs _frameTime = 0;
 	int _frameDelay = 0;
 	QImage _frame;
 

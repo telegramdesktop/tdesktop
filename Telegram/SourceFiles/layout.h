@@ -36,7 +36,9 @@ enum RoundCorners {
 	SmallMaskCorners = 0x00, // for images
 	LargeMaskCorners,
 
-	WhiteCorners,
+	BoxCorners,
+	MenuCorners,
+	BotKbOverCorners,
 	StickerCorners,
 	StickerSelectedCorners,
 	SelectedOverlaySmallCorners,
@@ -52,10 +54,10 @@ enum RoundCorners {
 	BotKeyboardDownCorners,
 	PhotoSelectOverlayCorners,
 
-	DocBlueCorners,
-	DocGreenCorners,
-	DocRedCorners,
-	DocYellowCorners,
+	Doc1Corners,
+	Doc2Corners,
+	Doc3Corners,
+	Doc4Corners,
 
 	InShadowCorners, // for photos without bg
 	InSelectedShadowCorners,
@@ -82,18 +84,18 @@ QString formatPlayedText(qint64 played, qint64 duration);
 QString documentName(DocumentData *document);
 TextWithEntities documentNameWithEntities(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
-style::color documentColor(int32 colorIndex);
-style::color documentDarkColor(int32 colorIndex);
-style::color documentOverColor(int32 colorIndex);
-style::color documentSelectedColor(int32 colorIndex);
-RoundCorners documentCorners(int32 colorIndex);
+style::color documentColor(int colorIndex);
+style::color documentDarkColor(int colorIndex);
+style::color documentOverColor(int colorIndex);
+style::color documentSelectedColor(int colorIndex);
+RoundCorners documentCorners(int colorIndex);
 bool documentIsValidMediaFile(const QString &filepath);
 
 class PaintContextBase {
 public:
-	PaintContextBase(uint64 ms, bool selecting) : ms(ms), selecting(selecting) {
+	PaintContextBase(TimeMs ms, bool selecting) : ms(ms), selecting(selecting) {
 	}
-	uint64 ms;
+	TimeMs ms;
 	bool selecting;
 
 };

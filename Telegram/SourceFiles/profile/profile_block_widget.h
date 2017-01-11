@@ -24,11 +24,21 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Profile {
 
-class BlockWidget : public ScrolledWidget, protected base::Subscriber {
+class SectionMemento;
+
+class BlockWidget : public TWidget, protected base::Subscriber {
 	Q_OBJECT
 
 public:
 	BlockWidget(QWidget *parent, PeerData *peer, const QString &title);
+
+	virtual void showFinished() {
+	}
+
+	virtual void saveState(SectionMemento *memento) const {
+	}
+	virtual void restoreState(const SectionMemento *memento) {
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -42,6 +52,7 @@ protected:
 	int resizeGetHeight(int newWidth) override = 0;
 
 	void contentSizeUpdated() {
+		auto oldHeight = height();
 		resizeToWidth(width());
 		emit heightUpdated();
 	}

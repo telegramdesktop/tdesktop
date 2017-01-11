@@ -80,10 +80,10 @@ AbstractFFMpegLoader::~AbstractFFMpegLoader() {
 		avformat_close_input(&fmtContext);
 	}
 	if (ioContext) {
-		av_free(ioContext->buffer);
-		av_free(ioContext);
+		av_freep(&ioContext->buffer);
+		av_freep(&ioContext);
 	} else if (ioBuffer) {
-		av_free(ioBuffer);
+		av_freep(&ioBuffer);
 	}
 	if (fmtContext) avformat_free_context(fmtContext);
 }
@@ -294,10 +294,8 @@ AudioPlayerLoader::ReadResult FFMpegLoader::readFromReadyFrame(QByteArray &resul
 		int64_t dstSamples = av_rescale_rnd(swr_get_delay(swrContext, srcRate) + frame->nb_samples, dstRate, srcRate, AV_ROUND_UP);
 		if (dstSamples > maxResampleSamples) {
 			maxResampleSamples = dstSamples;
-			av_free(dstSamplesData[0]);
-
+			av_freep(&dstSamplesData[0]);
 			if ((res = av_samples_alloc(dstSamplesData, 0, AudioToChannels, maxResampleSamples, AudioToFormat, 1)) < 0) {
-				dstSamplesData[0] = 0;
 				char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 				LOG(("Audio Error: Unable to av_samples_alloc for file '%1', data size '%2', error %3, %4").arg(file.name()).arg(data.size()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 				return ReadResult::Error;

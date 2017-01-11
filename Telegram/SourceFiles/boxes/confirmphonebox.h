@@ -22,9 +22,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 
+namespace Ui {
+class InputField;
 class FlatLabel;
+} // namespace Ui
 
-class ConfirmPhoneBox : public AbstractBox, public RPCSender {
+class ConfirmPhoneBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
@@ -38,17 +41,18 @@ private slots:
 	void onCodeChanged();
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void showAll() override {
-		showChildren();
-	}
-	void doSetInnerFocus() override {
-		_code->setFocus();
-	}
 
 private:
-	ConfirmPhoneBox(QWidget *parent, const QString &phone, const QString &hash);
+	ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash);
+	friend class object_ptr<ConfirmPhoneBox>;
+
+	void checkPhoneAndHash();
+
 	void sendCodeDone(const MTPauth_SentCode &result);
 	bool sendCodeFail(const RPCError &error);
 
@@ -89,16 +93,14 @@ private:
 
 	mtpRequestId _checkCodeRequestId = 0;
 
-	ChildWidget<FlatLabel> _about = { nullptr };
-	ChildWidget<BoxButton> _send = { nullptr };
-	ChildWidget<BoxButton> _cancel = { nullptr };
-	ChildWidget<InputField> _code = { nullptr };
+	object_ptr<Ui::FlatLabel> _about = { nullptr };
+	object_ptr<Ui::InputField> _code = { nullptr };
 
 	// Flag for not calling onTextChanged() recursively.
 	bool _fixing = false;
 	QString _error;
 
 	CallStatus _callStatus;
-	QTimer _callTimer;
+	object_ptr<QTimer> _callTimer;
 
 };

@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "lang.h"
+#include "boxes/emojibox.h"
 
-#include "emojibox.h"
+#include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -71,16 +71,18 @@ namespace {
 	const uint32 replacesCount = sizeof(replaces) / sizeof(EmojiReplace), replacesInRow = 7;
 }
 
-EmojiBox::EmojiBox() : _esize(EmojiSizes[EIndex + 1]) {
-	setBlueTitle(true);
+EmojiBox::EmojiBox(QWidget*) : _esize(EmojiSizes[EIndex + 1]) {
+}
 
+void EmojiBox::prepare() {
+	setTitle(lang(lng_settings_emoji_list));
 	fillBlocks();
 
-	_blockHeight = st::emojiReplaceInnerHeight;
-	
-	resizeMaxHeight(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, st::boxTitleHeight + st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
+	addButton(lang(lng_close), [this] { closeBox(); });
 
-	prepare();
+	_blockHeight = st::emojiReplaceInnerHeight;
+
+	setDimensions(_blocks[0].size() * st::emojiReplaceWidth + 2 * st::emojiReplacePadding, st::emojiReplacePadding + _blocks.size() * st::emojiReplaceHeight + (st::emojiReplaceHeight - _blockHeight) + st::emojiReplacePadding);
 }
 
 void EmojiBox::fillBlocks() {
@@ -115,21 +117,20 @@ void EmojiBox::fillBlocks() {
 
 void EmojiBox::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return) {
-		onClose();
+		closeBox();
 	} else {
-		AbstractBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
 void EmojiBox::paintEvent(QPaintEvent *e) {
+	BoxContent::paintEvent(e);
+
 	Painter p(this);
-	if (paint(p)) return;
 
-	paintTitle(p, lang(lng_settings_emoji_list));
-
-	p.setFont(st::emojiTextFont->f);
-	p.setPen(st::black->p);
-	int32 top = st::boxTitleHeight + st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
+	p.setFont(st::emojiTextFont);
+	p.setPen(st::boxTextFg);
+	auto top = st::emojiReplacePadding + (st::emojiReplaceHeight - _blockHeight) / 2;
 	for (Blocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {

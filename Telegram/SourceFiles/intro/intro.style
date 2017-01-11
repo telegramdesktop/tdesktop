@@ -1,0 +1,171 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
+*/
+using "basic.style";
+using "ui/widgets/widgets.style";
+
+countryRipple: defaultRippleAnimation;
+
+introCoverHeight: 208px;
+introCoverMaxWidth: 880px;
+introCoverIconsMinSkip: 120px;
+introCoverLeft: icon {{ "intro_left", introCoverIconsFg }};
+introCoverRight: icon {{ "intro_right", introCoverIconsFg }};
+introCoverIcon: icon {
+	{ "intro_plane_trace", introCoverPlaneTrace },
+	{ "intro_plane_inner", introCoverPlaneInner },
+	{ "intro_plane_outer", introCoverPlaneOuter },
+	{ "intro_plane_top", introCoverPlaneTop },
+};
+introCoverIconLeft: 50px;
+introCoverIconTop: 46px;
+
+introSettingsSkip: 10px;
+
+introPhotoSize: 76px;
+introPhotoIconPosition: point(23px, 25px);
+introPhotoTop: 10px;
+
+introCoverTitle: FlatLabel(defaultFlatLabel) {
+	textFg: introTitleFg;
+	align: align(center);
+	style: TextStyle(defaultTextStyle) {
+		font: font(22px semibold);
+		linkFont: font(22px semibold);
+		linkFontOver: font(22px semibold underline);
+	}
+}
+introCoverTitleTop: 136px;
+introCoverDescription: FlatLabel(defaultFlatLabel) {
+	textFg: introDescriptionFg;
+	align: align(center);
+	style: TextStyle(defaultTextStyle) {
+		font: font(15px);
+		linkFont: font(15px);
+		linkFontOver: font(15px underline);
+		lineHeight: 24px;
+	}
+}
+introCoverDescriptionTop: 174px;
+introTitle: FlatLabel(defaultFlatLabel) {
+	textFg: introTitleFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+		linkFont: font(17px semibold);
+		linkFontOver: font(17px semibold underline);
+	}
+}
+introTitleTop: 1px;
+introDescription: FlatLabel(defaultFlatLabel) {
+	textFg: introDescriptionFg;
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 20px;
+	}
+}
+introDescriptionTop: 34px;
+
+introLink: defaultLinkButton;
+
+introPlaneWidth: 48px;
+introPlaneHeight: 38px;
+introHeight: 406px;
+introStepTopMin: 76px;
+introStepWidth: 380px;
+introStepHeight: 266px;
+introStepHeightAdd: 30px;
+introStepHeightFull: 590px;
+introSlideDuration: 200;
+introCoverDuration: 200;
+
+introNextButton: RoundButton(defaultActiveButton) {
+	width: 300px;
+	height: 56px;
+
+	textTop: 17px;
+	font: font(17px semibold);
+}
+
+introStepFieldTop: 96px;
+introPhoneTop: 6px;
+introLinkTop: 24px;
+introCountry: InputField(defaultInputField) {
+	textMargins: margins(3px, 27px, 3px, 6px);
+	font: font(16px);
+	width: 300px;
+	heightMin: 61px;
+}
+introCountryCode: InputField(introCountry) {
+	width: 64px;
+	textAlign: align(top);
+}
+introPhone: InputField(introCountry) {
+	textMargins: margins(12px, 27px, 12px, 6px);
+	width: 225px;
+}
+introCode: introCountry;
+introName: introCountry;
+introPassword: introCountry;
+introPasswordTop: 74px;
+introPasswordHintTop: 151px;
+
+introPasswordHint: FlatLabel(introDescription) {
+	textFg: windowFg;
+}
+
+introResetButton: RoundButton(defaultLightButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	textBgOver: attentionButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
+}
+introResetBottom: 20px;
+
+introCountryIcon: icon {{ "intro_country_dropdown", menuIconFg }};
+introCountryIconPosition: point(8px, 37px);
+
+introSelectDelta: 30px;
+
+introErrorTop: 235px;
+introErrorBelowLinkTop: 220px;
+introErrorDuration: 200;
+
+introError: FlatLabel(introDescription) {
+}
+introErrorCentered: FlatLabel(introError) {
+	align: align(center);
+}
+
+introBackButton: IconButton(defaultIconButton) {
+	width: 56px;
+	height: 56px;
+
+	icon: icon {{ "box_button_back", menuIconFg }};
+	iconOver: icon {{ "box_button_back", menuIconFgOver }};
+
+	rippleAreaPosition: point(8px, 8px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+

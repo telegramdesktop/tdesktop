@@ -72,8 +72,6 @@ void SectionWidget::showFinished() {
 	_showAnimation.reset();
 	if (isHidden()) return;
 
-	App::app()->mtpUnpause();
-
 	showChildren();
 	showFinishedHook();
 

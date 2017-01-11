@@ -33,10 +33,10 @@ public:
 	bool paint(Painter &p);
 	void refreshCache();
 
-	using FinishedCallback = base::lambda_unique<void()>;
+	using FinishedCallback = base::lambda<void()>;
 	void setFinishedCallback(FinishedCallback &&callback);
 
-	using UpdatedCallback = base::lambda_unique<void(float64)>;
+	using UpdatedCallback = base::lambda<void(float64)>;
 	void setUpdatedCallback(UpdatedCallback &&callback);
 
 	void show();
@@ -45,6 +45,14 @@ public:
 	void fadeIn(int duration);
 	void fadeOut(int duration);
 
+	void finish() {
+		_animation.finish();
+	}
+
+	bool animating() const {
+		return _animation.animating();
+	}
+
 private:
 	void startAnimation(int duration);
 	void stopAnimation();
@@ -52,7 +60,7 @@ private:
 	void updateCallback();
 
 	TWidget *_widget;
-	FloatAnimation _animation;
+	Animation _animation;
 	QPixmap _cache;
 	bool _visible = false;
 
@@ -67,15 +75,16 @@ class WidgetFadeWrap;
 template <>
 class WidgetFadeWrap<TWidget> : public TWidget {
 public:
-	WidgetFadeWrap(QWidget *parent, TWidget *entity
-		, base::lambda_unique<void()> updateCallback
-		, int duration = st::widgetFadeDuration);
+	WidgetFadeWrap(QWidget *parent
+		, object_ptr<TWidget> entity
+		, int duration = st::widgetFadeDuration
+		, base::lambda<void()> &&updateCallback = base::lambda<void()>());
 
-	void fadeOut() {
-		_animation.fadeOut(_duration);
-	}
-	void fadeIn() {
+	void showAnimated() {
 		_animation.fadeIn(_duration);
+	}
+	void hideAnimated() {
+		_animation.fadeOut(_duration);
 	}
 	void showFast() {
 		_animation.show();
@@ -89,6 +98,9 @@ public:
 			_updateCallback();
 		}
 	}
+	void finishAnimation() {
+		_animation.finish();
+	}
 
 	TWidget *entity() {
 		return _entity;
@@ -98,14 +110,25 @@ public:
 		return _entity;
 	}
 
+	QMargins getMargins() const override {
+		return _entity->getMargins();
+	}
+	int naturalWidth() const override {
+		return _entity->naturalWidth();
+	}
+
+	bool animating() const {
+		return _animation.animating();
+	}
+
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	TWidget *_entity;
+	object_ptr<TWidget> _entity;
 	int _duration;
-	base::lambda_unique<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 
 	FadeAnimation _animation;
 
@@ -114,9 +137,13 @@ private:
 template <typename Widget>
 class WidgetFadeWrap : public WidgetFadeWrap<TWidget> {
 public:
-	WidgetFadeWrap(QWidget *parent, Widget *entity
-		, base::lambda_unique<void()> updateCallback
-		, int duration = st::widgetFadeDuration) : WidgetFadeWrap<TWidget>(parent, entity, std_::move(updateCallback), duration) {
+	WidgetFadeWrap(QWidget *parent
+		, object_ptr<Widget> entity
+		, int duration = st::widgetFadeDuration
+		, base::lambda<void()> &&updateCallback = base::lambda<void()>()) : WidgetFadeWrap<TWidget>(parent
+			, std_::move(entity)
+			, duration
+			, std_::move(updateCallback)) {
 	}
 	Widget *entity() {
 		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());

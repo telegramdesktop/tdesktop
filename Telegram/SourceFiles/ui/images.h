@@ -27,9 +27,16 @@ enum class ImageRoundRadius {
 	Large,
 	Small,
 };
-
-QImage imageBlur(QImage img);
-void imageRound(QImage &img, ImageRoundRadius radius);
+enum class ImageRoundCorner {
+	None        = 0x00,
+	TopLeft     = 0x01,
+	TopRight    = 0x02,
+	BottomLeft  = 0x04,
+	BottomRight = 0x08,
+	All         = 0x0f,
+};
+Q_DECLARE_FLAGS(ImageRoundCorners, ImageRoundCorner);
+Q_DECLARE_OPERATORS_FOR_FLAGS(ImageRoundCorners);
 
 inline uint32 packInt(int32 a) {
 	return (a < 0) ? uint32(int64(a) + 0x100000000LL) : uint32(a);
@@ -113,23 +120,44 @@ inline bool operator!=(const StorageImageLocation &a, const StorageImageLocation
 	return !(a == b);
 }
 
-enum ImagePixOption {
-	ImagePixSmooth = 0x01,
-	ImagePixBlurred = 0x02,
-	ImagePixCircled = 0x04,
-	ImagePixRoundedLarge = 0x08,
-	ImagePixRoundedSmall = 0x10,
+namespace Images {
+
+QImage prepareBlur(QImage image);
+void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All);
+void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners = ImageRoundCorner::All);
+void prepareCircle(QImage &image);
+QImage prepareColored(style::color add, QImage image);
+QImage prepareOpaque(QImage image);
+
+enum class Option {
+	None = 0x000,
+	Smooth = 0x001,
+	Blurred = 0x002,
+	Circled = 0x004,
+	RoundedLarge = 0x008,
+	RoundedSmall = 0x010,
+	RoundedTopLeft = 0x020,
+	RoundedTopRight = 0x040,
+	RoundedBottomLeft = 0x080,
+	RoundedBottomRight = 0x100,
+	Colored = 0x200,
 };
-Q_DECLARE_FLAGS(ImagePixOptions, ImagePixOption);
-Q_DECLARE_OPERATORS_FOR_FLAGS(ImagePixOptions);
-QPixmap imagePix(QImage img, int w, int h, ImagePixOptions options, int outerw, int outerh);
+Q_DECLARE_FLAGS(Options, Option);
+Q_DECLARE_OPERATORS_FOR_FLAGS(Options);
+
+QImage prepare(QImage img, int w, int h, Options options, int outerw, int outerh);
+
+inline QPixmap pixmap(QImage img, int w, int h, Options options, int outerw, int outerh) {
+	return QPixmap::fromImage(prepare(img, w, h, options, outerw, outerh), Qt::ColorOnly);
+}
+
+} // namespace Images
 
 class DelayedStorageImage;
 
 class HistoryItem;
 class Image {
 public:
-
 	Image(const QString &file, QByteArray format = QByteArray());
 	Image(const QByteArray &filecontent, QByteArray format = QByteArray());
 	Image(const QPixmap &pixmap, QByteArray format = QByteArray());
@@ -159,16 +187,17 @@ public:
 	}
 
 	const QPixmap &pix(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixRounded(ImageRoundRadius radius, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixRounded(int32 w = 0, int32 h = 0, ImageRoundRadius radius = ImageRoundRadius::None, ImageRoundCorners corners = ImageRoundCorner::All) const;
 	const QPixmap &pixBlurred(int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixColored(const style::color &add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixBlurredColored(const style::color &add, int32 w = 0, int32 h = 0) const;
-	const QPixmap &pixSingle(ImageRoundRadius radius, int32 w, int32 h, int32 outerw, int32 outerh) const;
-	const QPixmap &pixBlurredSingle(ImageRoundRadius radius, int32 w, int32 h, int32 outerw, int32 outerh) const;
-	QPixmap pixNoCache(int w = 0, int h = 0, ImagePixOptions options = 0, int outerw = -1, int outerh = -1) const;
-	QPixmap pixColoredNoCache(const style::color &add, int32 w = 0, int32 h = 0, bool smooth = false) const;
-	QPixmap pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h = 0) const;
+	const QPixmap &pixColored(style::color add, int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixBlurredColored(style::color add, int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
+	const QPixmap &pixBlurredSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners = ImageRoundCorner::All) const;
+	const QPixmap &pixCircled(int32 w = 0, int32 h = 0) const;
+	const QPixmap &pixBlurredCircled(int32 w = 0, int32 h = 0) const;
+	QPixmap pixNoCache(int w = 0, int h = 0, Images::Options options = 0, int outerw = -1, int outerh = -1) const;
+	QPixmap pixColoredNoCache(style::color add, int32 w = 0, int32 h = 0, bool smooth = false) const;
+	QPixmap pixBlurredColoredNoCache(style::color add, int32 w, int32 h = 0) const;
 
 	int32 width() const {
 		return qMax(countWidth(), 1);
@@ -232,8 +261,7 @@ protected:
 	mutable QPixmap _data;
 
 private:
-
-	typedef QMap<uint64, QPixmap> Sizes;
+	using Sizes = QMap<uint64, QPixmap>;
 	mutable Sizes _sizesCache;
 
 };
@@ -416,6 +444,11 @@ public:
 	ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def = ImagePtr());
 	ImagePtr(int32 width, int32 height) : Parent(internal::getImage(width, height)) {
 	}
+
+	explicit operator bool() const {
+		return (_data != nullptr) && !_data->isNull();
+	}
+
 };
 
 inline QSize shrinkToKeepAspect(int32 width, int32 height, int32 towidth, int32 toheight) {

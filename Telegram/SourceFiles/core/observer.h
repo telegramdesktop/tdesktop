@@ -26,7 +26,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace base {
 namespace internal {
 
-using ObservableCallHandlers = base::lambda_unique<void()>;
+using ObservableCallHandlers = base::lambda<void()>;
 void RegisterPendingObservable(ObservableCallHandlers *handlers);
 void UnregisterActiveObservable(ObservableCallHandlers *handlers);
 void UnregisterObservable(ObservableCallHandlers *handlers);
@@ -36,12 +36,12 @@ using EventParamType = typename base::type_traits<EventType>::parameter_type;
 
 template <typename EventType>
 struct SubscriptionHandlerHelper {
-	using type = base::lambda_unique<void(EventParamType<EventType>)>;
+	using type = base::lambda<void(EventParamType<EventType>)>;
 };
 
 template <>
 struct SubscriptionHandlerHelper<void> {
-	using type = base::lambda_unique<void()>;
+	using type = base::lambda<void()>;
 };
 
 template <typename EventType>
@@ -120,7 +120,7 @@ public:
 		if (!_data) {
 			_data = MakeShared<ObservableData<EventType, Handler>>(this);
 		}
-		return _data->append(std_::forward<Handler>(handler));
+		return _data->append(std_::move(handler));
 	}
 
 private:
@@ -169,7 +169,7 @@ public:
 	}
 
 	Subscription append(Handler &&handler) {
-		auto node = new Node(_observable->_data, std_::forward<Handler>(handler));
+		auto node = new Node(_observable->_data, std_::move(handler));
 		if (_begin) {
 			_end->next = node;
 			node->prev = _end;

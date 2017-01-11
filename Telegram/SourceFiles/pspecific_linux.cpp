@@ -34,6 +34,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include <iostream>
 
+#include <qpa/qplatformnativeinterface.h>
+
 using namespace Platform;
 
 namespace {
@@ -73,13 +75,13 @@ public:
 _PsEventFilter *_psEventFilter = nullptr;
 
 QRect _monitorRect;
-uint64 _monitorLastGot = 0;
+auto _monitorLastGot = 0LL;
 
 } // namespace
 
 QRect psDesktopRect() {
-	uint64 tnow = getms();
-	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
+	auto tnow = getms();
+	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		_monitorRect = QApplication::desktop()->availableGeometry(App::wnd());
 	}
@@ -277,7 +279,7 @@ void psDeleteDir(const QString &dir) {
 
 namespace {
 
-uint64 _lastUserAction = 0;
+auto _lastUserAction = 0LL;
 
 } // namespace
 
@@ -289,7 +291,7 @@ bool psIdleSupported() {
 	return false;
 }
 
-uint64 psIdleTime() {
+TimeMs psIdleTime() {
 	return getms(true) - _lastUserAction;
 }
 
@@ -409,6 +411,31 @@ void finish() {
 void SetWatchingMediaKeys(bool watching) {
 }
 
+bool TransparentWindowsSupported(QPoint globalPosition) {
+	if (auto app = static_cast<QGuiApplication*>(QCoreApplication::instance())) {
+		if (auto native = app->platformNativeInterface()) {
+			if (auto desktop = QApplication::desktop()) {
+				auto index = desktop->screenNumber(globalPosition);
+				auto screens = QGuiApplication::screens();
+				if (auto screen = (index >= 0 && index < screens.size()) ? screens[index] : QGuiApplication::primaryScreen()) {
+					if (native->nativeResourceForScreen(QByteArray("compositingEnabled"), screen)) {
+						return true;
+					}
+
+					static OrderedSet<int> WarnedAbout;
+					if (!WarnedAbout.contains(index)) {
+						WarnedAbout.insert(index);
+						LOG(("WARNING: Compositing is disabled for screen index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
+					}
+				} else {
+					LOG(("WARNING: Could not get screen for index %1 (for position %2,%3)").arg(index).arg(globalPosition.x()).arg(globalPosition.y()));
+				}
+			}
+		}
+	}
+	return false;
+}
+
 namespace ThirdParty {
 
 void start() {
@@ -455,11 +482,17 @@ void psRegisterCustomScheme() {
 		QFile f(file);
 		if (f.open(QIODevice::WriteOnly)) {
 			QString icon = icons + qsl("telegram.png");
-			if (!QFile(icon).exists()) {
+			auto iconExists = QFile(icon).exists();
+			if (Local::oldSettingsVersion() < 10021 && iconExists) {
+				// Icon was changed.
+				if (QFile(icon).remove()) {
+					iconExists = false;
+				}
+			}
+			if (!iconExists) {
 				if (QFile(qsl(":/gui/art/icon256.png")).copy(icon)) {
 					DEBUG_LOG(("App Info: Icon copied to 'tdata'"));
 				}
-
 			}
 
 			QTextStream s(&f);

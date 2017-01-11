@@ -23,12 +23,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace HistoryLayout {
 
 struct PaintContext {
-	PaintContext(uint64 ms, const QRect &clip, TextSelection selection)
+	PaintContext(TimeMs ms, const QRect &clip, TextSelection selection)
 		: ms(ms)
 		, clip(clip)
 		, selection(selection) {
 	}
-	uint64 ms;
+	TimeMs ms;
 	const QRect &clip;
 	TextSelection selection;
 };
@@ -51,5 +51,12 @@ private:
 void paintEmpty(Painter &p, int width, int height);
 
 void serviceColorsUpdated();
+
+enum class BubbleTail {
+	None,
+	Left,
+	Right,
+};
+void paintBubble(Painter &p, QRect rect, int outerWidth, bool selected, bool outbg, BubbleTail tail);
 
 } // namespace HistoryLayout

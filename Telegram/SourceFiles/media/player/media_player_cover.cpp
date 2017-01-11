@@ -21,10 +21,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "media/player/media_player_cover.h"
 
-#include "ui/flatlabel.h"
-#include "ui/widgets/label_simple.h"
-#include "ui/widgets/media_slider.h"
-#include "ui/buttons/icon_button.h"
+#include "ui/widgets/labels.h"
+#include "ui/widgets/continuous_sliders.h"
+#include "ui/widgets/buttons.h"
 #include "media/media_audio.h"
 #include "media/view/media_clip_playback.h"
 #include "media/player/media_player_button.h"
@@ -38,7 +37,7 @@ namespace Player {
 
 using State = PlayButtonLayout::State;
 
-class CoverWidget::PlayButton : public Button {
+class CoverWidget::PlayButton : public Ui::AbstractButton {
 public:
 	PlayButton(QWidget *parent);
 
@@ -57,7 +56,7 @@ private:
 
 };
 
-CoverWidget::PlayButton::PlayButton(QWidget *parent) : Button(parent)
+CoverWidget::PlayButton::PlayButton(QWidget *parent) : Ui::AbstractButton(parent)
 , _layout(st::mediaPlayerPanelButton, [this] { update(); }) {
 	resize(st::mediaPlayerPanelButtonSize);
 	setCursor(style::cur_pointer);
@@ -74,7 +73,7 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _close(this, st::mediaPlayerPanelClose)
-, _playback(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback))
+, _playback(std_::make_unique<Clip::Playback>(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback)))
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _volumeController(this)
@@ -145,7 +144,7 @@ void CoverWidget::setCloseCallback(ButtonCallback &&callback) {
 void CoverWidget::handleSeekProgress(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
@@ -158,7 +157,7 @@ void CoverWidget::handleSeekProgress(float64 progress) {
 void CoverWidget::handleSeekFinished(float64 progress) {
 	if (!_lastDurationMs) return;
 
-	auto positionMs = snap(static_cast<int64>(progress * _lastDurationMs), 0LL, _lastDurationMs);
+	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 
 	AudioMsgId playing;
@@ -230,12 +229,12 @@ void CoverWidget::updatePlayPrevNextPositions() {
 }
 
 void CoverWidget::updateLabelPositions() {
-	_nameLabel->moveToLeft(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerName.font->ascent);
+	_nameLabel->moveToLeft(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerName.style.font->ascent);
 	_timeLabel->moveToRight(st::mediaPlayerPanelPadding, st::mediaPlayerPanelNameTop - st::mediaPlayerTime.font->ascent);
 }
 
 void CoverWidget::updateRepeatTrackIcon() {
-	_repeatTrack->setIcon(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
+	_repeatTrack->setIconOverride(instance()->repeatEnabled() ? nullptr : &st::mediaPlayerRepeatInactiveIcon);
 }
 
 void CoverWidget::handleSongUpdate(const UpdatedEvent &e) {
@@ -339,9 +338,9 @@ void CoverWidget::handlePlaylistUpdate() {
 		createPrevNextButtons();
 		auto previousEnabled = (index > 0);
 		auto nextEnabled = (index + 1 < playlist.size());
-		_previousTrack->setIcon(previousEnabled ? nullptr : &st::mediaPlayerPanelPreviousDisabledIcon);
+		_previousTrack->setIconOverride(previousEnabled ? nullptr : &st::mediaPlayerPanelPreviousDisabledIcon);
 		_previousTrack->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
-		_nextTrack->setIcon(nextEnabled ? nullptr : &st::mediaPlayerPanelNextDisabledIcon);
+		_nextTrack->setIconOverride(nextEnabled ? nullptr : &st::mediaPlayerPanelNextDisabledIcon);
 		_nextTrack->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
 	}
 }
@@ -387,7 +386,7 @@ void CoverWidget::updateVolumeToggleIcon() {
 		}
 		return nullptr;
 	};
-	_volumeToggle->setIcon(icon());
+	_volumeToggle->setIconOverride(icon());
 }
 
 } // namespace Player

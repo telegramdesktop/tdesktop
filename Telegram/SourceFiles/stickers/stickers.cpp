@@ -27,6 +27,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "localstorage.h"
 #include "mainwidget.h"
+#include "mainwindow.h"
+#include "ui/toast/toast.h"
+#include "styles/style_stickers.h"
 
 namespace Stickers {
 namespace {
@@ -78,9 +81,32 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	}
 	Local::writeInstalledStickers();
 	Local::writeArchivedStickers();
-	Ui::showLayer(new StickersBox(archived), KeepOtherLayers);
+
+	Ui::Toast::Config toast;
+	toast.text = lang(lng_stickers_packs_archived);
+	toast.maxWidth = st::stickersToastMaxWidth;
+	toast.padding = st::stickersToastPadding;
+	Ui::Toast::Show(App::wnd(), toast);
+//	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
 
 	emit App::main()->stickersUpdated();
+}
+
+// For testing: Just apply random subset or your sticker sets as archived.
+bool applyArchivedResultFake() {
+	auto sets = QVector<MTPStickerSetCovered>();
+	for (auto &set : Global::RefStickerSets()) {
+		if ((set.flags & MTPDstickerSet::Flag::f_installed) && !(set.flags & MTPDstickerSet_ClientFlag::f_special)) {
+			if (rand_value<uint32>() % 128 < 64) {
+				auto data = MTP_stickerSet(MTP_flags(set.flags | MTPDstickerSet::Flag::f_archived), MTP_long(set.id), MTP_long(set.access), MTP_string(set.title), MTP_string(set.shortName), MTP_int(set.count), MTP_int(set.hash));
+				sets.push_back(MTP_stickerSetCovered(data, MTP_documentEmpty(MTP_long(0))));
+			}
+		}
+	}
+	if (sets.size() > 3) sets = sets.mid(0, 3);
+	auto fakeResult = MTP_messages_stickerSetInstallResultArchive(MTP_vector<MTPStickerSetCovered>(sets));
+	applyArchivedResult(fakeResult.c_messages_stickerSetInstallResultArchive());
+	return true;
 }
 
 void installLocally(uint64 setId) {
@@ -144,7 +170,7 @@ void undoInstallLocally(uint64 setId) {
 	Local::writeInstalledStickers();
 	emit App::main()->stickersUpdated();
 
-	Ui::showLayer(new InformBox(lang(lng_stickers_not_found)), KeepOtherLayers);
+	Ui::show(Box<InformBox>(lang(lng_stickers_not_found)), KeepOtherLayers);
 }
 
 void markFeaturedAsRead(uint64 setId) {
@@ -199,7 +225,10 @@ void FeaturedReader::onReadSets() {
 
 	if (!wrappedIds.empty()) {
 		MTP::send(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds)), rpcDone(&readFeaturedDone));
-		Global::SetFeaturedStickerSetsUnreadCount(count);
+		if (Global::FeaturedStickerSetsUnreadCount() != count) {
+			Global::SetFeaturedStickerSetsUnreadCount(count);
+			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+		}
 	}
 }
 

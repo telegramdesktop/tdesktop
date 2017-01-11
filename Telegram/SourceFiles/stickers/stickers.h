@@ -23,6 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Stickers {
 
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
+bool applyArchivedResultFake(); // For testing.
 void installLocally(uint64 setId);
 void undoInstallLocally(uint64 setId);
 void markFeaturedAsRead(uint64 setId);

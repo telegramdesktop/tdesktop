@@ -156,8 +156,10 @@ namespace {
 }
 
 namespace {
-	uint64 _lastUserAction = 0;
-}
+
+TimeMs _lastUserAction = 0;
+
+} // namespace
 
 void psUserActionDone() {
 	_lastUserAction = getms(true);
@@ -170,7 +172,7 @@ bool psIdleSupported() {
 	return GetLastInputInfo(&lii);
 }
 
-uint64 psIdleTime() {
+TimeMs psIdleTime() {
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	return GetLastInputInfo(&lii) ? (GetTickCount() - lii.dwTime) : (getms(true) - _lastUserAction);
@@ -417,13 +419,15 @@ void psDoCleanup() {
 }
 
 namespace {
+
 QRect _monitorRect;
-uint64 _monitorLastGot = 0;
-}
+TimeMs _monitorLastGot = 0;
+
+} // namespace
 
 QRect psDesktopRect() {
-	uint64 tnow = getms();
-	if (tnow > _monitorLastGot + 1000 || tnow < _monitorLastGot) {
+	auto tnow = getms();
+	if (tnow > _monitorLastGot + 1000LL || tnow < _monitorLastGot) {
 		_monitorLastGot = tnow;
 		HMONITOR hMonitor = MonitorFromWindow(App::wnd()->psHwnd(), MONITOR_DEFAULTTONEAREST);
 		if (hMonitor) {
@@ -732,6 +736,10 @@ void finish() {
 void SetWatchingMediaKeys(bool watching) {
 }
 
+bool TransparentWindowsSupported(QPoint globalPosition) {
+	return true;
+}
+
 namespace ThirdParty {
 
 void start() {
@@ -819,6 +827,12 @@ void psNewVersion() {
 	RegisterCustomScheme();
 	if (Local::oldSettingsVersion() < 8051) {
 		AppUserModelId::checkPinned();
+	}
+	if (Local::oldSettingsVersion() > 0 && Local::oldSettingsVersion() < 10021) {
+		// Reset icons cache, because we've changed the application icon.
+		if (Dlls::SHChangeNotify) {
+			Dlls::SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_IDLIST, nullptr, nullptr);
+		}
 	}
 }
 
@@ -924,7 +938,7 @@ void psUpdateOverlayed(TWidget *widget) {
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, true);
 	widget->update();
 	QEvent e(QEvent::UpdateRequest);
-	widget->event(&e);
+	QGuiApplication::sendEvent(widget, &e);
 	if (!wm) widget->setAttribute(Qt::WA_Mapped, false);
 	if (!wv) widget->setAttribute(Qt::WA_WState_Visible, false);
 }

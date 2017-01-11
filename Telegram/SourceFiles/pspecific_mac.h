@@ -40,7 +40,7 @@ void psDeleteDir(const QString &dir);
 
 void psUserActionDone();
 bool psIdleSupported();
-uint64 psIdleTime();
+TimeMs psIdleTime();
 
 QStringList psInitLogs();
 void psClearInitLogs();
@@ -77,7 +77,6 @@ QAbstractNativeEventFilter *psNativeEventFilter();
 void psNewVersion();
 
 void psUpdateOverlayed(QWidget *widget);
-QString psConvertFileUrl(const QUrl &url);
 
 void psDownloadPathEnableAccess();
 QByteArray psDownloadPathBookmark(const QString &path);

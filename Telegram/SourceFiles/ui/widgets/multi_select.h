@@ -22,11 +22,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_widgets.h"
 
-class InputField;
-
 namespace Ui {
 
-class IconButton;
+class InputField;
+class CrossButton;
+class ScrollArea;
 
 class MultiSelect : public TWidget {
 public:
@@ -36,19 +36,19 @@ public:
 	void setInnerFocus();
 	void clearQuery();
 
-	void setQueryChangedCallback(base::lambda_unique<void(const QString &query)> callback);
-	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
-	void setResizedCallback(base::lambda_unique<void()> callback);
+	void setQueryChangedCallback(base::lambda<void(const QString &query)> &&callback);
+	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> &&callback);
+	void setResizedCallback(base::lambda<void()> &&callback);
 
 	enum class AddItemWay {
 		Default,
 		SkipAnimation,
 	};
-	using PaintRoundImage = base::lambda_unique<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	void addItem(uint64 itemId, const QString &text, const style::color &color, PaintRoundImage paintRoundImage, AddItemWay way = AddItemWay::Default);
+	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
+	void addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage &&paintRoundImage, AddItemWay way = AddItemWay::Default);
 	void setItemText(uint64 itemId, const QString &text);
 
-	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
+	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> &&callback);
 	void removeItem(uint64 itemId);
 
 protected:
@@ -60,39 +60,39 @@ private:
 
 	const style::MultiSelect &_st;
 
-	ChildWidget<ScrollArea> _scroll;
+	object_ptr<Ui::ScrollArea> _scroll;
 
 	class Inner;
-	ChildWidget<Inner> _inner;
+	QPointer<Inner> _inner;
 
-	base::lambda_unique<void()> _resizedCallback;
-	base::lambda_unique<void(const QString &query)> _queryChangedCallback;
+	base::lambda<void()> _resizedCallback;
+	base::lambda<void(const QString &query)> _queryChangedCallback;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class MultiSelect::Inner : public ScrolledWidget {
+class MultiSelect::Inner : public TWidget {
 	Q_OBJECT
 
 public:
-	using ScrollCallback = base::lambda_unique<void(int activeTop, int activeBottom)>;
-	Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback callback);
+	using ScrollCallback = base::lambda<void(int activeTop, int activeBottom)>;
+	Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback &&callback);
 
 	QString getQuery() const;
 	bool setInnerFocus();
 	void clearQuery();
 
-	void setQueryChangedCallback(base::lambda_unique<void(const QString &query)> callback);
-	void setSubmittedCallback(base::lambda_unique<void(bool ctrlShiftEnter)> callback);
+	void setQueryChangedCallback(base::lambda<void(const QString &query)> &&callback);
+	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> &&callback);
 
 	class Item;
 	void addItem(std_::unique_ptr<Item> item, AddItemWay way);
 	void setItemText(uint64 itemId, const QString &text);
 
-	void setItemRemovedCallback(base::lambda_unique<void(uint64 itemId)> callback);
+	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> &&callback);
 	void removeItem(uint64 itemId);
 
-	void setResizedCallback(base::lambda_unique<void(int heightDelta)> callback);
+	void setResizedCallback(base::lambda<void(int heightDelta)> &&callback);
 
 	~Inner();
 
@@ -137,7 +137,7 @@ private:
 	QMargins itemPaintMargins() const;
 
 	const style::MultiSelect &_st;
-	FloatAnimation _iconOpacity;
+	Animation _iconOpacity;
 
 	ScrollCallback _scrollCallback;
 
@@ -153,16 +153,16 @@ private:
 	int _fieldLeft = 0;
 	int _fieldTop = 0;
 	int _fieldWidth = 0;
-	ChildWidget<InputField> _field;
-	ChildWidget<Ui::IconButton> _cancel;
+	object_ptr<Ui::InputField> _field;
+	object_ptr<Ui::CrossButton> _cancel;
 
 	int _newHeight = 0;
-	IntAnimation _height;
+	Animation _height;
 
-	base::lambda_unique<void(const QString &query)> _queryChangedCallback;
-	base::lambda_unique<void(bool ctrlShiftEnter)> _submittedCallback;
-	base::lambda_unique<void(uint64 itemId)> _itemRemovedCallback;
-	base::lambda_unique<void(int heightDelta)> _resizedCallback;
+	base::lambda<void(const QString &query)> _queryChangedCallback;
+	base::lambda<void(bool ctrlShiftEnter)> _submittedCallback;
+	base::lambda<void(uint64 itemId)> _itemRemovedCallback;
+	base::lambda<void(int heightDelta)> _resizedCallback;
 
 };
 

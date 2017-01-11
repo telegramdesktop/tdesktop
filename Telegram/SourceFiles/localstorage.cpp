@@ -26,22 +26,25 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "serialize/serialize_document.h"
 #include "serialize/serialize_common.h"
 #include "data/data_drafts.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "lang.h"
 #include "media/media_audio.h"
+#include "ui/widgets/input_fields.h"
 #include "application.h"
 #include "apiwrap.h"
 
 namespace Local {
 namespace {
 
+constexpr int kThemeFileSizeLimit = 5 * 1024 * 1024;
+
 using FileKey = quint64;
 
-static const char tdfMagic[] = { 'T', 'D', 'F', '$' };
-static const int32 tdfMagicLen = sizeof(tdfMagic);
+constexpr char tdfMagic[] = { 'T', 'D', 'F', '$' };
+constexpr int tdfMagicLen = sizeof(tdfMagic);
 
 QString toFilePart(FileKey val) {
 	QString result;
@@ -68,30 +71,32 @@ bool _userWorking() {
 	return _manager && !_basePath.isEmpty() && !_userBasePath.isEmpty();
 }
 
-enum FileOptions {
-	UserPath = 0x01,
-	SafePath = 0x02,
+enum class FileOption {
+	User = 0x01,
+	Safe = 0x02,
 };
+Q_DECLARE_FLAGS(FileOptions, FileOption);
+Q_DECLARE_OPERATORS_FOR_FLAGS(FileOptions);
 
-bool keyAlreadyUsed(QString &name, int options = UserPath | SafePath) {
+bool keyAlreadyUsed(QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
 	name += '0';
 	if (QFileInfo(name).exists()) return true;
-	if (options & SafePath) {
+	if (options & (FileOption::Safe)) {
 		name[name.size() - 1] = '1';
 		return QFileInfo(name).exists();
 	}
 	return false;
 }
 
-FileKey genKey(int options = UserPath | SafePath) {
-	if (options & UserPath) {
+FileKey genKey(FileOptions options = FileOption::User | FileOption::Safe) {
+	if (options & FileOption::User) {
 		if (!_userWorking()) return 0;
 	} else {
 		if (!_working()) return 0;
 	}
 
 	FileKey result;
-	QString base = (options & UserPath) ? _userBasePath : _basePath, path;
+	QString base = (options & FileOption::User) ? _userBasePath : _basePath, path;
 	path.reserve(base.size() + 0x11);
 	path += base;
 	do {
@@ -103,18 +108,18 @@ FileKey genKey(int options = UserPath | SafePath) {
 	return result;
 }
 
-void clearKey(const FileKey &key, int options = UserPath | SafePath) {
-	if (options & UserPath) {
+void clearKey(const FileKey &key, FileOptions options = FileOption::User | FileOption::Safe) {
+	if (options & FileOption::User) {
 		if (!_userWorking()) return;
 	} else {
 		if (!_working()) return;
 	}
 
-	QString base = (options & UserPath) ? _userBasePath : _basePath, name;
+	QString base = (options & FileOption::User) ? _userBasePath : _basePath, name;
 	name.reserve(base.size() + 0x11);
 	name.append(base).append(toFilePart(key)).append('0');
 	QFile::remove(name);
-	if (options & SafePath) {
+	if (options & FileOption::Safe) {
 		name[name.size() - 1] = '1';
 		QFile::remove(name);
 	}
@@ -193,14 +198,14 @@ struct EncryptedDescriptor {
 };
 
 struct FileWriteDescriptor {
-	FileWriteDescriptor(const FileKey &key, int options = UserPath | SafePath) : dataSize(0) {
+	FileWriteDescriptor(const FileKey &key, FileOptions options = FileOption::User | FileOption::Safe) {
 		init(toFilePart(key), options);
 	}
-	FileWriteDescriptor(const QString &name, int options = UserPath | SafePath) : dataSize(0) {
+	FileWriteDescriptor(const QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
 		init(name, options);
 	}
-	void init(const QString &name, int options) {
-		if (options & UserPath) {
+	void init(const QString &name, FileOptions options) {
+		if (options & FileOption::User) {
 			if (!_userWorking()) return;
 		} else {
 			if (!_working()) return;
@@ -208,9 +213,9 @@ struct FileWriteDescriptor {
 
 		// detect order of read attempts and file version
 		QString toTry[2];
-		toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
-		if (options & SafePath) {
-			toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
+		toTry[0] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '0';
+		if (options & FileOption::Safe) {
+			toTry[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
 			QFileInfo toTry0(toTry[0]);
 			QFileInfo toTry1(toTry[1]);
 			if (toTry0.exists()) {
@@ -295,15 +300,15 @@ struct FileWriteDescriptor {
 	QString toDelete;
 
 	HashMd5 md5;
-	int32 dataSize;
+	int32 dataSize = 0;
 
 	~FileWriteDescriptor() {
 		finish();
 	}
 };
 
-bool readFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath) {
-	if (options & UserPath) {
+bool readFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe) {
+	if (options & FileOption::User) {
 		if (!_userWorking()) return false;
 	} else {
 		if (!_working()) return false;
@@ -311,11 +316,11 @@ bool readFile(FileReadDescriptor &result, const QString &name, int options = Use
 
 	// detect order of read attempts
 	QString toTry[2];
-	toTry[0] = ((options & UserPath) ? _userBasePath : _basePath) + name + '0';
-	if (options & SafePath) {
+	toTry[0] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '0';
+	if (options & FileOption::Safe) {
 		QFileInfo toTry0(toTry[0]);
 		if (toTry0.exists()) {
-			toTry[1] = ((options & UserPath) ? _userBasePath : _basePath) + name + '1';
+			toTry[1] = ((options & FileOption::User) ? _userBasePath : _basePath) + name + '1';
 			QFileInfo toTry1(toTry[1]);
 			if (toTry1.exists()) {
 				QDateTime mod0 = toTry0.lastModified(), mod1 = toTry1.lastModified();
@@ -435,7 +440,7 @@ bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, cons
 	return true;
 }
 
-bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int options = UserPath | SafePath, const MTP::AuthKey &key = _localKey) {
+bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKey &key = _localKey) {
 	if (!readFile(result, name, options)) {
 		return false;
 	}
@@ -465,7 +470,7 @@ bool readEncryptedFile(FileReadDescriptor &result, const QString &name, int opti
 	return true;
 }
 
-bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, int options = UserPath | SafePath, const MTP::AuthKey &key = _localKey) {
+bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKey &key = _localKey) {
 	return readEncryptedFile(result, toFilePart(fkey), options, key);
 }
 
@@ -552,6 +557,7 @@ enum {
 	dbiNativeNotifications = 0x44,
 	dbiNotificationsCount  = 0x45,
 	dbiNotificationsCorner = 0x46,
+	dbiTheme = 0x47,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -591,6 +597,9 @@ FileKey _savedGifsKey = 0;
 
 FileKey _backgroundKey = 0;
 bool _backgroundWasRead = false;
+bool _backgroundCanWrite = true;
+
+FileKey _themeKey = 0;
 
 bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
@@ -1057,6 +1066,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		};
 	} break;
 
+	case dbiTheme: {
+		quint64 themeKey = 0;
+		stream >> themeKey;
+		if (!_checkStreamStatus(stream)) return false;
+
+		_themeKey = themeKey;
+	} break;
+
 	case dbiTryIPv6: {
 		qint32 v;
 		stream >> v;
@@ -1185,7 +1202,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		bool tile = (version < 8005 && !_backgroundKey) ? false : (v == 1);
-		Window::chatBackground()->setTile(tile);
+		Window::Theme::Background()->setTile(tile);
 	} break;
 
 	case dbiAdaptiveForWide: {
@@ -1217,11 +1234,6 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
-
-		switch (v) {
-		case dbidaPhoto: cSetDefaultAttach(dbidaPhoto); break;
-		default: cSetDefaultAttach(dbidaDocument); break;
-		}
 	} break;
 
 	case dbiNotifyView: {
@@ -1610,11 +1622,10 @@ void _writeUserSettings() {
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
-	data.stream << quint32(dbiTileBackground) << qint32(Window::chatBackground()->tile() ? 1 : 0);
+	data.stream << quint32(dbiTileBackground) << qint32(Window::Theme::Background()->tileForSave() ? 1 : 0);
 	data.stream << quint32(dbiAdaptiveForWide) << qint32(Global::AdaptiveForWide() ? 1 : 0);
 	data.stream << quint32(dbiAutoLock) << qint32(Global::AutoLock());
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
-	data.stream << quint32(dbiDefaultAttach) << qint32(cDefaultAttach());
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
 	data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
@@ -1691,7 +1702,7 @@ void _readUserSettings() {
 }
 
 void _writeMtpData() {
-	FileWriteDescriptor mtp(toFilePart(_dataNameKey), SafePath);
+	FileWriteDescriptor mtp(toFilePart(_dataNameKey), FileOption::Safe);
 	if (!_localKey.created()) {
 		LOG(("App Error: localkey not created in _writeMtpData()"));
 		return;
@@ -1709,12 +1720,12 @@ void _writeMtpData() {
 		key->write(data.stream);
 	}
 
-	mtp.writeEncrypted(data, _localKey);
+	mtp.writeEncrypted(data);
 }
 
 void _readMtpData() {
 	FileReadDescriptor mtp;
-	if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), SafePath)) {
+	if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), FileOption::Safe)) {
 		if (_localKey.created()) {
 			_readOldMtpData();
 			_writeMtpData();
@@ -1737,7 +1748,7 @@ void _readMtpData() {
 }
 
 ReadMapState _readMap(const QByteArray &pass) {
-	uint64 ms = getms();
+	auto ms = getms();
 	QByteArray dataNameUtf8 = (cDataFile() + (cTestMode() ? qsl(":/test/") : QString())).toUtf8();
 	FileKey dataNameHash[2];
 	hashMd5(dataNameUtf8.constData(), dataNameUtf8.size(), dataNameHash);
@@ -2074,10 +2085,11 @@ void finish() {
 		_manager->finish();
 		_manager->deleteLater();
 		_manager = 0;
-		delete _localLoader;
-		_localLoader = 0;
+		delete base::take(_localLoader);
 	}
 }
+
+void readTheme();
 
 void start() {
 	t_assert(_manager == 0);
@@ -2089,7 +2101,7 @@ void start() {
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
 	FileReadDescriptor settingsData;
-	if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath)) {
+	if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), FileOption::Safe)) {
 		_readOldSettings();
 		_readOldUserSettings(false); // needed further in _readUserSettings
 		_readOldMtpData(false); // needed further in _readMtpData
@@ -2156,6 +2168,8 @@ void start() {
 
 	_oldSettingsVersion = settingsData.version;
 	_settingsSalt = salt;
+
+	readTheme();
 }
 
 void writeSettings() {
@@ -2166,7 +2180,7 @@ void writeSettings() {
 
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
-	FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), SafePath);
+	FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), FileOption::Safe);
 	if (_settingsSalt.isEmpty() || !_settingsKey.created()) {
 		_settingsSalt.resize(LocalEncryptSaltSize);
 		memset_rand(_settingsSalt.data(), _settingsSalt.size());
@@ -2212,7 +2226,9 @@ void writeSettings() {
 		auto &proxy = Global::ConnectionProxy();
 		size += Serialize::stringSize(proxy.host) + sizeof(qint32) + Serialize::stringSize(proxy.user) + Serialize::stringSize(proxy.password);
 	}
-
+	if (_themeKey) {
+		size += sizeof(quint32) + 2 * sizeof(quint64);
+	}
 	size += sizeof(quint32) + sizeof(qint32) * 7;
 
 	EncryptedDescriptor data(size);
@@ -2242,6 +2258,9 @@ void writeSettings() {
 		data.stream << proxy.host << qint32(proxy.port) << proxy.user << proxy.password;
 	}
 	data.stream << quint32(dbiTryIPv6) << qint32(Global::TryIPv6());
+	if (_themeKey) {
+		data.stream << quint32(dbiTheme) << quint64(_themeKey);
+	}
 
 	TWindowPos pos(cWindowPos());
 	data.stream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
@@ -2345,8 +2364,8 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 			_writeMap(WriteMapFast);
 		}
 
-		auto msgTags = FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
-		auto editTags = FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
+		auto msgTags = Ui::FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
+		auto editTags = Ui::FlatTextarea::serializeTagsList(editDraft.textWithTags.tags);
 
 		int size = sizeof(quint64);
 		size += Serialize::stringSize(localDraft.textWithTags.text) + Serialize::bytearraySize(msgTags) + 2 * sizeof(qint32);
@@ -2452,8 +2471,8 @@ void readDraftsWithCursors(History *h) {
 		return;
 	}
 
-	msgData.tags = FlatTextarea::deserializeTagsList(msgTagsSerialized, msgData.text.size());
-	editData.tags = FlatTextarea::deserializeTagsList(editTagsSerialized, editData.text.size());
+	msgData.tags = Ui::FlatTextarea::deserializeTagsList(msgTagsSerialized, msgData.text.size());
+	editData.tags = Ui::FlatTextarea::deserializeTagsList(editTagsSerialized, editData.text.size());
 
 	MessageCursor msgCursor, editCursor;
 	_readDraftCursors(peer, msgCursor, editCursor);
@@ -2604,7 +2623,7 @@ void writeImage(const StorageKey &location, const StorageImageSaved &image, bool
 	qint32 size = _storageImageSize(image.data.size());
 	StorageMap::const_iterator i = _imagesMap.constFind(location);
 	if (i == _imagesMap.cend()) {
-		i = _imagesMap.insert(location, FileDesc(genKey(UserPath), size));
+		i = _imagesMap.insert(location, FileDesc(genKey(FileOption::User), size));
 		_storageImagesSize += size;
 		_mapChanged = true;
 		_writeMap();
@@ -2613,7 +2632,7 @@ void writeImage(const StorageKey &location, const StorageImageSaved &image, bool
 	}
 	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + image.data.size());
 	data.stream << quint64(location.first) << quint64(location.second) << quint32(image.type) << image.data;
-	FileWriteDescriptor file(i.value().first, UserPath);
+	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
 	if (i.value().second != size) {
 		_storageImagesSize += size;
@@ -2630,7 +2649,7 @@ public:
 	}
 	void process() {
 		FileReadDescriptor image;
-		if (!readEncryptedFile(image, _key, UserPath)) {
+		if (!readEncryptedFile(image, _key, FileOption::User)) {
 			return;
 		}
 
@@ -2701,7 +2720,7 @@ public:
 	void clearInMap() {
 		StorageMap::iterator j = _imagesMap.find(_location);
 		if (j != _imagesMap.cend() && j->first == _key) {
-			clearKey(_key, UserPath);
+			clearKey(_key, FileOption::User);
 			_storageImagesSize -= j->second;
 			_imagesMap.erase(j);
 		}
@@ -2713,7 +2732,7 @@ TaskId startImageLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _imagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new ImageLoadTask(j->first, location, loader));
+	return _localLoader->addTask(MakeShared<ImageLoadTask>(j->first, location, loader));
 }
 
 int32 hasImages() {
@@ -2730,7 +2749,7 @@ void writeStickerImage(const StorageKey &location, const QByteArray &sticker, bo
 	qint32 size = _storageStickerSize(sticker.size());
 	StorageMap::const_iterator i = _stickerImagesMap.constFind(location);
 	if (i == _stickerImagesMap.cend()) {
-		i = _stickerImagesMap.insert(location, FileDesc(genKey(UserPath), size));
+		i = _stickerImagesMap.insert(location, FileDesc(genKey(FileOption::User), size));
 		_storageStickersSize += size;
 		_mapChanged = true;
 		_writeMap();
@@ -2739,7 +2758,7 @@ void writeStickerImage(const StorageKey &location, const QByteArray &sticker, bo
 	}
 	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + sticker.size());
 	data.stream << quint64(location.first) << quint64(location.second) << sticker;
-	FileWriteDescriptor file(i.value().first, UserPath);
+	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
 	if (i.value().second != size) {
 		_storageStickersSize += size;
@@ -2760,7 +2779,7 @@ public:
 	void clearInMap() {
 		auto j = _stickerImagesMap.find(_location);
 		if (j != _stickerImagesMap.cend() && j->first == _key) {
-			clearKey(j.value().first, UserPath);
+			clearKey(j.value().first, FileOption::User);
 			_storageStickersSize -= j.value().second;
 			_stickerImagesMap.erase(j);
 		}
@@ -2772,7 +2791,7 @@ TaskId startStickerImageLoad(const StorageKey &location, mtpFileLoader *loader) 
 	if (j == _stickerImagesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new StickerImageLoadTask(j->first, location, loader));
+	return _localLoader->addTask(MakeShared<StickerImageLoadTask>(j->first, location, loader));
 }
 
 bool willStickerImageLoad(const StorageKey &location) {
@@ -2804,7 +2823,7 @@ void writeAudio(const StorageKey &location, const QByteArray &audio, bool overwr
 	qint32 size = _storageAudioSize(audio.size());
 	StorageMap::const_iterator i = _audiosMap.constFind(location);
 	if (i == _audiosMap.cend()) {
-		i = _audiosMap.insert(location, FileDesc(genKey(UserPath), size));
+		i = _audiosMap.insert(location, FileDesc(genKey(FileOption::User), size));
 		_storageAudiosSize += size;
 		_mapChanged = true;
 		_writeMap();
@@ -2813,7 +2832,7 @@ void writeAudio(const StorageKey &location, const QByteArray &audio, bool overwr
 	}
 	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + audio.size());
 	data.stream << quint64(location.first) << quint64(location.second) << audio;
-	FileWriteDescriptor file(i.value().first, UserPath);
+	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
 	if (i.value().second != size) {
 		_storageAudiosSize += size;
@@ -2834,7 +2853,7 @@ public:
 	void clearInMap() {
 		auto j = _audiosMap.find(_location);
 		if (j != _audiosMap.cend() && j->first == _key) {
-			clearKey(j.value().first, UserPath);
+			clearKey(j.value().first, FileOption::User);
 			_storageAudiosSize -= j.value().second;
 			_audiosMap.erase(j);
 		}
@@ -2846,7 +2865,7 @@ TaskId startAudioLoad(const StorageKey &location, mtpFileLoader *loader) {
 	if (j == _audiosMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new AudioLoadTask(j->first, location, loader));
+	return _localLoader->addTask(MakeShared<AudioLoadTask>(j->first, location, loader));
 }
 
 bool copyAudio(const StorageKey &oldLocation, const StorageKey &newLocation) {
@@ -2882,7 +2901,7 @@ void writeWebFile(const QString &url, const QByteArray &content, bool overwrite)
 	qint32 size = _storageWebFileSize(url, content.size());
 	WebFilesMap::const_iterator i = _webFilesMap.constFind(url);
 	if (i == _webFilesMap.cend()) {
-		i = _webFilesMap.insert(url, FileDesc(genKey(UserPath), size));
+		i = _webFilesMap.insert(url, FileDesc(genKey(FileOption::User), size));
 		_storageWebFilesSize += size;
 		_writeLocations();
 	} else if (!overwrite) {
@@ -2890,7 +2909,7 @@ void writeWebFile(const QString &url, const QByteArray &content, bool overwrite)
 	}
 	EncryptedDescriptor data(Serialize::stringSize(url) + sizeof(quint32) + sizeof(quint32) + content.size());
 	data.stream << url << content;
-	FileWriteDescriptor file(i.value().first, UserPath);
+	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
 	if (i.value().second != size) {
 		_storageWebFilesSize += size;
@@ -2909,7 +2928,7 @@ public:
 	}
 	void process() {
 		FileReadDescriptor image;
-		if (!readEncryptedFile(image, _key, UserPath)) {
+		if (!readEncryptedFile(image, _key, FileOption::User)) {
 			return;
 		}
 
@@ -2925,7 +2944,7 @@ public:
 		} else {
 			WebFilesMap::iterator j = _webFilesMap.find(_url);
 			if (j != _webFilesMap.cend() && j->first == _key) {
-				clearKey(j.value().first, UserPath);
+				clearKey(j.value().first, FileOption::User);
 				_storageWebFilesSize -= j.value().second;
 				_webFilesMap.erase(j);
 			}
@@ -2961,7 +2980,7 @@ TaskId startWebFileLoad(const QString &url, webFileLoader *loader) {
 	if (j == _webFilesMap.cend() || !_localLoader) {
 		return 0;
 	}
-	return _localLoader->addTask(new WebFileLoadTask(j->first, url, loader));
+	return _localLoader->addTask(MakeShared<WebFileLoadTask>(j->first, url, loader));
 }
 
 int32 hasWebFiles() {
@@ -3037,7 +3056,7 @@ void countVoiceWaveform(DocumentData *document) {
 		if (_localLoader) {
 			voice->waveform.resize(1 + sizeof(TaskId));
 			voice->waveform[0] = -1; // counting
-			TaskId taskId = _localLoader->addTask(new CountWaveformTask(document));
+			TaskId taskId = _localLoader->addTask(MakeShared<CountWaveformTask>(document));
 			memcpy(voice->waveform.data() + 1, &taskId, sizeof(taskId));
 		}
 	}
@@ -3199,7 +3218,7 @@ void _readStickerSets(FileKey &stickersKey, Stickers::Order *outOrder = nullptr,
 				outOrder->push_front(setId);
 			}
 		} else if (setId == Stickers::CustomSetId) {
-			setTitle = lang(lng_custom_stickers);
+			setTitle = qsl("Custom stickers");
 			setFlags |= qFlags(MTPDstickerSet_ClientFlag::f_special);
 		} else if (setId == Stickers::CloudRecentSetId) {
 			setTitle = lang(lng_recent_stickers);
@@ -3379,7 +3398,7 @@ void importOldRecentStickers() {
 	recent.clear();
 
 	auto &def = sets.insert(Stickers::DefaultSetId, Stickers::Set(Stickers::DefaultSetId, 0, lang(lng_stickers_default_set), QString(), 0, 0, MTPDstickerSet::Flag::f_official | MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
-	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, lang(lng_custom_stickers), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
+	auto &custom = sets.insert(Stickers::CustomSetId, Stickers::Set(Stickers::CustomSetId, 0, qsl("Custom stickers"), QString(), 0, 0, MTPDstickerSet::Flag::f_installed | MTPDstickerSet_ClientFlag::f_special)).value();
 
 	QMap<uint64, bool> read;
 	while (!stickers.stream.atEnd()) {
@@ -3455,7 +3474,10 @@ void readFeaturedStickers() {
 			++unreadCount;
 		}
 	}
-	Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+	if (Global::FeaturedStickerSetsUnreadCount() != unreadCount) {
+		Global::SetFeaturedStickerSetsUnreadCount(unreadCount);
+		Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+	}
 }
 
 void readRecentStickers() {
@@ -3592,11 +3614,11 @@ void readSavedGifs() {
 }
 
 void writeBackground(int32 id, const QImage &img) {
-	if (!_working()) return;
+	if (!_working() || !_backgroundCanWrite) return;
 
-	QByteArray png;
+	QByteArray bmp;
 	if (!img.isNull()) {
-		QBuffer buf(&png);
+		QBuffer buf(&bmp);
 		if (!img.save(&buf, "BMP")) return;
 	}
 	if (!_backgroundKey) {
@@ -3604,17 +3626,18 @@ void writeBackground(int32 id, const QImage &img) {
 		_mapChanged = true;
 		_writeMap(WriteMapFast);
 	}
-	quint32 size = sizeof(qint32) + sizeof(quint32) + (png.isEmpty() ? 0 : (sizeof(quint32) + png.size()));
+	quint32 size = sizeof(qint32) + sizeof(quint32) + (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
 	EncryptedDescriptor data(size);
-	data.stream << qint32(id);
-	if (!png.isEmpty()) data.stream << png;
+	data.stream << qint32(id) << bmp;
 
 	FileWriteDescriptor file(_backgroundKey);
 	file.writeEncrypted(data);
 }
 
 bool readBackground() {
-	if (_backgroundWasRead) return false;
+	if (_backgroundWasRead) {
+		return false;
+	}
 	_backgroundWasRead = true;
 
 	FileReadDescriptor bg;
@@ -3627,29 +3650,124 @@ bool readBackground() {
 
 	QByteArray pngData;
 	qint32 id;
-	bg.stream >> id;
-	if (!id || id == DefaultChatBackground) {
-		if (bg.version < 8005) {
-			App::initBackground(DefaultChatBackground, QImage(), true);
-			if (!id) Window::chatBackground()->setTile(!DefaultChatBackground);
+	bg.stream >> id >> pngData;
+	auto oldEmptyImage = (bg.stream.status() != QDataStream::Ok);
+	if (oldEmptyImage
+		|| id == Window::Theme::kInitialBackground
+		|| id == Window::Theme::kDefaultBackground) {
+		_backgroundCanWrite = false;
+		if (oldEmptyImage || bg.version < 8005) {
+			Window::Theme::Background()->setImage(Window::Theme::kDefaultBackground);
+			Window::Theme::Background()->setTile(false);
 		} else {
-			App::initBackground(id, QImage(), true);
+			Window::Theme::Background()->setImage(id);
 		}
+		_backgroundCanWrite = true;
+		return true;
+	} else if (id == Window::Theme::kThemeBackground && pngData.isEmpty()) {
+		_backgroundCanWrite = false;
+		Window::Theme::Background()->setImage(id);
+		_backgroundCanWrite = true;
 		return true;
 	}
-	bg.stream >> pngData;
 
-	QImage img;
+	QImage image;
 	QBuffer buf(&pngData);
 	QImageReader reader(&buf);
 #ifndef OS_MAC_OLD
 	reader.setAutoTransform(true);
 #endif // OS_MAC_OLD
-	if (reader.read(&img)) {
-		App::initBackground(id, img, true);
+	if (reader.read(&image)) {
+		_backgroundCanWrite = false;
+		Window::Theme::Background()->setImage(id, std_::move(image));
+		_backgroundCanWrite = true;
 		return true;
 	}
 	return false;
+}
+
+bool readThemeUsingKey(FileKey key) {
+	FileReadDescriptor theme;
+	if (!readEncryptedFile(theme, key, FileOption::Safe, _settingsKey)) {
+		return false;
+	}
+
+	QByteArray themeContent;
+	QString pathRelative, pathAbsolute;
+	Window::Theme::Cached cache;
+	theme.stream >> themeContent;
+	theme.stream >> pathRelative >> pathAbsolute;
+	if (theme.stream.status() != QDataStream::Ok) {
+		return false;
+	}
+	QFile file(pathRelative);
+	if (pathRelative.isEmpty() || !file.exists()) {
+		file.setFileName(pathAbsolute);
+	}
+
+	auto changed = false;
+	if (!file.fileName().isEmpty() && file.exists() && file.open(QIODevice::ReadOnly)) {
+		if (file.size() > kThemeFileSizeLimit) {
+			LOG(("Error: theme file too large: %1 (should be less than 5 MB, got %2)").arg(file.fileName()).arg(file.size()));
+			return false;
+		}
+		auto fileContent = file.readAll();
+		file.close();
+		if (themeContent != fileContent) {
+			themeContent = fileContent;
+			changed = true;
+		}
+	}
+	if (!changed) {
+		quint32 backgroundIsTiled = 0;
+		theme.stream >> cache.paletteChecksum >> cache.contentChecksum >> cache.colors >> cache.background >> backgroundIsTiled;
+		cache.tiled = (backgroundIsTiled == 1);
+		if (theme.stream.status() != QDataStream::Ok) {
+			return false;
+		}
+	}
+	return Window::Theme::Load(pathRelative, pathAbsolute, themeContent, cache);
+}
+
+void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache) {
+	if (content.isEmpty()) {
+		if (_themeKey) {
+			clearKey(_themeKey);
+			_themeKey = 0;
+			writeSettings();
+		}
+		return;
+	}
+	if (!_themeKey) {
+		_themeKey = genKey();
+		writeSettings();
+	}
+
+	auto backgroundTiled = static_cast<quint32>(cache.tiled ? 1 : 0);
+	quint32 size = Serialize::bytearraySize(content);
+	size += Serialize::stringSize(pathRelative) + Serialize::stringSize(pathAbsolute);
+	size += sizeof(int32) * 2 + Serialize::bytearraySize(cache.colors) + Serialize::bytearraySize(cache.background) + sizeof(quint32);
+	EncryptedDescriptor data(size);
+	data.stream << content;
+	data.stream << pathRelative << pathAbsolute;
+	data.stream << cache.paletteChecksum << cache.contentChecksum << cache.colors << cache.background << backgroundTiled;
+
+	FileWriteDescriptor file(_themeKey, FileOption::Safe);
+	file.writeEncrypted(data, _settingsKey);
+}
+
+void clearTheme() {
+	writeTheme(QString(), QString(), QByteArray(), Window::Theme::Cached());
+}
+
+void readTheme() {
+	if (_themeKey && !readThemeUsingKey(_themeKey)) {
+		clearTheme();
+	}
+}
+
+bool hasTheme() {
+	return (_themeKey != 0);
 }
 
 uint32 _peerSize(PeerData *peer) {
@@ -3761,7 +3879,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
 			}
 
-			user->setUserpic(photoLoc.isNull() ? ImagePtr(userDefPhoto(user->colorIndex)) : ImagePtr(photoLoc));
+			user->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
 		}
 	} else if (result->isChat()) {
 		ChatData *chat = result->asChat();
@@ -3789,7 +3907,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			chat->input = MTP_inputPeerChat(MTP_int(peerToChat(chat->id)));
 			chat->inputChat = MTP_int(peerToChat(chat->id));
 
-			chat->setUserpic(photoLoc.isNull() ? ImagePtr(chatDefPhoto(chat->colorIndex)) : ImagePtr(photoLoc));
+			chat->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
 		}
 	} else if (result->isChannel()) {
 		ChannelData *channel = result->asChannel();
@@ -3811,7 +3929,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 			channel->input = MTP_inputPeerChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 			channel->inputChannel = MTP_inputChannel(MTP_int(peerToChannel(channel->id)), MTP_long(access));
 
-			channel->setUserpic(photoLoc.isNull() ? ImagePtr((channel->isMegagroup() ? chatDefPhoto(channel->colorIndex) : channelDefPhoto(channel->colorIndex))) : ImagePtr(photoLoc));
+			channel->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));
 		}
 	}
 	if (!wasLoaded) {
@@ -4330,16 +4448,16 @@ void ClearManager::onStart() {
 		break;
 		case ClearManagerStorage:
 			for (StorageMap::const_iterator i = images.cbegin(), e = images.cend(); i != e; ++i) {
-				clearKey(i.value().first, UserPath);
+				clearKey(i.value().first, FileOption::User);
 			}
 			for (StorageMap::const_iterator i = stickers.cbegin(), e = stickers.cend(); i != e; ++i) {
-				clearKey(i.value().first, UserPath);
+				clearKey(i.value().first, FileOption::User);
 			}
 			for (StorageMap::const_iterator i = audios.cbegin(), e = audios.cend(); i != e; ++i) {
-				clearKey(i.value().first, UserPath);
+				clearKey(i.value().first, FileOption::User);
 			}
 			for (WebFilesMap::const_iterator i = webFiles.cbegin(), e = webFiles.cend(); i != e; ++i) {
-				clearKey(i.value().first, UserPath);
+				clearKey(i.value().first, FileOption::User);
 			}
 			result = true;
 		break;

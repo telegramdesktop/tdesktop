@@ -120,7 +120,6 @@ enum {
 
 	AnimationInMemory = 10 * 1024 * 1024, // 10 Mb gif and mp4 animations held in memory while playing
 
-	MediaViewImageSizeLimit = 100 * 1024 * 1024, // show up to 100mb jpg/png/gif docs in app
 	MaxZoomLevel = 7, // x8
 	ZoomToScreenLevel = 1024, // just constant
 
@@ -168,8 +167,6 @@ enum {
 
 	ChoosePeerByDragTimeout = 1000, // 1 second mouse not moved to choose dialog when dragging a file
 	ReloadChannelMembersTimeout = 1000, // 1 second wait before reload members in channel after adding
-
-	PinnedMessageTextLimit = 16,
 };
 
 inline bool isNotificationsUser(uint64 id) {
@@ -325,6 +322,16 @@ inline QString cApiAppVersion() {
 	return QString::number(AppVersion);
 }
 
+constexpr str_const AppLinksDomain = "t.me";
+
+inline QString CreateInternalLink(const QString &query) {
+	return str_const_toString(AppLinksDomain) + '/' + query;
+}
+
+inline QString CreateInternalLinkHttps(const QString &query) {
+	return qsl("https://") + CreateInternalLink(query);
+}
+
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;
@@ -341,8 +348,6 @@ static const char *DefaultCountry = "US";
 static const char *DefaultLanguage = "en";
 
 enum {
-	DefaultChatBackground = 21,
-
 	DialogsFirstLoad = 20, // first dialogs part size requested
 	DialogsPerPage = 500, // next dialogs part size
 
@@ -353,8 +358,6 @@ enum {
 
 	DownloadPartSize = 64 * 1024, // 64kb for photo
 	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
-	MaxUploadPhotoSize = 256 * 1024 * 1024, // 256mb photos max
-    MaxUploadDocumentSize = 1500 * 1024 * 1024, // 1500mb documents max
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
 	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time
@@ -396,23 +399,24 @@ inline const QRegularExpression &cRussianLetters() {
 	return regexp;
 }
 
-inline QStringList cImgExtensions() {
-	static QStringList imgExtensions;
-	if (imgExtensions.isEmpty()) {
-		imgExtensions.reserve(4);
-		imgExtensions.push_back(qsl(".jpg"));
-		imgExtensions.push_back(qsl(".jpeg"));
-		imgExtensions.push_back(qsl(".png"));
-		imgExtensions.push_back(qsl(".gif"));
+inline const QStringList &cImgExtensions() {
+	static QStringList result;
+	if (result.isEmpty()) {
+		result.reserve(4);
+		result.push_back(qsl(".jpg"));
+		result.push_back(qsl(".jpeg"));
+		result.push_back(qsl(".png"));
+		result.push_back(qsl(".gif"));
 	}
-	return imgExtensions;
+	return result;
 }
 
-inline QStringList cPhotoExtensions() {
-	static QStringList photoExtensions;
-	if (photoExtensions.isEmpty()) {
-		photoExtensions.push_back(qsl(".jpg"));
-		photoExtensions.push_back(qsl(".jpeg"));
+inline const QStringList &cExtensionsForCompress() {
+	static QStringList result;
+	if (result.isEmpty()) {
+		result.push_back(qsl(".jpg"));
+		result.push_back(qsl(".jpeg"));
+		result.push_back(qsl(".png"));
 	}
-	return photoExtensions;
+	return result;
 }

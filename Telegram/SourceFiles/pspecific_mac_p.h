@@ -17,29 +17,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-class PsMacWindowData;
-
-class PsMacWindowPrivate {
-public:
-	PsMacWindowPrivate();
-
-	void setWindowBadge(const QString &str);
-	void startBounce();
-
-	void enableShadow(WId winId);
-
-	bool filterNativeEvent(void *event);
-
-	virtual void activeSpaceChanged() {
-	}
-	virtual void darkModeChanged() {
-	}
-
-	~PsMacWindowPrivate();
-
-	PsMacWindowData *data;
-
-};
+// e is NSEvent*
+bool objc_handleMediaKeyEvent(void *e);
 
 void objc_holdOnTop(WId winId);
 bool objc_darkMode();
@@ -50,7 +29,7 @@ void objc_activateWnd(WId winId);
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);
 bool objc_idleSupported();
-bool objc_idleTime(int64 &idleTime);
+bool objc_idleTime(TimeMs &idleTime);
 
 bool objc_showOpenWithMenu(int x, int y, const QString &file);
 
@@ -74,7 +53,6 @@ QString objc_appDataPath();
 QString objc_downloadPath();
 QString objc_currentCountry();
 QString objc_currentLang();
-QString objc_convertFileUrl(const QString &url);
 QByteArray objc_downloadPathBookmark(const QString &path);
 QByteArray objc_pathBookmark(const QString &path);
 void objc_downloadPathEnableAccess(const QByteArray &bookmark);

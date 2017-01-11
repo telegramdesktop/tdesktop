@@ -26,8 +26,8 @@ namespace Ui {
 class PeerAvatarButton;
 class RoundButton;
 class IconButton;
+class DropdownMenu;
 } // namespace Ui
-class IconedButton;
 
 namespace Window {
 
@@ -37,59 +37,63 @@ class TopBarWidget : public TWidget, private base::Subscriber {
 public:
 	TopBarWidget(MainWidget *w);
 
-	void enterEvent(QEvent *e) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override;
-	void leaveEvent(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_appearance(float64 ms, bool timer);
-
 	void startAnim();
 	void stopAnim();
 	void showAll();
-	void showSelected(uint32 selCount, bool canDelete = false);
+	void showSelected(int selectedCount, bool canDelete = false);
 
 	void updateMembersShowArea();
 
 	Ui::RoundButton *mediaTypeButton();
 
-protected:
-	bool eventFilter(QObject *obj, QEvent *e) override;
+	static void paintUnreadCounter(Painter &p, int outerWidth);
 
-public slots:
-	void onForwardSelection();
-	void onDeleteSelection();
-	void onClearSelection();
-	void onInfoClicked();
-	void onSearch();
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	bool eventFilter(QObject *obj, QEvent *e) override;
 
 signals:
 	void clicked();
 
 private:
+	void updateControlsGeometry();
+	void selectedShowCallback();
+
+	void onForwardSelection();
+	void onDeleteSelection();
+	void onClearSelection();
+	void onInfoClicked();
+	void onSearch();
+	void showMenu();
+
 	void updateAdaptiveLayout();
+	int countSelectedButtonsTop(float64 selectedShown);
 
 	MainWidget *main();
-	anim::fvalue a_over = { 0. };
-	Animation _a_appearance;
 
-	PeerData *_selPeer = nullptr;
-	int _selCount = 0;
+	PeerData *_searchInPeer = nullptr;
+	int _selectedCount = 0;
 	bool _canDelete = false;
 
 	bool _animating = false;
 
-	ChildWidget<Ui::RoundButton> _clearSelection;
-	ChildWidget<Ui::RoundButton> _forward, _delete;
+	Animation _selectedShown;
 
-	ChildWidget<Ui::PeerAvatarButton> _info;
-	ChildWidget<Ui::RoundButton> _mediaType;
+	object_ptr<Ui::RoundButton> _clearSelection;
+	object_ptr<Ui::RoundButton> _forward, _delete;
 
-	ChildWidget<Ui::IconButton> _search;
-	ChildWidget<TWidget> _membersShowArea = { nullptr };
+	object_ptr<Ui::PeerAvatarButton> _info;
+	object_ptr<Ui::RoundButton> _mediaType;
+
+	object_ptr<Ui::IconButton> _search;
+	object_ptr<Ui::IconButton> _menuToggle;
+	object_ptr<Ui::DropdownMenu> _menu = { nullptr };
+
+	object_ptr<TWidget> _membersShowArea = { nullptr };
+
+	int _unreadCounterSubscription = 0;
 
 };
 

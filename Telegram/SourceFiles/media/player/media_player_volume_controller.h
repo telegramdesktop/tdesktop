@@ -20,12 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
-
 namespace Ui {
 class IconButton;
 class MediaSlider;
-class RectShadow;
 } // namespace Ui
 
 namespace Media {
@@ -44,7 +41,7 @@ private:
 	void setVolume(float64 volume, bool animated = true);
 	void applyVolumeChange(float64 volume);
 
-	ChildWidget<Ui::MediaSlider> _slider;
+	object_ptr<Ui::MediaSlider> _slider;
 
 };
 
@@ -55,9 +52,6 @@ public:
 	VolumeWidget(QWidget *parent);
 
 	bool overlaps(const QRect &globalRect);
-
-	void otherEnter();
-	void otherLeave();
 
 	QMargins getMargin() const;
 
@@ -75,6 +69,9 @@ private slots:
 	void onWindowActiveChanged();
 
 private:
+	void otherEnter();
+	void otherLeave();
+
 	void appearanceCallback();
 	void hidingFinished();
 	void startAnimation();
@@ -82,12 +79,11 @@ private:
 	bool _hiding = false;
 
 	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 
 	QTimer _hideTimer, _showTimer;
 
-	Ui::RectShadow _shadow;
-	ChildWidget<VolumeController> _controller;
+	object_ptr<VolumeController> _controller;
 
 };
 

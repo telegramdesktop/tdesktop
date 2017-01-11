@@ -203,10 +203,33 @@ static constexpr int kUserColorsCount = 8;
 static constexpr int kChatColorsCount = 4;
 static constexpr int kChannelColorsCount = 4;
 
-const style::color &peerColor(int index);
-ImagePtr userDefPhoto(int index);
-ImagePtr chatDefPhoto(int index);
-ImagePtr channelDefPhoto(int index);
+style::color peerColor(int index);
+
+class EmptyUserpic {
+public:
+	EmptyUserpic();
+	EmptyUserpic(int index, const QString &name);
+
+	void set(int index, const QString &name);
+	void clear();
+
+	explicit operator bool() const {
+		return (_impl != nullptr);
+	}
+
+	void paint(Painter &p, int x, int y, int outerWidth, int size) const;
+	void paintRounded(Painter &p, int x, int y, int outerWidth, int size) const;
+	QPixmap generate(int size);
+	StorageKey uniqueKey() const;
+
+	~EmptyUserpic();
+
+private:
+	class Impl;
+	std_::unique_ptr<Impl> _impl;
+	friend class Impl;
+
+};
 
 static const PhotoId UnknownPeerPhotoId = 0xFFFFFFFFFFFFFFFFULL;
 
@@ -215,25 +238,7 @@ inline const QString &emptyUsername() {
 	return empty;
 }
 
-class PeerClickHandler : public LeftButtonClickHandler {
-public:
-	PeerClickHandler(PeerData *peer) : _peer(peer) {
-	}
-	PeerData *peer() const {
-		return _peer;
-	}
-
-private:
-	PeerData *_peer;
-
-};
-
-class PeerOpenClickHandler : public PeerClickHandler {
-public:
-	using PeerClickHandler::PeerClickHandler;
-protected:
-	void onClickImpl() const override;
-};
+ClickHandlerPtr peerOpenClickHandler(PeerData *peer);
 
 class UserData;
 class ChatData;
@@ -266,6 +271,9 @@ public:
 	}
 	bool isVerified() const;
 	bool isMegagroup() const;
+	bool isMuted() const {
+		return (notify != EmptyNotifySettings) && (notify != UnknownNotifySettings) && (notify->mute >= unixtime());
+	}
 	bool canWrite() const;
 	UserData *asUser();
 	const UserData *asUser() const;
@@ -307,10 +315,11 @@ public:
 	style::color color;
 
 	void setUserpic(ImagePtr userpic);
-	void paintUserpic(Painter &p, int size, int x, int y) const;
-	void paintUserpicLeft(Painter &p, int size, int x, int y, int w) const {
-		paintUserpic(p, size, rtl() ? (w - x - size) : x, y);
+	void paintUserpic(Painter &p, int x, int y, int size) const;
+	void paintUserpicLeft(Painter &p, int x, int y, int w, int size) const {
+		paintUserpic(p, rtl() ? (w - x - size) : x, y, size);
 	}
+	void paintUserpicRounded(Painter &p, int x, int y, int size) const;
 	void loadUserpic(bool loadFirst = false, bool prior = true) {
 		_userpic->load(loadFirst, prior);
 	}
@@ -319,7 +328,9 @@ public:
 	}
 	StorageKey userpicUniqueKey() const;
 	void saveUserpic(const QString &path, int size) const;
+	void saveUserpicRounded(const QString &path, int size) const;
 	QPixmap genUserpic(int size) const;
+	QPixmap genUserpicRounded(int size) const;
 
 	PhotoId photoId = UnknownPeerPhotoId;
 	StorageImageLocation photoLoc;
@@ -336,7 +347,7 @@ public:
 
 	const ClickHandlerPtr &openLink() {
 		if (!_openLink) {
-			_openLink.reset(new PeerOpenClickHandler(this));
+			_openLink = peerOpenClickHandler(this);
 		}
 		return _openLink;
 	}
@@ -346,6 +357,7 @@ protected:
 
 	ImagePtr _userpic;
 	ImagePtr currentUserpic() const;
+	mutable EmptyUserpic _userpicEmpty;
 
 private:
 	void fillNames();
@@ -483,11 +495,17 @@ public:
 		_restrictionReason = reason;
 	}
 
+	int commonChatsCount() const {
+		return _commonChatsCount;
+	}
+	void setCommonChatsCount(int count);
+
 private:
 	QString _restrictionReason;
 	QString _about;
 	QString _phone;
 	BlockStatus _blockStatus = BlockStatus::Unknown;
+	int _commonChatsCount = 0;
 
 };
 
@@ -630,14 +648,6 @@ private:
 };
 
 struct MegagroupInfo {
-	MegagroupInfo()
-		: botStatus(0)
-		, pinnedMsgId(0)
-		, joinedMessageFound(false)
-		, lastParticipantsStatus(LastParticipantsUpToDate)
-		, lastParticipantsCount(0)
-		, migrateFromPtr(0) {
-	}
 	typedef QList<UserData*> LastParticipants;
 	LastParticipants lastParticipants;
 	typedef OrderedSet<UserData*> LastAdmins;
@@ -646,20 +656,20 @@ struct MegagroupInfo {
 	MarkupSenders markupSenders;
 	typedef OrderedSet<UserData*> Bots;
 	Bots bots;
-	int32 botStatus; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
 
-	MsgId pinnedMsgId;
-	bool joinedMessageFound;
+	int botStatus = 0; // -1 - no bots, 0 - unknown, 1 - one bot, that sees all history, 2 - other
+	MsgId pinnedMsgId = 0;
+	bool joinedMessageFound = false;
 
 	enum LastParticipantsStatus {
 		LastParticipantsUpToDate       = 0x00,
 		LastParticipantsAdminsOutdated = 0x01,
 		LastParticipantsCountOutdated  = 0x02,
 	};
-	mutable int32 lastParticipantsStatus;
-	int32 lastParticipantsCount;
+	mutable int lastParticipantsStatus = LastParticipantsUpToDate;
+	int lastParticipantsCount = 0;
 
-	ChatData *migrateFromPtr;
+	ChatData *migrateFromPtr = nullptr;
 };
 
 class ChannelData : public PeerData {
@@ -672,6 +682,9 @@ public:
 
 	void updateFull(bool force = false);
 	void fullUpdated();
+	bool wasFullUpdated() const {
+		return (_lastFullUpdate != 0);
+	}
 
 	uint64 access = 0;
 
@@ -759,7 +772,7 @@ public:
 		return flags & MTPDchannel::Flag::f_verified;
 	}
 	bool canAddMembers() const {
-		return amCreator() || amEditor() || (flags & MTPDchannel::Flag::f_democracy);
+		return amCreator() || amEditor() || (amIn() && (flags & MTPDchannel::Flag::f_democracy));
 	}
 	bool canEditPhoto() const {
 		return amCreator() || (amEditor() && isMegagroup());
@@ -813,6 +826,12 @@ public:
 	void ptsWaitingForShortPoll(int32 ms) { // < 0 - not waiting
 		return _ptsWaiter.setWaitingForShortPoll(this, ms);
 	}
+	bool ptsWaitingForSkipped() const {
+		return _ptsWaiter.waitingForSkipped();
+	}
+	bool ptsWaitingForShortPoll() const {
+		return _ptsWaiter.waitingForShortPoll();
+	}
 
 	QString restrictionReason() const override {
 		return _restrictionReason;
@@ -825,7 +844,7 @@ public:
 
 private:
 	PtsWaiter _ptsWaiter;
-	uint64 _lastFullUpdate = 0;
+	TimeMs _lastFullUpdate = 0;
 
 	int _membersCount = 1;
 	int _adminsCount = 1;
@@ -1144,6 +1163,9 @@ public:
 	bool isGifv() const {
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
+	bool isTheme() const {
+		return name.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive);
+	}
 	bool isMusic() const {
 		if (auto s = song()) {
 			return (s->duration > 0);
@@ -1394,31 +1416,54 @@ QString saveFileName(const QString &title, const QString &filter, const QString 
 MsgId clientMsgId();
 
 struct MessageCursor {
-	MessageCursor() : position(0), anchor(0), scroll(QFIXED_MAX) {
-	}
+	MessageCursor() = default;
 	MessageCursor(int position, int anchor, int scroll) : position(position), anchor(anchor), scroll(scroll) {
 	}
-	MessageCursor(const QTextEdit &edit) {
+	MessageCursor(const QTextEdit *edit) {
 		fillFrom(edit);
 	}
-	void fillFrom(const QTextEdit &edit) {
-		QTextCursor c = edit.textCursor();
+	void fillFrom(const QTextEdit *edit) {
+		QTextCursor c = edit->textCursor();
 		position = c.position();
 		anchor = c.anchor();
-		QScrollBar *s = edit.verticalScrollBar();
+		QScrollBar *s = edit->verticalScrollBar();
 		scroll = (s && (s->value() != s->maximum())) ? s->value() : QFIXED_MAX;
 	}
-	void applyTo(QTextEdit &edit) {
-		QTextCursor c = edit.textCursor();
-		c.setPosition(anchor, QTextCursor::MoveAnchor);
-		c.setPosition(position, QTextCursor::KeepAnchor);
-		edit.setTextCursor(c);
-		QScrollBar *s = edit.verticalScrollBar();
-		if (s) s->setValue(scroll);
+	void applyTo(QTextEdit *edit) {
+		auto cursor = edit->textCursor();
+		cursor.setPosition(anchor, QTextCursor::MoveAnchor);
+		cursor.setPosition(position, QTextCursor::KeepAnchor);
+		edit->setTextCursor(cursor);
+		if (auto scrollbar = edit->verticalScrollBar()) {
+			scrollbar->setValue(scroll);
+		}
 	}
-	int position, anchor, scroll;
+	int position = 0;
+	int anchor = 0;
+	int scroll = QFIXED_MAX;
+
 };
 
 inline bool operator==(const MessageCursor &a, const MessageCursor &b) {
 	return (a.position == b.position) && (a.anchor == b.anchor) && (a.scroll == b.scroll);
 }
+
+struct SendAction {
+	enum class Type {
+		Typing,
+		RecordVideo,
+		UploadVideo,
+		RecordVoice,
+		UploadVoice,
+		UploadPhoto,
+		UploadFile,
+		ChooseLocation,
+		ChooseContact,
+		PlayGame,
+	};
+	SendAction(Type type, TimeMs until, int progress = 0) : type(type), until(until), progress(progress) {
+	}
+	Type type;
+	TimeMs until;
+	int progress;
+};

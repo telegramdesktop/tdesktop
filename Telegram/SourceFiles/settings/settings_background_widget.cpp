@@ -26,22 +26,42 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "boxes/backgroundbox.h"
 #include "ui/effects/widget_slide_wrap.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
 #include "mainwindow.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 
 namespace Settings {
 
 BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
-, _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::defaultBoxLinkButton)
-, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::defaultBoxLinkButton)
+, _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::boxLinkButton)
+, _chooseFromFile(this, lang(lng_settings_bg_from_file), st::boxLinkButton)
 , _radial(animation(this, &BackgroundRow::step_radial)) {
-	Window::chatBackground()->initIfEmpty();
-
 	updateImage();
 
 	connect(_chooseFromGallery, SIGNAL(clicked()), this, SIGNAL(chooseFromGallery()));
 	connect(_chooseFromFile, SIGNAL(clicked()), this, SIGNAL(chooseFromFile()));
+	checkNonDefaultTheme();
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
+			checkNonDefaultTheme();
+		}
+	});
+}
+
+void BackgroundRow::checkNonDefaultTheme() {
+	if (Local::hasTheme()) {
+		if (!_useDefaultTheme) {
+			_useDefaultTheme.create(this, lang(lng_settings_bg_use_default), st::boxLinkButton);
+			_useDefaultTheme->show();
+			connect(_useDefaultTheme, SIGNAL(clicked()), this, SIGNAL(useDefault()));
+			resizeToWidth(width());
+		}
+	} else if (_useDefaultTheme) {
+		_useDefaultTheme.destroy();
+		resizeToWidth(width());
+	}
 }
 
 void BackgroundRow::paintEvent(QPaintEvent *e) {
@@ -60,35 +80,42 @@ void BackgroundRow::paintEvent(QPaintEvent *e) {
 			p.drawPixmap(0, 0, _background);
 		} else {
 			const QPixmap &pix = App::main()->newBackgroundThumb()->pixBlurred(st::settingsBackgroundSize);
-			p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, 0, (pix.height() - st::settingsBackgroundSize) / 2, st::settingsBackgroundSize, st::settingsBackgroundSize);
+			p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, 0, (pix.height() - st::settingsBackgroundSize * cIntRetinaFactor()) / 2, st::settingsBackgroundSize * cIntRetinaFactor(), st::settingsBackgroundSize * cIntRetinaFactor());
 		}
 
 		auto outer = radialRect();
 		QRect inner(QPoint(outer.x() + (outer.width() - st::radialSize.width()) / 2, outer.y() + (outer.height() - st::radialSize.height()) / 2), st::radialSize);
 		p.setPen(Qt::NoPen);
-		p.setBrush(st::black);
-		p.setOpacity(radialOpacity * st::radialBgOpacity);
+		p.setOpacity(radialOpacity);
+		p.setBrush(st::radialBg);
 
-		p.setRenderHint(QPainter::HighQualityAntialiasing);
-		p.drawEllipse(inner);
-		p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+		{
+			PainterHighQualityEnabler hq(p);
+			p.drawEllipse(inner);
+		}
 
 		p.setOpacity(1);
 		QRect arc(inner.marginsRemoved(QMargins(st::radialLine, st::radialLine, st::radialLine, st::radialLine)));
-		_radial.draw(p, arc, st::radialLine, st::white);
+		_radial.draw(p, arc, st::radialLine, st::radialFg);
 	} else {
 		p.drawPixmap(0, 0, _background);
 	}
 }
 
 int BackgroundRow::resizeGetHeight(int newWidth) {
-	int linkLeft = st::settingsBackgroundSize + st::settingsSmallSkip;
-	int linkWidth = newWidth - linkLeft;
+	auto linkTop = 0;
+	auto linkLeft = st::settingsBackgroundSize + st::settingsSmallSkip;
+	auto linkWidth = newWidth - linkLeft;
 	_chooseFromGallery->resizeToWidth(qMin(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(qMin(linkWidth, _chooseFromFile->naturalWidth()));
-
-	_chooseFromGallery->moveToLeft(linkLeft, 0, newWidth);
-	_chooseFromFile->moveToLeft(linkLeft, _chooseFromGallery->height() + st::settingsSmallSkip, newWidth);
+	if (_useDefaultTheme) {
+		_useDefaultTheme->resizeToWidth(qMin(linkWidth, _useDefaultTheme->naturalWidth()));
+		_useDefaultTheme->moveToLeft(linkLeft, linkTop, newWidth);
+		linkTop += _useDefaultTheme->height() + st::settingsSmallSkip;
+	}
+	_chooseFromGallery->moveToLeft(linkLeft, linkTop, newWidth);
+	linkTop += _chooseFromGallery->height() + st::settingsSmallSkip;
+	_chooseFromFile->moveToLeft(linkLeft, linkTop, newWidth);
 
 	return st::settingsBackgroundSize;
 }
@@ -127,11 +154,11 @@ void BackgroundRow::radialStart() {
 	}
 }
 
-uint64 BackgroundRow::radialTimeShift() const {
+TimeMs BackgroundRow::radialTimeShift() const {
 	return st::radialDuration;
 }
 
-void BackgroundRow::step_radial(uint64 ms, bool timer) {
+void BackgroundRow::step_radial(TimeMs ms, bool timer) {
 	_radial.update(radialProgress(), !radialLoading(), ms + radialTimeShift());
 	if (timer && _radial.animating()) {
 		rtlupdate(radialRect());
@@ -143,15 +170,16 @@ void BackgroundRow::updateImage() {
 	QImage back(size, size, QImage::Format_ARGB32_Premultiplied);
 	back.setDevicePixelRatio(cRetinaFactor());
 	{
-		QPainter p(&back);
-		auto &pix = Window::chatBackground()->image();
+		Painter p(&back);
+		PainterHighQualityEnabler hq(p);
+
+		auto &pix = Window::Theme::Background()->pixmap();
 		int sx = (pix.width() > pix.height()) ? ((pix.width() - pix.height()) / 2) : 0;
 		int sy = (pix.height() > pix.width()) ? ((pix.height() - pix.width()) / 2) : 0;
 		int s = (pix.width() > pix.height()) ? pix.height() : pix.width();
-		p.setRenderHint(QPainter::SmoothPixmapTransform);
 		p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, sx, sy, s, s);
 	}
-	imageRound(back, ImageRoundRadius::Small);
+	Images::prepareRound(back, ImageRoundRadius::Small);
 	_background = App::pixmapFromImageInPlace(std_::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
 
@@ -168,8 +196,8 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidge
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
 		notifyFileQueryUpdated(update);
 	});
-	subscribe(Window::chatBackground(), [this](const Window::ChatBackgroundUpdate &update) {
-		using Update = Window::ChatBackgroundUpdate;
+	using Update = Window::Theme::BackgroundUpdate;
+	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New) {
 			_background->updateImage();
 		} else if (update.type == Update::Type::Start) {
@@ -192,8 +220,9 @@ void BackgroundWidget::createControls() {
 	addChildRow(_background, margin);
 	connect(_background, SIGNAL(chooseFromGallery()), this, SLOT(onChooseFromGallery()));
 	connect(_background, SIGNAL(chooseFromFile()), this, SLOT(onChooseFromFile()));
+	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefaultTheme()));
 
-	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::chatBackground()->tile());
+	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
 	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), SLOT(onAdaptive()), Global::AdaptiveForWide());
 	if (Global::AdaptiveLayout() != Adaptive::WideLayout) {
 		_adaptive->hideFast();
@@ -201,7 +230,7 @@ void BackgroundWidget::createControls() {
 }
 
 void BackgroundWidget::onChooseFromGallery() {
-	Ui::showLayer(new BackgroundBox());
+	Ui::show(Box<BackgroundBox>());
 }
 
 void BackgroundWidget::needBackgroundUpdate(bool tile) {
@@ -210,10 +239,15 @@ void BackgroundWidget::needBackgroundUpdate(bool tile) {
 }
 
 void BackgroundWidget::onChooseFromFile() {
-	QStringList imgExtensions(cImgExtensions());
-	QString filter(qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter());
+	auto imgExtensions = cImgExtensions();
+	auto filters = QStringList(qsl("Theme files (*.tdesktop-theme *") + imgExtensions.join(qsl(" *")) + qsl(")"));
+	filters.push_back(filedialogAllFilesFilter());
 
-	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_images), filter);
+	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
+}
+
+void BackgroundWidget::onUseDefaultTheme() {
+	Window::Theme::ApplyDefault();
 }
 
 void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
@@ -226,11 +260,17 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 		return;
 	}
 
+	auto filePath = update.filePaths.front();
+	if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
+		Window::Theme::Apply(filePath);
+		return;
+	}
+
 	QImage img;
 	if (!update.remoteContent.isEmpty()) {
 		img = App::readImage(update.remoteContent);
 	} else {
-		img = App::readImage(update.filePaths.front());
+		img = App::readImage(filePath);
 	}
 
 	if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
@@ -241,13 +281,13 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 		img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
 	}
 
-	App::initBackground(-1, img);
+	Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std_::move(img));
 	_tile->setChecked(false);
 	_background->updateImage();
 }
 
 void BackgroundWidget::onTile() {
-	Window::chatBackground()->setTile(_tile->checked());
+	Window::Theme::Background()->setTile(_tile->checked());
 }
 
 void BackgroundWidget::onAdaptive() {

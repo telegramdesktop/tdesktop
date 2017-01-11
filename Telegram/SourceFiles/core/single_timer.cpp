@@ -23,7 +23,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "application.h"
 
-SingleTimer::SingleTimer() {
+SingleTimer::SingleTimer(QObject *parent) : QTimer(parent) {
 	QTimer::setSingleShot(true);
 	if (App::app()) {
 		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
@@ -31,7 +31,7 @@ SingleTimer::SingleTimer() {
 	}
 }
 
-void SingleTimer::setTimeoutHandler(base::lambda_unique<void()> &&handler) {
+void SingleTimer::setTimeoutHandler(base::lambda<void()> &&handler) {
 	if (_handler && !handler) {
 		disconnect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
 	} else if (handler && !_handler) {
@@ -41,7 +41,7 @@ void SingleTimer::setTimeoutHandler(base::lambda_unique<void()> &&handler) {
 }
 
 void SingleTimer::adjust() {
-	uint64 n = getms(true);
+	auto n = getms(true);
 	if (isActive()) {
 		if (n >= _finishing) {
 			start(0);
@@ -58,7 +58,7 @@ void SingleTimer::onTimeout() {
 }
 
 void SingleTimer::start(int msec) {
-	_finishing = getms(true) + (msec < 0 ? 0 : uint64(msec));
+	_finishing = getms(true) + (msec < 0 ? 0 : msec);
 	if (!_inited && App::app()) {
 		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
 		_inited = true;

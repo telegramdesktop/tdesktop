@@ -22,16 +22,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/single_timer.h"
 
+namespace Api {
+
+inline const MTPVector<MTPChat> *getChatsFromMessagesChats(const MTPmessages_Chats &chats) {
+	switch (chats.type()) {
+	case mtpc_messages_chats: return &chats.c_messages_chats().vchats;
+	case mtpc_messages_chatsSlice: return &chats.c_messages_chatsSlice().vchats;
+	}
+	return nullptr;
+}
+
+} // namespace Api
+
 class ApiWrap : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	ApiWrap(QObject *parent);
 	void init();
 
-	using RequestMessageDataCallback = base::lambda_wrap<void(ChannelData*, MsgId)>;
-	void requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback &&callback);
+	using RequestMessageDataCallback = base::lambda_copy<void(ChannelData*, MsgId)>;
+	void requestMessageData(ChannelData *channel, MsgId msgId, const RequestMessageDataCallback &callback);
 
 	void requestFullPeer(PeerData *peer);
 	void requestPeer(PeerData *peer);
@@ -51,6 +62,7 @@ public:
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
 	void requestStickerSets();
+	void saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved);
 
 	void joinChannel(ChannelData *channel);
 	void leaveChannel(ChannelData *channel);
@@ -67,11 +79,9 @@ public:
 	~ApiWrap();
 
 signals:
-
 	void fullPeerUpdated(PeerData *peer);
 
 public slots:
-
 	void resolveMessageDatas();
 	void resolveWebPages();
 
@@ -79,7 +89,6 @@ public slots:
 	void saveDraftsToCloud();
 
 private:
-
 	void updatesReceived(const MTPUpdates &updates);
 
 	void gotMessageDatas(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req);
@@ -157,5 +166,17 @@ private:
 	SingleTimer _draftsSaveTimer;
 	void saveCloudDraftDone(History *history, const MTPBool &result, mtpRequestId requestId);
 	bool saveCloudDraftFail(History *history, const RPCError &error, mtpRequestId requestId);
+
+	OrderedSet<mtpRequestId> _stickerSetDisenableRequests;
+	void stickerSetDisenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req);
+	bool stickerSetDisenableFail(const RPCError &error, mtpRequestId req);
+	Stickers::Order _stickersOrder;
+	mtpRequestId _stickersReorderRequestId = 0;
+	void stickersSaveOrder();
+	void stickersReorderDone(const MTPBool &result);
+	bool stickersReorderFail(const RPCError &result);
+	mtpRequestId _stickersClearRecentRequestId = 0;
+	void stickersClearRecentDone(const MTPBool &result);
+	bool stickersClearRecentFail(const RPCError &result);
 
 };

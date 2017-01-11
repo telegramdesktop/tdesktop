@@ -23,14 +23,6 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_block_widget.h"
 #include "ui/filedialog.h"
 
-class Checkbox;
-class LinkButton;
-
-namespace Ui {
-template <typename Widget>
-class WidgetSlideWrap;
-} // namespace Ui
-
 namespace Settings {
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -73,11 +65,12 @@ private:
 	void setState(State state, bool force = false);
 	void setDownloadProgress(qint64 ready, qint64 total);
 
-	ChildWidget<LinkButton> _check;
-	ChildWidget<LinkButton> _restart;
+	object_ptr<Ui::LinkButton> _check;
+	object_ptr<Ui::LinkButton> _restart;
 
 	State _state = State::None;
 	QString _downloadText;
+	QString _versionText;
 
 };
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
@@ -93,7 +86,6 @@ protected:
 
 private slots:
 	void onChangeLanguage();
-	void onSaveTestLanguage();
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onUpdateAutomatically();
@@ -114,16 +106,16 @@ private:
 	void chooseCustomLang();
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	ChildWidget<LinkButton> _changeLanguage;
+	object_ptr<Ui::LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	ChildWidget<Checkbox> _updateAutomatically = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
+	object_ptr<Ui::Checkbox> _updateAutomatically = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<UpdateStateRow>> _updateRow = { nullptr };
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
-	ChildWidget<Checkbox> _enableTrayIcon = { nullptr };
-	ChildWidget<Checkbox> _enableTaskbarIcon = { nullptr };
-	ChildWidget<Checkbox> _autoStart = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _startMinimized = { nullptr };
-	ChildWidget<Checkbox> _addInSendTo = { nullptr };
+	object_ptr<Ui::Checkbox> _enableTrayIcon = { nullptr };
+	object_ptr<Ui::Checkbox> _enableTaskbarIcon = { nullptr };
+	object_ptr<Ui::Checkbox> _autoStart = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
+	object_ptr<Ui::Checkbox> _addInSendTo = { nullptr };
 
 	FileDialog::QueryId _chooseLangFileQueryId = 0;
 	QString _testLanguage;

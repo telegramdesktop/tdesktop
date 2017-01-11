@@ -65,46 +65,59 @@ void startManager() {
 	}
 
 	internal::registerFontFamily(qsl("Open Sans"));
-	internal::loadSprite();
 	internal::startModules();
 }
 
 void stopManager() {
 	internal::stopModules();
 	internal::destroyFonts();
-	internal::destroyColors();
 	internal::destroyIcons();
-	internal::destroySprite();
 }
 
-QImage colorizeImage(const QImage &src, const color &c, const QRect &r) {
-	t_assert(r.x() >= 0 && src.width() >= r.x() + r.width());
-	t_assert(r.y() >= 0 && src.height() >= r.y() + r.height());
-
-	int a = c->c.alpha() + 1;
-	int fg_r = c->c.red() * a, fg_g = c->c.green() * a, fg_b = c->c.blue() * a, fg_a = 255 * a;
-
-	QImage result(r.width(), r.height(), QImage::Format_ARGB32_Premultiplied);
-	auto bits = result.bits();
-	auto maskbits = src.constBits();
-	int bpp = result.depth(), maskbpp = src.depth();
-	int bpl = result.bytesPerLine(), maskbpl = src.bytesPerLine();
-	for (int x = 0, xoffset = r.x(); x < r.width(); ++x) {
-		for (int y = 0, yoffset = r.y(); y < r.height(); ++y) {
-			int s = y * bpl + ((x * bpp) >> 3);
-			int o = maskbits[(y + yoffset) * maskbpl + (((x + xoffset) * maskbpp) >> 3)] + 1;
-			bits[s + 0] = (fg_b * o) >> 16;
-			bits[s + 1] = (fg_g * o) >> 16;
-			bits[s + 2] = (fg_r * o) >> 16;
-			bits[s + 3] = (fg_a * o) >> 16;
-		}
+void colorizeImage(const QImage &src, QColor c, QImage *outResult, QRect srcRect, QPoint dstPoint) {
+	if (srcRect.isNull()) {
+		srcRect = src.rect();
+	} else {
+		t_assert(src.rect().contains(srcRect));
 	}
-	return result;
+	auto width = srcRect.width();
+	auto height = srcRect.height();
+	t_assert(outResult && outResult->rect().contains(QRect(dstPoint, srcRect.size())));
+
+	auto pattern = anim::shifted(c);
+
+	auto resultBytesPerPixel = (src.depth() >> 3);
+	constexpr auto resultIntsPerPixel = 1;
+	auto resultIntsPerLine = (outResult->bytesPerLine() >> 2);
+	auto resultIntsAdded = resultIntsPerLine - width * resultIntsPerPixel;
+	auto resultInts = reinterpret_cast<uint32*>(outResult->bits()) + dstPoint.y() * resultIntsPerLine + dstPoint.x() * resultIntsPerPixel;
+	t_assert(resultIntsAdded >= 0);
+	t_assert(outResult->depth() == static_cast<int>((resultIntsPerPixel * sizeof(uint32)) << 3));
+	t_assert(outResult->bytesPerLine() == (resultIntsPerLine << 2));
+
+	auto maskBytesPerPixel = (src.depth() >> 3);
+	auto maskBytesPerLine = src.bytesPerLine();
+	auto maskBytesAdded = maskBytesPerLine - width * maskBytesPerPixel;
+	auto maskBytes = src.constBits() + srcRect.y() * maskBytesPerLine + srcRect.x() * maskBytesPerPixel;
+	t_assert(maskBytesAdded >= 0);
+	t_assert(src.depth() == (maskBytesPerPixel << 3));
+	for (int y = 0; y != height; ++y) {
+		for (int x = 0; x != width; ++x) {
+			auto maskOpacity = static_cast<anim::ShiftedMultiplier>(*maskBytes) + 1;
+			*resultInts = anim::unshifted(pattern * maskOpacity);
+			maskBytes += maskBytesPerPixel;
+			resultInts += resultIntsPerPixel;
+		}
+		maskBytes += maskBytesAdded;
+		resultInts += resultIntsAdded;
+	}
+
+	outResult->setDevicePixelRatio(src.devicePixelRatio());
 }
 
 namespace internal {
 
-QImage createCircleMask(int size, const QColor &bg, const QColor &fg) {
+QImage createCircleMask(int size, QColor bg, QColor fg) {
 	int realSize = size * cIntRetinaFactor();
 #ifndef OS_MAC_OLD
 	auto result = QImage(realSize, realSize, QImage::Format::Format_Grayscale8);
@@ -112,12 +125,13 @@ QImage createCircleMask(int size, const QColor &bg, const QColor &fg) {
 	auto result = QImage(realSize, realSize, QImage::Format::Format_RGB32);
 #endif // OS_MAC_OLD
 	{
-		QPainter pcircle(&result);
-		pcircle.setRenderHint(QPainter::HighQualityAntialiasing, true);
-		pcircle.fillRect(0, 0, realSize, realSize, bg);
-		pcircle.setPen(Qt::NoPen);
-		pcircle.setBrush(fg);
-		pcircle.drawEllipse(0, 0, realSize, realSize);
+		Painter p(&result);
+		PainterHighQualityEnabler hq(p);
+
+		p.fillRect(0, 0, realSize, realSize, bg);
+		p.setPen(Qt::NoPen);
+		p.setBrush(fg);
+		p.drawEllipse(0, 0, realSize, realSize);
 	}
 	result.setDevicePixelRatio(cRetinaFactor());
 	return result;

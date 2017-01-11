@@ -25,12 +25,16 @@ namespace style {
 namespace internal {
 namespace {
 
-uint32 colorKey(const QColor &c) {
+uint32 colorKey(QColor c) {
 	return (((((uint32(c.red()) << 8) | uint32(c.green())) << 8) | uint32(c.blue())) << 8) | uint32(c.alpha());
 }
 
+using IconMasks = QMap<const IconMask*, QImage>;
 using IconPixmaps = QMap<QPair<const IconMask*, uint32>, QPixmap>;
+using IconDatas = OrderedSet<IconData*>;
+NeverFreedPointer<IconMasks> iconMasks;
 NeverFreedPointer<IconPixmaps> iconPixmaps;
+NeverFreedPointer<IconDatas> iconData;
 
 inline int pxAdjust(int value, int scale) {
 	if (value < 0) {
@@ -39,8 +43,9 @@ inline int pxAdjust(int value, int scale) {
 	return qFloor((value * scale / 4.) + 0.1);
 }
 
-QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
+QImage createIconMask(const IconMask *mask, DBIScale scale) {
 	auto maskImage = QImage::fromData(mask->data(), mask->size(), "PNG");
+	maskImage.setDevicePixelRatio(cRetinaFactor());
 	t_assert(!maskImage.isNull());
 
 	// images are layouted like this:
@@ -49,32 +54,71 @@ QPixmap createIconPixmap(const IconMask *mask, const Color &color) {
 	int width = maskImage.width() / 3;
 	int height = qRound((maskImage.height() * 2) / 7.);
 	auto r = QRect(0, 0, width * 2, height * 2);
-	if (!cRetina() && cScale() != dbisTwo) {
-		if (cScale() == dbisOne) {
+	if (!cRetina() && scale != dbisTwo) {
+		if (scale == dbisOne) {
 			r = QRect(width * 2, 0, width, height);
 		} else {
 			int width125 = pxAdjust(width, 5);
 			int height125 = pxAdjust(height, 5);
 			int width150 = pxAdjust(width, 6);
 			int height150 = pxAdjust(height, 6);
-			if (cScale() == dbisOneAndQuarter) {
+			if (scale == dbisOneAndQuarter) {
 				r = QRect(width150, height * 2, width125, height125);
 			} else {
 				r = QRect(0, height * 2, width150, height150);
 			}
 		}
 	}
-	auto finalImage = colorizeImage(maskImage, color, r);
-	finalImage.setDevicePixelRatio(cRetinaFactor());
-	return App::pixmapFromImageInPlace(std_::move(finalImage));
+	return maskImage.copy(r);
+}
+
+QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
+	auto data = mask->data();
+	auto size = mask->size();
+
+	auto generateTag = qstr("GENERATE:");
+	if (size > generateTag.size() && !memcmp(data, generateTag.data(), generateTag.size())) {
+		size -= generateTag.size();
+		data += generateTag.size();
+		auto sizeTag = qstr("SIZE:");
+		if (size > sizeTag.size() && !memcmp(data, sizeTag.data(), sizeTag.size())) {
+			size -= sizeTag.size();
+			data += sizeTag.size();
+			auto baForStream = QByteArray::fromRawData(reinterpret_cast<const char*>(data), size);
+			QBuffer buffer(&baForStream);
+			buffer.open(QIODevice::ReadOnly);
+
+			QDataStream stream(&buffer);
+			stream.setVersion(QDataStream::Qt_5_1);
+
+			qint32 width = 0, height = 0;
+			stream >> width >> height;
+			t_assert(stream.status() == QDataStream::Ok);
+
+			switch (scale) {
+			case dbisOne: return QSize(width, height);
+			case dbisOneAndQuarter: return QSize(pxAdjust(width, 5), pxAdjust(height, 5));
+			case dbisOneAndHalf: return QSize(pxAdjust(width, 6), pxAdjust(height, 6));
+			case dbisTwo: return QSize(width * 2, height * 2);
+			}
+		} else {
+			t_assert(!"Bad data in generated icon!");
+		}
+	}
+	return QSize();
 }
 
 } // namespace
 
-MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset)
+MonoIcon::MonoIcon(const IconMask *mask, Color color, QPoint offset)
 : _mask(mask)
-, _color(color)
+, _color(std_::move(color))
 , _offset(offset) {
+}
+
+void MonoIcon::reset() const {
+	_pixmap = QPixmap();
+	_size = QSize();
 }
 
 int MonoIcon::width() const {
@@ -119,74 +163,130 @@ void MonoIcon::fill(QPainter &p, const QRect &rect) const {
 	}
 }
 
+void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, QColor colorOverride) const {
+	int w = width(), h = height();
+	QPoint fullOffset = pos + offset();
+	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	int partPosY = fullOffset.y();
+
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(partPosX, partPosY, w, h, colorOverride);
+	} else {
+		ensureColorizedImage(colorOverride);
+		p.drawImage(partPosX, partPosY, _colorizedImage);
+	}
+}
+
+void MonoIcon::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(rect, colorOverride);
+	} else {
+		ensureColorizedImage(colorOverride);
+		p.drawImage(rect, _colorizedImage, _colorizedImage.rect());
+	}
+}
+
+void MonoIcon::paint(QPainter &p, const QPoint &pos, int outerw, const style::palette &paletteOverride) const {
+	int w = width(), h = height();
+	QPoint fullOffset = pos + offset();
+	int partPosX = rtl() ? (outerw - fullOffset.x() - w) : fullOffset.x();
+	int partPosY = fullOffset.y();
+
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(partPosX, partPosY, w, h, _color[paletteOverride]);
+	} else {
+		ensureColorizedImage(_color[paletteOverride]->c);
+		p.drawImage(partPosX, partPosY, _colorizedImage);
+	}
+}
+
+void MonoIcon::fill(QPainter &p, const QRect &rect, const style::palette &paletteOverride) const {
+	ensureLoaded();
+	if (_pixmap.isNull()) {
+		p.fillRect(rect, _color[paletteOverride]);
+	} else {
+		ensureColorizedImage(_color[paletteOverride]->c);
+		p.drawImage(rect, _colorizedImage, _colorizedImage.rect());
+	}
+}
+
+QImage MonoIcon::instance(QColor colorOverride, DBIScale scale) const {
+	if (scale == dbisAuto) {
+		ensureLoaded();
+		auto result = QImage(size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(cRetinaFactor());
+		if (_pixmap.isNull()) {
+			result.fill(colorOverride);
+		} else {
+			colorizeImage(_maskImage, colorOverride, &result);
+		}
+		return std_::move(result);
+	}
+	auto size = readGeneratedSize(_mask, scale);
+	if (!size.isEmpty()) {
+		auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+		result.setDevicePixelRatio(cRetinaFactor());
+		result.fill(colorOverride);
+		return std_::move(result);
+	}
+	auto mask = createIconMask(_mask, scale);
+	auto result = QImage(mask.size(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	colorizeImage(mask, colorOverride, &result);
+	return std_::move(result);
+}
+
 void MonoIcon::ensureLoaded() const {
 	if (_size.isValid()) {
 		return;
 	}
-	const uchar *data = _mask->data();
-	int size = _mask->size();
+	if (!_maskImage.isNull()) {
+		createCachedPixmap();
+		return;
+	}
 
-	auto generateTag = qstr("GENERATE:");
-	if (size > generateTag.size() && !memcmp(data, generateTag.data(), generateTag.size())) {
-		size -= generateTag.size();
-		data += generateTag.size();
-		auto sizeTag = qstr("SIZE:");
-		if (size > sizeTag.size() && !memcmp(data, sizeTag.data(), sizeTag.size())) {
-			size -= sizeTag.size();
-			data += sizeTag.size();
-			auto baForStream = QByteArray::fromRawData(reinterpret_cast<const char*>(data), size);
-			QBuffer buffer(&baForStream);
-			buffer.open(QIODevice::ReadOnly);
-
-			QDataStream stream(&buffer);
-			stream.setVersion(QDataStream::Qt_5_1);
-
-			qint32 width = 0, height = 0;
-			stream >> width >> height;
-			t_assert(stream.status() == QDataStream::Ok);
-
-			switch (cScale()) {
-			case dbisOne: _size = QSize(width, height); break;
-			case dbisOneAndQuarter: _size = QSize(pxAdjust(width, 5), pxAdjust(height, 5)); break;
-			case dbisOneAndHalf: _size = QSize(pxAdjust(width, 6), pxAdjust(height, 6)); break;
-			case dbisTwo: _size = QSize(width * 2, height * 2); break;
-			}
-		} else {
-			t_assert(!"Bad data in generated icon!");
+	_size = readGeneratedSize(_mask, cScale());
+	if (_size.isEmpty()) {
+		iconMasks.createIfNull();
+		auto i = iconMasks->constFind(_mask);
+		if (i == iconMasks->cend()) {
+			i = iconMasks->insert(_mask, createIconMask(_mask, cScale()));
 		}
-	} else {
-		if (_owningPixmap) {
-			_pixmap = createIconPixmap(_mask, _color);
-		} else {
-			iconPixmaps.createIfNull();
-			auto key = qMakePair(_mask, colorKey(_color->c));
-			auto i = iconPixmaps->constFind(key);
-			if (i == iconPixmaps->cend()) {
-				i = iconPixmaps->insert(key, createIconPixmap(_mask, _color));
-			}
-			_pixmap = i.value();
-		}
-		_size = _pixmap.size() / cIntRetinaFactor();
+		_maskImage = i.value();
+
+		createCachedPixmap();
 	}
 }
 
-MonoIcon::MonoIcon(const IconMask *mask, const Color &color, QPoint offset, OwningPixmapTag)
-: _mask(mask)
-, _color(color)
-, _offset(offset)
-, _owningPixmap(true) {
+void MonoIcon::ensureColorizedImage(QColor color) const {
+	if (_colorizedImage.isNull()) _colorizedImage = QImage(_maskImage.size(), QImage::Format_ARGB32_Premultiplied);
+	colorizeImage(_maskImage, color, &_colorizedImage);
 }
 
-void Icon::paint(QPainter &p, const QPoint &pos, int outerw) const {
-	for_const (auto &part, _parts) {
-		part.paint(p, pos, outerw);
+void MonoIcon::createCachedPixmap() const {
+	iconPixmaps.createIfNull();
+	auto key = qMakePair(_mask, colorKey(_color->c));
+	auto j = iconPixmaps->constFind(key);
+	if (j == iconPixmaps->cend()) {
+		auto image = colorizeImage(_maskImage, _color);
+		j = iconPixmaps->insert(key, App::pixmapFromImageInPlace(std_::move(image)));
 	}
+	_pixmap = j.value();
+	_size = _pixmap.size() / cIntRetinaFactor();
 }
 
-void Icon::fill(QPainter &p, const QRect &rect) const {
+void IconData::created() {
+	iconData.createIfNull();
+	iconData->insert(this);
+}
+
+void IconData::fill(QPainter &p, const QRect &rect) const {
 	if (_parts.isEmpty()) return;
 
-	auto partSize = _parts.at(0).size();
+	auto partSize = _parts[0].size();
 	for_const (auto &part, _parts) {
 		t_assert(part.offset() == QPoint(0, 0));
 		t_assert(part.size() == partSize);
@@ -194,7 +294,25 @@ void Icon::fill(QPainter &p, const QRect &rect) const {
 	}
 }
 
-int Icon::width() const {
+void IconData::fill(QPainter &p, const QRect &rect, QColor colorOverride) const {
+	if (_parts.isEmpty()) return;
+
+	auto partSize = _parts[0].size();
+	for_const (auto &part, _parts) {
+		t_assert(part.offset() == QPoint(0, 0));
+		t_assert(part.size() == partSize);
+		part.fill(p, rect, colorOverride);
+	}
+}
+
+QImage IconData::instance(QColor colorOverride, DBIScale scale) const {
+	t_assert(_parts.size() == 1);
+	auto &part = _parts[0];
+	t_assert(part.offset() == QPoint(0, 0));
+	return part.instance(colorOverride, scale);
+}
+
+int IconData::width() const {
 	if (_width < 0) {
 		_width = 0;
 		for_const (auto &part, _parts) {
@@ -204,7 +322,7 @@ int Icon::width() const {
 	return _width;
 }
 
-int Icon::height() const {
+int IconData::height() const {
 	if (_height < 0) {
 		_height = 0;
 		for_const (auto &part, _parts) {
@@ -214,8 +332,19 @@ int Icon::height() const {
 	return _height;
 }
 
-void destroyIcons() {
+void resetIcons() {
 	iconPixmaps.clear();
+	if (iconData) {
+		for (auto data : *iconData) {
+			data->reset();
+		}
+	}
+}
+
+void destroyIcons() {
+	iconData.clear();
+	iconPixmaps.clear();
+	iconMasks.clear();
 }
 
 } // namespace internal

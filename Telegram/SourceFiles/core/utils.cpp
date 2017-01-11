@@ -206,7 +206,7 @@ namespace {
 
 	float64 _msFreq;
 	float64 _msgIdCoef;
-    int64 _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
+	TimeMs _msStart = 0, _msAddToMsStart = 0, _msAddToUnixtime = 0;
 	int32 _timeStart = 0;
 
 	class _MsInitializer {
@@ -235,7 +235,7 @@ namespace {
             clock_gettime(CLOCK_MONOTONIC, &ts);
             //_msFreq = 1 / 1000000.;
             _msgIdCoef = float64(0xFFFF0000L) / 1000000000.;
-            _msStart = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
+            _msStart = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
 #endif
 			_timeStart = myunixtime();
 			srand((uint32)(_msStart & 0xFFFFFFFFL));
@@ -312,8 +312,8 @@ namespace ThirdParty {
 }
 
 bool checkms() {
-	int64 unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
-	int64 ms = int64(getms(true));
+	auto unixms = (myunixtime() - _timeStart) * 1000LL + _msAddToUnixtime;
+	auto ms = getms(true);
 	if (ms > unixms + 1000LL) {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
 	} else if (unixms > ms + 1000LL) {
@@ -324,24 +324,24 @@ bool checkms() {
 	return false;
 }
 
-uint64 getms(bool checked) {
+TimeMs getms(bool checked) {
     _msInitialize();
 #ifdef Q_OS_WIN
     LARGE_INTEGER li;
     QueryPerformanceCounter(&li);
-	return (uint64)((li.QuadPart - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0);
+	return ((li.QuadPart - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
 #elif defined Q_OS_MAC
-   uint64 msCount = mach_absolute_time();
-   return (uint64)((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0);
+	auto msCount = static_cast<TimeMs>(mach_absolute_time());
+	return ((msCount - _msStart) * _msFreq) + (checked ? _msAddToMsStart : 0LL);
 #else
     timespec ts;
-    int res = clock_gettime(CLOCK_MONOTONIC, &ts);
+    auto res = clock_gettime(CLOCK_MONOTONIC, &ts);
     if (res != 0) {
         LOG(("Bad clock_gettime result: %1").arg(res));
         return 0;
     }
-    uint64 msCount = 1000 * uint64(ts.tv_sec) + (uint64(ts.tv_nsec) / 1000000);
-    return (uint64)(msCount - _msStart) + (checked ? _msAddToMsStart : 0);
+    auto msCount = 1000LL * static_cast<TimeMs>(ts.tv_sec) + (static_cast<TimeMs>(ts.tv_nsec) / 1000000LL);
+    return (msCount - _msStart) + (checked ? _msAddToMsStart : 0LL);
 #endif
 }
 
@@ -938,41 +938,52 @@ QString rusKeyboardLayoutSwitch(const QString &from) {
 
 QStringList MimeType::globPatterns() const {
 	switch (_type) {
-	case WebP: return QStringList(qsl("*.webp"));
+	case Known::WebP: return QStringList(qsl("*.webp"));
+	case Known::TDesktopTheme: return QStringList(qsl("*.tdesktop-theme"));
 	default: break;
 	}
 	return _typeStruct.globPatterns();
 }
 QString MimeType::filterString() const {
 	switch (_type) {
-	case WebP: return qsl("WebP image (*.webp)");
+	case Known::WebP: return qsl("WebP image (*.webp)");
+	case Known::TDesktopTheme: return qsl("Theme files (*.tdesktop-theme)");
 	default: break;
 	}
 	return _typeStruct.filterString();
 }
 QString MimeType::name() const {
 	switch (_type) {
-	case WebP: return qsl("image/webp");
+	case Known::WebP: return qsl("image/webp");
+	case Known::TDesktopTheme: return qsl("application/x-tdesktop-theme");
 	default: break;
 	}
 	return _typeStruct.name();
 }
 
 MimeType mimeTypeForName(const QString &mime) {
-	if (mime == qsl("image/webp")) return MimeType(MimeType::WebP);
+	if (mime == qsl("image/webp")) {
+		return MimeType(MimeType::Known::WebP);
+	} else if (mime == qsl("application/x-tdesktop-theme")) {
+		return MimeType(MimeType::Known::TDesktopTheme);
+	}
 	return MimeType(QMimeDatabase().mimeTypeForName(mime));
 }
 
 MimeType mimeTypeForFile(const QFileInfo &file) {
 	QString path = file.absoluteFilePath();
-	if (path.endsWith(qsl(".webp"), Qt::CaseInsensitive)) return MimeType(MimeType::WebP);
+	if (path.endsWith(qsl(".webp"), Qt::CaseInsensitive)) {
+		return MimeType(MimeType::Known::WebP);
+	} else if (path.endsWith(qsl(".tdesktop-theme"), Qt::CaseInsensitive)) {
+		return MimeType(MimeType::Known::TDesktopTheme);
+	}
 	{
 		QFile f(path);
 		if (f.open(QIODevice::ReadOnly)) {
 			QByteArray magic = f.read(12);
 			if (magic.size() >= 12) {
 				if (!memcmp(magic.constData(), "RIFF", 4) && !memcmp(magic.constData() + 8, "WEBP", 4)) {
-					return MimeType(MimeType::WebP);
+					return MimeType(MimeType::Known::WebP);
 				}
 			}
 			f.close();
@@ -984,7 +995,7 @@ MimeType mimeTypeForFile(const QFileInfo &file) {
 MimeType mimeTypeForData(const QByteArray &data) {
 	if (data.size() >= 12) {
 		if (!memcmp(data.constData(), "RIFF", 4) && !memcmp(data.constData() + 8, "WEBP", 4)) {
-			return MimeType(MimeType::WebP);
+			return MimeType(MimeType::Known::WebP);
 		}
 	}
 	return MimeType(QMimeDatabase().mimeTypeForData(data));

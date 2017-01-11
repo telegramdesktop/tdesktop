@@ -20,28 +20,44 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 
 using "basic.style";
+using "ui/widgets/widgets.style";
+using "history/history.style";
 
-titleIconPosition: point(9px, 9px);
-titleIcon: icon {
-	{ "title_icon_bg", #49708f },
-	{ "title_icon", #ffffff, point(4px, 4px) }
-};
-titleCounterPosition: point(17px, 17px);
+windowMinWidth: 380px;
+windowMinHeight: 480px;
+windowDefaultWidth: 800px;
+windowDefaultHeight: 600px;
+windowShadow: icon {{ "window_shadow", windowShadowFg }};
+windowShadowShift: 1px;
 
-notifyBg: white;
-notifyBorder: #f1f1f1;
+adaptiveNormalWidth: 640px;
+adaptiveWideWidth: 1366px;
+
+notifyBorder: windowShadowFgFallback;
 notifyBorderWidth: 1px;
 notifySlowHide: 4000;
 notifyPhotoSize: 62px;
 notifyMacPhotoSize: 64px;
 notifyPhotoPos: point(9px, 9px);
 notifyClosePos: point(1px, 2px);
-notifyClose: iconedButton(simpleClose) {
+notifyClose: IconButton {
+	width: 30px;
+	height: 30px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+
+	iconPosition: point(10px, 10px);
+
+	rippleAreaPosition: point(5px, 5px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
 }
 notifyItemTop: 12px;
 notifyTextLeft: 12px;
 notifyTextTop: 7px;
-notifySlowHideFunc: transition(easeInCirc);
 notifyWaitLongHide: 3000;
 notifyFastAnim: 150;
 notifyWidth: 320px;
@@ -50,29 +66,175 @@ notifyDeltaX: 6px;
 notifyDeltaY: 7px;
 notifyActionsDuration: 200;
 
-notifyHideAll: RoundButton(defaultBoxButton) {
-}
+notifyHideAllHeight: 36px;
 
-notifyFadeRight: icon {{ "fade_horizontal_right", notifyBg }};
-notifyReplyArea: InputArea(defaultInputArea) {
+notifyReplyArea: InputField(defaultInputField) {
 	font: normalFont;
 	textMargins: margins(8px, 8px, 8px, 6px);
 	heightMin: 36px;
 	heightMax: 72px;
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
 	border: 0px;
 	borderActive: 0px;
-	borderError: 0px;
 }
 notifySendReply: IconButton {
 	width: 36px;
 	height: 36px;
 
-	opacity: 0.78;
-	overOpacity: 1.;
-
-	icon: icon {{ "notification_send", windowActiveBg, point(3px, 9px) }};
-	iconPosition: point(0px, 0px);
-	downIconPosition: point(0px, 1px);
-
-	duration: notifyFastAnim;
+	icon: historySendIcon;
+	iconOver: historySendIconOver;
+	iconPosition: point(6px, 6px);
 }
+
+titleUnreadCounterTop: 5px;
+titleUnreadCounterRight: 35px;
+
+mainMenuWidth: 274px;
+mainMenuCoverHeight: 140px;
+mainMenuUserpicLeft: 24px;
+mainMenuUserpicTop: 22px;
+mainMenuUserpicSize: 48px;
+mainMenuCoverTextLeft: 30px;
+mainMenuCoverNameTop: 88px;
+mainMenuCoverStatusTop: 106px;
+mainMenuSkip: 13px;
+mainMenu: Menu(defaultMenu) {
+	itemFg: windowBoldFg;
+	itemFgOver: windowBoldFgOver;
+	itemFont: semiboldFont;
+	itemIconPosition: point(28px, 11px);
+	itemPadding: margins(76px, 14px, 28px, 14px);
+}
+mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
+mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
+mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
+mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
+mainMenuContacts: icon {{ "menu_contacts", menuIconFg }};
+mainMenuContactsOver: icon {{ "menu_contacts", menuIconFgOver }};
+mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
+mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
+mainMenuHelp: icon {{ "menu_help", menuIconFg }};
+mainMenuHelpOver: icon {{ "menu_help", menuIconFgOver }};
+mainMenuFooterLeft: 30px;
+mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
+	align: align(left);
+	textFg: windowSubTextFg;
+	style: TextStyle(defaultTextStyle) {
+		font: semiboldFont;
+		linkFont: semiboldFont;
+		linkFontOver: font(fsize semibold underline);
+	}
+	palette: TextPalette(defaultTextPalette) {
+		linkFg: windowSubTextFg;
+	}
+}
+mainMenuTelegramBottom: 43px;
+mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
+	style: defaultTextStyle;
+}
+mainMenuVersionBottom: 21px;
+
+// Windows specific title
+
+titleHeight: 21px;
+titleButtonMinimize: IconButton {
+	width: 24px;
+	height: 21px;
+
+	icon: icon {{ "title_button_minimize", titleButtonFg, point(4px, 4px) }};
+	iconOver: icon {
+		{ size(24px, 21px), titleButtonBgOver },
+		{ "title_button_minimize", titleButtonFgOver, point(4px, 4px) },
+	};
+	iconPosition: point(0px, 0px);
+}
+titleButtonMaximize: IconButton(titleButtonMinimize) {
+	icon: icon {{ "title_button_maximize", titleButtonFg, point(4px, 4px) }};
+	iconOver: icon {
+		{ size(24px, 21px), titleButtonBgOver },
+		{ "title_button_maximize", titleButtonFgOver, point(4px, 4px) },
+	};
+}
+titleButtonRestoreIcon: icon {{ "title_button_restore", titleButtonFg, point(4px, 4px) }};
+titleButtonRestoreIconOver: icon {
+	{ size(24px, 21px), titleButtonBgOver },
+	{ "title_button_restore", titleButtonFgOver, point(4px, 4px) },
+};
+titleButtonClose: IconButton(titleButtonMinimize) {
+	width: 25px;
+
+	icon: icon {{ "title_button_close", titleButtonFg, point(5px, 4px) }};
+	iconOver: icon {
+		{ size(25px, 21px), titleButtonCloseBgOver },
+		{ "title_button_close", titleButtonCloseFgOver, point(5px, 4px) },
+	};
+}
+
+// Legacy top bar.
+topBarHeight: 54px;
+topBarMenuPosition: point(-2px, 35px);
+topBarDuration: 200;
+topBarBackward: icon {{ "title_back", menuIconFg }};
+topBarForwardAlpha: 0.6;
+topBarBack: icon {{ "title_back", lightButtonFg }};
+topBarArrowPadding: margins(39px, 8px, 17px, 8px);
+topBarMinPadding: 5px;
+topBarButton: RoundButton(defaultLightButton) {
+	width: -18px;
+	padding: margins(0px, 10px, 12px, 10px);
+}
+topBarClearButton: RoundButton(defaultLightButton) {
+	width: -18px;
+}
+topBarSearch: IconButton {
+	width: 45px;
+	height: topBarHeight;
+
+	icon: icon {{ "title_search", menuIconFg }};
+	iconOver: icon {{ "title_search", menuIconFgOver }};
+	iconPosition: point(15px, 18px);
+
+	rippleAreaPosition: point(4px, 7px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+topBarMenuToggle: IconButton(topBarSearch) {
+	icon: icon {{ "title_menu_dots", menuIconFg }};
+	iconOver: icon {{ "title_menu_dots", menuIconFgOver }};
+	iconPosition: point(16px, 17px);
+
+	rippleAreaPosition: point(0px, 7px);
+}
+topBarActionSkip: 10px;
+
+PeerAvatarButton {
+	size: pixels;
+	photoSize: pixels;
+}
+topBarInfoButton: PeerAvatarButton {
+	size: topBarHeight;
+	photoSize: 42px;
+}
+topBarSlideDuration: 200;
+
+// Mac specific
+
+macAccessoryWidth: 450.;
+macAccessoryHeight: 90.;
+macEnableFilterAdd: 2;
+macEnableFilterTop: 5;
+macSelectorTop: 6;
+macAlwaysThisAppTop: 4;
+macAppHintTop: 8;
+macCautionIconSize: 16;
+
+macWindowRoundRadius: 5;
+macWindowShadowTopLeft: icon {{ "mac_window_shadow_top_left", windowShadowFg }};
+macTrayIcon: icon {{ "mac_tray_icon", windowFg }};

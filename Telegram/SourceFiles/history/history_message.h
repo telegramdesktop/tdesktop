@@ -71,7 +71,7 @@ public:
 	void drawInfo(Painter &p, int32 right, int32 bottom, int32 width, bool selected, InfoDisplayType type) const override;
 	void setViewsCount(int32 count) override;
 	void setId(MsgId newId) override;
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 
 	void dependencyItemRemoved(HistoryItem *dependency) override;
 
@@ -208,12 +208,14 @@ private:
 	public:
 		using ReplyKeyboard::Style::Style;
 
+		int buttonRadius() const override;
+
 		void startPaint(Painter &p) const override;
-		style::font textFont() const override;
+		const style::TextStyle &textStyle() const override;
 		void repaint(const HistoryItem *item) const override;
 
 	protected:
-		void paintButtonBg(Painter &p, const QRect &rect, bool down, float64 howMuchOver) const override;
+		void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const override;
 		void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const override;
 		void paintButtonLoading(Painter &p, const QRect &rect) const override;
 		int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const override;
@@ -277,7 +279,7 @@ public:
 
 	void countPositionAndSize(int32 &left, int32 &width) const;
 
-	void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const override;
+	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	bool hasPoint(int x, int y) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
 
@@ -364,18 +366,5 @@ protected:
 	HistoryJoined(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags);
 	using HistoryItemInstantiated<HistoryJoined>::_create;
 	friend class HistoryItemInstantiated<HistoryJoined>;
-
-};
-
-class ViaInlineBotClickHandler : public LeftButtonClickHandler {
-public:
-	ViaInlineBotClickHandler(UserData *bot) : _bot(bot) {
-	}
-
-protected:
-	void onClickImpl() const override;
-
-private:
-	UserData *_bot;
 
 };

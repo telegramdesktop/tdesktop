@@ -50,7 +50,7 @@ private:
 	int _downCoord = -1; // < 0 means mouse is not pressed
 
 	bool _over = false;
-	FloatAnimation _a_over;
+	Animation _a_over;
 
 };
 

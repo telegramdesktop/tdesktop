@@ -20,27 +20,31 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
-class LanguageBox : public AbstractBox {
+namespace Ui {
+class Radiobutton;
+} // namespace Ui
+
+class LanguageBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	LanguageBox();
-
-public slots:
-	void onChange();
-	void onRestore();
-	void onSave();
+	LanguageBox(QWidget*) {
+	}
 
 protected:
-	void mousePressEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
+	void prepare() override;
 
-	void showAll() override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+private slots:
+	void onChange();
 
 private:
-	QVector<Radiobutton*> _langs;
-	BoxButton _close;
+	void saveLanguage();
+	void restoreLanguage();
+
+	QVector<Ui::Radiobutton*> _langs;
 
 };

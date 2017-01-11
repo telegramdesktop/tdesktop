@@ -119,7 +119,7 @@ Go to **D:\\TBuild\\Libraries** and run
 
     git clone git://repo.or.cz/openal-soft.git
     cd openal-soft
-    git checkout 90349b38
+    git checkout 18bb46163af
     git apply ./../../tdesktop/Telegram/Patches/openal.diff
 
 #### Building library
@@ -151,7 +151,7 @@ Go to **D:\\TBuild\\Libraries** and run
 
     git clone https://github.com/FFmpeg/FFmpeg.git ffmpeg
     cd ffmpeg
-    git checkout release/3.1
+    git checkout release/3.2
 
 http://msys2.github.io/ > Download [msys2-x86_64-20150512.exe](http://sourceforge.net/projects/msys2/files/Base/x86_64/msys2-x86_64-20150512.exe/download) and install to **D:\\msys64**
 

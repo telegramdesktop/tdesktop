@@ -20,25 +20,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/flatinput.h"
-#include "ui/scrollarea.h"
-#include "ui/flatbutton.h"
-#include "ui/effects/rect_shadow.h"
 #include "boxes/abstractbox.h"
+#include "styles/style_widgets.h"
 
 QString findValidCode(QString fullCode);
-
-class CountrySelect;
 
 namespace Ui {
 class MultiSelect;
 } // namespace Ui
 
-class CountryInput : public QWidget {
+class CountryInput : public TWidget {
 	Q_OBJECT
 
 public:
-	CountryInput(QWidget *parent, const style::countryInput &st);
+	CountryInput(QWidget *parent, const style::InputField &st);
 
 public slots:
 	void onChooseCode(const QString &code);
@@ -57,53 +52,44 @@ protected:
 private:
 	void setText(const QString &newText);
 
-	QPixmap _arrow;
-	QRect _inner, _arrowRect;
-	style::countryInput _st;
-	bool _active;
+	const style::InputField &_st;
+	bool _active = false;
 	QString _text;
-
-	CountrySelect *_select;
+	QPainterPath _placeholderPath;
 
 };
 
-namespace internal {
-class CountrySelectInner;
-} // namespace internal
-
-class CountrySelectBox : public ItemListBox {
+class CountrySelectBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	CountrySelectBox();
+	CountrySelectBox(QWidget*);
 
 signals:
 	void countryChosen(const QString &iso);
 
-public slots:
-	void onSubmit();
-
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void doSetInnerFocus() override;
-	void showAll() override;
+private slots:
+	void onSubmit();
 
 private:
 	void onFilterUpdate(const QString &query);
 
-	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::MultiSelect> _select;
+	object_ptr<Ui::MultiSelect> _select;
 
-	ScrollableBoxShadow _topShadow;
+	class Inner;
+	QPointer<Inner> _inner;
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class CountrySelectBox::Inner : public ScrolledWidget {
+class CountrySelectBox::Inner : public TWidget {
 	Q_OBJECT
 
 public:
@@ -118,12 +104,11 @@ public:
 
 	void refresh();
 
+	~Inner();
+
 signals:
 	void countryChosen(const QString &iso);
 	void mustScrollTo(int ymin, int ymax);
-
-public slots:
-	void updateSel();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -131,16 +116,24 @@ protected:
 	void leaveEvent(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	void updateSelected() {
+		updateSelected(mapFromGlobal(QCursor::pos()));
+	}
+	void updateSelected(QPoint localPos);
 	void updateSelectedRow();
+	void updateRow(int index);
+	void setPressed(int pressed);
 
-	int32 _rowHeight;
+	int _rowHeight;
 
-	int32 _sel;
+	int _selected = -1;
+	int _pressed = -1;
 	QString _filter;
-	bool _mouseSel;
+	bool _mouseSelection = false;
 
-	QPoint _lastMousePos;
+	std_::vector_of_moveable<std_::unique_ptr<Ui::RippleAnimation>> _ripples;
 
 };

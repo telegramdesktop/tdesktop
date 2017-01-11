@@ -20,29 +20,46 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/flatbutton.h"
 #include "ui/countryinput.h"
-#include "ui/flatlabel.h"
 #include "intro/introwidget.h"
 
-class IntroPhone final : public IntroStep {
+namespace Ui {
+class PhonePartInput;
+class CountryCodeInput;
+class RoundButton;
+class FlatLabel;
+} // namespace Ui
+
+namespace Intro {
+
+class PhoneWidget : public Widget::Step, private base::Subscriber {
 	Q_OBJECT
 
 public:
-
-	IntroPhone(IntroWidget *parent);
-
-	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void step_error(float64 ms, bool timer);
+	PhoneWidget(QWidget *parent, Widget::Data *data);
 
 	void selectCountry(const QString &country);
 
+	void setInnerFocus() override;
 	void activate() override;
 	void finished() override;
 	void cancelled() override;
-	void onSubmit() override;
+	void submit() override;
+
+	bool hasBack() const override {
+		return true;
+	}
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private slots:
+	void onInputChange();
+	void onCheckRequest();
+
+private:
+	void updateSignupGeometry();
+	void countryChanged();
 
 	void phoneCheckDone(const MTPauth_CheckedPhone &result);
 	void phoneSubmitDone(const MTPauth_SentCode &result);
@@ -50,41 +67,26 @@ public:
 
 	void toSignUp();
 
-public slots:
-
-	void countryChanged();
-	void onInputChange();
-	void onSubmitPhone();
-	void onCheckRequest();
-
-private:
-
 	QString fullNumber() const;
-	void disableAll();
-	void enableAll(bool failed);
 	void stopCheck();
 
-	void showError(const QString &err, bool signUp = false);
+	void showPhoneError(const QString &text);
+	void hidePhoneError();
+	void showSignup();
 
-	QString error;
-	anim::fvalue a_errorAlpha;
-	Animation _a_error;
+	bool _changed = false;
 
-	bool changed;
-	FlatButton next;
+	object_ptr<CountryInput> _country;
+	object_ptr<Ui::CountryCodeInput> _code;
+	object_ptr<Ui::PhonePartInput> _phone;
 
-	QRect textRect;
+	object_ptr<Ui::WidgetFadeWrap<Ui::FlatLabel>> _signup = { nullptr };
 
-	CountryInput country;
-	PhonePartInput phone;
-	CountryCodeInput code;
+	QString _sentPhone;
+	mtpRequestId _sentRequest = 0;
 
-	FlatLabel _signup;
-	QPixmap _signupCache;
-	bool _showSignup;
+	object_ptr<QTimer> _checkRequest;
 
-	QString sentPhone;
-	mtpRequestId sentRequest;
-
-	QTimer checkRequest;
 };
+
+} // namespace Intro

@@ -21,38 +21,188 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 using "basic.style";
 
 using "boxes/boxes.style";
+using "ui/widgets/widgets.style";
 
-featuredStickersHeader: 45px;
-featuredStickersSkip: 15px;
+switchPmButton: RoundButton(defaultBoxButton) {
+	width: 320px;
+	height: 34px;
+	textTop: 7px;
+}
 
-featuredStickersHeaderFont: semiboldFont;
-featuredStickersHeaderFg: windowTextFg;
-featuredStickersHeaderTop: 0px;
-featuredStickersSubheaderFont: normalFont;
-featuredStickersSubheaderFg: #777;
-featuredStickersSubheaderTop: 20px;
+stickersTrendingHeader: 45px;
+stickersTrendingSkip: 15px;
 
-featuredStickersAddTop: 3px;
-featuredStickersAdd: RoundButton(defaultActiveButton) {
-	width: -17px;
+stickersTrendingHeaderFont: semiboldFont;
+stickersTrendingHeaderFg: windowFg;
+stickersTrendingHeaderTop: 0px;
+stickersTrendingSubheaderFont: normalFont;
+stickersTrendingSubheaderFg: windowSubTextFg;
+stickersTrendingSubheaderTop: 20px;
+
+stickersTrendingAddTop: 3px;
+stickersTrendingAdd: RoundButton(defaultActiveButton) {
+	width: -16px;
 	height: 26px;
 	textTop: 4px;
-	downTextTop: 5px;
+}
+stickersRemove: IconButton(defaultIconButton) {
+	width: 40px;
+	height: 40px;
+
+	icon: icon {{ "stickers_remove", menuIconFg }};
+	iconOver: icon {{ "stickers_remove", menuIconFgOver }};
+
+	rippleAreaSize: 40px;
+	rippleAreaPosition: point(0px, 0px);
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+stickersUndoRemove: RoundButton(defaultLightButton) {
+	width: -16px;
+	height: 26px;
+	textTop: 4px;
+}
+stickersRemoveSkip: 4px;
+stickersReorderIcon: icon {{ "stickers_reorder", menuIconFg }};
+stickersReorderSkip: 13px;
+
+stickersTabs: SettingsSlider(defaultTabsSlider) {
+	rippleRoundRadius: boxRadius;
 }
 
 stickerEmojiSkip: 5px;
 
-stickersAddIcon: icon {{ "stickers_add", #ffffff }};
-stickersAddSize: size(30px, 24px);
-
-stickersFeaturedHeight: 32px;
-stickersFeaturedFont: contactsNameFont;
-stickersFeaturedPosition: point(16px, 6px);
-stickersFeaturedBadgeFont: semiboldFont;
-stickersFeaturedBadgeSize: 21px;
-stickersFeaturedPen: contactsNewItemFg;
+stickersFeaturedBadgeFont: font(12px bold);
+stickersFeaturedBadgeSize: 15px;
+stickersFeaturedBadgeTextTop: -1px;
+stickersFeaturedBadgePadding: 4px;
+stickersFeaturedBadgeSkip: 4px;
+stickersFeaturedBadgeTop: 9px;
+stickersFeaturedPen: lightButtonFg;
 stickersFeaturedUnreadBg: msgFileInBg;
 stickersFeaturedUnreadSize: 5px;
 stickersFeaturedUnreadSkip: 5px;
 stickersFeaturedUnreadTop: 7px;
-stickersFeaturedInstalled: icon {{ "mediaview_save_check", #40ace3 }};
+stickersFeaturedInstalled: icon {{ "send_control_save", lightButtonFg }};
+
+stickersMaxHeight: 320px;
+stickersPadding: margins(19px, 13px, 19px, 13px);
+stickersSize: size(64px, 64px);
+stickersScroll: ScrollArea(boxLayerScroll) {
+	deltat: 19px;
+	deltab: 9px;
+}
+stickersReorderPadding: margins(0px, 12px, 0px, 12px);
+stickersReorderFg: windowSubTextFg;
+stickersRowDisabledOpacity: 0.4;
+stickersRowDuration: 200;
+
+emojiIconFg: checkboxFg;
+emojiIconFgActive: windowBgActive;
+stickersSettings: icon {{ "emoji_settings", emojiIconFg }};
+stickersTrending: icon {{ "emoji_trending", emojiIconFg }};
+stickersTrendingActive: icon {{ "emoji_trending", emojiIconFgActive }};
+
+stickersSettingsUnreadSize: 17px;
+stickersSettingsUnreadPosition: point(4px, 5px);
+
+emojiPanMargins: margins(10px, 10px, 10px, 10px);
+
+emojiScroll: ScrollArea(defaultSolidScroll) {
+	deltat: 48px;
+}
+emojiRecent: icon {{ "emoji_recent", emojiIconFg }};
+emojiRecentActive: icon {{ "emoji_recent", emojiIconFgActive }};
+emojiPeople: icon {{ "emoji_people", emojiIconFg }};
+emojiPeopleActive: icon {{ "emoji_people", emojiIconFgActive }};
+emojiNature: icon {{ "emoji_nature", emojiIconFg }};
+emojiNatureActive: icon {{ "emoji_nature", emojiIconFgActive }};
+emojiFood: icon {{ "emoji_food", emojiIconFg }};
+emojiFoodActive: icon {{ "emoji_food", emojiIconFgActive }};
+emojiActivity: icon {{ "emoji_activity", emojiIconFg }};
+emojiActivityActive: icon {{ "emoji_activity", emojiIconFgActive }};
+emojiTravel: icon {{ "emoji_travel", emojiIconFg }};
+emojiTravelActive: icon {{ "emoji_travel", emojiIconFgActive }};
+emojiObjects: icon {{ "emoji_objects", emojiIconFg }};
+emojiObjectsActive: icon {{ "emoji_objects", emojiIconFgActive }};
+emojiSymbols: icon {{ "emoji_symbols", emojiIconFg }};
+emojiSymbolsActive: icon {{ "emoji_symbols", emojiIconFgActive }};
+emojiSavedGifs: icon {{ "emoji_gif", emojiIconFg }};
+emojiSavedGifsActive: icon {{ "emoji_gif", emojiIconFgActive }};
+
+emojiCategory: IconButton {
+	width: 42px;
+	height: 46px;
+
+	iconPosition: point(11px, 12px);
+}
+emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
+emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
+emojiCategoryNature: IconButton(emojiCategory) { icon: emojiNature; }
+emojiCategoryFood: IconButton(emojiCategory) { icon: emojiFood; }
+emojiCategoryActivity: IconButton(emojiCategory) { icon: emojiActivity; }
+emojiCategoryTravel: IconButton(emojiCategory) { icon: emojiTravel; }
+emojiCategoryObjects: IconButton(emojiCategory) { icon: emojiObjects; }
+emojiCategorySymbols: IconButton(emojiCategory) { icon: emojiSymbols; }
+
+emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
+	fadeBg: emojiPanBg;
+}
+emojiPanPadding: 12px;
+emojiPanSize: size(45px, 41px);
+emojiPanWidth: 345px;
+emojiPanMinHeight: 206px;
+emojiPanMaxHeight: 366px;
+emojiPanShowDuration: 200;
+emojiPanDuration: 200;
+emojiPanHover: windowBgOver;
+emojiPanSlideDuration: 200;
+
+emojiPanHeader: 42px;
+emojiPanHeaderFont: semiboldFont;
+emojiPanHeaderLeft: 22px;
+emojiPanHeaderTop: 12px;
+
+emojiColorsPadding: 5px;
+emojiColorsSep: 1px;
+emojiColorsSepColor: shadowFg;
+
+emojiSwitchSkip: 27px;
+emojiSwitchImgSkip: 21px;
+emojiSwitchColor: windowActiveTextFg;
+emojiSwitchStickers: icon {{ "emoji_switch", emojiSwitchColor }};
+emojiSwitchEmoji: icon {{ "emoji_switch-flip_horizontal", emojiSwitchColor }};
+
+stickerPanSize: size(64px, 64px);
+stickerPanPadding: 11px;
+stickerPanDelete: icon {
+	{ "emoji_delete_bg", stickerPanDeleteBg },
+	{ "emoji_delete", stickerPanDeleteFg },
+};
+stickerPanDeleteOpacity: 0.5;
+stickerIconPadding: 5px;
+stickerIconOpacity: 0.7;
+stickerIconSel: 2px;
+stickerIconSelColor: emojiIconFgActive;
+stickerIconMove: 400;
+stickerPreviewDuration: 150;
+stickerPreviewMin: 0.1;
+
+hashtagClose: IconButton {
+	width: 30px;
+	height: 30px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+	iconPosition: point(10px, 10px);
+
+	rippleAreaPosition: point(5px, 5px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+stickersToastMaxWidth: 340px;
+stickersToastPadding: margins(16px, 13px, 16px, 12px);

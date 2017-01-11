@@ -19,88 +19,89 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
+#include "boxes/sessionsbox.h"
+
 #include "lang.h"
-
 #include "localstorage.h"
-
-#include "sessionsbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
 #include "countries.h"
-#include "confirmbox.h"
+#include "boxes/confirmbox.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/scroll_area.h"
+#include "styles/style_boxes.h"
 
-SessionsBox::SessionsBox() : ScrollableBox(st::sessionsScroll)
-, _loading(true)
-, _inner(this, &_list, &_current)
-, _shadow(this)
-, _done(this, lang(lng_about_done), st::defaultBoxButton)
-, _shortPollRequest(0) {
-	setMaxHeight(st::sessionsHeight);
+SessionsBox::SessionsBox(QWidget*)
+: _shortPollTimer(this) {
+}
 
-	connect(&_done, SIGNAL(clicked()), this, SLOT(onClose()));
+void SessionsBox::prepare() {
+	setTitle(lang(lng_sessions_other_header));
+
+	addButton(lang(lng_close), [this] { closeBox(); });
+
+	setDimensions(st::boxWideWidth, st::sessionsHeight);
+
 	connect(_inner, SIGNAL(oneTerminated()), this, SLOT(onOneTerminated()));
 	connect(_inner, SIGNAL(allTerminated()), this, SLOT(onAllTerminated()));
 	connect(_inner, SIGNAL(terminateAll()), this, SLOT(onTerminateAll()));
-	connect(App::wnd(), SIGNAL(newAuthorization()), this, SLOT(onNewAuthorization()));
-	connect(&_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
+	connect(App::wnd(), SIGNAL(checkNewAuthorization()), this, SLOT(onCheckNewAuthorization()));
+	connect(_shortPollTimer, SIGNAL(timeout()), this, SLOT(onShortPollAuthorizations()));
 
-	init(_inner, st::boxButtonPadding.bottom() + _done.height() + st::boxButtonPadding.top(), st::boxTitleHeight);
+	_inner = setInnerWidget(object_ptr<Inner>(this, &_list, &_current), st::sessionsScroll);
 	_inner->resize(width(), st::noContactsHeight);
 
-	prepare();
+	setLoading(true);
 
 	MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
 }
 
-void SessionsBox::resizeEvent(QResizeEvent *e) {
-	ScrollableBox::resizeEvent(e);
-	_shadow.setGeometry(0, height() - st::boxButtonPadding.bottom() - _done.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
-	_done.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _done.height());
+void SessionsBox::setLoading(bool loading) {
+	if (_loading != loading) {
+		_loading = loading;
+		setInnerVisible(!_loading);
+	}
 }
 
-void SessionsBox::showAll() {
-	_done.show();
-	if (_loading) {
-		scrollArea()->hide();
-		_shadow.hide();
-	} else {
-		scrollArea()->show();
-		_shadow.show();
-	}
-	ScrollableBox::showAll();
+void SessionsBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
+	_inner->resize(width(), _inner->height());
 }
 
 void SessionsBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	BoxContent::paintEvent(e);
 
-	paintTitle(p, lang(lng_sessions_other_header));
-	p.translate(0, st::boxTitleHeight);
+	Painter p(this);
 
 	if (_loading) {
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_contacts_loading), style::al_center);
 	}
 }
 
 void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
-	_loading = false;
 	_shortPollRequest = 0;
+	setLoading(false);
 
-	int32 availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
-	int32 availOther = availCurrent - st::sessionTerminate.iconPos.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
+	auto availCurrent = st::boxWideWidth - st::sessionPadding.left() - st::sessionTerminateSkip;
+	auto availOther = availCurrent - st::sessionTerminate.iconPosition.x();// -st::sessionTerminate.width - st::sessionTerminateSkip;
 
 	_list.clear();
-	const auto &v(result.c_account_authorizations().vauthorizations.c_vector().v);
-	int32 l = v.size();
-	if (l > 1) _list.reserve(l - 1);
+	if (result.type() != mtpc_account_authorizations) {
+		return;
+	}
+	auto &v = result.c_account_authorizations().vauthorizations.c_vector().v;
+	_list.reserve(v.size());
 
 	const CountriesByISO2 &countries(countriesByISO2());
 
-	for (int32 i = 0; i < l; ++i) {
-		const auto &d(v.at(i).c_authorization());
+	for_const (auto &auth, v) {
+		if (auth.type() != mtpc_authorization) {
+			continue;
+		}
+		auto &d = auth.c_authorization();
 		Data data;
 		data.hash = d.vhash.v;
 
@@ -139,7 +140,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		data.ip = qs(d.vip) + (country.isEmpty() ? QString() : QString::fromUtf8(" \xe2\x80\x93 ") + country);
 		if (!data.hash || (d.vflags.v & 1)) {
 			data.active = lang(lng_sessions_header);
-			data.activeWidth = st::sessionActiveFont->width(lang(lng_sessions_header));
+			data.activeWidth = st::sessionWhenFont->width(lang(lng_sessions_header));
 			int32 availForName = availCurrent - st::sessionPadding.right() - data.activeWidth;
 			if (data.nameWidth > availForName) {
 				data.name = st::sessionNameFont->elided(data.name, availForName);
@@ -167,7 +168,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 			} else {
 				data.active = lastDate.toString(qsl("d.MM.yy"));
 			}
-			data.activeWidth = st::sessionActiveFont->width(data.active);
+			data.activeWidth = st::sessionWhenFont->width(data.active);
 			int32 availForName = availOther - st::sessionPadding.right() - data.activeWidth;
 			if (data.nameWidth > availForName) {
 				data.name = st::sessionNameFont->elided(data.name, availForName);
@@ -194,34 +195,24 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 		}
 	}
 	_inner->listUpdated();
-	if (!_done.isHidden()) {
-		showAll();
-		update();
-	}
 
-	_shortPollTimer.start(SessionsShortPollTimeout);
+	update();
+
+	_shortPollTimer->start(SessionsShortPollTimeout);
 }
 
 void SessionsBox::onOneTerminated() {
-	if (_list.isEmpty()) {
-		if (!_done.isHidden()) {
-			showAll();
-			update();
-		}
-	}
+	update();
 }
 
 void SessionsBox::onShortPollAuthorizations() {
 	if (!_shortPollRequest) {
 		_shortPollRequest = MTP::send(MTPaccount_GetAuthorizations(), rpcDone(&SessionsBox::gotAuthorizations));
-		if (!_done.isHidden()) {
-			showAll();
-			update();
-		}
+		update();
 	}
 }
 
-void SessionsBox::onNewAuthorization() {
+void SessionsBox::onCheckNewAuthorization() {
 	onShortPollAuthorizations();
 //	_shortPollTimer.start(1000);
 }
@@ -235,21 +226,15 @@ void SessionsBox::onAllTerminated() {
 }
 
 void SessionsBox::onTerminateAll() {
-	_loading = true;
-	if (!_done.isHidden()) {
-		showAll();
-		update();
-	}
+	setLoading(true);
 }
 
-SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : ScrolledWidget(parent)
+SessionsBox::Inner::Inner(QWidget *parent, SessionsBox::List *list, SessionsBox::Data *current) : TWidget(parent)
 , _list(list)
 , _current(current)
-, _terminating(0)
-, _terminateAll(this, lang(lng_sessions_terminate_all), st::redBoxLinkButton)
-, _terminateBox(0) {
-	connect(&_terminateAll, SIGNAL(clicked()), this, SLOT(onTerminateAll()));
-	_terminateAll.hide();
+, _terminateAll(this, lang(lng_sessions_terminate_all), st::sessionTerminateAllButton) {
+	connect(_terminateAll, SIGNAL(clicked()), this, SLOT(onTerminateAll()));
+	_terminateAll->hide();
 	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
@@ -257,8 +242,8 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	Painter p(this);
 
-	p.fillRect(r, st::white->b);
-	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPos.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
+	p.fillRect(r, st::boxBg);
+	int32 x = st::sessionPadding.left(), xact = st::sessionTerminateSkip + st::sessionTerminate.iconPosition.x();// st::sessionTerminateSkip + st::sessionTerminate.width + st::sessionTerminateSkip;
 	int32 w = width();
 
 	if (_current->active.isEmpty() && _list->isEmpty()) {
@@ -270,24 +255,24 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 
 	if (r.y() <= st::sessionCurrentHeight) {
 		p.translate(0, st::sessionCurrentPadding.top());
-		p.setFont(st::sessionNameFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionNameFont);
+		p.setPen(st::sessionNameFg);
 		p.drawTextLeft(x, st::sessionPadding.top(), w, _current->name, _current->nameWidth);
 
-		p.setFont(st::sessionActiveFont->f);
-		p.setPen(st::sessionActiveColor->p);
+		p.setFont(st::sessionWhenFont);
+		p.setPen(st::sessionWhenFg);
 		p.drawTextRight(x, st::sessionPadding.top(), w, _current->active, _current->activeWidth);
 
-		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionInfoFont);
+		p.setPen(st::boxTextFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, _current->info, _current->infoWidth);
-		p.setPen(st::sessionInfoColor->p);
+		p.setPen(st::sessionInfoFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, _current->ip, _current->ipWidth);
 	}
 	p.translate(0, st::sessionCurrentHeight - st::sessionCurrentPadding.top());
 	if (_list->isEmpty()) {
-		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::sessionInfoColor->p);
+		p.setFont(st::sessionInfoFont);
+		p.setPen(st::sessionInfoFg);
 		p.drawText(QRect(st::sessionPadding.left(), 0, width() - st::sessionPadding.left() - st::sessionPadding.right(), st::noContactsHeight), lang(lng_sessions_other_desc), style::al_topleft);
 		return;
 	}
@@ -300,18 +285,18 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 	for (int32 i = from; i < to; ++i) {
 		const SessionsBox::Data &auth(_list->at(i));
 
-		p.setFont(st::sessionNameFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionNameFont);
+		p.setPen(st::sessionNameFg);
 		p.drawTextLeft(x, st::sessionPadding.top(), w, auth.name, auth.nameWidth);
 
-		p.setFont(st::sessionActiveFont->f);
-		p.setPen(st::sessionActiveColor->p);
+		p.setFont(st::sessionWhenFont);
+		p.setPen(st::sessionWhenFg);
 		p.drawTextRight(xact, st::sessionPadding.top(), w, auth.active, auth.activeWidth);
 
-		p.setFont(st::sessionInfoFont->f);
-		p.setPen(st::black->p);
+		p.setFont(st::sessionInfoFont);
+		p.setPen(st::boxTextFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height, w, auth.info, auth.infoWidth);
-		p.setPen(st::sessionInfoColor->p);
+		p.setPen(st::sessionInfoFg);
 		p.drawTextLeft(x, st::sessionPadding.top() + st::sessionNameFont->height + st::sessionInfoFont->height, w, auth.ip, auth.ipWidth);
 
 		p.translate(0, st::sessionHeight);
@@ -319,51 +304,35 @@ void SessionsBox::Inner::paintEvent(QPaintEvent *e) {
 }
 
 void SessionsBox::Inner::onTerminate() {
-	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
-		if (i.value()->getState() & Button::StateOver) {
-			_terminating = i.key();
-
+	for (auto i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
+		if (i.value()->isOver()) {
 			if (_terminateBox) _terminateBox->deleteLater();
-			_terminateBox = new ConfirmBox(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
-			connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateSure()));
-			connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
-			Ui::showLayer(_terminateBox, KeepOtherLayers);
+			_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_one_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this, terminating = i.key()] {
+				if (_terminateBox) {
+					_terminateBox->closeBox();
+					_terminateBox = nullptr;
+				}
+				MTP::send(MTPaccount_ResetAuthorization(MTP_long(terminating)), rpcDone(&Inner::terminateDone, terminating), rpcFail(&Inner::terminateFail, terminating));
+				auto i = _terminateButtons.find(terminating);
+				if (i != _terminateButtons.cend()) {
+					i.value()->clearState();
+					i.value()->hide();
+				}
+			})), KeepOtherLayers);
 		}
-	}
-}
-
-void SessionsBox::Inner::onTerminateSure() {
-	if (_terminateBox) {
-		_terminateBox->onClose();
-		_terminateBox = 0;
-	}
-	MTP::send(MTPaccount_ResetAuthorization(MTP_long(_terminating)), rpcDone(&Inner::terminateDone, _terminating), rpcFail(&Inner::terminateFail, _terminating));
-	TerminateButtons::iterator i = _terminateButtons.find(_terminating);
-	if (i != _terminateButtons.cend()) {
-		i.value()->clearState();
-		i.value()->hide();
 	}
 }
 
 void SessionsBox::Inner::onTerminateAll() {
 	if (_terminateBox) _terminateBox->deleteLater();
-	_terminateBox = new ConfirmBox(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton);
-	connect(_terminateBox, SIGNAL(confirmed()), this, SLOT(onTerminateAllSure()));
-	connect(_terminateBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoTerminateBox(QObject*)));
-	Ui::showLayer(_terminateBox, KeepOtherLayers);
-}
-
-void SessionsBox::Inner::onTerminateAllSure() {
-	if (_terminateBox) {
-		_terminateBox->onClose();
-		_terminateBox = 0;
-	}
-	MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
-	emit terminateAll();
-}
-
-void SessionsBox::Inner::onNoTerminateBox(QObject *obj) {
-	if (obj == _terminateBox) _terminateBox = 0;
+	_terminateBox = Ui::show(Box<ConfirmBox>(lang(lng_settings_reset_sure), lang(lng_settings_reset_button), st::attentionBoxButton, base::lambda_guarded(this, [this] {
+		if (_terminateBox) {
+			_terminateBox->closeBox();
+			_terminateBox = nullptr;
+		}
+//		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
+		emit terminateAll();
+	})), KeepOtherLayers);
 }
 
 void SessionsBox::Inner::terminateDone(uint64 hash, const MTPBool &result) {
@@ -399,14 +368,14 @@ bool SessionsBox::Inner::terminateAllFail(const RPCError &error) {
 }
 
 void SessionsBox::Inner::resizeEvent(QResizeEvent *e) {
-	_terminateAll.moveToLeft(st::sessionPadding.left(), st::sessionCurrentPadding.top() + st::sessionHeight + st::sessionCurrentPadding.bottom());
+	_terminateAll->moveToLeft(st::sessionPadding.left(), st::sessionCurrentPadding.top() + st::sessionHeight + st::sessionCurrentPadding.bottom());
 }
 
 void SessionsBox::Inner::listUpdated() {
 	if (_list->isEmpty()) {
-		_terminateAll.hide();
+		_terminateAll->hide();
 	} else {
-		_terminateAll.show();
+		_terminateAll->show();
 	}
 	for (TerminateButtons::iterator i = _terminateButtons.begin(), e = _terminateButtons.end(); i != e; ++i) {
 		i.value()->move(0, -1);
@@ -414,7 +383,7 @@ void SessionsBox::Inner::listUpdated() {
 	for (int32 i = 0, l = _list->size(); i < l; ++i) {
 		TerminateButtons::iterator j = _terminateButtons.find(_list->at(i).hash);
 		if (j == _terminateButtons.cend()) {
-			j = _terminateButtons.insert(_list->at(i).hash, new IconedButton(this, st::sessionTerminate));
+			j = _terminateButtons.insert(_list->at(i).hash, new Ui::IconButton(this, st::sessionTerminate));
 			connect(j.value(), SIGNAL(clicked()), this, SLOT(onTerminate()));
 		}
 		j.value()->moveToRight(st::sessionTerminateSkip, st::sessionCurrentHeight + i * st::sessionHeight + st::sessionTerminateTop, width());

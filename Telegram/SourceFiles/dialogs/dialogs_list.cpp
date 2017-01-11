@@ -47,7 +47,7 @@ void List::adjustCurrent(int32 y, int32 h) const {
 	}
 }
 
-void List::paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground) const {
+void List::paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground, TimeMs ms) const {
 	adjustCurrent(hFrom, st::dialogsRowHeight);
 
 	Row *row = _current;
@@ -55,7 +55,7 @@ void List::paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, Pee
 	while (row != _end && row->_pos * st::dialogsRowHeight < hTo) {
 		bool active = (row->history()->peer == act) || (row->history()->peer->migrateTo() && row->history()->peer->migrateTo() == act);
 		bool selected = (row->history()->peer == sel);
-		Layout::RowPainter::paint(p, row, w, active, selected, onlyBackground);
+		Layout::RowPainter::paint(p, row, w, active, selected, onlyBackground, ms);
 		row = row->_next;
 		p.translate(0, st::dialogsRowHeight);
 	}
@@ -201,7 +201,7 @@ bool List::del(PeerId peerId, Row *replacedBy) {
 	auto i = _rowByPeer.find(peerId);
 	if (i == _rowByPeer.cend()) return false;
 
-	Row *row = i.value();
+	auto row = i.value();
 	if (App::main()) {
 		emit App::main()->dialogRowReplaced(row, replacedBy);
 	}
@@ -209,7 +209,7 @@ bool List::del(PeerId peerId, Row *replacedBy) {
 	if (row == _current) {
 		_current = row->_next;
 	}
-	for (Row *change = row->_next; change != _end; change = change->_next) {
+	for (auto change = row->_next; change != _end; change = change->_next) {
 		--change->_pos;
 	}
 	--_end->_pos;

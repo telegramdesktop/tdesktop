@@ -20,32 +20,34 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "ui/flatlabel.h"
+#include "boxes/abstractbox.h"
 
-class AboutBox : public AbstractBox {
-	Q_OBJECT
+namespace Ui {
+class LinkButton;
+class FlatLabel;
+} // namespace Ui
 
+class AboutBox : public BoxContent {
 public:
-	AboutBox();
-
-public slots:
-	void onVersion();
+	AboutBox(QWidget*);
 
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void dragEnterEvent(QDragEnterEvent *e) override;
 	void dropEvent(QDropEvent *e) override;
 
-	void showAll() override;
-
 private:
-	LinkButton _version;
-	FlatLabel _text1, _text2, _text3;
-	BoxButton _done;
+	void showVersionHistory();
+
+	object_ptr<Ui::LinkButton> _version;
+	object_ptr<Ui::FlatLabel> _text1;
+	object_ptr<Ui::FlatLabel> _text2;
+	object_ptr<Ui::FlatLabel> _text3;
 
 };
 
 QString telegramFaqLink();
+QString currentVersionText();

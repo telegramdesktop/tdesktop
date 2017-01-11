@@ -20,13 +20,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/button.h"
+#include "ui/widgets/buttons.h"
+#include "styles/style_window.h"
 
 class PeerData;
 
 namespace Ui {
 
-class PeerAvatarButton : public Button {
+class PeerAvatarButton : public AbstractButton {
 public:
 	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
 
@@ -41,6 +42,23 @@ protected:
 private:
 	PeerData *_peer;
 	const style::PeerAvatarButton &_st;
+
+};
+
+class NewAvatarButton : public RippleButton {
+public:
+	NewAvatarButton(QWidget *parent, int size, QPoint position);
+
+	void setImage(const QImage &image);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+
+private:
+	QPixmap _image;
+	QPoint _position;
 
 };
 

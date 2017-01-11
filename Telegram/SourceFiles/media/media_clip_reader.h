@@ -41,6 +41,7 @@ struct FrameRequest {
 	int outerw = 0;
 	int outerh = 0;
 	ImageRoundRadius radius = ImageRoundRadius::None;
+	ImageRoundCorners corners = ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight | ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight;
 };
 
 enum ReaderSteps {
@@ -52,13 +53,13 @@ enum ReaderSteps {
 class ReaderPrivate;
 class Reader {
 public:
-	using Callback = base::lambda_unique<void(Notification)>;
+	using Callback = base::lambda<void(Notification)>;
 	enum class Mode {
 		Gif,
 		Video,
 	};
 
-	Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, int64 seekMs = 0);
+	Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode = Mode::Gif, TimeMs seekMs = 0);
 	static void callback(Reader *reader, int threadIndex, Notification notification); // reader can be deleted
 
 	void setAutoplay() {
@@ -71,18 +72,19 @@ public:
 	uint64 playId() const {
 		return _playId;
 	}
-	int64 seekPositionMs() const {
+	TimeMs seekPositionMs() const {
 		return _seekPositionMs;
 	}
 
-	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius);
-	QPixmap current(int framew, int frameh, int outerw, int outerh, uint64 ms);
+	void start(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners);
+	QPixmap current(int framew, int frameh, int outerw, int outerh, ImageRoundRadius radius, ImageRoundCorners corners, TimeMs ms);
 	QPixmap frameOriginal() const {
-		Frame *frame = frameToShow();
-		if (!frame) return QPixmap();
-		QPixmap result(frame ? QPixmap::fromImage(frame->original) : QPixmap());
-		result.detach();
-		return result;
+		if (auto frame = frameToShow()) {
+			auto result = QPixmap::fromImage(frame->original);
+			result.detach();
+			return result;
+		}
+		return QPixmap();
 	}
 	bool currentDisplayed() const {
 		Frame *frame = frameToShow();
@@ -107,8 +109,8 @@ public:
 	bool ready() const;
 
 	bool hasAudio() const;
-	int64 getPositionMs() const;
-	int64 getDurationMs() const;
+	TimeMs getPositionMs() const;
+	TimeMs getDurationMs() const;
 	void pauseResumeVideo();
 
 	void stop();
@@ -130,8 +132,8 @@ private:
 
 	uint64 _playId;
 	bool _hasAudio = false;
-	int64 _durationMs = 0;
-	int64 _seekPositionMs = 0;
+	TimeMs _durationMs = 0;
+	TimeMs _seekPositionMs = 0;
 
 	mutable int _width = 0;
 	mutable int _height = 0;
@@ -150,7 +152,7 @@ private:
 
 		// Should be counted from the end,
 		// so that positionMs <= _durationMs.
-		int64 positionMs = 0;
+		TimeMs positionMs = 0;
 	};
 	mutable Frame _frames[3];
 	Frame *frameToShow(int *index = 0) const; // 0 means not ready
@@ -223,16 +225,16 @@ private:
 	ReaderPointers::const_iterator constUnsafeFindReaderPointer(ReaderPrivate *reader) const;
 	ReaderPointers::iterator unsafeFindReaderPointer(ReaderPrivate *reader);
 
-	bool handleProcessResult(ReaderPrivate *reader, ProcessResult result, uint64 ms);
+	bool handleProcessResult(ReaderPrivate *reader, ProcessResult result, TimeMs ms);
 
 	enum ResultHandleState {
 		ResultHandleRemove,
 		ResultHandleStop,
 		ResultHandleContinue,
 	};
-	ResultHandleState handleResult(ReaderPrivate *reader, ProcessResult result, uint64 ms);
+	ResultHandleState handleResult(ReaderPrivate *reader, ProcessResult result, TimeMs ms);
 
-	typedef QMap<ReaderPrivate*, uint64> Readers;
+	typedef QMap<ReaderPrivate*, TimeMs> Readers;
 	Readers _readers;
 
 	QTimer _timer;

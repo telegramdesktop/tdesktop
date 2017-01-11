@@ -23,30 +23,38 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_boxes.h"
 #include "boxes/confirmbox.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/widgets/labels.h"
 #include "mainwidget.h"
 #include "lang.h"
 
 namespace {
 
-QPointer<ConfirmPhoneBox> CurrentConfirmPhoneBox = nullptr;
+object_ptr<ConfirmPhoneBox> CurrentConfirmPhoneBox = { nullptr };
 
 } // namespace
 
 void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
-	if (CurrentConfirmPhoneBox) {
-		if (CurrentConfirmPhoneBox->getPhone() == phone) return;
-		delete CurrentConfirmPhoneBox;
+	if (CurrentConfirmPhoneBox && CurrentConfirmPhoneBox->getPhone() != phone) {
+		CurrentConfirmPhoneBox.destroyDelayed();
 	}
-	if (auto main = App::main()) {
-		CurrentConfirmPhoneBox = new ConfirmPhoneBox(main, phone, hash);
+	if (!CurrentConfirmPhoneBox) {
+		CurrentConfirmPhoneBox = Box<ConfirmPhoneBox>(phone, hash);
 	}
+	CurrentConfirmPhoneBox->checkPhoneAndHash();
 }
 
-ConfirmPhoneBox::ConfirmPhoneBox(QWidget *parent, const QString &phone, const QString &hash) : AbstractBox(st::boxWidth)
-, _phone(phone)
-, _hash(hash) {
-	setParent(parent);
+ConfirmPhoneBox::ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash)
+: _phone(phone)
+, _hash(hash)
+, _callTimer(this) {
+}
 
+void ConfirmPhoneBox::checkPhoneAndHash() {
+	if (_sendCodeRequestId) {
+		return;
+	}
 	MTPaccount_SendConfirmPhoneCode::Flags flags = 0;
 	_sendCodeRequestId = MTP::send(MTPaccount_SendConfirmPhoneCode(MTP_flags(flags), MTP_string(_hash), MTPBool()), rpcDone(&ConfirmPhoneBox::sendCodeDone), rpcFail(&ConfirmPhoneBox::sendCodeFail));
 }
@@ -80,22 +88,30 @@ bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
 		errorText = lang(lng_confirm_phone_link_invalid);
 	}
 	_sendCodeRequestId = 0;
-	Ui::showLayer(new InformBox(errorText));
-	deleteLater();
+	Ui::show(Box<InformBox>(errorText));
+	if (this == CurrentConfirmPhoneBox) {
+		CurrentConfirmPhoneBox.destroyDelayed();
+	} else {
+		deleteLater();
+	}
 	return true;
 }
 
 void ConfirmPhoneBox::setCallStatus(const CallStatus &status) {
 	_callStatus = status;
 	if (_callStatus.state == CallState::Waiting) {
-		_callTimer.start(1000);
+		_callTimer->start(1000);
 	}
 }
 
 void ConfirmPhoneBox::launch() {
-	setBlueTitle(true);
+	if (!CurrentConfirmPhoneBox) return;
+	Ui::show(std_::move(CurrentConfirmPhoneBox));
+}
 
-	_about = new FlatLabel(this, st::confirmPhoneAboutLabel);
+void ConfirmPhoneBox::prepare() {
+
+	_about.create(this, st::confirmPhoneAboutLabel);
 	TextWithEntities aboutText;
 	auto formattedPhone = App::formatPhone(_phone);
 	aboutText.text = lng_confirm_phone_about(lt_phone, formattedPhone);
@@ -105,31 +121,28 @@ void ConfirmPhoneBox::launch() {
 	}
 	_about->setMarkedText(aboutText);
 
-	_code = new InputField(this, st::confirmPhoneCodeField, lang(lng_code_ph));
+	_code.create(this, st::confirmPhoneCodeField, lang(lng_code_ph));
 
-	_send = new BoxButton(this, lang(lng_confirm_phone_send), st::defaultBoxButton);
-	_cancel = new BoxButton(this, lang(lng_cancel), st::cancelBoxButton);
+	setTitle(lang(lng_confirm_phone_title));
 
-	setMaxHeight(st::boxTitleHeight + st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip + _send->height() + st::boxButtonPadding.bottom());
+	addButton(lang(lng_confirm_phone_send), [this] { onSendCode(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	connect(_send, SIGNAL(clicked()), this, SLOT(onSendCode()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+	setDimensions(st::boxWidth, st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip);
 
 	connect(_code, SIGNAL(changed()), this, SLOT(onCodeChanged()));
 	connect(_code, SIGNAL(submitted(bool)), this, SLOT(onSendCode()));
 
-	connect(&_callTimer, SIGNAL(timeout()), this, SLOT(onCallStatusTimer()));
+	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onCallStatusTimer()));
 
-	prepare();
-
-	Ui::showLayer(this);
+	showChildren();
 }
 
 void ConfirmPhoneBox::onCallStatusTimer() {
 	if (_callStatus.state == CallState::Waiting) {
 		if (--_callStatus.timeout <= 0) {
 			_callStatus.state = CallState::Calling;
-			_callTimer.stop();
+			_callTimer->stop();
 			MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_phoneHash)), rpcDone(&ConfirmPhoneBox::callDone));
 		}
 	}
@@ -163,7 +176,7 @@ void ConfirmPhoneBox::onSendCode() {
 
 void ConfirmPhoneBox::confirmDone(const MTPBool &result) {
 	_sendCodeRequestId = 0;
-	Ui::showLayer(new InformBox(lng_confirm_phone_success(lt_phone, App::formatPhone(_phone))));
+	Ui::show(Box<InformBox>(lng_confirm_phone_success(lt_phone, App::formatPhone(_phone))));
 }
 
 bool ConfirmPhoneBox::confirmFail(const RPCError &error) {
@@ -244,10 +257,9 @@ void ConfirmPhoneBox::showError(const QString &error) {
 }
 
 void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
+	BoxContent::paintEvent(e);
 
-	paintTitle(p, lang(lng_confirm_phone_title));
+	Painter p(this);
 
 	p.setFont(st::boxTextFont);
 	auto callText = getCallText();
@@ -264,7 +276,7 @@ void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
 		p.setPen(st::usernameDefaultFg);
 		errorText = lang(lng_confirm_phone_enter_code);
 	} else {
-		p.setPen(st::setErrColor);
+		p.setPen(st::boxTextFgError);
 	}
 	auto errorTextRectLeft = st::usernamePadding.left();
 	auto errorTextRectTop = _code->y() + _code->height();
@@ -288,15 +300,16 @@ QString ConfirmPhoneBox::getCallText() const {
 }
 
 void ConfirmPhoneBox::resizeEvent(QResizeEvent *e) {
+	BoxContent::resizeEvent(e);
+
 	_code->resize(width() - st::usernamePadding.left() - st::usernamePadding.right(), _code->height());
-	_code->moveToLeft(st::usernamePadding.left(), st::boxTitleHeight + st::usernamePadding.top());
+	_code->moveToLeft(st::usernamePadding.left(), st::usernamePadding.top());
 
 	_about->moveToLeft(st::usernamePadding.left(), _code->y() + _code->height() + st::usernameSkip);
+}
 
-	_send->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _send->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _send->width() + st::boxButtonPadding.left(), _send->y());
-
-	AbstractBox::resizeEvent(e);
+void ConfirmPhoneBox::setInnerFocus() {
+	_code->setFocusFast();
 }
 
 ConfirmPhoneBox::~ConfirmPhoneBox() {

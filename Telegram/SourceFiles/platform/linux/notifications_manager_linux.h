@@ -27,19 +27,14 @@ namespace Notifications {
 
 inline void defaultNotificationShown(QWidget *widget) {
 }
+
 inline bool skipAudio() {
 	return false;
 }
+
 inline bool skipToast() {
 	return false;
 }
-
-class Manager;
-
-void start();
-Manager *manager();
-bool supported();
-void finish();
 
 class Manager : public Window::Notifications::NativeManager {
 public:

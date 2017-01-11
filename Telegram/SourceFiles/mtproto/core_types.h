@@ -59,7 +59,7 @@ class mtpRequestData : public mtpBuffer {
 public:
 	// in toSend: = 0 - must send in container, > 0 - can send without container
 	// in haveSent: = 0 - container with msgIds, > 0 - when was sent
-	uint64 msDate;
+	TimeMs msDate;
 
 	mtpRequestId requestId;
 	mtpRequest after;
@@ -141,35 +141,6 @@ public:
 typedef QMap<mtpRequestId, mtpRequest> mtpPreRequestMap;
 typedef QMap<mtpMsgId, mtpRequest> mtpRequestMap;
 typedef QMap<mtpMsgId, bool> mtpMsgIdsSet;
-class mtpMsgIdsMap : public QMap<mtpMsgId, bool> {
-public:
-	typedef QMap<mtpMsgId, bool> ParentType;
-
-	bool insert(const mtpMsgId &k, bool v) {
-		ParentType::const_iterator i = constFind(k);
-		if (i == cend()) {
-			if (size() >= MTPIdsBufferSize && k < min()) {
-				MTP_LOG(-1, ("No need to handle - %1 < min = %2").arg(k).arg(min()));
-				return false;
-			} else {
-				ParentType::insert(k, v);
-				return true;
-			}
-		} else {
-			MTP_LOG(-1, ("No need to handle - %1 already is in map").arg(k));
-			return false;
-		}
-	}
-
-	mtpMsgId min() const {
-		return isEmpty() ? 0 : cbegin().key();
-	}
-
-	mtpMsgId max() const {
-		ParentType::const_iterator e(cend());
-		return isEmpty() ? 0 : (--e).key();
-	}
-};
 
 class mtpRequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
 public:
@@ -999,17 +970,20 @@ enum class MTPDmessage_ClientFlag : int32 {
 	// message is attached to previous one when displaying the history
 	f_attach_to_previous = (1 << 25),
 
+	// message is attached to next one when displaying the history
+	f_attach_to_next = (1 << 24),
+
 	// message was sent from inline bot, need to re-set media when sent
-	f_from_inline_bot = (1 << 24),
+	f_from_inline_bot = (1 << 23),
 
 	// message has a switch inline keyboard button, need to return to inline
-	f_has_switch_inline_button = (1 << 23),
+	f_has_switch_inline_button = (1 << 22),
 
 	// message is generated on the client side and should be unread
-	f_clientside_unread = (1 << 22),
+	f_clientside_unread = (1 << 21),
 
 	// update this when adding new client side flags
-	MIN_FIELD = (1 << 22),
+	MIN_FIELD = (1 << 21),
 };
 DEFINE_MTP_CLIENT_FLAGS(MTPDmessage)
 

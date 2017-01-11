@@ -47,10 +47,7 @@ enum class TypeTag {
 	String,
 	Color,
 	Point,
-	Sprite,
 	Size,
-	Transition,
-	Cursor,
 	Align,
 	Margins,
 	Font,
@@ -86,16 +83,13 @@ struct point {
 	int x, y;
 };
 
-struct sprite {
-	int left, top, width, height;
-};
-
 struct size {
 	int width, height;
 };
 
 struct color {
 	uchar red, green, blue, alpha;
+	QString fallback;
 };
 
 struct margins {
@@ -127,7 +121,6 @@ class Value {
 public:
 	Value();
 	Value(data::point value);
-	Value(data::sprite value);
 	Value(data::size value);
 	Value(data::color value);
 	Value(data::margins value);
@@ -141,7 +134,7 @@ public:
 	// Can be int / pixels.
 	Value(TypeTag type, int value);
 
-	// Can be string / transition / cursor / align.
+	// Can be string / align.
 	Value(TypeTag type, std::string value);
 
 	// Default constructed value (uninitialized).
@@ -152,7 +145,6 @@ public:
 	double Double() const { return data_->Double(); }
 	std::string String() const { return data_->String(); }
 	data::point Point() const { return data_->Point(); }
-	data::sprite Sprite() const { return data_->Sprite(); };
 	data::size Size() const { return data_->Size(); };
 	data::color Color() const { return data_->Color(); };
 	data::margins Margins() const { return data_->Margins(); };
@@ -182,7 +174,6 @@ private:
 		virtual double Double() const { return 0.; }
 		virtual std::string String() const { return std::string(); }
 		virtual data::point Point() const { return {}; };
-		virtual data::sprite Sprite() const { return {}; };
 		virtual data::size Size() const { return {}; };
 		virtual data::color Color() const { return {}; };
 		virtual data::margins Margins() const { return {}; };

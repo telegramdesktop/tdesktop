@@ -35,38 +35,40 @@ struct PeerUpdate {
 
 	enum class Flag {
 		// Common flags
-		NameChanged           = 0x00000001U,
-		UsernameChanged       = 0x00000002U,
-		PhotoChanged          = 0x00000004U,
-		AboutChanged          = 0x00000008U,
-		NotificationsEnabled  = 0x00000010U,
-		SharedMediaChanged    = 0x00000020U,
-		MigrationChanged      = 0x00000040U,
+		NameChanged            = 0x00000001U,
+		UsernameChanged        = 0x00000002U,
+		PhotoChanged           = 0x00000004U,
+		AboutChanged           = 0x00000008U,
+		NotificationsEnabled   = 0x00000010U,
+		SharedMediaChanged     = 0x00000020U,
+		MigrationChanged       = 0x00000040U,
+		PinnedChanged          = 0x00000080U,
 
 		// For chats and channels
-		InviteLinkChanged     = 0x00000020U,
-		MembersChanged        = 0x00000040U,
-		AdminsChanged         = 0x00000080U,
+		InviteLinkChanged      = 0x00000100U,
+		MembersChanged         = 0x00000200U,
+		AdminsChanged          = 0x00000400U,
 
 		// For users
-		UserCanShareContact   = 0x00010000U,
-		UserIsContact         = 0x00020000U,
-		UserPhoneChanged      = 0x00040000U,
-		UserIsBlocked         = 0x00080000U,
-		BotCommandsChanged    = 0x00100000U,
-		UserOnlineChanged     = 0x00200000U,
-		BotCanAddToGroups     = 0x00400000U,
+		UserCanShareContact    = 0x00010000U,
+		UserIsContact          = 0x00020000U,
+		UserPhoneChanged       = 0x00040000U,
+		UserIsBlocked          = 0x00080000U,
+		BotCommandsChanged     = 0x00100000U,
+		UserOnlineChanged      = 0x00200000U,
+		BotCanAddToGroups      = 0x00400000U,
+		UserCommonChatsChanged = 0x00800000U,
 
 		// For chats
-		ChatCanEdit           = 0x00010000U,
+		ChatCanEdit            = 0x00010000U,
 
 		// For channels
-		ChannelAmIn           = 0x00010000U,
-		ChannelAmEditor       = 0x00020000U,
-		ChannelCanEditPhoto   = 0x00040000U,
-		ChannelCanAddMembers  = 0x00080000U,
-		ChannelCanViewAdmins  = 0x00100000U,
-		ChannelCanViewMembers = 0x00200000U,
+		ChannelAmIn            = 0x00010000U,
+		ChannelAmEditor        = 0x00020000U,
+		ChannelCanEditPhoto    = 0x00040000U,
+		ChannelCanAddMembers   = 0x00080000U,
+		ChannelCanViewAdmins   = 0x00100000U,
+		ChannelCanViewMembers  = 0x00200000U,
 	};
 	Q_DECLARE_FLAGS(Flags, Flag);
 	Flags flags = 0;
@@ -89,6 +91,13 @@ inline void peerUpdatedDelayed(PeerData *peer, PeerUpdate::Flags events) {
 }
 void peerUpdatedSendDelayed();
 
+inline void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
+	PeerUpdate update(peer);
+	update.flags |= PeerUpdate::Flag::SharedMediaChanged;
+	update.mediaTypesMask |= (1 << type);
+	peerUpdatedDelayed(update);
+}
+
 class PeerUpdatedHandler {
 public:
 	template <typename Lambda>
@@ -102,7 +111,7 @@ public:
 
 private:
 	PeerUpdate::Flags _events;
-	base::lambda_unique<void(const PeerUpdate&)> _handler;
+	base::lambda<void(const PeerUpdate&)> _handler;
 
 };
 base::Observable<PeerUpdate, PeerUpdatedHandler> &PeerUpdated();

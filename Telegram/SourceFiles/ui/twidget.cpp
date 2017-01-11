@@ -63,19 +63,38 @@ void myEnsureResized(QWidget *target) {
 	}
 }
 
-QPixmap myGrab(TWidget *target, QRect rect) {
+QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
 	myEnsureResized(target);
 	if (rect.isNull()) rect = target->rect();
 
-    QPixmap result(rect.size() * cRetinaFactor());
+    auto result = QPixmap(rect.size() * cIntRetinaFactor());
     result.setDevicePixelRatio(cRetinaFactor());
-    result.fill(Qt::transparent);
+	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
+		result.fill(bg);
+	}
 
 	target->grabStart();
-    target->render(&result, QPoint(), QRegion(rect), QWidget::DrawChildren | QWidget::IgnoreMask);
+	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();
 
-	return result;
+	return std_::move(result);
+}
+
+QImage myGrabImage(TWidget *target, QRect rect, QColor bg) {
+	myEnsureResized(target);
+	if (rect.isNull()) rect = target->rect();
+
+	auto result = QImage(rect.size() * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(cRetinaFactor());
+	if (!target->testAttribute(Qt::WA_OpaquePaintEvent)) {
+		result.fill(bg);
+	}
+
+	target->grabStart();
+	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
+	target->grabFinish();
+
+	return std_::move(result);
 }
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {

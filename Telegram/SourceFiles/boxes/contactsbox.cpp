@@ -22,92 +22,116 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 
 #include "dialogs/dialogs_indexed_list.h"
+#include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
-#include "styles/style_boxes.h"
+#include "styles/style_profile.h"
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "ui/filedialog.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/effects/widget_slide_wrap.h"
+#include "ui/effects/ripple_animation.h"
 #include "boxes/photocropbox.h"
 #include "boxes/confirmbox.h"
+#include "window/window_theme.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
 
-QString cantInviteError() {
-	return lng_cant_invite_not_contact(lt_more_info, textcmdLink(qsl("https://telegram.me/spambot"), lang(lng_cant_more_info)));
+QString PeerFloodErrorText(PeerFloodType type) {
+	auto link = textcmdLink(CreateInternalLinkHttps(qsl("spambot")), lang(lng_cant_more_info));
+	if (type == PeerFloodType::InviteGroup) {
+		return lng_cant_invite_not_contact(lt_more_info, link);
+	}
+	return lng_cant_send_to_not_contact(lt_more_info, link);
 }
 
-ContactsBox::ContactsBox() : ItemListBox(st::contactsScroll)
-, _inner(this, CreatingGroupNone)
-, _select(this, new Ui::MultiSelect(this, st::contactsMultiSelect, lang(lng_participant_filter)), QMargins(0, 0, 0, 0), [this] { updateScrollSkips(); })
-, _next(this, lang(lng_create_group_next), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this) {
-	init();
+ContactsBox::ContactsBox(QWidget*, ChatData *chat, MembersFilter filter)
+: _chat(chat)
+, _membersFilter(filter)
+, _select(createMultiSelect())
+, _searchTimer(this) {
 }
 
-ContactsBox::ContactsBox(const QString &name, const QImage &photo) : ItemListBox(st::boxScroll)
-, _inner(this, CreatingGroupGroup)
-, _select(this, new Ui::MultiSelect(this, st::contactsMultiSelect, lang(lng_participant_filter)), QMargins(0, 0, 0, 0), [this] { updateScrollSkips(); })
-, _next(this, lang(lng_create_group_create), st::defaultBoxButton)
-, _cancel(this, lang(lng_create_group_back), st::cancelBoxButton)
-, _topShadow(this)
+ContactsBox::ContactsBox(QWidget*, ChannelData *channel)
+: _channel(channel)
+, _creating(CreatingGroupChannel)
+, _select(createMultiSelect())
+, _searchTimer(this) {
+}
+
+ContactsBox::ContactsBox(QWidget*, ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already)
+: _channel(channel)
+, _membersFilter(filter)
+, _alreadyIn(already)
+, _select(createMultiSelect())
+, _searchTimer(this) {
+}
+
+ContactsBox::ContactsBox(QWidget*, UserData *bot)
+: _bot(bot)
+, _select(createMultiSelect())
+, _searchTimer(this) {
+}
+
+ContactsBox::ContactsBox(QWidget*, const QString &name, const QImage &photo)
+: _creating(CreatingGroupGroup)
+, _select(createMultiSelect())
+, _searchTimer(this)
 , _creationName(name)
 , _creationPhoto(photo) {
-	init();
 }
 
-ContactsBox::ContactsBox(ChannelData *channel) : ItemListBox(st::boxScroll)
-, _inner(this, channel, MembersFilter::Recent, MembersAlreadyIn())
-, _select(this, new Ui::MultiSelect(this, st::contactsMultiSelect, lang(lng_participant_filter)), QMargins(0, 0, 0, 0), [this] { updateScrollSkips(); })
-, _next(this, lang(lng_participant_invite), st::defaultBoxButton)
-, _cancel(this, lang(lng_create_group_skip), st::cancelBoxButton)
-, _topShadow(this) {
-	init();
+ContactsBox::ContactsBox(QWidget*)
+: _select(createMultiSelect())
+, _searchTimer(this) {
 }
 
-ContactsBox::ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already) : ItemListBox((filter == MembersFilter::Admins) ? st::contactsScroll : st::boxScroll)
-, _inner(this, channel, filter, already)
-, _select(this, new Ui::MultiSelect(this, st::contactsMultiSelect, lang(lng_participant_filter)), QMargins(0, 0, 0, 0), [this] { updateScrollSkips(); })
-, _next(this, lang(lng_participant_invite), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this) {
-	init();
-}
-
-ContactsBox::ContactsBox(ChatData *chat, MembersFilter filter) : ItemListBox(st::boxScroll)
-, _inner(this, chat, filter)
-, _select(this, new Ui::MultiSelect(this, st::contactsMultiSelect, lang(lng_participant_filter)), QMargins(0, 0, 0, 0), [this] { updateScrollSkips(); })
-, _next(this, lang((filter == MembersFilter::Admins) ? lng_settings_save : lng_participant_invite), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this) {
-	init();
-}
-
-ContactsBox::ContactsBox(UserData *bot) : ItemListBox(st::contactsScroll)
-, _inner(this, bot)
-, _select(this, new Ui::MultiSelect(this, st::contactsMultiSelect, lang(lng_participant_filter)), QMargins(0, 0, 0, 0), [this] { updateScrollSkips(); })
-, _next(this, lang(lng_create_group_next), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton)
-, _topShadow(this) {
-	init();
-}
-
-void ContactsBox::init() {
+void ContactsBox::prepare() {
 	_select->resizeToWidth(st::boxWideWidth);
 	myEnsureResized(_select);
 
-	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
-	auto topSkip = getTopScrollSkip();
-	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
-	ItemListBox::init(_inner, bottomSkip, topSkip);
+	auto createInner = [this] {
+		if (_chat) {
+			return object_ptr<Inner>(this, _chat, _membersFilter);
+		} else if (_channel) {
+			return object_ptr<Inner>(this, _channel, _membersFilter, _alreadyIn);
+		} else if (_bot) {
+			return object_ptr<Inner>(this, _bot);
+		}
+		return object_ptr<Inner>(this, _creating);
+	};
+	_inner = setInnerWidget(createInner(), getTopScrollSkip());
 
-	connect(_inner, SIGNAL(addRequested()), App::wnd(), SLOT(onShowAddContact()));
+	updateTitle();
+	if (_chat) {
+		if (_membersFilter == MembersFilter::Admins) {
+			addButton(lang(lng_settings_save), [this] { saveChatAdmins(); });
+		} else {
+			addButton(lang(lng_participant_invite), [this] { inviteParticipants(); });
+		}
+		addButton(lang(lng_cancel), [this] { closeBox(); });
+	} else if (_channel) {
+		if (_membersFilter != MembersFilter::Admins) {
+			addButton(lang(lng_participant_invite), [this] { inviteParticipants(); });
+		}
+		addButton(lang((_creating == CreatingGroupChannel) ? lng_create_group_skip : lng_cancel), [this] { closeBox(); });
+	} else if (_bot) {
+		addButton(lang(lng_close), [this] { closeBox(); });
+	} else if (_creating == CreatingGroupGroup) {
+		addButton(lang(lng_create_group_create), [this] { createGroup(); });
+		addButton(lang(lng_create_group_back), [this] { closeBox(); });
+	} else {
+		addButton(lang(lng_close), [this] { closeBox(); });
+		addLeftButton(lang(lng_profile_add_contact), [] { App::wnd()->onShowAddContact(); });
+	}
+
 	_inner->setPeerSelectedChangedCallback([this](PeerData *peer, bool checked) {
 		onPeerSelectedChanged(peer, checked);
 	});
@@ -125,25 +149,11 @@ void ContactsBox::init() {
 		}
 		updateScrollSkips();
 	});
-
-	if (_inner->channel() && _inner->membersFilter() == MembersFilter::Admins) {
-		_next.hide();
-		_cancel.hide();
-	} else if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins) {
-		connect(&_next, SIGNAL(clicked()), this, SLOT(onSaveAdmins()));
-		_bottomShadow = new ScrollableBoxShadow(this);
-	} else if (_inner->chat() || _inner->channel()) {
-		connect(&_next, SIGNAL(clicked()), this, SLOT(onInvite()));
-		_bottomShadow = new ScrollableBoxShadow(this);
-	} else if (_inner->creating() != CreatingGroupNone) {
-		connect(&_next, SIGNAL(clicked()), this, SLOT(onCreate()));
-		_bottomShadow = new ScrollableBoxShadow(this);
+	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins && _inner->allAdmins()) {
+		_select->hideFast();
 	} else {
-		_next.hide();
-		_cancel.hide();
+		_select->showFast();
 	}
-	connect(&_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
-	connect(scrollArea(), SIGNAL(scrolled()), this, SLOT(onScroll()));
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
 		if (auto peer = App::peerLoaded(itemId)) {
@@ -152,14 +162,16 @@ void ContactsBox::init() {
 		}
 	});
 	_select->entity()->setSubmittedCallback([this](bool) { onSubmit(); });
-	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), this, SLOT(onScrollToY(int, int)));
 	connect(_inner, SIGNAL(searchByUsername()), this, SLOT(onNeedSearchByUsername()));
 	connect(_inner, SIGNAL(adminAdded()), this, SIGNAL(adminAdded()));
 
-	_searchTimer.setSingleShot(true);
-	connect(&_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
+	_searchTimer->setSingleShot(true);
+	connect(_searchTimer, SIGNAL(timeout()), this, SLOT(onSearchByUsername()));
 
-	prepare();
+	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
+
+	_select->raise();
 }
 
 bool ContactsBox::onSearchByUsername(bool searchCache) {
@@ -189,9 +201,26 @@ bool ContactsBox::onSearchByUsername(bool searchCache) {
 	return false;
 }
 
+void ContactsBox::updateTitle() {
+	if (_chat && _membersFilter == MembersFilter::Admins) {
+		setTitle(lang(lng_channel_admins));
+	} else if (_chat || _creating != CreatingGroupNone) {
+		auto addingAdmin = _channel && (_membersFilter == MembersFilter::Admins);
+		auto title = lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant);
+		auto additional = (addingAdmin || (_inner->channel() && !_inner->channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner->selectedCount()).arg(Global::MegagroupSizeMax());
+		setTitle(title, additional);
+	} else if (_inner->sharingBotGame()) {
+		setTitle(lang(lng_bot_choose_chat));
+	} else if (_inner->bot()) {
+		setTitle(lang(lng_bot_choose_group));
+	} else {
+		setTitle(lang(lng_contacts_header));
+	}
+}
+
 void ContactsBox::onNeedSearchByUsername() {
 	if (!onSearchByUsername(true)) {
-		_searchTimer.start(AutoSearchTimeout);
+		_searchTimer->start(AutoSearchTimeout);
 	}
 }
 
@@ -216,7 +245,6 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 
 		_peopleRequest = 0;
 		_inner->updateSelection();
-		onScroll();
 	}
 }
 
@@ -230,31 +258,7 @@ bool ContactsBox::peopleFailed(const RPCError &error, mtpRequestId req) {
 	return true;
 }
 
-void ContactsBox::showAll() {
-	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins && _inner->allAdmins()) {
-		_select->hideFast();
-	} else {
-		_select->showFast();
-	}
-	if (_inner->channel() && _inner->membersFilter() == MembersFilter::Admins) {
-		_next.hide();
-		_cancel.hide();
-	} else if (_inner->chat() || _inner->channel()) {
-		_next.show();
-		_cancel.show();
-	} else if (_inner->creating() != CreatingGroupNone) {
-		_next.show();
-		_cancel.show();
-	} else {
-		_next.hide();
-		_cancel.hide();
-	}
-	_topShadow.show();
-	if (_bottomShadow) _bottomShadow->show();
-	ItemListBox::showAll();
-}
-
-void ContactsBox::doSetInnerFocus() {
+void ContactsBox::setInnerFocus() {
 	if (_select->isHidden()) {
 		_inner->setFocus();
 	} else {
@@ -274,39 +278,26 @@ void ContactsBox::keyPressEvent(QKeyEvent *e) {
 		} else if (e->key() == Qt::Key_Up) {
 			_inner->selectSkip(-1);
 		} else if (e->key() == Qt::Key_PageDown) {
-			_inner->selectSkipPage(scrollArea()->height(), 1);
+			_inner->selectSkipPage(height() - getTopScrollSkip(), 1);
 		} else if (e->key() == Qt::Key_PageUp) {
-			_inner->selectSkipPage(scrollArea()->height(), -1);
+			_inner->selectSkipPage(height() - getTopScrollSkip(), -1);
 		} else {
-			ItemListBox::keyPressEvent(e);
+			BoxContent::keyPressEvent(e);
 		}
 	} else {
-		ItemListBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
-void ContactsBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	bool addingAdmin = _inner->channel() && _inner->membersFilter() == MembersFilter::Admins;
-	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins) {
-		paintTitle(p, lang(lng_channel_admins));
-	} else if (_inner->chat() || _inner->creating() != CreatingGroupNone) {
-		QString title(lang(addingAdmin ? lng_channel_add_admin : lng_profile_add_participant));
-		QString additional((addingAdmin || (_inner->channel() && !_inner->channel()->isMegagroup())) ? QString() : QString("%1 / %2").arg(_inner->selectedCount()).arg(Global::MegagroupSizeMax()));
-		paintTitle(p, title, additional);
-	} else if (_inner->sharingBotGame()) {
-		paintTitle(p, lang(lng_bot_choose_chat));
-	} else if (_inner->bot()) {
-		paintTitle(p, lang(lng_bot_choose_group));
-	} else {
-		paintTitle(p, lang(lng_contacts_header));
-	}
+object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> ContactsBox::createMultiSelect() {
+	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, lang(lng_participant_filter));
+	auto margins = style::margins(0, 0, 0, 0);
+	auto callback = [this] { updateScrollSkips(); };
+	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std_::move(entity), margins, std_::move(callback));
 }
 
 int ContactsBox::getTopScrollSkip() const {
-	auto result = st::boxTitleHeight;
+	auto result = 0;
 	if (!_select->isHidden()) {
 		result += _select->height();
 	}
@@ -314,48 +305,35 @@ int ContactsBox::getTopScrollSkip() const {
 }
 
 void ContactsBox::updateScrollSkips() {
-	auto oldScrollHeight = scrollArea()->height();
-	auto inviting = (_inner->creating() == CreatingGroupGroup) || (_inner->channel() && _inner->membersFilter() == MembersFilter::Recent) || _inner->chat();
-	auto topSkip = getTopScrollSkip();
-	auto bottomSkip = inviting ? (st::boxButtonPadding.top() + _next.height() + st::boxButtonPadding.bottom()) : st::boxScrollSkip;
-	setScrollSkips(bottomSkip, topSkip);
-	auto scrollHeightDelta = scrollArea()->height() - oldScrollHeight;
-	if (scrollHeightDelta) {
-		scrollArea()->scrollToY(scrollArea()->scrollTop() - scrollHeightDelta);
-	}
-
-	_topShadow.setGeometry(0, topSkip, width(), st::lineWidth);
+	setInnerTopSkip(getTopScrollSkip(), true);
 }
 
 void ContactsBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
+	BoxContent::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, st::boxTitleHeight);
+	_select->moveToLeft(0, 0);
 
 	updateScrollSkips();
 
 	_inner->resize(width(), _inner->height());
-	_next.moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _next.height());
-	_cancel.moveToRight(st::boxButtonPadding.right() + _next.width() + st::boxButtonPadding.left(), _next.y());
-	if (_bottomShadow) _bottomShadow->setGeometry(0, height() - st::boxButtonPadding.bottom() - _next.height() - st::boxButtonPadding.top() - st::lineWidth, width(), st::lineWidth);
 }
 
-void ContactsBox::closePressed() {
-	if (_inner->channel() && !_inner->hasAlreadyMembersInChannel()) {
-		Ui::showPeerHistory(_inner->channel(), ShowAtTheEndMsgId);
+void ContactsBox::closeHook() {
+	if (_channel && _creating == CreatingGroupChannel) {
+		Ui::showPeerHistory(_channel, ShowAtTheEndMsgId);
 	}
 }
 
 void ContactsBox::onFilterUpdate(const QString &filter) {
-	scrollArea()->scrollToY(0);
+	onScrollToY(0);
 	_inner->updateFilter(filter);
 }
 
 void ContactsBox::addPeerToMultiSelect(PeerData *peer, bool skipAnimation) {
 	using AddItemWay = Ui::MultiSelect::AddItemWay;
 	auto addItemWay = skipAnimation ? AddItemWay::SkipAnimation : AddItemWay::Default;
-	_select->entity()->addItem(peer->id, peer->shortName(), st::windowActiveBg, PaintUserpicCallback(peer), addItemWay);
+	_select->entity()->addItem(peer->id, peer->shortName(), st::activeButtonBg, PaintUserpicCallback(peer), addItemWay);
 }
 
 void ContactsBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
@@ -365,10 +343,10 @@ void ContactsBox::onPeerSelectedChanged(PeerData *peer, bool checked) {
 	} else {
 		_select->entity()->removeItem(peer->id);
 	}
-	update();
+	updateTitle();
 }
 
-void ContactsBox::onInvite() {
+void ContactsBox::inviteParticipants() {
 	QVector<UserData*> users(_inner->selected());
 	if (users.isEmpty()) {
 		_select->entity()->setInnerFocus();
@@ -380,11 +358,11 @@ void ContactsBox::onInvite() {
 		Ui::hideLayer();
 		Ui::showPeerHistory(_inner->chat(), ShowAtTheEndMsgId);
 	} else {
-		onClose();
+		closeBox();
 	}
 }
 
-void ContactsBox::onCreate() {
+void ContactsBox::createGroup() {
 	if (_saveRequestId) return;
 
 	auto users = _inner->selectedInputs();
@@ -395,7 +373,7 @@ void ContactsBox::onCreate() {
 	_saveRequestId = MTP::send(MTPmessages_CreateChat(MTP_vector<MTPInputUser>(users), MTP_string(_creationName)), rpcDone(&ContactsBox::creationDone), rpcFail(&ContactsBox::creationFail));
 }
 
-void ContactsBox::onSaveAdmins() {
+void ContactsBox::saveChatAdmins() {
 	if (_saveRequestId) return;
 
 	_inner->saving(true);
@@ -409,7 +387,7 @@ void ContactsBox::saveAdminsDone(const MTPUpdates &result) {
 
 void ContactsBox::saveSelectedAdmins() {
 	if (_inner->allAdmins() && !_inner->chat()->participants.isEmpty()) {
-		onClose();
+		closeBox();
 	} else {
 		_saveRequestId = MTP::send(MTPmessages_GetFullChat(_inner->chat()->inputChat), rpcDone(&ContactsBox::getAdminsDone), rpcFail(&ContactsBox::saveAdminsFail));
 	}
@@ -418,7 +396,7 @@ void ContactsBox::saveSelectedAdmins() {
 void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
 	App::api()->processFullPeer(_inner->chat(), result);
 	if (_inner->allAdmins()) {
-		onClose();
+		closeBox();
 		return;
 	}
 	ChatData::Admins curadmins = _inner->chat()->admins;
@@ -448,7 +426,7 @@ void ContactsBox::getAdminsDone(const MTPmessages_ChatFull &result) {
 
 	_saveRequestId = curadmins.size() + appoint.size();
 	if (!_saveRequestId) {
-		onClose();
+		closeBox();
 	}
 }
 
@@ -463,7 +441,7 @@ void ContactsBox::setAdminDone(UserData *user, const MTPBool &result) {
 	--_saveRequestId;
 	if (!_saveRequestId) {
 		emit App::main()->peerUpdated(_inner->chat());
-		onClose();
+		closeBox();
 	}
 }
 
@@ -474,7 +452,7 @@ void ContactsBox::removeAdminDone(UserData *user, const MTPBool &result) {
 	--_saveRequestId;
 	if (!_saveRequestId) {
 		emit App::main()->peerUpdated(_inner->chat());
-		onClose();
+		closeBox();
 	}
 }
 
@@ -494,16 +472,12 @@ bool ContactsBox::editAdminFail(const RPCError &error) {
 	_inner->chat()->invalidateParticipants();
 	if (!_saveRequestId) {
 		if (error.type() == qstr("USER_RESTRICTED")) {
-			Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+			Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
 			return true;
 		}
-		onClose();
+		closeBox();
 	}
 	return false;
-}
-
-void ContactsBox::onScroll() {
-	_inner->loadProfilePhotos(scrollArea()->scrollTop());
 }
 
 void ContactsBox::creationDone(const MTPUpdates &updates) {
@@ -536,42 +510,45 @@ bool ContactsBox::creationFail(const RPCError &error) {
 
 	_saveRequestId = 0;
 	if (error.type() == "NO_CHAT_TITLE") {
-		onClose();
+		closeBox();
 		return true;
 	} else if (error.type() == "USERS_TOO_FEW") {
 		_select->entity()->setInnerFocus();
 		return true;
 	} else if (error.type() == "PEER_FLOOD") {
-		Ui::showLayer(new InformBox(cantInviteError()), KeepOtherLayers);
+		Ui::show(Box<InformBox>(PeerFloodErrorText(PeerFloodType::InviteGroup)), KeepOtherLayers);
 		return true;
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
-		Ui::showLayer(new InformBox(lang(lng_cant_do_this)));
+		Ui::show(Box<InformBox>(lang(lng_cant_do_this)));
 		return true;
 	}
 	return false;
 }
 
-ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda_wrap<void()> updateCallback)
-: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, std_::move(updateCallback), PaintUserpicCallback(peer))) {
+ContactsBox::Inner::ContactData::ContactData() = default;
+
+ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
+: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : ScrolledWidget(parent)
+ContactsBox::Inner::ContactData::~ContactData() = default;
+
+ContactsBox::Inner::Inner(QWidget *parent, CreatingGroupType creating) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
-, _newItemHeight(creating == CreatingGroupNone ? st::contactsNewItemHeight : 0)
 , _creating(creating)
-, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
 , _contacts(App::main()->contactsList())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter membersFilter, const MembersAlreadyIn &already) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _channel(channel)
 , _membersFilter(membersFilter)
 , _creating(CreatingGroupChannel)
 , _already(already)
-, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
 , _contacts(App::main()->contactsList())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	init();
@@ -583,20 +560,20 @@ namespace {
 	}
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _chat(chat)
 , _membersFilter(membersFilter)
-, _allAdmins(this, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), !_chat->adminsEnabled(), st::defaultBoxCheckbox)
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
-, _aboutAllAdmins(st::boxTextFont, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
-, _aboutAdmins(st::boxTextFont, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
+, _aboutAllAdmins(st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
+, _aboutAdmins(st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
 , _customList((membersFilter == MembersFilter::Recent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts((membersFilter == MembersFilter::Recent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();
 	if (membersFilter == MembersFilter::Admins) {
-		_newItemHeight = st::contactsNewItemHeight + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutHeight;
+		_aboutHeight = st::contactsAboutTop + qMax(_aboutAllAdmins.countHeight(_aboutWidth), _aboutAdmins.countHeight(_aboutWidth)) + st::contactsAboutBottom;
 		if (_contacts->isEmpty()) {
 			App::api()->requestFullPeer(_chat);
 		}
@@ -615,10 +592,10 @@ void ContactsBox::Inner::addDialogsToList(FilterCallback callback) {
 	}
 }
 
-ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : ScrolledWidget(parent)
+ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
-, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::contactsAdminCheckbox)
+, _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
 , _customList(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts(_customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
@@ -647,9 +624,10 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : ScrolledWidget(paren
 
 void ContactsBox::Inner::init() {
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
-	connect(&_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
-	connect(&_allAdmins, SIGNAL(changed()), this, SLOT(onAllAdminsChanged()));
+	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
+	connect(_allAdmins, SIGNAL(changed()), this, SLOT(onAllAdminsChanged()));
 
+	_rowsTop = st::contactsMarginTop;
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	for_const (auto row, _contacts->all()) {
@@ -663,6 +641,30 @@ void ContactsBox::Inner::init() {
 	connect(App::main(), SIGNAL(peerUpdated(PeerData*)), this, SLOT(peerUpdated(PeerData *)));
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
+
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			invalidateCache();
+		}
+	});
+}
+
+void ContactsBox::Inner::invalidateCache() {
+	for_const (auto data, _contactsData) {
+		if (data->checkbox) {
+			data->checkbox->invalidateCache();
+		}
+	}
+	for_const (auto data, _byUsernameDatas) {
+		if (data->checkbox) {
+			data->checkbox->invalidateCache();
+		}
+	}
+	for_const (auto data, d_byUsername) {
+		if (data->checkbox) {
+			data->checkbox->invalidateCache();
+		}
+	}
 }
 
 void ContactsBox::Inner::initList() {
@@ -674,9 +676,9 @@ void ContactsBox::Inner::initList() {
 		others.reserve(_chat->participants.size());
 	}
 
-	for (ChatData::Participants::const_iterator i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
+	for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
 		if (i.key()->id == peerFromUser(_chat->creator)) continue;
-		if (!_allAdmins.checked() && _chat->admins.contains(i.key())) {
+		if (!_allAdmins->checked() && _chat->admins.contains(i.key())) {
 			admins.push_back(i.key());
 			if (!_checkedContacts.contains(i.key())) {
 				_checkedContacts.insert(i.key());
@@ -687,16 +689,16 @@ void ContactsBox::Inner::initList() {
 	}
 	std::sort(admins.begin(), admins.end(), _sortByName);
 	std::sort(others.begin(), others.end(), _sortByName);
-	if (UserData *creator = App::userLoaded(_chat->creator)) {
+	if (auto creator = App::userLoaded(_chat->creator)) {
 		if (_chat->participants.contains(creator)) {
 			admins.push_front(creator);
 		}
 	}
-	for (int32 i = 0, l = admins.size(); i < l; ++i) {
-		_contacts->addToEnd(App::history(admins.at(i)->id));
+	for_const (auto user, admins) {
+		_contacts->addToEnd(App::history(user->id));
 	}
-	for (int32 i = 0, l = others.size(); i < l; ++i) {
-		_contacts->addToEnd(App::history(others.at(i)->id));
+	for_const (auto user, others) {
+		_contacts->addToEnd(App::history(user->id));
 	}
 }
 
@@ -707,7 +709,7 @@ void ContactsBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names
 	peerUpdated(peer);
 }
 
-void ContactsBox::Inner::onAddBot() {
+void ContactsBox::Inner::addBot() {
 	if (auto &info = _bot->botInfo) {
 		if (!info->shareGameShortName.isEmpty()) {
 			MTPmessages_SendMedia::Flags sendFlags = 0;
@@ -720,7 +722,7 @@ void ContactsBox::Inner::onAddBot() {
 				history->sendRequestId = requestId;
 			}
 		} else if (!info->startGroupToken.isEmpty()) {
-			MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(info->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, _bot));
+			MTP::send(MTPmessages_StartBot(_bot->inputUser, _addToPeer->input, MTP_long(rand_value<uint64>()), MTP_string(info->startGroupToken)), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::addParticipantFail, { _bot, _addToPeer }));
 		} else {
 			App::main()->addParticipants(_addToPeer, QVector<UserData*>(1, _bot));
 		}
@@ -731,20 +733,9 @@ void ContactsBox::Inner::onAddBot() {
 	Ui::showPeerHistory(_addToPeer, ShowAtUnreadMsgId);
 }
 
-void ContactsBox::Inner::onAddAdmin() {
-	if (_addAdminRequestId) return;
-	_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, MTP_channelRoleEditor()), rpcDone(&Inner::addAdminDone), rpcFail(&Inner::addAdminFail));
-}
-
-void ContactsBox::Inner::onNoAddAdminBox(QObject *obj) {
-	if (obj == _addAdminBox) {
-		_addAdminBox = 0;
-	}
-}
-
 void ContactsBox::Inner::onAllAdminsChanged() {
-	if (_saving && _allAdmins.checked() != _allAdminsChecked) {
-		_allAdmins.setChecked(_allAdminsChecked);
+	if (_saving && _allAdmins->checked() != _allAdminsChecked) {
+		_allAdmins->setChecked(_allAdminsChecked);
 	} else if (_allAdminsChangedCallback) {
 		_allAdminsChangedCallback();
 	}
@@ -772,7 +763,7 @@ void ContactsBox::Inner::addAdminDone(const MTPUpdates &result, mtpRequestId req
 		}
 		Notify::peerUpdatedDelayed(update);
 	}
-	if (_addAdminBox) _addAdminBox->onClose();
+	if (_addAdminBox) _addAdminBox->closeBox();
 	emit adminAdded();
 }
 
@@ -782,13 +773,13 @@ bool ContactsBox::Inner::addAdminFail(const RPCError &error, mtpRequestId req) {
 	if (req != _addAdminRequestId) return true;
 
 	_addAdminRequestId = 0;
-	if (_addAdminBox) _addAdminBox->onClose();
+	if (_addAdminBox) _addAdminBox->closeBox();
 	if (error.type() == "USERS_TOO_MUCH") {
-		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
+		Ui::show(Box<MaxInviteBox>(_channel->inviteLink()), KeepOtherLayers);
 	} else if (error.type() == "ADMINS_TOO_MUCH") {
-		Ui::showLayer(new InformBox(lang(lng_channel_admins_too_much)), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lang(lng_channel_admins_too_much)), KeepOtherLayers);
 	} else if (error.type() == qstr("USER_RESTRICTED")) {
-		Ui::showLayer(new InformBox(lang(lng_cant_do_this)), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lang(lng_cant_do_this)), KeepOtherLayers);
 	} else  {
 		emit adminAdded();
 	}
@@ -797,7 +788,7 @@ bool ContactsBox::Inner::addAdminFail(const RPCError &error, mtpRequestId req) {
 
 void ContactsBox::Inner::saving(bool flag) {
 	_saving = flag;
-	_allAdminsChecked = _allAdmins.checked();
+	_allAdminsChecked = _allAdmins->checked();
 	update();
 }
 
@@ -835,14 +826,14 @@ void ContactsBox::Inner::peerUpdated(PeerData *peer) {
 			for_const (auto row, _contacts->all()) {
 				if (row->attached == i.value()) {
 					row->attached = nullptr;
-					update(0, _newItemHeight + _rowHeight * row->pos(), width(), _rowHeight);
+					update(0, _rowsTop + _aboutHeight + _rowHeight * row->pos(), width(), _rowHeight);
 				}
 			}
 			if (!_filter.isEmpty()) {
 				for (int32 j = 0, s = _filtered.size(); j < s; ++j) {
 					if (_filtered[j]->attached == i.value()) {
 						_filtered[j]->attached = 0;
-						update(0, _rowHeight * j, width(), _rowHeight);
+						update(0, _rowsTop + _rowHeight * j, width(), _rowHeight);
 					}
 				}
 			}
@@ -852,8 +843,11 @@ void ContactsBox::Inner::peerUpdated(PeerData *peer) {
 	}
 }
 
-void ContactsBox::Inner::loadProfilePhotos(int32 yFrom) {
-	int32 yTo = yFrom + (parentWidget() ? parentWidget()->height() : App::wnd()->height()) * 5;
+void ContactsBox::Inner::loadProfilePhotos() {
+	if (_visibleTop >= _visibleBottom) return;
+
+	auto yFrom = _visibleTop - _rowsTop;
+	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
 	MTP::clearLoaderPriorities();
 
 	if (yTo < 0) return;
@@ -861,19 +855,19 @@ void ContactsBox::Inner::loadProfilePhotos(int32 yFrom) {
 
 	if (_filter.isEmpty()) {
 		if (!_contacts->isEmpty()) {
-			auto i = _contacts->cfind(yFrom - _newItemHeight, _rowHeight);
+			auto i = _contacts->cfind(yFrom - _aboutHeight, _rowHeight);
 			for (auto end = _contacts->cend(); i != end; ++i) {
-				if ((_newItemHeight + (*i)->pos() * _rowHeight) >= yTo) {
+				if ((_aboutHeight + (*i)->pos() * _rowHeight) >= yTo) {
 					break;
 				}
 				(*i)->history()->peer->loadUserpic();
 			}
 		}
 	} else if (!_filtered.isEmpty()) {
-		int32 from = yFrom / _rowHeight;
+		auto from = yFrom / _rowHeight;
 		if (from < 0) from = 0;
 		if (from < _filtered.size()) {
-			int32 to = (yTo / _rowHeight) + 1;
+			auto to = (yTo / _rowHeight) + 1;
 			if (to > _filtered.size()) to = _filtered.size();
 
 			for (; from < to; ++from) {
@@ -905,7 +899,7 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
 				data->checkbox->setChecked(true, Ui::RoundImageCheckbox::SetStyle::Fast);
 			}
-			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+			data->name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 			if (peer->isUser()) {
 				data->statusText = App::onlineText(peer->asUser(), _time);
 				data->statusHasOnlineColor = App::onlineColorUse(peer->asUser(), _time);
@@ -929,35 +923,42 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 	return data;
 }
 
-void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, ContactData *data, bool sel) {
-	UserData *user = peer->asUser();
-
+bool ContactsBox::Inner::isRowDisabled(PeerData *peer, ContactData *data) const {
 	if (_chat && _membersFilter == MembersFilter::Admins) {
-		if (_allAdmins.checked() || peer->id == peerFromUser(_chat->creator) || _saving) {
-			sel = false;
-		}
-	} else {
-		if (data->disabledChecked || selectedCount() >= Global::MegagroupSizeMax()) {
-			sel = false;
-		}
+		return (_saving || _allAdmins->checked() || peer->id == peerFromUser(_chat->creator));
+	}
+	return (data->disabledChecked || selectedCount() >= Global::MegagroupSizeMax());
+}
+
+void ContactsBox::Inner::paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool selected) {
+	auto user = peer->asUser();
+
+	if (isRowDisabled(peer, data)) {
+		selected = false;
 	}
 
 	auto paintDisabledCheck = data->disabledChecked;
 	if (_chat && _membersFilter == MembersFilter::Admins) {
-		if (peer->id == peerFromUser(_chat->creator) || _allAdmins.checked()) {
+		if (peer->id == peerFromUser(_chat->creator) || _allAdmins->checked()) {
 			paintDisabledCheck = true;
 		}
 	}
 
 	auto checkedRatio = 0.;
-	p.fillRect(0, 0, width(), _rowHeight, sel ? st::contactsBgOver : st::white);
+	p.fillRect(0, 0, width(), _rowHeight, selected ? st::contactsBgOver : st::contactsBg);
+	if (data->ripple) {
+		data->ripple->paint(p, 0, 0, width(), ms);
+		if (data->ripple->empty()) {
+			data->ripple.reset();
+		}
+	}
 	if (paintDisabledCheck) {
 		paintDisabledCheckUserpic(p, peer, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else if (usingMultiSelect()) {
 		checkedRatio = data->checkbox->checkedAnimationRatio();
 		data->checkbox->paint(p, ms, st::contactsPadding.left(), st::contactsPadding.top(), width());
 	} else {
-		peer->paintUserpicLeft(p, st::contactsPhotoSize, st::contactsPadding.left(), st::contactsPadding.top(), width());
+		peer->paintUserpicLeft(p, st::contactsPadding.left(), st::contactsPadding.top(), width(), st::contactsPhotoSize);
 	}
 
 	int namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
@@ -967,19 +968,11 @@ void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, Cont
 		namew -= icon->width();
 		icon->paint(p, namex + qMin(data->name.maxWidth(), namew), st::contactsPadding.top() + st::contactsNameTop, width());
 	}
-	if (checkedRatio > 0) {
-		if (checkedRatio < 1) {
-			p.setPen(style::interpolate(st::black, st::contactsNameCheckedFg, checkedRatio));
-		} else {
-			p.setPen(st::contactsNameCheckedFg);
-		}
-	} else {
-		p.setPen(st::black);
-	}
+	p.setPen(anim::pen(st::contactsNameFg, st::contactsNameCheckedFg, checkedRatio));
 	data->name.drawLeftElided(p, namex, st::contactsPadding.top() + st::contactsNameTop, namew, width());
 
 	bool uname = (user || peer->isChannel()) && (data->statusText.at(0) == '@');
-	p.setFont(st::contactsStatusFont->f);
+	p.setFont(st::contactsStatusFont);
 	if (uname && !_lastQuery.isEmpty() && peer->userName().startsWith(_lastQuery, Qt::CaseInsensitive)) {
 		int availw = width() - namex - st::contactsPadding.right();
 		QString first = '@' + peer->userName().mid(0, _lastQuery.size()), second = peer->userName().mid(_lastQuery.size());
@@ -992,14 +985,14 @@ void ContactsBox::Inner::paintDialog(Painter &p, uint64 ms, PeerData *peer, Cont
 			int32 secondw = st::contactsStatusFont->width(second);
 			p.setPen(st::contactsStatusFgOnline);
 			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width() - secondw, first);
-			p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
+			p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
 			p.drawTextLeft(namex + w, st::contactsPadding.top() + st::contactsStatusTop, width() + w, second);
 		}
 	} else {
 		if ((user && (uname || data->statusHasOnlineColor)) || (peer->isChannel() && uname)) {
 			p.setPen(st::contactsStatusFgOnline);
 		} else {
-			p.setPen(sel ? st::contactsStatusFgOver : st::contactsStatusFg);
+			p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
 		}
 		p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), data->statusText);
 	}
@@ -1016,28 +1009,28 @@ void ContactsBox::Inner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, i
 	auto userpicBorderPen = st::contactsPhotoDisabledCheckFg->p;
 	userpicBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
-	auto iconDiameter = 2 * st::contactsPhotoCheckbox.checkRadius;
+	auto iconDiameter = st::contactsPhotoCheckbox.check.size;
 	auto iconLeft = x + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
 	auto iconTop = y + userpicDiameter + st::contactsPhotoCheckbox.selectWidth - iconDiameter;
 	auto iconEllipse = rtlrect(iconLeft, iconTop, iconDiameter, iconDiameter, outerWidth);
-	auto iconBorderPen = st::contactsPhotoCheckbox.checkBorder->p;
+	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
-	peer->paintUserpicLeft(p, userpicRadius * 2, userpicLeft, userpicTop, width());
+	peer->paintUserpicLeft(p, userpicLeft, userpicTop, width(), userpicRadius * 2);
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing, true);
+	{
+		PainterHighQualityEnabler hq(p);
 
-	p.setPen(userpicBorderPen);
-	p.setBrush(Qt::NoBrush);
-	p.drawEllipse(userpicEllipse);
+		p.setPen(userpicBorderPen);
+		p.setBrush(Qt::NoBrush);
+		p.drawEllipse(userpicEllipse);
 
-	p.setPen(iconBorderPen);
-	p.setBrush(st::contactsPhotoDisabledCheckFg);
-	p.drawEllipse(iconEllipse);
+		p.setPen(iconBorderPen);
+		p.setBrush(st::contactsPhotoDisabledCheckFg);
+		p.drawEllipse(iconEllipse);
+	}
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
-
-	st::contactsPhotoCheckbox.checkIcon.paint(p, iconEllipse.topLeft(), outerWidth);
+	st::contactsPhotoCheckbox.check.check.paint(p, iconEllipse.topLeft(), outerWidth);
 }
 
 void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
@@ -1046,31 +1039,31 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 
 	p.setClipRect(r);
 	_time = unixtime();
-	p.fillRect(r, st::white);
+	p.fillRect(r, st::contactsBg);
 
-	uint64 ms = getms();
-	int32 yFrom = r.y(), yTo = r.y() + r.height();
+	auto ms = getms();
+	auto yFrom = r.y(), yTo = r.y() + r.height();
+	auto skip = _rowsTop;
 	if (_filter.isEmpty()) {
+		skip += _aboutHeight;
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {
-			if (_newItemHeight) {
-				if (_chat) {
-					p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
-					p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-					p.setPen(st::black);
-					p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
-					int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
-					(_allAdmins.checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
-				} else {
-					p.fillRect(0, 0, width(), st::contactsNewItemHeight, (_newItemSel ? st::contactsBgOver : st::white)->b);
-					p.setFont(st::contactsNameFont);
-					st::contactsNewItemIcon.paint(p, 0, 0, width());
-					p.setPen(st::contactsNewItemFg);
-					p.drawTextLeft(st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_add_contact_button));
-				}
-				yFrom -= _newItemHeight;
-				yTo -= _newItemHeight;
-				p.translate(0, _newItemHeight);
+			if (_aboutHeight) {
+				auto infoTop = _allAdmins->bottomNoMargins() + st::contactsAllAdminsTop - st::lineWidth;
+
+				auto infoRect = rtlrect(0, infoTop, width(), _aboutHeight - infoTop - st::contactsPadding.bottom(), width());
+				p.fillRect(infoRect, st::contactsAboutBg);
+				auto dividerFillTop = rtlrect(0, infoRect.y(), width(), st::profileDividerTop.height(), width());
+				st::profileDividerTop.fill(p, dividerFillTop);
+				auto dividerFillBottom = rtlrect(0, infoRect.y() + infoRect.height() - st::profileDividerBottom.height(), width(), st::profileDividerBottom.height(), width());
+				st::profileDividerBottom.fill(p, dividerFillBottom);
+
+				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
+				p.setPen(st::contactsAboutFg);
+				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
 			}
+			yFrom -= skip;
+			yTo -= skip;
+			p.translate(0, skip);
 			if (!_contacts->isEmpty()) {
 				auto i = _contacts->cfind(yFrom, _rowHeight);
 				p.translate(0, (*i)->pos() * _rowHeight);
@@ -1078,44 +1071,45 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 					if ((*i)->pos() * _rowHeight >= yTo) {
 						break;
 					}
-					paintDialog(p, ms, (*i)->history()->peer, contactData(*i), (*i == _sel));
+					auto selected = _pressed ? (*i == _pressed) : (*i == _selected);
+					paintDialog(p, ms, (*i)->history()->peer, contactData(*i), selected);
 					p.translate(0, _rowHeight);
 				}
 				yFrom -= _contacts->size() * _rowHeight;
 				yTo -= _contacts->size() * _rowHeight;
 			}
 			if (!_byUsername.isEmpty()) {
-				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBg);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_search_global_results), style::al_center);
 
 				yFrom -= st::searchedBarHeight;
 				yTo -= st::searchedBarHeight;
 				p.translate(0, st::searchedBarHeight);
 
-				int32 from = floorclamp(yFrom, _rowHeight, 0, _byUsername.size());
-				int32 to = ceilclamp(yTo, _rowHeight, 0, _byUsername.size());
+				auto from = floorclamp(yFrom, _rowHeight, 0, _byUsername.size());
+				auto to = ceilclamp(yTo, _rowHeight, 0, _byUsername.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, ms, _byUsername[from], d_byUsername[from], (_byUsernameSel == from));
+					auto selected = (_searchedPressed >= 0) ? (_searchedPressed == from) : (_searchedSelected == from);
+					paintDialog(p, ms, _byUsername[from], d_byUsername[from], selected);
 					p.translate(0, _rowHeight);
 				}
 			}
 		} else {
 			QString text;
-			int32 skip = 0;
+			skip = 0;
 			if (bot()) {
 				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(lng_contacts_loading);
-				p.fillRect(0, 0, width(), _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
-				p.fillRect(0, _newItemHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowColor);
-				p.setPen(st::black);
-				p.drawTextLeft(st::contactsPadding.left(), st::contactsNewItemTop, width(), lang(lng_chat_all_members_admins));
+				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
+				p.fillRect(0, _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, width(), st::lineWidth, st::shadowFg);
+
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
-				(_allAdmins.checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsNewItemHeight + st::contactsAboutTop, aboutw);
-				p.translate(0, _newItemHeight);
+				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
+				p.translate(0, _aboutHeight);
 			} else if (cContactsReceived() && !_searching) {
 				text = lang(lng_no_contacts);
 				skip = st::noContactsFont->height;
@@ -1128,8 +1122,8 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 		}
 	} else {
 		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
-			p.setFont(st::noContactsFont->f);
-			p.setPen(st::noContactsColor->p);
+			p.setFont(st::noContactsFont);
+			p.setPen(st::noContactsColor);
 			QString text;
 			if (bot()) {
 				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
@@ -1140,20 +1134,24 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			}
 			p.drawText(QRect(0, 0, width(), st::noContactsHeight), text, style::al_center);
 		} else {
+			yFrom -= skip;
+			yTo -= skip;
+			p.translate(0, skip);
 			if (!_filtered.isEmpty()) {
 				int32 from = floorclamp(yFrom, _rowHeight, 0, _filtered.size());
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _filtered.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, ms, _filtered[from]->history()->peer, contactData(_filtered[from]), (_filteredSel == from));
+					auto selected = (_filteredPressed >= 0) ? (_filteredPressed == from) : (_filteredSelected == from);
+					paintDialog(p, ms, _filtered[from]->history()->peer, contactData(_filtered[from]), selected);
 					p.translate(0, _rowHeight);
 				}
 			}
 			if (!_byUsernameFiltered.isEmpty()) {
-				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBG->b);
-				p.setFont(st::searchedBarFont->f);
-				p.setPen(st::searchedBarColor->p);
-				p.drawText(QRect(0, 0, width(), st::searchedBarHeight), lang(lng_search_global_results), style::al_center);
+				p.fillRect(0, 0, width(), st::searchedBarHeight, st::searchedBarBg);
+				p.setFont(st::searchedBarFont);
+				p.setPen(st::searchedBarFg);
+				p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), lang(lng_search_global_results), style::al_center);
 				p.translate(0, st::searchedBarHeight);
 
 				yFrom -= _filtered.size() * _rowHeight + st::searchedBarHeight;
@@ -1162,7 +1160,8 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int32 to = ceilclamp(yTo, _rowHeight, 0, _byUsernameFiltered.size());
 				p.translate(0, from * _rowHeight);
 				for (; from < to; ++from) {
-					paintDialog(p, ms, _byUsernameFiltered[from], d_byUsernameFiltered[from], (_byUsernameSel == from));
+					auto selected = (_searchedPressed >= 0) ? (_searchedPressed == from) : (_searchedSelected == from);
+					paintDialog(p, ms, _byUsernameFiltered[from], d_byUsernameFiltered[from], selected);
 					p.translate(0, _rowHeight);
 				}
 			}
@@ -1176,29 +1175,25 @@ void ContactsBox::Inner::enterEvent(QEvent *e) {
 
 int ContactsBox::Inner::getSelectedRowTop() const {
 	if (_filter.isEmpty()) {
-		if (_sel) {
-			return _newItemHeight + (_sel->pos() * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
-			return _newItemHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_byUsernameSel * _rowHeight);
+		if (_selected) {
+			return _rowsTop + _aboutHeight + (_selected->pos() * _rowHeight);
+		} else if (_searchedSelected >= 0) {
+			return _rowsTop + _aboutHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (_searchedSelected * _rowHeight);
 		}
 	} else {
-		if (_filteredSel >= 0) {
-			return (_filteredSel * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
-			return (_filtered.size() * _rowHeight + st::searchedBarHeight + _byUsernameSel * _rowHeight);
+		if (_filteredSelected >= 0) {
+			return _rowsTop + (_filteredSelected * _rowHeight);
+		} else if (_searchedSelected >= 0) {
+			return _rowsTop + (_filtered.size() * _rowHeight + st::searchedBarHeight + _searchedSelected * _rowHeight);
 		}
 	}
 	return -1;
 }
 
 void ContactsBox::Inner::updateSelectedRow() {
-	if (_filter.isEmpty() && _newItemSel) {
-		update(0, 0, width(), st::contactsNewItemHeight);
-	} else {
-		auto rowTop = getSelectedRowTop();
-		if (rowTop >= 0) {
-			updateRowWithTop(rowTop);
-		}
+	auto rowTop = getSelectedRowTop();
+	if (rowTop >= 0) {
+		updateRowWithTop(rowTop);
 	}
 }
 
@@ -1210,23 +1205,23 @@ int ContactsBox::Inner::getRowTopWithPeer(PeerData *peer) const {
 	if (_filter.isEmpty()) {
 		for (auto i = _contacts->cbegin(), end = _contacts->cend(); i != end; ++i) {
 			if ((*i)->history()->peer == peer) {
-				return _newItemHeight + ((*i)->pos() * _rowHeight);
+				return _rowsTop + _aboutHeight + ((*i)->pos() * _rowHeight);
 			}
 		}
 		for (auto i = 0, count = _byUsername.size(); i != count; ++i) {
 			if (_byUsername[i] == peer) {
-				return _newItemHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
+				return _rowsTop + _aboutHeight + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
 			}
 		}
 	} else {
 		for (auto i = 0, count = _filtered.size(); i != count; ++i) {
 			if (_filtered[i]->history()->peer == peer) {
-				return (i * _rowHeight);
+				return _rowsTop + (i * _rowHeight);
 			}
 		}
 		for (auto i = 0, count = _byUsernameFiltered.size(); i != count; ++i) {
 			if (_byUsernameFiltered[i] == peer) {
-				return (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
+				return _rowsTop + (_contacts->size() * _rowHeight) + st::searchedBarHeight + (i * _rowHeight);
 			}
 		}
 	}
@@ -1241,29 +1236,107 @@ void ContactsBox::Inner::updateRowWithPeer(PeerData *peer) {
 }
 
 void ContactsBox::Inner::leaveEvent(QEvent *e) {
-	_mouseSel = false;
+	_mouseSelection = false;
 	setMouseTracking(false);
-	if (_newItemSel || _sel || _filteredSel >= 0 || _byUsernameSel >= 0) {
+	if (_selected || _filteredSelected >= 0 || _searchedSelected >= 0) {
 		updateSelectedRow();
-		_sel = 0;
-		_newItemSel = false;
-		_filteredSel = _byUsernameSel = -1;
+		_selected = nullptr;
+		_filteredSelected = _searchedSelected = -1;
 	}
 }
 
 void ContactsBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	_mouseSel = true;
+	_mouseSelection = true;
 	_lastMousePos = e->globalPos();
 	updateSelection();
 }
 
 void ContactsBox::Inner::mousePressEvent(QMouseEvent *e) {
-	_mouseSel = true;
+	_mouseSelection = true;
 	_lastMousePos = e->globalPos();
 	updateSelection();
-	if (e->button() == Qt::LeftButton) {
-		chooseParticipant();
+
+	setPressed(_selected);
+	setFilteredPressed(_filteredSelected);
+	setSearchedPressed(_searchedSelected);
+	if (_selected) {
+		addRipple(_selected->history()->peer, contactData(_selected));
+	} else if (_filteredSelected >= 0 && _filteredSelected < _filtered.size()) {
+		addRipple(_filtered[_filteredSelected]->history()->peer, contactData(_filtered[_filteredSelected]));
+	} else if (_searchedSelected >= 0) {
+		if (_filter.isEmpty() && _searchedSelected < d_byUsername.size()) {
+			addRipple(_byUsername[_searchedSelected], d_byUsername[_searchedSelected]);
+		} else if (!_filter.isEmpty() && _searchedSelected < d_byUsernameFiltered.size()) {
+			addRipple(_byUsernameFiltered[_searchedSelected], d_byUsernameFiltered[_searchedSelected]);
+		}
 	}
+}
+
+void ContactsBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
+	auto pressed = _pressed;
+	setPressed(nullptr);
+	auto filteredPressed = _filteredPressed;
+	setFilteredPressed(-1);
+	auto searchedPressed = _searchedPressed;
+	setSearchedPressed(-1);
+	updateSelectedRow();
+	if (e->button() == Qt::LeftButton) {
+		if (pressed && pressed == _selected) {
+			chooseParticipant();
+		} else if (filteredPressed >= 0 && filteredPressed == _filteredSelected) {
+			chooseParticipant();
+		} else if (searchedPressed >= 0 && searchedPressed == _searchedSelected) {
+			chooseParticipant();
+		}
+	}
+}
+
+void ContactsBox::Inner::addRipple(PeerData *peer, ContactData *data) {
+	if (isRowDisabled(peer, data)) return;
+
+	auto rowTop = getSelectedRowTop();
+	if (!data->ripple) {
+		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
+		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+			updateRowWithTop(data->rippleRowTop);
+		});
+	}
+	data->rippleRowTop = rowTop;
+	data->ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(0, rowTop));
+}
+
+void ContactsBox::Inner::stopLastRipple(ContactData *data) {
+	if (data->ripple) {
+		data->ripple->lastStop();
+	}
+}
+
+void ContactsBox::Inner::setPressed(Dialogs::Row *pressed) {
+	if (_pressed != pressed) {
+		if (_pressed) {
+			stopLastRipple(contactData(_pressed));
+		}
+		_pressed = pressed;
+	}
+}
+
+void ContactsBox::Inner::setFilteredPressed(int pressed) {
+	if (_filteredPressed >= 0 && _filteredPressed < _filtered.size()) {
+		stopLastRipple(contactData(_filtered[_filteredPressed]));
+	}
+	_filteredPressed = pressed;
+}
+
+void ContactsBox::Inner::setSearchedPressed(int pressed) {
+	if (_searchedPressed >= 0) {
+		if (_searchedPressed < d_byUsername.size()) {
+			stopLastRipple(d_byUsername[_searchedPressed]);
+		}
+		if (_searchedPressed < d_byUsernameFiltered.size()) {
+			stopLastRipple(d_byUsernameFiltered[_searchedPressed]);
+		}
+	}
+	_searchedPressed = pressed;
 }
 
 void ContactsBox::Inner::chooseParticipant() {
@@ -1272,23 +1345,23 @@ void ContactsBox::Inner::chooseParticipant() {
 	if (!addingAdmin && usingMultiSelect()) {
 		_time = unixtime();
 		if (_filter.isEmpty()) {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				auto data = d_byUsername[_byUsernameSel];
-				auto peer = _byUsername[_byUsernameSel];
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsername.size()) {
+				auto data = d_byUsername[_searchedSelected];
+				auto peer = _byUsername[_searchedSelected];
 				if (data->disabledChecked) return;
 
 				changeCheckState(data, peer);
-			} else if (_sel) {
-				auto data = contactData(_sel);
-				auto peer = _sel->history()->peer;
+			} else if (_selected) {
+				auto data = contactData(_selected);
+				auto peer = _selected->history()->peer;
 				if (data->disabledChecked) return;
 
-				changeCheckState(_sel);
+				changeCheckState(_selected);
 			}
 		} else {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				auto data = d_byUsernameFiltered[_byUsernameSel];
-				auto peer = _byUsernameFiltered[_byUsernameSel];
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsernameFiltered.size()) {
+				auto data = d_byUsernameFiltered[_searchedSelected];
+				auto peer = _byUsernameFiltered[_searchedSelected];
 				if (data->disabledChecked) return;
 
 				int i = 0, l = d_byUsername.size();
@@ -1311,9 +1384,9 @@ void ContactsBox::Inner::chooseParticipant() {
 				}
 
 				changeCheckState(data, peer);
-			} else if (_filteredSel >= 0 && _filteredSel < _filtered.size()) {
-				auto data = contactData(_filtered[_filteredSel]);
-				auto peer = _filtered[_filteredSel]->history()->peer;
+			} else if (_filteredSelected >= 0 && _filteredSelected < _filtered.size()) {
+				auto data = contactData(_filtered[_filteredSelected]);
+				auto peer = _filtered[_filteredSelected]->history()->peer;
 				if (data->disabledChecked) return;
 
 				changeCheckState(data, peer);
@@ -1322,21 +1395,17 @@ void ContactsBox::Inner::chooseParticipant() {
 	} else {
 		PeerData *peer = 0;
 		if (_filter.isEmpty()) {
-			if (_newItemSel) {
-				emit addRequested();
-				return;
-			}
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsername.size()) {
-				peer = _byUsername[_byUsernameSel];
-			} else if (_sel) {
-				peer = _sel->history()->peer;
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsername.size()) {
+				peer = _byUsername[_searchedSelected];
+			} else if (_selected) {
+				peer = _selected->history()->peer;
 			}
 		} else {
-			if (_byUsernameSel >= 0 && _byUsernameSel < _byUsernameFiltered.size()) {
-				peer = _byUsernameFiltered[_byUsernameSel];
+			if (_searchedSelected >= 0 && _searchedSelected < _byUsernameFiltered.size()) {
+				peer = _byUsernameFiltered[_searchedSelected];
 			} else {
-				if (_filteredSel < 0 || _filteredSel >= _filtered.size()) return;
-				peer = _filtered[_filteredSel]->history()->peer;
+				if (_filteredSelected < 0 || _filteredSelected >= _filtered.size()) return;
+				peer = _filtered[_filteredSelected]->history()->peer;
 			}
 		}
 		if (peer) {
@@ -1347,10 +1416,10 @@ void ContactsBox::Inner::chooseParticipant() {
 					_addAdminRequestId = 0;
 				}
 				if (_addAdminBox) _addAdminBox->deleteLater();
-				_addAdminBox = new ConfirmBox(lng_channel_admin_sure(lt_user, _addAdmin->firstName));
-				connect(_addAdminBox, SIGNAL(confirmed()), this, SLOT(onAddAdmin()));
-				connect(_addAdminBox, SIGNAL(destroyed(QObject*)), this, SLOT(onNoAddAdminBox(QObject*)));
-				Ui::showLayer(_addAdminBox, KeepOtherLayers);
+				_addAdminBox = Ui::show(Box<ConfirmBox>(lng_channel_admin_sure(lt_user, _addAdmin->firstName), base::lambda_guarded(this, [this] {
+					if (_addAdminRequestId) return;
+					_addAdminRequestId = MTP::send(MTPchannels_EditAdmin(_channel->inputChannel, _addAdmin->inputUser, MTP_channelRoleEditor()), rpcDone(&Inner::addAdminDone), rpcFail(&Inner::addAdminFail));
+				})), KeepOtherLayers);
 			} else if (sharingBotGame()) {
 				_addToPeer = peer;
 				auto confirmText = [peer] {
@@ -1359,14 +1428,14 @@ void ContactsBox::Inner::chooseParticipant() {
 					}
 					return lng_bot_sure_share_game_group(lt_group, peer->name);
 				};
-				auto box = std_::make_unique<ConfirmBox>(confirmText());
-				connect(box.get(), SIGNAL(confirmed()), this, SLOT(onAddBot()));
-				Ui::showLayer(box.release(), KeepOtherLayers);
+				Ui::show(Box<ConfirmBox>(confirmText(), base::lambda_guarded(this, [this] {
+					addBot();
+				})), KeepOtherLayers);
 			} else if (bot() && (peer->isChat() || peer->isMegagroup())) {
 				_addToPeer = peer;
-				auto box = std_::make_unique<ConfirmBox>(lng_bot_sure_invite(lt_group, peer->name));
-				connect(box.get(), SIGNAL(confirmed()), this, SLOT(onAddBot()));
-				Ui::showLayer(box.release(), KeepOtherLayers);
+				Ui::show(Box<ConfirmBox>(lng_bot_sure_invite(lt_group, peer->name), base::lambda_guarded(this, [this] {
+					addBot();
+				})), KeepOtherLayers);
 			} else {
 				Ui::hideSettingsAndLayer(true);
 				App::main()->choosePeer(peer->id, ShowAtUnreadMsgId);
@@ -1383,15 +1452,15 @@ void ContactsBox::Inner::changeCheckState(Dialogs::Row *row) {
 void ContactsBox::Inner::changeCheckState(ContactData *data, PeerData *peer) {
 	t_assert(usingMultiSelect());
 
-	if (_chat && _membersFilter == MembersFilter::Admins && _allAdmins.checked()) {
+	if (isRowDisabled(peer, data)) {
 	} else if (data->checkbox->checked()) {
 		changePeerCheckState(data, peer, false);
 	} else if (selectedCount() < ((_channel && _channel->isMegagroup()) ? Global::MegagroupSizeMax() : Global::ChatSizeMax())) {
 		changePeerCheckState(data, peer, true);
 	} else if (_channel && !_channel->isMegagroup()) {
-		Ui::showLayer(new MaxInviteBox(_channel->inviteLink()), KeepOtherLayers);
+		Ui::show(Box<MaxInviteBox>(_channel->inviteLink()), KeepOtherLayers);
 	} else if (!_channel && selectedCount() >= Global::ChatSizeMax() && selectedCount() < Global::MegagroupSizeMax()) {
-		Ui::showLayer(new InformBox(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
+		Ui::show(Box<InformBox>(lng_profile_add_more_after_upgrade(lt_count, Global::MegagroupSizeMax())), KeepOtherLayers);
 	}
 }
 
@@ -1401,7 +1470,7 @@ void ContactsBox::Inner::peerUnselected(PeerData *peer) {
 	changePeerCheckState(data, peer, false, ChangeStateWay::SkipCallback);
 }
 
-void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback) {
+void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
 	_peerSelectedChangedCallback = std_::move(callback);
 }
 
@@ -1419,7 +1488,7 @@ void ContactsBox::Inner::changePeerCheckState(ContactData *data, PeerData *peer,
 	}
 }
 
-int32 ContactsBox::Inner::selectedCount() const {
+int ContactsBox::Inner::selectedCount() const {
 	auto result = _checkedContacts.size();
 	if (_chat) {
 		result += qMax(_chat->count, 1);
@@ -1431,37 +1500,43 @@ int32 ContactsBox::Inner::selectedCount() const {
 	return result;
 }
 
-void ContactsBox::Inner::updateSelection() {
-	if (!_mouseSel) return;
+void ContactsBox::Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
+	loadProfilePhotos();
+}
 
-	QPoint p(mapFromGlobal(_lastMousePos));
-	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
+void ContactsBox::Inner::updateSelection() {
+	if (!_mouseSelection) return;
+
+	auto p = mapFromGlobal(_lastMousePos);
+	auto in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
+	p.setY(p.y() - _rowsTop);
 	if (_filter.isEmpty()) {
-		bool newItemSel = false;
-		if (_newItemHeight) {
-			if (in && (p.y() >= 0) && (p.y() < _newItemHeight) && !(_chat && _membersFilter == MembersFilter::Admins)) {
-				newItemSel = true;
-			}
-			p.setY(p.y() - _newItemHeight);
+		_filteredSelected = -1;
+		setFilteredPressed(-1);
+		if (_aboutHeight) {
+			p.setY(p.y() - _aboutHeight);
 		}
-		Dialogs::Row *newSel = (in && !newItemSel && (p.y() >= 0) && (p.y() < _contacts->size() * _rowHeight)) ? _contacts->rowAtY(p.y(), _rowHeight) : nullptr;
-		int32 byUsernameSel = (in && !newItemSel && p.y() >= _contacts->size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _contacts->size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
-		if (byUsernameSel >= _byUsername.size()) byUsernameSel = -1;
-		if (newSel != _sel || byUsernameSel != _byUsernameSel || newItemSel != _newItemSel) {
+		auto selected = (in && (p.y() >= 0) && (p.y() < _contacts->size() * _rowHeight)) ? _contacts->rowAtY(p.y(), _rowHeight) : nullptr;
+		auto searchedSelected = (in && (p.y() >= _contacts->size() * _rowHeight + st::searchedBarHeight)) ? ((p.y() - _contacts->size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
+		if (searchedSelected >= _byUsername.size()) searchedSelected = -1;
+		if (_selected != selected || _searchedSelected != searchedSelected) {
 			updateSelectedRow();
-			_newItemSel = newItemSel;
-			_sel = newSel;
-			_byUsernameSel = byUsernameSel;
+			_selected = selected;
+			_searchedSelected = searchedSelected;
 			updateSelectedRow();
 		}
 	} else {
-		int32 newFilteredSel = (in && p.y() >= 0 && p.y() < _filtered.size() * _rowHeight) ? (p.y() / _rowHeight) : -1;
-		int32 byUsernameSel = (in && p.y() >= _filtered.size() * _rowHeight + st::searchedBarHeight) ? ((p.y() - _filtered.size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
-		if (byUsernameSel >= _byUsernameFiltered.size()) byUsernameSel = -1;
-		if (newFilteredSel != _filteredSel || byUsernameSel != _byUsernameSel) {
+		_selected = nullptr;
+		setPressed(nullptr);
+		auto filteredSelected = (in && (p.y() >= 0) && (p.y() < _filtered.size() * _rowHeight)) ? (p.y() / _rowHeight) : -1;
+		auto searchedSelected = (in && (p.y() >= _filtered.size() * _rowHeight + st::searchedBarHeight)) ? ((p.y() - _filtered.size() * _rowHeight - st::searchedBarHeight) / _rowHeight) : -1;
+		if (searchedSelected >= _byUsernameFiltered.size()) searchedSelected = -1;
+		if (_filteredSelected != filteredSelected || _searchedSelected != searchedSelected) {
 			updateSelectedRow();
-			_filteredSel = newFilteredSel;
-			_byUsernameSel = byUsernameSel;
+			_filteredSelected = filteredSelected;
+			_searchedSelected = searchedSelected;
 			updateSelectedRow();
 		}
 	}
@@ -1490,17 +1565,19 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 
 		_byUsernameFiltered.clear();
 		d_byUsernameFiltered.clear();
-		for (int i = 0, l = _byUsernameDatas.size(); i < l; ++i) {
-			delete _byUsernameDatas[i];
-		}
-		_byUsernameDatas.clear();
+		clearSearchedContactDatas();
 
+		_selected = nullptr;
+		setPressed(nullptr);
+		_filteredSelected = -1;
+		setFilteredPressed(-1);
+		_searchedSelected = -1;
+		setSearchedPressed(-1);
 		if (_filter.isEmpty()) {
-			_sel = 0;
 			refresh();
 		} else {
-			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
-			if (!_allAdmins.isHidden()) _allAdmins.hide();
+			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
+			if (!_allAdmins->isHidden()) _allAdmins->hide();
 			QStringList::const_iterator fb = f.cbegin(), fe = f.cend(), fi;
 
 			_filtered.clear();
@@ -1563,21 +1640,19 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 					}
 				}
 			}
-			_filteredSel = -1;
 			if (!_filtered.isEmpty()) {
-				for (_filteredSel = 0; (_filteredSel < _filtered.size()) && contactData(_filtered[_filteredSel])->disabledChecked;) {
-					++_filteredSel;
+				for (_filteredSelected = 0; (_filteredSelected < _filtered.size()) && contactData(_filtered[_filteredSelected])->disabledChecked;) {
+					++_filteredSelected;
 				}
-				if (_filteredSel == _filtered.size()) _filteredSel = -1;
+				if (_filteredSelected == _filtered.size()) _filteredSelected = -1;
 			}
-			_byUsernameSel = -1;
-			if (_filteredSel < 0 && !_byUsernameFiltered.isEmpty()) {
-				for (_byUsernameSel = 0; (_byUsernameSel < _byUsernameFiltered.size()) && d_byUsernameFiltered[_byUsernameSel]->disabledChecked;) {
-					++_byUsernameSel;
+			if (_filteredSelected < 0 && !_byUsernameFiltered.isEmpty()) {
+				for (_searchedSelected = 0; (_searchedSelected < _byUsernameFiltered.size()) && d_byUsernameFiltered[_searchedSelected]->disabledChecked;) {
+					++_searchedSelected;
 				}
-				if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
+				if (_searchedSelected == _byUsernameFiltered.size()) _searchedSelected = -1;
 			}
-			_mouseSel = false;
+			_mouseSelection = false;
 			refresh();
 
 			if ((!bot() || sharingBotGame()) && (!_chat || _membersFilter != MembersFilter::Admins)) {
@@ -1586,13 +1661,19 @@ void ContactsBox::Inner::updateFilter(QString filter) {
 			}
 		}
 		update();
-		loadProfilePhotos(0);
+		loadProfilePhotos();
+	}
+}
+
+void ContactsBox::Inner::clearSearchedContactDatas() {
+	for (auto data : base::take(_byUsernameDatas)) {
+		delete data;
 	}
 }
 
 void ContactsBox::Inner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow) {
 	if (!_filter.isEmpty()) {
-		for (FilteredDialogs::iterator i = _filtered.begin(), e = _filtered.end(); i != e;) {
+		for (auto i = _filtered.begin(), e = _filtered.end(); i != e;) {
 			if (*i == oldRow) { // this row is shown in filtered and maybe is in contacts!
 				if (newRow) {
 					*i = newRow;
@@ -1604,18 +1685,21 @@ void ContactsBox::Inner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row 
 				++i;
 			}
 		}
-		if (_filteredSel >= _filtered.size()) {
-			_filteredSel = -1;
+		if (_filteredSelected >= _filtered.size()) {
+			_filteredSelected = -1;
+		}
+		if (_filteredPressed >= _filtered.size()) {
+			_filteredPressed = -1;
 		}
 	} else {
-		if (_sel == oldRow) {
-			_sel = newRow;
+		if (_selected == oldRow) {
+			_selected = newRow;
+		}
+		if (_pressed == oldRow) {
+			setPressed(newRow);
 		}
 	}
-	_mouseSel = false;
-	int cnt = (_filter.isEmpty() ? _contacts->size() : _filtered.size());
-	int newh = cnt ? (cnt * _rowHeight) : st::noContactsHeight;
-	resize(width(), newh);
+	refresh();
 }
 
 void ContactsBox::Inner::peopleReceived(const QString &query, const QVector<MTPPeer> &people) {
@@ -1664,7 +1748,7 @@ void ContactsBox::Inner::peopleReceived(const QString &query, const QVector<MTPP
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
 				data->checkbox->setChecked(true, Ui::RoundImageCheckbox::SetStyle::Fast);
 			}
-			data->name.setText(st::contactsNameFont, peer->name, _textNameOptions);
+			data->name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 			data->statusText = '@' + peer->userName();
 
 			_byUsernameFiltered.push_back(peer);
@@ -1678,33 +1762,34 @@ void ContactsBox::Inner::peopleReceived(const QString &query, const QVector<MTPP
 void ContactsBox::Inner::refresh() {
 	if (_filter.isEmpty()) {
 		if (_chat && _membersFilter == MembersFilter::Admins) {
-			if (_allAdmins.isHidden()) _allAdmins.show();
+			if (_allAdmins->isHidden()) _allAdmins->show();
 		} else {
-			if (!_allAdmins.isHidden()) _allAdmins.hide();
+			if (!_allAdmins->isHidden()) _allAdmins->hide();
 		}
 		if (!_contacts->isEmpty() || !_byUsername.isEmpty()) {
-			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
-			resize(width(), _newItemHeight + (_contacts->size() * _rowHeight) + (_byUsername.isEmpty() ? 0 : (st::searchedBarHeight + _byUsername.size() * _rowHeight)));
+			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
+			resize(width(), _rowsTop + _aboutHeight + (_contacts->size() * _rowHeight) + (_byUsername.isEmpty() ? 0 : (st::searchedBarHeight + _byUsername.size() * _rowHeight)) + st::contactsMarginBottom);
 		} else if (_chat && _membersFilter == MembersFilter::Admins) {
-			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
-			resize(width(), _newItemHeight + st::noContactsHeight);
+			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
+			resize(width(), _rowsTop + _aboutHeight + st::noContactsHeight + st::contactsMarginBottom);
 		} else {
 			if (cContactsReceived() && !bot()) {
-				if (_addContactLnk.isHidden()) _addContactLnk.show();
+				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
-				if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+				if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			}
 			resize(width(), st::noContactsHeight);
 		}
 	} else {
-		if (!_allAdmins.isHidden()) _allAdmins.hide();
+		if (!_allAdmins->isHidden()) _allAdmins->hide();
 		if (_filtered.isEmpty() && _byUsernameFiltered.isEmpty()) {
-			if (!_addContactLnk.isHidden()) _addContactLnk.hide();
+			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			resize(width(), st::noContactsHeight);
 		} else {
-			resize(width(), (_filtered.size() * _rowHeight) + (_byUsernameFiltered.isEmpty() ? 0 : (st::searchedBarHeight + _byUsernameFiltered.size() * _rowHeight)));
+			resize(width(), _rowsTop + (_filtered.size() * _rowHeight) + (_byUsernameFiltered.isEmpty() ? 0 : (st::searchedBarHeight + _byUsernameFiltered.size() * _rowHeight)) + st::contactsMarginBottom);
 		}
 	}
+	loadProfilePhotos();
 	update();
 }
 
@@ -1736,6 +1821,10 @@ ContactsBox::Inner::~Inner() {
 	for (auto contactData : base::take(_contactsData)) {
 		delete contactData;
 	}
+	clearSearchedContactDatas();
+	for (auto data : base::take(d_byUsername)) {
+		delete data;
+	}
 	if (_bot) {
 		if (auto &info = _bot->botInfo) {
 			info->startGroupToken = QString();
@@ -1745,141 +1834,133 @@ ContactsBox::Inner::~Inner() {
 }
 
 void ContactsBox::Inner::resizeEvent(QResizeEvent *e) {
-	_addContactLnk.move((width() - _addContactLnk.width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
-	_allAdmins.moveToLeft(st::contactsPadding.left(), st::contactsNewItemTop);
+	_addContactLnk->move((width() - _addContactLnk->width()) / 2, (st::noContactsHeight + st::noContactsFont->height) / 2);
+	_allAdmins->moveToLeft(st::contactsPadding.left(), st::contactsAllAdminsTop);
 }
 
 void ContactsBox::Inner::selectSkip(int32 dir) {
 	_time = unixtime();
-	_mouseSel = false;
+	_mouseSelection = false;
 	if (_filter.isEmpty()) {
 		int cur = 0;
-		if (_sel) {
-			for (auto i = _contacts->cbegin(); *i != _sel; ++i) {
+		if (_selected) {
+			for (auto i = _contacts->cbegin(); *i != _selected; ++i) {
 				++cur;
 			}
-			if (_newItemHeight) ++cur;
-		} else if (_byUsernameSel >= 0) {
-			cur = (_contacts->size() + _byUsernameSel);
-			if (_newItemHeight) ++cur;
-		} else if (!_newItemSel) {
+		} else if (_searchedSelected >= 0) {
+			cur = (_contacts->size() + _searchedSelected);
+		} else {
 			cur = -1;
 		}
 		cur += dir;
 		if (cur <= 0) {
-			_newItemSel = (_chat && _membersFilter == MembersFilter::Admins) ? false : (_newItemHeight ? true : false);
-			_sel = (!_newItemHeight && !_contacts->isEmpty()) ? *_contacts->cbegin() : nullptr;
-			_byUsernameSel = (!_newItemHeight && _contacts->isEmpty() && !_byUsername.isEmpty()) ? 0 : -1;
-		} else if (cur >= _contacts->size() + (_newItemHeight ? 1 : 0)) {
-			_newItemSel = false;
+			_selected = (!_contacts->isEmpty()) ? *_contacts->cbegin() : nullptr;
+			_searchedSelected = (_contacts->isEmpty() && !_byUsername.isEmpty()) ? 0 : -1;
+		} else if (cur >= _contacts->size()) {
 			if (_byUsername.isEmpty()) {
-				_sel = _contacts->isEmpty() ? nullptr : *(_contacts->cend() - 1);
-				_byUsernameSel = -1;
+				_selected = _contacts->isEmpty() ? nullptr : *(_contacts->cend() - 1);
+				_searchedSelected = -1;
 			} else {
-				_sel = nullptr;
-				_byUsernameSel = cur - _contacts->size();
-				if (_byUsernameSel >= _byUsername.size()) _byUsernameSel = _byUsername.size() - 1;
+				_selected = nullptr;
+				_searchedSelected = cur - _contacts->size();
+				if (_searchedSelected >= _byUsername.size()) _searchedSelected = _byUsername.size() - 1;
 			}
 		} else {
-			_newItemSel = false;
-			if (_newItemHeight) --cur;
 			for (auto i = _contacts->cbegin(); ; ++i) {
-				_sel = *i;
+				_selected = *i;
 				if (!cur) {
 					break;
 				} else {
 					--cur;
 				}
 			}
-			_byUsernameSel = -1;
+			_searchedSelected = -1;
 		}
 		if (dir > 0) {
-			for (auto i = _contacts->cfind(_sel), end = _contacts->cend(); i != end && contactData(*i)->disabledChecked; ++i) {
-				_sel = *i;
+			for (auto i = _contacts->cfind(_selected), end = _contacts->cend(); i != end && contactData(*i)->disabledChecked; ++i) {
+				_selected = *i;
 			}
-			if (_sel && contactData(_sel)->disabledChecked) {
-				_sel = nullptr;
+			if (_selected && contactData(_selected)->disabledChecked) {
+				_selected = nullptr;
 			}
-			if (!_sel) {
+			if (!_selected) {
 				if (!_byUsername.isEmpty()) {
-					if (_byUsernameSel < 0) _byUsernameSel = 0;
-					for (; _byUsernameSel < _byUsername.size() && d_byUsername[_byUsernameSel]->disabledChecked;) {
-						++_byUsernameSel;
+					if (_searchedSelected < 0) _searchedSelected = 0;
+					for (; _searchedSelected < _byUsername.size() && d_byUsername[_searchedSelected]->disabledChecked;) {
+						++_searchedSelected;
 					}
-					if (_byUsernameSel == _byUsername.size()) _byUsernameSel = -1;
+					if (_searchedSelected == _byUsername.size()) _searchedSelected = -1;
 				}
 			}
 		} else {
-			while (_byUsernameSel >= 0 && d_byUsername[_byUsernameSel]->disabledChecked) {
-				--_byUsernameSel;
+			while (_searchedSelected >= 0 && d_byUsername[_searchedSelected]->disabledChecked) {
+				--_searchedSelected;
 			}
-			if (_byUsernameSel < 0) {
+			if (_searchedSelected < 0) {
 				if (!_contacts->isEmpty()) {
-					if (!_newItemSel && !_sel) _sel = *(_contacts->cend() - 1);
-					if (_sel) {
-						for (auto i = _contacts->cfind(_sel), b = _contacts->cbegin(); i != b && contactData(*i)->disabledChecked; --i) {
-							_sel = *i;
+					if (!_selected) _selected = *(_contacts->cend() - 1);
+					if (_selected) {
+						for (auto i = _contacts->cfind(_selected), b = _contacts->cbegin(); i != b && contactData(*i)->disabledChecked; --i) {
+							_selected = *i;
 						}
-						if (contactData(_sel)->disabledChecked) {
-							_sel = nullptr;
+						if (contactData(_selected)->disabledChecked) {
+							_selected = nullptr;
 						}
 					}
 				}
 			}
 		}
-		if (_newItemSel) {
-			emit mustScrollTo(0, _newItemHeight);
-		} else if (_sel) {
-			emit mustScrollTo(_newItemHeight + _sel->pos() * _rowHeight, _newItemHeight + (_sel->pos() + 1) * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
-			emit mustScrollTo(_newItemHeight + (_contacts->size() + _byUsernameSel) * _rowHeight + st::searchedBarHeight, _newItemHeight + (_contacts->size() + _byUsernameSel + 1) * _rowHeight + st::searchedBarHeight);
+		if (_selected) {
+			emit mustScrollTo(_rowsTop + _aboutHeight + _selected->pos() * _rowHeight, _rowsTop + _aboutHeight + (_selected->pos() + 1) * _rowHeight);
+		} else if (_searchedSelected >= 0) {
+			emit mustScrollTo(_rowsTop + _aboutHeight + (_contacts->size() + _searchedSelected) * _rowHeight + st::searchedBarHeight, _rowsTop + _aboutHeight + (_contacts->size() + _searchedSelected + 1) * _rowHeight + st::searchedBarHeight);
 		}
 	} else {
-		int cur = (_filteredSel >= 0) ? _filteredSel : ((_byUsernameSel >= 0) ? (_filtered.size() + _byUsernameSel) : -1);
+		int cur = (_filteredSelected >= 0) ? _filteredSelected : ((_searchedSelected >= 0) ? (_filtered.size() + _searchedSelected) : -1);
 		cur += dir;
 		if (cur <= 0) {
-			_filteredSel = _filtered.isEmpty() ? -1 : 0;
-			_byUsernameSel = (_filtered.isEmpty() && !_byUsernameFiltered.isEmpty()) ? 0 : -1;
+			_filteredSelected = _filtered.isEmpty() ? -1 : 0;
+			_searchedSelected = (_filtered.isEmpty() && !_byUsernameFiltered.isEmpty()) ? 0 : -1;
 		} else if (cur >= _filtered.size()) {
-			_filteredSel = -1;
-			_byUsernameSel = cur - _filtered.size();
-			if (_byUsernameSel >= _byUsernameFiltered.size()) _byUsernameSel = _byUsernameFiltered.size() - 1;
+			_filteredSelected = -1;
+			_searchedSelected = cur - _filtered.size();
+			if (_searchedSelected >= _byUsernameFiltered.size()) _searchedSelected = _byUsernameFiltered.size() - 1;
 		} else {
-			_filteredSel = cur;
-			_byUsernameSel = -1;
+			_filteredSelected = cur;
+			_searchedSelected = -1;
 		}
 		if (dir > 0) {
-			while (_filteredSel >= 0 && _filteredSel < _filtered.size() && contactData(_filtered[_filteredSel])->disabledChecked) {
-				++_filteredSel;
+			while (_filteredSelected >= 0 && _filteredSelected < _filtered.size() && contactData(_filtered[_filteredSelected])->disabledChecked) {
+				++_filteredSelected;
 			}
-			if (_filteredSel < 0 || _filteredSel >= _filtered.size()) {
-				_filteredSel = -1;
+			if (_filteredSelected < 0 || _filteredSelected >= _filtered.size()) {
+				_filteredSelected = -1;
 				if (!_byUsernameFiltered.isEmpty()) {
-					if (_byUsernameSel < 0) _byUsernameSel = 0;
-					for (; _byUsernameSel < _byUsernameFiltered.size() && d_byUsernameFiltered[_byUsernameSel]->disabledChecked;) {
-						++_byUsernameSel;
+					if (_searchedSelected < 0) _searchedSelected = 0;
+					for (; _searchedSelected < _byUsernameFiltered.size() && d_byUsernameFiltered[_searchedSelected]->disabledChecked;) {
+						++_searchedSelected;
 					}
-					if (_byUsernameSel == _byUsernameFiltered.size()) _byUsernameSel = -1;
+					if (_searchedSelected == _byUsernameFiltered.size()) _searchedSelected = -1;
 				}
 			}
 		} else {
-			while (_byUsernameSel >= 0 && d_byUsernameFiltered[_byUsernameSel]->disabledChecked) {
-				--_byUsernameSel;
+			while (_searchedSelected >= 0 && d_byUsernameFiltered[_searchedSelected]->disabledChecked) {
+				--_searchedSelected;
 			}
-			if (_byUsernameSel < 0) {
+			if (_searchedSelected < 0) {
 				if (!_filtered.isEmpty()) {
-					if (_filteredSel < 0) _filteredSel = _filtered.size() - 1;
-					for (; _filteredSel >= 0 && contactData(_filtered[_filteredSel])->disabledChecked;) {
-						--_filteredSel;
+					if (_filteredSelected < 0) _filteredSelected = _filtered.size() - 1;
+					for (; _filteredSelected >= 0 && contactData(_filtered[_filteredSelected])->disabledChecked;) {
+						--_filteredSelected;
 					}
 				}
 			}
 		}
-		if (_filteredSel >= 0) {
-			emit mustScrollTo(_filteredSel * _rowHeight, (_filteredSel + 1) * _rowHeight);
-		} else if (_byUsernameSel >= 0) {
+		if (_filteredSelected >= 0) {
+			emit mustScrollTo(_rowsTop + _filteredSelected * _rowHeight, _rowsTop + (_filteredSelected + 1) * _rowHeight);
+		} else if (_searchedSelected >= 0) {
 			int skip = _filtered.size() * _rowHeight + st::searchedBarHeight;
-			emit mustScrollTo(skip + _byUsernameSel * _rowHeight, skip + (_byUsernameSel + 1) * _rowHeight);
+			emit mustScrollTo(_rowsTop + skip + _searchedSelected * _rowHeight, _rowsTop + skip + (_searchedSelected + 1) * _rowHeight);
 		}
 	}
 	update();
@@ -1939,4 +2020,8 @@ QVector<MTPInputUser> ContactsBox::Inner::selectedInputs() {
 		}
 	}
 	return result;
+}
+
+bool ContactsBox::Inner::allAdmins() const {
+	return _allAdmins->checked();
 }

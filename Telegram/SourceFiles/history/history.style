@@ -20,121 +20,399 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
 using "dialogs/dialogs.style";
+using "ui/widgets/widgets.style";
 
-historyPaddingBottom: 10px;
+historyScroll: ScrollArea(defaultScrollArea) {
+	bg: historyScrollBg;
+	bgOver: historyScrollBgOver;
+	barBg: historyScrollBarBg;
+	barBgOver: historyScrollBarBgOver;
 
-historyToDown: icon {
-	{ "history_down_shadow", #00000040 },
-	{ "history_down_circle", #fff, point(2px, 1px) },
-};
+	round: 3px;
+
+	width: 12px;
+	deltax: 3px;
+	deltat: 3px;
+	deltab: 3px;
+
+	topsh: 0px;
+	bottomsh: -1px;
+}
+
+historyPaddingBottom: 8px;
+
 historyToDownPosition: point(12px, 10px);
-historyToDownArrow: icon {
-	{ "history_down_arrow", #b9b9b9, point(14px, 19px) },
-};
+historyToDownAbove: icon {{ "history_down_arrow", menuIconFg, point(17px, 23px) }};
+historyToDownAboveOver: icon {{ "history_down_arrow", menuIconFgOver, point(17px, 23px) }};
 historyToDownPaddingTop: 10px;
+historyToDown: TwoIconButton {
+	width: 52px;
+	height: 62px;
+
+	iconBelow: historyToDownBelow;
+	iconBelowOver: historyToDownBelowOver;
+	iconAbove: historyToDownAbove;
+	iconAboveOver: historyToDownAboveOver;
+	iconPosition: point(0px, historyToDownPaddingTop);
+
+	rippleAreaPosition: point(5px, 15px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgRipple;
+	}
+}
 historyToDownBadgeFont: semiboldFont;
 historyToDownBadgeSize: 22px;
 
-historyEmptyDog: icon {{ "history_empty_dog", #ffffff }};
-historyEmptySize: 128px;
+historyToDownShownAfter: 480px;
+historyToDownDuration: 150;
 
-membersInnerScroll: flatScroll(solidScroll) {
-	deltat: 3px;
-	deltab: 3px;
-	round: 1px;
-	width: 8px;
-	deltax: 3px;
-}
 membersInnerWidth: 310px;
 membersInnerHeightMax: 360px;
 membersInnerDropdown: InnerDropdown(defaultInnerDropdown) {
+	scroll: ScrollArea(defaultSolidScroll) {
+		deltat: 0px;
+		deltab: 0px;
+		round: 1px;
+		width: 8px;
+		deltax: 3px;
+	}
 	scrollMargin: margins(0px, 5px, 0px, 5px);
-	scrollPadding: margins(0px, 3px, 8px, 3px);
+	scrollPadding: margins(0px, 3px, 0px, 3px);
+}
+membersInnerItem: ProfilePeerListItem {
+	left: 0px;
+	bottom: 0px;
+	button: OutlineButton {
+		outlineWidth: 0px;
+
+		textBg: windowBg;
+		textBgOver: windowBgOver;
+
+		textFg: windowSubTextFg;
+		textFgOver: windowSubTextFgOver;
+
+		font: normalFont;
+		padding: margins(11px, 5px, 11px, 5px);
+
+		ripple: defaultRippleAnimation;
+	}
+	statusFg: windowSubTextFg;
+	statusFgOver: windowSubTextFgOver;
+	statusFgActive: windowActiveTextFg;
 }
 
-historyFileOutImage: icon {{ "history_file_image", msgOutBg }};
-historyFileOutImageSelected: icon {{ "history_file_image", msgOutBgSelected }};
-historyFileInImage: icon {{ "history_file_image", msgInBg }};
-historyFileInImageSelected: icon {{ "history_file_image", msgInBgSelected }};
-historyFileOutDocument: icon {{ "history_file_document", msgOutBg }};
-historyFileOutDocumentSelected: icon {{ "history_file_document", msgOutBgSelected }};
-historyFileInDocument: icon {{ "history_file_document", msgInBg }};
-historyFileInDocumentSelected: icon {{ "history_file_document", msgInBgSelected }};
-historyFileOutDownload: icon {{ "history_file_download", msgOutBg }};
-historyFileOutDownloadSelected: icon {{ "history_file_download", msgOutBgSelected }};
-historyFileInDownload: icon {{ "history_file_download", msgInBg }};
-historyFileInDownloadSelected: icon {{ "history_file_download", msgInBgSelected }};
-historyFileOutCancel: icon {{ "history_file_cancel", msgOutBg }};
-historyFileOutCancelSelected: icon {{ "history_file_cancel", msgOutBgSelected }};
-historyFileInCancel: icon {{ "history_file_cancel", msgInBg }};
-historyFileInCancelSelected: icon {{ "history_file_cancel", msgInBgSelected }};
-historyFileOutPause: icon {{ "history_file_pause", msgOutBg }};
-historyFileOutPauseSelected: icon {{ "history_file_pause", msgOutBgSelected }};
-historyFileInPause: icon {{ "history_file_pause", msgInBg }};
-historyFileInPauseSelected: icon {{ "history_file_pause", msgInBgSelected }};
-historyFileOutPlay: icon {{ "history_file_play", msgOutBg }};
-historyFileOutPlaySelected: icon {{ "history_file_play", msgOutBgSelected }};
-historyFileInPlay: icon {{ "history_file_play", msgInBg }};
-historyFileInPlaySelected: icon {{ "history_file_play", msgInBgSelected }};
+historyFileOutImage: icon {{ "history_file_image", historyFileOutIconFg }};
+historyFileOutImageSelected: icon {{ "history_file_image", historyFileOutIconFgSelected }};
+historyFileInImage: icon {{ "history_file_image", historyFileInIconFg }};
+historyFileInImageSelected: icon {{ "history_file_image", historyFileInIconFgSelected }};
+historyFileOutDocument: icon {{ "history_file_document", historyFileOutIconFg }};
+historyFileOutDocumentSelected: icon {{ "history_file_document", historyFileOutIconFgSelected }};
+historyFileInDocument: icon {{ "history_file_document", historyFileInIconFg }};
+historyFileInDocumentSelected: icon {{ "history_file_document", historyFileInIconFgSelected }};
+historyFileOutDownload: icon {{ "history_file_download", historyFileOutIconFg }};
+historyFileOutDownloadSelected: icon {{ "history_file_download", historyFileOutIconFgSelected }};
+historyFileInDownload: icon {{ "history_file_download", historyFileInIconFg }};
+historyFileInDownloadSelected: icon {{ "history_file_download", historyFileInIconFgSelected }};
+historyFileOutCancel: icon {{ "history_file_cancel", historyFileOutIconFg }};
+historyFileOutCancelSelected: icon {{ "history_file_cancel", historyFileOutIconFgSelected }};
+historyFileInCancel: icon {{ "history_file_cancel", historyFileInIconFg }};
+historyFileInCancelSelected: icon {{ "history_file_cancel", historyFileInIconFgSelected }};
+historyFileOutPause: icon {{ "history_file_pause", historyFileOutIconFg }};
+historyFileOutPauseSelected: icon {{ "history_file_pause", historyFileOutIconFgSelected }};
+historyFileInPause: icon {{ "history_file_pause", historyFileInIconFg }};
+historyFileInPauseSelected: icon {{ "history_file_pause", historyFileInIconFgSelected }};
+historyFileOutPlay: icon {{ "history_file_play", historyFileOutIconFg }};
+historyFileOutPlaySelected: icon {{ "history_file_play", historyFileOutIconFgSelected }};
+historyFileInPlay: icon {{ "history_file_play", historyFileInIconFg }};
+historyFileInPlaySelected: icon {{ "history_file_play", historyFileInIconFgSelected }};
 
-historyOutFg: dialogsSentStateFg;
-historyOutSelectedFg: #4da79f;
-historyInvertedFg: #ffffff;
+historyFileThumbDownload: icon {{ "history_file_download", historyFileThumbIconFg }};
+historyFileThumbDownloadSelected: icon {{ "history_file_download", historyFileThumbIconFgSelected }};
+historyFileThumbCancel: icon {{ "history_file_cancel", historyFileThumbIconFg }};
+historyFileThumbCancelSelected: icon {{ "history_file_cancel", historyFileThumbIconFgSelected }};
+historyFileThumbPlay: icon {{ "history_file_play", historyFileThumbIconFg }};
+historyFileThumbPlaySelected: icon {{ "history_file_play", historyFileThumbIconFgSelected }};
+
 historySendStateSpace: 24px;
 historySendStatePosition: point(-17px, -19px);
-historySentIcon: icon {{ "history_sent", historyOutFg, point(2px, 4px) }};
-historySentSelectedIcon: icon {{ "history_sent", historyOutSelectedFg, point(2px, 4px) }};
-historySentInvertedIcon: icon {{ "history_sent", historyInvertedFg, point(2px, 4px) }};
-historyReceivedIcon: icon {{ "history_received", historyOutFg, point(2px, 4px) }};
-historyReceivedSelectedIcon: icon {{ "history_received", historyOutSelectedFg, point(2px, 4px) }};
-historyReceivedInvertedIcon: icon {{ "history_received", historyInvertedFg, point(2px, 4px) }};
+historySentIcon: icon {{ "history_sent", historyOutIconFg, point(2px, 4px) }};
+historySentSelectedIcon: icon {{ "history_sent", historyOutIconFgSelected, point(2px, 4px) }};
+historySentInvertedIcon: icon {{ "history_sent", historyIconFgInverted, point(2px, 4px) }};
+historyReceivedIcon: icon {{ "history_received", historyOutIconFg, point(2px, 4px) }};
+historyReceivedSelectedIcon: icon {{ "history_received", historyOutIconFgSelected, point(2px, 4px) }};
+historyReceivedInvertedIcon: icon {{ "history_received", historyIconFgInverted, point(2px, 4px) }};
 
 historyViewsSpace: 11px;
 historyViewsWidth: 20px;
 historyViewsTop: -15px;
-historyViewsInIcon: icon {{ "history_views", #a0acb6 }};
-historyViewsInSelectedIcon: icon {{ "history_views", #6a9bc5 }};
-historyViewsOutIcon: icon {{ "history_views", historyOutFg }};
-historyViewsOutSelectedIcon: icon {{ "history_views", historyOutSelectedFg }};
-historyViewsInvertedIcon: icon {{ "history_views", #ffffffe6 }};
+historyViewsInIcon: icon {{ "history_views", msgInDateFg }};
+historyViewsInSelectedIcon: icon {{ "history_views", msgInDateFgSelected }};
+historyViewsOutIcon: icon {{ "history_views", historyOutIconFg }};
+historyViewsOutSelectedIcon: icon {{ "history_views", historyOutIconFgSelected }};
+historyViewsInvertedIcon: icon {{ "history_views", historySendingInvertedIconFg }};
 
-historyPeer1NameFg: #c03d33; // red
-historyPeer1UserpicBg: #ed9482;
-historyPeer1UserpicFg: #d3644b;
-historyPeer1UserpicPerson: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_person", historyPeer1UserpicFg }};
-historyPeer1UserpicChat: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_chat", historyPeer1UserpicFg }};
-historyPeer1UserpicChannel: icon {{ size(120px, 120px), historyPeer1UserpicBg }, { "userpic_channel", historyPeer1UserpicFg }};
-historyPeer2NameFg: #4fad2d; // green
-historyPeer2UserpicBg: #a8db92;
-historyPeer2UserpicFg: #75c057;
-historyPeer2UserpicPerson: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_person", historyPeer2UserpicFg }};
-historyPeer2UserpicChat: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_chat", historyPeer2UserpicFg }};
-historyPeer2UserpicChannel: icon {{ size(120px, 120px), historyPeer2UserpicBg }, { "userpic_channel", historyPeer2UserpicFg }};
-historyPeer3NameFg: #d09306; // yellow
-historyPeer3UserpicBg: #efd289;
-historyPeer3UserpicFg: #e4a861;
-historyPeer3UserpicPerson: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_person", historyPeer3UserpicFg }};
-historyPeer3UserpicChat: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_chat", historyPeer3UserpicFg }};
-historyPeer3UserpicChannel: icon {{ size(120px, 120px), historyPeer3UserpicBg }, { "userpic_channel", historyPeer3UserpicFg }};
-historyPeer4NameFg: #348cd4; // blue
-historyPeer4UserpicBg: #8fbfe9;
-historyPeer4UserpicFg: #649fd3;
-historyPeer4UserpicPerson: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_person", historyPeer4UserpicFg }};
-historyPeer4UserpicChat: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_chat", historyPeer4UserpicFg }};
-historyPeer4UserpicChannel: icon {{ size(120px, 120px), historyPeer4UserpicBg }, { "userpic_channel", historyPeer4UserpicFg }};
-historyPeer5NameFg: #8544d6; // purple
-historyPeer5UserpicBg: #9992e4;
-historyPeer5UserpicFg: #7b72cf;
-historyPeer5UserpicPerson: icon {{ size(120px, 120px), historyPeer5UserpicBg }, { "userpic_person", historyPeer5UserpicFg }};
-historyPeer6NameFg: #cd4073; // pink
-historyPeer6UserpicBg: #ffa9c3;
-historyPeer6UserpicFg: #e87497;
-historyPeer6UserpicPerson: icon {{ size(120px, 120px), historyPeer6UserpicBg }, { "userpic_person", historyPeer6UserpicFg }};
-historyPeer7NameFg: #2996ad; // sea
-historyPeer7UserpicBg: #8eccdb;
-historyPeer7UserpicFg: #5eb2c7;
-historyPeer7UserpicPerson: icon {{ size(120px, 120px), historyPeer7UserpicBg }, { "userpic_person", historyPeer7UserpicFg }};
-historyPeer8NameFg: #ce671b; // orange
-historyPeer8UserpicBg: #f7b37c;
-historyPeer8UserpicFg: #de8d62;
-historyPeer8UserpicPerson: icon {{ size(120px, 120px), historyPeer8UserpicBg }, { "userpic_person", historyPeer8UserpicFg }};
+historyComposeField: FlatTextarea {
+	textColor: historyComposeAreaFg;
+	bgColor: historyComposeAreaBg;
+	align: align(left);
+	textMrg: margins(5px, 5px, 5px, 5px);
+	font: msgFont;
+
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
+	phAlign: align(topleft);
+	phPos: point(2px, 0px);
+	phShift: 50px;
+	phDuration: 100;
+}
+historyComposeFieldMaxHeight: 224px;
+// historyMinHeight: 56px;
+
+historySendPadding: 9px;
+historySendRight: 2px;
+
+historyComposeButton: FlatButton {
+	color: windowActiveTextFg;
+	overColor: windowActiveTextFg;
+
+	bgColor: historyComposeButtonBg;
+	overBgColor: historyComposeButtonBgOver;
+
+	width: -32px;
+	height: 46px;
+
+	textTop: 14px;
+
+	font: semiboldFont;
+	overFont: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: historyComposeButtonBgRipple;
+	}
+}
+historyUnblock: FlatButton(historyComposeButton) {
+	color: attentionButtonFg;
+	overColor: attentionButtonFgOver;
+}
+
+historySendIcon: icon {{ "send_control_send", historySendIconFg }};
+historySendIconOver: icon {{ "send_control_send", historySendIconFgOver }};
+historySendIconPosition: point(11px, 11px);
+historySendSize: size(46px, 46px);
+historyEditSaveIcon: icon {{ "send_control_save", historySendIconFg, point(3px, 7px) }};
+historyEditSaveIconOver: icon {{ "send_control_save", historySendIconFgOver, point(3px, 7px) }};
+
+historyAttach: IconButton {
+	width: 46px;
+	height: 46px;
+
+	icon: icon {{ "send_control_attach", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_attach", historyComposeIconFgOver }};
+	iconPosition: point(11px, 11px);
+
+	rippleAreaPosition: point(3px, 3px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+historyAttachEmoji: IconButton(historyAttach) {
+	icon: icon {{ "send_control_emoji", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_emoji", historyComposeIconFgOver }};
+	iconPosition: point(15px, 15px);
+}
+historyEmojiCircle: size(20px, 20px);
+historyEmojiCirclePeriod: 1500;
+historyEmojiCircleDuration: 500;
+historyEmojiCircleTop: 13px;
+historyEmojiCircleLine: 2px;
+historyEmojiCircleFg: historyComposeIconFg;
+historyEmojiCircleFgOver: historyComposeIconFgOver;
+historyEmojiCirclePart: 3.5;
+historyBotKeyboardShow: IconButton(historyAttach) {
+	icon: icon {{ "send_control_bot_keyboard", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_bot_keyboard", historyComposeIconFgOver }};
+}
+historyBotKeyboardHide: IconButton(historyAttach) {
+	icon: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_bot_keyboard_hide", historyComposeIconFgOver }};
+	iconPosition: point(11px, 16px);
+}
+historyBotCommandStart: IconButton(historyAttach) {
+	icon: icon {{ "send_control_bot_command", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_bot_command", historyComposeIconFgOver }};
+}
+historyRecordVoiceFg: historyComposeIconFg;
+historyRecordVoiceFgOver: historyComposeIconFgOver;
+historyRecordVoiceFgActive: windowBgActive;
+historyRecordVoiceDuration: 120;
+historyRecordVoice: icon {{ "send_control_record", historyRecordVoiceFg }};
+historyRecordVoiceOver: icon {{ "send_control_record", historyRecordVoiceFgOver }};
+historyRecordVoiceActive: icon {{ "send_control_record", historyRecordVoiceFgActive }};
+historyRecordVoiceRippleBgActive: lightButtonBgOver;
+historyRecordSignalColor: attentionButtonFg;
+historyRecordSignalMin: 5px;
+historyRecordSignalMax: 12px;
+historyRecordCancel: windowSubTextFg;
+historyRecordCancelActive: windowActiveTextFg;
+historyRecordFont: font(13px);
+historyRecordDurationFg: historyComposeAreaFg;
+historyRecordTextTop: 14px;
+
+historySilentToggle: IconButton(historyBotKeyboardShow) {
+	icon: icon {{ "send_control_silent_off", historyComposeIconFg }};
+	iconOver: icon {{ "send_control_silent_off", historyComposeIconFgOver }};
+}
+historySilentToggleOn: icon {{ "send_control_silent_on", historyComposeIconFg }};
+historySilentToggleOnOver: icon {{ "send_control_silent_on", historyComposeIconFgOver }};
+
+historyReplySkip: 51px;
+historyReplyNameFg: windowActiveTextFg;
+historyReplyHeight: 49px;
+historyReplyTop: 8px;
+historyReplyBottom: 6px;
+historyReplyIconPosition: point(13px, 13px);
+historyReplyIcon: icon {{ "history_action_reply", historyReplyIconFg }};
+historyForwardIcon: icon {{ "history_action_forward", historyReplyIconFg }};
+historyEditIcon: icon {{ "history_action_edit", historyReplyIconFg }};
+historyReplyCancel: IconButton {
+	width: 49px;
+	height: 49px;
+
+	icon: historyReplyCancelIcon;
+	iconOver: historyReplyCancelIconOver;
+	iconPosition: point(-1px, -1px);
+
+	rippleAreaPosition: point(4px, 4px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+reportSpamHide: FlatButton {
+	color: windowActiveTextFg;
+	overColor: windowActiveTextFg;
+
+	bgColor: transparent;
+	overBgColor: transparent;
+
+	width: -40px;
+	height: 46px;
+
+	textTop: 15px;
+
+	font: font(fsize);
+	overFont: font(fsize underline);
+}
+reportSpamSeparator: 30px;
+
+msgBotKbDuration: 200;
+msgBotKbFont: semiboldFont;
+msgBotKbIconPadding: 2px;
+msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
+msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
+msgBotKbButton: BotKeyboardButton {
+	margin: 5px;
+	padding: 10px;
+	height: 36px;
+	textTop: 8px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: msgBotKbRippleBg;
+	}
+}
+
+botKbDuration: 200;
+botKbBg: menuBgOver;
+botKbOverBg: menuBgOver;
+botKbDownBg: menuBgRipple;
+botKbColor: windowBoldFgOver;
+botKbStyle: TextStyle(defaultTextStyle) {
+	font: font(15px semibold);
+	linkFont: font(15px semibold);
+	linkFontOver: font(15px semibold);
+}
+botKbButton: BotKeyboardButton {
+	margin: 10px;
+	padding: 10px;
+	height: 38px;
+	textTop: 9px;
+	ripple: defaultRippleAnimation;
+}
+botKbTinyButton: BotKeyboardButton {
+	margin: 4px;
+	padding: 3px;
+	height: 25px;
+	textTop: 2px;
+	ripple: defaultRippleAnimation;
+}
+botKbScroll: defaultSolidScroll;
+
+mentionHeight: 40px;
+mentionScroll: ScrollArea(defaultScrollArea) {
+	topsh: 0px;
+	bottomsh: 0px;
+}
+mentionPadding: margins(8px, 5px, 8px, 5px);
+mentionTop: 11px;
+mentionFont: linkFont;
+mentionNameFg: windowFg;
+mentionNameFgOver: windowFgOver;
+mentionPhotoSize: msgPhotoSize;
+mentionBg: windowBg;
+mentionBgOver: windowBgOver;
+mentionFg: windowSubTextFg;
+mentionFgOver: windowSubTextFgOver;
+mentionFgActive: windowActiveTextFg;
+mentionFgOverActive: windowActiveTextFg;
+
+historyDateFadeDuration: 200;
+
+historyPhotoLeft: 14px;
+historyMessageRadius: 6px;
+historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
+historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};
+historyBubbleTailOutLeft: icon {{ "bubble_tail", msgOutBg }};
+historyBubbleTailOutLeftSelected: icon {{ "bubble_tail", msgOutBgSelected }};
+historyBubbleTailInRight: icon {{ "bubble_tail-flip_horizontal", msgInBg }};
+historyBubbleTailInRightSelected: icon {{ "bubble_tail-flip_horizontal", msgInBgSelected }};
+historyBubbleTailOutRight: icon {{ "bubble_tail-flip_horizontal", msgOutBg }};
+historyBubbleTailOutRightSelected: icon {{ "bubble_tail-flip_horizontal", msgOutBgSelected }};
+
+historyPeerUserpicFont: semiboldFont;
+
+historyStatusFg: windowSubTextFg;
+historyStatusFgActive: windowActiveTextFg;
+historyStatusFgTyping: historyStatusFgActive;
+
+historyUnreadBarHeight: 32px;
+historyUnreadBarMargin: 8px;
+historyUnreadBarFont: semiboldFont;
+
+historyForwardChooseMargins: margins(30px, 10px, 30px, 10px);
+historyForwardChooseFont: font(16px);
+
+msgFileMenuSize: size(36px, 36px);
+msgFileSize: 44px;
+msgFilePadding: margins(14px, 12px, 11px, 12px);
+msgFileThumbSize: 72px;
+msgFileThumbPadding: margins(10px, 10px, 14px, 10px);
+msgFileThumbNameTop: 12px;
+msgFileThumbStatusTop: 32px;
+msgFileThumbLinkTop: 60px;
+msgFileNameTop: 16px;
+msgFileStatusTop: 37px;
+msgFileMinWidth: 294px;
+msgFileTopMinus: 6px;
+
+msgFileOverDuration: 200;
+msgFileRadialLine: 3px;
+
+msgVideoSize: size(320px, 240px);
+
+msgWaveformBar: 2px;
+msgWaveformSkip: 1px;
+msgWaveformMin: 2px;
+msgWaveformMax: 20px;

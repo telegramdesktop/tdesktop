@@ -28,7 +28,7 @@ public:
 
 	void showAnimated();
 
-	using HideFinishCallback = base::lambda_unique<void(CoverDropArea*)>;
+	using HideFinishCallback = base::lambda<void(CoverDropArea*)>;
 	void hideAnimated(HideFinishCallback &&callback);
 
 	bool hiding() const {
@@ -45,7 +45,7 @@ private:
 	int _titleWidth, _subtitleWidth;
 
 	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 	bool _hiding = false;
 	HideFinishCallback _hideFinishCallback;
 

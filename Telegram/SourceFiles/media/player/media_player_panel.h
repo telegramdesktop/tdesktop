@@ -20,12 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/effects/rect_shadow.h"
-
-class ScrollArea;
-
 namespace Ui {
-class GradientShadow;
+class ScrollArea;
+class Shadow;
 } // namespace Ui
 
 namespace Media {
@@ -51,7 +48,7 @@ public:
 	void showFromOther();
 	void hideFromOther();
 
-	using ButtonCallback = base::lambda_wrap<void()>;
+	using ButtonCallback = base::lambda_copy<void()>;
 	void setPinCallback(ButtonCallback &&callback);
 	void setCloseCallback(ButtonCallback &&callback);
 
@@ -81,7 +78,7 @@ private:
 
 	void updateSize();
 	void appearanceCallback();
-	void hidingFinished();
+	void hideFinished();
 	int contentLeft() const;
 	int contentTop() const;
 	int contentRight() const;
@@ -101,17 +98,16 @@ private:
 	bool _hiding = false;
 
 	QPixmap _cache;
-	FloatAnimation _a_appearance;
+	Animation _a_appearance;
 
 	bool _ignoringEnterEvents = false;
 
 	QTimer _hideTimer, _showTimer;
 
-	Ui::RectShadow _shadow;
 	ButtonCallback _pinCallback, _closeCallback;
-	ChildWidget<CoverWidget> _cover = { nullptr };
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<Ui::GradientShadow> _scrollShadow = { nullptr };
+	object_ptr<CoverWidget> _cover = { nullptr };
+	object_ptr<Ui::ScrollArea> _scroll;
+	object_ptr<Ui::Shadow> _scrollShadow = { nullptr };
 
 };
 

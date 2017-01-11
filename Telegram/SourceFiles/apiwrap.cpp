@@ -30,10 +30,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "historywidget.h"
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
+#include "window/window_theme.h"
 
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 , _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
-	App::initBackground();
+	Window::Theme::Background()->start();
 
 	connect(&_webPagesTimer, SIGNAL(timeout()), this, SLOT(resolveWebPages()));
 	connect(&_draftsSaveTimer, SIGNAL(timeout()), this, SLOT(saveDraftsToCloud()));
@@ -42,10 +43,10 @@ ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 void ApiWrap::init() {
 }
 
-void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, RequestMessageDataCallback &&callback) {
+void ApiWrap::requestMessageData(ChannelData *channel, MsgId msgId, const RequestMessageDataCallback &callback) {
 	MessageDataRequest &req(channel ? _channelMessageDataRequests[channel][msgId] : _messageDataRequests[msgId]);
 	if (callback) {
-		req.callbacks.append(std_::move(callback));
+		req.callbacks.append(callback);
 	}
 	if (!req.req) _messageDataResolveDelayed->call();
 }
@@ -324,7 +325,10 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 }
 
 void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestId req) {
-	const auto &d(result.c_userFull());
+	auto user = peer->asUser();
+	t_assert(user != nullptr);
+
+	auto &d = result.c_userFull();
 	App::feedUsers(MTP_vector<MTPUser>(1, d.vuser));
 	if (d.has_profile_photo()) {
 		App::feedPhoto(d.vprofile_photo);
@@ -335,12 +339,13 @@ void ApiWrap::gotUserFull(PeerData *peer, const MTPUserFull &result, mtpRequestI
 	}
 
 	if (d.has_bot_info()) {
-		peer->asUser()->setBotInfo(d.vbot_info);
+		user->setBotInfo(d.vbot_info);
 	} else {
-		peer->asUser()->setBotInfoVersion(-1);
+		user->setBotInfoVersion(-1);
 	}
-	peer->asUser()->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
-	peer->asUser()->setAbout(d.has_about() ? qs(d.vabout) : QString());
+	user->setBlockStatus(d.is_blocked() ? UserData::BlockStatus::Blocked : UserData::BlockStatus::NotBlocked);
+	user->setAbout(d.has_about() ? qs(d.vabout) : QString());
+	user->setCommonChatsCount(d.vcommon_chats_count.v);
 
 	if (req) {
 		QMap<PeerData*, mtpRequestId>::iterator i = _fullPeerRequests.find(peer);
@@ -421,15 +426,15 @@ void ApiWrap::requestBots(ChannelData *peer) {
 void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
 
-	if (result.type() == mtpc_messages_chats) {
-		const auto &v(result.c_messages_chats().vchats.c_vector().v);
+	if (auto chats = Api::getChatsFromMessagesChats(result)) {
+		auto &v = chats->c_vector().v;
 		bool badVersion = false;
 		if (peer->isChat()) {
 			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
 		} else if (peer->isChannel()) {
 			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_channel && v.at(0).c_chat().vversion.v < peer->asChannel()->version);
 		}
-		PeerData *chat = App::feedChats(result.c_messages_chats().vchats);
+		auto chat = App::feedChats(*chats);
 		if (chat == peer) {
 			if (badVersion) {
 				if (peer->isChat()) {
@@ -452,9 +457,8 @@ void ApiWrap::gotUser(PeerData *peer, const MTPVector<MTPUser> &result) {
 }
 
 void ApiWrap::gotChats(const MTPmessages_Chats &result) {
-	if (result.type() == mtpc_messages_chats) {
-		auto &d = result.c_messages_chats();
-		App::feedChats(d.vchats);
+	if (auto chats = Api::getChatsFromMessagesChats(result)) {
+		App::feedChats(*chats);
 	}
 }
 
@@ -691,6 +695,109 @@ void ApiWrap::requestStickerSets() {
 	}
 }
 
+void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers::Order &localRemoved) {
+	for (auto requestId : base::take(_stickerSetDisenableRequests)) {
+		MTP::cancel(requestId);
+	}
+	MTP::cancel(base::take(_stickersReorderRequestId));
+	MTP::cancel(base::take(_stickersClearRecentRequestId));
+
+	auto writeInstalled = true, writeRecent = false, writeCloudRecent = false, writeArchived = false;
+	auto &recent = cGetRecentStickers();
+	auto &sets = Global::RefStickerSets();
+
+	_stickersOrder = localOrder;
+	for_const (auto removedSetId, localRemoved) {
+		if (removedSetId == Stickers::CloudRecentSetId) {
+			if (sets.remove(Stickers::CloudRecentSetId) != 0) {
+				writeCloudRecent = true;
+			}
+			if (sets.remove(Stickers::CustomSetId)) {
+				writeInstalled = true;
+			}
+			if (!recent.isEmpty()) {
+				recent.clear();
+				writeRecent = true;
+			}
+
+			MTPmessages_ClearRecentStickers::Flags flags = 0;
+			_stickersClearRecentRequestId = MTP::send(MTPmessages_ClearRecentStickers(MTP_flags(flags)), rpcDone(&ApiWrap::stickersClearRecentDone), rpcFail(&ApiWrap::stickersClearRecentFail));
+			continue;
+		}
+
+		auto it = sets.find(removedSetId);
+		if (it != sets.cend()) {
+			for (auto i = recent.begin(); i != recent.cend();) {
+				if (it->stickers.indexOf(i->first) >= 0) {
+					i = recent.erase(i);
+					writeRecent = true;
+				} else {
+					++i;
+				}
+			}
+			if (!(it->flags & MTPDstickerSet::Flag::f_archived)) {
+				MTPInputStickerSet setId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
+				_stickerSetDisenableRequests.insert(MTP::send(MTPmessages_UninstallStickerSet(setId), rpcDone(&ApiWrap::stickerSetDisenableDone), rpcFail(&ApiWrap::stickerSetDisenableFail), 0, 5));
+				int removeIndex = Global::StickerSetsOrder().indexOf(it->id);
+				if (removeIndex >= 0) Global::RefStickerSetsOrder().removeAt(removeIndex);
+				if (!(it->flags & MTPDstickerSet_ClientFlag::f_featured) && !(it->flags & MTPDstickerSet_ClientFlag::f_special)) {
+					sets.erase(it);
+				} else {
+					if (it->flags & MTPDstickerSet::Flag::f_archived) {
+						writeArchived = true;
+					}
+					it->flags &= ~(MTPDstickerSet::Flag::f_installed | MTPDstickerSet::Flag::f_archived);
+				}
+			}
+		}
+	}
+
+	// Clear all installed flags, set only for sets from order.
+	for (auto &set : sets) {
+		if (!(set.flags & MTPDstickerSet::Flag::f_archived)) {
+			set.flags &= ~MTPDstickerSet::Flag::f_installed;
+		}
+	}
+
+	auto &order(Global::RefStickerSetsOrder());
+	order.clear();
+	for_const (auto setId, _stickersOrder) {
+		auto it = sets.find(setId);
+		if (it != sets.cend()) {
+			if ((it->flags & MTPDstickerSet::Flag::f_archived) && !localRemoved.contains(it->id)) {
+				MTPInputStickerSet mtpSetId = (it->id && it->access) ? MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)) : MTP_inputStickerSetShortName(MTP_string(it->shortName));
+				_stickerSetDisenableRequests.insert(MTP::send(MTPmessages_InstallStickerSet(mtpSetId, MTP_boolFalse()), rpcDone(&ApiWrap::stickerSetDisenableDone), rpcFail(&ApiWrap::stickerSetDisenableFail), 0, 5));
+				it->flags &= ~MTPDstickerSet::Flag::f_archived;
+				writeArchived = true;
+			}
+			order.push_back(setId);
+			it->flags |= MTPDstickerSet::Flag::f_installed;
+		}
+	}
+	for (auto it = sets.begin(); it != sets.cend();) {
+		if ((it->flags & MTPDstickerSet_ClientFlag::f_featured)
+			|| (it->flags & MTPDstickerSet::Flag::f_installed)
+			|| (it->flags & MTPDstickerSet::Flag::f_archived)
+			|| (it->flags & MTPDstickerSet_ClientFlag::f_special)) {
+			++it;
+		} else {
+			it = sets.erase(it);
+		}
+	}
+
+	if (writeInstalled) Local::writeInstalledStickers();
+	if (writeRecent) Local::writeUserSettings();
+	if (writeArchived) Local::writeArchivedStickers();
+	if (writeCloudRecent) Local::writeRecentStickers();
+	emit App::main()->stickersUpdated();
+
+	if (_stickerSetDisenableRequests.isEmpty()) {
+		stickersSaveOrder();
+	} else {
+		MTP::sendAnything();
+	}
+}
+
 void ApiWrap::joinChannel(ChannelData *channel) {
 	if (channel->amIn()) {
 		channelAmInUpdated(channel);
@@ -723,7 +830,7 @@ bool ApiWrap::channelAmInFail(ChannelData *channel, const RPCError &error) {
 	if (MTP::isDefaultHandledError(error)) return false;
 
 	if (error.type() == qstr("CHANNELS_TOO_MUCH")) {
-		Ui::showLayer(new InformBox(lang(lng_join_channel_error)));
+		Ui::show(Box<InformBox>(lang(lng_join_channel_error)));
 	}
 	_channelAmInRequests.remove(channel);
 	return true;
@@ -1177,5 +1284,57 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 }
 
 ApiWrap::~ApiWrap() {
-	App::clearHistories();
+}
+
+void ApiWrap::stickerSetDisenableDone(const MTPmessages_StickerSetInstallResult &result, mtpRequestId req) {
+	_stickerSetDisenableRequests.remove(req);
+	if (_stickerSetDisenableRequests.isEmpty()) {
+		stickersSaveOrder();
+	}
+}
+
+bool ApiWrap::stickerSetDisenableFail(const RPCError &error, mtpRequestId req) {
+	if (MTP::isDefaultHandledError(error)) return false;
+	_stickerSetDisenableRequests.remove(req);
+	if (_stickerSetDisenableRequests.isEmpty()) {
+		stickersSaveOrder();
+	}
+	return true;
+}
+
+void ApiWrap::stickersSaveOrder() {
+	if (_stickersOrder.size() > 1) {
+		QVector<MTPlong> mtpOrder;
+		mtpOrder.reserve(_stickersOrder.size());
+		for_const (auto setId, _stickersOrder) {
+			mtpOrder.push_back(MTP_long(setId));
+		}
+
+		MTPmessages_ReorderStickerSets::Flags flags = 0;
+		_stickersReorderRequestId = MTP::send(MTPmessages_ReorderStickerSets(MTP_flags(flags), MTP_vector<MTPlong>(mtpOrder)), rpcDone(&ApiWrap::stickersReorderDone), rpcFail(&ApiWrap::stickersReorderFail));
+	} else {
+		stickersReorderDone(MTP_boolTrue());
+	}
+}
+
+void ApiWrap::stickersReorderDone(const MTPBool &result) {
+	_stickersReorderRequestId = 0;
+}
+
+bool ApiWrap::stickersReorderFail(const RPCError &result) {
+	if (MTP::isDefaultHandledError(result)) return false;
+	_stickersReorderRequestId = 0;
+	Global::SetLastStickersUpdate(0);
+	App::main()->updateStickers();
+	return true;
+}
+
+void ApiWrap::stickersClearRecentDone(const MTPBool &result) {
+	_stickersClearRecentRequestId = 0;
+}
+
+bool ApiWrap::stickersClearRecentFail(const RPCError &result) {
+	if (MTP::isDefaultHandledError(result)) return false;
+	_stickersClearRecentRequestId = 0;
+	return true;
 }

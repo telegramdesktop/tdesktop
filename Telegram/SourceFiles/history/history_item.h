@@ -22,6 +22,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/runtime_composer.h"
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
+namespace style {
+struct BotKeyboardButton;
+struct RippleAnimation;
+} // namespace style
+
 class HistoryElement {
 public:
 	HistoryElement() = default;
@@ -281,36 +290,31 @@ private:
 public:
 	class Style {
 	public:
-		Style(const style::botKeyboardButton &st) : _st(&st) {
+		Style(const style::BotKeyboardButton &st) : _st(&st) {
 		}
 
 		virtual void startPaint(Painter &p) const = 0;
-		virtual style::font textFont() const = 0;
+		virtual const style::TextStyle &textStyle() const = 0;
 
-		int buttonSkip() const {
-			return _st->margin;
-		}
-		int buttonPadding() const {
-			return _st->padding;
-		}
-		int buttonHeight() const {
-			return _st->height;
-		}
+		int buttonSkip() const;
+		int buttonPadding() const;
+		int buttonHeight() const;
+		virtual int buttonRadius() const = 0;
 
 		virtual void repaint(const HistoryItem *item) const = 0;
 		virtual ~Style() {
 		}
 
 	protected:
-		virtual void paintButtonBg(Painter &p, const QRect &rect, bool pressed, float64 howMuchOver) const = 0;
+		virtual void paintButtonBg(Painter &p, const QRect &rect, float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(Painter &p, const QRect &rect, int outerWidth, HistoryMessageReplyMarkup::Button::Type type) const = 0;
 		virtual void paintButtonLoading(Painter &p, const QRect &rect) const = 0;
 		virtual int minButtonWidth(HistoryMessageReplyMarkup::Button::Type type) const = 0;
 
 	private:
-		const style::botKeyboardButton *_st;
+		const style::BotKeyboardButton *_st;
 
-		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button) const;
+		void paintButton(Painter &p, int outerWidth, const ReplyKeyboard::Button &button, TimeMs ms) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -320,7 +324,7 @@ public:
 	ReplyKeyboard(const ReplyKeyboard &other) = delete;
 	ReplyKeyboard &operator=(const ReplyKeyboard &other) = delete;
 
-	bool isEnoughSpace(int width, const style::botKeyboardButton &st) const;
+	bool isEnoughSpace(int width, const style::BotKeyboardButton &st) const;
 	void setStyle(StylePtr &&s);
 	void resize(int width, int height);
 
@@ -328,7 +332,7 @@ public:
 	int naturalWidth() const;
 	int naturalHeight() const;
 
-	void paint(Painter &p, int outerWidth, const QRect &clip) const;
+	void paint(Painter &p, int outerWidth, const QRect &clip, TimeMs ms) const;
 	ClickHandlerPtr getState(int x, int y) const;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
@@ -338,8 +342,7 @@ public:
 	void updateMessageId();
 
 private:
-	const HistoryItem *_item;
-	int _width = 0;
+	void startAnimation(int i, int j, int direction);
 
 	friend class Style;
 	using ReplyMarkupClickHandlerPtr = QSharedPointer<ReplyMarkupClickHandler>;
@@ -350,17 +353,33 @@ private:
 		float64 howMuchOver = 0.;
 		HistoryMessageReplyMarkup::Button::Type type;
 		ReplyMarkupClickHandlerPtr link;
+		mutable QSharedPointer<Ui::RippleAnimation> ripple;
 	};
 	using ButtonRow = QVector<Button>;
 	using ButtonRows = QVector<ButtonRow>;
+
+	struct ButtonCoords {
+		int i, j;
+	};
+	ButtonCoords findButtonCoordsByClickHandler(const ClickHandlerPtr &p);
+
+	using Animations = QMap<int, TimeMs>;
+	void step_selected(TimeMs ms, bool timer);
+
+	const HistoryItem *_item;
+	int _width = 0;
+
 	ButtonRows _rows;
 
-	using Animations = QMap<int, uint64>;
 	Animations _animations;
-	Animation _a_selected;
-	void step_selected(uint64 ms, bool timer);
+	BasicAnimation _a_selected;
 
 	StylePtr _st;
+
+	ClickHandlerPtr _savedPressed;
+	ClickHandlerPtr _savedActive;
+	mutable QPoint _savedCoords;
+
 };
 
 // any HistoryItem can have this Interface for
@@ -454,7 +473,7 @@ public:
 		}
 		return resizeGetHeight_(width);
 	}
-	virtual void draw(Painter &p, const QRect &r, TextSelection selection, uint64 ms) const = 0;
+	virtual void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const = 0;
 
 	virtual void dependencyItemRemoved(HistoryItem *dependency) {
 	}
@@ -633,7 +652,9 @@ public:
 	virtual bool hasBubble() const {
 		return false;
 	}
-	virtual void previousItemChanged();
+
+	void previousItemChanged();
+	void nextItemChanged();
 
 	virtual TextWithEntities selectedText(TextSelection selection) const {
 		return { qsl("[-]"), EntitiesInText() };
@@ -659,7 +680,7 @@ public:
 	virtual void setViewsCount(int32 count) {
 	}
 	virtual void setId(MsgId newId);
-	void drawInDialog(Painter &p, const QRect &r, bool act, const HistoryItem *&cacheFor, Text &cache) const;
+	void drawInDialog(Painter &p, const QRect &r, bool active, bool selected, const HistoryItem *&cacheFor, Text &cache) const;
 
 	bool emptyText() const {
 		return _text.isEmpty();
@@ -683,6 +704,7 @@ public:
 	}
 
 	bool canEdit(const QDateTime &cur) const;
+	bool canDeleteForEveryone(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {
 		ChannelData *channel = history()->peer->asChannel();
@@ -694,7 +716,7 @@ public:
 		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic() && !_history->peer->isMegagroup();
 	}
 	QString directLink() const {
-		return hasDirectLink() ? qsl("https://telegram.me/") + _history->peer->asChannel()->username + '/' + QString::number(id) : QString();
+		return hasDirectLink() ? CreateInternalLinkHttps(_history->peer->asChannel()->username + '/' + QString::number(id)) : QString();
 	}
 
 	int32 y;
@@ -826,6 +848,9 @@ public:
 	bool isAttachedToPrevious() const {
 		return _flags & MTPDmessage_ClientFlag::f_attach_to_previous;
 	}
+	bool isAttachedToNext() const {
+		return _flags & MTPDmessage_ClientFlag::f_attach_to_next;
+	}
 	bool displayDate() const {
 		return Has<HistoryMessageDate>();
 	}
@@ -890,15 +915,19 @@ protected:
 		return nullptr;
 	}
 
-	// this should be used only in previousItemChanged()
+	// this should be called only from previousItemChanged()
 	// to add required bits to the Composer mask
 	// after that always use Has<HistoryMessageDate>()
 	void recountDisplayDate();
 
-	// this should be used only in previousItemChanged() or when
+	// this should be called only from previousItemChanged() or when
 	// HistoryMessageDate or HistoryMessageUnreadBar bit is changed in the Composer mask
 	// then the result should be cached in a client side flag MTPDmessage_ClientFlag::f_attach_to_previous
 	void recountAttachToPrevious();
+
+	// this should be called only recountAttachToPrevious() of the next item
+	// or when the next item is removed through nextItemChanged() call
+	void setAttachToNext(bool attachToNext);
 
 	const HistoryMessageReplyMarkup *inlineReplyMarkup() const {
 		return const_cast<HistoryItem*>(this)->inlineReplyMarkup();
@@ -951,30 +980,8 @@ public:
 	}
 };
 
-class MessageClickHandler : public LeftButtonClickHandler {
-public:
-	MessageClickHandler(PeerId peer, MsgId msgid) : _peer(peer), _msgid(msgid) {
-	}
-	MessageClickHandler(HistoryItem *item) : _peer(item->history()->peer->id), _msgid(item->id) {
-	}
-	PeerId peer() const {
-		return _peer;
-	}
-	MsgId msgid() const {
-		return _msgid;
-	}
+ClickHandlerPtr goToMessageClickHandler(PeerData *peer, MsgId msgId);
 
-private:
-	PeerId _peer;
-	MsgId _msgid;
-
-};
-
-class GoToMessageClickHandler : public MessageClickHandler {
-public:
-	using MessageClickHandler::MessageClickHandler;
-
-protected:
-	void onClickImpl() const override;
-
-};
+inline ClickHandlerPtr goToMessageClickHandler(HistoryItem *item) {
+	return goToMessageClickHandler(item->history()->peer, item->id);
+}

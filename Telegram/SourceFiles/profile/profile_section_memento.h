@@ -31,11 +31,19 @@ public:
 	SectionMemento(PeerData *peer) : _peer(peer) {
 	}
 
-	Window::SectionWidget *createWidget(QWidget *parent, const QRect &geometry) const override;
+	object_ptr<Window::SectionWidget> createWidget(QWidget *parent, const QRect &geometry) const override;
+
+	PeerData *getPeer() const {
+		return _peer;
+	}
+	void setScrollTop(int scrollTop) {
+		_scrollTop = scrollTop;
+	}
+	int getScrollTop() const {
+		return _scrollTop;
+	}
 
 private:
-	friend class Widget;
-
 	PeerData *_peer;
 	int _scrollTop = 0;
 

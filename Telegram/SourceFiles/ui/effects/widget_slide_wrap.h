@@ -30,9 +30,10 @@ class WidgetSlideWrap;
 template <>
 class WidgetSlideWrap<TWidget> : public TWidget {
 public:
-	WidgetSlideWrap(QWidget *parent, TWidget *entity
+	WidgetSlideWrap(QWidget *parent
+		, object_ptr<TWidget> entity
 		, style::margins entityPadding
-		, base::lambda_unique<void()> updateCallback
+		, base::lambda<void()> &&updateCallback
 		, int duration = st::widgetSlideDuration);
 
 	void slideUp();
@@ -48,6 +49,7 @@ public:
 		return _entity;
 	}
 
+	QMargins getMargins() const override;
 	int naturalWidth() const override;
 
 protected:
@@ -55,17 +57,16 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 private:
-	void step_height(float64 ms, bool timer);
+	void animationCallback();
 
-	TWidget *_entity;
+	object_ptr<TWidget> _entity;
 	bool _inResizeToWidth = false;
 	style::margins _padding;
 	int _duration;
-	base::lambda_unique<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 
 	style::size _realSize;
 	int _forceHeight = -1;
-	anim::ivalue a_height;
 	Animation _a_height;
 	bool _hiding = false;
 
@@ -74,10 +75,15 @@ private:
 template <typename Widget>
 class WidgetSlideWrap : public WidgetSlideWrap<TWidget> {
 public:
-	WidgetSlideWrap(QWidget *parent, Widget *entity
+	WidgetSlideWrap(QWidget *parent
+		, object_ptr<Widget> entity
 		, style::margins entityPadding
-		, base::lambda_unique<void()> updateCallback
-		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent, entity, entityPadding, std_::move(updateCallback), duration) {
+		, base::lambda<void()> &&updateCallback
+		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent
+			, std_::move(entity)
+			, entityPadding
+			, std_::move(updateCallback)
+			, duration) {
 	}
 	Widget *entity() {
 		return static_cast<Widget*>(WidgetSlideWrap<TWidget>::entity());

@@ -19,34 +19,30 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
-using "basic_types.style";
 
-dialogsUnreadFg: #ffffff;
-dialogsUnreadFgActive: #5b94bf;
-dialogsUnreadBg: windowActiveBg;
-dialogsUnreadBgMuted: #bbbbbb;
-dialogsUnreadBgActive: #ffffff;
-dialogsUnreadBgMutedActive: #d3e2ee;
+using "ui/widgets/widgets.style";
+
 dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
 
-dialogsBg: windowBg;
-dialogsBgOver: #f5f5f5;
-dialogsBgActive: #6a91b1;
+dialogsRipple: defaultRippleAnimation;
+dialogsRippleBg: windowBgRipple;
+dialogsRippleBgActive: activeButtonBgRipple;
+
 dialogsTextFont: font(fsize);
-dialogsTextFg: #888888;
-dialogsTextFgService: #4981af;
-dialogsTextFgActive: #ffffff;
+dialogsTextStyle: TextStyle(defaultTextStyle) {
+	font: dialogsTextFont;
+	linkFont: dialogsTextFont;
+	linkFontOver: dialogsTextFont;
+}
 dialogsDateFont: font(13px);
-dialogsDateFgActive: #ffffff;
-dialogsDateFg: #a8a8a8;
 dialogsDateSkip: 5px;
-dialogsNameFg: #000;
 dialogsNameTop: 2px;
 
 dialogsRowHeight: 62px;
-dialogsFilterPadding: 10px;
+dialogsFilterPadding: point(7px, 7px);
+dialogsFilterSkip: 4px;
 dialogsPhotoSize: 46px;
 dialogsPhotoPadding: 12px;
 dialogsPadding: point(10px, 8px);
@@ -58,73 +54,152 @@ dialogsSkip: 8px;
 dialogsWidthMin: 260px;
 dialogsWidthMax: 540px;
 dialogsTextWidthMin: 150px;
-dialogsScroll: flatScroll(scrollDef) {
+dialogsScroll: ScrollArea(defaultScrollArea) {
 	topsh: 0px;
 	bottomsh: 0px;
 }
 
-dialogsTextStyle: textStyle(defaultTextStyle) {
+dialogsTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgService;
-	linkFgDown: dialogsTextFgService;
-	linkFlagsOver: font(fsize);
 }
-dialogsTextStyleDraft: textStyle(dialogsTextStyle) {
-	linkFg: #dd4b39;
-	linkFgDown: #dd4b39;
+dialogsTextPaletteOver: TextPalette(defaultTextPalette) {
+	linkFg: dialogsTextFgServiceOver;
 }
-dialogsTextStyleActive: textStyle(dialogsTextStyle) {
-	linkFg: dialogsTextFgActive;
-	linkFgDown: dialogsTextFgActive;
+dialogsTextPaletteActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsTextFgServiceActive;
 }
-dialogsTextStyleDraftActive: textStyle(dialogsTextStyle) {
-	linkFg: #c6e1f7;
-	linkFgDown: #c6e1f7;
+dialogsTextPaletteDraft: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFg;
+}
+dialogsTextPaletteDraftOver: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFgOver;
+}
+dialogsTextPaletteDraftActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsDraftFgActive;
 }
 
-dialogsNewChatIcon: icon {{ "dialogs_new_chat", #b7b7b7, point(9px, 10px) }};
-dialogsNewChatButton: RoundButton {
-	width: 36px;
-	height: 36px;
-	icon: dialogsNewChatIcon;
+dialogsMenuToggle: IconButton {
+	width: 40px;
+	height: 40px;
 
-	textTop: 5px;
-	downTextTop: 6px;
+	icon: icon {{ "dialogs_menu", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_menu", dialogsMenuIconFgOver }};
+	iconPosition: point(10px, 10px);
 
-	textFg: transparent;
-	textFgOver: transparent;
-	secondaryTextFg: transparent;
-	secondaryTextFgOver: transparent;
-	textBg: transparent;
-	textBgOver: transparent;
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 40px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+dialogsLock: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "dialogs_lock", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_lock", dialogsMenuIconFgOver }};
+}
+dialogsUnlockIcon: icon {{ "dialogs_unlock", dialogsMenuIconFg }};
+dialogsUnlockIconOver: icon {{ "dialogs_unlock", dialogsMenuIconFgOver }};
+
+dialogsFilter: FlatInput(defaultFlatInput) {
+	font: font(fsize);
+	phColor: placeholderFg;
+	phFocusColor: placeholderFgActive;
+
+	width: 240px;
+	height: 32px;
+	textMrg: margins(12px, 3px, 30px, 3px);
+}
+dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
+	icon: icon {{ "dialogs_cancel_search", dialogsMenuIconFg }};
+	iconOver: icon {{ "dialogs_cancel_search", dialogsMenuIconFgOver }};
+	iconPosition: point(11px, 11px);
+}
+dialogsCancelSearch: CrossButton {
+	width: 32px;
+	height: 32px;
+
+	cross: CrossAnimation {
+		size: 32px;
+		skip: 10px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: dialogsMenuIconFg;
+	crossFgOver: dialogsMenuIconFgOver;
+	crossPosition: point(0px, 0px);
+
+	duration: 150;
+	ripple: emptyRippleAnimation;
 }
 
 dialogsChatTypeSkip: 22px;
-dialogsChatIcon: icon {{ "dialogs_chat", #373737, point(1px, 4px) }};
-dialogsChatActiveIcon: icon {{ "dialogs_chat", #ffffff, point(1px, 4px) }};
-dialogsChannelIcon: icon {{ "dialogs_channel", #373737, point(3px, 4px) }};
-dialogsChannelActiveIcon: icon {{ "dialogs_channel", #ffffff, point(3px, 4px) }};
+dialogsChatIcon: icon {{ "dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
+dialogsChatIconOver: icon {{ "dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
+dialogsChatIconActive: icon {{ "dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
+dialogsChannelIcon: icon {{ "dialogs_channel", dialogsChatIconFg, point(3px, 4px) }};
+dialogsChannelIconOver: icon {{ "dialogs_channel", dialogsChatIconFgOver, point(3px, 4px) }};
+dialogsChannelIconActive: icon {{ "dialogs_channel", dialogsChatIconFgActive, point(3px, 4px) }};
 
-dialogsSentStateFg: #5dc452;
 dialogsSendStateSkip: 20px;
-dialogsSendingIcon: icon {{ "dialogs_sending", #c1c1c1, point(8px, 4px) }};
-dialogsSendingActiveIcon: icon {{ "dialogs_sending", #ffffff99, point(8px, 4px) }};
-dialogsSentIcon: icon {{ "dialogs_sent", dialogsSentStateFg, point(10px, 4px) }};
-dialogsSentActiveIcon: icon {{ "dialogs_sent", #ffffff, point(10px, 4px) }};
-dialogsReceivedIcon: icon {{ "dialogs_received", dialogsSentStateFg, point(5px, 4px) }};
-dialogsReceivedActiveIcon: icon {{ "dialogs_received", #ffffff, point(5px, 4px) }};
+dialogsSendingIcon: icon {{ "dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
+dialogsSendingIconOver: icon {{ "dialogs_sending", dialogsSendingIconFgOver, point(8px, 4px) }};
+dialogsSendingIconActive: icon {{ "dialogs_sending", dialogsSendingIconFgActive, point(8px, 4px) }};
+dialogsSentIcon: icon {{ "dialogs_sent", dialogsSentIconFg, point(10px, 4px) }};
+dialogsSentIconOver: icon {{ "dialogs_sent", dialogsSentIconFgOver, point(10px, 4px) }};
+dialogsSentIconActive: icon {{ "dialogs_sent", dialogsSentIconFgActive, point(10px, 4px) }};
+dialogsReceivedIcon: icon {{ "dialogs_received", dialogsSentIconFg, point(5px, 4px) }};
+dialogsReceivedIconOver: icon {{ "dialogs_received", dialogsSentIconFgOver, point(5px, 4px) }};
+dialogsReceivedIconActive: icon {{ "dialogs_received", dialogsSentIconFgActive, point(5px, 4px) }};
+dialogsPinnedIcon: icon {{ "dialogs_pinned", dialogsUnreadBgMuted }};
+dialogsPinnedIconOver: icon {{ "dialogs_pinned", dialogsUnreadBgMutedOver }};
+dialogsPinnedIconActive: icon {{ "dialogs_pinned", dialogsUnreadBgMutedActive }};
 
 dialogsVerifiedIcon: icon {
-	{ "dialogs_verified_star", #4abcf1, point(4px, 2px) },
-	{ "dialogs_verified_check", #ffffff, point(7px, 7px) },
+	{ "dialogs_verified_star", dialogsVerifiedIconBg, point(4px, 2px) },
+	{ "dialogs_verified_check", dialogsVerifiedIconFg, point(7px, 7px) },
 };
-dialogsVerifiedActiveIcon: icon {
-	{ "dialogs_verified_star", #ffffff, point(4px, 2px) },
-	{ "dialogs_verified_check", #6a91b1, point(7px, 7px) },
+dialogsVerifiedIconOver: icon {
+	{ "dialogs_verified_star", dialogsVerifiedIconBgOver, point(4px, 2px) },
+	{ "dialogs_verified_check", dialogsVerifiedIconFgOver, point(7px, 7px) },
+};
+dialogsVerifiedIconActive: icon {
+	{ "dialogs_verified_star", dialogsVerifiedIconBgActive, point(4px, 2px) },
+	{ "dialogs_verified_check", dialogsVerifiedIconFgActive, point(7px, 7px) },
 };
 
-historySendingIcon: icon {{ "dialogs_sending", #98d292, point(5px, 5px) }};
-historySendingInvertedIcon: icon {{ "dialogs_sending", #ffffffc8, point(5px, 5px) }};
-historyViewsSendingIcon: icon {{ "dialogs_sending", #a0adb5, point(3px, 0px) }};
-historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", #ffffffc8, point(3px, 0px) }};
+historySendingIcon: icon {{ "dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
+historySendingInvertedIcon: icon {{ "dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};
+historyViewsSendingIcon: icon {{ "dialogs_sending", historySendingInIconFg, point(3px, 0px) }};
+historyViewsSendingInvertedIcon: icon  {{ "dialogs_sending", historySendingInvertedIconFg, point(3px, 0px) }};
 
-settingsEditIcon: icon {{ "dialogs_new_chat", #b7b7b7, point(3px, 9px) }};
+dialogsUpdateButton: FlatButton {
+	color: activeButtonFg;
+	overColor: activeButtonFgOver;
+
+	bgColor: activeButtonBg;
+	overBgColor: activeButtonBgOver;
+
+	width: -34px;
+	height: 46px;
+
+	textTop: 14px;
+
+	font: semiboldFont;
+	overFont: semiboldFont;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonBgRipple;
+	}
+}
+
+dialogsForwardHeight: 32px;
+dialogsForwardTextLeft: 35px;
+dialogsForwardTextTop: 6px;
+dialogsForwardCancel: IconButton {
+	width: 34px;
+	height: dialogsForwardHeight;
+
+	icon: dialogsForwardCancelIcon;
+	iconOver: dialogsForwardCancelIcon;
+	iconPosition: point(12px, 11px);
+}
+dialogsForwardFont: semiboldFont;

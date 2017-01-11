@@ -21,7 +21,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "window/section_widget.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
+#include "ui/widgets/scroll_area.h"
 
 namespace Overview {
 namespace Layout {
@@ -33,14 +34,22 @@ class Date;
 
 namespace Ui {
 class PlainShadow;
+class PopupMenu;
+class IconButton;
+class FlatInput;
+class CrossButton;
 } // namespace Ui
 
+namespace Notify {
+struct PeerUpdate;
+} // namespace Notify
+
 class OverviewWidget;
-class OverviewInner : public TWidget, public AbstractTooltipShower, public RPCSender, private base::Subscriber {
+class OverviewInner : public TWidget, public Ui::AbstractTooltipShower, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	OverviewInner(OverviewWidget *overview, ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
+	OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, PeerData *peer, MediaOverviewType type);
 
 	void activate();
 
@@ -102,10 +111,8 @@ public slots:
 	void copyContextUrl();
 	void cancelContextDownload();
 	void showContextInFolder();
-	void saveContextFile();
 
 	void goToMessage();
-	void deleteMessage();
 	void forwardMessage();
 	void selectMessage();
 
@@ -123,6 +130,9 @@ public slots:
 	void onNeedSearchMessages();
 
 private:
+	void saveDocumentToFile(DocumentData *document);
+	void invalidateCache();
+
 	void itemRemoved(HistoryItem *item);
 	MsgId complexMsgId(const HistoryItem *item) const;
 
@@ -151,7 +161,7 @@ private:
 	int32 countHeight();
 
 	OverviewWidget *_overview;
-	ScrollArea *_scroll;
+	Ui::ScrollArea *_scroll;
 	int _resizeIndex = -1;
 	int _resizeSkip = 0;
 
@@ -177,8 +187,8 @@ private:
 	Overview::Layout::AbstractItem *layoutPrepare(const QDate &date, bool month);
 	int32 setLayoutItem(int32 index, Overview::Layout::AbstractItem *item, int32 top);
 
-	FlatInput _search;
-	IconedButton _cancelSearch;
+	object_ptr<Ui::FlatInput> _search;
+	object_ptr<Ui::CrossButton> _cancelSearch;
 	QVector<MsgId> _results;
 	int32 _itemsToBeLoaded;
 
@@ -254,16 +264,16 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	QTimer _touchSelectTimer;
 
-	TouchScrollState _touchScrollState = TouchScrollManual;
+	Ui::TouchScrollState _touchScrollState = Ui::TouchScrollState::Manual;
 	bool _touchPrevPosValid = false;
 	bool _touchWaitingAcceleration = false;
 	QPoint _touchSpeed;
-	uint64 _touchSpeedTime = 0;
-	uint64 _touchAccelerationTime = 0;
-	uint64 _touchTime = 0;
+	TimeMs _touchSpeedTime = 0;
+	TimeMs _touchAccelerationTime = 0;
+	TimeMs _touchTime = 0;
 	QTimer _touchScrollTimer;
 
-	PopupMenu *_menu = nullptr;
+	Ui::PopupMenu *_menu = nullptr;
 };
 
 class OverviewWidget : public TWidget, public RPCSender {
@@ -277,7 +287,7 @@ public:
 	void scrollBy(int32 add);
 	void scrollReset();
 
-	void paintTopBar(Painter &p, float64 over, int32 decreaseWidth);
+	bool paintTopBar(Painter &p, int decreaseWidth);
 	void topBarClick();
 
 	PeerData *peer() const;
@@ -296,11 +306,10 @@ public:
 	}
 	void setLastScrollTop(int lastScrollTop);
 	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
-	void step_show(float64 ms, bool timer);
 
 	void doneShow();
 
-	void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type);
+	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 	void changingMsgId(HistoryItem *row, MsgId newId);
 	void itemRemoved(HistoryItem *item);
 
@@ -313,8 +322,6 @@ public:
 
 	void fillSelectedItems(SelectedItemSet &sel, bool forDelete);
 
-	void updateScrollColors();
-
 	void updateAfterDrag();
 
 	void grabStart() override {
@@ -324,9 +331,14 @@ public:
 	void grapWithoutTopBarShadow();
 	void grabFinish() override;
 	void rpcClear() override {
-		_inner.rpcClear();
+		_inner->rpcClear();
 		RPCSender::rpcClear();
 	}
+
+	void confirmDeleteContextItem();
+	void confirmDeleteSelectedItems();
+	void deleteContextItem(bool forEveryone);
+	void deleteSelectedItems(bool forEveryone);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
 
@@ -346,22 +358,20 @@ public slots:
 	void onScrollTimer();
 
 	void onForwardSelected();
-	void onDeleteSelected();
-	void onDeleteSelectedSure();
-	void onDeleteContextSure();
 	void onClearSelected();
 
 private:
-	ScrollArea _scroll;
-	OverviewInner _inner;
+	void animationCallback();
+
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<OverviewInner> _inner;
 	bool _noDropResizeIndex = false;
 
 	QString _header;
 
 	Animation _a_show;
+	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
-	anim::ivalue a_coordUnder, a_coordOver;
-	anim::fvalue a_progress;
 
 	int32 _scrollSetAfterShow = 0;
 
@@ -370,7 +380,7 @@ private:
 
 	int32 _selCount = 0;
 
-	ChildWidget<Ui::PlainShadow> _topShadow;
+	object_ptr<Ui::PlainShadow> _topShadow;
 	bool _inGrab = false;
 
 };

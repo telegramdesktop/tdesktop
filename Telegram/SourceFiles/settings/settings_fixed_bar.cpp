@@ -22,33 +22,28 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_fixed_bar.h"
 
 #include "styles/style_settings.h"
-#include "ui/buttons/icon_button.h"
+#include "styles/style_boxes.h"
 #include "mainwindow.h"
 #include "lang.h"
 
 namespace Settings {
 
-FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
-, _close(this, st::settingsFixedBarClose) {
-	_close->setClickedCallback([]() {
-		Ui::hideSettingsAndLayer();
-	});
+FixedBar::FixedBar(QWidget *parent) : TWidget(parent) {
+	setAttribute(Qt::WA_OpaquePaintEvent);
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {
-	return st::settingsFixedBarHeight;
-}
-
-void FixedBar::resizeEvent(QResizeEvent *e) {
-	_close->moveToRight(0, 0);
+	return st::settingsFixedBarHeight - st::boxRadius;
 }
 
 void FixedBar::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	p.fillRect(e->rect(), st::boxBg);
+
 	p.setFont(st::settingsFixedBarFont);
-	p.setPen(st::windowTextFg);
-	p.drawTextLeft(st::settingsFixedBarTextLeft, st::settingsFixedBarTextTop, width(), lang(lng_menu_settings));
+	p.setPen(st::windowFg);
+	p.drawTextLeft(st::settingsFixedBarTextPosition.x(), st::settingsFixedBarTextPosition.y() - st::boxRadius, width(), lang(lng_menu_settings));
 }
 
 } // namespace Settings

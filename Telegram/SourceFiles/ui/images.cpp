@@ -26,276 +26,41 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "pspecific.h"
 
+namespace Images {
 namespace {
 
-using LocalImages = QMap<QString, Image*>;
-LocalImages localImages;
-
-using WebImages = QMap<QString, WebImage*>;
-WebImages webImages;
-
-Image *generateBlankImage() {
-	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	data.fill(QColor(255, 255, 255, 0));
-	data.setDevicePixelRatio(cRetinaFactor());
-	return internal::getImage(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
+FORCE_INLINE uint64 blurGetColors(const uchar *p) {
+	return (uint64)p[0] + ((uint64)p[1] << 16) + ((uint64)p[2] << 32) + ((uint64)p[3] << 48);
 }
 
-Image *blank() {
-	static auto blankImage = generateBlankImage();
-	return blankImage;
+const QPixmap &circleMask(int width, int height) {
+	t_assert(Global::started());
+
+	uint64 key = uint64(uint32(width)) << 32 | uint64(uint32(height));
+
+	Global::CircleMasksMap &masks(Global::RefCircleMasks());
+	auto i = masks.constFind(key);
+	if (i == masks.cend()) {
+		QImage mask(width, height, QImage::Format_ARGB32_Premultiplied);
+		{
+			Painter p(&mask);
+			PainterHighQualityEnabler hq(p);
+
+			p.setCompositionMode(QPainter::CompositionMode_Source);
+			p.fillRect(0, 0, width, height, Qt::transparent);
+			p.setBrush(Qt::white);
+			p.setPen(Qt::NoPen);
+			p.drawEllipse(0, 0, width, height);
+		}
+		mask.setDevicePixelRatio(cRetinaFactor());
+		i = masks.insert(key, App::pixmapFromImageInPlace(std_::move(mask)));
+	}
+	return i.value();
 }
-
-using StorageImages = QMap<StorageKey, StorageImage*>;
-StorageImages storageImages;
-
-int64 globalAcquiredSize = 0;
-
-constexpr uint64 BlurredCacheSkip = 0x1000000000000000LLU;
-constexpr uint64 ColoredCacheSkip = 0x2000000000000000LLU;
-constexpr uint64 BlurredColoredCacheSkip = 0x3000000000000000LLU;
-constexpr uint64 RoundedCacheSkip = 0x4000000000000000LLU;
-constexpr uint64 CircledCacheSkip = 0x5000000000000000LLU;
 
 } // namespace
 
-StorageImageLocation StorageImageLocation::Null;
-
-bool Image::isNull() const {
-	return (this == blank());
-}
-
-ImagePtr::ImagePtr() : Parent(blank()) {
-}
-
-ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def) :
-	Parent((location.type() == mtpc_fileLocation) ? (Image*)(internal::getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
-}
-
-Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
-	_data = App::pixmapFromImageInPlace(App::readImage(file, &fmt, false, 0, &_saved));
-	_format = fmt;
-	if (!_data.isNull()) {
-		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-Image::Image(const QByteArray &filecontent, QByteArray fmt) : _forgot(false) {
-	_data = App::pixmapFromImageInPlace(App::readImage(filecontent, &fmt, false));
-	_format = fmt;
-	_saved = filecontent;
-	if (!_data.isNull()) {
-		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-Image::Image(const QPixmap &pixmap, QByteArray format) : _format(format), _forgot(false), _data(pixmap) {
-	if (!_data.isNull()) {
-		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-Image::Image(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) : _saved(filecontent), _format(fmt), _forgot(false), _data(pixmap) {
-	_data = pixmap;
-	_format = fmt;
-	_saved = filecontent;
-	if (!_data.isNull()) {
-		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
-	}
-}
-
-const QPixmap &Image::pix(int32 w, int32 h) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-        w = width();
-    } else if (cRetina()) {
-        w *= cIntRetinaFactor();
-        h *= cIntRetinaFactor();
-    }
-	uint64 k = (uint64(w) << 32) | uint64(h);
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		QPixmap p(pixNoCache(w, h, ImagePixSmooth));
-        if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixRounded(ImageRoundRadius radius, int32 w, int32 h) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = RoundedCacheSkip | (uint64(w) << 32) | uint64(h);
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		auto options = ImagePixSmooth | (radius == ImageRoundRadius::Large ? ImagePixRoundedLarge : ImagePixRoundedSmall);
-		QPixmap p(pixNoCache(w, h, options));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixCircled(int32 w, int32 h) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = CircledCacheSkip | (uint64(w) << 32) | uint64(h);
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		QPixmap p(pixNoCache(w, h, ImagePixSmooth | ImagePixCircled));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width() * cIntRetinaFactor();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = BlurredCacheSkip | (uint64(w) << 32) | uint64(h);
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		QPixmap p(pixNoCache(w, h, ImagePixSmooth | ImagePixBlurred));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixColored(const style::color &add, int32 w, int32 h) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width() * cIntRetinaFactor();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = ColoredCacheSkip | (uint64(w) << 32) | uint64(h);
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		QPixmap p(pixColoredNoCache(add, w, h, true));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixBlurredColored(const style::color &add, int32 w, int32 h) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width() * cIntRetinaFactor();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = BlurredColoredCacheSkip | (uint64(w) << 32) | uint64(h);
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend()) {
-		QPixmap p(pixBlurredColoredNoCache(add, w, h));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixSingle(ImageRoundRadius radius, int32 w, int32 h, int32 outerw, int32 outerh) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width() * cIntRetinaFactor();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = 0LL;
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
-		if (i != _sizesCache.cend()) {
-			globalAcquiredSize -= int64(i->width()) * i->height() * 4;
-		}
-		auto options = ImagePixSmooth | (radius == ImageRoundRadius::Large ? ImagePixRoundedLarge : ImagePixRoundedSmall);
-		QPixmap p(pixNoCache(w, h, options, outerw, outerh));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-const QPixmap &Image::pixBlurredSingle(ImageRoundRadius radius, int w, int h, int32 outerw, int32 outerh) const {
-	checkload();
-
-	if (w <= 0 || !width() || !height()) {
-		w = width() * cIntRetinaFactor();
-	} else if (cRetina()) {
-		w *= cIntRetinaFactor();
-		h *= cIntRetinaFactor();
-	}
-	uint64 k = BlurredCacheSkip | 0LL;
-	Sizes::const_iterator i = _sizesCache.constFind(k);
-	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
-		if (i != _sizesCache.cend()) {
-			globalAcquiredSize -= int64(i->width()) * i->height() * 4;
-		}
-		auto options = ImagePixSmooth | ImagePixBlurred | (radius == ImageRoundRadius::Large ? ImagePixRoundedLarge : ImagePixRoundedSmall);
-		QPixmap p(pixNoCache(w, h, options, outerw, outerh));
-		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
-		i = _sizesCache.insert(k, p);
-		if (!p.isNull()) {
-			globalAcquiredSize += int64(p.width()) * p.height() * 4;
-		}
-	}
-	return i.value();
-}
-
-namespace {
-	static inline uint64 _blurGetColors(const uchar *p) {
-		return (uint64)p[0] + ((uint64)p[1] << 16) + ((uint64)p[2] << 32) + ((uint64)p[3] << 48);
-	}
-}
-
-QImage imageBlur(QImage img) {
+QImage prepareBlur(QImage img) {
 	QImage::Format fmt = img.format();
 	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
 		img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
@@ -314,10 +79,11 @@ QImage imageBlur(QImage img) {
 			if (withalpha) {
 				QImage imgsmall(w, h, img.format());
 				{
-					QPainter p(&imgsmall);
+					Painter p(&imgsmall);
+					PainterHighQualityEnabler hq(p);
+
 					p.setCompositionMode(QPainter::CompositionMode_Source);
-					p.setRenderHint(QPainter::SmoothPixmapTransform);
-					p.fillRect(0, 0, w, h, st::transparent->b);
+					p.fillRect(0, 0, w, h, Qt::transparent);
 					p.drawImage(QRect(radius, radius, w - 2 * radius, h - 2 * radius), img, QRect(0, 0, w, h));
 				}
 				QImage was = img;
@@ -335,12 +101,12 @@ QImage imageBlur(QImage img) {
 			int yw = 0;
 			const int we = w - r1;
 			for (y = 0; y < h; y++) {
-				uint64 cur = _blurGetColors(&pix[yw]);
+				uint64 cur = blurGetColors(&pix[yw]);
 				uint64 rgballsum = -radius * cur;
 				uint64 rgbsum = cur * ((r1 * (r1 + 1)) >> 1);
 
 				for (i = 1; i <= radius; i++) {
-					uint64 cur = _blurGetColors(&pix[yw + i * 4]);
+					uint64 cur = blurGetColors(&pix[yw + i * 4]);
 					rgbsum += cur * (r1 - i);
 					rgballsum += cur;
 				}
@@ -349,7 +115,7 @@ QImage imageBlur(QImage img) {
 
 #define update(start, middle, end) \
 rgb[y * w + x] = (rgbsum >> 4) & 0x00FF00FF00FF00FFLL; \
-rgballsum += _blurGetColors(&pix[yw + (start) * 4]) - 2 * _blurGetColors(&pix[yw + (middle) * 4]) + _blurGetColors(&pix[yw + (end) * 4]); \
+rgballsum += blurGetColors(&pix[yw + (start) * 4]) - 2 * blurGetColors(&pix[yw + (middle) * 4]) + blurGetColors(&pix[yw + (end) * 4]); \
 rgbsum += rgballsum; \
 x++;
 
@@ -410,31 +176,7 @@ yi += stride;
 	return img;
 }
 
-const QPixmap &circleMask(int width, int height) {
-	t_assert(Global::started());
-
-	uint64 key = uint64(uint32(width)) << 32 | uint64(uint32(height));
-
-	Global::CircleMasksMap &masks(Global::RefCircleMasks());
-	auto i = masks.constFind(key);
-	if (i == masks.cend()) {
-		QImage mask(width, height, QImage::Format_ARGB32_Premultiplied);
-		{
-			Painter p(&mask);
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
-			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(0, 0, width, height, st::transparent);
-			p.setBrush(st::white);
-			p.setPen(Qt::NoPen);
-			p.drawEllipse(0, 0, width, height);
-		}
-		mask.setDevicePixelRatio(cRetinaFactor());
-		i = masks.insert(key, App::pixmapFromImageInPlace(std_::move(mask)));
-	}
-	return i.value();
-}
-
-void imageCircle(QImage &img) {
+void prepareCircle(QImage &img) {
 	t_assert(!img.isNull());
 
 	img.setDevicePixelRatio(cRetinaFactor());
@@ -447,58 +189,75 @@ void imageCircle(QImage &img) {
 	p.drawPixmap(0, 0, mask);
 }
 
-void imageRound(QImage &img, ImageRoundRadius radius) {
-	t_assert(!img.isNull());
-
-	img.setDevicePixelRatio(cRetinaFactor());
-	img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
-	t_assert(!img.isNull());
-
-	QImage **masks = App::cornersMask(radius);
-	int32 w = masks[0]->width(), h = masks[0]->height();
-	int32 tw = img.width(), th = img.height();
-	if (tw < 2 * w || th < 2 * h) {
-		if (radius == ImageRoundRadius::Large) {
-			return imageRound(img, ImageRoundRadius::Small);
-		}
+void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners) {
+	if (!static_cast<int>(corners)) {
 		return;
 	}
+	t_assert(!image.isNull());
 
-	uchar *bits = img.bits();
-	const uchar *c0 = masks[0]->constBits(), *c1 = masks[1]->constBits(), *c2 = masks[2]->constBits(), *c3 = masks[3]->constBits();
+	image.setDevicePixelRatio(cRetinaFactor());
+	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	t_assert(!image.isNull());
 
-	int32 s0 = 0, s1 = (tw - w) * 4, s2 = (th - h) * tw * 4, s3 = ((th - h + 1) * tw - w) * 4;
-	for (int32 i = 0; i < w; ++i) {
-		for (int32 j = 0; j < h; ++j) {
-#define update(s, c) \
-		{ \
-	uint64 color = _blurGetColors(bits + s + (j * tw + i) * 4); \
-	color *= (c[(j * w + i) * 4 + 3] + 1); \
-	color = (color >> 8); \
-	bits[s + (j * tw + i) * 4] = color & 0xFF; \
-	bits[s + (j * tw + i) * 4 + 1] = (color >> 16) & 0xFF; \
-	bits[s + (j * tw + i) * 4 + 2] = (color >> 32) & 0xFF; \
-	bits[s + (j * tw + i) * 4 + 3] = (color >> 48) & 0xFF; \
-		}
-			update(s0, c0);
-			update(s1, c1);
-			update(s2, c2);
-			update(s3, c3);
-#undef update
-		}
-	}
+	QImage **masks = App::cornersMask(radius);
+	prepareRound(image, masks, corners);
 }
 
-QImage imageColored(const style::color &add, QImage img) {
-	QImage::Format fmt = img.format();
-	if (fmt != QImage::Format_RGB32 && fmt != QImage::Format_ARGB32_Premultiplied) {
-		img = img.convertToFormat(QImage::Format_ARGB32_Premultiplied);
+void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners) {
+	auto cornerWidth = cornerMasks[0]->width();
+	auto cornerHeight = cornerMasks[0]->height();
+	auto imageWidth = image.width();
+	auto imageHeight = image.height();
+	if (imageWidth < 2 * cornerWidth || imageHeight < 2 * cornerHeight) {
+		return;
+	}
+	constexpr auto imageIntsPerPixel = 1;
+	auto imageIntsPerLine = (image.bytesPerLine() >> 2);
+	t_assert(image.depth() == static_cast<int>((imageIntsPerPixel * sizeof(uint32)) << 3));
+	t_assert(image.bytesPerLine() == (imageIntsPerLine << 2));
+
+	auto ints = reinterpret_cast<uint32*>(image.bits());
+	auto intsTopLeft = ints;
+	auto intsTopRight = ints + imageWidth - cornerWidth;
+	auto intsBottomLeft = ints + (imageHeight - cornerHeight) * imageWidth;
+	auto intsBottomRight = ints + (imageHeight - cornerHeight + 1) * imageWidth - cornerWidth;
+	auto maskCorner = [imageWidth, imageHeight, imageIntsPerPixel, imageIntsPerLine](uint32 *imageInts, const QImage *mask) {
+		auto maskWidth = mask->width();
+		auto maskHeight = mask->height();
+		auto maskBytesPerPixel = (mask->depth() >> 3);
+		auto maskBytesPerLine = mask->bytesPerLine();
+		auto maskBytesAdded = maskBytesPerLine - maskWidth * maskBytesPerPixel;
+		auto maskBytes = mask->constBits();
+		t_assert(maskBytesAdded >= 0);
+		t_assert(mask->depth() == (maskBytesPerPixel << 3));
+		auto imageIntsAdded = imageIntsPerLine - maskWidth * imageIntsPerPixel;
+		t_assert(imageIntsAdded >= 0);
+		for (auto y = 0; y != maskHeight; ++y) {
+			for (auto x = 0; x != maskWidth; ++x) {
+				auto opacity = static_cast<anim::ShiftedMultiplier>(*maskBytes) + 1;
+				*imageInts = anim::unshifted(anim::shifted(*imageInts) * opacity);
+				maskBytes += maskBytesPerPixel;
+				imageInts += imageIntsPerPixel;
+			}
+			maskBytes += maskBytesAdded;
+			imageInts += imageIntsAdded;
+		}
+	};
+	if (corners & ImageRoundCorner::TopLeft) maskCorner(intsTopLeft, cornerMasks[0]);
+	if (corners & ImageRoundCorner::TopRight) maskCorner(intsTopRight, cornerMasks[1]);
+	if (corners & ImageRoundCorner::BottomLeft) maskCorner(intsBottomLeft, cornerMasks[2]);
+	if (corners & ImageRoundCorner::BottomRight) maskCorner(intsBottomRight, cornerMasks[3]);
+}
+
+QImage prepareColored(style::color add, QImage image) {
+	auto format = image.format();
+	if (format != QImage::Format_RGB32 && format != QImage::Format_ARGB32_Premultiplied) {
+		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	}
 
-	uchar *pix = img.bits();
-	if (pix) {
+	if (auto pix = image.bits()) {
 		int ca = int(add->c.alphaF() * 0xFF), cr = int(add->c.redF() * 0xFF), cg = int(add->c.greenF() * 0xFF), cb = int(add->c.blueF() * 0xFF);
-		const int w = img.width(), h = img.height(), size = w * h * 4;
+		const int w = image.width(), h = image.height(), size = w * h * 4;
 		for (int32 i = 0; i < size; i += 4) {
 			int b = pix[i], g = pix[i + 1], r = pix[i + 2], a = pix[i + 3], aca = a * ca;
 			pix[i + 0] = uchar(b + ((aca * (cb - b)) >> 16));
@@ -507,21 +266,40 @@ QImage imageColored(const style::color &add, QImage img) {
 			pix[i + 3] = uchar(a + ((aca * (0xFF - a)) >> 16));
 		}
 	}
-	return img;
+	return std_::move(image);
 }
 
-QPixmap imagePix(QImage img, int32 w, int32 h, ImagePixOptions options, int32 outerw, int32 outerh) {
+QImage prepareOpaque(QImage image) {
+	if (image.hasAlphaChannel()) {
+		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		auto ints = reinterpret_cast<uint32*>(image.bits());
+		auto bg = anim::shifted(st::imageBgTransparent->c);
+		auto width = image.width();
+		auto height = image.height();
+		auto addPerLine = (image.bytesPerLine() / sizeof(uint32)) - width;
+		for (auto y = 0; y != height; ++y) {
+			for (auto x = 0; x != width; ++x) {
+				auto components = anim::shifted(*ints);
+				*ints++ = anim::unshifted(components * 256 + bg * (256 - anim::getAlpha(components)));
+			}
+			ints += addPerLine;
+		}
+	}
+	return std_::move(image);
+}
+
+QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh) {
 	t_assert(!img.isNull());
-	if (options.testFlag(ImagePixBlurred)) {
-		img = imageBlur(img);
+	if (options.testFlag(Images::Option::Blurred)) {
+		img = prepareBlur(img);
 		t_assert(!img.isNull());
 	}
 	if (w <= 0 || (w == img.width() && (h <= 0 || h == img.height()))) {
 	} else if (h <= 0) {
-		img = img.scaledToWidth(w, options.testFlag(ImagePixSmooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
+		img = img.scaledToWidth(w, options.testFlag(Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
 		t_assert(!img.isNull());
 	} else {
-		img = img.scaled(w, h, Qt::IgnoreAspectRatio, options.testFlag(ImagePixSmooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
+		img = img.scaled(w, h, Qt::IgnoreAspectRatio, options.testFlag(Images::Option::Smooth) ? Qt::SmoothTransformation : Qt::FastTransformation);
 		t_assert(!img.isNull());
 	}
 	if (outerw > 0 && outerh > 0) {
@@ -534,7 +312,7 @@ QPixmap imagePix(QImage img, int32 w, int32 h, ImagePixOptions options, int32 ou
 			{
 				QPainter p(&result);
 				if (w < outerw || h < outerh) {
-					p.fillRect(0, 0, result.width(), result.height(), st::black);
+					p.fillRect(0, 0, result.width(), result.height(), st::imageBg);
 				}
 				p.drawImage((result.width() - img.width()) / (2 * cIntRetinaFactor()), (result.height() - img.height()) / (2 * cIntRetinaFactor()), img);
 			}
@@ -542,20 +320,359 @@ QPixmap imagePix(QImage img, int32 w, int32 h, ImagePixOptions options, int32 ou
 			t_assert(!img.isNull());
 		}
 	}
-	if (options.testFlag(ImagePixCircled)) {
-		imageCircle(img);
+	auto corners = [](Images::Options options) {
+		return (options.testFlag(Images::Option::RoundedTopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
+			| (options.testFlag(Images::Option::RoundedTopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
+			| (options.testFlag(Images::Option::RoundedBottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
+			| (options.testFlag(Images::Option::RoundedBottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
+	};
+	if (options.testFlag(Images::Option::Circled)) {
+		prepareCircle(img);
 		t_assert(!img.isNull());
-	} else if (options.testFlag(ImagePixRoundedLarge)) {
-		imageRound(img, ImageRoundRadius::Large);
+	} else if (options.testFlag(Images::Option::RoundedLarge)) {
+		prepareRound(img, ImageRoundRadius::Large, corners(options));
 		t_assert(!img.isNull());
-	} else if (options.testFlag(ImagePixRoundedSmall)) {
-		imageRound(img, ImageRoundRadius::Small);
+	} else if (options.testFlag(Images::Option::RoundedSmall)) {
+		prepareRound(img, ImageRoundRadius::Small, corners(options));
+		t_assert(!img.isNull());
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
-	return App::pixmapFromImageInPlace(std_::move(img));
+	return std_::move(img);
 }
 
-QPixmap Image::pixNoCache(int w, int h, ImagePixOptions options, int outerw, int outerh) const {
+} // namespace Images
+
+namespace {
+
+using LocalImages = QMap<QString, Image*>;
+LocalImages localImages;
+
+using WebImages = QMap<QString, WebImage*>;
+WebImages webImages;
+
+Image *generateBlankImage() {
+	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	data.fill(Qt::transparent);
+	data.setDevicePixelRatio(cRetinaFactor());
+	return internal::getImage(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
+}
+
+Image *blank() {
+	static auto blankImage = generateBlankImage();
+	return blankImage;
+}
+
+using StorageImages = QMap<StorageKey, StorageImage*>;
+StorageImages storageImages;
+
+int64 globalAcquiredSize = 0;
+
+uint64 PixKey(int width, int height, Images::Options options) {
+	return static_cast<uint64>(width) | (static_cast<uint64>(height) << 24) | (static_cast<uint64>(options) << 48);
+}
+
+uint64 SinglePixKey(Images::Options options) {
+	return PixKey(0, 0, options);
+}
+
+} // namespace
+
+StorageImageLocation StorageImageLocation::Null;
+
+bool Image::isNull() const {
+	return (this == blank());
+}
+
+ImagePtr::ImagePtr() : Parent(blank()) {
+}
+
+ImagePtr::ImagePtr(int32 width, int32 height, const MTPFileLocation &location, ImagePtr def) :
+	Parent((location.type() == mtpc_fileLocation) ? (Image*)(internal::getImage(StorageImageLocation(width, height, location.c_fileLocation()))) : def.v()) {
+}
+
+Image::Image(const QString &file, QByteArray fmt) : _forgot(false) {
+	_data = App::pixmapFromImageInPlace(App::readImage(file, &fmt, false, 0, &_saved));
+	_format = fmt;
+	if (!_data.isNull()) {
+		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+Image::Image(const QByteArray &filecontent, QByteArray fmt) : _forgot(false) {
+	_data = App::pixmapFromImageInPlace(App::readImage(filecontent, &fmt, false));
+	_format = fmt;
+	_saved = filecontent;
+	if (!_data.isNull()) {
+		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+Image::Image(const QPixmap &pixmap, QByteArray format) : _format(format), _forgot(false), _data(pixmap) {
+	if (!_data.isNull()) {
+		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+Image::Image(const QByteArray &filecontent, QByteArray fmt, const QPixmap &pixmap) : _saved(filecontent), _format(fmt), _forgot(false), _data(pixmap) {
+	_data = pixmap;
+	_format = fmt;
+	_saved = filecontent;
+	if (!_data.isNull()) {
+		globalAcquiredSize += int64(_data.width()) * _data.height() * 4;
+	}
+}
+
+const QPixmap &Image::pix(int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+        w = width();
+    } else if (cRetina()) {
+        w *= cIntRetinaFactor();
+        h *= cIntRetinaFactor();
+    }
+	auto options = Images::Option::Smooth | Images::Option::None;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixNoCache(w, h, options);
+        if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixRounded(int32 w, int32 h, ImageRoundRadius radius, ImageRoundCorners corners) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Smooth | Images::Option::None;
+	auto cornerOptions = [](ImageRoundCorners corners) {
+		return (corners & ImageRoundCorner::TopLeft ? Images::Option::RoundedTopLeft : Images::Option::None)
+			| (corners & ImageRoundCorner::TopRight ? Images::Option::RoundedTopRight : Images::Option::None)
+			| (corners & ImageRoundCorner::BottomLeft ? Images::Option::RoundedBottomLeft : Images::Option::None)
+			| (corners & ImageRoundCorner::BottomRight ? Images::Option::RoundedBottomRight : Images::Option::None);
+	};
+	if (radius == ImageRoundRadius::Large) {
+		options |= Images::Option::RoundedLarge | cornerOptions(corners);
+	} else if (radius == ImageRoundRadius::Small) {
+		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+	}
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixNoCache(w, h, options);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixCircled(int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Smooth | Images::Option::Circled;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixNoCache(w, h, options);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixBlurredCircled(int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Smooth | Images::Option::Circled | Images::Option::Blurred;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixNoCache(w, h, options);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixBlurred(int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width() * cIntRetinaFactor();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Smooth | Images::Option::Blurred;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixNoCache(w, h, options);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixColored(style::color add, int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width() * cIntRetinaFactor();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Smooth | Images::Option::Colored;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixColoredNoCache(add, w, h, true);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixBlurredColored(style::color add, int32 w, int32 h) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width() * cIntRetinaFactor();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+	auto options = Images::Option::Blurred | Images::Option::Smooth | Images::Option::Colored;
+	auto k = PixKey(w, h, options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend()) {
+		auto p = pixBlurredColoredNoCache(add, w, h);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width() * cIntRetinaFactor();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+
+	auto options = Images::Option::Smooth | Images::Option::None;
+	auto cornerOptions = [](ImageRoundCorners corners) {
+		return (corners & ImageRoundCorner::TopLeft ? Images::Option::RoundedTopLeft : Images::Option::None)
+			| (corners & ImageRoundCorner::TopRight ? Images::Option::RoundedTopRight : Images::Option::None)
+			| (corners & ImageRoundCorner::BottomLeft ? Images::Option::RoundedBottomLeft : Images::Option::None)
+			| (corners & ImageRoundCorner::BottomRight ? Images::Option::RoundedBottomRight : Images::Option::None);
+	};
+	if (radius == ImageRoundRadius::Large) {
+		options |= Images::Option::RoundedLarge | cornerOptions(corners);
+	} else if (radius == ImageRoundRadius::Small) {
+		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+	}
+
+	auto k = SinglePixKey(options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
+		if (i != _sizesCache.cend()) {
+			globalAcquiredSize -= int64(i->width()) * i->height() * 4;
+		}
+		auto p = pixNoCache(w, h, options, outerw, outerh);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+const QPixmap &Image::pixBlurredSingle(int w, int h, int32 outerw, int32 outerh, ImageRoundRadius radius, ImageRoundCorners corners) const {
+	checkload();
+
+	if (w <= 0 || !width() || !height()) {
+		w = width() * cIntRetinaFactor();
+	} else if (cRetina()) {
+		w *= cIntRetinaFactor();
+		h *= cIntRetinaFactor();
+	}
+
+	auto options = Images::Option::Smooth | Images::Option::Blurred;
+	auto cornerOptions = [](ImageRoundCorners corners) {
+		return (corners & ImageRoundCorner::TopLeft ? Images::Option::RoundedTopLeft : Images::Option::None)
+			| (corners & ImageRoundCorner::TopRight ? Images::Option::RoundedTopRight : Images::Option::None)
+			| (corners & ImageRoundCorner::BottomLeft ? Images::Option::RoundedBottomLeft : Images::Option::None)
+			| (corners & ImageRoundCorner::BottomRight ? Images::Option::RoundedBottomRight : Images::Option::None);
+	};
+	if (radius == ImageRoundRadius::Large) {
+		options |= Images::Option::RoundedLarge | cornerOptions(corners);
+	} else if (radius == ImageRoundRadius::Small) {
+		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+	}
+
+	auto k = SinglePixKey(options);
+	auto i = _sizesCache.constFind(k);
+	if (i == _sizesCache.cend() || i->width() != (outerw * cIntRetinaFactor()) || i->height() != (outerh * cIntRetinaFactor())) {
+		if (i != _sizesCache.cend()) {
+			globalAcquiredSize -= int64(i->width()) * i->height() * 4;
+		}
+		auto p = pixNoCache(w, h, options, outerw, outerh);
+		if (cRetina()) p.setDevicePixelRatio(cRetinaFactor());
+		i = _sizesCache.insert(k, p);
+		if (!p.isNull()) {
+			globalAcquiredSize += int64(p.width()) * p.height() * 4;
+		}
+	}
+	return i.value();
+}
+
+QPixmap Image::pixNoCache(int w, int h, Images::Options options, int outerw, int outerh) const {
 	if (!loading()) const_cast<Image*>(this)->load();
 	restore();
 
@@ -576,55 +693,61 @@ QPixmap Image::pixNoCache(int w, int h, ImagePixOptions options, int outerw, int
 		{
 			QPainter p(&result);
 			if (w < outerw) {
-				p.fillRect(0, 0, (outerw - w) / 2, result.height(), st::black);
-				p.fillRect(((outerw - w) / 2) + w, 0, result.width() - (((outerw - w) / 2) + w), result.height(), st::black);
+				p.fillRect(0, 0, (outerw - w) / 2, result.height(), st::imageBg);
+				p.fillRect(((outerw - w) / 2) + w, 0, result.width() - (((outerw - w) / 2) + w), result.height(), st::imageBg);
 			}
 			if (h < outerh) {
-				p.fillRect(qMax(0, (outerw - w) / 2), 0, qMin(result.width(), w), (outerh - h) / 2, st::black);
-				p.fillRect(qMax(0, (outerw - w) / 2), ((outerh - h) / 2) + h, qMin(result.width(), w), result.height() - (((outerh - h) / 2) + h), st::black);
+				p.fillRect(qMax(0, (outerw - w) / 2), 0, qMin(result.width(), w), (outerh - h) / 2, st::imageBg);
+				p.fillRect(qMax(0, (outerw - w) / 2), ((outerh - h) / 2) + h, qMin(result.width(), w), result.height() - (((outerh - h) / 2) + h), st::imageBg);
 			}
-			p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), st::white);
+			p.fillRect(qMax(0, (outerw - w) / 2), qMax(0, (outerh - h) / 2), qMin(result.width(), w), qMin(result.height(), h), st::imageBgTransparent);
 		}
 
-		if (options.testFlag(ImagePixCircled)) {
-			imageCircle(result);
-		} else if (options.testFlag(ImagePixRoundedLarge)) {
-			imageRound(result, ImageRoundRadius::Large);
-		} else if (options.testFlag(ImagePixRoundedSmall)) {
-			imageRound(result, ImageRoundRadius::Small);
+		auto corners = [](Images::Options options) {
+			return (options.testFlag(Images::Option::RoundedTopLeft) ? ImageRoundCorner::TopLeft : ImageRoundCorner::None)
+				| (options.testFlag(Images::Option::RoundedTopRight) ? ImageRoundCorner::TopRight : ImageRoundCorner::None)
+				| (options.testFlag(Images::Option::RoundedBottomLeft) ? ImageRoundCorner::BottomLeft : ImageRoundCorner::None)
+				| (options.testFlag(Images::Option::RoundedBottomRight) ? ImageRoundCorner::BottomRight : ImageRoundCorner::None);
+		};
+		if (options.testFlag(Images::Option::Circled)) {
+			Images::prepareCircle(result);
+		} else if (options.testFlag(Images::Option::RoundedLarge)) {
+			Images::prepareRound(result, ImageRoundRadius::Large, corners(options));
+		} else if (options.testFlag(Images::Option::RoundedSmall)) {
+			Images::prepareRound(result, ImageRoundRadius::Small, corners(options));
 		}
 		return App::pixmapFromImageInPlace(std_::move(result));
 	}
 
-	return imagePix(_data.toImage(), w, h, options, outerw, outerh);
+	return Images::pixmap(_data.toImage(), w, h, options, outerw, outerh);
 }
 
-QPixmap Image::pixColoredNoCache(const style::color &add, int32 w, int32 h, bool smooth) const {
+QPixmap Image::pixColoredNoCache(style::color add, int32 w, int32 h, bool smooth) const {
 	const_cast<Image*>(this)->load();
 	restore();
 	if (_data.isNull()) return blank()->pix();
 
 	QImage img = _data.toImage();
-	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return App::pixmapFromImageInPlace(imageColored(add, img));
+	if (w <= 0 || !width() || !height() || (w == width() && (h <= 0 || h == height()))) return App::pixmapFromImageInPlace(Images::prepareColored(add, img));
 	if (h <= 0) {
-		return App::pixmapFromImageInPlace(imageColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
+		return App::pixmapFromImageInPlace(Images::prepareColored(add, img.scaledToWidth(w, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 	}
-	return App::pixmapFromImageInPlace(imageColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
+	return App::pixmapFromImageInPlace(Images::prepareColored(add, img.scaled(w, h, Qt::IgnoreAspectRatio, smooth ? Qt::SmoothTransformation : Qt::FastTransformation)));
 }
 
-QPixmap Image::pixBlurredColoredNoCache(const style::color &add, int32 w, int32 h) const {
+QPixmap Image::pixBlurredColoredNoCache(style::color add, int32 w, int32 h) const {
 	const_cast<Image*>(this)->load();
 	restore();
 	if (_data.isNull()) return blank()->pix();
 
-	QImage img = imageBlur(_data.toImage());
+	QImage img = Images::prepareBlur(_data.toImage());
 	if (h <= 0) {
 		img = img.scaledToWidth(w, Qt::SmoothTransformation);
 	} else {
 		img = img.scaled(w, h, Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 	}
 
-	return App::pixmapFromImageInPlace(imageColored(add, img));
+	return App::pixmapFromImageInPlace(Images::prepareColored(add, img));
 }
 
 void Image::forget() const {
@@ -665,9 +788,9 @@ void Image::restore() const {
 }
 
 void Image::invalidateSizeCache() const {
-	for (Sizes::const_iterator i = _sizesCache.cbegin(), e = _sizesCache.cend(); i != e; ++i) {
-		if (!i->isNull()) {
-			globalAcquiredSize -= int64(i->width()) * i->height() * 4;
+	for (auto &pix : _sizesCache) {
+		if (!pix.isNull()) {
+			globalAcquiredSize -= int64(pix.width()) * pix.height() * 4;
 		}
 	}
 	_sizesCache.clear();
@@ -681,21 +804,18 @@ Image::~Image() {
 }
 
 void clearStorageImages() {
-	for (StorageImages::const_iterator i = storageImages.cbegin(), e = storageImages.cend(); i != e; ++i) {
-		delete i.value();
+	for (auto image : base::take(storageImages)) {
+		delete image;
 	}
-	storageImages.clear();
-	for (WebImages::const_iterator i = webImages.cbegin(), e = webImages.cend(); i != e; ++i) {
-		delete i.value();
+	for (auto image : base::take(webImages)) {
+		delete image;
 	}
-	webImages.clear();
 }
 
 void clearAllImages() {
-	for (LocalImages::const_iterator i = localImages.cbegin(), e = localImages.cend(); i != e; ++i) {
-		delete i.value();
+	for (auto image : base::take(localImages)) {
+		delete image;
 	}
-	localImages.clear();
 	clearStorageImages();
 }
 

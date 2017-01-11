@@ -20,178 +20,123 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
-#include "ui/flatlabel.h"
-#include "core/lambda_wrap.h"
+#include "boxes/abstractbox.h"
+
+namespace Ui {
+class Checkbox;
+class FlatLabel;
+} // namespace Ui
 
 class InformBox;
-class ConfirmBox : public AbstractBox, public ClickHandlerHost {
-	Q_OBJECT
-
+class ConfirmBox : public BoxContent, public ClickHandlerHost {
 public:
-	ConfirmBox(const QString &text, const QString &doneText = QString(), const style::RoundButton &doneStyle = st::defaultBoxButton, const QString &cancelText = QString(), const style::RoundButton &cancelStyle = st::cancelBoxButton);
+	ConfirmBox(QWidget*, const QString &text, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
 
 	void updateLink();
 
-	// You can use this instead of connecting to "confirmed()" signal.
-	void setConfirmedCallback(base::lambda_unique<void()> &&callback) {
-		_confirmedCallback = std_::move(callback);
+	// If strict cancel is set the cancelledCallback is only called if the cancel button was pressed.
+	void setStrictCancel(bool strictCancel) {
+		_strictCancel = strictCancel;
 	}
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-public slots:
-	void onCancel();
-
-signals:
-	void confirmed();
-	void cancelled();
-	void cancelPressed();
+	void closeHook() override;
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
-	void closePressed() override;
-	void showAll() override;
-
-private slots:
-	void onConfirmPressed();
-
 private:
-	ConfirmBox(const QString &text, const QString &doneText, const style::RoundButton &doneStyle, bool informative);
+	struct InformBoxTag {
+	};
+	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback);
+	base::lambda<void()> generateInformCallback(const base::lambda_copy<void()> &closedCallback);
 	friend class InformBox;
 
+	void confirmed();
 	void init(const QString &text);
-	void onTextUpdated();
+	void textUpdated();
 
-	bool _informative;
+	QString _confirmText;
+	QString _cancelText;
+	const style::RoundButton &_confirmStyle;
+	bool _informative = false;
 
 	Text _text;
-	int32 _textWidth, _textHeight;
+	int _textWidth = 0;
+	int _textHeight = 0;
 
 	void updateHover();
 
 	QPoint _lastMousePos;
 
-	BoxButton _confirm, _cancel;
-
-	base::lambda_unique<void()> _confirmedCallback;
+	bool _confirmed = false;
+	bool _cancelled = false;
+	bool _strictCancel = false;
+	base::lambda<void()> _confirmedCallback;
+	base::lambda<void()> _cancelledCallback;
 
 };
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(const QString &text, const QString &doneText = QString(), const style::RoundButton &doneStyle = st::defaultBoxButton) : ConfirmBox(text, doneText, doneStyle, true) {
-	}
+	InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
+	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
 
 };
 
-class SharePhoneConfirmBox : public ConfirmBox {
-	Q_OBJECT
-
+class MaxInviteBox : public BoxContent {
 public:
-	SharePhoneConfirmBox(PeerData *recipient);
-
-signals:
-	void confirmed(PeerData *recipient);
-
-private slots:
-	void onConfirm();
-
-private:
-	PeerData *_recipient;
-
-};
-
-class ConfirmLinkBox : public ConfirmBox {
-	Q_OBJECT
-
-public:
-	ConfirmLinkBox(const QString &url);
-
-public slots:
-	void onOpenLink();
-
-private:
-	QString _url;
-
-};
-
-class ConfirmBotGameBox : public ConfirmBox {
-	Q_OBJECT
-
-public:
-	ConfirmBotGameBox(UserData *bot, const QString &url);
-
-public slots:
-	void onOpenLink();
-
-private:
-	UserData *_bot;
-	QString _url;
-
-};
-
-class MaxInviteBox : public AbstractBox {
-	Q_OBJECT
-
-public:
-	MaxInviteBox(const QString &link);
+	MaxInviteBox(QWidget*, const QString &link);
 
 protected:
+	void prepare() override;
+
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void leaveEvent(QEvent *e) override;
 
-	void showAll() override;
-
 private:
 	void updateSelected(const QPoint &cursorGlobalPosition);
-	void step_good(float64 ms, bool timer);
 
-	BoxButton _close;
 	Text _text;
 	int32 _textWidth, _textHeight;
 
 	QString _link;
 	QRect _invitationLink;
-	bool _linkOver;
+	bool _linkOver = false;
 
 	QPoint _lastMousePos;
 
-	QString _goodTextLink;
-	anim::fvalue a_goodOpacity;
-	Animation _a_good;
-
 };
 
-class ConvertToSupergroupBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
+class ConvertToSupergroupBox : public BoxContent, public RPCSender {
 public:
-	ConvertToSupergroupBox(ChatData *chat);
-
-public slots:
-	void onConvert();
+	ConvertToSupergroupBox(QWidget*, ChatData *chat);
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
 
 private:
+	void convertToSupergroup();
 	void convertDone(const MTPUpdates &updates);
 	bool convertFail(const RPCError &error);
 
@@ -199,99 +144,77 @@ private:
 	Text _text, _note;
 	int32 _textWidth, _textHeight;
 
-	BoxButton _convert, _cancel;
-
 };
 
-class PinMessageBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
+class PinMessageBox : public BoxContent, public RPCSender {
 public:
-	PinMessageBox(ChannelData *channel, MsgId msgId);
-
-public slots:
-	void onPin();
+	PinMessageBox(QWidget*, ChannelData *channel, MsgId msgId);
 
 protected:
-	void resizeEvent(QResizeEvent *e) override;
+	void prepare() override;
 
-	void showAll() override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
+	void pinMessage();
 	void pinDone(const MTPUpdates &updates);
 	bool pinFail(const RPCError &error);
 
 	ChannelData *_channel;
 	MsgId _msgId;
 
-	FlatLabel _text;
-	Checkbox _notify;
-
-	BoxButton _pin, _cancel;
+	object_ptr<Ui::FlatLabel> _text;
+	object_ptr<Ui::Checkbox> _notify;
 
 	mtpRequestId _requestId = 0;
 
 };
 
-class RichDeleteMessageBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
+class DeleteMessagesBox : public BoxContent, public RPCSender {
 public:
-	RichDeleteMessageBox(ChannelData *channel, UserData *from, MsgId msgId);
-
-public slots:
-	void onDelete();
+	DeleteMessagesBox(QWidget*, HistoryItem *item, bool suggestModerateActions);
+	DeleteMessagesBox(QWidget*, const SelectedItemSet &selected);
 
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
-
-	void showAll() override;
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
-	ChannelData *_channel;
-	UserData *_from;
-	MsgId _msgId;
+	void deleteAndClear();
 
-	FlatLabel _text;
-	Checkbox _banUser, _reportSpam, _deleteAll;
+	QVector<FullMsgId> _ids;
+	bool _singleItem = false;
+	UserData *_moderateFrom = nullptr;
+	ChannelData *_moderateInChannel = nullptr;
 
-	BoxButton _delete, _cancel;
+	object_ptr<Ui::FlatLabel> _text = { nullptr };
+	object_ptr<Ui::Checkbox> _forEveryone = { nullptr };
+	object_ptr<Ui::Checkbox> _banUser = { nullptr };
+	object_ptr<Ui::Checkbox> _reportSpam = { nullptr };
+	object_ptr<Ui::Checkbox> _deleteAll = { nullptr };
 
 };
 
-class KickMemberBox : public ConfirmBox {
-	Q_OBJECT
-
+class ConfirmInviteBox : public BoxContent, public RPCSender {
 public:
-	KickMemberBox(PeerData *chat, UserData *member);
-
-private slots:
-	void onConfirm();
-
-private:
-	PeerData *_chat;
-	UserData *_member;
-
-};
-
-class ConfirmInviteBox : public AbstractBox, public RPCSender {
-	Q_OBJECT
-
-public:
-	ConfirmInviteBox(const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
+	ConfirmInviteBox(QWidget*, const QString &title, const MTPChatPhoto &photo, int count, const QVector<UserData*> &participants);
 
 protected:
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
-	void showAll() override;
-
 private:
-	ChildWidget<FlatLabel> _title, _status;
+	object_ptr<Ui::FlatLabel> _title;
+	object_ptr<Ui::FlatLabel> _status;
 	ImagePtr _photo;
+	EmptyUserpic _photoEmpty;
 	QVector<UserData*> _participants;
 
-	ChildWidget<BoxButton> _join, _cancel;
 	int _userWidth = 0;
 
 };

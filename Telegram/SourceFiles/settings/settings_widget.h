@@ -22,8 +22,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "layerwidget.h"
 
+class BoxLayerTitleShadow;
+
 namespace Ui {
-class PlainShadow;
+class ScrollArea;
+class IconButton;
+template <typename Widget>
+class WidgetFadeWrap;
 } // namespace Ui
 
 namespace Settings {
@@ -35,10 +40,10 @@ class Widget : public LayerWidget {
 	Q_OBJECT
 
 public:
-	Widget();
+	Widget(QWidget *parent);
 
 	void parentResized() override;
-	void showDone() override;
+	void showFinished() override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -47,16 +52,19 @@ protected:
 
 private slots:
 	void onInnerHeightUpdated();
+	void onScroll();
 
 private:
 	void resizeUsingInnerHeight(int newWidth, int newContentLeft);
 
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<InnerWidget> _inner;
-	ChildWidget<FixedBar> _fixedBar;
-	ChildWidget<Ui::PlainShadow> _fixedBarShadow1, _fixedBarShadow2;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<InnerWidget> _inner;
+	object_ptr<FixedBar> _fixedBar;
+	object_ptr<Ui::IconButton> _fixedBarClose;
+	object_ptr<Ui::WidgetFadeWrap<BoxLayerTitleShadow>> _fixedBarShadow;
 
 	int _contentLeft = 0;
+	bool _roundedCorners = false;
 
 };
 

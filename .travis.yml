@@ -50,6 +50,7 @@ addons:
       - libssl-dev
       - libunity-dev
       - libva-dev
+      - libvdpau-dev
       - libxcb-xkb-dev
       - libxkbcommon-dev
       - lintian

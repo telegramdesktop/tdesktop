@@ -38,8 +38,6 @@ enum TextCommands {
 	TextCommandNoSemibold  = 0x08,
 	TextCommandLinkIndex   = 0x09, // 0 - NoLink
 	TextCommandLinkText    = 0x0A,
-	TextCommandColor       = 0x0B,
-	TextCommandNoColor     = 0x0C,
 	TextCommandSkipBlock   = 0x0D,
 
 	TextCommandLangTag     = 0x20,
@@ -87,7 +85,7 @@ class Text {
 public:
 
 	Text(int32 minResizeWidth = QFIXED_MAX);
-	Text(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
+	Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
 	Text(Text &&other);
 	Text &operator=(const Text &other);
@@ -96,9 +94,9 @@ public:
 	int countWidth(int width) const;
 	int countHeight(int width) const;
 	void countLineWidths(int width, QVector<int> *lineWidths) const;
-	void setText(style::font font, const QString &text, const TextParseOptions &options = _defaultOptions);
-	void setRichText(style::font font, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
-	void setMarkedText(style::font font, const TextWithEntities &textWithEntities, const TextParseOptions &options = _defaultOptions);
+	void setText(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions);
+	void setRichText(const style::TextStyle &st, const QString &text, TextParseOptions options = _defaultOptions, const TextCustomTagsMap &custom = TextCustomTagsMap());
+	void setMarkedText(const style::TextStyle &st, const TextWithEntities &textWithEntities, const TextParseOptions &options = _defaultOptions);
 
 	void setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk);
 	bool hasLinks() const;
@@ -114,20 +112,18 @@ public:
 		return _minHeight;
 	}
 
-	void replaceFont(style::font f); // does not recount anything, use at your own risk!
-
-	void draw(QPainter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }, bool fullWidthSelection = true) const;
-	void drawElided(QPainter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const;
-	void drawLeft(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const {
+	void draw(Painter &p, int32 left, int32 top, int32 width, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }, bool fullWidthSelection = true) const;
+	void drawElided(Painter &p, int32 left, int32 top, int32 width, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const;
+	void drawLeft(Painter &p, int32 left, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const {
 		draw(p, rtl() ? (outerw - left - width) : left, top, width, align, yFrom, yTo, selection);
 	}
-	void drawLeftElided(QPainter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const {
+	void drawLeftElided(Painter &p, int32 left, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const {
 		drawElided(p, rtl() ? (outerw - left - width) : left, top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 	}
-	void drawRight(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const {
+	void drawRight(Painter &p, int32 right, int32 top, int32 width, int32 outerw, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, TextSelection selection = { 0, 0 }) const {
 		draw(p, rtl() ? right : (outerw - right - width), top, width, align, yFrom, yTo, selection);
 	}
-	void drawRightElided(QPainter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const {
+	void drawRightElided(Painter &p, int32 right, int32 top, int32 width, int32 outerw, int32 lines = 1, style::align align = style::al_left, int32 yFrom = 0, int32 yTo = -1, int32 removeFromEnd = 0, bool breakEverywhere = false, TextSelection selection = { 0, 0 }) const {
 		drawElided(p, rtl() ? right : (outerw - right - width), top, width, lines, align, yFrom, yTo, removeFromEnd, breakEverywhere, selection);
 	}
 
@@ -175,7 +171,7 @@ public:
 
 	bool isEmpty() const;
 	bool isNull() const {
-		return !_font;
+		return !_st;
 	}
 	int length() const {
 		return _text.size();
@@ -226,11 +222,12 @@ private:
 	// it is also called from move constructor / assignment operator
 	void clearFields();
 
-	QFixed _minResizeWidth, _maxWidth;
-	int32 _minHeight;
+	QFixed _minResizeWidth;
+	QFixed _maxWidth = 0;
+	int32 _minHeight = 0;
 
 	QString _text;
-	style::font _font;
+	const style::TextStyle *_st = nullptr;
 
 	typedef QVector<ITextBlock*> TextBlocks;
 	TextBlocks _blocks;
@@ -238,7 +235,7 @@ private:
 	typedef QVector<ClickHandlerPtr> TextLinks;
 	TextLinks _links;
 
-	Qt::LayoutDirection _startDir;
+	Qt::LayoutDirection _startDir = Qt::LayoutDirectionAuto;
 
 	friend class TextParser;
 	friend class TextPainter;
@@ -265,13 +262,6 @@ const QRegularExpression &reMailStart();
 const QRegularExpression &reHashtag();
 const QRegularExpression &reBotCommand();
 
-// text style
-const style::textStyle *textstyleCurrent();
-void textstyleSet(const style::textStyle *style);
-inline void textstyleRestore() {
-	textstyleSet(nullptr);
-}
-
 // textcmd
 QString textcmdSkipBlock(ushort w, ushort h);
 QString textcmdStartLink(ushort lnkIndex);
@@ -279,8 +269,6 @@ QString textcmdStartLink(const QString &url);
 QString textcmdStopLink();
 QString textcmdLink(ushort lnkIndex, const QString &text);
 QString textcmdLink(const QString &url, const QString &text);
-QString textcmdStartColor(const style::color &color);
-QString textcmdStopColor();
 QString textcmdStartSemibold();
 QString textcmdStopSemibold();
 const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink = true);

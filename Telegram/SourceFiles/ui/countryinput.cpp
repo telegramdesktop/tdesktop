@@ -23,11 +23,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "application.h"
-#include "ui/scrollarea.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/effects/ripple_animation.h"
 #include "boxes/contactsbox.h"
 #include "countries.h"
 #include "styles/style_boxes.h"
+#include "styles/style_intro.h"
 
 namespace {
 
@@ -89,50 +91,66 @@ QString findValidCode(QString fullCode) {
 	return "";
 }
 
-CountryInput::CountryInput(QWidget *parent, const style::countryInput &st) : QWidget(parent), _st(st), _active(false), _text(lang(lng_country_code)) {
+CountryInput::CountryInput(QWidget *parent, const style::InputField &st) : TWidget(parent)
+, _st(st)
+, _text(lang(lng_country_code)) {
 	initCountries();
+	resize(_st.width, _st.heightMin);
 
-	resize(_st.width, _st.height + _st.ptrSize.height());
-	QImage trImage(_st.ptrSize.width(), _st.ptrSize.height(), QImage::Format_ARGB32_Premultiplied);
-	{
-		static const QPoint trPoints[3] = {
-			QPoint(0, 0),
-			QPoint(_st.ptrSize.width(), 0),
-			QPoint(qCeil(trImage.width() / 2.), trImage.height())
-		};
-		QPainter p(&trImage);
-		p.setRenderHint(QPainter::Antialiasing);
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.fillRect(0, 0, trImage.width(), trImage.height(), st::transparent->b);
-
-		p.setPen(Qt::NoPen);
-		p.setBrush(_st.bgColor->b);
-		p.drawPolygon(trPoints, 3);
+	auto availableWidth = width() - _st.textMargins.left() - _st.textMargins.right() - _st.placeholderMargins.left() - _st.placeholderMargins.right() - 1;
+	auto placeholderFont = _st.placeholderFont->f;
+	placeholderFont.setStyleStrategy(QFont::PreferMatch);
+	auto metrics = QFontMetrics(placeholderFont);
+	auto placeholder = QString();// metrics.elidedText(lang(lng_country_fake_ph), Qt::ElideRight, availableWidth);
+	if (!placeholder.isNull()) {
+		_placeholderPath.addText(0, QFontMetrics(placeholderFont).ascent(), placeholderFont, placeholder);
 	}
-	_arrow = App::pixmapFromImageInPlace(std_::move(trImage));
-	_inner = QRect(0, 0, _st.width, _st.height);
-	_arrowRect = QRect((st::inpIntroCountryCode.width - _arrow.width() - 1) / 2, _st.height, _arrow.width(), _arrow.height());
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
-	QPainter p(this);
+	Painter p(this);
 
-	p.setRenderHint(QPainter::HighQualityAntialiasing);
-	p.setBrush(_st.bgColor);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(_inner, st::buttonRadius, st::buttonRadius);
-	p.setRenderHint(QPainter::HighQualityAntialiasing, false);
+	QRect r(rect().intersected(e->rect()));
+	if (_st.textBg->c.alphaF() > 0.) {
+		p.fillRect(r, _st.textBg);
+	}
+	if (_st.border) {
+		p.fillRect(0, height() - _st.border, width(), _st.border, _st.borderFg);
+	}
 
-	p.drawPixmap(_arrowRect.x(), _arrowRect.top(), _arrow);
+	st::introCountryIcon.paint(p, width() - st::introCountryIcon.width() - st::introCountryIconPosition.x(), st::introCountryIconPosition.y(), width());
 
 	p.setFont(_st.font);
-	p.setPen(st::windowTextFg);
+	p.setPen(_st.textFg);
+	p.drawText(rect().marginsRemoved(_st.textMargins), _text, _st.textAlign);
+	if (!_placeholderPath.isEmpty()) {
+		auto placeholderShiftDegree = 1.;
+		p.save();
+		p.setClipRect(r);
 
-	p.drawText(rect().marginsRemoved(_st.textMrg), _text, QTextOption(_st.align));
+		auto placeholderTop = anim::interpolate(0, _st.placeholderShift, placeholderShiftDegree);
+
+		QRect r(rect().marginsRemoved(_st.textMargins + _st.placeholderMargins));
+		r.moveTop(r.top() + placeholderTop);
+		if (rtl()) r.moveLeft(width() - r.left() - r.width());
+
+		auto placeholderScale = 1. - (1. - _st.placeholderScale) * placeholderShiftDegree;
+		auto placeholderFg = anim::color(_st.placeholderFg, _st.placeholderFgActive, 0.);
+		placeholderFg = anim::color(placeholderFg, _st.placeholderFgError, 0.);
+
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(placeholderFg);
+		p.translate(r.topLeft());
+		p.scale(placeholderScale, placeholderScale);
+		p.drawPath(_placeholderPath);
+
+		p.restore();
+	}
 }
 
 void CountryInput::mouseMoveEvent(QMouseEvent *e) {
-	bool newActive = _inner.contains(e->pos()) || _arrowRect.contains(e->pos());
+	bool newActive = rect().contains(e->pos());
 	if (_active != newActive) {
 		_active = newActive;
 		setCursor(_active ? style::cur_pointer : style::cur_default);
@@ -142,9 +160,8 @@ void CountryInput::mouseMoveEvent(QMouseEvent *e) {
 void CountryInput::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_active) {
-		CountrySelectBox *box = new CountrySelectBox();
+		auto box = Ui::show(Box<CountrySelectBox>());
 		connect(box, SIGNAL(countryChosen(const QString&)), this, SLOT(onChooseCountry(const QString&)));
-		Ui::showLayer(box);
 	}
 }
 
@@ -192,23 +209,28 @@ bool CountryInput::onChooseCountry(const QString &iso) {
 }
 
 void CountryInput::setText(const QString &newText) {
-	_text = _st.font->elided(newText, width() - _st.textMrg.left() - _st.textMrg.right());
+	_text = _st.font->elided(newText, width() - _st.textMargins.left() - _st.textMargins.right());
 }
 
-CountrySelectBox::CountrySelectBox() : ItemListBox(st::countriesScroll, st::boxWidth)
-, _inner(this)
-, _select(this, st::contactsMultiSelect, lang(lng_country_ph))
-, _topShadow(this) {
+CountrySelectBox::CountrySelectBox(QWidget*)
+: _select(this, st::contactsMultiSelect, lang(lng_country_ph)) {
+}
+
+void CountrySelectBox::prepare() {
+	setTitle(lang(lng_country_select));
+
 	_select->resizeToWidth(st::boxWidth);
-
-	ItemListBox::init(_inner, st::boxScrollSkip, st::boxTitleHeight + _select->height());
-
 	_select->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->setSubmittedCallback([this](bool) { onSubmit(); });
-	connect(_inner, SIGNAL(mustScrollTo(int, int)), scrollArea(), SLOT(scrollToY(int, int)));
-	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
 
-	prepare();
+	_inner = setInnerWidget(object_ptr<Inner>(this), st::countriesScroll, _select->height());
+
+	addButton(lang(lng_close), [this] { closeBox(); });
+
+	setDimensions(st::boxWidth, st::boxMaxListHeight);
+
+	connect(_inner, SIGNAL(mustScrollTo(int, int)), this, SLOT(onScrollToY(int, int)));
+	connect(_inner, SIGNAL(countryChosen(const QString&)), this, SIGNAL(countryChosen(const QString&)));
 }
 
 void CountrySelectBox::onSubmit() {
@@ -221,50 +243,34 @@ void CountrySelectBox::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Up) {
 		_inner->selectSkip(-1);
 	} else if (e->key() == Qt::Key_PageDown) {
-		_inner->selectSkipPage(scrollArea()->height(), 1);
+		_inner->selectSkipPage(height() - _select->height(), 1);
 	} else if (e->key() == Qt::Key_PageUp) {
-		_inner->selectSkipPage(scrollArea()->height(), -1);
+		_inner->selectSkipPage(height() - _select->height(), -1);
 	} else {
-		ItemListBox::keyPressEvent(e);
+		BoxContent::keyPressEvent(e);
 	}
 }
 
-void CountrySelectBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(lng_country_select));
-}
-
 void CountrySelectBox::resizeEvent(QResizeEvent *e) {
-	ItemListBox::resizeEvent(e);
+	BoxContent::resizeEvent(e);
 
 	_select->resizeToWidth(width());
-	_select->moveToLeft(0, st::boxTitleHeight);
+	_select->moveToLeft(0, 0);
 
 	_inner->resizeToWidth(width());
-	_topShadow.setGeometry(0, st::boxTitleHeight + _select->height(), width(), st::lineWidth);
-}
-
-void CountrySelectBox::showAll() {
-	_select->show();
-	_topShadow.show();
-	ItemListBox::showAll();
 }
 
 void CountrySelectBox::onFilterUpdate(const QString &query) {
-	scrollArea()->scrollToY(0);
+	onScrollToY(0);
 	_inner->updateFilter(query);
 }
 
-void CountrySelectBox::doSetInnerFocus() {
+void CountrySelectBox::setInnerFocus() {
 	_select->setInnerFocus();
 }
 
-CountrySelectBox::Inner::Inner(QWidget *parent) : ScrolledWidget(parent)
-, _rowHeight(st::countryRowHeight)
-, _sel(0)
-, _mouseSel(false) {
+CountrySelectBox::Inner::Inner(QWidget *parent) : TWidget(parent)
+, _rowHeight(st::countryRowHeight) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
 	CountriesByISO2::const_iterator l = _countriesByISO2.constFind(lastValidISO);
@@ -313,41 +319,49 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
 	p.setClipRect(r);
 
+	auto ms = getms();
 	int l = countriesNow->size();
 	if (l) {
 		if (r.intersects(QRect(0, 0, width(), st::countriesSkip))) {
-			p.fillRect(r.intersected(QRect(0, 0, width(), st::countriesSkip)), st::white->b);
+			p.fillRect(r.intersected(QRect(0, 0, width(), st::countriesSkip)), st::countryRowBg);
 		}
 		int32 from = floorclamp(r.y() - st::countriesSkip, _rowHeight, 0, l);
 		int32 to = ceilclamp(r.y() + r.height() - st::countriesSkip, _rowHeight, 0, l);
 		for (int32 i = from; i < to; ++i) {
-			bool sel = (i == _sel);
-			int32 y = st::countriesSkip + i * _rowHeight;
+			auto selected = (i == (_pressed >= 0 ? _pressed : _selected));
+			auto y = st::countriesSkip + i * _rowHeight;
 
-			p.fillRect(0, y, width(), _rowHeight, (sel ? st::countryRowBgOver : st::white)->b);
+			p.fillRect(0, y, width(), _rowHeight, selected ? st::countryRowBgOver : st::countryRowBg);
+			if (_ripples.size() > i && _ripples[i]) {
+				_ripples[i]->paint(p, 0, y, width(), ms);
+				if (_ripples[i]->empty()) {
+					_ripples[i].reset();
+				}
+			}
 
-			QString code = QString("+") + (*countriesNow)[i]->code;
-			int32 codeWidth = st::countryRowCodeFont->width(code);
+			auto code = QString("+") + (*countriesNow)[i]->code;
+			auto codeWidth = st::countryRowCodeFont->width(code);
 
-			QString name = QString::fromUtf8((*countriesNow)[i]->name);
-			int32 nameWidth = st::countryRowNameFont->width(name);
-			int32 availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::contactsScroll.width;
+			auto name = QString::fromUtf8((*countriesNow)[i]->name);
+			auto nameWidth = st::countryRowNameFont->width(name);
+			auto availWidth = width() - st::countryRowPadding.left() - st::countryRowPadding.right() - codeWidth - st::boxLayerScroll.width;
 			if (nameWidth > availWidth) {
 				name = st::countryRowNameFont->elided(name, availWidth);
 				nameWidth = st::countryRowNameFont->width(name);
 			}
 
 			p.setFont(st::countryRowNameFont);
-			p.setPen(st::black);
+			p.setPen(st::countryRowNameFg);
 			p.drawTextLeft(st::countryRowPadding.left(), y + st::countryRowPadding.top(), width(), name);
+
 			p.setFont(st::countryRowCodeFont);
-			p.setPen(sel ? st::countryRowCodeFgOver : st::countryRowCodeFg);
+			p.setPen(selected ? st::countryRowCodeFgOver : st::countryRowCodeFg);
 			p.drawTextLeft(st::countryRowPadding.left() + nameWidth + st::countryRowPadding.right(), y + st::countryRowPadding.top(), width(), code);
 		}
 	} else {
-		p.fillRect(r, st::white->b);
-		p.setFont(st::noContactsFont->f);
-		p.setPen(st::noContactsColor->p);
+		p.fillRect(r, st::boxBg);
+		p.setFont(st::noContactsFont);
+		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), st::noContactsHeight), lang(lng_country_none), style::al_center);
 	}
 }
@@ -357,26 +371,49 @@ void CountrySelectBox::Inner::enterEvent(QEvent *e) {
 }
 
 void CountrySelectBox::Inner::leaveEvent(QEvent *e) {
-	_mouseSel = false;
+	_mouseSelection = false;
 	setMouseTracking(false);
-	if (_sel >= 0) {
+	if (_selected >= 0) {
 		updateSelectedRow();
-		_sel = -1;
+		_selected = -1;
 	}
 }
 
 void CountrySelectBox::Inner::mouseMoveEvent(QMouseEvent *e) {
-	_mouseSel = true;
-	_lastMousePos = e->globalPos();
-	updateSel();
+	_mouseSelection = true;
+	updateSelected(e->pos());
 }
 
 void CountrySelectBox::Inner::mousePressEvent(QMouseEvent *e) {
-	_mouseSel = true;
-	_lastMousePos = e->globalPos();
-	updateSel();
+	_mouseSelection = true;
+	updateSelected(e->pos());
+
+	setPressed(_selected);
+	if (_pressed >= 0 && _pressed < countriesNow->size()) {
+		if (_ripples.size() <= _pressed) {
+			_ripples.reserve(_pressed + 1);
+			while (_ripples.size() <= _pressed) {
+				_ripples.push_back(std_::unique_ptr<Ui::RippleAnimation>());
+			}
+		}
+		if (!_ripples[_pressed]) {
+			auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
+			_ripples[_pressed] = std_::make_unique<Ui::RippleAnimation>(st::countryRipple, std_::move(mask), [this, index = _pressed] {
+				updateRow(index);
+			});
+			_ripples[_pressed]->add(e->pos() - QPoint(0, st::countriesSkip + _pressed * _rowHeight));
+		}
+	}
+}
+
+void CountrySelectBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
+	auto pressed = _pressed;
+	setPressed(-1);
+	updateSelectedRow();
 	if (e->button() == Qt::LeftButton) {
-		chooseCountry();
+		if ((pressed >= 0) && pressed == _selected) {
+			chooseCountry();
+		}
 	}
 }
 
@@ -430,25 +467,25 @@ void CountrySelectBox::Inner::updateFilter(QString filter) {
 			countriesNow = &countriesFiltered;
 		}
 		refresh();
-		_sel = countriesNow->isEmpty() ? -1 : 0;
+		_selected = countriesNow->isEmpty() ? -1 : 0;
 		update();
 	}
 }
 
 void CountrySelectBox::Inner::selectSkip(int32 dir) {
-	_mouseSel = false;
+	_mouseSelection = false;
 
-	int cur = (_sel >= 0) ? _sel : -1;
+	int cur = (_selected >= 0) ? _selected : -1;
 	cur += dir;
 	if (cur <= 0) {
-		_sel = countriesNow->isEmpty() ? -1 : 0;
+		_selected = countriesNow->isEmpty() ? -1 : 0;
 	} else if (cur >= countriesNow->size()) {
-		_sel = -1;
+		_selected = -1;
 	} else {
-		_sel = cur;
+		_selected = cur;
 	}
-	if (_sel >= 0) {
-		emit mustScrollTo(st::countriesSkip + _sel * _rowHeight, st::countriesSkip + (_sel + 1) * _rowHeight);
+	if (_selected >= 0) {
+		emit mustScrollTo(st::countriesSkip + _selected * _rowHeight, st::countriesSkip + (_selected + 1) * _rowHeight);
 	}
 	update();
 }
@@ -462,12 +499,12 @@ void CountrySelectBox::Inner::selectSkipPage(int32 h, int32 dir) {
 void CountrySelectBox::Inner::chooseCountry() {
 	QString result;
 	if (_filter.isEmpty()) {
-		if (_sel >= 0 && _sel < countriesAll.size()) {
-			result = countriesAll[_sel]->iso2;
+		if (_selected >= 0 && _selected < countriesAll.size()) {
+			result = countriesAll[_selected]->iso2;
 		}
 	} else {
-		if (_sel >= 0 && _sel < countriesFiltered.size()) {
-			result = countriesFiltered[_sel]->iso2;
+		if (_selected >= 0 && _selected < countriesFiltered.size()) {
+			result = countriesFiltered[_selected]->iso2;
 		}
 	}
 	emit countryChosen(result);
@@ -477,22 +514,34 @@ void CountrySelectBox::Inner::refresh() {
 	resize(width(), countriesNow->length() ? (countriesNow->length() * _rowHeight + st::countriesSkip) : st::noContactsHeight);
 }
 
-void CountrySelectBox::Inner::updateSel() {
-	if (!_mouseSel) return;
+void CountrySelectBox::Inner::updateSelected(QPoint localPos) {
+	if (!_mouseSelection) return;
 
-	QPoint p(mapFromGlobal(_lastMousePos));
-	bool in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(_lastMousePos));
+	auto in = parentWidget()->rect().contains(parentWidget()->mapFromGlobal(QCursor::pos()));
 
-	int32 newSel = (in && p.y() >= st::countriesSkip && p.y() < st::countriesSkip + countriesNow->size() * _rowHeight) ? ((p.y() - st::countriesSkip) / _rowHeight) : -1;
-	if (newSel != _sel) {
+	auto selected = (in && localPos.y() >= st::countriesSkip && localPos.y() < st::countriesSkip + countriesNow->size() * _rowHeight) ? ((localPos.y() - st::countriesSkip) / _rowHeight) : -1;
+	if (_selected != selected) {
 		updateSelectedRow();
-		_sel = newSel;
+		_selected = selected;
 		updateSelectedRow();
 	}
 }
 
 void CountrySelectBox::Inner::updateSelectedRow() {
-	if (_sel >= 0) {
-		update(0, st::countriesSkip + _sel * _rowHeight, width(), _rowHeight);
+	updateRow(_selected);
+}
+
+void CountrySelectBox::Inner::updateRow(int index) {
+	if (index >= 0) {
+		update(0, st::countriesSkip + index * _rowHeight, width(), _rowHeight);
 	}
 }
+
+void CountrySelectBox::Inner::setPressed(int pressed) {
+	if (_pressed >= 0 && _pressed < _ripples.size() && _ripples[_pressed]) {
+		_ripples[_pressed]->lastStop();
+	}
+	_pressed = pressed;
+}
+
+CountrySelectBox::Inner::~Inner() = default;

@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "data/data_drafts.h"
 
+#include "ui/widgets/input_fields.h"
 #include "historywidget.h"
 #include "mainwidget.h"
 #include "localstorage.h"
@@ -29,6 +30,13 @@ namespace Data {
 namespace {
 
 } // namespace
+
+Draft::Draft(const Ui::FlatTextarea *field, MsgId msgId, bool previewCancelled, mtpRequestId saveRequestId)
+	: textWithTags(field->getTextWithTags())
+	, msgId(msgId)
+	, cursor(field)
+	, previewCancelled(previewCancelled) {
+}
 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	auto history = App::history(peerId);

@@ -34,7 +34,7 @@ extern "C" {
 struct VideoSoundData {
 	AVCodecContext *context = nullptr;
 	int32 frequency = AudioVoiceMsgFrequency;
-	int64 length = 0;
+	TimeMs length = 0;
 	~VideoSoundData();
 };
 
@@ -93,7 +93,7 @@ public:
 		return _format;
 	}
 
-	int64 duration() override {
+	TimeMs duration() override {
 		return _parentData->length;
 	}
 

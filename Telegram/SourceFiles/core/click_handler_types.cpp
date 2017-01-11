@@ -27,7 +27,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
 #include "localstorage.h"
-#include "ui/popupmenu.h"
+#include "ui/widgets/tooltip.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -40,8 +40,9 @@ QString tryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	if (auto telegramMeMatch = regex_match(qsl("https?://telegram\\.me/(.+)$"), url, matchOptions)) {
-		auto query = telegramMeMatch->capturedRef(1);
+	auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?(telegram|t)\\.me/(.+)$"), url, matchOptions);
+	if (telegramMeMatch) {
+		auto query = telegramMeMatch->capturedRef(3);
 		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
@@ -64,7 +65,7 @@ QString tryConvertUrlToLocal(QString url) {
 } // namespace
 
 void UrlClickHandler::doOpen(QString url) {
-	PopupTooltip::Hide();
+	Ui::Tooltip::Hide();
 
 	if (isEmail(url)) {
 		QUrl u(qstr("mailto:") + url);
@@ -103,25 +104,34 @@ TextWithEntities UrlClickHandler::getExpandedLinkTextWithEntities(ExpandLinksMod
 	return result;
 }
 
-void HiddenUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto u = tryConvertUrlToLocal(url());
+void HiddenUrlClickHandler::doOpen(QString url) {
+	auto urlText = tryConvertUrlToLocal(url);
 
-	if (u.startsWith(qstr("tg://"))) {
-		App::openLocalUrl(u);
+	if (urlText.startsWith(qstr("tg://"))) {
+		App::openLocalUrl(urlText);
 	} else {
-		Ui::showLayer(new ConfirmLinkBox(u));
+		auto parsedUrl = QUrl::fromUserInput(urlText);
+		auto displayUrl = parsedUrl.isValid() ? parsedUrl.toDisplayString() : urlText;
+		Ui::show(Box<ConfirmBox>(lang(lng_open_this_link) + qsl("\n\n") + displayUrl, lang(lng_open_link), [urlText] {
+			Ui::hideLayer();
+			UrlClickHandler::doOpen(urlText);
+		}));
 	}
 }
 
 void BotGameUrlClickHandler::onClick(Qt::MouseButton button) const {
-	auto u = tryConvertUrlToLocal(url());
+	auto urlText = tryConvertUrlToLocal(url());
 
-	if (u.startsWith(qstr("tg://"))) {
-		App::openLocalUrl(u);
+	if (urlText.startsWith(qstr("tg://"))) {
+		App::openLocalUrl(urlText);
 	} else if (!_bot || _bot->isVerified() || Local::isBotTrusted(_bot)) {
-		doOpen(u);
+		doOpen(urlText);
 	} else {
-		Ui::showLayer(new ConfirmBotGameBox(_bot, u));
+		Ui::show(Box<ConfirmBox>(lng_allow_bot_pass(lt_bot_name, _bot->name), lang(lng_allow_bot), [bot = _bot, urlText] {
+			Ui::hideLayer();
+			Local::makeBotTrusted(bot);
+			UrlClickHandler::doOpen(urlText);
+		}));
 	}
 }
 

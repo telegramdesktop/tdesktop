@@ -21,6 +21,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/linux/main_window_linux.h"
 
+#include "styles/style_window.h"
 #include "platform/linux/linux_libs.h"
 #include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
@@ -60,7 +61,7 @@ void _trayIconActivate(GtkStatusIcon *status_icon, gpointer popup_menu) {
 
 gboolean _trayIconResized(GtkStatusIcon *status_icon, gint size, gpointer popup_menu) {
 	_trayIconSize = size;
-	if (App::wnd()) App::wnd()->psUpdateCounter();
+	if (Global::started()) Notify::unreadCounterUpdated();
 	return FALSE;
 }
 
@@ -103,7 +104,9 @@ QImage _trayIconImageGen() {
 			} else if (_trayIconSize >= 32) {
 				layerSize = -20;
 			}
-			QImage layer = App::wnd()->iconWithCounter(layerSize, counter, (muted ? st::counterMuteBG : st::counterBG), false);
+			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
+			auto &fg = st::trayCounterFg;
+			auto layer = App::wnd()->iconWithCounter(layerSize, counter, bg, fg, false);
 			p.drawImage(_trayIconImage.width() - layer.width() - 1, _trayIconImage.height() - layer.height() - 1, layer);
 		}
 	}
@@ -163,7 +166,7 @@ static gboolean _trayIconCheck(gpointer/* pIn*/) {
 			cSetSupportTray(true);
 			if (App::wnd()) {
 				App::wnd()->psUpdateWorkmode();
-				App::wnd()->psUpdateCounter();
+				Notify::unreadCounterUpdated();
 				App::wnd()->updateTrayMenu();
 			}
 		}
@@ -188,7 +191,11 @@ MainWindow::MainWindow()
 	_psUpdateIndicatorTimer.setSingleShot(true);
 }
 
-bool MainWindow::psHasTrayIcon() const {
+void MainWindow::initHook() {
+	setWindowIcon(wndIcon);
+}
+
+bool MainWindow::hasTrayIcon() const {
 	return trayIcon || ((useAppIndicator || (useStatusIcon && trayIconChecked)) && (cWorkMode() != dbiwmWindowOnly));
 }
 
@@ -201,9 +208,6 @@ void MainWindow::psStatusIconCheck() {
 }
 
 void MainWindow::psShowTrayMenu() {
-}
-
-void MainWindow::psRefreshTaskbarIcon() {
 }
 
 void MainWindow::psTrayMenuUpdated() {
@@ -235,7 +239,7 @@ void MainWindow::psTrayMenuUpdated() {
 void MainWindow::psSetupTrayIcon() {
 	if (noQtTrayIcon) {
 		if (!cSupportTray()) return;
-		psUpdateCounter();
+		updateIconCounters();
 	} else {
 		LOG(("Using Qt tray icon."));
 		if (!trayIcon) {
@@ -262,7 +266,7 @@ void MainWindow::psSetupTrayIcon() {
 
 			App::wnd()->updateTrayMenu();
 		}
-		psUpdateCounter();
+		updateIconCounters();
 
 		trayIcon->show();
 	}
@@ -311,12 +315,16 @@ void MainWindow::psUpdateIndicator() {
 	}
 }
 
-void MainWindow::psUpdateCounter() {
+void MainWindow::unreadCounterChangedHook() {
+	setWindowTitle(titleText());
+	updateIconCounters();
+}
+
+void MainWindow::updateIconCounters() {
 	setWindowIcon(wndIcon);
 
 	int32 counter = App::histories().unreadBadge();
 
-	setWindowTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
 	if (_psUnityLauncherEntry) {
 		if (counter > 0) {
@@ -355,9 +363,10 @@ void MainWindow::psUpdateCounter() {
 			int32 counter = App::histories().unreadBadge();
 			bool muted = App::histories().unreadOnlyMuted();
 
-			style::color bg = muted ? st::counterMuteBG : st::counterBG;
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, true)));
-			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, true)));
+			auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
+			auto &fg = st::trayCounterFg;
+			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(16, counter, bg, fg, true)));
+			icon.addPixmap(App::pixmapFromImageInPlace(iconWithCounter(32, counter, bg, fg, true)));
 		}
 		trayIcon->setIcon(icon);
 	}
@@ -428,92 +437,6 @@ void MainWindow::LibsLoaded() {
 		DEBUG_LOG(("Unity count api loaded!"));
 	}
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
-}
-
-void MainWindow::psInitSize() {
-	setMinimumWidth(st::wndMinWidth);
-	setMinimumHeight(st::wndMinHeight);
-
-	TWindowPos pos(cWindowPos());
-	QRect avail(QDesktopWidget().availableGeometry());
-	bool maximized = false;
-	QRect geom(avail.x() + (avail.width() - st::wndDefWidth) / 2, avail.y() + (avail.height() - st::wndDefHeight) / 2, st::wndDefWidth, st::wndDefHeight);
-	if (pos.w && pos.h) {
-		QList<QScreen*> screens = Application::screens();
-		for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
-			QByteArray name = (*i)->name().toUtf8();
-			if (pos.moncrc == hashCrc32(name.constData(), name.size())) {
-				QRect screen((*i)->geometry());
-				int32 w = screen.width(), h = screen.height();
-				if (w >= st::wndMinWidth && h >= st::wndMinHeight) {
-					if (pos.w > w) pos.w = w;
-					if (pos.h > h) pos.h = h;
-					pos.x += screen.x();
-					pos.y += screen.y();
-					if (pos.x < screen.x() + screen.width() - 10 && pos.y < screen.y() + screen.height() - 10) {
-						geom = QRect(pos.x, pos.y, pos.w, pos.h);
-					}
-				}
-				break;
-			}
-		}
-
-		if (pos.y < 0) pos.y = 0;
-		maximized = pos.maximized;
-	}
-	setGeometry(geom);
-}
-
-void MainWindow::psInitFrameless() {
-	psUpdatedPositionTimer.setSingleShot(true);
-	connect(&psUpdatedPositionTimer, SIGNAL(timeout()), this, SLOT(psSavePosition()));
-}
-
-void MainWindow::psSavePosition(Qt::WindowState state) {
-	if (state == Qt::WindowActive) state = windowHandle()->windowState();
-	if (state == Qt::WindowMinimized || !posInited) return;
-
-	TWindowPos pos(cWindowPos()), curPos = pos;
-
-	if (state == Qt::WindowMaximized) {
-		curPos.maximized = 1;
-	} else {
-		QRect r(geometry());
-		curPos.x = r.x();
-		curPos.y = r.y();
-		curPos.w = r.width();
-		curPos.h = r.height();
-		curPos.maximized = 0;
-	}
-
-	int px = curPos.x + curPos.w / 2, py = curPos.y + curPos.h / 2, d = 0;
-	QScreen *chosen = 0;
-	QList<QScreen*> screens = Application::screens();
-	for (QList<QScreen*>::const_iterator i = screens.cbegin(), e = screens.cend(); i != e; ++i) {
-		int dx = (*i)->geometry().x() + (*i)->geometry().width() / 2 - px; if (dx < 0) dx = -dx;
-		int dy = (*i)->geometry().y() + (*i)->geometry().height() / 2 - py; if (dy < 0) dy = -dy;
-		if (!chosen || dx + dy < d) {
-			d = dx + dy;
-			chosen = *i;
-		}
-	}
-	if (chosen) {
-		curPos.x -= chosen->geometry().x();
-		curPos.y -= chosen->geometry().y();
-		QByteArray name = chosen->name().toUtf8();
-		curPos.moncrc = hashCrc32(name.constData(), name.size());
-	}
-
-	if (curPos.w >= st::wndMinWidth && curPos.h >= st::wndMinHeight) {
-		if (curPos.x != pos.x || curPos.y != pos.y || curPos.w != pos.w || curPos.h != pos.h || curPos.moncrc != pos.moncrc || curPos.maximized != pos.maximized) {
-			cSetWindowPos(curPos);
-			Local::writeSettings();
-		}
-	}
-}
-
-void MainWindow::psUpdatedPosition() {
-	psUpdatedPositionTimer.start(SaveWindowPositionTimeout);
 }
 
 void MainWindow::psCreateTrayIcon() {
@@ -643,11 +566,7 @@ void MainWindow::psFirstShow() {
 		show();
 	}
 
-	posInited = true;
-}
-
-bool MainWindow::psHandleTitle() {
-	return false;
+	setPositionInited();
 }
 
 void MainWindow::psInitSysMenu() {

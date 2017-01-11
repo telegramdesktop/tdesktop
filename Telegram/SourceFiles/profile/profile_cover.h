@@ -23,11 +23,14 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 #include "ui/filedialog.h"
 
-class FlatLabel;
-class LinkButton;
+namespace style {
+struct RoundButton;
+} // namespace style
 
 namespace Ui {
+class FlatLabel;
 class RoundButton;
+class LinkButton;
 } // namespace Ui
 
 namespace Notify {
@@ -114,11 +117,11 @@ private:
 	ChannelData *_peerChannel;
 	ChannelData *_peerMegagroup;
 
-	ChildWidget<UserpicButton> _userpicButton;
-	ChildWidget<CoverDropArea> _dropArea = { nullptr };
+	object_ptr<UserpicButton> _userpicButton;
+	object_ptr<CoverDropArea> _dropArea = { nullptr };
 
-	ChildWidget<FlatLabel> _name;
-	ChildWidget<LinkButton> _cancelPhotoUpload = { nullptr };
+	object_ptr<Ui::FlatLabel> _name;
+	object_ptr<Ui::LinkButton> _cancelPhotoUpload = { nullptr };
 
 	QPoint _statusPosition;
 	QString _statusText;

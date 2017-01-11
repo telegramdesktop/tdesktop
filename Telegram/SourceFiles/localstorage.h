@@ -22,6 +22,12 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 
+namespace Window {
+namespace Theme {
+struct Cached;
+} // namespace Theme
+} // namespace Window
+
 namespace Local {
 
 void start();
@@ -78,7 +84,6 @@ int32 oldMapVersion();
 
 int32 oldSettingsVersion();
 
-using TextWithTags = FlatTextarea::TextWithTags;
 struct MessageDraft {
 	MessageDraft(MsgId msgId = 0, TextWithTags textWithTags = TextWithTags(), bool previewCancelled = false)
 		: msgId(msgId)
@@ -145,6 +150,10 @@ int32 countSavedGifsHash();
 void writeBackground(int32 id, const QImage &img);
 bool readBackground();
 
+void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache);
+void clearTheme();
+bool hasTheme();
+
 void writeRecentHashtagsAndBots();
 void readRecentHashtagsAndBots();
 
@@ -166,7 +175,6 @@ class Manager : public QObject {
 	Q_OBJECT
 
 public:
-
 	Manager();
 
 	void writeMap(bool fast);
@@ -175,13 +183,11 @@ public:
 	void writingLocations();
 	void finish();
 
-	public slots:
-
+public slots:
 	void mapWriteTimeout();
 	void locationsWriteTimeout();
 
 private:
-
 	QTimer _mapWriteTimer;
 	QTimer _locationsWriteTimer;
 

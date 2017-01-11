@@ -25,62 +25,41 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 namespace Platform {
 
-class MacPrivate : public PsMacWindowPrivate {
-public:
-	void activeSpaceChanged();
-	void darkModeChanged();
-
-};
-
 class MainWindow : public Window::MainWindow {
 	Q_OBJECT
 
 public:
 	MainWindow();
 
-	int32 psResizeRowWidth() const {
-		return 0;//st::wndResizeAreaWidth;
-	}
-
-	void psInitFrameless();
-	void psInitSize();
-
 	void psFirstShow();
 	void psInitSysMenu();
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
-	void psUpdatedPosition();
-
-	bool psHandleTitle();
 
 	void psFlash();
 
 	void psUpdateWorkmode();
 
-	void psRefreshTaskbarIcon();
-
-	bool psPosInited() const {
-		return posInited;
+	void psRefreshTaskbarIcon() {
 	}
 
 	bool psFilterNativeEvent(void *event);
-
-	bool eventFilter(QObject *obj, QEvent *evt) override;
-
-	void psUpdateCounter();
 
 	bool psHasNativeNotifications() {
 		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
 	}
 
-	virtual QImage iconWithCounter(int size, int count, style::color bg, bool smallIcon) = 0;
+	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
-	void closeWithoutDestroy() override;
+	int getCustomTitleHeight() const {
+		return _customTitleHeight;
+	}
 
 	~MainWindow();
 
+	class Private;
+
 public slots:
-	void psSavePosition(Qt::WindowState state = Qt::WindowActive);
 	void psShowTrayMenu();
 
 	void psMacUndo();
@@ -95,16 +74,20 @@ private slots:
 	void onHideAfterFullScreen();
 
 protected:
+	bool eventFilter(QObject *obj, QEvent *evt) override;
+
 	void stateChangedHook(Qt::WindowState state) override;
+	void initHook() override;
+	void titleVisibilityChangedHook() override;
+	void unreadCounterChangedHook() override;
 
 	QImage psTrayIcon(bool selected = false) const;
-	bool psHasTrayIcon() const {
+	bool hasTrayIcon() const override {
 		return trayIcon;
 	}
 
-	void psMacUpdateMenu();
+	void updateGlobalMenuHook() override;
 
-	bool posInited;
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
@@ -118,8 +101,15 @@ protected:
 
 	QTimer psUpdatedPositionTimer;
 
+	void closeWithoutDestroy() override;
+
 private:
-	MacPrivate _private;
+	void createGlobalMenu();
+	void updateTitleCounter();
+	void updateIconCounters();
+
+	friend class Private;
+	std_::unique_ptr<Private> _private;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;
@@ -140,6 +130,8 @@ private:
 	QAction *psNewGroup = nullptr;
 	QAction *psNewChannel = nullptr;
 	QAction *psShowTelegram = nullptr;
+
+	int _customTitleHeight = 0;
 
 };
 

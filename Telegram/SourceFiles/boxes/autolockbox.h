@@ -20,24 +20,26 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
-class AutoLockBox : public AbstractBox {
+namespace Ui {
+class Radiobutton;
+} // namespace Ui
+
+class AutoLockBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	AutoLockBox();
-
-public slots:
-	void onChange();
+	AutoLockBox(QWidget*) {
+	}
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void prepare() override;
 
-	void showAll() override;
+private slots:
+	void onChange();
 
 private:
-	QVector<Radiobutton*> _options;
-	BoxButton _close;
+	QVector<Ui::Radiobutton*> _options;
 
 };

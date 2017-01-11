@@ -37,10 +37,23 @@ Q_DECLARE_METATYPE(Qt::MouseButton);
 Q_DECLARE_METATYPE(Ui::ShowWay);
 
 namespace App {
+namespace internal {
+
+void CallDelayed(int duration, base::lambda<void()> &&lambda) {
+	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std_::move(lambda)), SLOT(action()));
+}
+
+} // namespace internal
 
 void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo) {
 	if (auto m = main()) {
 		m->sendBotCommand(peer, bot, cmd, replyTo);
+	}
+}
+
+void hideSingleUseKeyboard(const HistoryItem *msg) {
+	if (auto m = main()) {
+		m->hideSingleUseKeyboard(msg->history()->peer, msg->id);
 	}
 }
 
@@ -81,17 +94,31 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 
 	case ButtonType::Url: {
 		auto url = QString::fromUtf8(button->data);
-		HiddenUrlClickHandler(url).onClick(Qt::LeftButton);
+		auto skipConfirmation = false;
+		if (auto bot = msg->getMessageBot()) {
+			if (bot->isVerified()) {
+				skipConfirmation = true;
+			}
+		}
+		if (skipConfirmation) {
+			UrlClickHandler::doOpen(url);
+		} else {
+			HiddenUrlClickHandler::doOpen(url);
+		}
 	} break;
 
 	case ButtonType::RequestLocation: {
-		Ui::showLayer(new InformBox(lang(lng_bot_share_location_unavailable)));
+		hideSingleUseKeyboard(msg);
+		Ui::show(Box<InformBox>(lang(lng_bot_share_location_unavailable)));
 	} break;
 
 	case ButtonType::RequestPhone: {
-		SharePhoneConfirmBox *box = new SharePhoneConfirmBox(msg->history()->peer);
-		box->connect(box, SIGNAL(confirmed(PeerData*)), App::main(), SLOT(onSharePhoneWithBot(PeerData*)));
-		Ui::showLayer(box);
+		hideSingleUseKeyboard(msg);
+		Ui::show(Box<ConfirmBox>(lang(lng_bot_share_phone), lang(lng_bot_share_phone_confirm), [peerId = msg->history()->peer->id] {
+			if (auto m = App::main()) {
+				m->onShareContact(peerId, App::self());
+			}
+		}));
 	} break;
 
 	case ButtonType::SwitchInlineSame:
@@ -165,14 +192,23 @@ void activateClickHandler(ClickHandlerPtr handler, Qt::MouseButton button) {
 }
 
 void logOutDelayed() {
-	if (auto w = App::wnd()) {
-		QMetaObject::invokeMethod(w, "onLogoutSure", Qt::QueuedConnection);
-	}
+	App::CallDelayed(1, App::app(), [] {
+		App::logOut();
+	});
 }
 
 } // namespace App
 
 namespace Ui {
+namespace internal {
+
+void showBox(object_ptr<BoxContent> content, ShowLayerOptions options) {
+	if (auto w = App::wnd()) {
+		w->ui_showBox(std_::move(content), options);
+	}
+}
+
+} // namespace internal
 
 void showMediaPreview(DocumentData *document) {
 	if (auto w = App::wnd()) {
@@ -192,20 +228,16 @@ void hideMediaPreview() {
 	}
 }
 
-void showLayer(LayerWidget *box, ShowLayerOptions options) {
+void hideLayer(bool fast) {
 	if (auto w = App::wnd()) {
-		w->ui_showLayer(box, options);
-	} else {
-		delete box;
+		w->ui_showBox({ nullptr }, CloseOtherLayers | (fast ? ForceFastShowLayer : AnimatedShowLayer));
 	}
 }
 
-void hideLayer(bool fast) {
-	if (auto w = App::wnd()) w->ui_showLayer(0, CloseOtherLayers | (fast ? ForceFastShowLayer : AnimatedShowLayer));
-}
-
 void hideSettingsAndLayer(bool fast) {
-	if (auto w = App::wnd()) w->ui_hideSettingsAndLayer(fast ? ForceFastShowLayer : AnimatedShowLayer);
+	if (auto w = App::wnd()) {
+		w->ui_hideSettingsAndLayer(fast ? ForceFastShowLayer : AnimatedShowLayer);
+	}
 }
 
 bool isLayerShown() {
@@ -284,18 +316,7 @@ PeerData *getPeerForMouseAction() {
 bool hideWindowNoQuit() {
 	if (!App::quitting()) {
 		if (auto w = App::wnd()) {
-			if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
-				if (w->minimizeToTray()) {
-					Ui::showChatsList();
-					return true;
-				}
-			} else if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
-				w->closeWithoutDestroy();
-				w->updateIsActive(Global::OfflineBlurTimeout());
-				w->updateGlobalMenu();
-				Ui::showChatsList();
-				return true;
-			}
+			return w->hideNoQuit();
 		}
 	}
 	return false;
@@ -503,13 +524,24 @@ void WorkingDirReady() {
 	}
 }
 
+object_ptr<SingleDelayedCall> MainThreadTaskHandler = { nullptr };
+
+void MainThreadTaskAdded() {
+	if (!started()) {
+		return;
+	}
+
+	MainThreadTaskHandler->call();
+}
+
 void start() {
+	MainThreadTaskHandler.create(QCoreApplication::instance(), "onMainThreadTask");
 	SandboxData = new internal::Data();
 
 	SandboxData->LangSystemISO = psCurrentLanguage();
 	if (SandboxData->LangSystemISO.isEmpty()) SandboxData->LangSystemISO = qstr("en");
-	QByteArray l = LangSystemISO().toLatin1();
-	for (int32 i = 0; i < languageCount; ++i) {
+	auto l = LangSystemISO().toLatin1();
+	for (auto i = 0; i < languageCount; ++i) {
 		if (l.at(0) == LanguageCodes[i][0] && l.at(1) == LanguageCodes[i][1]) {
 			SandboxData->LangSystem = i;
 			break;
@@ -517,9 +549,14 @@ void start() {
 	}
 }
 
+bool started() {
+	return (SandboxData != nullptr);
+}
+
 void finish() {
 	delete SandboxData;
-	SandboxData = 0;
+	SandboxData = nullptr;
+	MainThreadTaskHandler.destroy();
 }
 
 uint64 UserTag() {
@@ -618,6 +655,7 @@ struct Data {
 	int32 SavedGifsLimit = 200;
 	int32 EditTimeLimit = 172800;
 	int32 StickersRecentLimit = 30;
+	int32 PinnedDialogsCountMax = 5;
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
@@ -625,11 +663,12 @@ struct Data {
 
 	Stickers::Sets StickerSets;
 	Stickers::Order StickerSetsOrder;
-	uint64 LastStickersUpdate = 0;
-	uint64 LastRecentStickersUpdate = 0;
+	TimeMs LastStickersUpdate = 0;
+	TimeMs LastRecentStickersUpdate = 0;
 	Stickers::Order FeaturedStickerSetsOrder;
 	int FeaturedStickerSetsUnreadCount = 0;
-	uint64 LastFeaturedStickersUpdate = 0;
+	base::Observable<void> FeaturedStickerSetsUnreadCountChanged;
+	TimeMs LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
 
 	MTP::DcOptions DcOptions;
@@ -666,6 +705,8 @@ struct Data {
 	base::Observable<void> LocalPasscodeChanged;
 
 	base::Observable<HistoryItem*> ItemRemoved;
+	base::Observable<void> UnreadCounterUpdate;
+	base::Observable<void> PeerChooseCancel;
 
 };
 
@@ -733,6 +774,7 @@ DefineVar(Global, int32, PushChatLimit);
 DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
 DefineVar(Global, int32, StickersRecentLimit);
+DefineVar(Global, int32, PinnedDialogsCountMax);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 
@@ -740,11 +782,12 @@ DefineRefVar(Global, PendingItemsMap, PendingRepaintItems);
 
 DefineVar(Global, Stickers::Sets, StickerSets);
 DefineVar(Global, Stickers::Order, StickerSetsOrder);
-DefineVar(Global, uint64, LastStickersUpdate);
-DefineVar(Global, uint64, LastRecentStickersUpdate);
+DefineVar(Global, TimeMs, LastStickersUpdate);
+DefineVar(Global, TimeMs, LastRecentStickersUpdate);
 DefineVar(Global, Stickers::Order, FeaturedStickerSetsOrder);
 DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
-DefineVar(Global, uint64, LastFeaturedStickersUpdate);
+DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
+DefineVar(Global, TimeMs, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
 
 DefineVar(Global, MTP::DcOptions, DcOptions);
@@ -781,5 +824,7 @@ DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
+DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
+DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
 
 } // namespace Global

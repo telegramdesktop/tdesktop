@@ -25,12 +25,13 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/single_timer.h"
 
 namespace MTP {
-
 namespace internal {
 
 Session *getSession(ShiftedDcId shiftedDcId); // 0 - current set dc
 
 bool paused();
+void pause();
+void unpause();
 
 void registerRequest(mtpRequestId requestId, int32 dc);
 void unregisterRequest(mtpRequestId requestId);
@@ -96,27 +97,32 @@ constexpr ShiftedDcId lgtDcId(DcId dcId) {
 }
 
 namespace internal {
-	constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
-		static_assert(MTPDownloadSessionsCount < 0x10, "Too large MTPDownloadSessionsCount!");
-		return shiftDcId(dcId, 0x10 + index);
-	};
-}
+
+constexpr ShiftedDcId downloadDcId(DcId dcId, int index) {
+	static_assert(MTPDownloadSessionsCount < 0x10, "Too large MTPDownloadSessionsCount!");
+	return shiftDcId(dcId, 0x10 + index);
+};
+
+} // namespace internal
 
 // send(req, callbacks, MTP::dldDcId(dc, index)) - for download shifted dc id
 inline ShiftedDcId dldDcId(DcId dcId, int index) {
 	t_assert(index >= 0 && index < MTPDownloadSessionsCount);
 	return internal::downloadDcId(dcId, index);
 }
+
 constexpr bool isDldDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= internal::downloadDcId(0, 0)) && (shiftedDcId < internal::downloadDcId(0, MTPDownloadSessionsCount - 1) + DCShift);
 }
 
 namespace internal {
-	constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {
-		static_assert(MTPUploadSessionsCount < 0x10, "Too large MTPUploadSessionsCount!");
-		return shiftDcId(dcId, 0x20 + index);
-	};
-}
+
+constexpr ShiftedDcId uploadDcId(DcId dcId, int index) {
+	static_assert(MTPUploadSessionsCount < 0x10, "Too large MTPUploadSessionsCount!");
+	return shiftDcId(dcId, 0x20 + index);
+};
+
+} // namespace internal
 
 // send(req, callbacks, MTP::uplDcId(index)) - for upload shifted dc id
 // uploading always to the main dc so bareDcId == 0
@@ -124,6 +130,7 @@ inline ShiftedDcId uplDcId(int index) {
 	t_assert(index >= 0 && index < MTPUploadSessionsCount);
 	return internal::uploadDcId(0, index);
 };
+
 constexpr bool isUplDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= internal::uploadDcId(0, 0)) && (shiftedDcId < internal::uploadDcId(0, MTPUploadSessionsCount - 1) + DCShift);
 }
@@ -133,8 +140,29 @@ bool started();
 void restart();
 void restart(int32 dcMask);
 
-void pause();
-void unpause();
+class PauseHolder {
+public:
+	PauseHolder() {
+		restart();
+	}
+	void restart() {
+		if (!base::take(_paused, true)) {
+			internal::pause();
+		}
+	}
+	void release() {
+		if (base::take(_paused)) {
+			internal::unpause();
+		}
+	}
+	~PauseHolder() {
+		release();
+	}
+
+private:
+	bool _paused = false;
+
+};
 
 void configure(int32 dc, int32 user);
 
@@ -150,18 +178,18 @@ int32 dcstate(int32 dc = 0);
 QString dctransport(int32 dc = 0);
 
 template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
+inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
 	if (internal::Session *session = internal::getSession(dc)) {
 		return session->send(request, callbacks, msCanWait, true, !dc, after);
 	}
 	return 0;
 }
 template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, uint64 msCanWait = 0, mtpRequestId after = 0) {
+inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
 	return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
 }
-inline void sendAnything(int32 dc = 0, uint64 msCanWait = 0) {
-	if (internal::Session *session = internal::getSession(dc)) {
+inline void sendAnything(int32 dc = 0, TimeMs msCanWait = 0) {
+	if (auto session = internal::getSession(dc)) {
 		return session->sendAnything(msCanWait);
 	}
 }
@@ -210,7 +238,7 @@ typedef QMap<int, DcOption> DcOptions;
 namespace internal {
 
 	template <typename TRequest>
-	mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, uint64 msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
+	mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, TimeMs msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
 		mtpRequestId requestId = 0;
 		try {
 			uint32 requestSize = request.innerLength() >> 2;

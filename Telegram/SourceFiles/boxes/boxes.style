@@ -19,27 +19,148 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 using "basic.style";
+
 using "ui/widgets/widgets.style";
+using "intro/intro.style";
 
-boxBlueTitleBg: #6393b5;
-boxBlueTitleAdditionalFg: #dae9f5;
-boxBlueTitleAdditionalSkip: 12px;
-boxBlueTitlePosition: point(23px, 18px);
-boxBlueTitleShadow: icon {{ "box_title_shadow", windowShadowFg }};
-boxBlueCloseFg: #c8e1f0;
-boxBlueCloseOverFg: #ffffff;
-boxBlueCloseIcon: icon {{ "box_button_close", boxBlueTitleBg }};
-boxBlueCloseDuration: 150;
+boxDuration: 200;
+boxRadius: 3px;
 
-confirmInviteTitle: flatLabel(labelDefFlat) {
-	font: font(16px semibold);
+boxButtonFont: font(boxFontSize semibold);
+defaultBoxButton: RoundButton(defaultLightButton) {
+	width: -24px;
+	height: 36px;
+	font: boxButtonFont;
+}
+
+boxTextStyle: TextStyle(defaultTextStyle) {
+	font: font(boxFontSize);
+	linkFont: font(boxFontSize);
+	linkFontOver: font(boxFontSize underline);
+}
+
+boxLabelStyle: TextStyle(boxTextStyle) {
+	lineHeight: 22px;
+}
+
+attentionBoxButton: RoundButton(defaultBoxButton) {
+	textFg: attentionButtonFg;
+	textFgOver: attentionButtonFgOver;
+	textBgOver: attentionButtonBgOver;
+
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: attentionButtonBgRipple;
+	}
+}
+
+defaultBoxCheckbox: Checkbox(defaultCheckbox) {
+	width: -46px;
+	textPosition: point(34px, 1px);
+	style: boxTextStyle;
+}
+
+boxRoundShadow: Shadow {
+	left: icon {{ "round_shadow_box_left", windowShadowFg }};
+	topLeft: icon {{ "round_shadow_box_top_left", windowShadowFg }};
+	top: icon {{ "round_shadow_box_top", windowShadowFg }};
+	topRight: icon {{ "round_shadow_box_top_left-flip_horizontal", windowShadowFg }};
+	right: icon {{ "round_shadow_box_left-flip_horizontal", windowShadowFg }};
+	bottomRight: icon {{ "round_shadow_box_bottom_left-flip_horizontal", windowShadowFg }};
+	bottom: icon {{ "round_shadow_box_bottom", windowShadowFg }};
+	bottomLeft: icon {{ "round_shadow_box_bottom_left", windowShadowFg }};
+	extend: margins(10px, 10px, 10px, 10px);
+	fallback: windowShadowFgFallback;
+}
+
+boxTitleFont: font(17px semibold);
+boxTitlePosition: point(23px, 20px);
+boxTitleHeight: 56px;
+boxLayerTitlePosition: point(23px, 16px);
+boxLayerTitleHeight: 56px;
+boxLayerTitleAdditionalSkip: 9px;
+boxLayerTitleAdditionalFont: normalFont;
+boxLayerTitleShadow: shadowFg;
+boxLayerScroll: defaultSolidScroll;
+
+boxTopMargin: 6px;
+
+boxTitleClose: IconButton(defaultIconButton) {
+	width: boxTitleHeight;
+	height: boxTitleHeight;
+
+	icon: boxTitleCloseIcon;
+	iconOver: boxTitleCloseIconOver;
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+
+boxLinkButton: LinkButton(defaultLinkButton) {
+	font: boxTextFont;
+	overFont: font(boxFontSize underline);
+}
+
+boxOptionListPadding: margins(0px, 0px, 0px, 0px);
+boxOptionListSkip: 20px;
+boxOptionInputSkip: 6px;
+
+boxVerticalMargin: 10px;
+boxWidth: 320px;
+boxWideWidth: 364px;
+boxPadding: margins(23px, 30px, 23px, 8px);
+boxMaxListHeight: 492px;
+boxLittleSkip: 10px;
+boxMediumSkip: 20px;
+
+boxButtonPadding: margins(8px, 12px, 13px, 12px);
+boxLayerButtonPadding: margins(8px, 8px, 8px, 8px);
+boxLabel: FlatLabel(defaultFlatLabel) {
+	width: 285px;
+	align: align(topleft);
+	style: boxLabelStyle;
+}
+
+countryRowHeight: 36px;
+countryRowNameFont: semiboldFont;
+countryRowNameFg: boxTextFg;
+countryRowPadding: margins(22px, 9px, 8px, 0px);
+countryRowCodeFont: font(fsize);
+countryRowBg: windowBg;
+countryRowBgOver: windowBgOver;
+countryRowCodeFg: windowSubTextFg;
+countryRowCodeFgOver: windowSubTextFgOver;
+countriesSkip: 12px;
+countriesScroll: ScrollArea(boxLayerScroll) {
+	deltat: 9px;
+	deltab: 3px;
+}
+
+boxPhotoTitleFont: font(16px semibold);
+boxPhotoTitlePosition: point(28px, 20px);
+boxPhotoPadding: margins(28px, 28px, 28px, 18px);
+boxPhotoCompressedSkip: 20px;
+boxPhotoCaptionSkip: 8px;
+boxPhotoTextFg: windowSubTextFg;
+
+cropPointSize: 10px;
+cropSkip: 13px;
+cropMinSize: 20px;
+
+confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	width: 320px;
 	maxHeight: 24px;
-	textFg: #333333;
+	textFg: windowBoldFg;
+	style: TextStyle(defaultTextStyle) {
+		font: font(16px semibold);
+		linkFont: font(16px semibold);
+		linkFontOver: font(16px semibold underline);
+	}
 }
-confirmInviteStatus: flatLabel(labelDefFlat) {
-	font: font(boxFontSize);
+confirmInviteStatus: FlatLabel(boxLabel) {
 	align: align(center);
 	width: 320px;
 	maxHeight: 20px;
@@ -49,48 +170,78 @@ confirmInviteTitleTop: 106px;
 confirmInvitePhotoSize: 76px;
 confirmInvitePhotoTop: 20px;
 confirmInviteStatusTop: 136px;
-confirmInviteUserHeight: 80px;
+confirmInviteUserHeight: 84px;
 confirmInviteUserPhotoSize: 56px;
 confirmInviteUserPhotoTop: 166px;
-confirmInviteUserName: flatLabel(labelDefFlat) {
-	font: normalFont;
+confirmInviteUserName: FlatLabel(defaultFlatLabel) {
 	align: align(center);
 	width: 66px;
 	maxHeight: 20px;
 }
 confirmInviteUserNameTop: 227px;
 
-confirmPhoneAboutLabel: flatLabel(labelDefFlat) {
+confirmPhoneAboutLabel: FlatLabel(defaultFlatLabel) {
 	width: 282px;
 }
 confirmPhoneCodeField: InputField(defaultInputField) {
 }
 
-revokePublicLinkStatusStyle: textStyle(defaultTextStyle) {
+revokePublicLinkStatusPalette: TextPalette(defaultTextPalette) {
 	linkFg: contactsStatusFgOnline;
-	linkFgDown: contactsStatusFgOnline;
-	linkFlagsOver: font(fsize);
 }
-aboutRevokePublicLabel: flatLabel(labelDefFlat) {
-	font: normalFont;
+aboutRevokePublicLabel: FlatLabel(defaultFlatLabel) {
 	align: align(topleft);
 	width: 320px;
-	textFg: windowTextFg;
 }
 
-contactUserIcon: icon {{ "add_contact_user", #999999 }};
-contactPhoneIcon: icon {{ "add_contact_phone", #999999 }};
-contactIconTop: 10px;
+contactUserIcon: icon {{ "add_contact_user", menuIconFg }};
+contactPhoneIcon: icon {{ "add_contact_phone", menuIconFg }};
+contactIconTop: 28px;
 
-contactsNewItemHeight: 53px;
-contactsNewItemIcon: icon {{ "contacts_add", #749fc2, point(29px, 19px) }};
-contactsNewItemTop: 18px;
-contactsNewItemFg: #4b82af;
+contactsAddIconAbove: icon {{ "contacts_add", activeButtonFg, point(18px, 18px) }};
+contactsAdd: TwoIconButton {
+	width: 52px;
+	height: 52px;
+
+	iconBelow: contactsAddIconBelow;
+	iconBelowOver: contactsAddIconBelowOver;
+	iconAbove: contactsAddIconAbove;
+	iconAboveOver: contactsAddIconAbove;
+
+	rippleAreaPosition: point(5px, 5px);
+	rippleAreaSize: 42px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: activeButtonBgRipple;
+	}
+}
+contactsAddPosition: point(14px, 8px);
+
+contactPadding: margins(49px, 2px, 0px, 12px);
+contactSkip: 6px;
+contactPhoneSkip: 30px;
+
+contactsPhotoSize: 42px;
+contactsPadding: margins(16px, 7px, 16px, 7px);
+contactsNameTop: 2px;
+contactsNameStyle: TextStyle(defaultTextStyle) {
+	font: semiboldFont;
+	linkFont: semiboldFont;
+	linkFontOver: semiboldFont;
+}
+contactsStatusTop: 23px;
+contactsStatusFont: font(fsize);
+contactsCheckPosition: point(8px, 16px);
+contactsAllAdminsTop: 15px;
+contactsAboutBg: windowBgOver;
+contactsAboutFg: windowSubTextFgOver;
+contactsAboutTop: 60px;
+contactsAboutBottom: 19px;
 
 contactsMultiSelect: MultiSelect {
-	padding: margins(8px, 8px, 8px, 8px);
+	bg: boxSearchBg;
+	padding: margins(8px, 6px, 8px, 6px);
 	maxHeight: 104px;
-	scroll: flatScroll(solidScroll) {
+	scroll: ScrollArea(defaultSolidScroll) {
 		deltat: 3px;
 		deltab: 3px;
 		round: 1px;
@@ -103,14 +254,18 @@ contactsMultiSelect: MultiSelect {
 		padding: margins(6px, 7px, 12px, 0px);
 		maxWidth: 128px;
 		height: 32px;
-		font: normalFont;
+		style: defaultTextStyle;
 		textBg: contactsBgOver;
-		textFg: windowTextFg;
-		textActiveBg: windowActiveBg;
-		textActiveFg: white;
-		deleteFg: white;
-		deleteLeft: 10px;
-		deleteStroke: 2px;
+		textFg: windowFg;
+		textActiveBg: activeButtonBg;
+		textActiveFg: activeButtonFg;
+		deleteFg: activeButtonFg;
+		deleteCross: CrossAnimation {
+			size: 32px;
+			skip: 10px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
 		duration: 150;
 		minScale: 0.3;
 	}
@@ -120,51 +275,65 @@ contactsMultiSelect: MultiSelect {
 		textBg: transparent;
 		textMargins: margins(2px, 7px, 2px, 0px);
 
-		placeholderFg: #999;
-		placeholderFgActive: #aaa;
+		placeholderFg: placeholderFg;
+		placeholderFgActive: placeholderFgActive;
+		placeholderFgError: placeholderFgActive;
 		placeholderMargins: margins(2px, 0px, 2px, 0px);
+		placeholderScale: 0.;
+		placeholderFont: normalFont;
 
 		border: 0px;
 		borderActive: 0px;
-		borderError: 0px;
 
-		height: 32px;
+		heightMin: 32px;
 
 		font: normalFont;
 	}
 	fieldMinWidth: 42px;
-	fieldIcon: fieldSearchIcon;
+	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: IconButton {
-		width: 41px;
-		height: 48px;
+	fieldCancel: CrossButton {
+		width: 44px;
+		height: 44px;
 
-		opacity: 0.3;
-		overOpacity: 0.4;
-
-		icon: icon {{ "box_search_cancel", #000000 }};
-		iconPosition: point(8px, 18px);
-		downIconPosition: point(8px, 19px);
+		cross: CrossAnimation {
+			size: 36px;
+			skip: 12px;
+			stroke: 2px;
+			minScale: 0.3;
+		}
+		crossFg: boxTitleCloseFg;
+		crossFgOver: boxTitleCloseFgOver;
+		crossPosition: point(4px, 4px);
 
 		duration: 150;
+		ripple: RippleAnimation(defaultRippleAnimation) {
+			color: windowBgOver;
+		}
 	}
-	fieldCancelSkip: 34px;
+	fieldCancelSkip: 40px;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {
 	imageRadius: 21px;
 	imageSmallRadius: 18px;
 	selectWidth: 2px;
-	selectFg: windowActiveBg;
+	selectFg: windowBgActive;
 	selectDuration: 150;
-	checkBorder: windowBg;
-	checkBg: windowActiveBg;
-	checkRadius: 10px;
-	checkSmallRadius: 3px;
-	checkIcon: icon {{ "default_checkbox_check", windowBg, point(3px, 6px) }};
+	check: RoundCheckbox(defaultRoundCheckbox) {
+		size: 20px;
+		sizeSmall: 0.3;
+		check: icon {{ "default_checkbox_check", windowFgActive, point(3px, 6px) }};
+	}
 }
-contactsPhotoDisabledCheckFg: #bbbbbb;
-contactsNameCheckedFg: #2b88b8;
+contactsPhotoDisabledCheckFg: menuIconFg;
+contactsNameCheckedFg: windowActiveTextFg;
+contactsRipple: defaultRippleAnimation;
+
+contactsMarginTop: 4px;
+contactsMarginBottom: 4px;
+membersMarginTop: 10px;
+membersMarginBottom: 10px;
 
 localStorageBoxSkip: 10px;
 
@@ -175,20 +344,23 @@ sharePhotoCheckbox: RoundImageCheckbox(contactsPhotoCheckbox) {
 	imageRadius: 28px;
 	imageSmallRadius: 24px;
 }
-shareNameFont: font(11px);
-shareNameFg: windowTextFg;
-shareNameActiveFg: btnYesColor;
+shareNameStyle: TextStyle(defaultTextStyle) {
+	font: font(11px);
+	linkFont: font(11px);
+	linkFontOver: font(11px);
+}
+shareNameFg: windowFg;
+shareNameActiveFg: windowActiveTextFg;
 shareNameTop: 6px;
 shareColumnSkip: 6px;
 shareActivateDuration: 150;
 shareScrollDuration: 300;
 
-notificationsBoxHeight: 450px;
+notificationsBoxHeight: 420px;
 notificationsBoxMonitorTop: 63px;
-notificationsBoxMonitor: icon {{ "monitor", #000000 }};
+notificationsBoxMonitor: icon {{ "monitor", notificationsBoxMonitorFg }};
 notificationsBoxScreenTop: 10px;
 notificationsBoxScreenSize: size(280px, 160px);
-notificationsBoxScreenBg: titleBg;
 notificationsBoxCountLabelTop: 80px;
 notificationsBoxCountTop: 30px;
 
@@ -199,7 +371,162 @@ notificationsSampleMargin: 2px;
 
 notificationSampleOpacity: 0.5;
 notificationSampleSize: size(64px, 16px);
-notificationSampleUserpicFg: #40ace3;
-notificationSampleCloseFg: #d7d7d7;
-notificationSampleTextFg: #d7d7d7;
-notificationSampleNameFg: #939393;
+
+membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
+
+sessionsScroll: boxLayerScroll;
+sessionsHeight: 350px;
+sessionHeight: 70px;
+sessionCurrentPadding: margins(0px, 7px, 0px, 4px);
+sessionCurrentHeight: 118px;
+sessionPadding: margins(21px, 10px, 21px, 0px);
+sessionNameFont: msgNameFont;
+sessionNameFg: boxTextFg;
+sessionWhenFont: msgDateFont;
+sessionWhenFg: windowSubTextFg;
+sessionInfoFont: msgFont;
+sessionInfoFg: windowSubTextFg;
+sessionTerminateTop: 28px;
+sessionTerminateSkip: 22px;
+sessionTerminate: IconButton {
+	width: 20px;
+	height: 20px;
+
+	icon: smallCloseIcon;
+	iconOver: smallCloseIconOver;
+	iconPosition: point(5px, 5px);
+
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 20px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+sessionTerminateAllButton: LinkButton(boxLinkButton) {
+	color: attentionButtonFg;
+	overColor: attentionButtonFg;
+}
+
+passcodeHeaderFont: font(19px);
+passcodeHeaderHeight: 80px;
+passcodeInput: InputField(introPhone) {
+	textMargins: margins(1px, 27px, 1px, 6px);
+}
+passcodeSubmit: RoundButton(introNextButton) {
+	width: 225px;
+}
+passcodeSubmitSkip: 40px;
+passcodePadding: margins(0px, 0px, 0px, 5px);
+passcodeTextLine: 28px;
+passcodeLittleSkip: 5px;
+passcodeAboutSkip: 7px;
+passcodeSkip: 20px;
+
+newGroupAboutFg: windowSubTextFg;
+newGroupPadding: margins(4px, 6px, 4px, 3px);
+newGroupSkip: 27px;
+newGroupInfoPadding: margins(0px, -4px, 0px, 1px);
+
+newGroupLinkPadding: margins(4px, 27px, 4px, 21px);
+newGroupLinkTop: 3px;
+newGroupLinkFont: font(16px);
+
+newGroupPhotoSize: 76px;
+newGroupPhotoIcon: icon {{ "new_chat_photo", activeButtonFg }};
+newGroupPhotoIconPosition: point(23px, 25px);
+newGroupPhotoDuration: 150;
+
+newGroupNamePosition: point(27px, 5px);
+
+newGroupDescriptionPadding: margins(0px, 13px, 0px, 4px);
+newGroupDescription: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 135px;
+}
+
+setupChannelLink: InputField(defaultInputField) {
+	textMargins: margins(0px, 6px, 0px, 4px);
+	heightMin: 32px;
+}
+
+newGroupPublicLinkPadding: margins(0px, 20px, 0px, 5px);
+
+themeWarningWidth: boxWideWidth;
+themeWarningHeight: 150px;
+themeWarningTextTop: 60px;
+
+aboutWidth: 390px;
+aboutVersionTop: -3px;
+aboutVersionLink: LinkButton(defaultLinkButton) {
+	color: windowSubTextFg;
+	overColor: windowSubTextFg;
+}
+aboutTextTop: 34px;
+aboutSkip: 14px;
+aboutLabel: FlatLabel(defaultFlatLabel) {
+	width: 330px;
+	align: align(topleft);
+	style: TextStyle(defaultTextStyle) {
+		lineHeight: 22px;
+	}
+}
+
+autoDownloadTopDelta: 10px;
+autoDownloadTitlePosition: point(23px, 18px);
+autoDownloadTitleFont: font(15px semibold);
+
+editTextArea: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 276px;
+}
+
+confirmCaptionArea: InputField(defaultInputField) {
+	textMargins: margins(1px, 26px, 1px, 4px);
+	heightMax: 78px;
+}
+confirmBg: windowBgOver;
+confirmMaxHeight: 245px;
+confirmCompressedSkip: 10px;
+
+connectionHostInputField: InputField(defaultInputField) {
+	width: 160px;
+}
+connectionPortInputField: InputField(defaultInputField) {
+	width: 55px;
+}
+connectionUserInputField: InputField(defaultInputField) {
+	width: 95px;
+}
+connectionPasswordInputField: InputField(defaultInputField) {
+	width: 120px;
+}
+connectionIPv6Skip: 11px;
+
+langsWidth: 256px;
+langsButton: Checkbox(defaultBoxCheckbox) {
+	width: 200px;
+}
+
+backgroundPadding: 10px;
+backgroundSize: size(108px, 193px);
+backgroundScroll: ScrollArea(boxLayerScroll) {
+	deltax: 3px;
+	width: 10px;
+	deltat: 10px;
+	deltab: 10px;
+}
+
+passcodeTextStyle: TextStyle(defaultTextStyle) {
+	lineHeight: 20px;
+}
+
+usernamePadding: margins(23px, 6px, 21px, 12px);
+usernameSkip: 49px;
+usernameTextStyle: TextStyle(passcodeTextStyle) {
+	font: boxTextFont;
+	linkFont: boxTextFont;
+	linkFontOver: font(boxFontSize underline);
+}
+usernameDefaultFg: windowSubTextFg;
+
+downloadPathSkip: 10px;

@@ -24,8 +24,11 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_inner_widget.h"
 #include "settings/settings_fixed_bar.h"
 #include "styles/style_settings.h"
-#include "ui/widgets/shadow.h"
-#include "ui/scrollarea.h"
+#include "styles/style_window.h"
+#include "styles/style_boxes.h"
+#include "ui/effects/widget_fade_wrap.h"
+#include "ui/widgets/scroll_area.h"
+#include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "localstorage.h"
@@ -36,20 +39,20 @@ namespace Settings {
 namespace {
 
 QString SecretText;
-QMap<QString, base::lambda_wrap<void()>> Codes;
+QMap<QString, base::lambda_copy<void()>> Codes;
 
 void fillCodes() {
 	Codes.insert(qsl("debugmode"), []() {
 		QString text = cDebug() ? qsl("Do you want to disable DEBUG logs?") : qsl("Do you want to enable DEBUG logs?\n\nAll network events will be logged.");
-		ConfirmBox *box = new ConfirmBox(text);
-		box->connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchDebugMode()));
-		Ui::showLayer(box);
+		Ui::show(Box<ConfirmBox>(text, [] {
+			App::app()->onSwitchDebugMode();
+		}));
 	});
 	Codes.insert(qsl("testmode"), []() {
-		QString text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
-		ConfirmBox *box = new ConfirmBox(text);
-		box->connect(box, SIGNAL(confirmed()), App::app(), SLOT(onSwitchTestMode()));
-		Ui::showLayer(box);
+		auto text = cTestMode() ? qsl("Do you want to disable TEST mode?") : qsl("Do you want to enable TEST mode?\n\nYou will be switched to test cloud.");
+		Ui::show(Box<ConfirmBox>(text, [] {
+			App::app()->onSwitchTestMode();
+		}));
 	});
 	Codes.insert(qsl("loadlang"), []() {
 		Global::RefChooseCustomLang().notify();
@@ -61,26 +64,24 @@ void fillCodes() {
 		} else {
 			Global::RefDebugLoggingFlags() |= DebugLogging::FileLoaderFlag;
 		}
-		Ui::showLayer(new InformBox(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
+		Ui::show(Box<InformBox>(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
 	});
 	Codes.insert(qsl("crashplease"), []() {
 		t_assert(!"Crashed in Settings!");
 	});
 	Codes.insert(qsl("workmode"), []() {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");
-		auto box = std_::make_unique<ConfirmBox>(text);
-		box->connect(box.get(), SIGNAL(confirmed()), App::app(), SLOT(onSwitchWorkMode()));
-		Ui::showLayer(box.release());
+		Ui::show(Box<ConfirmBox>(text, [] {
+			App::app()->onSwitchWorkMode();
+		}));
 	});
 	Codes.insert(qsl("moderate"), []() {
 		auto text = Global::ModerateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
-		auto box = std_::make_unique<ConfirmBox>(text);
-		box->setConfirmedCallback([]() {
+		Ui::show(Box<ConfirmBox>(text, []() {
 			Global::SetModerateModeEnabled(!Global::ModerateModeEnabled());
 			Local::writeUserSettings();
 			Ui::hideLayer();
-		});
-		Ui::showLayer(box.release());
+		}));
 	});
 	Codes.insert(qsl("getdifference"), []() {
 		if (auto main = App::main()) {
@@ -122,42 +123,57 @@ void codesFeedString(const QString &text) {
 
 } // namespace
 
-Widget::Widget() : LayerWidget()
-, _scroll(this, st::setScroll)
-, _inner(this)
+Widget::Widget(QWidget *parent) : LayerWidget(parent)
+, _scroll(this, st::settingsScroll)
 , _fixedBar(this)
-, _fixedBarShadow1(this, st::settingsFixedBarShadowBg1)
-, _fixedBarShadow2(this, st::settingsFixedBarShadowBg2) {
-	_scroll->setOwnedWidget(_inner);
-	setAttribute(Qt::WA_OpaquePaintEvent);
+, _fixedBarClose(this, st::settingsFixedBarClose)
+, _fixedBarShadow(this, object_ptr<BoxLayerTitleShadow>(this)) {
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this));
 
-	_fixedBar->move(0, 0);
-	_fixedBarShadow1->move(0, _fixedBar->y() + st::settingsFixedBarHeight);
-	_fixedBarShadow2->move(0, _fixedBarShadow1->y() + st::lineWidth);
-	_scroll->move(0, st::settingsFixedBarHeight);
+	_fixedBar->moveToLeft(0, st::boxRadius);
+	_fixedBarClose->moveToRight(0, 0);
+	_fixedBarShadow->entity()->resize(width(), st::lineWidth);
+	_fixedBarShadow->moveToLeft(0, _fixedBar->y() + _fixedBar->height());
+	_fixedBarShadow->hideFast();
+	_scroll->moveToLeft(0, st::settingsFixedBarHeight);
+
+	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
+
+	_fixedBarClose->setClickedCallback([]() {
+		Ui::hideSettingsAndLayer();
+	});
 
 	connect(_inner, SIGNAL(heightUpdated()), this, SLOT(onInnerHeightUpdated()));
 }
 
+void Widget::onScroll() {
+	if (_scroll->scrollTop() > 0) {
+		_fixedBarShadow->showAnimated();
+	} else {
+		_fixedBarShadow->hideAnimated();
+	}
+}
+
 void Widget::parentResized() {
-	int windowWidth = App::wnd()->width();
+	auto parentSize = parentWidget()->size();
+	int windowWidth = parentSize.width();
 	int newWidth = st::settingsMaxWidth;
 	int newContentLeft = st::settingsMaxPadding;
 	if (windowWidth <= st::settingsMaxWidth) {
 		newWidth = windowWidth;
 		newContentLeft = st::settingsMinPadding;
-		if (windowWidth > st::wndMinWidth) {
-			// Width changes from st::wndMinWidth to st::settingsMaxWidth.
+		if (windowWidth > st::windowMinWidth) {
+			// Width changes from st::windowMinWidth to st::settingsMaxWidth.
 			// Padding changes from st::settingsMinPadding to st::settingsMaxPadding.
-			newContentLeft += ((newWidth - st::wndMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::wndMinWidth);
+			newContentLeft += ((newWidth - st::windowMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::windowMinWidth);
 		}
 	} else if (windowWidth < st::settingsMaxWidth + 2 * st::settingsMargin) {
 		newWidth = windowWidth - 2 * st::settingsMargin;
 		newContentLeft = st::settingsMinPadding;
-		if (windowWidth > st::wndMinWidth) {
-			// Width changes from st::wndMinWidth to st::settingsMaxWidth.
+		if (windowWidth > st::windowMinWidth) {
+			// Width changes from st::windowMinWidth to st::settingsMaxWidth.
 			// Padding changes from st::settingsMinPadding to st::settingsMaxPadding.
-			newContentLeft += ((newWidth - st::wndMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::wndMinWidth);
+			newContentLeft += ((newWidth - st::windowMinWidth) * (st::settingsMaxPadding - st::settingsMinPadding)) / (st::settingsMaxWidth - st::windowMinWidth);
 		}
 	}
 
@@ -175,10 +191,11 @@ void Widget::onInnerHeightUpdated() {
 void Widget::resizeUsingInnerHeight(int newWidth, int newContentLeft) {
 	if (!App::wnd()) return;
 
-	int windowWidth = App::wnd()->width();
-	int windowHeight = App::wnd()->height();
+	auto parentSize = parentWidget()->size();
+	int windowWidth = parentSize.width();
+	int windowHeight = parentSize.height();
 	int maxHeight = st::settingsFixedBarHeight + _inner->height();
-	int newHeight = maxHeight;
+	int newHeight = maxHeight + st::boxRadius;
 	if (newHeight > windowHeight || newWidth >= windowWidth) {
 		newHeight = windowHeight;
 	}
@@ -187,17 +204,36 @@ void Widget::resizeUsingInnerHeight(int newWidth, int newContentLeft) {
 		_contentLeft = newContentLeft;
 	}
 
-	setGeometry((App::wnd()->width() - newWidth) / 2, (App::wnd()->height() - newHeight) / 2, newWidth, newHeight);
+	_roundedCorners = (newHeight < windowHeight);
+	setAttribute(Qt::WA_OpaquePaintEvent, !_roundedCorners);
+
+	setGeometry((windowWidth - newWidth) / 2, (windowHeight - newHeight) / 2, newWidth, newHeight);
 	update();
 }
 
-void Widget::showDone() {
+void Widget::showFinished() {
 	_inner->showFinished();
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(rect(), st::windowBg);
+	auto clip = e->rect();
+	if (_roundedCorners) {
+		auto paintTopRounded = clip.intersects(QRect(0, 0, width(), st::boxRadius));
+		auto paintBottomRounded = clip.intersects(QRect(0, height() - st::boxRadius, width(), st::boxRadius));
+		if (paintTopRounded || paintBottomRounded) {
+			auto parts = qFlags(App::RectPart::None);
+			if (paintTopRounded) parts |= App::RectPart::TopFull;
+			if (paintBottomRounded) parts |= App::RectPart::BottomFull;
+			App::roundRect(p, rect(), st::boxBg, BoxCorners, nullptr, parts);
+		}
+		auto other = clip.intersected(QRect(0, st::boxRadius, width(), height() - 2 * st::boxRadius));
+		if (!other.isEmpty()) {
+			p.fillRect(other, st::boxBg);
+		}
+	} else {
+		p.fillRect(e->rect(), st::boxBg);
+	}
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -207,16 +243,18 @@ void Widget::resizeEvent(QResizeEvent *e) {
 	}
 
 	_fixedBar->resizeToWidth(width());
-	_fixedBarShadow1->resize(width(), st::lineWidth);
-	_fixedBarShadow2->resize(width(), st::lineWidth);
+	_fixedBar->moveToLeft(0, st::boxRadius);
+	_fixedBarClose->moveToRight(0, 0);
+	auto shadowTop = _fixedBar->y() + _fixedBar->height();
+	_fixedBarShadow->entity()->resize(width(), st::lineWidth);
+	_fixedBarShadow->moveToLeft(0, shadowTop);
 
-	QSize scrollSize(width(), height() - _fixedBar->height());
+	auto scrollSize = QSize(width(), height() - shadowTop - (_roundedCorners ? st::boxRadius : 0));
 	if (_scroll->size() != scrollSize) {
 		_scroll->resize(scrollSize);
 	}
-
 	if (!_scroll->isHidden()) {
-		int scrollTop = _scroll->scrollTop();
+		auto scrollTop = _scroll->scrollTop();
 		_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	}
 }

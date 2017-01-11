@@ -20,9 +20,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/single_timer.h"
-#include "ui/effects/round_image_checkbox.h"
+#include "ui/effects/round_checkbox.h"
 #include "boxes/members_box.h"
 
 namespace Dialogs {
@@ -31,76 +31,100 @@ class IndexedList;
 } // namespace Dialogs
 
 namespace Ui {
+class RippleAnimation;
+class LinkButton;
+class Checkbox;
 class MultiSelect;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
 
-QString cantInviteError();
+enum class PeerFloodType {
+	Send,
+	InviteGroup,
+	InviteChannel,
+};
+QString PeerFloodErrorText(PeerFloodType type);
 
 inline Ui::RoundImageCheckbox::PaintRoundImage PaintUserpicCallback(PeerData *peer) {
 	return [peer](Painter &p, int x, int y, int outerWidth, int size) {
-		peer->paintUserpicLeft(p, size, x, y, outerWidth);
+		peer->paintUserpicLeft(p, x, y, outerWidth, size);
 	};
 }
 
-class ContactsBox : public ItemListBox, public RPCSender {
+class ContactsBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	ContactsBox();
-	ContactsBox(const QString &name, const QImage &photo); // group creation
-	ContactsBox(ChannelData *channel); // channel setup
-	ContactsBox(ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
-	ContactsBox(ChatData *chat, MembersFilter filter);
-	ContactsBox(UserData *bot);
+	ContactsBox(QWidget*);
+	ContactsBox(QWidget*, const QString &name, const QImage &photo); // group creation
+	ContactsBox(QWidget*, ChannelData *channel); // channel setup
+	ContactsBox(QWidget*, ChannelData *channel, MembersFilter filter, const MembersAlreadyIn &already);
+	ContactsBox(QWidget*, ChatData *chat, MembersFilter filter);
+	ContactsBox(QWidget*, UserData *bot);
+
+	void closeHook() override;
 
 signals:
 	void adminAdded();
 
 private slots:
-	void onScroll();
-
-	void onInvite();
-	void onCreate();
-	void onSaveAdmins();
-
 	void onSubmit();
 
 	bool onSearchByUsername(bool searchCache = false);
 	void onNeedSearchByUsername();
 
 protected:
+	void prepare() override;
+	void setInnerFocus() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
-	void closePressed() override;
-	void showAll() override;
-	void doSetInnerFocus() override;
-
 private:
-	void init();
+	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
+
+	void updateTitle();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
 	void onFilterUpdate(const QString &filter);
 	void onPeerSelectedChanged(PeerData *peer, bool checked);
 	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
 
-	class Inner;
-	ChildWidget<Inner> _inner;
-	ChildWidget<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
+	void saveChatAdmins();
+	void inviteParticipants();
+	void createGroup();
 
-	BoxButton _next, _cancel;
-	MembersFilter _membersFilter;
-
-	ScrollableBoxShadow _topShadow;
-	ScrollableBoxShadow *_bottomShadow = nullptr;
-
+	// global search
 	void peopleReceived(const MTPcontacts_Found &result, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
 
-	QTimer _searchTimer;
+	// saving admins
+	void saveAdminsDone(const MTPUpdates &result);
+	void saveSelectedAdmins();
+	void getAdminsDone(const MTPmessages_ChatFull &result);
+	void setAdminDone(UserData *user, const MTPBool &result);
+	void removeAdminDone(UserData *user, const MTPBool &result);
+	bool saveAdminsFail(const RPCError &error);
+	bool editAdminFail(const RPCError &error);
+
+	// group creation
+	void creationDone(const MTPUpdates &updates);
+	bool creationFail(const RPCError &e);
+
+	ChatData *_chat = nullptr;
+	ChannelData *_channel = nullptr;
+	MembersFilter _membersFilter = MembersFilter::Recent;
+	UserData *_bot = nullptr;
+	CreatingGroupType _creating = CreatingGroupNone;
+	MembersAlreadyIn _alreadyIn;
+
+	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select;
+
+	class Inner;
+	QPointer<Inner> _inner;
+
+	object_ptr<QTimer> _searchTimer;
 	QString _peopleQuery;
 	bool _peopleFull;
 	mtpRequestId _peopleRequest;
@@ -113,26 +137,13 @@ private:
 
 	mtpRequestId _saveRequestId = 0;
 
-	// saving admins
-	void saveAdminsDone(const MTPUpdates &result);
-	void saveSelectedAdmins();
-	void getAdminsDone(const MTPmessages_ChatFull &result);
-	void setAdminDone(UserData *user, const MTPBool &result);
-	void removeAdminDone(UserData *user, const MTPBool &result);
-	bool saveAdminsFail(const RPCError &error);
-	bool editAdminFail(const RPCError &error);
-
-	// group creation
 	QString _creationName;
 	QImage _creationPhoto;
-
-	void creationDone(const MTPUpdates &updates);
-	bool creationFail(const RPCError &e);
 
 };
 
 // This class is hold in header because it requires Qt preprocessing.
-class ContactsBox::Inner : public ScrolledWidget, public RPCSender, private base::Subscriber {
+class ContactsBox::Inner : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -141,7 +152,7 @@ public:
 	Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter);
 	Inner(QWidget *parent, UserData *bot);
 
-	void setPeerSelectedChangedCallback(base::lambda_unique<void(PeerData *peer, bool selected)> callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
 	void peerUnselected(PeerData *peer);
 
 	void updateFilter(QString filter = QString());
@@ -152,14 +163,11 @@ public:
 
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
-	bool allAdmins() const {
-		return _allAdmins.checked();
-	}
-	void setAllAdminsChangedCallback(base::lambda_unique<void()> allAdminsChangedCallback) {
+	bool allAdmins() const;
+	void setAllAdminsChangedCallback(base::lambda<void()> &&allAdminsChangedCallback) {
 		_allAdminsChangedCallback = std_::move(allAdminsChangedCallback);
 	}
 
-	void loadProfilePhotos(int32 yFrom);
 	void chooseParticipant();
 
 	void peopleReceived(const QString &query, const QVector<MTPPeer> &people);
@@ -174,12 +182,14 @@ public:
 
 	bool sharingBotGame() const;
 
-	int32 selectedCount() const;
+	int selectedCount() const;
 	bool hasAlreadyMembersInChannel() const {
 		return !_already.isEmpty();
 	}
 
 	void saving(bool flag);
+
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
 	~Inner();
 
@@ -187,17 +197,12 @@ signals:
 	void mustScrollTo(int ymin, int ymax);
 	void searchByUsername();
 	void adminAdded();
-	void addRequested();
 
 private slots:
 	void onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 
 	void peerUpdated(PeerData *peer);
 	void onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars);
-
-	void onAddBot();
-	void onAddAdmin();
-	void onNoAddAdminBox(QObject *obj);
 
 	void onAllAdminsChanged();
 
@@ -207,22 +212,37 @@ protected:
 	void leaveEvent(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	struct ContactData {
-		ContactData() = default;
-		ContactData(PeerData *peer, base::lambda_wrap<void()> updateCallback);
+		ContactData();
+		ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
+		~ContactData();
 
 		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
+		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		int rippleRowTop = 0;
 		Text name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
 		bool disabledChecked = false;
 	};
+	void addRipple(PeerData *peer, ContactData *data);
+	void stopLastRipple(ContactData *data);
+	void setPressed(Dialogs::Row *pressed);
+	void setFilteredPressed(int pressed);
+	void setSearchedPressed(int pressed);
+	void clearSearchedContactDatas();
+
+	bool isRowDisabled(PeerData *peer, ContactData *data) const;
+	void loadProfilePhotos();
+	void addBot();
 
 	void init();
 	void initList();
+	void invalidateCache();
 
 	void updateRowWithTop(int rowTop);
 	int getSelectedRowTop() const;
@@ -232,7 +252,7 @@ private:
 	void addAdminDone(const MTPUpdates &result, mtpRequestId req);
 	bool addAdminFail(const RPCError &error, mtpRequestId req);
 
-	void paintDialog(Painter &p, uint64 ms, PeerData *peer, ContactData *data, bool sel);
+	void paintDialog(Painter &p, TimeMs ms, PeerData *peer, ContactData *data, bool sel);
 	void paintDisabledCheckUserpic(Painter &p, PeerData *peer, int x, int y, int outerWidth) const;
 
 	void changeCheckState(Dialogs::Row *row);
@@ -250,11 +270,13 @@ private:
 		return (_chat != nullptr) || (_creating != CreatingGroupNone && (!_channel || _membersFilter != MembersFilter::Admins));
 	}
 
-	base::lambda_unique<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
+	base::lambda<void(PeerData *peer, bool selected)> _peerSelectedChangedCallback;
 
-	int32 _rowHeight;
-	int _newItemHeight = 0;
-	bool _newItemSel = false;
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+	int _rowHeight = 0;
+	int _rowsTop = 0;
+	int _aboutHeight = 0;
 
 	ChatData *_chat = nullptr;
 	ChannelData *_channel = nullptr;
@@ -263,26 +285,28 @@ private:
 	CreatingGroupType _creating = CreatingGroupNone;
 	MembersAlreadyIn _already;
 
-	Checkbox _allAdmins;
+	object_ptr<Ui::Checkbox> _allAdmins;
 	int32 _aboutWidth;
 	Text _aboutAllAdmins, _aboutAdmins;
-	base::lambda_unique<void()> _allAdminsChangedCallback;
+	base::lambda<void()> _allAdminsChangedCallback;
 
 	PeerData *_addToPeer = nullptr;
 	UserData *_addAdmin = nullptr;
 	mtpRequestId _addAdminRequestId = 0;
-	ConfirmBox *_addAdminBox = nullptr;
+	QPointer<ConfirmBox> _addAdminBox;
 
 	int32 _time;
 
 	std_::unique_ptr<Dialogs::IndexedList> _customList;
 	Dialogs::IndexedList *_contacts = nullptr;
-	Dialogs::Row *_sel = nullptr;
+	Dialogs::Row *_selected = nullptr;
+	Dialogs::Row *_pressed = nullptr;
 	QString _filter;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;
-	int _filteredSel = -1;
-	bool _mouseSel = false;
+	int _filteredSelected = -1;
+	int _filteredPressed = -1;
+	bool _mouseSelection = false;
 
 	using ContactsData = QMap<PeerData*, ContactData*>;
 	ContactsData _contactsData;
@@ -298,10 +322,11 @@ private:
 	ByUsernameRows _byUsername, _byUsernameFiltered;
 	ByUsernameDatas d_byUsername, d_byUsernameFiltered; // filtered is partly subset of d_byUsername, partly subset of _byUsernameDatas
 	ByUsernameDatas _byUsernameDatas;
-	int _byUsernameSel = -1;
+	int _searchedSelected = -1;
+	int _searchedPressed = -1;
 
 	QPoint _lastMousePos;
-	LinkButton _addContactLnk;
+	object_ptr<Ui::LinkButton> _addContactLnk;
 
 	bool _saving = false;
 	bool _allAdminsChecked = false;

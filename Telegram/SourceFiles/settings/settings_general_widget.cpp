@@ -24,33 +24,20 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "lang.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "ui/flatbutton.h"
-#include "ui/flatcheckbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
 #include "localstorage.h"
 #include "pspecific.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "boxes/languagebox.h"
 #include "boxes/confirmbox.h"
+#include "boxes/aboutbox.h"
 #include "ui/filedialog.h"
 #include "langloaderplain.h"
 #include "autoupdater.h"
 
 namespace Settings {
-namespace {
-
-QString currentVersion() {
-	auto result = QString::fromLatin1(AppVersionStr.c_str());
-	if (cAlphaVersion()) {
-		result += " alpha";
-	}
-	if (cBetaVersion()) {
-		result += qsl(" beta %1").arg(cBetaVersion() % 1000);
-	}
-	return result;
-}
-
-} // namespace
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 UpdateStateRow::UpdateStateRow(QWidget *parent) : TWidget(parent)
@@ -64,6 +51,8 @@ UpdateStateRow::UpdateStateRow(QWidget *parent) : TWidget(parent)
 	Sandbox::connect(SIGNAL(updateProgress(qint64, qint64)), this, SLOT(onDownloading(qint64, qint64)));
 	Sandbox::connect(SIGNAL(updateFailed()), this, SLOT(onFailed()));
 	Sandbox::connect(SIGNAL(updateReady()), this, SLOT(onReady()));
+
+	_versionText = lng_settings_current_version_label(lt_version, currentVersionText());
 
 	switch (Sandbox::updatingState()) {
 	case Application::UpdatingDownload:
@@ -79,7 +68,7 @@ int UpdateStateRow::resizeGetHeight(int newWidth) {
 	auto labelWidth = [](const QString &label) {
 		return st::linkFont->width(label) + st::linkFont->spacew;
 	};
-	auto checkLeft = (_state == State::Latest) ? labelWidth(lang(lng_settings_latest_installed)) : 0;
+	auto checkLeft = (_state == State::Latest) ? labelWidth(lang(lng_settings_latest_installed)) : labelWidth(_versionText);
 	auto restartLeft = labelWidth(lang(lng_settings_update_ready));
 
 	_check->resizeToWidth(qMin(newWidth, _check->naturalWidth()));
@@ -101,11 +90,11 @@ void UpdateStateRow::paintEvent(QPaintEvent *e) {
 		case State::Download: return _downloadText;
 		case State::Ready: return lang(lng_settings_update_ready);
 		case State::Fail: return lang(lng_settings_update_fail);
-		default: return QString();
+		default: return _versionText;
 		}
 	})();
 	p.setFont(st::linkFont);
-	p.setPen(st::settingsUpdateFg);
+	p.setPen((_state == State::None) ? st::windowFg : st::settingsUpdateFg);
 	p.drawTextLeft(0, 0, width(), text);
 }
 
@@ -168,7 +157,7 @@ void UpdateStateRow::onFailed() {
 #endif // !TDESKTOP_DISABLE_AUTOUPDATE
 
 GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_general))
-, _changeLanguage(this, lang(lng_settings_change_lang), st::defaultBoxLinkButton) {
+, _changeLanguage(this, lang(lng_settings_change_lang), st::boxLinkButton) {
 	connect(_changeLanguage, SIGNAL(clicked()), this, SLOT(onChangeLanguage()));
 	subscribe(Global::RefChooseCustomLang(), [this]() { chooseCustomLang(); });
 	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
@@ -178,7 +167,7 @@ GeneralWidget::GeneralWidget(QWidget *parent, UserData *self) : BlockWidget(pare
 }
 
 int GeneralWidget::resizeGetHeight(int newWidth) {
-	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::btnDefLink.font->ascent, newWidth);
+	_changeLanguage->moveToRight(contentLeft(), st::settingsBlockMarginTop + st::settingsBlockTitleTop + st::settingsBlockTitleFont->ascent - st::defaultLinkButton.font->ascent, newWidth);
 	return BlockWidget::resizeGetHeight(newWidth);
 }
 
@@ -189,7 +178,7 @@ void GeneralWidget::refreshControls() {
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
-	addChildRow(_updateAutomatically, marginSub, lng_settings_update_automatically(lt_version, currentVersion()), SLOT(onUpdateAutomatically()), cAutoUpdate());
+	addChildRow(_updateAutomatically, marginSub, lang(lng_settings_update_automatically), SLOT(onUpdateAutomatically()), cAutoUpdate());
 	style::margins marginLink(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_updateRow, marginLink, slidedPadding);
 	connect(_updateRow->entity(), SIGNAL(restart()), this, SLOT(onRestart()));
@@ -204,7 +193,10 @@ void GeneralWidget::refreshControls() {
 			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
 
 			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
-			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), cStartMinimized());
+			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), (cStartMinimized() && !Global::LocalPasscode()));
+			subscribe(Global::RefLocalPasscodeChanged(), [this] {
+				_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
+			});
 			if (!cAutoStart()) {
 				_startMinimized->hideFast();
 			}
@@ -231,17 +223,20 @@ void GeneralWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update
 	}
 
 	_testLanguage = QFileInfo(update.filePaths.front()).absoluteFilePath();
-	LangLoaderPlain loader(_testLanguage, LangLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
+	LangLoaderPlain loader(_testLanguage, langLoaderRequest(lng_sure_save_language, lng_cancel, lng_box_ok));
 	if (loader.errors().isEmpty()) {
 		LangLoaderResult result = loader.found();
-		QString text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
+		auto text = result.value(lng_sure_save_language, langOriginal(lng_sure_save_language)),
 			save = result.value(lng_box_ok, langOriginal(lng_box_ok)),
 			cancel = result.value(lng_cancel, langOriginal(lng_cancel));
-		auto box = new ConfirmBox(text, save, st::defaultBoxButton, cancel);
-		connect(box, SIGNAL(confirmed()), this, SLOT(onSaveTestLanguage()));
-		Ui::showLayer(box);
+		Ui::show(Box<ConfirmBox>(text, save, cancel, base::lambda_guarded(this, [this] {
+			cSetLangFile(_testLanguage);
+			cSetLang(languageTest);
+			Local::writeSettings();
+			onRestart();
+		})));
 	} else {
-		Ui::showLayer(new InformBox("Custom lang failed :(\n\nError: " + loader.errors()));
+		Ui::show(Box<InformBox>("Custom lang failed :(\n\nError: " + loader.errors()));
 	}
 }
 
@@ -249,31 +244,15 @@ void GeneralWidget::onChangeLanguage() {
 	if ((_changeLanguage->clickModifiers() & Qt::ShiftModifier) && (_changeLanguage->clickModifiers() & Qt::AltModifier)) {
 		chooseCustomLang();
 	} else {
-		Ui::showLayer(new LanguageBox());
+		Ui::show(Box<LanguageBox>());
 	}
-}
-
-void GeneralWidget::onSaveTestLanguage() {
-	cSetLangFile(_testLanguage);
-	cSetLang(languageTest);
-	Local::writeSettings();
-	onRestart();
 }
 
 void GeneralWidget::onRestart() {
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	checkReadyUpdate();
-	if (_updateRow->entity()->isUpdateReady()) {
-		cSetRestartingUpdate(true);
-	} else {
-		cSetRestarting(true);
-		cSetRestartingToSettings(true);
-	}
-#else // !TDESKTOP_DISABLE_AUTOUPDATE
-	cSetRestarting(true);
-	cSetRestartingToSettings(true);
-#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
-	App::quit();
+#endif // !TDESKTOP_DISABLE_AUTOUPDATE
+	App::restart();
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -334,8 +313,18 @@ void GeneralWidget::onAutoStart() {
 }
 
 void GeneralWidget::onStartMinimized() {
-	cSetStartMinimized(_startMinimized->entity()->checked());
-	Local::writeSettings();
+	auto checked = _startMinimized->entity()->checked();
+	if (Global::LocalPasscode()) {
+		if (checked) {
+			_startMinimized->entity()->setChecked(false);
+			Ui::show(Box<InformBox>(lang(lng_error_start_minimized_passcoded)));
+		}
+		return;
+	}
+	if (cStartMinimized() != checked) {
+		cSetStartMinimized(checked);
+		Local::writeSettings();
+	}
 }
 
 void GeneralWidget::onAddInSendTo() {

@@ -131,8 +131,7 @@ GtkDialog *QGtkDialog::gtkDialog() const {
 
 void QGtkDialog::exec() {
 	if (auto w = App::wnd()) {
-		w->onReActivate();
-		QTimer::singleShot(200, w, SLOT(onReActivate()));
+		w->reActivateWindow();
 	}
 	if (modality() == Qt::ApplicationModal) {
 		// block input to the whole app, including other GTK dialogs

@@ -19,23 +19,29 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "report_box.h"
+#include "boxes/report_box.h"
 
 #include "lang.h"
+#include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "boxes/confirmbox.h"
+#include "ui/widgets/checkbox.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "mainwindow.h"
 
-ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
-, _channel(channel)
-, _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true)
-, _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence))
-, _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography))
-, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other))
-, _report(this, lang(lng_report_button), st::defaultBoxButton)
-, _cancel(this, lang(lng_cancel), st::cancelBoxButton) {
-	connect(_report, SIGNAL(clicked()), this, SLOT(onReport()));
-	connect(_cancel, SIGNAL(clicked()), this, SLOT(onClose()));
+ReportBox::ReportBox(QWidget*, PeerData *peer) : _peer(peer)
+, _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true, st::defaultBoxCheckbox)
+, _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence), false, st::defaultBoxCheckbox)
+, _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography), false, st::defaultBoxCheckbox)
+, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox) {
+}
+
+void ReportBox::prepare() {
+	setTitle(lang(_peer->isUser() ? lng_report_bot_title : (_peer->isMegagroup() ? lng_report_group_title : lng_report_title)));
+
+	addButton(lang(lng_report_button), [this] { onReport(); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 
 	connect(_reasonSpam, SIGNAL(changed()), this, SLOT(onChange()));
 	connect(_reasonViolence, SIGNAL(changed()), this, SLOT(onChange()));
@@ -43,38 +49,27 @@ ReportBox::ReportBox(ChannelData *channel) : AbstractBox(st::boxWidth)
 	connect(_reasonOther, SIGNAL(changed()), this, SLOT(onChange()));
 
 	updateMaxHeight();
-
-	prepare();
-}
-
-void ReportBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-	if (paint(p)) return;
-
-	paintTitle(p, lang(_channel->isMegagroup() ? lng_report_group_title : lng_report_title));
 }
 
 void ReportBox::resizeEvent(QResizeEvent *e) {
-	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxTitleHeight + st::boxOptionListPadding.top());
-	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->y() + _reasonSpam->height() + st::boxOptionListPadding.top());
-	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->y() + _reasonViolence->height() + st::boxOptionListPadding.top());
-	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->y() + _reasonPornography->height() + st::boxOptionListPadding.top());
+	BoxContent::resizeEvent(e);
+
+	_reasonSpam->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
+	_reasonViolence->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonSpam->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonPornography->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonViolence->bottomNoMargins() + st::boxOptionListSkip);
+	_reasonOther->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _reasonPornography->bottomNoMargins() + st::boxOptionListSkip);
 
 	if (_reasonOtherText) {
-		_reasonOtherText->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() - st::defaultInputField.textMargins.left(), _reasonOther->y() + _reasonOther->height() + st::newGroupDescriptionPadding.top());
+		_reasonOtherText->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left() - st::defaultInputField.textMargins.left(), _reasonOther->bottomNoMargins() + st::newGroupDescriptionPadding.top());
 	}
-
-	_report->moveToRight(st::boxButtonPadding.right(), height() - st::boxButtonPadding.bottom() - _report->height());
-	_cancel->moveToRight(st::boxButtonPadding.right() + _report->width() + st::boxButtonPadding.left(), _report->y());
-	AbstractBox::resizeEvent(e);
 }
 
 void ReportBox::onChange() {
 	if (_reasonOther->checked()) {
 		if (!_reasonOtherText) {
-			_reasonOtherText = new InputArea(this, st::profileReportReasonOther, lang(lng_report_reason_description));
+			_reasonOtherText.create(this, st::profileReportReasonOther, lang(lng_report_reason_description));
 			_reasonOtherText->show();
-			_reasonOtherText->setCtrlEnterSubmit(CtrlEnterSubmitBoth);
+			_reasonOtherText->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 			_reasonOtherText->setMaxLength(MaxPhotoCaption);
 			_reasonOtherText->resize(width() - (st::boxPadding.left() + st::boxOptionListPadding.left() + st::boxPadding.right()), _reasonOtherText->height());
 
@@ -83,16 +78,16 @@ void ReportBox::onChange() {
 			connect(_reasonOtherText, SIGNAL(submitted(bool)), this, SLOT(onReport()));
 			connect(_reasonOtherText, SIGNAL(cancelled()), this, SLOT(onClose()));
 		}
-		_reasonOtherText->setFocus();
+		_reasonOtherText->setFocusFast();
 	} else if (_reasonOtherText) {
 		_reasonOtherText.destroy();
 		updateMaxHeight();
 	}
 }
 
-void ReportBox::doSetInnerFocus() {
+void ReportBox::setInnerFocus() {
 	if (_reasonOtherText) {
-		_reasonOtherText->setFocus();
+		_reasonOtherText->setFocusFast();
 	} else {
 		setFocus();
 	}
@@ -122,12 +117,12 @@ void ReportBox::onReport() {
 			return MTP_inputReportReasonSpam();
 		}
 	};
-	_requestId = MTP::send(MTPaccount_ReportPeer(_channel->input, getReason()), rpcDone(&ReportBox::reportDone), rpcFail(&ReportBox::reportFail));
+	_requestId = MTP::send(MTPaccount_ReportPeer(_peer->input, getReason()), rpcDone(&ReportBox::reportDone), rpcFail(&ReportBox::reportFail));
 }
 
 void ReportBox::reportDone(const MTPBool &result) {
 	_requestId = 0;
-	Ui::showLayer(new InformBox(lang(lng_report_thanks)));
+	Ui::show(Box<InformBox>(lang(lng_report_thanks)));
 }
 
 bool ReportBox::reportFail(const RPCError &error) {
@@ -141,9 +136,9 @@ bool ReportBox::reportFail(const RPCError &error) {
 }
 
 void ReportBox::updateMaxHeight() {
-	int32 h = st::boxTitleHeight + 4 * (st::boxOptionListPadding.top() + _reasonSpam->height()) + st::boxButtonPadding.top() + _report->height() + st::boxButtonPadding.bottom();
+	auto newHeight = st::boxOptionListPadding.top() + 4 * _reasonSpam->heightNoMargins() + 3 * st::boxOptionListSkip + st::boxOptionListPadding.bottom();
 	if (_reasonOtherText) {
-		h += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
+		newHeight += st::newGroupDescriptionPadding.top() + _reasonOtherText->height() + st::newGroupDescriptionPadding.bottom();
 	}
-	setMaxHeight(h);
+	setDimensions(st::boxWidth, newHeight);
 }

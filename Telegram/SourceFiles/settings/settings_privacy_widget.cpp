@@ -22,6 +22,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "settings/settings_privacy_widget.h"
 
 #include "ui/effects/widget_slide_wrap.h"
+#include "ui/widgets/buttons.h"
 #include "styles/style_settings.h"
 #include "lang.h"
 #include "application.h"
@@ -33,8 +34,8 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 namespace Settings {
 
 LocalPasscodeState::LocalPasscodeState(QWidget *parent) : TWidget(parent)
-, _edit(this, lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on), st::defaultBoxLinkButton)
-, _turnOff(this, lang(lng_passcode_turn_off), st::defaultBoxLinkButton) {
+, _edit(this, lang(Global::LocalPasscode() ? lng_passcode_change : lng_passcode_turn_on), st::boxLinkButton)
+, _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	updateControls();
 	connect(_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
 	connect(_turnOff, SIGNAL(clicked()), this, SLOT(onTurnOff()));
@@ -48,11 +49,11 @@ int LocalPasscodeState::resizeGetHeight(int newWidth) {
 }
 
 void LocalPasscodeState::onEdit() {
-	Ui::showLayer(new PasscodeBox());
+	Ui::show(Box<PasscodeBox>(false));
 }
 
 void LocalPasscodeState::onTurnOff() {
-	Ui::showLayer(new PasscodeBox(true));
+	Ui::show(Box<PasscodeBox>(true));
 }
 
 void LocalPasscodeState::updateControls() {
@@ -62,8 +63,8 @@ void LocalPasscodeState::updateControls() {
 }
 
 CloudPasswordState::CloudPasswordState(QWidget *parent) : TWidget(parent)
-, _edit(this, lang(lng_cloud_password_set), st::defaultBoxLinkButton)
-, _turnOff(this, lang(lng_passcode_turn_off), st::defaultBoxLinkButton) {
+, _edit(this, lang(lng_cloud_password_set), st::boxLinkButton)
+, _turnOff(this, lang(lng_passcode_turn_off), st::boxLinkButton) {
 	_turnOff->hide();
 	connect(_edit, SIGNAL(clicked()), this, SLOT(onEdit()));
 	connect(_turnOff, SIGNAL(clicked()), this, SLOT(onTurnOff()));
@@ -78,9 +79,8 @@ int CloudPasswordState::resizeGetHeight(int newWidth) {
 }
 
 void CloudPasswordState::onEdit() {
-	PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint);
+	auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint));
 	connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-	Ui::showLayer(box);
 }
 
 void CloudPasswordState::onTurnOff() {
@@ -91,9 +91,8 @@ void CloudPasswordState::onTurnOff() {
 		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
 		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&CloudPasswordState::offPasswordDone), rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {
-		PasscodeBox *box = new PasscodeBox(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true);
+		auto box = Ui::show(Box<PasscodeBox>(_newPasswordSalt, _curPasswordSalt, _hasPasswordRecovery, _curPasswordHint, true));
 		connect(box, SIGNAL(reloadPassword()), this, SLOT(onReloadPassword()));
-		Ui::showLayer(box);
 	}
 }
 
@@ -143,9 +142,9 @@ void CloudPasswordState::getPasswordDone(const MTPaccount_Password &result) {
 void CloudPasswordState::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	auto text = st::linkFont->elided(_waitingConfirm, width() - _turnOff->width());
+	auto text = st::boxTextFont->elided(_waitingConfirm, width() - _turnOff->width() - st::boxTextFont->spacew);
 	if (!text.isEmpty()) {
-		p.setPen(st::windowTextFg);
+		p.setPen(st::windowFg);
 		p.setFont(st::boxTextFont);
 		p.drawTextLeft(0, 0, width(), text);
 	}
@@ -195,11 +194,11 @@ void PrivacyWidget::autoLockUpdated() {
 }
 
 void PrivacyWidget::onAutoLock() {
-	Ui::showLayer(new AutoLockBox());
+	Ui::show(Box<AutoLockBox>());
 }
 
 void PrivacyWidget::onShowSessions() {
-	Ui::showLayer(new SessionsBox());
+	Ui::show(Box<SessionsBox>());
 }
 
 } // namespace Settings

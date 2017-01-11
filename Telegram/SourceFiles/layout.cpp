@@ -211,27 +211,47 @@ int32 documentColorIndex(DocumentData *document, QString &ext) {
 }
 
 style::color documentColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueColor, st::msgFileGreenColor, st::msgFileRedColor, st::msgFileYellowColor };
+	const style::color colors[] = {
+		st::msgFile1Bg,
+		st::msgFile2Bg,
+		st::msgFile3Bg,
+		st::msgFile4Bg
+	};
 	return colors[colorIndex & 3];
 }
 
 style::color documentDarkColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueDark, st::msgFileGreenDark, st::msgFileRedDark, st::msgFileYellowDark };
+	static style::color colors[] = {
+		st::msgFile1BgDark,
+		st::msgFile2BgDark,
+		st::msgFile3BgDark,
+		st::msgFile4BgDark
+	};
 	return colors[colorIndex & 3];
 }
 
 style::color documentOverColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueOver, st::msgFileGreenOver, st::msgFileRedOver, st::msgFileYellowOver };
+	static style::color colors[] = {
+		st::msgFile1BgOver,
+		st::msgFile2BgOver,
+		st::msgFile3BgOver,
+		st::msgFile4BgOver
+	};
 	return colors[colorIndex & 3];
 }
 
 style::color documentSelectedColor(int32 colorIndex) {
-	static style::color colors[] = { st::msgFileBlueSelected, st::msgFileGreenSelected, st::msgFileRedSelected, st::msgFileYellowSelected };
+	static style::color colors[] = {
+		st::msgFile1BgSelected,
+		st::msgFile2BgSelected,
+		st::msgFile3BgSelected,
+		st::msgFile4BgSelected
+	};
 	return colors[colorIndex & 3];
 }
 
 RoundCorners documentCorners(int32 colorIndex) {
-	return RoundCorners(DocBlueCorners + (colorIndex & 3));
+	return RoundCorners(Doc1Corners + (colorIndex & 3));
 }
 
 bool documentIsValidMediaFile(const QString &filepath) {

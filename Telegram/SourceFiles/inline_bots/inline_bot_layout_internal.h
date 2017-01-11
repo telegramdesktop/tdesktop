@@ -96,8 +96,8 @@ private:
 	void prepareThumb(int32 width, int32 height, const QSize &frame) const;
 
 	void ensureAnimation() const;
-	bool isRadialAnimation(uint64 ms) const;
-	void step_radial(uint64 ms, bool timer);
+	bool isRadialAnimation(TimeMs ms) const;
+	void step_radial(TimeMs ms, bool timer);
 
 	void clipCallback(Media::Clip::Notification notification);
 
@@ -107,11 +107,11 @@ private:
 			, radial(std_::move(callbacks)) {
 		}
 		bool over;
-		FloatAnimation _a_over;
+		Animation _a_over;
 		Ui::RadialAnimation radial;
 	};
 	mutable std_::unique_ptr<AnimationData> _animation;
-	mutable FloatAnimation _a_deleteOver;
+	mutable Animation _a_deleteOver;
 
 };
 
@@ -170,7 +170,7 @@ private:
 
 	QSize getThumbSize() const;
 
-	mutable FloatAnimation _a_over;
+	mutable Animation _a_over;
 	mutable bool _active = false;
 
 	mutable QPixmap _thumb;
@@ -242,34 +242,33 @@ public:
 	~File();
 
 private:
-	void step_thumbOver(float64 ms, bool timer);
-	void step_radial(uint64 ms, bool timer);
+	void thumbAnimationCallback();
+	void step_radial(TimeMs ms, bool timer);
 
 	void ensureAnimation() const;
-	void checkAnimationFinished();
+	void checkAnimationFinished() const;
 	bool updateStatusText() const;
 
-	bool isRadialAnimation(uint64 ms) const {
+	bool isRadialAnimation(TimeMs ms) const {
 		if (!_animation || !_animation->radial.animating()) return false;
 
 		_animation->radial.step(ms);
 		return _animation && _animation->radial.animating();
 	}
-	bool isThumbAnimation(uint64 ms) const {
-		if (!_animation || !_animation->_a_thumbOver.animating()) return false;
-
-		_animation->_a_thumbOver.step(ms);
-		return _animation && _animation->_a_thumbOver.animating();
+	bool isThumbAnimation(TimeMs ms) const {
+		if (_animation) {
+			if (_animation->a_thumbOver.animating(ms)) {
+				return true;
+			}
+			checkAnimationFinished();
+		}
+		return false;
 	}
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&thumbOverCallbacks, AnimationCallbacks &&radialCallbacks) : a_thumbOver(0, 0)
-			, _a_thumbOver(std_::move(thumbOverCallbacks))
-			, radial(std_::move(radialCallbacks)) {
+		AnimationData(AnimationCallbacks &&radialCallbacks) : radial(std_::move(radialCallbacks)) {
 		}
-		anim::fvalue a_thumbOver;
-		Animation _a_thumbOver;
-
+		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
 	mutable std_::unique_ptr<AnimationData> _animation;
@@ -348,8 +347,8 @@ private:
 
 	void prepareThumb(int32 width, int32 height) const;
 
-	bool isRadialAnimation(uint64 ms) const;
-	void step_radial(uint64 ms, bool timer);
+	bool isRadialAnimation(TimeMs ms) const;
+	void step_radial(TimeMs ms, bool timer);
 
 	void clipCallback(Media::Clip::Notification notification);
 

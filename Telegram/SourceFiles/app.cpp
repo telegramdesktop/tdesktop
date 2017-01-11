@@ -27,6 +27,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 
 #include "styles/style_overview.h"
 #include "styles/style_mediaview.h"
+#include "styles/style_stickers.h"
+#include "styles/style_history.h"
+#include "styles/style_boxes.h"
 #include "lang.h"
 #include "data/data_abstract_structure.h"
 #include "history/history_service_layout.h"
@@ -41,7 +44,7 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
-#include "window/chat_background.h"
+#include "window/window_theme.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
 
@@ -126,14 +129,6 @@ namespace {
 	LastPhotosList lastPhotos;
 	using LastPhotosMap = QHash<PhotoData*, LastPhotosList::iterator>;
 	LastPhotosMap lastPhotosMap;
-
-	style::color _msgServiceBg;
-	style::color _msgServiceSelectBg;
-	style::color _historyScrollBarColor;
-	style::color _historyScrollBgColor;
-	style::color _historyScrollBarOverColor;
-	style::color _historyScrollBgOverColor;
-	style::color _introPointHoverColor;
 }
 
 namespace App {
@@ -206,10 +201,11 @@ namespace {
 		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
-			w->setupIntro(true);
+			w->setupIntro();
 		}
 		MTP::setAuthedId(0);
 		Local::reset();
+		Window::Theme::Background()->reset();
 
 		cSetOtherOnline(0);
 		histories().clear();
@@ -220,7 +216,6 @@ namespace {
 		clearStorageImages();
 		if (auto w = wnd()) {
 			w->updateConnectingStatus();
-			w->getTitle()->updateControlsVisibility();
 		}
 		return true;
 	}
@@ -1252,7 +1247,7 @@ namespace {
 		if (auto history = App::historyLoaded(peer)) {
 			history->outboxRead(upTo);
 			if (history->lastMsg && history->lastMsg->out() && history->lastMsg->id <= upTo) {
-				if (App::main()) App::main()->dlgUpdated(history, history->lastMsg->id);
+				if (App::main()) App::main()->dlgUpdated(history->peer, history->lastMsg->id);
 			}
 			history->updateChatListEntry();
 
@@ -1519,6 +1514,7 @@ namespace {
 			return page;
 		} break;
 		case mtpc_webPagePending: return App::feedWebPage(webpage.c_webPagePending());
+		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in feedWebPage().")); break;
 		}
 		return nullptr;
 	}
@@ -2099,7 +2095,10 @@ namespace {
 		Global::SetLastStickersUpdate(0);
 		Global::SetLastRecentStickersUpdate(0);
 		Global::SetFeaturedStickerSetsOrder(Stickers::Order());
-		Global::SetFeaturedStickerSetsUnreadCount(0);
+		if (Global::FeaturedStickerSetsUnreadCount() != 0) {
+			Global::SetFeaturedStickerSetsUnreadCount(0);
+			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
+		}
 		Global::SetLastFeaturedStickersUpdate(0);
 		Global::SetArchivedStickerSetsOrder(Stickers::Order());
 		cSetSavedGifs(SavedGifs());
@@ -2164,21 +2163,22 @@ namespace {
 		text = d.second;
 	}
 
-	void prepareCorners(RoundCorners index, int32 radius, const style::color &color, const style::color *shadow = 0, QImage *cors = 0) {
+	void prepareCorners(RoundCorners index, int32 radius, const QBrush &brush, const style::color *shadow = nullptr, QImage *cors = nullptr) {
 		int32 r = radius * cIntRetinaFactor(), s = st::msgShadow * cIntRetinaFactor();
 		QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied), localCors[4];
 		{
-			QPainter p(&rect);
+			Painter p(&rect);
+			PainterHighQualityEnabler hq(p);
+
 			p.setCompositionMode(QPainter::CompositionMode_Source);
-			p.fillRect(QRect(0, 0, rect.width(), rect.height()), st::transparent->b);
+			p.fillRect(QRect(0, 0, rect.width(), rect.height()), Qt::transparent);
 			p.setCompositionMode(QPainter::CompositionMode_SourceOver);
-			p.setRenderHint(QPainter::HighQualityAntialiasing);
 			p.setPen(Qt::NoPen);
 			if (shadow) {
 				p.setBrush((*shadow)->b);
 				p.drawRoundedRect(0, s, r * 3, r * 3, r, r);
 			}
-			p.setBrush(color->b);
+			p.setBrush(brush);
 			p.drawRoundedRect(0, 0, r * 3, r * 3, r, r);
 		}
 		if (!cors) cors = localCors;
@@ -2204,10 +2204,70 @@ namespace {
 
 	int msgRadius() {
 		static int MsgRadius = ([]() {
+			return st::historyMessageRadius;
 			auto minMsgHeight = (st::msgPadding.top() + st::msgFont->height + st::msgPadding.bottom());
 			return minMsgHeight / 2;
 		})();
 		return MsgRadius;
+	}
+
+	void createCorners() {
+		QImage mask[4];
+		prepareCorners(LargeMaskCorners, msgRadius(), QColor(255, 255, 255), nullptr, mask);
+		for (int i = 0; i < 4; ++i) {
+			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
+			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
+		}
+		prepareCorners(SmallMaskCorners, st::buttonRadius, QColor(255, 255, 255), nullptr, mask);
+		for (int i = 0; i < 4; ++i) {
+			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
+			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
+		}
+		prepareCorners(MenuCorners, st::buttonRadius, st::menuBg);
+		prepareCorners(BoxCorners, st::boxRadius, st::boxBg);
+		prepareCorners(BotKbOverCorners, st::dateRadius, st::msgBotKbOverBgAdd);
+		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
+		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
+		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
+		prepareCorners(SelectedOverlayLargeCorners, msgRadius(), st::msgSelectOverlay);
+		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
+		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
+		prepareCorners(InShadowCorners, msgRadius(), st::msgInShadow);
+		prepareCorners(InSelectedShadowCorners, msgRadius(), st::msgInShadowSelected);
+		prepareCorners(ForwardCorners, msgRadius(), st::historyForwardChooseBg);
+		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::mediaviewSaveMsgBg);
+		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
+		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
+		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);
+		prepareCorners(BotKeyboardOverCorners, st::buttonRadius, st::botKbOverBg);
+		prepareCorners(BotKeyboardDownCorners, st::buttonRadius, st::botKbDownBg);
+		prepareCorners(PhotoSelectOverlayCorners, st::buttonRadius, st::overviewPhotoSelectOverlay);
+
+		prepareCorners(Doc1Corners, st::buttonRadius, st::msgFile1Bg);
+		prepareCorners(Doc2Corners, st::buttonRadius, st::msgFile2Bg);
+		prepareCorners(Doc3Corners, st::buttonRadius, st::msgFile3Bg);
+		prepareCorners(Doc4Corners, st::buttonRadius, st::msgFile4Bg);
+
+		prepareCorners(MessageInCorners, msgRadius(), st::msgInBg, &st::msgInShadow);
+		prepareCorners(MessageInSelectedCorners, msgRadius(), st::msgInBgSelected, &st::msgInShadowSelected);
+		prepareCorners(MessageOutCorners, msgRadius(), st::msgOutBg, &st::msgOutShadow);
+		prepareCorners(MessageOutSelectedCorners, msgRadius(), st::msgOutBgSelected, &st::msgOutShadowSelected);
+	}
+
+	void clearCorners() {
+		for (int j = 0; j < 4; ++j) {
+			for (int i = 0; i < RoundCornersCount; ++i) {
+				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
+			}
+			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
+			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
+		}
+		for (auto i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
+			for (int j = 0; j < 4; ++j) {
+				delete i->p[j];
+			}
+		}
+		::cornersMap.clear();
 	}
 
 	void initMedia() {
@@ -2230,44 +2290,32 @@ namespace {
 			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
-		QImage mask[4];
-		prepareCorners(LargeMaskCorners, msgRadius(), st::white, nullptr, mask);
-		for (int i = 0; i < 4; ++i) {
-			::cornersMaskLarge[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
-			::cornersMaskLarge[i]->setDevicePixelRatio(cRetinaFactor());
-		}
-		prepareCorners(SmallMaskCorners, st::buttonRadius, st::white, nullptr, mask);
-		for (int i = 0; i < 4; ++i) {
-			::cornersMaskSmall[i] = new QImage(mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied));
-			::cornersMaskSmall[i]->setDevicePixelRatio(cRetinaFactor());
-		}
-		prepareCorners(WhiteCorners, st::dateRadius, st::white);
-		prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
-		prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceSelectBg);
-		prepareCorners(SelectedOverlaySmallCorners, st::buttonRadius, st::msgSelectOverlay);
-		prepareCorners(SelectedOverlayLargeCorners, msgRadius(), st::msgSelectOverlay);
-		prepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
-		prepareCorners(DateSelectedCorners, st::dateRadius, st::msgDateImgBgSelected);
-		prepareCorners(InShadowCorners, msgRadius(), st::msgInShadow);
-		prepareCorners(InSelectedShadowCorners, msgRadius(), st::msgInShadowSelected);
-		prepareCorners(ForwardCorners, msgRadius(), st::forwardBg);
-		prepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::medviewSaveMsg);
-		prepareCorners(EmojiHoverCorners, st::buttonRadius, st::emojiPanHover);
-		prepareCorners(StickerHoverCorners, st::buttonRadius, st::emojiPanHover);
-		prepareCorners(BotKeyboardCorners, st::buttonRadius, st::botKbBg);
-		prepareCorners(BotKeyboardOverCorners, st::buttonRadius, st::botKbOverBg);
-		prepareCorners(BotKeyboardDownCorners, st::buttonRadius, st::botKbDownBg);
-		prepareCorners(PhotoSelectOverlayCorners, st::buttonRadius, st::overviewPhotoSelectOverlay);
+		createCorners();
 
-		prepareCorners(DocBlueCorners, st::buttonRadius, st::msgFileBlueColor);
-		prepareCorners(DocGreenCorners, st::buttonRadius, st::msgFileGreenColor);
-		prepareCorners(DocRedCorners, st::buttonRadius, st::msgFileRedColor);
-		prepareCorners(DocYellowCorners, st::buttonRadius, st::msgFileYellowColor);
+		using Update = Window::Theme::BackgroundUpdate;
+		static auto subscription = Window::Theme::Background()->add_subscription([](const Update &update) {
+			if (update.paletteChanged()) {
+				clearCorners();
+				createCorners();
 
-		prepareCorners(MessageInCorners, msgRadius(), st::msgInBg, &st::msgInShadow);
-		prepareCorners(MessageInSelectedCorners, msgRadius(), st::msgInBgSelected, &st::msgInShadowSelected);
-		prepareCorners(MessageOutCorners, msgRadius(), st::msgOutBg, &st::msgOutShadow);
-		prepareCorners(MessageOutSelectedCorners, msgRadius(), st::msgOutBgSelected, &st::msgOutShadowSelected);
+				if (App::main()) {
+					App::main()->updateScrollColors();
+				}
+				HistoryLayout::serviceColorsUpdated();
+			} else if (update.type == Update::Type::New) {
+				for (int i = 0; i < 4; ++i) {
+					delete ::corners[StickerCorners].p[i]; ::corners[StickerCorners].p[i] = nullptr;
+					delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
+				}
+				prepareCorners(StickerCorners, st::dateRadius, st::msgServiceBg);
+				prepareCorners(StickerSelectedCorners, st::dateRadius, st::msgServiceBgSelected);
+
+				if (App::main()) {
+					App::main()->updateScrollColors();
+				}
+				HistoryLayout::serviceColorsUpdated();
+			}
+		});
 	}
 
 	void clearHistories() {
@@ -2284,22 +2332,12 @@ namespace {
 
 	void deinitMedia() {
 		delete ::emoji;
-		::emoji = 0;
+		::emoji = nullptr;
 		delete ::emojiLarge;
-		::emojiLarge = 0;
-		for (int j = 0; j < 4; ++j) {
-			for (int i = 0; i < RoundCornersCount; ++i) {
-				delete ::corners[i].p[j]; ::corners[i].p[j] = nullptr;
-			}
-			delete ::cornersMaskSmall[j]; ::cornersMaskSmall[j] = nullptr;
-			delete ::cornersMaskLarge[j]; ::cornersMaskLarge[j] = nullptr;
-		}
-		for (auto i = ::cornersMap.cbegin(), e = ::cornersMap.cend(); i != e; ++i) {
-			for (int j = 0; j < 4; ++j) {
-				delete i->p[j];
-			}
-		}
-		::cornersMap.clear();
+		::emojiLarge = nullptr;
+
+		clearCorners();
+
 		mainEmojiMap.clear();
 		otherEmojiMap.clear();
 
@@ -2369,10 +2407,6 @@ namespace {
 		return ::monofont;
 	}
 
-	const QPixmap &sprite() {
-		return style::spritePixmap();
-	}
-
 	const QPixmap &emoji() {
 		return *::emoji;
 	}
@@ -2382,7 +2416,7 @@ namespace {
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojiMap *map = &(fontHeight == st::taDefFlat.font->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
+		EmojiMap *map = &(fontHeight == st::msgFont->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
 		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
 		if (i == map->cend()) {
 			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
@@ -2459,6 +2493,21 @@ namespace {
 		_launchState = state;
 	}
 
+	void restart() {
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
+		bool updateReady = (Sandbox::updatingState() == Application::UpdatingReady);
+#else // !TDESKTOP_DISABLE_AUTOUPDATE
+		bool updateReady = false;
+#endif // else for !TDESKTOP_DISABLE_AUTOUPDATE
+		if (updateReady) {
+			cSetRestartingUpdate(true);
+		} else {
+			cSetRestarting(true);
+			cSetRestartingToSettings(true);
+		}
+		App::quit();
+	}
+
 	QImage readImage(QByteArray data, QByteArray *format, bool opaque, bool *animated) {
         QByteArray tmpFormat;
 		QImage result;
@@ -2481,55 +2530,52 @@ namespace {
 			if (!fmt.isEmpty()) *format = fmt;
 		}
 		buffer.seek(0);
-        QString fmt = QString::fromUtf8(*format).toLower();
+		auto fmt = QString::fromUtf8(*format).toLower();
 		if (fmt == "jpg" || fmt == "jpeg") {
 #ifdef OS_MAC_OLD
-			ExifData *exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size());
-			if (exifData) {
-				ExifByteOrder byteOrder = exif_data_get_byte_order(exifData);
-				ExifEntry *exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION);
-				if (exifEntry) {
-					QTransform orientationFix;
-					int orientation = exif_get_short(exifEntry->data, byteOrder);
-					switch (orientation) {
-					case 2: orientationFix = QTransform(-1, 0, 0, 1, 0, 0); break;
-					case 3: orientationFix = QTransform(-1, 0, 0, -1, 0, 0); break;
-					case 4: orientationFix = QTransform(1, 0, 0, -1, 0, 0); break;
-					case 5: orientationFix = QTransform(0, -1, -1, 0, 0, 0); break;
-					case 6: orientationFix = QTransform(0, 1, -1, 0, 0, 0); break;
-					case 7: orientationFix = QTransform(0, 1, 1, 0, 0, 0); break;
-					case 8: orientationFix = QTransform(0, -1, 1, 0, 0, 0); break;
-					}
-					result = result.transformed(orientationFix);
+			if (auto exifData = exif_data_new_from_data((const uchar*)(data.constData()), data.size())) {
+				auto byteOrder = exif_data_get_byte_order(exifData);
+				if (auto exifEntry = exif_data_get_entry(exifData, EXIF_TAG_ORIENTATION)) {
+					auto orientationFix = [exifEntry, byteOrder] {
+						auto orientation = exif_get_short(exifEntry->data, byteOrder);
+						switch (orientation) {
+						case 2: return QTransform(-1, 0, 0, 1, 0, 0);
+						case 3: return QTransform(-1, 0, 0, -1, 0, 0);
+						case 4: return QTransform(1, 0, 0, -1, 0, 0);
+						case 5: return QTransform(0, -1, -1, 0, 0, 0);
+						case 6: return QTransform(0, 1, -1, 0, 0, 0);
+						case 7: return QTransform(0, 1, 1, 0, 0, 0);
+						case 8: return QTransform(0, -1, 1, 0, 0, 0);
+						}
+						return QTransform();
+					};
+					result = result.transformed(orientationFix());
 				}
 				exif_data_free(exifData);
 			}
 #endif // OS_MAC_OLD
-		} else if (opaque && result.hasAlphaChannel()) {
-			QImage solid(result.width(), result.height(), QImage::Format_ARGB32_Premultiplied);
-			solid.fill(st::white->c);
-			{
-				QPainter(&solid).drawImage(0, 0, result);
-			}
-			result = solid;
+		} else if (opaque) {
+			result = Images::prepareOpaque(std_::move(result));
 		}
 		return result;
 	}
 
 	QImage readImage(const QString &file, QByteArray *format, bool opaque, bool *animated, QByteArray *content) {
 		QFile f(file);
-		if (!f.open(QIODevice::ReadOnly)) {
+		if (f.size() > kImageSizeLimit || !f.open(QIODevice::ReadOnly)) {
 			if (animated) *animated = false;
 			return QImage();
 		}
-		QByteArray img = f.readAll();
-		QImage result = readImage(img, format, opaque, animated);
-		if (content && !result.isNull()) *content = img;
+		auto imageBytes = f.readAll();
+		auto result = readImage(imageBytes, format, opaque, animated);
+		if (content && !result.isNull()) {
+			*content = imageBytes;
+		}
 		return result;
 	}
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
-		return QPixmap::fromImage(std_::forward<QImage>(image), Qt::ColorOnly);
+		return QPixmap::fromImage(std_::move(image), Qt::ColorOnly);
 	}
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item) {
@@ -2701,6 +2747,37 @@ namespace {
 #endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 
+	void complexAdjustRect(ImageRoundCorners corners, QRect &rect, RectParts &parts) {
+		if (corners & ImageRoundCorner::TopLeft) {
+			if (!(corners & ImageRoundCorner::BottomLeft)) {
+				parts = RectPart::NoTopBottom | RectPart::TopFull;
+				rect.setHeight(rect.height() + msgRadius());
+			}
+		} else if (corners & ImageRoundCorner::BottomLeft) {
+			parts = RectPart::NoTopBottom | RectPart::BottomFull;
+			rect.setTop(rect.y() - msgRadius());
+		} else {
+			parts = RectPart::NoTopBottom;
+			rect.setTop(rect.y() - msgRadius());
+			rect.setHeight(rect.height() + msgRadius());
+		}
+	}
+
+	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
+		auto overlayCorners = (radius == ImageRoundRadius::Small) ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
+		auto overlayParts = RectPart::Full | RectPart::None;
+		if (radius == ImageRoundRadius::Large) {
+			complexAdjustRect(corners, rect, overlayParts);
+		}
+		roundRect(p, rect, p.textPalette().selectOverlay, overlayCorners, nullptr, overlayParts);
+	}
+
+	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
+		auto parts = RectPart::Full | RectPart::None;
+		complexAdjustRect(corners, rect, parts);
+		roundRect(p, rect, st::msgInBg, MessageInCorners, nullptr, parts);
+	}
+
 	QImage **cornersMask(ImageRoundRadius radius) {
 		switch (radius) {
 		case ImageRoundRadius::Large: return ::cornersMaskLarge;
@@ -2709,40 +2786,75 @@ namespace {
 		}
 		return ::cornersMaskSmall;
 	}
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, const CornersPixmaps &c, const style::color *sh) {
-		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
-		if (w < 2 * cw || h < 2 * ch) return;
-		if (w > 2 * cw) {
-			p.fillRect(QRect(x + cw, y, w - 2 * cw, ch), bg->b);
-			p.fillRect(QRect(x + cw, y + h - ch, w - 2 * cw, ch), bg->b);
-			if (sh) p.fillRect(QRect(x + cw, y + h, w - 2 * cw, st::msgShadow), (*sh)->b);
+
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
+		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
+		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
+		if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
+		if (w > 2 * cornerWidth) {
+			if (parts & RectPart::Top) {
+				p.fillRect(x + cornerWidth, y, w - 2 * cornerWidth, cornerHeight, bg);
+			}
+			if (parts & RectPart::Bottom) {
+				p.fillRect(x + cornerWidth, y + h - cornerHeight, w - 2 * cornerWidth, cornerHeight, bg);
+				if (shadow) {
+					p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, *shadow);
+				}
+			}
 		}
-		if (h > 2 * ch) {
-			p.fillRect(QRect(x, y + ch, w, h - 2 * ch), bg->b);
+		if (h > 2 * cornerHeight) {
+			if ((parts & RectPart::NoTopBottom) == qFlags(RectPart::NoTopBottom)) {
+				p.fillRect(x, y + cornerHeight, w, h - 2 * cornerHeight, bg);
+			} else {
+				if (parts & RectPart::Left) {
+					p.fillRect(x, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
+				}
+				if ((parts & RectPart::Center) && w > 2 * cornerWidth) {
+					p.fillRect(x + cornerWidth, y + cornerHeight, w - 2 * cornerWidth, h - 2 * cornerHeight, bg);
+				}
+				if (parts & RectPart::Right) {
+					p.fillRect(x + w - cornerWidth, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
+				}
+			}
 		}
-		p.drawPixmap(QPoint(x, y), *c.p[0]);
-		p.drawPixmap(QPoint(x + w - cw, y), *c.p[1]);
-		p.drawPixmap(QPoint(x, y + h - ch), *c.p[2]);
-		p.drawPixmap(QPoint(x + w - cw, y + h - ch), *c.p[3]);
+		if (parts & RectPart::TopLeft) {
+			p.drawPixmap(x, y, *corner.p[0]);
+		}
+		if (parts & RectPart::TopRight) {
+			p.drawPixmap(x + w - cornerWidth, y, *corner.p[1]);
+		}
+		if (parts & RectPart::BottomLeft) {
+			p.drawPixmap(x, y + h - cornerHeight, *corner.p[2]);
+		}
+		if (parts & RectPart::BottomRight) {
+			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight, *corner.p[3]);
+		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, RoundCorners index, const style::color *sh) {
-		roundRect(p, x, y, w, h, bg, ::corners[index], sh);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, RoundCorners index, const style::color *shadow, RectParts parts) {
+		roundRect(p, x, y, w, h, bg, ::corners[index], shadow, parts);
 	}
 
-	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &sh, RoundCorners index) {
-		const CornersPixmaps &c = ::corners[index];
-		int32 cw = c.p[0]->width() / cIntRetinaFactor(), ch = c.p[0]->height() / cIntRetinaFactor();
-		p.fillRect(x + cw, y + h, w - 2 * cw, st::msgShadow, sh->b);
-		p.fillRect(x, y + h - ch, cw, st::msgShadow, sh->b);
-		p.fillRect(x + w - cw, y + h - ch, cw, st::msgShadow, sh->b);
-		p.drawPixmap(x, y + h - ch + st::msgShadow, *c.p[2]);
-		p.drawPixmap(x + w - cw, y + h - ch + st::msgShadow, *c.p[3]);
+	void roundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, RoundCorners index, RectParts parts) {
+		auto &corner = ::corners[index];
+		auto cornerWidth = corner.p[0]->width() / cIntRetinaFactor();
+		auto cornerHeight = corner.p[0]->height() / cIntRetinaFactor();
+		if (parts & RectPart::Bottom) {
+			p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, shadow);
+		}
+		if (parts & RectPart::BottomLeft) {
+			p.fillRect(x, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
+			p.drawPixmap(x, y + h - cornerHeight + st::msgShadow, *corner.p[2]);
+		}
+		if (parts & RectPart::BottomRight) {
+			p.fillRect(x + w - cornerWidth, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
+			p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight + st::msgShadow, *corner.p[3]);
+		}
 	}
 
-	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, const style::color &bg, ImageRoundRadius radius) {
-		uint32 colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
-		CornersMap::const_iterator i = cornersMap.find(colorKey);
+	void roundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts) {
+		auto colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24) | ((uint32(bg->c.red()) & 0xFF) << 16) | ((uint32(bg->c.green()) & 0xFF) << 8) | ((uint32(bg->c.blue()) & 0xFF) << 24);
+		auto i = cornersMap.find(colorKey);
 		if (i == cornersMap.cend()) {
 			QImage images[4];
 			switch (radius) {
@@ -2758,172 +2870,7 @@ namespace {
 			}
 			i = cornersMap.insert(colorKey, pixmaps);
 		}
-		roundRect(p, x, y, w, h, bg, i.value(), 0);
-	}
-
-	void initBackground(int32 id, const QImage &p, bool nowrite) {
-		if (Local::readBackground()) return;
-
-		uint64 components[3] = { 0 }, componentsScroll[3] = { 0 }, componentsPoint[3] = { 0 };
-		int size = 0;
-
-		QImage img(p);
-		bool remove = false;
-		if (p.isNull()) {
-			if (id == DefaultChatBackground) {
-				img.load(st::msgBG);
-			} else {
-				img.load(st::msgBG0);
-				if (cRetina()) {
-					img = img.scaledToWidth(img.width() * 2, Qt::SmoothTransformation);
-				} else if (cScale() != dbisOne) {
-					img = img.scaledToWidth(convertScale(img.width()), Qt::SmoothTransformation);
-				}
-				id = 0;
-			}
-			remove = true;
-		}
-		if (img.format() != QImage::Format_ARGB32 && img.format() != QImage::Format_ARGB32_Premultiplied && img.format() != QImage::Format_RGB32) {
-			img = img.convertToFormat(QImage::Format_RGB32);
-		}
-		img.setDevicePixelRatio(cRetinaFactor());
-
-		if (!nowrite) {
-			Local::writeBackground(id, remove ? QImage() : img);
-		}
-
-		int w = img.width(), h = img.height();
-		size = w * h;
-		const uchar *pix = img.constBits();
-		if (pix) {
-			for (int32 i = 0, l = size * 4; i < l; i += 4) {
-				components[2] += pix[i + 0];
-				components[1] += pix[i + 1];
-				components[0] += pix[i + 2];
-			}
-		}
-
-		if (size) {
-			for (int32 i = 0; i < 3; ++i) components[i] /= size;
-		}
-		int maxtomin[3] = { 0, 1, 2 };
-		if (components[maxtomin[0]] < components[maxtomin[1]]) {
-			qSwap(maxtomin[0], maxtomin[1]);
-		}
-		if (components[maxtomin[1]] < components[maxtomin[2]]) {
-			qSwap(maxtomin[1], maxtomin[2]);
-			if (components[maxtomin[0]] < components[maxtomin[1]]) {
-				qSwap(maxtomin[0], maxtomin[1]);
-			}
-		}
-
-		uint64 max = qMax(1ULL, components[maxtomin[0]]), mid = qMax(1ULL, components[maxtomin[1]]), min = qMax(1ULL, components[maxtomin[2]]);
-
-		Window::chatBackground()->init(id, pixmapFromImageInPlace(std_::move(img)));
-
-		memcpy(componentsScroll, components, sizeof(components));
-		memcpy(componentsPoint, components, sizeof(components));
-
-		if (max != min) {
-			if (min > uint64(qRound(0.77 * max))) {
-				uint64 newmin = qRound(0.77 * max); // min saturation 23%
-				uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
-				components[maxtomin[1]] = newmid;
-				components[maxtomin[2]] = newmin;
-			}
-			uint64 newmin = qRound(0.77 * max); // saturation 23% for scroll
-			uint64 newmid = max - ((max - mid) * (max - newmin)) / (max - min);
-			componentsScroll[maxtomin[1]] = newmid;
-			componentsScroll[maxtomin[2]] = newmin;
-
-			uint64 pmax = 227; // 89% brightness
-			uint64 pmin = qRound(0.75 * pmax); // 41% saturation
-			uint64 pmid = pmax - ((max - mid) * (pmax - pmin)) / (max - min);
-			componentsPoint[maxtomin[0]] = pmax;
-			componentsPoint[maxtomin[1]] = pmid;
-			componentsPoint[maxtomin[2]] = pmin;
-		} else {
-			componentsPoint[0] = componentsPoint[1] = componentsPoint[2] = 227; // 89% brightness
-		}
-
-		float64 luminance = 0.299 * componentsScroll[0] + 0.587 * componentsScroll[1] + 0.114 * componentsScroll[2];
-		uint64 maxScroll = max;
-		if (luminance < 0.5 * 0xFF) {
-			maxScroll += qRound(0.2 * 0xFF);
-		} else {
-			maxScroll -= qRound(0.2 * 0xFF);
-		}
-		componentsScroll[maxtomin[2]] = qMin(uint64(float64(componentsScroll[maxtomin[2]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
-		componentsScroll[maxtomin[1]] = qMin(uint64(float64(componentsScroll[maxtomin[1]]) * maxScroll / float64(componentsScroll[maxtomin[0]])), 0xFFULL);
-		componentsScroll[maxtomin[0]] = qMin(maxScroll, 0xFFULL);
-
-        if (max > uint64(qRound(0.2 * 0xFF))) { // brightness greater than 20%
-			max -= qRound(0.2 * 0xFF);
-		} else {
-			max = 0;
-		}
-		components[maxtomin[2]] = uint64(float64(components[maxtomin[2]]) * max / float64(components[maxtomin[0]]));
-		components[maxtomin[1]] = uint64(float64(components[maxtomin[1]]) * max / float64(components[maxtomin[0]]));
-		components[maxtomin[0]] = max;
-
-		uchar r = uchar(components[0]), g = uchar(components[1]), b = uchar(components[2]);
-		float64 alpha = st::msgServiceBg->c.alphaF();
-		_msgServiceBg = style::color(r, g, b, qRound(alpha * 0xFF));
-
-		float64 alphaSel = st::msgServiceSelectBg->c.alphaF(), addSel = (1. - ((1. - alphaSel) / (1. - alpha))) * 0xFF;
-		uchar rsel = snap(qRound(((1. - alphaSel) * r + addSel) / alphaSel), 0, 0xFF);
-		uchar gsel = snap(qRound(((1. - alphaSel) * g + addSel) / alphaSel), 0, 0xFF);
-		uchar bsel = snap(qRound(((1. - alphaSel) * b + addSel) / alphaSel), 0, 0xFF);
-		_msgServiceSelectBg = style::color(r, g, b, qRound(alphaSel * 0xFF));
-
-		for (int i = 0; i < 4; ++i) {
-			delete ::corners[StickerCorners].p[i]; ::corners[StickerCorners].p[i] = nullptr;
-			delete ::corners[StickerSelectedCorners].p[i]; ::corners[StickerSelectedCorners].p[i] = nullptr;
-		}
-		prepareCorners(StickerCorners, st::dateRadius, _msgServiceBg);
-		prepareCorners(StickerSelectedCorners, st::dateRadius, _msgServiceSelectBg);
-
-		uchar rScroll = uchar(componentsScroll[0]), gScroll = uchar(componentsScroll[1]), bScroll = uchar(componentsScroll[2]);
-		_historyScrollBarColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barColor->c.alphaF() * 0xFF));
-		_historyScrollBgColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgColor->c.alphaF() * 0xFF));
-		_historyScrollBarOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.barOverColor->c.alphaF() * 0xFF));
-		_historyScrollBgOverColor = style::color(rScroll, gScroll, bScroll, qRound(st::historyScroll.bgOverColor->c.alphaF() * 0xFF));
-
-		uchar rPoint = uchar(componentsPoint[0]), gPoint = uchar(componentsPoint[1]), bPoint = uchar(componentsPoint[2]);
-		_introPointHoverColor = style::color(rPoint, gPoint, bPoint);
-
-		if (App::main()) {
-			App::main()->updateScrollColors();
-		}
-		HistoryLayout::serviceColorsUpdated();
-	}
-
-	const style::color &msgServiceBg() {
-		return _msgServiceBg;
-	}
-
-	const style::color &msgServiceSelectBg() {
-		return _msgServiceSelectBg;
-	}
-
-	const style::color &historyScrollBarColor() {
-		return _historyScrollBarColor;
-	}
-
-	const style::color &historyScrollBgColor() {
-		return _historyScrollBgColor;
-	}
-
-	const style::color &historyScrollBarOverColor() {
-		return _historyScrollBarOverColor;
-	}
-
-	const style::color &historyScrollBgOverColor() {
-		return _historyScrollBgOverColor;
-	}
-
-	const style::color &introPointHoverColor() {
-		return _introPointHoverColor;
+		roundRect(p, x, y, w, h, bg, i.value(), nullptr, parts);
 	}
 
 	WallPapers gServerBackgrounds;

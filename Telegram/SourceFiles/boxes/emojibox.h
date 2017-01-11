@@ -20,15 +20,15 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 
-class EmojiBox : public AbstractBox {
-	Q_OBJECT
-
+class EmojiBox : public BoxContent {
 public:
-	EmojiBox();
+	EmojiBox(QWidget*);
 
 protected:
+	void prepare() override;
+
 	void keyPressEvent(QKeyEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 

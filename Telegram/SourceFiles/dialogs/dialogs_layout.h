@@ -27,15 +27,17 @@ class FakeRow;
 
 namespace Layout {
 
-const style::icon *ChatTypeIcon(PeerData *peer, bool active);
+const style::icon *ChatTypeIcon(PeerData *peer, bool active, bool selected);
 
 class RowPainter {
 public:
-	static void paint(Painter &p, const Row *row, int w, bool active, bool selected, bool onlyBackground);
-	static void paint(Painter &p, const FakeRow *row, int w, bool active, bool selected, bool onlyBackground);
+	static void paint(Painter &p, const Row *row, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms);
+	static void paint(Painter &p, const FakeRow *row, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms);
+	static QRect sendActionAnimationRect(int animationWidth, int animationHeight, int fullWidth, bool textUpdated);
+
 };
 
-void paintImportantSwitch(Painter &p, Mode current, int w, bool selected, bool onlyBackground);
+void paintImportantSwitch(Painter &p, Mode current, int fullWidth, bool selected, bool onlyBackground);
 
 enum UnreadBadgeSize {
 	UnreadBadgeInDialogs = 0,
@@ -50,12 +52,17 @@ struct UnreadBadgeStyle {
 
 	style::align align;
 	bool active;
+	bool selected;
 	bool muted;
+	int textTop = 0;
 	int size;
+	int padding;
 	UnreadBadgeSize sizeId;
 	style::font font;
 };
 void paintUnreadCount(Painter &p, const QString &text, int x, int y, const UnreadBadgeStyle &st, int *outUnreadWidth = nullptr);
+
+void clearUnreadBadgesCache();
 
 } // namespace Layout
 } // namespace Dialogs

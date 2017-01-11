@@ -21,7 +21,10 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/effects/rect_shadow.h"
+
+namespace Ui {
+class ScrollArea;
+} // namespace Ui
 
 namespace internal {
 
@@ -39,14 +42,10 @@ class FieldAutocomplete final : public TWidget {
 public:
 	FieldAutocomplete(QWidget *parent);
 
-	void fastHide();
-
 	bool clearFilteredBotCommands();
 	void showFiltered(PeerData *peer, QString query, bool addInlineBots);
 	void showStickers(EmojiPtr emoji);
 	void setBoundings(QRect boundings);
-
-	void step_appearance(float64 ms, bool timer);
 
 	const QString &filter() const;
 	ChatData *chat() const;
@@ -75,6 +74,8 @@ public:
 		return rect().contains(QRect(mapFromGlobal(globalRect.topLeft()), globalRect.size()));
 	}
 
+	void hideFast();
+
 	~FieldAutocomplete();
 
 signals:
@@ -86,15 +87,16 @@ signals:
 	void moderateKeyActivate(int key, bool *outHandled) const;
 
 public slots:
-	void hideStart();
-	void hideFinish();
-
-	void showStart();
+	void showAnimated();
+	void hideAnimated();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void animationCallback();
+	void hideFinish();
+
 	void updateFiltered(bool resetScroll = false);
 	void recount(bool resetScroll = false);
 
@@ -106,8 +108,8 @@ private:
 
 	void rowsUpdated(const internal::MentionRows &mrows, const internal::HashtagRows &hrows, const internal::BotCommandRows &brows, const StickerPack &srows, bool resetScroll);
 
-	ChildWidget<ScrollArea> _scroll;
-	ChildWidget<internal::FieldAutocompleteInner> _inner;
+	object_ptr<Ui::ScrollArea> _scroll;
+	QPointer<internal::FieldAutocompleteInner> _inner;
 
 	ChatData *_chat = nullptr;
 	UserData *_user = nullptr;
@@ -127,10 +129,7 @@ private:
 	int32 _width, _height;
 	bool _hiding = false;
 
-	anim::fvalue a_opacity;
-	Animation _a_appearance;
-
-	QTimer _hideTimer;
+	Animation _a_opacity;
 
 	friend class internal::FieldAutocompleteInner;
 

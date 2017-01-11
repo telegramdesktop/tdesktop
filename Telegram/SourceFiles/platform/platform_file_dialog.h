@@ -23,38 +23,27 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/filedialog.h"
 
 #ifdef Q_OS_MAC
-namespace Platform {
-namespace FileDialog {
-inline bool Supported() {
-	return false;
-}
-inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
-	return false;
-}
-} // namespace FileDialog
-} // namespace Platform
+#include "platform/mac/file_dialog_mac.h"
 #elif defined Q_OS_LINUX // Q_OS_MAC
 #include "platform/linux/file_dialog_linux.h"
-#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
+#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+
 namespace Platform {
 namespace FileDialog {
+
 inline bool Supported() {
 	return false;
 }
+
 inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
 	return false;
 }
+
+inline QString UrlToLocal(const QUrl &url) {
+	return url.toLocalFile();
+}
+
 } // namespace FileDialog
 } // namespace Platform
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
-namespace Platform {
-namespace FileDialog {
-inline bool Supported() {
-	return false;
-}
-inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
-	return false;
-}
-} // namespace FileDialog
-} // namespace Platform
+
 #endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN

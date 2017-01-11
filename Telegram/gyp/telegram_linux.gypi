@@ -31,6 +31,7 @@
       'linux_path_openal%': '/usr/local',
       'linux_path_libexif_lib%': '<(libs_loc)/libexif-0.6.20/libexif/.libs',
       'linux_path_va%': '/usr/local',
+      'linux_path_vdpau%': '/usr/local',
       'linux_path_breakpad%': '<(libs_loc)/breakpad',
     },
     'include_dirs': [
@@ -45,6 +46,7 @@
       '<(linux_path_openal)/lib',
       '<(linux_path_libexif_lib)',
       '<(linux_path_va)/lib',
+      '<(linux_path_vdpau)/lib',
       '<(linux_path_breakpad)/lib',
     ],
     'libraries': [
@@ -63,6 +65,7 @@
       'libva-x11.a',
       'libva-drm.a',
       'libva.a',
+      'libvdpau.a',
       'libdrm.a',
       'libz.a',
 #      '<!(pkg-config 2> /dev/null --libs <@(pkgconfig_libs))',

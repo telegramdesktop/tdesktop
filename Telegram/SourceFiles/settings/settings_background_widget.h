@@ -24,16 +24,9 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "ui/effects/radial_animation.h"
 #include "ui/filedialog.h"
 
-class LinkButton;
-class Checkbox;
-namespace Ui {
-template <typename Widget>
-class WidgetSlideWrap;
-} // namespace Ui;
-
 namespace Settings {
 
-class BackgroundRow : public TWidget {
+class BackgroundRow : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -49,18 +42,22 @@ protected:
 signals:
 	void chooseFromGallery();
 	void chooseFromFile();
+	void useDefault();
 
 private:
+	void checkNonDefaultTheme();
+
 	float64 radialProgress() const;
 	bool radialLoading() const;
 	QRect radialRect() const;
 	void radialStart();
-	uint64 radialTimeShift() const;
-	void step_radial(uint64 ms, bool timer);
+	TimeMs radialTimeShift() const;
+	void step_radial(TimeMs ms, bool timer);
 
 	QPixmap _background;
-	ChildWidget<LinkButton> _chooseFromGallery;
-	ChildWidget<LinkButton> _chooseFromFile;
+	object_ptr<Ui::LinkButton> _useDefaultTheme = { nullptr };
+	object_ptr<Ui::LinkButton> _chooseFromGallery;
+	object_ptr<Ui::LinkButton> _chooseFromFile;
 
 	Ui::RadialAnimation _radial;
 
@@ -75,6 +72,7 @@ public:
 private slots:
 	void onChooseFromGallery();
 	void onChooseFromFile();
+	void onUseDefaultTheme();
 	void onTile();
 	void onAdaptive();
 
@@ -83,9 +81,9 @@ private:
 	void needBackgroundUpdate(bool tile);
 	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
-	ChildWidget<BackgroundRow> _background = { nullptr };
-	ChildWidget<Checkbox> _tile = { nullptr };
-	ChildWidget<Ui::WidgetSlideWrap<Checkbox>> _adaptive = { nullptr };
+	object_ptr<BackgroundRow> _background = { nullptr };
+	object_ptr<Ui::Checkbox> _tile = { nullptr };
+	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _adaptive = { nullptr };
 
 	FileDialog::QueryId _chooseFromFileQueryId = 0;
 

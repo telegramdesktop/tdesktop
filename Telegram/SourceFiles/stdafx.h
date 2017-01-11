@@ -59,20 +59,17 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 #include "core/basic_types.h"
 #include "logs.h"
 #include "core/utils.h"
+#include "core/lambda.h"
 #include "config.h"
 
 #include "mtproto/facade.h"
 
 #include "ui/style/style_core.h"
-#include "styles/style_basic_types.h"
+#include "styles/palette.h"
 #include "styles/style_basic.h"
 
-#include "ui/twidget.h"
 #include "ui/animation.h"
-#include "ui/flatinput.h"
-#include "ui/flattextarea.h"
-#include "ui/flatbutton.h"
-#include "ui/scrollarea.h"
+#include "ui/twidget.h"
 #include "ui/images.h"
 #include "ui/text/text.h"
 

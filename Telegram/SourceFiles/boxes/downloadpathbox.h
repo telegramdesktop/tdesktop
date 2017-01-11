@@ -20,34 +20,40 @@ Copyright (c) 2014-2016 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "abstractbox.h"
+#include "boxes/abstractbox.h"
 #include "core/observer.h"
 
-class DownloadPathBox : public AbstractBox {
+namespace Ui {
+class Radiobutton;
+class LinkButton;
+} // namespace Ui
+
+class DownloadPathBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	DownloadPathBox();
-
-public slots:
-	void onChange();
-	void onEditPath();
-	void onSave();
+	DownloadPathBox(QWidget *parent);
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
+	void prepare() override;
+
 	void resizeEvent(QResizeEvent *e) override;
 
-	void showAll() override;
+private slots:
+	void onChange();
+	void onEditPath();
 
 private:
+	void save();
+	void updateControlsVisibility();
 	void setPathText(const QString &text);
 
 	QString _path;
 	QByteArray _pathBookmark;
 
-	Radiobutton _default, _temp, _dir;
-	LinkButton _pathLink;
-	BoxButton _save, _cancel;
+	object_ptr<Ui::Radiobutton> _default;
+	object_ptr<Ui::Radiobutton> _temp;
+	object_ptr<Ui::Radiobutton> _dir;
+	object_ptr<Ui::LinkButton> _pathLink;
 
 };
