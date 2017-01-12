@@ -201,7 +201,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signin_reset_in_minutes" = "{count_minutes:0 분|# 분|# 분}";
 "lng_signin_reset_cancelled" = "현재 사용중인 사용자가 요청하신 계정 초기화를 취소 하였습니다.\n7일 이후에 다시 시도해주세요.";
 
-"lng_signup_title" = "정ㅂ";
+"lng_signup_title" = "정보";
 "lng_signup_desc" = "이름을 입력해주시고,\n사진을 업로드해주세요.";
 
 "lng_signup_firstname" = "이름";
@@ -272,7 +272,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_check_now" = "업데이트 확인";
 "lng_settings_update_checking" = "업데이트 확인 중...";
 "lng_settings_latest_installed" = "최신 버전이 설치되어 있습니다.";
-"lng_settings_downloading" = "데이트를 다운로드 중 {ready} / {total} MB..";
+"lng_settings_downloading" = "업데이트 다운로드 중 {ready} / {total} MB..";
 "lng_settings_update_ready" = "새로운 버전을 설치 할 수 있습니다.";
 "lng_settings_update_now" = "재시작 합니다.";
 "lng_settings_update_fail" = "업데이트 확인 실패 :(";
