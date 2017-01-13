@@ -351,6 +351,7 @@ overviewPhotoSelectOverlay: #40ace333;
 profileStatusFgOver: #7c99b2;
 profileVerifiedCheckBg: windowBgActive;
 profileVerifiedCheckFg: windowFgActive;
+profileAdminStartFg: windowBgActive;
 notificationsBoxMonitorFg: windowFg;
 notificationsBoxScreenBg: dialogsBgActive;
 notificationSampleUserpicFg: windowBgActive;

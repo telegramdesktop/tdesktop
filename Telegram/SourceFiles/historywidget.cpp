@@ -6532,7 +6532,7 @@ bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, Compress
 	return validateSendingFiles(lists, [this, &lists, compressed, addedComment](const QStringList &files) {
 		auto image = QImage();
 		auto insertTextOnCancel = QString();
-		auto prepareBox = [this, &files, &lists, compressed, &image] {
+		auto box = ([this, &files, &lists, compressed, &image] {
 			if (files.size() > 1) {
 				return Box<SendFilesBox>(files, lists.allFilesForCompress ? compressed : CompressConfirm::None);
 			}
@@ -6540,12 +6540,12 @@ bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, Compress
 			auto animated = false;
 			image = App::readImage(filepath, nullptr, false, &animated);
 			return Box<SendFilesBox>(filepath, image, imageCompressConfirm(image, compressed, animated), animated);
-		};
+		})();
 		auto sendCallback = [this, image](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
 			auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
 			uploadFilesAfterConfirmation(files, image, QByteArray(), type, caption);
 		};
-		return showSendFilesBox(prepareBox(), insertTextOnCancel, addedComment, std_::move(sendCallback));
+		return showSendFilesBox(std_::move(box), insertTextOnCancel, addedComment, std_::move(sendCallback));
 	});
 }
 
@@ -6686,7 +6686,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const
 		if (filepath.isEmpty() && (!image.isNull() || !content.isNull())) {
 			tasks.push_back(MakeShared<FileLoadTask>(content, image, type, to, caption));
 		} else {
-			tasks.push_back(MakeShared<FileLoadTask>(filepath, type, to, caption));
+			tasks.push_back(MakeShared<FileLoadTask>(filepath, image, type, to, caption));
 		}
 	}
 	_fileLoader.addTasks(tasks);
@@ -6699,7 +6699,7 @@ void HistoryWidget::uploadFile(const QByteArray &fileContent, SendMediaType type
 
 	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
 	auto caption = QString();
-	_fileLoader.addTask(MakeShared<FileLoadTask>(fileContent, type, to, caption));
+	_fileLoader.addTask(MakeShared<FileLoadTask>(fileContent, QImage(), type, to, caption));
 
 	cancelReplyAfterMediaSend(lastForceReplyReplied());
 }

@@ -235,7 +235,7 @@ typedef QSharedPointer<FileLoadResult> FileLoadResultPtr;
 
 class FileLoadTask : public Task {
 public:
-	FileLoadTask(const QString &filepath, SendMediaType type, const FileLoadTo &to, const QString &caption);
+	FileLoadTask(const QString &filepath, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption);
 	FileLoadTask(const QByteArray &content, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption);
 	FileLoadTask(const QByteArray &voice, int32 duration, const VoiceWaveform &waveform, const FileLoadTo &to, const QString &caption);
 

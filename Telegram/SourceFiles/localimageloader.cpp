@@ -172,9 +172,10 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-FileLoadTask::FileLoadTask(const QString &filepath, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(const QString &filepath, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
 , _to(to)
 , _filepath(filepath)
+, _image(image)
 , _type(type)
 , _caption(caption) {
 }
@@ -214,9 +215,8 @@ void FileLoadTask::process() {
 	auto gif = false;
 	auto voice = (_type == SendMediaType::Audio);
 	auto fullimage = base::take(_image);
-
-	if (!_filepath.isEmpty()) {
-		QFileInfo info(_filepath);
+	auto info = _filepath.isEmpty() ? QFileInfo() : QFileInfo(_filepath);
+	if (info.exists()) {
 		if (info.isDir()) {
 			_result->filesize = -1;
 			return;

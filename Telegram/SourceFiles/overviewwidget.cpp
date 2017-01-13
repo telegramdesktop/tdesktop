@@ -1641,7 +1641,7 @@ void OverviewInner::mediaOverviewUpdated() {
 		History::MediaOverview &o(_history->overview[_type]), *migratedOverview = _migrated ? &_migrated->overview[_type] : 0;
 		int32 migrateCount = migratedIndexSkip();
 		int32 l = _inSearch ? _searchResults.size() : (migrateCount + o.size()), tocheck = qMin(l, _itemsToBeLoaded);
-		_items.reserve(withDates * tocheck); // day items
+		_items.reserve((withDates ? 2 : 1) * tocheck); // day items
 
 		int32 top = 0, index = 0;
 		bool allGood = true;
@@ -1775,7 +1775,7 @@ void OverviewInner::repaintItem(const HistoryItem *msg) {
 
 	int32 migrateindex = migratedIndexSkip();
 	MsgId msgid = msg->id;
-	if (history->overviewHasMsgId(_type, msgid) && (history == _history || migrateindex > 0)) {
+	if ((history == _history || migrateindex > 0) && (_inSearch || history->overviewHasMsgId(_type, msgid))) {
 		if (_type == OverviewPhotos || _type == OverviewVideos) {
 			if (history == _migrated) msgid = -msgid;
 			for (int32 i = 0, l = _items.size(); i != l; ++i) {

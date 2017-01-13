@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <openssl/md5.h>
 #include <openssl/rand.h>
 #include "zlib.h"
+#include "lang.h"
 
 #include "mtproto/rsa_public_key.h"
 
@@ -869,7 +870,8 @@ void ConnectionPrivate::tryToSend() {
 	MTPInitConnection<mtpRequest> initWrapperImpl, *initWrapper = &initWrapperImpl;
 	int32 initSize = 0, initSizeInInts = 0;
 	if (needsLayer) {
-		initWrapperImpl = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(Sandbox::LangSystemISO()), mtpRequest());
+		auto langCode = (cLang() == languageTest || cLang() == languageDefault) ? Sandbox::LangSystemISO() : str_const_toString(LanguageCodes[cLang()]);
+		initWrapperImpl = MTPInitConnection<mtpRequest>(MTP_int(ApiId), MTP_string(cApiDeviceModel()), MTP_string(cApiSystemVersion()), MTP_string(cApiAppVersion()), MTP_string(langCode), mtpRequest());
 		initSizeInInts = (initWrapper->innerLength() >> 2) + 2;
 		initSize = initSizeInInts * sizeof(mtpPrime);
 	}
@@ -1267,7 +1269,7 @@ void ConnectionPrivate::onOldConnection() {
 
 void ConnectionPrivate::onPingSender() {
 	if (_pingId) {
-			if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000LL < getms(true)) {
+		if (_pingSendAt + (MTPPingSendAfter - MTPPingSendAfterAuto - 1) * 1000LL < getms(true)) {
 			LOG(("Could not send ping for MTPPingSendAfter seconds, restarting..."));
 			return restart();
 		} else {
