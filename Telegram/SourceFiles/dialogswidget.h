@@ -287,6 +287,9 @@ public:
 
 	void dialogsToUp();
 
+	void startWidthAnimation();
+	void stopWidthAnimation();
+
 	bool hasTopBarShadow() const {
 		return true;
 	}
@@ -389,7 +392,8 @@ private:
 	object_ptr<Ui::IconButton> _lockUnlock;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<DialogsInner> _inner;
-	object_ptr<Ui::FlatButton> _updateTelegram = { nullptr };
+	class UpdateButton;
+	object_ptr<UpdateButton> _updateTelegram = { nullptr };
 
 	Animation _a_show;
 	Window::SlideDirection _showDirection;
@@ -420,5 +424,7 @@ private:
 
 	using PeerSearchQueries = QMap<mtpRequestId, QString>;
 	PeerSearchQueries _peerSearchQueries;
+
+	QPixmap _widthAnimationCache;
 
 };

@@ -339,7 +339,7 @@ void FlatTextarea::paintEvent(QPaintEvent *e) {
 		p.save();
 		p.setClipRect(r);
 		p.setFont(_st.font);
-		p.setPen(anim::pen(_st.phColor, _st.phFocusColor, _a_placeholderFocused.current(ms, hasFocus() ? 1. : 0.)));
+		p.setPen(anim::pen(_st.phColor, _st.phFocusColor, _a_placeholderFocused.current(ms, _focused ? 1. : 0.)));
 		if (_st.phAlign == style::al_topleft && _phAfter > 0) {
 			int skipWidth = placeholderSkipWidth();
 			p.drawText(_st.textMrg.left() - _fakeMargin + placeholderLeft + skipWidth, _st.textMrg.top() - _fakeMargin - st::lineWidth + _st.font->ascent, _ph);
@@ -366,12 +366,20 @@ int FlatTextarea::placeholderSkipWidth() const {
 }
 
 void FlatTextarea::focusInEvent(QFocusEvent *e) {
-	_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
+	if (!_focused) {
+		_focused = true;
+		_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
+		update();
+	}
 	QTextEdit::focusInEvent(e);
 }
 
 void FlatTextarea::focusOutEvent(QFocusEvent *e) {
-	_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
+	if (_focused) {
+		_focused = false;
+		_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
+		update();
+	}
 	QTextEdit::focusOutEvent(e);
 }
 
@@ -1559,7 +1567,7 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto ms = getms();
-	auto placeholderFocused = _a_placeholderFocused.current(ms, hasFocus() ? 1. : 0.);
+	auto placeholderFocused = _a_placeholderFocused.current(ms, _focused ? 1. : 0.);
 
 	auto pen = anim::pen(_st.borderColor, _st.borderActive, placeholderFocused);
 	pen.setWidth(_st.borderWidth);
@@ -1592,13 +1600,21 @@ void FlatInput::paintEvent(QPaintEvent *e) {
 }
 
 void FlatInput::focusInEvent(QFocusEvent *e) {
-	_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
+	if (!_focused) {
+		_focused = true;
+		_a_placeholderFocused.start([this] { update(); }, 0., 1., _st.phDuration);
+		update();
+	}
 	QLineEdit::focusInEvent(e);
 	emit focused();
 }
 
 void FlatInput::focusOutEvent(QFocusEvent *e) {
-	_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
+	if (_focused) {
+		_focused = false;
+		_a_placeholderFocused.start([this] { update(); }, 1., 0., _st.phDuration);
+		update();
+	}
 	QLineEdit::focusOutEvent(e);
 	emit blurred();
 }

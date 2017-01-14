@@ -126,4 +126,7 @@ struct type_traits {
 	using pointed_type = internal::remove_pointer_t<T>;
 };
 
+template <typename T>
+using parameter_type = typename type_traits<T>::parameter_type;
+
 } // namespace base

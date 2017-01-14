@@ -205,7 +205,7 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidge
 		}
 	});
 	subscribe(Adaptive::Changed(), [this]() {
-		if (Global::AdaptiveLayout() == Adaptive::WideLayout) {
+		if (Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide) {
 			_adaptive->slideDown();
 		} else {
 			_adaptive->slideUp();
@@ -224,7 +224,7 @@ void BackgroundWidget::createControls() {
 
 	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
 	addChildRow(_adaptive, margin, slidedPadding, lang(lng_settings_adaptive_wide), SLOT(onAdaptive()), Global::AdaptiveForWide());
-	if (Global::AdaptiveLayout() != Adaptive::WideLayout) {
+	if (Global::AdaptiveChatLayout() != Adaptive::ChatLayout::Wide) {
 		_adaptive->hideFast();
 	}
 }

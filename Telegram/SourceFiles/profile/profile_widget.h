@@ -49,8 +49,6 @@ public:
 
 	QPixmap grabForShowAnimation(const Window::SectionSlideParams &params) override;
 
-	void setInnerFocus() override;
-
 	bool showInternal(const Window::SectionMemento *memento) override;
 	std_::unique_ptr<Window::SectionMemento> createMemento() const override;
 
@@ -61,6 +59,7 @@ protected:
 
 	void showAnimatedHook() override;
 	void showFinishedHook() override;
+	void doSetInnerFocus() override;
 
 private slots:
 	void onScroll();

@@ -477,14 +477,17 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
+	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
 	void animationCallback();
-	void updateAdaptiveLayout();
+	void handleAdaptiveLayoutUpdate();
+	void updateWindowAdaptiveLayout();
 	void handleAudioUpdate(const AudioMsgId &audioId);
 	void updateMediaPlayerPosition();
 	void updateMediaPlaylistPosition(int x);
 	void updateControlsGeometry();
+	void updateDialogsWidthAnimated();
 
 	void updateForwardingTexts();
 	void updateForwardingItemRemovedSubscription();
@@ -506,7 +509,8 @@ private:
 	void mediaOverviewUpdated(const Notify::PeerUpdate &update);
 
 	Window::SectionSlideParams prepareShowAnimation(bool willHaveTopBarShadow);
-	void showWideSectionAnimated(const Window::SectionMemento *memento, bool back, bool saveInStack);
+	void showNewWideSection(const Window::SectionMemento *memento, bool back, bool saveInStack);
+	bool isSectionShown() const;
 
 	// All this methods use the prepareShowAnimation().
 	Window::SectionSlideParams prepareWideSectionAnimation(Window::SectionWidget *section);
@@ -586,8 +590,10 @@ private:
 	QPixmap _cacheUnder, _cacheOver;
 
 	int _dialogsWidth;
+	Animation _a_dialogsWidth;
 
 	object_ptr<Ui::PlainShadow> _sideShadow;
+	object_ptr<TWidget> _sideResizeArea;
 	object_ptr<DialogsWidget> _dialogs;
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _wideSection = { nullptr };
@@ -690,5 +696,8 @@ private:
 	std_::unique_ptr<App::WallPaper> _background;
 
 	std_::unique_ptr<ApiWrap> _api;
+
+	bool _resizingSide = false;
+	int _resizingSideShift = 0;
 
 };

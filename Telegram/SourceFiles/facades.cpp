@@ -620,7 +620,8 @@ struct Data {
 	SingleDelayedCall HandleDelayedPeerUpdates = { App::app(), "call_handleDelayedPeerUpdates" };
 	SingleDelayedCall HandleObservables = { App::app(), "call_handleObservables" };
 
-	Adaptive::Layout AdaptiveLayout = Adaptive::NormalLayout;
+	Adaptive::WindowLayout AdaptiveWindowLayout = Adaptive::WindowLayout::Normal;
+	Adaptive::ChatLayout AdaptiveChatLayout = Adaptive::ChatLayout::Normal;
 	bool AdaptiveForWide = true;
 	base::Observable<void> AdaptiveChanged;
 
@@ -708,6 +709,10 @@ struct Data {
 	base::Observable<void> UnreadCounterUpdate;
 	base::Observable<void> PeerChooseCancel;
 
+	float64 DialogsWidthRatio = 5. / 14;
+	base::Variable<bool> DialogsListFocused = { false };
+	base::Variable<bool> DialogsListDisplayForced = { false };
+
 };
 
 } // namespace internal
@@ -739,7 +744,8 @@ DefineRefVar(Global, SingleDelayedCall, HandleFileDialogQueue);
 DefineRefVar(Global, SingleDelayedCall, HandleDelayedPeerUpdates);
 DefineRefVar(Global, SingleDelayedCall, HandleObservables);
 
-DefineVar(Global, Adaptive::Layout, AdaptiveLayout);
+DefineVar(Global, Adaptive::WindowLayout, AdaptiveWindowLayout);
+DefineVar(Global, Adaptive::ChatLayout, AdaptiveChatLayout);
 DefineVar(Global, bool, AdaptiveForWide);
 DefineRefVar(Global, base::Observable<void>, AdaptiveChanged);
 
@@ -826,5 +832,9 @@ DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);
 DefineRefVar(Global, base::Observable<void>, PeerChooseCancel);
+
+DefineVar(Global, float64, DialogsWidthRatio);
+DefineRefVar(Global, base::Variable<bool>, DialogsListFocused);
+DefineRefVar(Global, base::Variable<bool>, DialogsListDisplayForced);
 
 } // namespace Global

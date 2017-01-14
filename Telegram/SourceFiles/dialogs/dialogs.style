@@ -53,6 +53,7 @@ dialogsSkip: 8px;
 
 dialogsWidthMin: 260px;
 dialogsWidthMax: 540px;
+dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
 dialogsScroll: ScrollArea(defaultScrollArea) {
 	topsh: 0px;
@@ -190,6 +191,9 @@ dialogsUpdateButton: FlatButton {
 		color: activeButtonBgRipple;
 	}
 }
+
+dialogsInstallUpdate: icon {{ "install_update", activeButtonFg }};
+dialogsInstallUpdateOver: icon {{ "install_update", activeButtonFgOver }};
 
 dialogsForwardHeight: 32px;
 dialogsForwardTextLeft: 35px;

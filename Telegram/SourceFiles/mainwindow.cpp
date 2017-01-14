@@ -359,6 +359,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 
 	clearWidgets();
 	_main.create(bodyWidget());
+	_main->show();
 	updateControlsGeometry();
 
 	if (animated) {
@@ -835,18 +836,6 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 
 void MainWindow::resizeEvent(QResizeEvent *e) {
 	Platform::MainWindow::resizeEvent(e);
-
-	Adaptive::Layout layout = Adaptive::OneColumnLayout;
-	if (width() > st::adaptiveWideWidth) {
-		layout = Adaptive::WideLayout;
-	} else if (width() >= st::adaptiveNormalWidth) {
-		layout = Adaptive::NormalLayout;
-	}
-	if (layout != Global::AdaptiveLayout()) {
-		Global::SetAdaptiveLayout(layout);
-		Adaptive::Changed().notify(true);
-	}
-
 	updateControlsGeometry();
 }
 

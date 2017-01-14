@@ -241,11 +241,18 @@ DeclareVar(ProxyData, PreLaunchProxy);
 } // namespace Sandbox
 
 namespace Adaptive {
-enum Layout {
-	OneColumnLayout,
-	NormalLayout,
-	WideLayout,
+
+enum class WindowLayout {
+	OneColumn,
+	SmallColumn,
+	Normal,
 };
+
+enum class ChatLayout {
+	Normal,
+	Wide,
+};
+
 } // namespace Adaptive
 
 namespace DebugLogging {
@@ -306,7 +313,8 @@ DeclareRefVar(SingleDelayedCall, HandleFileDialogQueue);
 DeclareRefVar(SingleDelayedCall, HandleDelayedPeerUpdates);
 DeclareRefVar(SingleDelayedCall, HandleObservables);
 
-DeclareVar(Adaptive::Layout, AdaptiveLayout);
+DeclareVar(Adaptive::WindowLayout, AdaptiveWindowLayout);
+DeclareVar(Adaptive::ChatLayout, AdaptiveChatLayout);
 DeclareVar(bool, AdaptiveForWide);
 DeclareRefVar(base::Observable<void>, AdaptiveChanged);
 
@@ -399,6 +407,10 @@ DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);
 DeclareRefVar(base::Observable<void>, PeerChooseCancel);
 
+DeclareVar(float64, DialogsWidthRatio);
+DeclareRefVar(base::Variable<bool>, DialogsListFocused);
+DeclareRefVar(base::Variable<bool>, DialogsListDisplayForced);
+
 } // namespace Global
 
 namespace Adaptive {
@@ -408,13 +420,23 @@ inline base::Observable<void> &Changed() {
 }
 
 inline bool OneColumn() {
-	return Global::AdaptiveLayout() == OneColumnLayout;
+	return Global::AdaptiveWindowLayout() == WindowLayout::OneColumn;
 }
+
+inline bool SmallColumn() {
+	return Global::AdaptiveWindowLayout() == WindowLayout::SmallColumn;
+}
+
 inline bool Normal() {
-	return Global::AdaptiveLayout() == NormalLayout;
+	return Global::AdaptiveWindowLayout() == WindowLayout::Normal;
 }
-inline bool Wide() {
-	return Global::AdaptiveForWide() && (Global::AdaptiveLayout() == WideLayout);
+
+inline bool ChatNormal() {
+	return !Global::AdaptiveForWide() || (Global::AdaptiveChatLayout() == ChatLayout::Normal);
+}
+
+inline bool ChatWide() {
+	return !ChatNormal();
 }
 
 } // namespace Adaptive

@@ -1630,7 +1630,7 @@ void HistoryInner::recountHeight() {
 
 		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
 		int32 descMaxWidth = _scroll->width();
-		if (Adaptive::Wide()) {
+		if (Adaptive::ChatWide()) {
 			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 		}
 		int32 descAtX = (descMaxWidth - _botAbout->width) / 2 - st::msgPadding.left();
@@ -1796,7 +1796,7 @@ void HistoryInner::updateSize() {
 	if (_botAbout && _botAbout->height > 0) {
 		int32 descH = st::msgMargin.top() + st::msgPadding.top() + st::msgNameFont->height + st::botDescSkip + _botAbout->height + st::msgPadding.bottom() + st::msgMargin.bottom();
 		int32 descMaxWidth = _scroll->width();
-		if (Adaptive::Wide()) {
+		if (Adaptive::ChatWide()) {
 			descMaxWidth = qMin(descMaxWidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
 		}
 		int32 descAtX = (descMaxWidth - _botAbout->width) / 2 - st::msgPadding.left();
@@ -7071,6 +7071,11 @@ void HistoryWidget::notify_handlePendingHistoryUpdate() {
 }
 
 void HistoryWidget::resizeEvent(QResizeEvent *e) {
+	auto layout = (width() < st::adaptiveChatWideWidth) ? Adaptive::ChatLayout::Normal : Adaptive::ChatLayout::Wide;
+	if (layout != Global::AdaptiveChatLayout()) {
+		Global::SetAdaptiveChatLayout(layout);
+		Adaptive::Changed().notify(true);
+	}
 	updateControlsGeometry();
 }
 

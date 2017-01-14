@@ -92,7 +92,7 @@ void History::clearLastKeyboard() {
 }
 
 bool History::canHaveFromPhotos() const {
-	if (peer->isUser() && !Adaptive::Wide()) {
+	if (peer->isUser() && !Adaptive::ChatWide()) {
 		return false;
 	} else if (isChannel() && !peer->isMegagroup()) {
 		return false;

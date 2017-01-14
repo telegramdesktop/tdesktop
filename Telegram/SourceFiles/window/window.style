@@ -30,8 +30,7 @@ windowDefaultHeight: 600px;
 windowShadow: icon {{ "window_shadow", windowShadowFg }};
 windowShadowShift: 1px;
 
-adaptiveNormalWidth: 640px;
-adaptiveWideWidth: 1366px;
+adaptiveChatWideWidth: 860px;
 
 notifyBorder: windowShadowFgFallback;
 notifyBorderWidth: 1px;

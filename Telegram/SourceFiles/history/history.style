@@ -39,6 +39,8 @@ historyScroll: ScrollArea(defaultScrollArea) {
 	bottomsh: -1px;
 }
 
+historyResizeWidth: 6px;
+
 historyPaddingBottom: 8px;
 
 historyToDownPosition: point(12px, 10px);
