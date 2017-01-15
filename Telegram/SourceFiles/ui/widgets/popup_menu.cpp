@@ -107,6 +107,12 @@ PopupMenu::Actions &PopupMenu::actions() {
 void PopupMenu::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+#ifdef OS_MAC_OLD
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(e->rect(), Qt::transparent);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+#endif // OS_MAC_OLD
+
 	auto ms = getms();
 	if (_a_show.animating(ms)) {
 		if (auto opacity = _a_opacity.current(ms, _hiding ? 0. : 1.)) {

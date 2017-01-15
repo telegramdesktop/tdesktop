@@ -156,6 +156,12 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 void Tooltip::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+#ifdef OS_MAC_OLD
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(e->rect(), Qt::transparent);
+	p.setCompositionMode(QPainter::CompositionMode_SourceOver);
+#endif // OS_MAC_OLD
+
 	if (_useTransparency) {
 		p.setPen(_st->textBorder);
 		p.setBrush(_st->textBg);
