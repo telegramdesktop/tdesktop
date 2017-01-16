@@ -181,7 +181,7 @@ From **/Users/user/TBuild/Libraries/qt5_3_2/qtimageformats**, run:
 
 Go to **/Users/user/TBuild/Libraries/qt5_3_2** and run:
 
-    ./configure -prefix "/usr/local/tdesktop/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -nomake examples -nomake tests -platform macx-g++
+    OPENSSL_LIBS="/Users/user/TBuild/Libraries/openssl-xcode_oldmac/libssl.a /Users/user/TBuild/Libraries/openssl-xcode_oldmac/libcrypto.a" ./configure -prefix "/usr/local/tdesktop/Qt-5.3.2" -debug-and-release -force-debug-info -opensource -confirm-license -static -opengl desktop -openssl-linked -I "/Users/user/TBuild/Libraries/openssl-xcode_oldmac/include" -nomake examples -nomake tests -platform macx-g++
     make -j4
     sudo make -j4 install
 
