@@ -818,11 +818,11 @@ defaultTooltip: Tooltip {
 
 historyToDownBelow: icon {
 	{ "history_down_shadow", historyToDownShadow },
-	{ "history_down_circle", windowBg, point(4px, 4px) },
+	{ "history_down_circle", historyToDownBg, point(4px, 4px) },
 };
 historyToDownBelowOver: icon {
 	{ "history_down_shadow", historyToDownShadow },
-	{ "history_down_circle", windowBgOver, point(4px, 4px) },
+	{ "history_down_circle", historyToDownBgOver, point(4px, 4px) },
 };
 contactsAddIconBelow: icon {
 	{ "history_down_shadow", historyToDownShadow },

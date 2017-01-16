@@ -59,11 +59,11 @@ TitleWidget::TitleWidget(MainWindow *parent, int height) : Window::TitleWidget(p
 void TitleWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	p.fillRect(rect(), st::titleBg);
+	auto active = isActiveWindow();
+	p.fillRect(rect(), active ? st::titleBgActive : st::titleBg);
 
-	p.setPen(isActiveWindow() ? st::titleFgActive : st::titleFg);
 	p.setFont(_font);
-
+	p.setPen(active ? st::titleFgActive : st::titleFg);
 	p.drawText(rect(), static_cast<MainWindow*>(parentWidget())->titleText(), style::al_center);
 }
 
@@ -121,7 +121,7 @@ QImage PreviewWindowSystemButton(QColor inner, QColor border) {
 void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int titleHeight, int outerWidth) {
 	auto titleRect = QRect(body.x(), body.y() - titleHeight, body.width(), titleHeight);
 	p.fillRect(titleRect, QColor(0, 0, 0));
-	p.fillRect(titleRect, st::titleBg[palette]);
+	p.fillRect(titleRect, st::titleBgActive[palette]);
 	p.fillRect(titleRect.x(), titleRect.y() + titleRect.height() - st::lineWidth, titleRect.width(), st::lineWidth, st::titleShadow[palette]);
 
 	auto useSystemFont = false;

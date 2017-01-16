@@ -32,14 +32,14 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 , _maximizeRestore(this, st::titleButtonMaximize)
 , _close(this, st::titleButtonClose)
 , _shadow(this, st::titleShadow)
-, _maximized(parent->window()->windowState() & Qt::WindowMaximized) {
+, _maximizedState(parent->window()->windowState() & Qt::WindowMaximized) {
 	_minimize->setClickedCallback([this]() {
 		window()->setWindowState(Qt::WindowMinimized);
 		_minimize->clearState();
 	});
 	_minimize->setPointerCursor(false);
 	_maximizeRestore->setClickedCallback([this]() {
-		window()->setWindowState(_maximized ? Qt::WindowNoState : Qt::WindowMaximized);
+		window()->setWindowState(_maximizedState ? Qt::WindowNoState : Qt::WindowMaximized);
 		_maximizeRestore->clearState();
 	});
 	_maximizeRestore->setPointerCursor(false);
@@ -55,12 +55,18 @@ TitleWidget::TitleWidget(QWidget *parent) : Window::TitleWidget(parent)
 
 void TitleWidget::init() {
 	connect(window()->windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onWindowStateChanged(Qt::WindowState)));
-	_maximized = (window()->windowState() & Qt::WindowMaximized);
-	updateMaximizeRestoreButton();
+	_maximizedState = (window()->windowState() & Qt::WindowMaximized);
+	_activeState = isActiveWindow();
+	updateButtonsState();
 }
 
 void TitleWidget::paintEvent(QPaintEvent *e) {
-	Painter(this).fillRect(rect(), st::titleBg);
+	auto active = isActiveWindow();
+	if (_activeState != active) {
+		_activeState = active;
+		updateButtonsState();
+	}
+	Painter(this).fillRect(rect(), active ? st::titleBgActive : st::titleBg);
 }
 
 void TitleWidget::updateControlsPosition() {
@@ -84,18 +90,20 @@ void TitleWidget::onWindowStateChanged(Qt::WindowState state) {
 	if (state == Qt::WindowMinimized) return;
 
 	auto maximized = (state == Qt::WindowMaximized);
-	if (_maximized != maximized) {
-		_maximized = maximized;
-		updateMaximizeRestoreButton();
+	if (_maximizedState != maximized) {
+		_maximizedState = maximized;
+		updateButtonsState();
 	}
 }
 
-void TitleWidget::updateMaximizeRestoreButton() {
-	if (_maximized) {
-		_maximizeRestore->setIconOverride(&st::titleButtonRestoreIcon, &st::titleButtonRestoreIconOver);
+void TitleWidget::updateButtonsState() {
+	_minimize->setIconOverride(_activeState ? &st::titleButtonMinimizeIconActive : nullptr, _activeState ? &st::titleButtonMinimizeIconActiveOver : nullptr);
+	if (_maximizedState) {
+		_maximizeRestore->setIconOverride(_activeState ? &st::titleButtonRestoreIconActive : &st::titleButtonRestoreIcon, _activeState ? &st::titleButtonRestoreIconActiveOver : &st::titleButtonRestoreIconOver);
 	} else {
-		_maximizeRestore->setIconOverride(nullptr, nullptr);
+		_maximizeRestore->setIconOverride(_activeState ? &st::titleButtonMaximizeIconActive : nullptr, _activeState ? &st::titleButtonMaximizeIconActiveOver : nullptr);
 	}
+	_close->setIconOverride(_activeState ? &st::titleButtonCloseIconActive : nullptr, _activeState ? &st::titleButtonCloseIconActiveOver : nullptr);
 }
 
 Window::HitTestResult TitleWidget::hitTest(const QPoint &p) const {

@@ -104,15 +104,27 @@ tooltipFg: #5d6c80;
 tooltipBorderFg: #c9d1db;
 
 // custom title bar for Windows and macOS
-titleBg: windowBgOver;
 titleShadow: #00000003;
+titleBg: windowBgOver;
+titleBgActive: titleBg;
+titleButtonBg: titleBg;
 titleButtonFg: #ababab;
 titleButtonBgOver: #e5e5e5;
 titleButtonFgOver: #9a9a9a;
+titleButtonBgActive: titleButtonBg;
+titleButtonFgActive: titleButtonFg;
+titleButtonBgActiveOver: titleButtonBgOver;
+titleButtonFgActiveOver: titleButtonFgOver;
+titleButtonCloseBg: titleButtonBg;
+titleButtonCloseFg: titleButtonFg;
 titleButtonCloseBgOver: #e81123;
 titleButtonCloseFgOver: windowFgActive;
-titleFgActive: #3e3c3e;
+titleButtonCloseBgActive: titleButtonCloseBg;
+titleButtonCloseFgActive: titleButtonCloseFg;
+titleButtonCloseBgActiveOver: titleButtonCloseBgOver;
+titleButtonCloseFgActiveOver: titleButtonCloseFgOver;
 titleFg: #acacac;
+titleFgActive: #3e3c3e;
 
 // tray icon
 trayCounterBg: #f23c34;
@@ -383,7 +395,13 @@ toastFg: windowFgActive;
 reportSpamBg: emojiPanHeaderBg;
 reportSpamFg: windowFg;
 
+historyToDownBg: windowBg;
+historyToDownBgOver: windowBgOver;
+historyToDownBgRipple: windowBgRipple;
+historyToDownFg: menuIconFg;
+historyToDownFgOver: menuIconFgOver;
 historyToDownShadow: #00000040;
+
 historyComposeAreaBg: msgInBg;
 historyComposeAreaFg: historyTextInFg;
 historyComposeAreaFgService: msgInDateFg;

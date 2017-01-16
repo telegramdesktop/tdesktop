@@ -57,7 +57,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void updateMaximizeRestoreButton();
+	void updateButtonsState();
 	void updateControlsPosition();
 
 	object_ptr<Ui::IconButton> _minimize;
@@ -65,7 +65,8 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow;
 
-	bool _maximized = false;
+	bool _maximizedState = false;
+	bool _activeState = false;
 
 };
 

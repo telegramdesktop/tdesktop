@@ -1272,7 +1272,8 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 
 	p.setTextPalette(outbg ? st::outTextPalette : st::inTextPalette);
 
-	if (auto keyboard = inlineReplyKeyboard()) {
+	auto keyboard = inlineReplyKeyboard();
+	if (keyboard) {
 		int h = st::msgBotKbButton.margin + keyboard->naturalHeight();
 		height -= h;
 		int top = height + st::msgBotKbButton.margin - marginBottom();
@@ -1290,7 +1291,7 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		auto top = marginTop();
 		auto r = QRect(left, top, width, height - top - marginBottom());
 
-		auto skipTail = isAttachedToNext() || (_media && _media->skipBubbleTail());
+		auto skipTail = isAttachedToNext() || (_media && _media->skipBubbleTail()) || (keyboard != nullptr);
 		auto displayTail = skipTail ? HistoryLayout::BubbleTail::None : (outbg && !Adaptive::ChatWide()) ? HistoryLayout::BubbleTail::Right : HistoryLayout::BubbleTail::Left;
 		HistoryLayout::paintBubble(p, r, _history->width, selected, outbg, displayTail);
 

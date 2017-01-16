@@ -661,16 +661,19 @@ int32 MainWindow::screenNameChecksum(const QString &name) const {
 }
 
 void MainWindow::psRefreshTaskbarIcon() {
-	QWidget *w = new QWidget(this);
-	w->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
-	w->setGeometry(x() + 1, y() + 1, 1, 1);
-	QPalette p(w->palette());
-	p.setColor(QPalette::Background, st::titleBg->c);
-	QWindow *wnd = w->windowHandle();
-	w->setPalette(p);
-	w->show();
-	w->activateWindow();
-	delete w;
+	auto refresher = object_ptr<QWidget>(this);
+	auto guard = base::scope_guard([&refresher] {
+		refresher.destroy();
+	});
+	refresher->setWindowFlags(static_cast<Qt::WindowFlags>(Qt::Tool) | Qt::FramelessWindowHint);
+	refresher->setGeometry(x() + 1, y() + 1, 1, 1);
+	auto palette = refresher->palette();
+	palette.setColor(QPalette::Background, (isActiveWindow() ? st::titleBgActive : st::titleBg)->c);
+	refresher->setPalette(palette);
+	refresher->show();
+	refresher->activateWindow();
+
+	updateIconCounters();
 }
 
 void MainWindow::psTrayMenuUpdated() {

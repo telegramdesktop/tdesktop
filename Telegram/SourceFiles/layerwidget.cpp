@@ -425,6 +425,7 @@ void LayerStackWidget::onLayerClosed(LayerWidget *layer) {
 		if (_layers.size() == 1) {
 			hideCurrent();
 		} else {
+			if (layer->inFocusChain()) setFocus();
 			layer->hide();
 			_layers.pop_back();
 			layer = currentLayer();
@@ -527,6 +528,7 @@ void LayerStackWidget::showBox(object_ptr<BoxContent> box) {
 		_layers.pop_front();
 
 		removingLayer->setClosing();
+		if (removingLayer->inFocusChain()) setFocus();
 		removingLayer->hide();
 		removingLayer->deleteLater();
 	}
@@ -616,6 +618,7 @@ void LayerStackWidget::appendBox(object_ptr<BoxContent> box) {
 LayerWidget *LayerStackWidget::pushBox(object_ptr<BoxContent> box) {
 	auto oldLayer = currentLayer();
 	if (oldLayer) {
+		if (oldLayer->inFocusChain()) setFocus();
 		oldLayer->hide();
 	}
 	auto layer = object_ptr<AbstractBox>(this, std_::move(box));
@@ -649,6 +652,7 @@ void LayerStackWidget::prependBox(object_ptr<BoxContent> box) {
 void LayerStackWidget::clearLayers() {
 	for (auto layer : base::take(_layers)) {
 		layer->setClosing();
+		if (layer->inFocusChain()) setFocus();
 		layer->hide();
 		layer->deleteLater();
 	}

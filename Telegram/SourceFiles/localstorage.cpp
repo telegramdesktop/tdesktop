@@ -3885,8 +3885,8 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {
-				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
-				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long((user->access == UserNoAccess) ? 0 : user->access));
+				user->input = MTP_inputPeerUser(MTP_int(peerToUser(user->id)), MTP_long(user->isInaccessible() ? 0 : user->access));
+				user->inputUser = MTP_inputUser(MTP_int(peerToUser(user->id)), MTP_long(user->isInaccessible() ? 0 : user->access));
 			}
 
 			user->setUserpic(photoLoc.isNull() ? ImagePtr() : ImagePtr(photoLoc));

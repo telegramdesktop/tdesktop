@@ -191,7 +191,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 
 bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
 		Ui::show(Box<InformBox>(lang(lng_forward_cant)));
 		return false;
 	}
@@ -226,7 +226,7 @@ bool MainWidget::onForward(const PeerId &peer, ForwardWhatMessages what) {
 
 bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QString &text) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
 		Ui::show(Box<InformBox>(lang(lng_share_cant)));
 		return false;
 	}
@@ -246,7 +246,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 
 bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQuery) {
 	PeerData *p = App::peer(peer);
-	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->access == UserNoAccess)) {
+	if (!peer || (p->isChannel() && !p->asChannel()->canPublish() && p->asChannel()->isBroadcast()) || (p->isChat() && !p->asChat()->canWrite()) || (p->isUser() && p->asUser()->isInaccessible())) {
 		Ui::show(Box<InformBox>(lang(lng_inline_switch_cant)));
 		return false;
 	}
@@ -2062,7 +2062,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 	if (auto user = peer->asUser()) {
 		callback(lang(lng_profile_delete_conversation), std_::move(deleteAndLeaveHandler));
 		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
-		if (user->access != UserNoAccess && user != App::self()) {
+		if (!user->isInaccessible() && user != App::self()) {
 			auto blockSubscription = MakeShared<base::Subscription>();
 			auto blockAction = callback(lang(user->isBlocked() ? (user->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (user->botInfo ? lng_profile_block_bot : lng_profile_block_user)), [user, blockSubscription] {
 				auto willBeBlocked = !user->isBlocked();

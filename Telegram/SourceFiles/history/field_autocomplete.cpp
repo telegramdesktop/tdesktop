@@ -204,6 +204,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		bool listAllSuggestions = _filter.isEmpty();
 		if (_addInlineBots) {
 			for_const (auto user, cRecentInlineBots()) {
+				if (user->isInaccessible()) continue;
 				if (!listAllSuggestions && filterNotPassedByUsername(user)) continue;
 				mrows.push_back(user);
 				++recentInlineBots;
@@ -216,13 +217,15 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				if (App::api()) App::api()->requestFullPeer(_chat);
 			} else if (!_chat->participants.isEmpty()) {
 				for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-					UserData *user = i.key();
+					auto user = i.key();
+					if (user->isInaccessible()) continue;
 					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					ordered.insertMulti(App::onlineForSort(user, now), user);
 				}
 			}
 			for_const (auto user, _chat->lastAuthors) {
+				if (user->isInaccessible()) continue;
 				if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 				if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 				mrows.push_back(user);
@@ -231,7 +234,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				}
 			}
 			if (!ordered.isEmpty()) {
-				for (QMultiMap<int32, UserData*>::const_iterator i = ordered.cend(), b = ordered.cbegin(); i != b;) {
+				for (auto i = ordered.cend(), b = ordered.cbegin(); i != b;) {
 					--i;
 					mrows.push_back(i.value());
 				}
@@ -243,6 +246,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			} else {
 				mrows.reserve(mrows.size() + _channel->mgInfo->lastParticipants.size());
 				for_const (auto user, _channel->mgInfo->lastParticipants) {
+					if (user->isInaccessible()) continue;
 					if (!listAllSuggestions && filterNotPassedByName(user)) continue;
 					if (indexOfInFirstN(mrows, user, recentInlineBots) >= 0) continue;
 					mrows.push_back(user);
@@ -627,7 +631,7 @@ void FieldAutocompleteInner::paintEvent(QPaintEvent *e) {
 				p.setPen(selected ? st::mentionFgOverActive : st::mentionFgActive);
 				p.drawText(mentionleft + namewidth + st::mentionPadding.right(), i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, first);
 				if (!second.isEmpty()) {
-					p.setPen((selected ? st::mentionFgOver : st::mentionFg)->p);
+					p.setPen(selected ? st::mentionFgOver : st::mentionFg);
 					p.drawText(mentionleft + namewidth + st::mentionPadding.right() + firstwidth, i * st::mentionHeight + st::mentionTop + st::mentionFont->ascent, second);
 				}
 			} else if (!_hrows->isEmpty()) {
