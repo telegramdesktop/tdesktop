@@ -400,7 +400,7 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 		setPreparedImage(std_::move(image));
 	} else {
 		if (_id == kInitialBackground) {
-			image.load(qsl(":/gui/art/bg_initial.png"));
+			image.load(qsl(":/gui/art/bg_initial.jpg"));
 			if (cRetina()) {
 				image = image.scaledToWidth(image.width() * 2, Qt::SmoothTransformation);
 			} else if (cScale() != dbisOne) {

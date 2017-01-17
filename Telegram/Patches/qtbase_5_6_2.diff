@@ -16,6 +16,25 @@ index eec9e1f..7ae53c7 100644
  QMAKE_CFLAGS_YACC       =
  QMAKE_CFLAGS_LTCG       = -GL
  QMAKE_CFLAGS_SSE2       = -arch:SSE2
+diff --git a/src/corelib/io/qfsfileengine_win.cpp b/src/corelib/io/qfsfileengine_win.cpp
+index 391fbcc..d07802b 100644
+--- a/src/corelib/io/qfsfileengine_win.cpp
++++ b/src/corelib/io/qfsfileengine_win.cpp
+@@ -427,11 +427,12 @@ qint64 QFSFileEnginePrivate::nativeWrite(const char *data, qint64 len)
+ 
+     // Writing on Windows fails with ERROR_NO_SYSTEM_RESOURCES when
+     // the chunks are too large, so we limit the block size to 32MB.
+-    const DWORD blockSize = DWORD(qMin(bytesToWrite, qint64(32 * 1024 * 1024)));
+     qint64 totalWritten = 0;
+     do {
++        // Patch: backport critical bugfix from '683c9bc4a8' commit.
++        const DWORD currentBlockSize = DWORD(qMin(bytesToWrite, qint64(32 * 1024 * 1024)));
+         DWORD bytesWritten;
+-        if (!WriteFile(fileHandle, data + totalWritten, blockSize, &bytesWritten, NULL)) {
++        if (!WriteFile(fileHandle, data + totalWritten, currentBlockSize, &bytesWritten, NULL)) {
+             if (totalWritten == 0) {
+                 // Note: Only return error if the first WriteFile failed.
+                 q->setError(QFile::WriteError, qt_error_string());
 diff --git a/src/corelib/tools/qunicodetables.cpp b/src/corelib/tools/qunicodetables.cpp
 index 14e4fd1..0619a17 100644
 --- a/src/corelib/tools/qunicodetables.cpp
