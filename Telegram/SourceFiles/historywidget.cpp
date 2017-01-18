@@ -236,19 +236,30 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 			if (TopToBottom) {
 				if (itembottom <= _visibleAreaTop && (cAlphaVersion() || cBetaVersion())) {
 					// Debugging a crash
-					auto fields = QStringList();
-					fields.append(QString::number(historytop));
-					fields.append(QString::number(history->height));
-					fields.append(QString::number(_visibleAreaTop));
-					fields.append(QString::number(_visibleAreaBottom));
-					fields.append(QString::number(blocktop));
-					fields.append(QString::number(block->height));
-					fields.append(QString::number(itemtop));
-					fields.append(QString::number(item->height()));
-					fields.append(QString::number(itembottom));
-					fields.append(QString::number(history->blocks.size()));
-					fields.append(QString::number(block->items.size()));
-					SignalHandlers::setCrashAnnotation("ItemInfo1", fields.join(','));
+					auto debugInfo = QStringList();
+					auto debugValue = [&debugInfo](const QString &name, int value) {
+						debugInfo.append(name + ":" + QString::number(value));
+					};
+					debugValue("historytop", historytop);
+					debugValue("history->height", history->height);
+					debugValue("blockIndex", blockIndex);
+					debugValue("history->blocks.size()", history->blocks.size());
+					debugValue("blocktop", blocktop);
+					debugValue("block->height", block->height);
+					debugValue("itemIndex", itemIndex);
+					debugValue("block->items.size()", block->items.size());
+					debugValue("itemtop", itemtop);
+					debugValue("item->height()", item->height());
+					debugValue("itembottom", itembottom);
+					debugValue("_visibleAreaTop", _visibleAreaTop);
+					debugValue("_visibleAreaBottom", _visibleAreaBottom);
+					for (int i = 0; i != qMin(history->blocks.size(), 10); ++i) {
+						for (int j = 0; j != qMin(history->blocks[i]->items.size(), 10); ++j) {
+							debugValue("y[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->y);
+							debugValue("h[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->height());
+						}
+					}
+					SignalHandlers::setCrashAnnotation("DebugInfo", debugInfo.join(','));
 				}
 				t_assert(itembottom > _visibleAreaTop);
 			} else {

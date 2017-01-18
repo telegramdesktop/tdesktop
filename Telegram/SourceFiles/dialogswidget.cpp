@@ -2692,13 +2692,17 @@ void DialogsWidget::updateControlsGeometry() {
 		_forwardCancel->moveToLeft(0, filterAreaTop);
 		filterAreaTop += st::dialogsForwardHeight;
 	}
+	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
+	auto smallLayoutRatio = (width() < st::dialogsWidthMin) ? (st::dialogsWidthMin - width()) / float64(st::dialogsWidthMin - smallLayoutWidth) : 0.;
 	auto filterLeft = st::dialogsFilterPadding.x() + _mainMenuToggle->width() + st::dialogsFilterPadding.x();
 	auto filterRight = (Global::LocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
 	auto filterWidth = qMax(width(), st::dialogsWidthMin) - filterLeft - filterRight;
 	auto filterAreaHeight = st::dialogsFilterPadding.y() + _mainMenuToggle->height() + st::dialogsFilterPadding.y();
 	auto filterTop = filterAreaTop + (filterAreaHeight - _filter->height()) / 2;
+	filterLeft = anim::interpolate(filterLeft, smallLayoutWidth, smallLayoutRatio);
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
-	_mainMenuToggle->moveToLeft(st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
+	auto mainMenuLeft = anim::interpolate(st::dialogsFilterPadding.x(), (smallLayoutWidth - _mainMenuToggle->width()) / 2, smallLayoutRatio);
+	_mainMenuToggle->moveToLeft(mainMenuLeft, filterAreaTop + st::dialogsFilterPadding.y());
 	_lockUnlock->moveToLeft(filterLeft + filterWidth + st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
 

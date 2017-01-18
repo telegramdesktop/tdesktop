@@ -3626,6 +3626,11 @@ void readSavedGifs() {
 void writeBackground(int32 id, const QImage &img) {
 	if (!_working() || !_backgroundCanWrite) return;
 
+	if (!_localKey.created()) {
+		LOG(("App Error: localkey not created in writeBackground()"));
+		return;
+	}
+
 	QByteArray bmp;
 	if (!img.isNull()) {
 		QBuffer buf(&bmp);
