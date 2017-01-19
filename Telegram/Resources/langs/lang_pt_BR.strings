@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "Solte fora desse campo para cancelar";
 "lng_will_be_notified" = "Os membros serão notificados quando você postar";
 "lng_wont_be_notified" = "Os membros não serão notificados quando você postar";
-"lng_empty_history" = "";
 "lng_willbe_history" = "Selecione um chat para começar a conversar";
 "lng_from_you" = "Você";
 "lng_from_draft" = "Rascunho";
@@ -1011,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Um fabuloso design novo com animações estilo material.\n— Suporte para temas personalizados! Confira alguns temas aqui: @TelegramThemes.\n— Ferramentas convenientes para fazer os seus próprios temas estarão disponíveis em breve.\n\n— Apague mensagens para todos. Quando você apagar suas mensagens em grupos e conversas um-para-um, você poderá apagar para todos da conversa, não apenas para você. Isso funciona apenas para mensagens enviadas recentemente (igual ao editar).\n— Fixe conversas importantes no topo da lista, assim você nunca irá perder uma nova mensagem (clique com o botão direito em uma conversa e então escolha 'Fixar no topo').\n— Grupos em comum. Uma nova opção no perfil de seus contatos que mostra uma lista de todos os grupos que vocês compartilham.\n\nLeia mais sobre essa atualização:\n{link}";
+"lng_new_version_text" = "— Nova opção para minimizar a lista de conversas em uma coluna com fotos de perfil. Redimensione a lista clicando e arrastando.\n— Resolvido o problema ao arrastar e soltar imagens do Firefox no Windows.\n— Resoluções de erros e melhorias menores.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

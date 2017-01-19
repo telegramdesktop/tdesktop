@@ -301,7 +301,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_backgrounds_header" = "Kies je nieuwe achtergrond";
 "lng_theme_sure_keep" = "Dit thema behouden?";
-"lng_theme_reverting" = "Herstellen naar het vorige thema over {count:_not_used_|# seconde|# seconden}.";
+"lng_theme_reverting" = "Ongedaan maken over {count:_not_used_|# seconde|# seconden}.";
 "lng_theme_keep_changes" = "Behouden";
 "lng_theme_revert" = "Herstellen";
 
@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "Annuleren: uit het vak loslaten";
 "lng_will_be_notified" = "Berichtgeving voor leden";
 "lng_wont_be_notified" = "Geen berichtgeving voor leden";
-"lng_empty_history" = "";
 "lng_willbe_history" = "Kies een chat om te beginnen";
 "lng_from_you" = "Jij";
 "lng_from_draft" = "Concept";
@@ -1011,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Prachtig nieuw ontwerp en animaties in 'Material'-stijl.\n— Ondersteuning voor thema's! Via @TelegramThemes kun je er alvast wat vinden.\n— Handige tools om je eigen thema's te bouwen zijn onderweg.\n\n— Verwijder berichten voor iedereen. Je kunt vanaf nu berichten in groepen en 1-op-1-chats niet alleen voor jezelf maar ook voor iedereen verwijderen. Deze functie werkt alleen voor berichten die recent verzonden zijn (net zoals het bewerken van berichten).\n— Je kunt nu belangrijke chats vastzetten bovenaan de lijst, zo mis je nooit meer nieuwe berichten. (rechtsklik op de chat en daarna 'Vastzetten').\n— Gedeelde groepen. Via deze nieuwe optie in het gebruikersprofiel van je contacten kun je snel zien welke groepen je deelt.\n\nMeer over deze update:\n{link}";
+"lng_new_version_text" = "— Nieuwe optie, minimaliseer het overzicht met chats naar een overzicht van profielfoto's. Formaat wijzigen door de lijst aan te klikken en te slepen.\n— Probleem het slepen en neerzetten van afbeeldingen vanuit Firefox onder Windows opgelost.\n— Probleemoplossing en andere kleine verbeteringen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

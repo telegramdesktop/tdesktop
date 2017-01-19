@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "Zum Abbrechen rausbewegen";
 "lng_will_be_notified" = "Mitglieder werden benachrichtigt";
 "lng_wont_be_notified" = "Mitglieder werden nicht benachrichtigt";
-"lng_empty_history" = "";
 "lng_willbe_history" = "Chat auswählen, um zu schreiben";
 "lng_from_you" = "Ich";
 "lng_from_draft" = "Entwurf";
@@ -1011,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Telegram Desktop im neuen Material-Design und netten Animationen.\n— Unterstützung eigener Themen! Ein paar Beispiele gibt es hier: @TelegramThemes.\n— Demnächst wird es einfachere Wege geben, eigene Themen zu erstellen.\n\n— Nachrichten für alle löschen. Löschst du eine Nachricht in einer Gruppe oder in einem privaten Chat, so kannst du nun festlegen ob die Nachricht nur bei dir oder bei allen im Chat gelöscht werden soll. Das Ganze funktioniert nur mit kürzlich gesendeten Nachrichten.\n— Wichtige Chats in der Chatliste (oben) anheften. Dazu ein Rechtsklick auf den Chat in der Chatliste und 'Anheften' wählen.\n— Gemeinsame Gruppen. Im Chat mit einem Nutzer auf den Namen oben tippen und anschliessend 'Gemeinsame Gruppen'. So sieht man auf einem Blick, in welchen gemeinsamen Gruppen man sich befindet.\n\nMehr dazu unter:\n{link}";
+"lng_new_version_text" = "— Chatliste lässt sich zusammenschieben, so dass man nur noch die Profilbilder sehen kann.\n— Drag und Drop von Bildern klappt wieder mit Firefox (Windows)\n— Fehlerbehebungen und sonstige Verbesserungen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

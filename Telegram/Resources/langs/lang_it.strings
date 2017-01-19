@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "Rilascia fuori per annullare";
 "lng_will_be_notified" = "I post saranno notificati ai membri";
 "lng_wont_be_notified" = "I post non saranno notificati ai membri";
-"lng_empty_history" = "";
 "lng_willbe_history" = "Seleziona una chat per iniziare a messaggiare";
 "lng_from_you" = "Tu";
 "lng_from_draft" = "Bozza";
@@ -1011,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Nuovo favolosa grafica e animazioni in stile material design.\n— Supporto per i temi personalizzati! Dai un'occhiata ad alcuni temi qui: @TelegramThemes.\n— Strumenti più semplici per la creazione dei tuoi temi in arrivo a breve.\n\n— Elimina i messaggi per tutti. Quando elimini i tuoi messaggi nei gruppi e nelle chat uno a uno, puoi ora scegliere di eliminarli per chiunque nella chat, non solo per te. Funziona solo per i messaggi inviati di recente (come la modifica).\n— Fissa le chat importanti in alto in modo da non perdere i nuovi messaggi (tasto destro su una chat, quindi scegli 'Fissa in alto').\n— Gruppi in comune. Una nuova opzione nel profilo dei tuoi contatti che mostra una lista di tutti i gruppi che condividi con quella persona.\n\nPiù info su questo aggiornamento:\n{link}";
+"lng_new_version_text" = "— Nuova opzione per minimizzare la lista delle chat in una colonna di foto profilo. Ridimensiona la lista cliccando e trascinando.\n— Risolto il problema del trascinamento delle immagini da Firefox su Windows.\n— Risoluzione di problemi e altri miglioramenti minori.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

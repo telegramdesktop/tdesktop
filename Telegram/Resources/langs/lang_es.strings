@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "Suelta fuera de aquí para cancelar";
 "lng_will_be_notified" = "Tu publicación será notificada";
 "lng_wont_be_notified" = "Tu publicación no será notificada";
-"lng_empty_history" = "";
 "lng_willbe_history" = "Selecciona un chat para comenzar";
 "lng_from_you" = "Tú";
 "lng_from_draft" = "Borrador";
@@ -1011,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nuevo diseño y animaciones.\n— ¡Soporte para temas personalizados! Revisa algunos aquí: @TelegramThemes.\n— Pronto existirán herramientas para que crees tus propios temas.\n\n— Elimina mensajes para todos: Cuando eliminas tus mensajes en grupos y chats, ahora puedes seleccionar eliminarlos para todos en el chat y no sólo para ti. Esto funciona sólo para mensajes enviados recientemente (igual que la edición).\n— Ancla los chats importantes en la parte de arriba de la lista (haz clic con el botón derecho sobre el chat, luego elige “Anclar”).\n— Grupos en común: Una nueva sección en el perfil de tus contactos que te muestra una lista de todos los grupos que compartes con esa persona.\n\nConoce más sobre esta actualización en:\n{link}";
+"lng_new_version_text" = "— Nueva opción para minimizar la lista de chats en una columna de imágenes de perfil. Cambia el tamaño de la lista haciendo clic y arrastrando.\n— Arrastrar y soltar arreglado para las imágenes desde Firefox en Windows.\n— Corrección de errores y otras mejoras menores.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

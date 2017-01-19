@@ -46,8 +46,8 @@ LangString langCounted(ushort key0, ushort tag, float64 value) { // current lang
 	return lang(LangKey(key0)).tag(tag, sv);
 }
 
-#define NEW_VER_TAG lt_link
-#define NEW_VER_TAG_VALUE "https://telegram.org/blog/desktop-1-0"
+//#define NEW_VER_TAG lt_link
+//#define NEW_VER_TAG_VALUE "https://telegram.org/blog/desktop-1-0"
 
 QString langNewVersionText() {
 #ifdef NEW_VER_TAG

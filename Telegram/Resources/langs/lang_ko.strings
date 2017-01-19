@@ -201,7 +201,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signin_reset_in_minutes" = "{count_minutes:0 분|# 분|# 분}";
 "lng_signin_reset_cancelled" = "현재 사용중인 사용자가 요청하신 계정 초기화를 취소 하였습니다.\n7일 이후에 다시 시도해주세요.";
 
-"lng_signup_title" = "정ㅂ";
+"lng_signup_title" = "정보";
 "lng_signup_desc" = "이름을 입력해주시고,\n사진을 업로드해주세요.";
 
 "lng_signup_firstname" = "이름";
@@ -272,7 +272,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_check_now" = "업데이트 확인";
 "lng_settings_update_checking" = "업데이트 확인 중...";
 "lng_settings_latest_installed" = "최신 버전이 설치되어 있습니다.";
-"lng_settings_downloading" = "데이트를 다운로드 중 {ready} / {total} MB..";
+"lng_settings_downloading" = "업데이트를 다운로드 중 {ready} / {total} MB..";
 "lng_settings_update_ready" = "새로운 버전을 설치 할 수 있습니다.";
 "lng_settings_update_now" = "재시작 합니다.";
 "lng_settings_update_fail" = "업데이트 확인 실패 :(";
@@ -771,7 +771,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_record_cancel" = "이 영역 밖에서 마우스 클릭을 해제하시면 취소가 됩니다.";
 "lng_will_be_notified" = "메시지 작성시 구성원들에게 알림이 갑니다.";
 "lng_wont_be_notified" = "메시지 작성시 구성원들에게 알림이 가지 않습니다.";
-"lng_empty_history" = "";
 "lng_willbe_history" = "대화하실 방을 선택해주세요.";
 "lng_from_you" = "회원님";
 "lng_from_draft" = "임시저장";
@@ -1011,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 멋지고 새로운 머티리얼 스타일 디자인과 애니메이션이 추가 되었습니다.\n— 커스텀 테마 지원! @TelegramThemes 에서 확인가능합니다.\n— 개인만의 테마를 만들수 있는 툴이 곧 제공됩니다.\n\n— 모두에게 메시지 삭제. 그룹이나 1:1대화에서 메시지를 삭제할떄, 본인 뿐만 아니라 상대방에게도 삭제할 수 있도록 선택 가능. 이 기능은 최근에 대화한 메시지만 가능합니다.(편집과 동일)\n— 중요한 대화를 상단으로 고정할 수 있습니다. (대화창을 오른쪽 클릭 후 '맨위에 고정' 선택)\n— 공통그룹. 연락처 프로필에서 같이 대화하는 상대의 공통 그룹을 볼 수 있습니다.\n\n업데이트 자세한 내용:\n{link}";
+"lng_new_version_text" = "— 대화방목록 크기를 프로필사진 목록으로 최소화하는 옵션 추가. 클릭 후 드래그를 하여 리스트 크기 조절 가능\n— 윈도우 파이어폭스에서 이미지 드래그 후 드롭 수정\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
