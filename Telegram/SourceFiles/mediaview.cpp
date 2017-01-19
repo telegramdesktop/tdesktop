@@ -228,9 +228,7 @@ void MediaView::stopGif() {
 	_videoPaused = _videoStopped = _videoIsSilent = false;
 	_fullScreenVideo = false;
 	_clipController.destroy();
-	if (audioPlayer()) {
-		disconnect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
-	}
+	disconnect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
 void MediaView::documentUpdated(DocumentData *doc) {
@@ -1487,9 +1485,7 @@ void MediaView::createClipController() {
 	connect(_clipController, SIGNAL(toFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 	connect(_clipController, SIGNAL(fromFullScreenPressed()), this, SLOT(onVideoToggleFullScreen()));
 
-	if (audioPlayer()) {
-		connect(audioPlayer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
-	}
+	connect(Media::Player::mixer(), SIGNAL(updated(const AudioMsgId&)), this, SLOT(onVideoPlayProgress(const AudioMsgId&)));
 }
 
 void MediaView::setClipControllerGeometry() {
@@ -1585,8 +1581,7 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 		return;
 	}
 
-	t_assert(audioPlayer() != nullptr);
-	auto state = audioPlayer()->currentVideoState(_gif->playId());
+	auto state = Media::Player::mixer()->currentVideoState(_gif->playId());
 	if (state.duration) {
 		updateVideoPlaybackState(state);
 	}

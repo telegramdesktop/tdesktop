@@ -52,6 +52,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "fileuploader.h"
 #include "media/media_audio.h"
+#include "media/media_audio_capture.h"
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
@@ -3115,11 +3116,9 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_emojiPan, SIGNAL(updateStickers()), this, SLOT(updateStickers()));
 	connect(&_sendActionStopTimer, SIGNAL(timeout()), this, SLOT(onCancelSendAction()));
 	connect(&_previewTimer, SIGNAL(timeout()), this, SLOT(onPreviewTimeout()));
-	if (audioCapture()) {
-		connect(audioCapture(), SIGNAL(error()), this, SLOT(onRecordError()));
-		connect(audioCapture(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
-		connect(audioCapture(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
-	}
+	connect(Media::Capture::instance(), SIGNAL(error()), this, SLOT(onRecordError()));
+	connect(Media::Capture::instance(), SIGNAL(updated(quint16,qint32)), this, SLOT(onRecordUpdate(quint16,qint32)));
+	connect(Media::Capture::instance(), SIGNAL(done(QByteArray,VoiceWaveform,qint32)), this, SLOT(onRecordDone(QByteArray,VoiceWaveform,qint32)));
 
 	_attachToggle->setClickedCallback(App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [this] {
 		chooseAttach();
@@ -5649,10 +5648,10 @@ void HistoryWidget::leaveToChildEvent(QEvent *e, QWidget *child) { // e -- from 
 }
 
 void HistoryWidget::recordStartCallback() {
-	if (!cHasAudioCapture()) {
+	if (!Media::Capture::instance()->available()) {
 		return;
 	}
-	emit audioCapture()->start();
+	emit Media::Capture::instance()->start();
 
 	_recording = _inField = true;
 	updateControlsVisibility();
@@ -5680,13 +5679,13 @@ void HistoryWidget::mouseReleaseEvent(QMouseEvent *e) {
 		_attachDrag = DragStateNone;
 		updateDragAreas();
 	}
-	if (_recording && cHasAudioCapture()) {
+	if (_recording) {
 		stopRecording(_peer && _inField);
 	}
 }
 
 void HistoryWidget::stopRecording(bool send) {
-	emit audioCapture()->stop(send);
+	emit Media::Capture::instance()->stop(send);
 
 	a_recordingLevel = anim::value();
 	_a_recording.stop();
@@ -6045,7 +6044,7 @@ bool HistoryWidget::isMuteUnmute() const {
 }
 
 bool HistoryWidget::showRecordButton() const {
-	return cHasAudioCapture() && !_field->hasSendText() && !readyToForward() && !_editMsgId;
+	return Media::Capture::instance()->available() && !_field->hasSendText() && !readyToForward() && !_editMsgId;
 }
 
 bool HistoryWidget::showInlineBotCancel() const {

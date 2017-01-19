@@ -301,6 +301,8 @@
       '<(src_loc)/media/view/media_clip_volume_controller.h',
       '<(src_loc)/media/media_audio.cpp',
       '<(src_loc)/media/media_audio.h',
+      '<(src_loc)/media/media_audio_capture.cpp',
+      '<(src_loc)/media/media_audio_capture.h',
       '<(src_loc)/media/media_audio_ffmpeg_loader.cpp',
       '<(src_loc)/media/media_audio_ffmpeg_loader.h',
       '<(src_loc)/media/media_audio_loader.cpp',

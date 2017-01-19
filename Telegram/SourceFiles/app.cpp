@@ -195,9 +195,7 @@ namespace {
 			Global::SetLocalPasscode(false);
 			Global::RefLocalPasscodeChanged().notify();
 		}
-		if (audioPlayer()) {
-			audioPlayer()->stopAndClear();
-		}
+		Media::Player::mixer()->stopAndClear();
 		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
 			w->notifyClearFast();
@@ -2436,7 +2434,7 @@ namespace {
 
 	void playSound() {
 		if (Global::SoundNotify() && !Platform::Notifications::skipAudio()) {
-			audioPlayNotify();
+			Media::Player::PlayNotify();
 		}
 	}
 

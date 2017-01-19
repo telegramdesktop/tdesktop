@@ -187,7 +187,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(Time
 	}
 
 	// sync by audio stream
-	auto correctMs = (frameMs >= 0) ? audioPlayer()->getVideoCorrectedTime(_playId, frameMs, systemMs) : frameMs;
+	auto correctMs = (frameMs >= 0) ? Player::mixer()->getVideoCorrectedTime(_playId, frameMs, systemMs) : frameMs;
 	if (!_frameRead) {
 		auto readResult = readNextFrame();
 		if (readResult != ReadResult::Success) {
@@ -221,13 +221,13 @@ TimeMs FFMpegReaderImplementation::durationMs() const {
 
 void FFMpegReaderImplementation::pauseAudio() {
 	if (_audioStreamId >= 0) {
-		audioPlayer()->pauseFromVideo(_playId);
+		Player::mixer()->pauseFromVideo(_playId);
 	}
 }
 
 void FFMpegReaderImplementation::resumeAudio() {
 	if (_audioStreamId >= 0) {
-		audioPlayer()->resumeFromVideo(_playId);
+		Player::mixer()->resumeFromVideo(_playId);
 	}
 }
 
@@ -371,7 +371,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
 	if (_mode == Mode::OnlyGifv) {
 		if (_audioStreamId >= 0) { // should be no audio stream
-			_audioStreamId = -1; // do not attempt to access audioPlayer()
+			_audioStreamId = -1; // do not attempt to access mixer()
 			return false;
 		}
 		if (dataSize() > AnimationInMemory) {
@@ -380,7 +380,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 		if (_codecContext->codec_id != AV_CODEC_ID_H264) {
 			return false;
 		}
-	} else if (_mode == Mode::Silent || !audioPlayer() || !_playId) {
+	} else if (_mode == Mode::Silent || !Player::mixer() || !_playId) {
 		_audioStreamId = -1;
 	}
 
@@ -437,7 +437,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 
 	if (_audioStreamId >= 0) {
 		int64 position = (positionMs * soundData->frequency) / 1000LL;
-		audioPlayer()->initFromVideo(_playId, std_::move(soundData), position);
+		Player::mixer()->initFromVideo(_playId, std_::move(soundData), position);
 	}
 
 	if (readResult == PacketResult::Ok) {
@@ -453,7 +453,7 @@ QString FFMpegReaderImplementation::logData() const {
 
 FFMpegReaderImplementation::~FFMpegReaderImplementation() {
 	if (_audioStreamId >= 0) {
-		audioPlayer()->stopFromVideo(_playId);
+		Player::mixer()->stopFromVideo(_playId);
 	}
 
 	clearPacketQueue();
@@ -490,7 +490,7 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 				VideoSoundPart part;
 				part.packet = &_packetNull;
 				part.videoPlayId = _playId;
-				audioPlayer()->feedFromVideo(std_::move(part));
+				Player::mixer()->feedFromVideo(std_::move(part));
 			}
 			return PacketResult::EndOfFile;
 		}
@@ -516,7 +516,7 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 			VideoSoundPart part;
 			part.packet = packet;
 			part.videoPlayId = _playId;
-			audioPlayer()->feedFromVideo(std_::move(part));
+			Player::mixer()->feedFromVideo(std_::move(part));
 		}
 	} else {
 		av_packet_unref(packet);

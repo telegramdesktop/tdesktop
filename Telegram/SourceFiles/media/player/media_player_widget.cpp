@@ -107,9 +107,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 		handleSeekFinished(value);
 	});
 	_playPause->setClickedCallback([this] {
-		if (exists()) {
-			instance()->playPauseCancelClicked();
-		}
+		instance()->playPauseCancelClicked();
 	});
 
 	updateVolumeToggleIcon();
@@ -124,27 +122,24 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 		instance()->toggleRepeat();
 	});
 
-	if (exists()) {
-		subscribe(instance()->repeatChangedNotifier(), [this] {
-			updateRepeatTrackIcon();
-		});
-		subscribe(instance()->playlistChangedNotifier(), [this] {
-			handlePlaylistUpdate();
-		});
-		subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
-			handleSongUpdate(e);
-		});
-		subscribe(instance()->songChangedNotifier(), [this] {
-			handleSongChange();
-		});
+	subscribe(instance()->repeatChangedNotifier(), [this] {
+		updateRepeatTrackIcon();
+	});
+	subscribe(instance()->playlistChangedNotifier(), [this] {
+		handlePlaylistUpdate();
+	});
+	subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
+		handleSongUpdate(e);
+	});
+	subscribe(instance()->songChangedNotifier(), [this] {
 		handleSongChange();
-		if (auto player = audioPlayer()) {
-			AudioMsgId playing;
-			auto playbackState = player->currentState(&playing, AudioMsgId::Type::Song);
-			handleSongUpdate(UpdatedEvent(&playing, &playbackState));
-			_playPause->finishTransform();
-		}
-	}
+	});
+	handleSongChange();
+
+	AudioMsgId playing;
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
+	handleSongUpdate(UpdatedEvent(&playing, &playbackState));
+	_playPause->finishTransform();
 }
 
 void Widget::updateVolumeToggleIcon() {
@@ -201,9 +196,8 @@ void Widget::handleSeekProgress(float64 progress) {
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
-		if (exists()) {
-			instance()->startSeeking();
-		}
+
+		instance()->startSeeking();
 	}
 }
 
@@ -214,14 +208,12 @@ void Widget::handleSeekFinished(float64 progress) {
 	_seekPositionMs = -1;
 
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
 	if (playing && playbackState.duration) {
-		audioPlayer()->seek(qRound(progress * playbackState.duration));
+		mixer()->seek(qRound(progress * playbackState.duration));
 	}
 
-	if (exists()) {
-		instance()->stopSeeking();
-	}
+	instance()->stopSeeking();
 }
 
 void Widget::resizeEvent(QResizeEvent *e) {
@@ -260,9 +252,7 @@ void Widget::updateOverLabelsState(QPoint pos) {
 }
 
 void Widget::updateOverLabelsState(bool over) {
-	if (exists()) {
-		instance()->playerWidgetOver().notify(over, true);
-	}
+	instance()->playerWidgetOver().notify(over, true);
 }
 
 void Widget::updatePlayPrevNextPositions() {
@@ -326,7 +316,7 @@ void Widget::handleSongUpdate(const UpdatedEvent &e) {
 
 	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
 	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
-	if (exists() && instance()->isSeeking()) {
+	if (instance()->isSeeking()) {
 		showPause = true;
 	}
 	auto state = [audio = audioId.audio(), showPause] {
@@ -425,16 +415,12 @@ void Widget::createPrevNextButtons() {
 		_previousTrack.create(this, st::mediaPlayerPreviousButton);
 		_previousTrack->show();
 		_previousTrack->setClickedCallback([this]() {
-			if (exists()) {
-				instance()->previous();
-			}
+			instance()->previous();
 		});
 		_nextTrack.create(this, st::mediaPlayerNextButton);
 		_nextTrack->show();
 		_nextTrack->setClickedCallback([this]() {
-			if (exists()) {
-				instance()->next();
-			}
+			instance()->next();
 		});
 		updatePlayPrevNextPositions();
 	}

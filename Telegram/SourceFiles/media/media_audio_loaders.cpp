@@ -25,13 +25,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio_ffmpeg_loader.h"
 #include "media/media_child_ffmpeg_loader.h"
 
-AudioPlayerLoaders::AudioPlayerLoaders(QThread *thread) : _fromVideoNotify(this, "onVideoSoundAdded") {
+namespace Media {
+namespace Player {
+
+Loaders::Loaders(QThread *thread) : _fromVideoNotify(this, "onVideoSoundAdded") {
 	moveToThread(thread);
 	connect(thread, SIGNAL(started()), this, SLOT(onInit()));
 	connect(thread, SIGNAL(finished()), this, SLOT(deleteLater()));
 }
 
-void AudioPlayerLoaders::feedFromVideo(VideoSoundPart &&part) {
+void Loaders::feedFromVideo(VideoSoundPart &&part) {
 	bool invoke = false;
 	{
 		QMutexLocker lock(&_fromVideoMutex);
@@ -47,17 +50,17 @@ void AudioPlayerLoaders::feedFromVideo(VideoSoundPart &&part) {
 	}
 }
 
-void AudioPlayerLoaders::startFromVideo(uint64 videoPlayId) {
+void Loaders::startFromVideo(uint64 videoPlayId) {
 	QMutexLocker lock(&_fromVideoMutex);
 	_fromVideoPlayId = videoPlayId;
 	clearFromVideoQueue();
 }
 
-void AudioPlayerLoaders::stopFromVideo() {
+void Loaders::stopFromVideo() {
 	startFromVideo(0);
 }
 
-void AudioPlayerLoaders::onVideoSoundAdded() {
+void Loaders::onVideoSoundAdded() {
 	bool waitingAndAdded = false;
 	{
 		QMutexLocker lock(&_fromVideoMutex);
@@ -71,12 +74,12 @@ void AudioPlayerLoaders::onVideoSoundAdded() {
 	}
 }
 
-AudioPlayerLoaders::~AudioPlayerLoaders() {
+Loaders::~Loaders() {
 	QMutexLocker lock(&_fromVideoMutex);
 	clearFromVideoQueue();
 }
 
-void AudioPlayerLoaders::clearFromVideoQueue() {
+void Loaders::clearFromVideoQueue() {
 	auto queue = base::take(_fromVideoQueue);
 	for (auto &packetData : queue) {
 		AVPacket packet;
@@ -85,18 +88,17 @@ void AudioPlayerLoaders::clearFromVideoQueue() {
 	}
 }
 
-void AudioPlayerLoaders::onInit() {
+void Loaders::onInit() {
 }
 
-void AudioPlayerLoaders::onStart(const AudioMsgId &audio, qint64 position) {
+void Loaders::onStart(const AudioMsgId &audio, qint64 position) {
 	auto type = audio.type();
 	clear(type);
 	{
 		QMutexLocker lock(internal::audioPlayerMutex());
-		AudioPlayer *voice = audioPlayer();
-		if (!voice) return;
+		if (!mixer()) return;
 
-		auto data = voice->dataForType(type);
+		auto data = mixer()->dataForType(type);
 		if (!data) return;
 
 		data->loading = true;
@@ -105,7 +107,7 @@ void AudioPlayerLoaders::onStart(const AudioMsgId &audio, qint64 position) {
 	loadData(audio, position);
 }
 
-AudioMsgId AudioPlayerLoaders::clear(AudioMsgId::Type type) {
+AudioMsgId Loaders::clear(AudioMsgId::Type type) {
 	AudioMsgId result;
 	switch (type) {
 	case AudioMsgId::Type::Voice: std::swap(result, _audio); _audioLoader = nullptr; break;
@@ -115,20 +117,20 @@ AudioMsgId AudioPlayerLoaders::clear(AudioMsgId::Type type) {
 	return result;
 }
 
-void AudioPlayerLoaders::setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state) {
+void Loaders::setStoppedState(Mixer::AudioMsg *m, AudioPlayerState state) {
 	m->playbackState.state = state;
 	m->playbackState.position = 0;
 }
 
-void AudioPlayerLoaders::emitError(AudioMsgId::Type type) {
+void Loaders::emitError(AudioMsgId::Type type) {
 	emit error(clear(type));
 }
 
-void AudioPlayerLoaders::onLoad(const AudioMsgId &audio) {
+void Loaders::onLoad(const AudioMsgId &audio) {
 	loadData(audio, 0);
 }
 
-void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
+void Loaders::loadData(AudioMsgId audio, qint64 position) {
 	SetupError err = SetupNoErrorStarted;
 	auto type = audio.type();
 	AudioPlayerLoader *l = setupLoader(audio, err, position);
@@ -156,7 +158,7 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 			if (errAtStart) {
 				{
 					QMutexLocker lock(internal::audioPlayerMutex());
-					AudioPlayer::AudioMsg *m = checkLoader(type);
+					auto m = checkLoader(type);
 					if (m) m->playbackState.state = AudioPlayerStoppedAtStart;
 				}
 				emitError(type);
@@ -185,7 +187,7 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 	}
 
 	QMutexLocker lock(internal::audioPlayerMutex());
-	AudioPlayer::AudioMsg *m = checkLoader(type);
+	auto m = checkLoader(type);
 	if (!m) {
 		clear(type);
 		return;
@@ -294,8 +296,6 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 		alGetSourcei(m->source, AL_SOURCE_STATE, &state);
 		if (internal::audioCheckError()) {
 			if (state != AL_PLAYING) {
-				audioPlayer()->resumeDevice();
-
 				switch (type) {
 				case AudioMsgId::Type::Voice: alSourcef(m->source, AL_GAIN, internal::audioSuppressGain()); break;
 				case AudioMsgId::Type::Song: alSourcef(m->source, AL_GAIN, internal::audioSuppressSongGain() * Global::SongVolume()); break;
@@ -323,13 +323,12 @@ void AudioPlayerLoaders::loadData(AudioMsgId audio, qint64 position) {
 	}
 }
 
-AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position) {
+AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position) {
 	err = SetupErrorAtStart;
 	QMutexLocker lock(internal::audioPlayerMutex());
-	AudioPlayer *voice = audioPlayer();
-	if (!voice) return nullptr;
+	if (!mixer()) return nullptr;
 
-	auto data = voice->dataForType(audio.type());
+	auto data = mixer()->dataForType(audio.type());
 	if (!data || data->audio != audio || !data->loading) {
 		emit error(audio);
 		LOG(("Audio Error: trying to load part of audio, that is not current at the moment"));
@@ -395,11 +394,10 @@ AudioPlayerLoader *AudioPlayerLoaders::setupLoader(const AudioMsgId &audio, Setu
 	return l;
 }
 
-AudioPlayer::AudioMsg *AudioPlayerLoaders::checkLoader(AudioMsgId::Type type) {
-	AudioPlayer *voice = audioPlayer();
-	if (!voice) return 0;
+Mixer::AudioMsg *Loaders::checkLoader(AudioMsgId::Type type) {
+	if (!mixer()) return nullptr;
 
-	auto data = voice->dataForType(type);
+	auto data = mixer()->dataForType(type);
 	bool isGoodId = false;
 	AudioPlayerLoader *l = nullptr;
 	switch (type) {
@@ -417,7 +415,7 @@ AudioPlayer::AudioMsg *AudioPlayerLoaders::checkLoader(AudioMsgId::Type type) {
 	return data;
 }
 
-void AudioPlayerLoaders::onCancel(const AudioMsgId &audio) {
+void Loaders::onCancel(const AudioMsgId &audio) {
 	switch (audio.type()) {
 	case AudioMsgId::Type::Voice: if (_audio == audio) clear(audio.type()); break;
 	case AudioMsgId::Type::Song: if (_song == audio) clear(audio.type()); break;
@@ -425,13 +423,15 @@ void AudioPlayerLoaders::onCancel(const AudioMsgId &audio) {
 	}
 
 	QMutexLocker lock(internal::audioPlayerMutex());
-	AudioPlayer *voice = audioPlayer();
-	if (!voice) return;
+	if (!mixer()) return;
 
 	for (int i = 0; i < AudioSimultaneousLimit; ++i) {
-		auto data = voice->dataForType(audio.type(), i);
+		auto data = mixer()->dataForType(audio.type(), i);
 		if (data->audio == audio) {
 			data->loading = false;
 		}
 	}
 }
+
+} // namespace Player
+} // namespace Media

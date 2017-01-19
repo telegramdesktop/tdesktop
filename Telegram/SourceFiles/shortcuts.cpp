@@ -79,51 +79,33 @@ bool quit_telegram() {
 //}
 
 bool media_play() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->play();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->play();
+	return true;
 }
 
 bool media_pause() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->pause();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->pause();
+	return true;
 }
 
 bool media_playpause() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->playPause();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->playPause();
+	return true;
 }
 
 bool media_stop() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->stop();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->stop();
+	return true;
 }
 
 bool media_previous() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->previous();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->previous();
+	return true;
 }
 
 bool media_next() {
-	if (Media::Player::exists()) {
-		Media::Player::instance()->next();
-		return true;
-	}
-	return false;
+	Media::Player::instance()->next();
+	return true;
 }
 
 bool search() {

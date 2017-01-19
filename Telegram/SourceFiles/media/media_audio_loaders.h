@@ -26,21 +26,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 class AudioPlayerLoader;
 class ChildFFMpegLoader;
-class AudioPlayerLoaders : public QObject {
+
+namespace Media {
+namespace Player {
+
+class Loaders : public QObject {
 	Q_OBJECT
 
 public:
-	AudioPlayerLoaders(QThread *thread);
+	Loaders(QThread *thread);
 	void startFromVideo(uint64 videoPlayId);
 	void stopFromVideo();
 	void feedFromVideo(VideoSoundPart &&part);
-	~AudioPlayerLoaders();
+	~Loaders();
 
 signals:
 	void error(const AudioMsgId &audio);
 	void needToCheck();
 
-public slots:
+	public slots:
 	void onInit();
 
 	void onStart(const AudioMsgId &audio, qint64 position);
@@ -64,7 +68,7 @@ private:
 
 	void emitError(AudioMsgId::Type type);
 	AudioMsgId clear(AudioMsgId::Type type);
-	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
+	void setStoppedState(Mixer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
 
 	enum SetupError {
 		SetupErrorAtStart = 0,
@@ -74,6 +78,9 @@ private:
 	};
 	void loadData(AudioMsgId audio, qint64 position);
 	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position);
-	AudioPlayer::AudioMsg *checkLoader(AudioMsgId::Type type);
+	Mixer::AudioMsg *checkLoader(AudioMsgId::Type type);
 
 };
+
+} // namespace Player
+} // namespace Media

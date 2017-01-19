@@ -32,11 +32,6 @@ namespace Player {
 void start();
 void finish();
 
-// We use this method instead of checking for instance() != nullptr
-// because audioPlayer() can be destroyed at any time by an
-// error in audio playback, so we check it each time.
-bool exists();
-
 class Instance;
 Instance *instance();
 

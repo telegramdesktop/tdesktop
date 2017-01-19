@@ -20,13 +20,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/basic_types.h"
-
-void audioInit();
-bool audioWorks();
-void audioPlayNotify();
-void audioFinish();
-
 enum AudioPlayerState {
 	AudioPlayerStopped = 0x01,
 	AudioPlayerStoppedAtEnd = 0x02,
@@ -43,9 +36,6 @@ enum AudioPlayerState {
 	AudioPlayerResuming = 0x38,
 };
 
-class AudioPlayerFader;
-class AudioPlayerLoaders;
-
 struct VideoSoundData;
 struct VideoSoundPart;
 struct AudioPlaybackState {
@@ -55,11 +45,25 @@ struct AudioPlaybackState {
 	int32 frequency = 0;
 };
 
-class AudioPlayer : public QObject, public base::Observable<AudioMsgId>, private base::Subscriber {
+namespace Media {
+namespace Player {
+
+void InitAudio();
+void DeInitAudio();
+
+base::Observable<AudioMsgId> &Updated();
+bool CreateAudioPlaybackDevice();
+
+void PlayNotify();
+
+class Fader;
+class Loaders;
+
+class Mixer : public QObject, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	AudioPlayer();
+	Mixer();
 
 	void play(const AudioMsgId &audio, int64 position = 0);
 	void pauseresume(AudioMsgId::Type type, bool fast = false);
@@ -81,11 +85,9 @@ public:
 
 	void clearStoppedAtStart(const AudioMsgId &audio);
 
-	void resumeDevice();
+	~Mixer();
 
-	~AudioPlayer();
-
-private slots:
+	private slots:
 	void onError(const AudioMsgId &audio);
 	void onStopped(const AudioMsgId &audio);
 
@@ -161,60 +163,22 @@ private:
 
 	QMutex _mutex;
 
-	friend class AudioPlayerFader;
-	friend class AudioPlayerLoaders;
+	friend class Fader;
+	friend class Loaders;
 
 	QThread _faderThread, _loaderThread;
-	AudioPlayerFader *_fader;
-	AudioPlayerLoaders *_loader;
+	Fader *_fader;
+	Loaders *_loader;
 
 };
 
-namespace internal {
+Mixer *mixer();
 
-QMutex *audioPlayerMutex();
-float64 audioSuppressGain();
-float64 audioSuppressSongGain();
-bool audioCheckError();
-
-} // namespace internal
-
-class AudioCaptureInner;
-
-class AudioCapture : public QObject {
+class Fader : public QObject {
 	Q_OBJECT
 
 public:
-	AudioCapture();
-
-	bool check();
-
-	~AudioCapture();
-
-signals:
-	void start();
-	void stop(bool needResult);
-
-	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
-	void updated(quint16 level, qint32 samples);
-	void error();
-
-private:
-	friend class AudioCaptureInner;
-
-	QThread _captureThread;
-	AudioCaptureInner *_capture;
-
-};
-
-AudioPlayer *audioPlayer();
-AudioCapture *audioCapture();
-
-class AudioPlayerFader : public QObject {
-	Q_OBJECT
-
-public:
-	AudioPlayerFader(QThread *thread);
+	Fader(QThread *thread);
 	void resumeDevice();
 
 signals:
@@ -244,8 +208,8 @@ private:
 		EmitPositionUpdated = 0x04,
 		EmitNeedToPreload = 0x08,
 	};
-	int32 updateOnePlayback(AudioPlayer::AudioMsg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged);
-	void setStoppedState(AudioPlayer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
+	int32 updateOnePlayback(Mixer::AudioMsg *m, bool &hasPlaying, bool &hasFading, float64 suppressGain, bool suppressGainChanged);
+	void setStoppedState(Mixer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
 
 	QTimer _timer, _pauseTimer;
 	QMutex _pauseMutex;
@@ -263,42 +227,17 @@ private:
 
 };
 
-struct AudioCapturePrivate;
-struct AVFrame;
+} // namespace Player
+} // namespace Media
 
-class AudioCaptureInner : public QObject {
-	Q_OBJECT
+namespace internal {
 
-public:
-	AudioCaptureInner(QThread *thread);
-	~AudioCaptureInner();
+QMutex *audioPlayerMutex();
+float64 audioSuppressGain();
+float64 audioSuppressSongGain();
+bool audioCheckError();
 
-signals:
-	void error();
-	void updated(quint16 level, qint32 samples);
-	void done(QByteArray data, VoiceWaveform waveform, qint32 samples);
-
-public slots:
-	void onInit();
-	void onStart();
-	void onStop(bool needResult);
-
-	void onTimeout();
-
-private:
-	void processFrame(int32 offset, int32 framesize);
-
-	void writeFrame(AVFrame *frame);
-
-	// Writes the packets till EAGAIN is got from av_receive_packet()
-	// Returns number of packets written or -1 on error
-	int writePackets();
-
-	AudioCapturePrivate *d;
-	QTimer _timer;
-	QByteArray _captured;
-
-};
+} // namespace internal
 
 MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat);
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);

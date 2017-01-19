@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 
 #include "media/media_audio.h"
+#include "media/media_audio_capture.h"
 #include "observer_peer.h"
 
 namespace Media {
@@ -33,24 +34,21 @@ Instance *SingleInstance = nullptr;
 } // namespace
 
 void start() {
-	audioInit();
-	if (audioPlayer()) {
-		SingleInstance = new Instance();
-	}
-}
+	InitAudio();
+	Capture::Init();
 
-bool exists() {
-	return (audioPlayer() != nullptr);
+	SingleInstance = new Instance();
 }
 
 void finish() {
 	delete base::take(SingleInstance);
 
-	audioFinish();
+	Capture::DeInit();
+	DeInitAudio();
 }
 
 Instance::Instance() {
-	subscribe(audioPlayer(), [this](const AudioMsgId &audioId) {
+	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
 		if (audioId.type() == AudioMsgId::Type::Song) {
 			handleSongUpdate(audioId);
 		}
@@ -153,17 +151,17 @@ Instance *instance() {
 
 void Instance::play() {
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
 	if (playing) {
 		if (playbackState.state & AudioPlayerStoppedMask) {
-			audioPlayer()->play(playing);
+			mixer()->play(playing);
 		} else {
 			if (playbackState.state == AudioPlayerPausing || playbackState.state == AudioPlayerPaused || playbackState.state == AudioPlayerPausedAtEnd) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
+				mixer()->pauseresume(AudioMsgId::Type::Song);
 			}
 		}
 	} else if (_current) {
-		audioPlayer()->play(_current);
+		mixer()->play(_current);
 	}
 }
 
@@ -171,7 +169,7 @@ void Instance::play(const AudioMsgId &audioId) {
 	if (!audioId || !audioId.audio()->song()) {
 		return;
 	}
-	audioPlayer()->play(audioId);
+	mixer()->play(audioId);
 	setCurrent(audioId);
 	if (audioId.audio()->loading()) {
 		documentLoadProgress(audioId.audio());
@@ -180,31 +178,31 @@ void Instance::play(const AudioMsgId &audioId) {
 
 void Instance::pause() {
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
 	if (playing) {
 		if (!(playbackState.state & AudioPlayerStoppedMask)) {
 			if (playbackState.state == AudioPlayerStarting || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerFinishing) {
-				audioPlayer()->pauseresume(AudioMsgId::Type::Song);
+				mixer()->pauseresume(AudioMsgId::Type::Song);
 			}
 		}
 	}
 }
 
 void Instance::stop() {
-	audioPlayer()->stop(AudioMsgId::Type::Song);
+	mixer()->stop(AudioMsgId::Type::Song);
 }
 
 void Instance::playPause() {
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
 	if (playing) {
 		if (playbackState.state & AudioPlayerStoppedMask) {
-			audioPlayer()->play(playing);
+			mixer()->play(playing);
 		} else {
-			audioPlayer()->pauseresume(AudioMsgId::Type::Song);
+			mixer()->pauseresume(AudioMsgId::Type::Song);
 		}
 	} else if (_current) {
-		audioPlayer()->play(_current);
+		mixer()->play(_current);
 	}
 }
 
@@ -222,7 +220,7 @@ void Instance::playPauseCancelClicked() {
 	}
 
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
 	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
 	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
 	auto audio = playing.audio();
@@ -255,7 +253,7 @@ void Instance::documentLoadProgress(DocumentData *document) {
 template <typename CheckCallback>
 void Instance::emitUpdate(CheckCallback check) {
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
 	if (!playing || !check(playing)) {
 		return;
 	}
@@ -265,7 +263,7 @@ void Instance::emitUpdate(CheckCallback check) {
 
 	if (_isPlaying && playbackState.state == AudioPlayerStoppedAtEnd) {
 		if (_repeatEnabled) {
-			audioPlayer()->play(_current);
+			mixer()->play(_current);
 		} else {
 			next();
 		}

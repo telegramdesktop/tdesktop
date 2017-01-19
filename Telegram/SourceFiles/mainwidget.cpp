@@ -100,13 +100,11 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	connect(_topBar, SIGNAL(clicked()), this, SLOT(onTopBarClick()));
 	connect(_history, SIGNAL(historyShown(History*,MsgId)), this, SLOT(onHistoryShown(History*,MsgId)));
 	connect(&updateNotifySettingTimer, SIGNAL(timeout()), this, SLOT(onUpdateNotifySettings()));
-	if (auto player = audioPlayer()) {
-		subscribe(player, [this](const AudioMsgId &audioId) {
-			if (audioId.type() != AudioMsgId::Type::Video) {
-				handleAudioUpdate(audioId);
-			}
-		});
-	}
+	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
+		if (audioId.type() != AudioMsgId::Type::Video) {
+			handleAudioUpdate(audioId);
+		}
+	});
 
 	subscribe(Global::RefDialogsListFocused(), [this](bool) {
 		updateDialogsWidthAnimated();
@@ -133,30 +131,28 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	});
 	connect(&_cacheBackgroundTimer, SIGNAL(timeout()), this, SLOT(onCacheBackground()));
 
-	if (Media::Player::exists()) {
-		_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
-		_playerPanel->setCloseCallback([this] { closeBothPlayers(); });
-		subscribe(Media::Player::instance()->titleButtonOver(), [this](bool over) {
-			if (over) {
-				_playerPanel->showFromOther();
-			} else {
-				_playerPanel->hideFromOther();
+	_playerPanel->setPinCallback([this] { switchToFixedPlayer(); });
+	_playerPanel->setCloseCallback([this] { closeBothPlayers(); });
+	subscribe(Media::Player::instance()->titleButtonOver(), [this](bool over) {
+		if (over) {
+			_playerPanel->showFromOther();
+		} else {
+			_playerPanel->hideFromOther();
+		}
+	});
+	subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
+		if (over) {
+			if (_playerPlaylist->isHidden()) {
+				auto position = mapFromGlobal(QCursor::pos()).x();
+				auto bestPosition = _playerPlaylist->bestPositionFor(position);
+				if (rtl()) bestPosition = position + 2 * (position - bestPosition) - _playerPlaylist->width();
+				updateMediaPlaylistPosition(bestPosition);
 			}
-		});
-		subscribe(Media::Player::instance()->playerWidgetOver(), [this](bool over) {
-			if (over) {
-				if (_playerPlaylist->isHidden()) {
-					auto position = mapFromGlobal(QCursor::pos()).x();
-					auto bestPosition = _playerPlaylist->bestPositionFor(position);
-					if (rtl()) bestPosition = position + 2 * (position - bestPosition) - _playerPlaylist->width();
-					updateMediaPlaylistPosition(bestPosition);
-				}
-				_playerPlaylist->showFromOther();
-			} else {
-				_playerPlaylist->hideFromOther();
-			}
-		});
-	}
+			_playerPlaylist->showFromOther();
+		} else {
+			_playerPlaylist->hideFromOther();
+		}
+	});
 
 	subscribe(Adaptive::Changed(), [this]() { handleAdaptiveLayoutUpdate(); });
 
@@ -1568,10 +1564,10 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 
 void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	AudioMsgId playing;
-	auto playbackState = audioPlayer()->currentState(&playing, audioId.type());
+	auto playbackState = Media::Player::mixer()->currentState(&playing, audioId.type());
 	if (playing == audioId && playbackState.state == AudioPlayerStoppedAtStart) {
 		playbackState.state = AudioPlayerStopped;
-		audioPlayer()->clearStoppedAtStart(audioId);
+		Media::Player::mixer()->clearStoppedAtStart(audioId);
 
 		auto document = audioId.audio();
 		auto filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
@@ -1584,7 +1580,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 
 	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
 		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-			if (!_playerUsingPanel && !_player && Media::Player::exists()) {
+			if (!_playerUsingPanel && !_player) {
 				createPlayer();
 			}
 		} else if (_player && _player->isHidden() && !_playerUsingPanel) {
@@ -1642,15 +1638,10 @@ void MainWidget::closeBothPlayers() {
 	}
 	_playerVolume.destroyDelayed();
 
-	if (Media::Player::exists()) {
-		Media::Player::instance()->usePanelPlayer().notify(false, true);
-	}
+	Media::Player::instance()->usePanelPlayer().notify(false, true);
 	_playerPanel->hideIgnoringEnterEvents();
 	_playerPlaylist->hideIgnoringEnterEvents();
-
-	if (Media::Player::exists()) {
-		Media::Player::instance()->stop();
-	}
+	Media::Player::instance()->stop();
 
 	Shortcuts::disableMediaShortcuts();
 }
@@ -1685,7 +1676,7 @@ void MainWidget::playerHeightUpdated() {
 	}
 	if (!_playerHeight && _player->isHidden()) {
 		AudioMsgId playing;
-		auto playbackState = audioPlayer()->currentState(&playing, AudioMsgId::Type::Song);
+		auto playbackState = Media::Player::mixer()->currentState(&playing, AudioMsgId::Type::Song);
 		if (playing && (playbackState.state & AudioPlayerStoppedMask)) {
 			_playerVolume.destroyDelayed();
 			_player.destroyDelayed();
@@ -1714,9 +1705,7 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 	App::wnd()->documentUpdated(document);
 
 	if (!document->loaded() && document->song()) {
-		if (Media::Player::exists()) {
-			Media::Player::instance()->documentLoadProgress(document);
-		}
+		Media::Player::instance()->documentLoadProgress(document);
 	}
 }
 

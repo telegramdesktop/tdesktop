@@ -74,9 +74,6 @@ bool gCompressPastedImage = true;
 
 QString gTimeFormat = qsl("hh:mm");
 
-bool gHasAudioPlayer = true;
-bool gHasAudioCapture = true;
-
 RecentEmojiPack gRecentEmojis;
 RecentEmojisPreload gRecentEmojisPreload;
 EmojiColorVariants gEmojiVariants;

@@ -120,9 +120,6 @@ DeclareSetting(DBIScale, ConfigScale);
 DeclareSetting(bool, CompressPastedImage);
 DeclareSetting(QString, TimeFormat);
 
-DeclareSetting(bool, HasAudioPlayer);
-DeclareSetting(bool, HasAudioCapture);
-
 inline void cChangeTimeFormat(const QString &newFormat) {
 	if (!newFormat.isEmpty()) cSetTimeFormat(newFormat);
 }
