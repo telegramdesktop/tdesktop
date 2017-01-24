@@ -3031,9 +3031,6 @@ int MainWidget::contentScrollAddToY() const {
 	return _contentScrollAddToY;
 }
 
-void MainWidget::keyPressEvent(QKeyEvent *e) {
-}
-
 bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 	if (o == _sideResizeArea) {
 		auto mouseLeft = [this, e] {
@@ -4181,7 +4178,6 @@ void MainWidget::incrementSticker(DocumentData *sticker) {
 	if (writeRecentStickers) {
 		Local::writeRecentStickers();
 	}
-	_history->updateRecentStickers();
 }
 
 void MainWidget::activate() {
