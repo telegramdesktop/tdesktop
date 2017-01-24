@@ -1215,7 +1215,7 @@ void OverviewInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (document->loading()) {
 					_menu->addAction(lang(lng_context_cancel_download), this, SLOT(cancelContextDownload()))->setEnabled(true);
 				} else {
-					if (document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
+					if (!document->filepath(DocumentData::FilePathResolveChecked).isEmpty()) {
 						_menu->addAction(lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_context_show_in_finder : lng_context_show_in_folder), this, SLOT(showContextInFolder()))->setEnabled(true);
 					}
 					_menu->addAction(lang(lnkIsVideo ? lng_context_save_video : (lnkIsAudio ? lng_context_save_audio : (lnkIsSong ? lng_context_save_audio_file : lng_context_save_file))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
