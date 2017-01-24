@@ -379,7 +379,7 @@ bool MainWindow::psHasNativeNotifications() {
 void MainWindow::LibsLoaded() {
 	QStringList cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower().split(':');
 	noQtTrayIcon = (cdesktop.contains(qstr("pantheon"))) || (cdesktop.contains(qstr("gnome")));
-	tryAppIndicator = cdesktop.contains(qstr("xfce"));
+	tryAppIndicator = (cdesktop.contains(qstr("xfce")) || cdesktop.contains(qstr("unity")));
 
 	if (noQtTrayIcon) cSetSupportTray(false);
 
