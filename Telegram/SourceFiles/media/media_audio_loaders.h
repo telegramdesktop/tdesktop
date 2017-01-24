@@ -68,7 +68,7 @@ private:
 
 	void emitError(AudioMsgId::Type type);
 	AudioMsgId clear(AudioMsgId::Type type);
-	void setStoppedState(Mixer::AudioMsg *m, AudioPlayerState state = AudioPlayerStopped);
+	void setStoppedState(Mixer::Track *m, State state = State::Stopped);
 
 	enum SetupError {
 		SetupErrorAtStart = 0,
@@ -78,7 +78,7 @@ private:
 	};
 	void loadData(AudioMsgId audio, qint64 position);
 	AudioPlayerLoader *setupLoader(const AudioMsgId &audio, SetupError &err, qint64 &position);
-	Mixer::AudioMsg *checkLoader(AudioMsgId::Type type);
+	Mixer::Track *checkLoader(AudioMsgId::Type type);
 
 };
 

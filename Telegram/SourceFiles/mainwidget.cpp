@@ -1563,10 +1563,10 @@ void MainWidget::ui_autoplayMediaInlineAsync(qint32 channelId, qint32 msgId) {
 }
 
 void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
-	AudioMsgId playing;
-	auto playbackState = Media::Player::mixer()->currentState(&playing, audioId.type());
-	if (playing == audioId && playbackState.state == AudioPlayerStoppedAtStart) {
-		playbackState.state = AudioPlayerStopped;
+	using State = Media::Player::State;
+	auto state = Media::Player::mixer()->currentState(audioId.type());
+	if (state.id == audioId && state.state == State::StoppedAtStart) {
+		state.state = State::Stopped;
 		Media::Player::mixer()->clearStoppedAtStart(audioId);
 
 		auto document = audioId.audio();
@@ -1578,8 +1578,8 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 		}
 	}
 
-	if (playing == audioId && audioId.type() == AudioMsgId::Type::Song) {
-		if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+	if (state.id == audioId && audioId.type() == AudioMsgId::Type::Song) {
+		if (!Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
 			if (!_playerUsingPanel && !_player) {
 				createPlayer();
 			}
@@ -1675,9 +1675,8 @@ void MainWidget::playerHeightUpdated() {
 		updateControlsGeometry();
 	}
 	if (!_playerHeight && _player->isHidden()) {
-		AudioMsgId playing;
-		auto playbackState = Media::Player::mixer()->currentState(&playing, AudioMsgId::Type::Song);
-		if (playing && (playbackState.state & AudioPlayerStoppedMask)) {
+		auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+		if (state.id && Media::Player::IsStopped(state.state)) {
 			_playerVolume.destroyDelayed();
 			_player.destroyDelayed();
 		}

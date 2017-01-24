@@ -24,6 +24,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/radial_animation.h"
 
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
 namespace Clip {
 class Controller;
 } // namespace Clip
@@ -44,8 +47,6 @@ struct Preview;
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
-
-struct AudioPlaybackState;
 
 class MediaView : public TWidget, private base::Subscriber, public RPCSender, public ClickHandlerHost {
 	Q_OBJECT
@@ -170,7 +171,7 @@ private:
 	void updateCursor();
 	void setZoomLevel(int newZoom);
 
-	void updateVideoPlaybackState(const AudioPlaybackState &state);
+	void updateVideoPlaybackState(const Media::Player::TrackState &state);
 	void updateSilentVideoPlaybackState();
 	void restartVideoAtSeekPosition(TimeMs positionMs);
 

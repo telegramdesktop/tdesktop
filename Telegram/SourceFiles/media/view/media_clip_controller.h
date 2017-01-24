@@ -26,9 +26,11 @@ class FadeAnimation;
 class IconButton;
 } // namespace Ui
 
-struct AudioPlaybackState;
-
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+
 namespace Clip {
 
 class Playback;
@@ -43,7 +45,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	void updatePlayback(const AudioPlaybackState &playbackState);
+	void updatePlayback(const Player::TrackState &state);
 	void setInFullScreen(bool inFullScreen);
 
 	void grabStart() override;
@@ -74,8 +76,8 @@ private:
 	void fadeFinished();
 	void fadeUpdated(float64 opacity);
 
-	void updatePlayPauseResumeState(const AudioPlaybackState &playbackState);
-	void updateTimeTexts(const AudioPlaybackState &playbackState);
+	void updatePlayPauseResumeState(const Player::TrackState &state);
+	void updateTimeTexts(const Player::TrackState &state);
 	void refreshTimeTexts();
 
 	bool _showPause = false;

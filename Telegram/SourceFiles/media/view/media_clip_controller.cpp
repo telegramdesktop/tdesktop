@@ -105,14 +105,14 @@ void Controller::fadeUpdated(float64 opacity) {
 	_playback->setFadeOpacity(opacity);
 }
 
-void Controller::updatePlayback(const AudioPlaybackState &playbackState) {
-	updatePlayPauseResumeState(playbackState);
-	_playback->updateState(playbackState);
-	updateTimeTexts(playbackState);
+void Controller::updatePlayback(const Player::TrackState &state) {
+	updatePlayPauseResumeState(state);
+	_playback->updateState(state);
+	updateTimeTexts(state);
 }
 
-void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackState) {
-	bool showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || _seekPositionMs >= 0);
+void Controller::updatePlayPauseResumeState(const Player::TrackState &state) {
+	auto showPause = (state.state == Player::State::Playing || state.state == Player::State::Resuming || _seekPositionMs >= 0);
 	if (showPause != _showPause) {
 		disconnect(_playPauseResume, SIGNAL(clicked()), this, _showPause ? SIGNAL(pausePressed()) : SIGNAL(playPressed()));
 		_showPause = showPause;
@@ -122,21 +122,21 @@ void Controller::updatePlayPauseResumeState(const AudioPlaybackState &playbackSt
 	}
 }
 
-void Controller::updateTimeTexts(const AudioPlaybackState &playbackState) {
-	qint64 position = 0, duration = playbackState.duration;
+void Controller::updateTimeTexts(const Player::TrackState &state) {
+	qint64 position = 0, duration = state.duration;
 
-	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-		position = playbackState.position;
-	} else if (playbackState.state == AudioPlayerStoppedAtEnd) {
-		position = playbackState.duration;
+	if (!Player::IsStopped(state.state) && state.state != Player::State::Finishing) {
+		position = state.position;
+	} else if (state.state == Player::State::StoppedAtEnd) {
+		position = state.duration;
 	} else {
 		position = 0;
 	}
-	auto playFrequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
+	auto playFrequency = state.frequency;
 	auto playAlready = position / playFrequency;
-	auto playLeft = (playbackState.duration / playFrequency) - playAlready;
+	auto playLeft = (state.duration / playFrequency) - playAlready;
 
-	_lastDurationMs = (playbackState.duration * 1000LL) / playFrequency;
+	_lastDurationMs = (state.duration * 1000LL) / playFrequency;
 
 	_timeAlready = formatDurationText(playAlready);
 	auto minus = QChar(8722);

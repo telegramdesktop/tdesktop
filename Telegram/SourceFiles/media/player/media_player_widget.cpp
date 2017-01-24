@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Media {
 namespace Player {
 
-using State = PlayButtonLayout::State;
+using ButtonState = PlayButtonLayout::State;
 
 class Widget::PlayButton : public Ui::RippleButton {
 public:
@@ -128,17 +128,15 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	subscribe(instance()->playlistChangedNotifier(), [this] {
 		handlePlaylistUpdate();
 	});
-	subscribe(instance()->updatedNotifier(), [this](const UpdatedEvent &e) {
-		handleSongUpdate(e);
+	subscribe(instance()->updatedNotifier(), [this](const TrackState &state) {
+		handleSongUpdate(state);
 	});
 	subscribe(instance()->songChangedNotifier(), [this] {
 		handleSongChange();
 	});
 	handleSongChange();
 
-	AudioMsgId playing;
-	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
-	handleSongUpdate(UpdatedEvent(&playing, &playbackState));
+	handleSongUpdate(mixer()->currentState(AudioMsgId::Type::Song));
 	_playPause->finishTransform();
 }
 
@@ -207,10 +205,10 @@ void Widget::handleSeekFinished(float64 progress) {
 	auto positionMs = snap(static_cast<TimeMs>(progress * _lastDurationMs), 0LL, _lastDurationMs);
 	_seekPositionMs = -1;
 
-	AudioMsgId playing;
-	auto playbackState = mixer()->currentState(&playing, AudioMsgId::Type::Song);
-	if (playing && playbackState.duration) {
-		mixer()->seek(qRound(progress * playbackState.duration));
+	auto type = AudioMsgId::Type::Song;
+	auto state = mixer()->currentState(type);
+	if (state.id && state.duration) {
+		mixer()->seek(type, qRound(progress * state.duration));
 	}
 
 	instance()->stopSeeking();
@@ -301,52 +299,50 @@ void Widget::updateRepeatTrackIcon() {
 	_repeatTrack->setRippleColorOverride(repeating ? nullptr : &st::mediaPlayerRepeatDisabledRippleBg);
 }
 
-void Widget::handleSongUpdate(const UpdatedEvent &e) {
-	auto &audioId = *e.audioId;
-	auto &playbackState = *e.playbackState;
-	if (!audioId || !audioId.audio()->song()) {
+void Widget::handleSongUpdate(const TrackState &state) {
+	if (!state.id || !state.id.audio()->song()) {
 		return;
 	}
 
-	if (audioId.audio()->loading()) {
-		_playback->updateLoadingState(audioId.audio()->progress());
+	if (state.id.audio()->loading()) {
+		_playback->updateLoadingState(state.id.audio()->progress());
 	} else {
-		_playback->updateState(*e.playbackState);
+		_playback->updateState(state);
 	}
 
-	auto stopped = ((playbackState.state & AudioPlayerStoppedMask) || playbackState.state == AudioPlayerFinishing);
-	auto showPause = !stopped && (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+	auto stopped = (IsStopped(state.state) || state.state == State::Finishing);
+	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 	if (instance()->isSeeking()) {
 		showPause = true;
 	}
-	auto state = [audio = audioId.audio(), showPause] {
+	auto buttonState = [audio = state.id.audio(), showPause] {
 		if (audio->loading()) {
-			return State::Cancel;
+			return ButtonState::Cancel;
 		} else if (showPause) {
-			return State::Pause;
+			return ButtonState::Pause;
 		}
-		return State::Play;
+		return ButtonState::Play;
 	};
-	_playPause->setState(state());
+	_playPause->setState(buttonState());
 
-	updateTimeText(audioId, playbackState);
+	updateTimeText(state);
 }
 
-void Widget::updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState) {
+void Widget::updateTimeText(const TrackState &state) {
 	QString time;
 	qint64 position = 0, duration = 0, display = 0;
-	auto frequency = (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
-	if (!(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-		display = position = playbackState.position;
-		duration = playbackState.duration;
+	auto frequency = state.frequency;
+	if (!IsStopped(state.state) && state.state != State::Finishing) {
+		display = position = state.position;
+		duration = state.duration;
 	} else {
-		display = playbackState.duration ? playbackState.duration : (audioId.audio()->song()->duration * frequency);
+		display = state.duration ? state.duration : (state.id.audio()->song()->duration * frequency);
 	}
 
-	_lastDurationMs = (playbackState.duration * 1000LL) / frequency;
+	_lastDurationMs = (state.duration * 1000LL) / frequency;
 
-	if (audioId.audio()->loading()) {
-		_time = QString::number(qRound(audioId.audio()->progress() * 100)) + '%';
+	if (state.id.audio()->loading()) {
+		_time = QString::number(qRound(state.id.audio()->progress() * 100)) + '%';
 		_playback->setDisabled(true);
 	} else {
 		display = display / frequency;

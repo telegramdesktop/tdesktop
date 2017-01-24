@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "localstorage.h"
 #include "media/player/media_player_instance.h"
+#include "media/media_audio.h"
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
 #include "lang.h"
@@ -125,6 +126,9 @@ ApplicationDelegate *_sharedDelegate = nil;
 
 - (void)receiveWakeNote:(NSNotification*)aNotification {
 	if (App::app()) App::app()->checkLocalTime();
+
+	LOG(("Audio Info: -receiveWakeNote: received, scheduling detach from audio device"));
+	Media::Player::DetachFromDeviceByTimer();
 }
 
 - (void)setWatchingMediaKeys:(BOOL)watching {
@@ -216,27 +220,21 @@ bool objc_handleMediaKeyEvent(void *ev) {
 	switch (keyCode) {
 	case NX_KEYTYPE_PLAY:
 		if (keyState == 0) { // Play pressed and released
-			if (Media::Player::exists()) {
-				Media::Player::instance()->playPause();
-			}
+			Media::Player::instance()->playPause();
 			return true;
 		}
 		break;
 
 	case NX_KEYTYPE_FAST:
 		if (keyState == 0) { // Next pressed and released
-			if (Media::Player::exists()) {
-				Media::Player::instance()->next();
-			}
+			Media::Player::instance()->next();
 			return true;
 		}
 		break;
 
 	case NX_KEYTYPE_REWIND:
 		if (keyState == 0) { // Previous pressed and released
-			if (Media::Player::exists()) {
-				Media::Player::instance()->previous();
-			}
+			Media::Player::instance()->previous();
 			return true;
 		}
 		break;

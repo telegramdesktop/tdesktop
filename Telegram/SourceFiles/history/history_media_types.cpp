@@ -1436,44 +1436,43 @@ bool HistoryDocument::updateStatusText() const {
 	} else if (_data->loading()) {
 		statusSize = _data->loadOffset();
 	} else if (_data->loaded()) {
+		using State = Media::Player::State;
 		statusSize = FileStatusSizeLoaded;
 		if (_data->voice()) {
-			AudioMsgId playing;
-			auto playbackState = Media::Player::mixer()->currentState(&playing, AudioMsgId::Type::Voice);
-			if (playing == AudioMsgId(_data, _parent->fullId()) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
 					bool was = voice->_playback;
 					voice->ensurePlayback(this);
-					if (!was || playbackState.position != voice->_playback->_position) {
-						float64 prg = playbackState.duration ? snap(float64(playbackState.position) / playbackState.duration, 0., 1.) : 0.;
-						if (voice->_playback->_position < playbackState.position) {
+					if (!was || state.position != voice->_playback->_position) {
+						float64 prg = state.duration ? snap(float64(state.position) / state.duration, 0., 1.) : 0.;
+						if (voice->_playback->_position < state.position) {
 							voice->_playback->a_progress.start(prg);
 						} else {
 							voice->_playback->a_progress = anim::value(0., prg);
 						}
-						voice->_playback->_position = playbackState.position;
+						voice->_playback->_position = state.position;
 						voice->_playback->_a_progress.start();
 					}
 				}
 
-				statusSize = -1 - (playbackState.position / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency));
-				realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
-				showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+				statusSize = -1 - (state.position / state.frequency);
+				realDuration = (state.duration / state.frequency);
+				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			} else {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
 					voice->checkPlaybackFinished();
 				}
 			}
 		} else if (_data->song()) {
-			AudioMsgId playing;
-			auto playbackState = Media::Player::mixer()->currentState(&playing, AudioMsgId::Type::Song);
-			if (playing == AudioMsgId(_data, _parent->fullId()) && !(playbackState.state & AudioPlayerStoppedMask) && playbackState.state != AudioPlayerFinishing) {
-				statusSize = -1 - (playbackState.position / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency));
-				realDuration = playbackState.duration / (playbackState.frequency ? playbackState.frequency : AudioVoiceMsgFrequency);
-				showPause = (playbackState.state == AudioPlayerPlaying || playbackState.state == AudioPlayerResuming || playbackState.state == AudioPlayerStarting);
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
+				statusSize = -1 - (state.position / state.frequency);
+				realDuration = (state.duration / state.frequency);
+				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			} else {
 			}
-			if (!showPause && (playing == AudioMsgId(_data, _parent->fullId()))) {
+			if (!showPause && (state.id == AudioMsgId(_data, _parent->fullId()))) {
 				showPause = Media::Player::instance()->isSeeking();
 			}
 		}

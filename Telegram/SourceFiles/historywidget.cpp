@@ -3532,7 +3532,7 @@ void HistoryWidget::onRecordDone(QByteArray result, VoiceWaveform waveform, qint
 	if (!canWriteMessage() || result.isEmpty()) return;
 
 	App::wnd()->activateWindow();
-	auto duration = samples / AudioVoiceMsgFrequency;
+	auto duration = samples / Media::Player::kDefaultFrequency;
 	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
 	auto caption = QString();
 	_fileLoader.addTask(MakeShared<FileLoadTask>(result, duration, waveform, to, caption));
@@ -3547,7 +3547,7 @@ void HistoryWidget::onRecordUpdate(quint16 level, qint32 samples) {
 	a_recordingLevel.start(level);
 	_a_recording.start();
 	_recordingSamples = samples;
-	if (samples < 0 || samples >= AudioVoiceMsgFrequency * AudioVoiceMsgMaxLength) {
+	if (samples < 0 || samples >= Media::Player::kDefaultFrequency * AudioVoiceMsgMaxLength) {
 		stopRecording(_peer && samples > 0 && _inField);
 	}
 	updateField();
@@ -8736,7 +8736,7 @@ void HistoryWidget::drawRecording(Painter &p, float64 recordActive) {
 		p.drawEllipse(_attachToggle->x() + (_attachEmoji->width() - d) / 2, _attachToggle->y() + (_attachToggle->height() - d) / 2, d, d);
 	}
 
-	QString duration = formatDurationText(_recordingSamples / AudioVoiceMsgFrequency);
+	auto duration = formatDurationText(_recordingSamples / Media::Player::kDefaultFrequency);
 	p.setFont(st::historyRecordFont);
 
 	p.setPen(st::historyRecordDurationFg);

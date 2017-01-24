@@ -1536,8 +1536,8 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	_videoPaused = _videoIsSilent = _videoStopped = false;
 	_videoPositionMs = positionMs;
 
-	AudioPlaybackState state;
-	state.state = AudioPlayerPlaying;
+	Media::Player::TrackState state;
+	state.state = Media::Player::State::Playing;
 	state.position = _videoPositionMs;
 	state.duration = _videoDurationMs;
 	state.frequency = _videoFrequencyMs;
@@ -1587,9 +1587,9 @@ void MediaView::onVideoPlayProgress(const AudioMsgId &audioId) {
 	}
 }
 
-void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
+void MediaView::updateVideoPlaybackState(const Media::Player::TrackState &state) {
 	if (state.frequency) {
-		if (state.state & AudioPlayerStoppedMask) {
+		if (Media::Player::IsStopped(state.state)) {
 			_videoStopped = true;
 		}
 		_clipController->updatePlayback(state);
@@ -1600,13 +1600,13 @@ void MediaView::updateVideoPlaybackState(const AudioPlaybackState &state) {
 }
 
 void MediaView::updateSilentVideoPlaybackState() {
-	AudioPlaybackState state;
+	Media::Player::TrackState state;
 	if (_videoPaused) {
-		state.state = AudioPlayerPaused;
+		state.state = Media::Player::State::Paused;
 	} else if (_videoPositionMs == _videoDurationMs) {
-		state.state = AudioPlayerStoppedAtEnd;
+		state.state = Media::Player::State::StoppedAtEnd;
 	} else {
-		state.state = AudioPlayerPlaying;
+		state.state = Media::Player::State::Playing;
 	}
 	state.position = _videoPositionMs;
 	state.duration = _videoDurationMs;

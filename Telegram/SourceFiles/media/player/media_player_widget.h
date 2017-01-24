@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 class AudioMsgId;
-struct AudioPlaybackState;
 
 namespace Ui {
 class FlatLabel;
@@ -39,7 +38,7 @@ namespace Player {
 
 class PlayButton;
 class VolumeWidget;
-struct UpdatedEvent;
+struct TrackState;
 
 class Widget : public TWidget, private base::Subscriber {
 public:
@@ -81,11 +80,11 @@ private:
 
 	void updateVolumeToggleIcon();
 
-	void handleSongUpdate(const UpdatedEvent &e);
+	void handleSongUpdate(const TrackState &state);
 	void handleSongChange();
 	void handlePlaylistUpdate();
 
-	void updateTimeText(const AudioMsgId &audioId, const AudioPlaybackState &playbackState);
+	void updateTimeText(const TrackState &state);
 	void updateTimeLabel();
 
 	TimeMs _seekPositionMs = -1;

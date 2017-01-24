@@ -20,11 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/utils.h"
+#if defined Q_OS_MAC || defined Q_OS_LINUX
+namespace Platform {
+namespace Audio {
 
-#define BETA_VERSION_MACRO (1000002001ULL)
+inline void Init() {
+}
 
-constexpr int AppVersion = 1000002;
-constexpr str_const AppVersionStr = "1.0.2";
-constexpr bool AppAlphaVersion = false;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+inline void DeInit() {
+}
+
+} // namespace Audio
+} // namespace Platform
+#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+#include "platform/win/audio_win.h"
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN

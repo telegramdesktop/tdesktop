@@ -371,7 +371,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
 	if (_mode == Mode::OnlyGifv) {
 		if (_audioStreamId >= 0) { // should be no audio stream
-			_audioStreamId = -1; // do not attempt to access mixer()
+			_audioStreamId = -1;
 			return false;
 		}
 		if (dataSize() > AnimationInMemory) {
@@ -380,7 +380,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 		if (_codecContext->codec_id != AV_CODEC_ID_H264) {
 			return false;
 		}
-	} else if (_mode == Mode::Silent || !Player::mixer() || !_playId) {
+	} else if (_mode == Mode::Silent || !_playId) {
 		_audioStreamId = -1;
 	}
 
@@ -436,7 +436,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	}
 
 	if (_audioStreamId >= 0) {
-		int64 position = (positionMs * soundData->frequency) / 1000LL;
+		auto position = (positionMs * soundData->frequency) / 1000LL;
 		Player::mixer()->initFromVideo(_playId, std_::move(soundData), position);
 	}
 

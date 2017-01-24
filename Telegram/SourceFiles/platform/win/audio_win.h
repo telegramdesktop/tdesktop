@@ -20,11 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/utils.h"
+namespace Platform {
+namespace Audio {
 
-#define BETA_VERSION_MACRO (1000002001ULL)
+void Init();
+void DeInit();
 
-constexpr int AppVersion = 1000002;
-constexpr str_const AppVersionStr = "1.0.2";
-constexpr bool AppAlphaVersion = false;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+} // namespace Audio
+} // namespace Platform
+

@@ -97,21 +97,11 @@ enum {
 	MediaOverviewStartPerPage = 5,
 	MediaOverviewPreloadCount = 4,
 
-	AudioSimultaneousLimit = 4,
-	AudioCheckPositionTimeout = 100, // 100ms per check audio pos
-	AudioCheckPositionDelta = 2400, // update position called each 2400 samples
-	AudioFadeTimeout = 7, // 7ms
-	AudioFadeDuration = 500,
-	AudioVoiceMsgSkip = 400, // 200ms
-	AudioVoiceMsgFade = 300, // 300ms
-	AudioPreloadSamples = 2 * 48000, // preload next part if less than 5 seconds remains
-	AudioVoiceMsgFrequency = 48000, // 48 kHz
 	AudioVoiceMsgMaxLength = 100 * 60, // 100 minutes
 	AudioVoiceMsgUpdateView = 100, // 100ms
 	AudioVoiceMsgChannels = 2, // stereo
 	AudioVoiceMsgBufferSize = 256 * 1024, // 256 Kb buffers (1.3 - 3.0 secs)
 	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
-	AudioPauseDeviceTimeout = 3000, // pause in 3 secs after playing is over
 
 	WaveformSamplesCount = 100,
 

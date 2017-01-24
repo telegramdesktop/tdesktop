@@ -30,9 +30,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <AL/alext.h>
 
 namespace Media {
-
 namespace Capture {
 namespace {
+
+constexpr auto kCaptureFrequency = Player::kDefaultFrequency;
+constexpr auto kCaptureSkipDuration = TimeMs(400);
+constexpr auto kCaptureFadeInDuration = TimeMs(300);
 
 Instance *CaptureInstance = nullptr;
 
@@ -72,7 +75,7 @@ Instance::Instance() : _inner(new Inner(&_thread)) {
 void Instance::check() {
 	_available = false;
 	if (auto defaultDevice = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER)) {
-		if (auto device = alcCaptureOpenDevice(defaultDevice, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5)) {
+		if (auto device = alcCaptureOpenDevice(defaultDevice, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5)) {
 			auto error = ErrorHappened(device);
 			alcCaptureCloseDevice(device);
 			_available = !error;
@@ -117,7 +120,7 @@ struct Instance::Inner::Private {
 	int32 dataPos = 0;
 
 	int64 waveformMod = 0;
-	int64 waveformEach = (AudioVoiceMsgFrequency / 100);
+	int64 waveformEach = (kCaptureFrequency / 100);
 	uint16 waveformPeak = 0;
 	QVector<uchar> waveform;
 
@@ -180,7 +183,7 @@ void Instance::Inner::onStart() {
 	// Start OpenAL Capture
 	const ALCchar *dName = alcGetString(0, ALC_CAPTURE_DEFAULT_DEVICE_SPECIFIER);
 	DEBUG_LOG(("Audio Info: Capture device name '%1'").arg(dName));
-	d->device = alcCaptureOpenDevice(dName, AudioVoiceMsgFrequency, AL_FORMAT_MONO16, AudioVoiceMsgFrequency / 5);
+	d->device = alcCaptureOpenDevice(dName, kCaptureFrequency, AL_FORMAT_MONO16, kCaptureFrequency / 5);
 	if (!d->device) {
 		LOG(("Audio Error: capture device not present!"));
 		emit error();
@@ -253,7 +256,7 @@ void Instance::Inner::onStart() {
 	d->codecContext->sample_fmt = AV_SAMPLE_FMT_FLTP;
 	d->codecContext->bit_rate = 64000;
 	d->codecContext->channel_layout = AV_CH_LAYOUT_MONO;
-	d->codecContext->sample_rate = AudioVoiceMsgFrequency;
+	d->codecContext->sample_rate = kCaptureFrequency;
 	d->codecContext->channels = 1;
 
 	if (d->fmtContext->oformat->flags & AVFMT_GLOBALHEADER) {
@@ -341,8 +344,9 @@ void Instance::Inner::onStop(bool needResult) {
 
 	// Write what is left
 	if (!_captured.isEmpty()) {
-		int32 fadeSamples = AudioVoiceMsgFade * AudioVoiceMsgFrequency / 1000, capturedSamples = _captured.size() / sizeof(short);
-		if ((_captured.size() % sizeof(short)) || (d->fullSamples + capturedSamples < AudioVoiceMsgFrequency) || (capturedSamples < fadeSamples)) {
+		auto fadeSamples = kCaptureFadeInDuration * kCaptureFrequency / 1000;
+		auto capturedSamples = static_cast<int>(_captured.size() / sizeof(short));
+		if ((_captured.size() % sizeof(short)) || (d->fullSamples + capturedSamples < kCaptureFrequency) || (capturedSamples < fadeSamples)) {
 			d->fullSamples = 0;
 			d->dataPos = 0;
 			d->data.clear();
@@ -489,7 +493,8 @@ void Instance::Inner::onTimeout() {
 	}
 	if (samples > 0) {
 		// Get samples from OpenAL
-		int32 s = _captured.size(), news = s + samples * sizeof(short);
+		auto s = _captured.size();
+		auto news = s + static_cast<int>(samples * sizeof(short));
 		if (news / AudioVoiceMsgBufferSize > s / AudioVoiceMsgBufferSize) {
 			_captured.reserve(((news / AudioVoiceMsgBufferSize) + 1) * AudioVoiceMsgBufferSize);
 		}
@@ -502,9 +507,10 @@ void Instance::Inner::onTimeout() {
 		}
 
 		// Count new recording level and update view
-		int32 skipSamples = AudioVoiceMsgSkip * AudioVoiceMsgFrequency / 1000, fadeSamples = AudioVoiceMsgFade * AudioVoiceMsgFrequency / 1000;
-		int32 levelindex = d->fullSamples + (s / sizeof(short));
-		for (const short *ptr = (const short*)(_captured.constData() + s), *end = (const short*)(_captured.constData() + news); ptr < end; ++ptr, ++levelindex) {
+		auto skipSamples = kCaptureSkipDuration * kCaptureFrequency / 1000;
+		auto fadeSamples = kCaptureFadeInDuration * kCaptureFrequency / 1000;
+		auto levelindex = d->fullSamples + static_cast<int>(s / sizeof(short));
+		for (auto ptr = (const short*)(_captured.constData() + s), end = (const short*)(_captured.constData() + news); ptr < end; ++ptr, ++levelindex) {
 			if (levelindex > skipSamples) {
 				uint16 value = qAbs(*ptr);
 				if (levelindex < skipSamples + fadeSamples) {
@@ -516,7 +522,7 @@ void Instance::Inner::onTimeout() {
 			}
 		}
 		qint32 samplesFull = d->fullSamples + _captured.size() / sizeof(short), samplesSinceUpdate = samplesFull - d->lastUpdate;
-		if (samplesSinceUpdate > AudioVoiceMsgUpdateView * AudioVoiceMsgFrequency / 1000) {
+		if (samplesSinceUpdate > AudioVoiceMsgUpdateView * kCaptureFrequency / 1000) {
 			emit updated(d->levelMax, samplesFull);
 			d->lastUpdate = samplesFull;
 			d->levelMax = 0;
@@ -548,7 +554,7 @@ void Instance::Inner::processFrame(int32 offset, int32 framesize) {
 		emit error();
 		return;
 	}
-	int32 samplesCnt = framesize / sizeof(short);
+	auto samplesCnt = static_cast<int>(framesize / sizeof(short));
 
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
@@ -557,7 +563,8 @@ void Instance::Inner::processFrame(int32 offset, int32 framesize) {
 	auto srcSamplesData = &srcSamplesDataChannel;
 
 	//	memcpy(d->srcSamplesData[0], _captured.constData() + offset, framesize);
-	int32 skipSamples = AudioVoiceMsgSkip * AudioVoiceMsgFrequency / 1000, fadeSamples = AudioVoiceMsgFade * AudioVoiceMsgFrequency / 1000;
+	auto skipSamples = static_cast<int>(kCaptureSkipDuration * kCaptureFrequency / 1000);
+	auto fadeSamples = static_cast<int>(kCaptureFadeInDuration * kCaptureFrequency / 1000);
 	if (d->fullSamples < skipSamples + fadeSamples) {
 		int32 fadedCnt = qMin(samplesCnt, skipSamples + fadeSamples - d->fullSamples);
 		float64 coef = 1. / fadeSamples, fadedFrom = d->fullSamples - skipSamples;

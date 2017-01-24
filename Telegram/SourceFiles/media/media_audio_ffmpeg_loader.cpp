@@ -204,7 +204,7 @@ bool FFMpegLoader::open(qint64 &position) {
 		int64_t src_ch_layout = layout, dst_ch_layout = AudioToChannelLayout;
 		srcRate = freq;
 		AVSampleFormat src_sample_fmt = inputFormat, dst_sample_fmt = AudioToFormat;
-		dstRate = (freq != 44100 && freq != 48000) ? AudioVoiceMsgFrequency : freq;
+		dstRate = (freq != 44100 && freq != 48000) ? Media::Player::kDefaultFrequency : freq;
 
 		av_opt_set_int(swrContext, "in_channel_layout", src_ch_layout, 0);
 		av_opt_set_int(swrContext, "in_sample_rate", srcRate, 0);

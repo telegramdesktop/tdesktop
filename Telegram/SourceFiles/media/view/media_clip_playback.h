@@ -22,16 +22,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/widgets/continuous_sliders.h"
 
-struct AudioPlaybackState;
-
 namespace Media {
+namespace Player {
+struct TrackState;
+} // namespace Player
+
 namespace Clip {
 
 class Playback {
 public:
 	Playback(Ui::ContinuousSlider *slider);
 
-	void updateState(const AudioPlaybackState &playbackState);
+	void updateState(const Player::TrackState &state);
 	void updateLoadingState(float64 progress);
 
 	void setFadeOpacity(float64 opacity) {
