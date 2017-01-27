@@ -297,6 +297,9 @@ void InitAudio() {
 
 	PrepareNotifySound();
 
+	auto loglevel = getenv("ALSOFT_LOGLEVEL");
+	LOG(("OpenAL Logging Level: ").arg(loglevel ? loglevel : "(not set)"));
+
 	EnumeratePlaybackDevices();
 	EnumerateCaptureDevices();
 
