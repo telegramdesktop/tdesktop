@@ -31,7 +31,7 @@ Install dev libraries
 
 ####zlib 1.2.8
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
+http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](https://sourceforge.net/projects/libpng/files/zlib/1.2.11/zlib-1.2.11.tar.gz/download?use_mirror=freefr&download=)
 
 Extract to **/home/user/TBuild/Libraries**
 
