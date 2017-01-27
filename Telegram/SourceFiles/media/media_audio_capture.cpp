@@ -29,6 +29,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #define AL_ALEXT_PROTOTYPES
 #include <AL/alext.h>
 
+#include <numeric>
+
 namespace Media {
 namespace Capture {
 namespace {
@@ -412,7 +414,7 @@ void Instance::Inner::onStop(bool needResult) {
 				}
 			}
 
-			int64 sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0ULL);
+			auto sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0LL);
 			peak = qMax(int32(sum * 1.8 / peaks.size()), 2500);
 
 			waveform.resize(peaks.size());

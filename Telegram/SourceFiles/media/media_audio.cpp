@@ -1749,7 +1749,7 @@ public:
 			return false;
 		}
 
-		int64 sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0ULL);
+		auto sum = std::accumulate(peaks.cbegin(), peaks.cend(), 0LL);
 		peak = qMax(int32(sum * 1.8 / peaks.size()), 2500);
 
 		result.resize(peaks.size());
