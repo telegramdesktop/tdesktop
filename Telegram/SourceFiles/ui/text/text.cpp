@@ -1555,7 +1555,7 @@ public:
 		line.length = lineLength;
 		eShapeLine(line);
 
-		int32 elideWidth = _f->width(_Elide);
+		auto elideWidth = _f->elidew;
 		_wLeft = _w - elideWidth - _elideRemoveFromEnd;
 
 		int firstItem = engine.findItem(line.from), lastItem = engine.findItem(line.from + line.length - 1);
@@ -1654,15 +1654,21 @@ public:
 
 	// COPIED FROM qtextengine.cpp AND MODIFIED
 	void eShapeLine(const QScriptLine &line) {
-		int item = _e->findItem(line.from), end = _e->findItem(line.from + line.length - 1);
+		int item = _e->findItem(line.from);
 		if (item == -1)
 			return;
+
+#ifdef OS_MAC_OLD
+		auto end = _e->findItem(line.from + line.length - 1);
+#else // OS_MAC_OLD
+		auto end = _e->findItem(line.from + line.length - 1, item);
+#endif // OS_MAC_OLD
 
 		int blockIndex = _lineStartBlock;
 		ITextBlock *currentBlock = _t->_blocks[blockIndex];
 		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
 		eSetFont(currentBlock);
-		for (item = _e->findItem(line.from); item <= end; ++item) {
+		for (; item <= end; ++item) {
 			QScriptItem &si = _e->layoutData->items[item];
 			while (nextBlock && nextBlock->from() <= _localFrom + si.position) {
 				currentBlock = nextBlock;

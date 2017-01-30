@@ -754,6 +754,19 @@ int Histories::pinnedCount() const {
 	return _pinnedDialogs.size();
 }
 
+QList<History*> Histories::getPinnedOrder() const {
+	QMap<int, History*> sorter;
+	for_const (auto pinned, _pinnedDialogs) {
+		sorter.insert(pinned->getPinnedIndex(), pinned);
+	}
+	QList<History*> result;
+	for (auto i = sorter.cend(), e = sorter.cbegin(); i != e;) {
+		--i;
+		result.push_back(i.value());
+	}
+	return result;
+}
+
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	auto msgId = MsgId(0);
 	switch (msg.type()) {
@@ -2129,7 +2142,10 @@ void History::updateChatListEntry() const {
 }
 
 void History::setPinnedDialog(bool isPinned) {
-	auto pinnedIndex = isPinned ? (++GlobalPinnedIndex) : 0;
+	setPinnedIndex(isPinned ? (++GlobalPinnedIndex) : 0);
+}
+
+void History::setPinnedIndex(int pinnedIndex) {
 	if (_pinnedIndex != pinnedIndex) {
 		auto wasPinned = isPinnedDialog();
 		_pinnedIndex = pinnedIndex;

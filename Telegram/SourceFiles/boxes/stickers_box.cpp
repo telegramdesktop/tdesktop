@@ -860,7 +860,7 @@ void StickersBox::Inner::onUpdateSelected() {
 		}
 		_rows[_dragging]->yadd = anim::value(local.y() - _dragStart.y(), local.y() - _dragStart.y());
 		_animStartTimes[_dragging] = 0;
-		_a_shifting.step(getms(), true);
+		_a_shifting.step(ms, true);
 
 		auto countDraggingScrollDelta = [this, local] {
 			if (local.y() < _visibleTop) {

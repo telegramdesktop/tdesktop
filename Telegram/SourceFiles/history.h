@@ -82,6 +82,7 @@ public:
 	void setIsPinned(History *history, bool isPinned);
 	void clearPinned();
 	int pinnedCount() const;
+	QList<History*> getPinnedOrder() const;
 
 	struct SendActionAnimationUpdate {
 		History *history;
@@ -288,6 +289,7 @@ public:
 		return (_pinnedIndex > 0);
 	}
 	void setPinnedDialog(bool isPinned);
+	void setPinnedIndex(int newPinnedIndex);
 	int getPinnedIndex() const {
 		return _pinnedIndex;
 	}

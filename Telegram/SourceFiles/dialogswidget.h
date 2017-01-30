@@ -131,6 +131,7 @@ public slots:
 	void onMenuDestroyed(QObject*);
 
 signals:
+	void draggingScrollDelta(int delta);
 	void mustScrollTo(int scrollToTop, int scrollToBottom);
 	void dialogMoved(int movedFrom, int movedTo);
 	void searchMessages();
@@ -165,7 +166,7 @@ private:
 		updateSelected(mapFromGlobal(QCursor::pos()));
 	}
 	void updateSelected(QPoint localPos);
-	void loadPeerPhotos(int visibleTop);
+	void loadPeerPhotos();
 	void setImportantSwitchPressed(bool pressed);
 	void setPressed(Dialogs::Row *pressed);
 	void setHashtagPressed(int pressed);
@@ -196,9 +197,9 @@ private:
 	int peerSearchOffset() const;
 	int searchedOffset() const;
 
-	void paintDialog(QPainter &p, Dialogs::Row *dialog);
-	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int32 w, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
-	void paintSearchInPeer(Painter &p, int32 w, bool onlyBackground) const;
+	void paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms);
+	void paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const;
+	void paintSearchInPeer(Painter &p, int fullWidth, bool onlyBackground) const;
 
 	void clearSelection();
 	void clearSearchResults(bool clearPeerSearchResults = true);
@@ -207,6 +208,16 @@ private:
 	Dialogs::IndexedList *shownDialogs() const {
 		return (Global::DialogsMode() == Dialogs::Mode::Important) ? _dialogsImportant.get() : _dialogs.get();
 	}
+
+	void checkReorderPinnedStart(QPoint localPosition);
+	int shownPinnedCount() const;
+	int updateReorderIndexGetCount();
+	bool updateReorderPinned(QPoint localPosition);
+	void finishReorderPinned();
+	void stopReorderPinned();
+	int countPinnedIndex(Dialogs::Row *ofRow);
+	void savePinnedOrder();
+	void step_pinnedShifting(TimeMs ms, bool timer);
 
 	DialogsList _dialogs;
 	DialogsList _dialogsImportant;
@@ -223,7 +234,23 @@ private:
 	Dialogs::Row *_selected = nullptr;
 	Dialogs::Row *_pressed = nullptr;
 
-	int _visibleAreaHeight = 0;
+	Dialogs::Row *_dragging = nullptr;
+	int _draggingIndex = -1;
+	int _aboveIndex = -1;
+	QPoint _dragStart;
+	struct PinnedRow {
+		anim::value yadd;
+		TimeMs animStartTime = 0;
+	};
+	std_::vector_of_moveable<PinnedRow> _pinnedRows;
+	BasicAnimation _a_pinnedShifting;
+	QList<History*> _pinnedOrder;
+
+	// Remember the last currently dragged row top shift for updating area.
+	int _aboveTopShift = -1;
+
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
 	QString _filter, _hashtagFilter;
 
 	HashtagResults _hashtagResults;
@@ -322,6 +349,8 @@ signals:
 	void cancelled();
 
 public slots:
+	void onDraggingScrollDelta(int delta);
+
 	void onCancel();
 	void onListScroll();
 	void activate();
@@ -338,8 +367,10 @@ public slots:
 
 	void onChooseByDrag();
 
-#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 private slots:
+	void onDraggingScrollTimer();
+
+#ifndef TDESKTOP_DISABLE_AUTOUPDATE
 	void onCheckUpdateStatus();
 #endif // TDESKTOP_DISABLE_AUTOUPDATE
 
@@ -426,5 +457,8 @@ private:
 	PeerSearchQueries _peerSearchQueries;
 
 	QPixmap _widthAnimationCache;
+
+	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
+	int _draggingScrollDelta = 0;
 
 };

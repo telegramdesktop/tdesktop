@@ -656,12 +656,12 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		}
 		if (_dialogs->isHidden()) {
 			_dialogs->show();
-			resizeEvent(0);
+			updateControlsGeometry();
 			_dialogs->showAnimated(Window::SlideDirection::FromLeft, animationParams);
 		}
 	} else {
 		_hider->show();
-		resizeEvent(0);
+		updateControlsGeometry();
 		_dialogs->activate();
 	}
 }
@@ -2293,7 +2293,7 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 	} else {
 		if (noPeer) {
 			_topBar->hide();
-			resizeEvent(0);
+			updateControlsGeometry();
 		} else if (wasActivePeer != activePeer()) {
 			if (activePeer()->isChannel()) {
 				activePeer()->asChannel()->ptsWaitingForShortPoll(WaitForChannelGetDifference);
@@ -2421,6 +2421,8 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	if (!back) {
 		saveSectionInStack();
 	}
+
+	setFocus(); // otherwise dialogs widget could be focused.
 	if (_overview) {
 		_overview->hide();
 		_overview->clear();
@@ -2435,7 +2437,7 @@ void MainWidget::showMediaOverview(PeerData *peer, MediaOverviewType type, bool 
 	_overview.create(this, peer, type);
 	_mediaTypeMask = 0;
 	_topBar->show();
-	resizeEvent(nullptr);
+	updateControlsGeometry();
 
 	// Send a fake update.
 	Notify::PeerUpdate update(peer);
@@ -2574,6 +2576,8 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 	if (saveInStack) {
 		saveSectionInStack();
 	}
+
+	setFocus(); // otherwise dialogs widget could be focused.
 	if (_overview) {
 		_overview->hide();
 		_overview->clear();
@@ -2588,7 +2592,7 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 	}
 	_wideSection = std_::move(newWideSection);
 	_topBar->hide();
-	resizeEvent(0);
+	updateControlsGeometry();
 	_history->finishAnimation();
 	_history->showHistory(0, 0);
 	_history->hide();
@@ -2924,7 +2928,7 @@ void MainWidget::showAll() {
 		_player->show();
 		_playerHeight = _player->contentHeight();
 	}
-	resizeEvent(0);
+	updateControlsGeometry();
 
 	App::wnd()->checkHistoryActivation();
 }
@@ -3206,7 +3210,7 @@ void MainWidget::onHistoryShown(History *history, MsgId atMsgId) {
 	} else {
 		_topBar->hide();
 	}
-	resizeEvent(0);
+	updateControlsGeometry();
 	if (_a_show.animating()) {
 		_topBar->hide();
 	}

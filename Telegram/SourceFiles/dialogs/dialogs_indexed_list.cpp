@@ -81,6 +81,25 @@ void IndexedList::moveToTop(PeerData *peer) {
 	}
 }
 
+void IndexedList::movePinned(Row *row, int deltaSign) {
+	auto swapPinnedIndexWith = find(row);
+	t_assert(swapPinnedIndexWith != cend());
+	if (deltaSign > 0) {
+		++swapPinnedIndexWith;
+	} else {
+		t_assert(swapPinnedIndexWith != cbegin());
+		--swapPinnedIndexWith;
+	}
+	auto history1 = row->history();
+	auto history2 = (*swapPinnedIndexWith)->history();
+	t_assert(history1->isPinnedDialog());
+	t_assert(history2->isPinnedDialog());
+	auto index1 = history1->getPinnedIndex();
+	auto index2 = history2->getPinnedIndex();
+	history1->setPinnedIndex(index2);
+	history2->setPinnedIndex(index1);
+}
+
 void IndexedList::peerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
 	t_assert(_sortMode != SortMode::Date);
 	if (_sortMode == SortMode::Name) {

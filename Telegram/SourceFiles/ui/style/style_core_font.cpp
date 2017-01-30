@@ -76,7 +76,7 @@ FontData::FontData(int size, uint32 flags, int family, Font *other) : f(fontFami
 	ascent = m.ascent();
 	descent = m.descent();
 	spacew = width(QLatin1Char(' '));
-	elidew = width(QLatin1Char('.')) * 3;
+	elidew = width(qsl("..."));
 }
 
 Font FontData::bold(bool set) const {

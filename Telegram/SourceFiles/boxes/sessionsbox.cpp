@@ -330,7 +330,7 @@ void SessionsBox::Inner::onTerminateAll() {
 			_terminateBox->closeBox();
 			_terminateBox = nullptr;
 		}
-//		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
+		MTP::send(MTPauth_ResetAuthorizations(), rpcDone(&Inner::terminateAllDone), rpcFail(&Inner::terminateAllFail));
 		emit terminateAll();
 	})), KeepOtherLayers);
 }

@@ -335,8 +335,6 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 		SignalHandlers::setCrashAnnotationRef("CrashString", &part);
 
 		QStackTextEngine engine(part, blockFont->f);
-		engine.itemize();
-
 		QTextLayout layout(&engine);
 		layout.beginLayout();
 		layout.createLine();

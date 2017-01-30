@@ -44,10 +44,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "window/window_theme.h"
 #include "autoupdater.h"
+#include "observer_peer.h"
 
 namespace {
 
 constexpr auto kHashtagResultsLimit = 5;
+constexpr auto kStartReorderThreshold = 30;
 
 } // namespace
 
@@ -73,6 +75,7 @@ DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(pare
 , _dialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date))
 , _contactsNoDialogs(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
 , _contacts(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Name))
+, _a_pinnedShifting(animation(this, &DialogsInner::step_pinnedShifting))
 , _addContactLnk(this, lang(lng_add_contact_button))
 , _cancelSearchInPeer(this, st::dialogsCancelSearchInPeer) {
 	if (Global::DialogsModeEnabled()) {
@@ -100,6 +103,10 @@ DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(pare
 			Dialogs::Layout::clearUnreadBadgesCache();
 		}
 	});
+
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::PinnedChanged, [this](const Notify::PeerUpdate &update) {
+		stopReorderPinned();
+	}));
 
 	refresh();
 }
@@ -135,18 +142,60 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 	auto fullWidth = getFullWidth();
 	auto ms = getms();
 	if (_state == DefaultState) {
-		QRect dialogsClip = r;
+		auto rows = shownDialogs();
+		auto dialogsClip = r;
 		if (_dialogsImportant) {
 			auto selected = isPressed() ? _importantSwitchPressed : _importantSwitchSelected;
 			Dialogs::Layout::paintImportantSwitch(p, Global::DialogsMode(), fullWidth, selected, paintingOther);
 			dialogsClip.translate(0, -st::dialogsImportantBarHeight);
 			p.translate(0, st::dialogsImportantBarHeight);
 		}
-		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
+		auto otherStart = rows->size() * st::dialogsRowHeight;
 		auto active = App::main()->activePeer();
 		auto selected = _menuPeer ? _menuPeer : (isPressed() ? (_pressed ? _pressed->history()->peer : nullptr) : (_selected ? _selected->history()->peer : nullptr));
 		if (otherStart) {
-			shownDialogs()->all().paint(p, fullWidth, dialogsClip.top(), dialogsClip.top() + dialogsClip.height(), active, selected, paintingOther, ms);
+			auto reorderingPinned = (_aboveIndex >= 0 && !_pinnedRows.isEmpty());
+			auto &list = rows->all();
+			if (reorderingPinned) {
+				dialogsClip = dialogsClip.marginsAdded(QMargins(0, st::dialogsRowHeight, 0, st::dialogsRowHeight));
+			}
+
+			auto i = list.cfind(dialogsClip.top(), st::dialogsRowHeight);
+			if (i != list.cend()) {
+				auto lastPaintedPos = (*i)->pos();
+
+				// If we're reordering pinned chats we need to fill this area background first.
+				if (reorderingPinned) {
+					p.fillRect(0, 0, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
+				}
+
+				p.translate(0, lastPaintedPos * st::dialogsRowHeight);
+				for (auto e = list.cend(); i != e; ++i) {
+					auto row = (*i);
+					lastPaintedPos = row->pos();
+					if (lastPaintedPos * st::dialogsRowHeight >= dialogsClip.top() + dialogsClip.height()) {
+						break;
+					}
+
+					// Skip currently dragged chat to paint it above others after.
+					if (lastPaintedPos != _aboveIndex) {
+						paintDialog(p, row, fullWidth, active, selected, paintingOther, ms);
+					}
+
+					p.translate(0, st::dialogsRowHeight);
+				}
+
+				// Paint the dragged chat above all others.
+				if (_aboveIndex >= 0) {
+					auto i = list.cfind(_aboveIndex, 1);
+					auto pos = (i == list.cend()) ? -1 : (*i)->pos();
+					if (pos == _aboveIndex) {
+						p.translate(0, (pos - lastPaintedPos) * st::dialogsRowHeight);
+						paintDialog(p, *i, fullWidth, active, selected, paintingOther, ms);
+						p.translate(0, (lastPaintedPos - pos) * st::dialogsRowHeight);
+					}
+				}
+			}
 		}
 		if (!otherStart) {
 			p.fillRect(dialogsClip, st::dialogsBg);
@@ -294,6 +343,19 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 	}
 }
 
+void DialogsInner::paintDialog(Painter &p, Dialogs::Row *row, int fullWidth, PeerData *active, PeerData *selected, bool onlyBackground, TimeMs ms) {
+	auto pos = row->pos();
+	auto xadd = 0, yadd = 0;
+	if (pos < _pinnedRows.size()) {
+		yadd = qRound(_pinnedRows[pos].yadd.current());
+	}
+	if (xadd || yadd) p.translate(xadd, yadd);
+	auto isActive = (row->history()->peer == active) || (row->history()->peer->migrateTo() && row->history()->peer->migrateTo() == active);
+	auto isSelected = (row->history()->peer == selected);
+	Dialogs::Layout::RowPainter::paint(p, row, fullWidth, isActive, isSelected, onlyBackground, ms);
+	if (xadd || yadd) p.translate(-xadd, -yadd);
+}
+
 void DialogsInner::paintPeerSearchResult(Painter &p, const PeerSearchResult *result, int fullWidth, bool active, bool selected, bool onlyBackground, TimeMs ms) const {
 	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
 	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
@@ -399,7 +461,12 @@ void DialogsInner::clearIrrelevantState() {
 }
 
 void DialogsInner::updateSelected(QPoint localPos) {
-	if (!_mouseSelection) return;
+	if (updateReorderPinned(localPos)) {
+		return;
+	}
+	if (!_mouseSelection) {
+		return;
+	}
 
 	int w = width(), mouseY = localPos.y();
 	clearIrrelevantState();
@@ -495,6 +562,7 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 		row->addRipple(e->pos() - QPoint(0, dialogsOffset() + _pressed->pos() * st::dialogsRowHeight), QSize(getFullWidth(), st::dialogsRowHeight), [row] {
 			row->history()->updateChatListEntry();
 		});
+		_dragStart = e->pos();
 	} else if (_hashtagPressed >= 0 && _hashtagPressed < _hashtagResults.size() && !_hashtagDeletePressed) {
 		auto row = &_hashtagResults[_hashtagPressed]->row;
 		row->addRipple(e->pos(), QSize(getFullWidth(), st::mentionHeight), [this, index = _hashtagPressed] {
@@ -523,11 +591,233 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
+void DialogsInner::checkReorderPinnedStart(QPoint localPosition) {
+	if (_pressed != nullptr && !_dragging && _state == DefaultState) {
+		if (qAbs(localPosition.y() - _dragStart.y()) >= convertScale(kStartReorderThreshold)) {
+			_dragging = _pressed;
+			if (updateReorderIndexGetCount() < 2) {
+				_dragging = nullptr;
+			} else {
+				_pinnedOrder = App::histories().getPinnedOrder();
+				_pinnedRows[_draggingIndex].yadd = anim::value(0, localPosition.y() - _dragStart.y());
+				_pinnedRows[_draggingIndex].animStartTime = getms();
+				_a_pinnedShifting.start();
+			}
+		}
+	}
+}
+
+int DialogsInner::shownPinnedCount() const {
+	auto result = 0;
+	for_const (auto row, *shownDialogs()) {
+		if (!row->history()->isPinnedDialog()) {
+			break;
+		}
+		++result;
+	}
+	return result;
+}
+
+int DialogsInner::countPinnedIndex(Dialogs::Row *ofRow) {
+	if (!ofRow || !ofRow->history()->isPinnedDialog()) {
+		return -1;
+	}
+	auto result = 0;
+	for_const (auto row, *shownDialogs()) {
+		if (!row->history()->isPinnedDialog()) {
+			break;
+		} else if (row == ofRow) {
+			return result;
+		}
+		++result;
+	}
+	return -1;
+}
+
+void DialogsInner::savePinnedOrder() {
+	auto newOrder = App::histories().getPinnedOrder();
+	if (newOrder.size() != _pinnedOrder.size()) {
+		return; // Something has changed in the set of pinned chats.
+	}
+
+	auto peers = QVector<MTPInputPeer>();
+	peers.reserve(newOrder.size());
+	for_const (auto history, newOrder) {
+		if (_pinnedOrder.indexOf(history) < 0) {
+			return; // Something has changed in the set of pinned chats.
+		}
+		peers.push_back(history->peer->input);
+	}
+	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
+	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(qFlags(flags)), MTP_vector(peers)));
+}
+
+void DialogsInner::finishReorderPinned() {
+	auto wasDragging = (_dragging != nullptr);
+	if (wasDragging) {
+		savePinnedOrder();
+		_dragging = nullptr;
+	}
+	_draggingIndex = -1;
+	if (!_a_pinnedShifting.animating()) {
+		_pinnedRows.clear();
+		_aboveIndex = -1;
+	}
+	if (wasDragging) {
+		emit draggingScrollDelta(0);
+	}
+}
+
+void DialogsInner::stopReorderPinned() {
+	_a_pinnedShifting.stop();
+	finishReorderPinned();
+}
+
+int DialogsInner::updateReorderIndexGetCount() {
+	auto index = countPinnedIndex(_dragging);
+	if (index < 0) {
+		finishReorderPinned();
+		return 0;
+	}
+
+	auto count = shownPinnedCount();
+	t_assert(index < count);
+	if (count < 2) {
+		stopReorderPinned();
+		return 0;
+	}
+
+	_draggingIndex = index;
+	_aboveIndex = _draggingIndex;
+	while (count > _pinnedRows.size()) {
+		_pinnedRows.push_back(PinnedRow());
+	}
+	while (count < _pinnedRows.size()) {
+		_pinnedRows.pop_back();
+	}
+	return count;
+}
+
+bool DialogsInner::updateReorderPinned(QPoint localPosition) {
+	checkReorderPinnedStart(localPosition);
+	auto pinnedCount = updateReorderIndexGetCount();
+	if (pinnedCount < 2) {
+		return false;
+	}
+
+	auto yaddWas = _pinnedRows[_draggingIndex].yadd.current();
+	auto shift = 0;
+	auto ms = getms();
+	auto rowHeight = st::dialogsRowHeight;
+	if (_dragStart.y() > localPosition.y() && _draggingIndex > 0) {
+		shift = -floorclamp(_dragStart.y() - localPosition.y() + (rowHeight / 2), rowHeight, 0, _draggingIndex);
+		for (auto from = _draggingIndex, to = _draggingIndex + shift; from > to; --from) {
+			shownDialogs()->movePinned(_dragging, -1);
+			std_::swap_moveable(_pinnedRows[from], _pinnedRows[from - 1]);
+			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - rowHeight, 0);
+			_pinnedRows[from].animStartTime = ms;
+		}
+	} else if (_dragStart.y() < localPosition.y() && _draggingIndex + 1 < pinnedCount) {
+		shift = floorclamp(localPosition.y() - _dragStart.y() + (rowHeight / 2), rowHeight, 0, pinnedCount - _draggingIndex - 1);
+		for (auto from = _draggingIndex, to = _draggingIndex + shift; from < to; ++from) {
+			shownDialogs()->movePinned(_dragging, 1);
+			std_::swap_moveable(_pinnedRows[from], _pinnedRows[from + 1]);
+			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + rowHeight, 0);
+			_pinnedRows[from].animStartTime = ms;
+		}
+	}
+	if (shift) {
+		_draggingIndex += shift;
+		_aboveIndex = _draggingIndex;
+		_dragStart.setY(_dragStart.y() + shift * rowHeight);
+		if (!_a_pinnedShifting.animating()) {
+			_a_pinnedShifting.start();
+		}
+	}
+	_aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
+	_pinnedRows[_draggingIndex].yadd = anim::value(yaddWas - shift * rowHeight, localPosition.y() - _dragStart.y());
+	if (!_pinnedRows[_draggingIndex].animStartTime) {
+		_pinnedRows[_draggingIndex].yadd.finish();
+	}
+	_a_pinnedShifting.step(ms, true);
+
+	auto countDraggingScrollDelta = [this, localPosition] {
+		if (localPosition.y() < _visibleTop) {
+			return localPosition.y() - _visibleTop;
+		}
+		return 0;
+	};
+
+	emit draggingScrollDelta(countDraggingScrollDelta());
+	return true;
+}
+
+void DialogsInner::step_pinnedShifting(TimeMs ms, bool timer) {
+	auto animating = false;
+	auto updateMin = -1;
+	auto updateMax = 0;
+	for (auto i = 0, l = _pinnedRows.size(); i != l; ++i) {
+		auto start = _pinnedRows[i].animStartTime;
+		if (start) {
+			if (updateMin < 0) updateMin = i;
+			updateMax = i;
+			if (start + st::stickersRowDuration > ms && ms >= start) {
+				_pinnedRows[i].yadd.update(float64(ms - start) / st::stickersRowDuration, anim::sineInOut);
+				animating = true;
+			} else {
+				_pinnedRows[i].yadd.finish();
+				_pinnedRows[i].animStartTime = 0;
+			}
+		}
+	}
+	if (timer) {
+		updateReorderIndexGetCount();
+		if (_draggingIndex >= 0) {
+			if (updateMin < 0 || updateMin > _draggingIndex) {
+				updateMin = _draggingIndex;
+			}
+			if (updateMax < _draggingIndex) updateMax = _draggingIndex;
+		}
+		if (updateMin >= 0) {
+			auto top = _dialogsImportant ? st::dialogsImportantBarHeight : 0;
+			auto updateFrom = top + st::dialogsRowHeight * (updateMin - 1);
+			auto updateHeight = st::dialogsRowHeight * (updateMax - updateMin + 3);
+			if (_aboveIndex >= 0 && _aboveIndex < _pinnedRows.size()) {
+				// Always include currently dragged chat in its current and old positions.
+				auto aboveRowBottom = top + (_aboveIndex + 1) * st::dialogsRowHeight;
+				auto aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
+				accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + _aboveTopShift);
+				accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + aboveTopShift);
+				_aboveTopShift = aboveTopShift;
+			}
+			update(0, updateFrom, getFullWidth(), updateHeight);
+		}
+	}
+	if (!animating) {
+		_aboveIndex = _draggingIndex;
+		_a_pinnedShifting.stop();
+	}
+}
+
 void DialogsInner::mouseReleaseEvent(QMouseEvent *e) {
 	mousePressReleased(e->button());
 }
 
 void DialogsInner::mousePressReleased(Qt::MouseButton button) {
+	auto wasDragging = (_dragging != nullptr);
+	if (wasDragging) {
+		updateReorderIndexGetCount();
+		if (_draggingIndex >= 0) {
+			auto localPosition = mapFromGlobal(QCursor::pos());
+			_pinnedRows[_draggingIndex].yadd.start(0.);
+			_pinnedRows[_draggingIndex].animStartTime = getms();
+			if (!_a_pinnedShifting.animating()) {
+				_a_pinnedShifting.start();
+			}
+		}
+		finishReorderPinned();
+	}
+
 	auto importantSwitchPressed = _importantSwitchPressed;
 	setImportantSwitchPressed(false);
 	auto pressed = _pressed;
@@ -542,8 +832,11 @@ void DialogsInner::mousePressReleased(Qt::MouseButton button) {
 	setPeerSearchPressed(-1);
 	auto searchedPressed = _searchedPressed;
 	setSearchedPressed(-1);
+	if (wasDragging) {
+		updateSelected();
+	}
 	updateSelectedRow();
-	if (button == Qt::LeftButton) {
+	if (!wasDragging && button == Qt::LeftButton) {
 		if (importantSwitchPressed && importantSwitchPressed == _importantSwitchSelected) {
 			choosePeer();
 		} else if (pressed && pressed == _selected) {
@@ -633,6 +926,13 @@ void DialogsInner::onDialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRo
 	if (_pressed == oldRow) {
 		setPressed(newRow);
 	}
+	if (_dragging == oldRow) {
+		if (newRow) {
+			_dragging = newRow;
+		} else {
+			stopReorderPinned();
+		}
+	}
 }
 
 void DialogsInner::createDialog(History *history) {
@@ -711,7 +1011,12 @@ void DialogsInner::removeDialog(History *history) {
 void DialogsInner::dlgUpdated(Dialogs::Mode list, Dialogs::Row *row) {
 	if (_state == DefaultState) {
 		if (Global::DialogsMode() == list) {
-			update(0, dialogsOffset() + row->pos() * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
+			auto position = row->pos();
+			auto top = dialogsOffset();
+			if (position >= 0 && position < _pinnedRows.size()) {
+				top += qRound(_pinnedRows[position].yadd.current());
+			}
+			update(0, top + position * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (list == Dialogs::Mode::All) {
@@ -736,7 +1041,12 @@ void DialogsInner::updateDialogRow(PeerData *peer, MsgId msgId, QRect updateRect
 	if (_state == DefaultState) {
 		if (sections & UpdateRowSection::Default) {
 			if (auto row = shownDialogs()->getRow(peer->id)) {
-				updateRow(dialogsOffset() + row->pos() * st::dialogsRowHeight);
+				auto position = row->pos();
+				auto top = dialogsOffset();
+				if (position >= 0 && position < _pinnedRows.size()) {
+					top += qRound(_pinnedRows[position].yadd.current());
+				}
+				updateRow(top + position * st::dialogsRowHeight);
 			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -782,9 +1092,14 @@ void DialogsInner::enterEvent(QEvent *e) {
 void DialogsInner::updateSelectedRow(PeerData *peer) {
 	if (_state == DefaultState) {
 		if (peer) {
-			if (History *h = App::historyLoaded(peer->id)) {
+			if (auto h = App::historyLoaded(peer->id)) {
 				if (h->inChatList(Global::DialogsMode())) {
-					update(0, dialogsOffset() + h->posInChatList(Global::DialogsMode()) * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
+					auto position = h->posInChatList(Global::DialogsMode());
+					auto top = dialogsOffset();
+					if (position >= 0 && position < _pinnedRows.size()) {
+						top += qRound(_pinnedRows[position].yadd.current());
+					}
+					update(0, top + position * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
 				}
 			}
 		} else if (_selected) {
@@ -810,7 +1125,6 @@ void DialogsInner::updateSelectedRow(PeerData *peer) {
 			update(0, searchedOffset() + _searchedSelected * st::dialogsRowHeight, getFullWidth(), st::dialogsRowHeight);
 		}
 	}
-
 }
 
 void DialogsInner::leaveEvent(QEvent *e) {
@@ -1081,9 +1395,10 @@ PeerData *DialogsInner::updateFromParentDrag(QPoint globalPos) {
 }
 
 void DialogsInner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
-	_visibleAreaHeight = visibleBottom - visibleTop;
-	loadPeerPhotos(visibleTop);
-	if (visibleTop + PreloadHeightsCount * (visibleBottom - visibleTop) >= height()) {
+	_visibleTop = visibleTop;
+	_visibleBottom = visibleBottom;
+	loadPeerPhotos();
+	if (_visibleTop + PreloadHeightsCount * (_visibleBottom - _visibleTop) >= height()) {
 		if (_loadMoreCallback) {
 			_loadMoreCallback();
 		}
@@ -1347,8 +1662,9 @@ void DialogsInner::refresh(bool toTop) {
 	}
 	setHeight(h);
 	if (toTop) {
+		stopReorderPinned();
 		emit mustScrollTo(0, 0);
-		loadPeerPhotos(0);
+		loadPeerPhotos();
 	}
 	Global::RefDialogsListDisplayForced().set(_searchInPeer || !_filter.isEmpty(), true);
 	update();
@@ -1563,11 +1879,11 @@ void DialogsInner::selectSkipPage(int32 pixels, int32 direction) {
 	update();
 }
 
-void DialogsInner::loadPeerPhotos(int visibleTop) {
+void DialogsInner::loadPeerPhotos() {
 	if (!parentWidget()) return;
 
-	auto yFrom = visibleTop;
-	auto yTo = visibleTop + _visibleAreaHeight * (PreloadHeightsCount + 1);
+	auto yFrom = _visibleTop;
+	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
 	MTP::clearLoaderPriorities();
 	if (_state == DefaultState) {
 		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
@@ -1945,6 +2261,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 , _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll) {
 	_inner = _scroll->setOwnedWidget(object_ptr<DialogsInner>(this, parent));
+	connect(_inner, SIGNAL(draggingScrollDelta(int)), this, SLOT(onDraggingScrollDelta(int)));
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), _scroll, SLOT(scrollToY(int,int)));
 	connect(_inner, SIGNAL(dialogMoved(int,int)), this, SLOT(onDialogMoved(int,int)));
 	connect(_inner, SIGNAL(searchMessages()), this, SLOT(onNeedSearchMessages()));
@@ -2260,6 +2577,25 @@ bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId requestId)
 		_pinnedDialogsRequestId = 0;
 	}
 	return true;
+}
+
+void DialogsWidget::onDraggingScrollDelta(int delta) {
+	_draggingScrollDelta = _scroll ? delta : 0;
+	if (_draggingScrollDelta) {
+		if (!_draggingScrollTimer) {
+			_draggingScrollTimer.create(this);
+			_draggingScrollTimer->setSingleShot(false);
+			connect(_draggingScrollTimer, SIGNAL(timeout()), this, SLOT(onDraggingScrollTimer()));
+		}
+		_draggingScrollTimer->start(15);
+	} else {
+		_draggingScrollTimer.destroy();
+	}
+}
+
+void DialogsWidget::onDraggingScrollTimer() {
+	auto delta = (_draggingScrollDelta > 0) ? qMin(_draggingScrollDelta * 3 / 20 + 1, int32(MaxScrollSpeed)) : qMax(_draggingScrollDelta * 3 / 20 - 1, -int32(MaxScrollSpeed));
+	_scroll->scrollToY(_scroll->scrollTop() + delta);
 }
 
 bool DialogsWidget::onSearchMessages(bool searchCache) {

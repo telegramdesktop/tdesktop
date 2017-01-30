@@ -51,7 +51,6 @@ public:
 		return *i;
 	}
 
-	void paint(Painter &p, int32 w, int32 hFrom, int32 hTo, PeerData *act, PeerData *sel, bool onlyBackground, TimeMs ms) const;
 	Row *addToEnd(History *history);
 	Row *adjustByName(const PeerData *peer);
 	Row *addByName(History *history);

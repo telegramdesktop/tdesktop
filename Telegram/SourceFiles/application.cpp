@@ -1069,8 +1069,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000003) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Audio device is opened only when some sound is played.\n\xe2\x80\x94 On Windows Vista and later audio device should switch after the system default changes.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000004) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Click and drag to reorder pinned chats.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000002) {
 				versionFeatures = langNewVersionText();
 			} else {
