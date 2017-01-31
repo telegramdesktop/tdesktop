@@ -925,8 +925,7 @@ HistoryDocument::HistoryDocument(HistoryItem *parent, DocumentData *document, co
 , _data(document) {
 	createComponents(!caption.isEmpty());
 	if (auto named = Get<HistoryDocumentNamed>()) {
-		named->_name = documentName(_data);
-		named->_namew = st::semiboldFont->width(named->_name);
+		fillNamedFromData(named);
 	}
 
 	setDocumentLinks(_data);
@@ -948,8 +947,7 @@ HistoryDocument::HistoryDocument(HistoryItem *parent, const HistoryDocument &oth
 			named->_name = othernamed->_name;
 			named->_namew = othernamed->_namew;
 		} else {
-			named->_name = documentName(_data);
-			named->_namew = st::semiboldFont->width(named->_name);
+			fillNamedFromData(named);
 		}
 	}
 
@@ -968,7 +966,11 @@ void HistoryDocument::createComponents(bool caption) {
 		mask |= HistoryDocumentVoice::Bit();
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
-		if (!_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height()) {
+		if (!_data->song()
+			&& !documentIsExecutableName(_data->name)
+			&& !_data->thumb->isNull()
+			&& _data->thumb->width()
+			&& _data->thumb->height()) {
 			mask |= HistoryDocumentThumbed::Bit();
 		}
 	}
@@ -980,6 +982,11 @@ void HistoryDocument::createComponents(bool caption) {
 		thumbed->_linksavel.reset(new DocumentSaveClickHandler(_data));
 		thumbed->_linkcancell.reset(new DocumentCancelClickHandler(_data));
 	}
+}
+
+void HistoryDocument::fillNamedFromData(HistoryDocumentNamed *named) {
+	auto name = named->_name = documentName(_data);
+	named->_namew = st::semiboldFont->width(name);
 }
 
 void HistoryDocument::initDimensions() {
@@ -1202,6 +1209,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		icon->paintInCenter(p, inner);
 	}
 	auto namewidth = _width - nameleft - nameright;
+	auto statuswidth = namewidth;
 
 	if (auto voice = Get<HistoryDocumentVoice>()) {
 		const VoiceWaveform *wf = nullptr;
@@ -1267,7 +1275,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		p.setFont(st::semiboldFont);
 		p.setPen(outbg ? st::historyFileNameOutFg : st::historyFileNameInFg);
 		if (namewidth < named->_namew) {
-			p.drawTextLeft(nameleft, nametop, _width, st::semiboldFont->elided(named->_name, namewidth));
+			p.drawTextLeft(nameleft, nametop, _width, st::semiboldFont->elided(named->_name, namewidth, Qt::ElideMiddle));
 		} else {
 			p.drawTextLeft(nameleft, nametop, _width, named->_name, named->_namew);
 		}
@@ -1280,7 +1288,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 
 	if (_parent->isMediaUnread()) {
 		int32 w = st::normalFont->width(_statusText);
-		if (w + st::mediaUnreadSkip + st::mediaUnreadSize <= namewidth) {
+		if (w + st::mediaUnreadSkip + st::mediaUnreadSize <= statuswidth) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
 

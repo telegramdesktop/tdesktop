@@ -90,6 +90,7 @@ style::color documentOverColor(int colorIndex);
 style::color documentSelectedColor(int colorIndex);
 RoundCorners documentCorners(int colorIndex);
 bool documentIsValidMediaFile(const QString &filepath);
+bool documentIsExecutableName(const QString &filename);
 
 class PaintContextBase {
 public:

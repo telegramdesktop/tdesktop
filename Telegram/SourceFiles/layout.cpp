@@ -141,7 +141,7 @@ QString formatPlayedText(qint64 played, qint64 duration) {
 }
 
 QString documentName(DocumentData *document) {
-	SongData *song = document->song();
+	auto song = document->song();
 	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
 		return document->name.isEmpty() ? qsl("Unknown File") : document->name;
 	}
@@ -264,7 +264,7 @@ mka mks mcf m2p ps ts m2ts ifo aaf avchd cam dat dsh dvr-ms m1v fla flr sol wrap
 wtv 8svx 16svx iff aiff aif aifc au bwf cdda raw wav flac la pac m4a ape ofr ofs off rka \
 shn tak tta wv brstm dts dtshd dtsma ast amr mp3 spx gsm aac mpc vqf ra ots swa vox voc \
 dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minipsf psflib \
-2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz \
+2sf dsf gsf psf2 qsf ssf usf rmj spc niff mxl xml txm ym jam mp1 mscz\
 ").split(' ');
 		return result.release();
 	})());
@@ -272,4 +272,28 @@ dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minips
 	QFileInfo info(filepath);
 	auto parts = info.fileName().split('.', QString::SkipEmptyParts);
 	return !parts.isEmpty() && (validMediaTypes->indexOf(parts.back().toLower()) >= 0);
+}
+
+bool documentIsExecutableName(const QString &filename) {
+	static StaticNeverFreedPointer<QList<QString>> executableTypes(([] {
+		std_::unique_ptr<QList<QString>> result = std_::make_unique<QList<QString>>();
+#ifdef Q_OS_MAC
+		*result = qsl("\
+action app bin command csh osx workflow\
+").split(' ');
+#elif defined Q_OS_LINUX // Q_OS_MAC
+		*result = qsl("\
+bin csh ksh out run\
+").split(' ');
+#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+		*result = qsl("\
+bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi \
+msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
+").split(' ');
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
+		return result.release();
+	})());
+
+	auto lastDotIndex = filename.lastIndexOf('.');
+	return (lastDotIndex >= 0) && (executableTypes->indexOf(filename.mid(lastDotIndex + 1).toLower()) >= 0);
 }

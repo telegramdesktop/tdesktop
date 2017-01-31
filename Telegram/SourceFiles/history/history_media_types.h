@@ -406,6 +406,7 @@ protected:
 
 private:
 	void createComponents(bool caption);
+	void fillNamedFromData(HistoryDocumentNamed *named);
 
 	void setStatusSize(int32 newSize, qint64 realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause

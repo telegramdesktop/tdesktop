@@ -327,7 +327,7 @@ private:
 	int32 _thumbw, _colorIndex;
 
 	bool withThumb() const {
-		return !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height();
+		return !_data->song() && !_data->thumb->isNull() && _data->thumb->width() && _data->thumb->height() && !documentIsExecutableName(_data->name);
 	}
 	bool updateStatusText();
 

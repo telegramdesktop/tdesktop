@@ -1071,7 +1071,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000004) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Click and drag to reorder pinned chats.");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000002) {
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000005) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();
