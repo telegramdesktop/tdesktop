@@ -135,7 +135,7 @@ void EmojiBox::paintEvent(QPaintEvent *e) {
 		int32 rowSize = i->size(), left = (width() - rowSize * st::emojiReplaceWidth) / 2;
 		for (BlockRow::const_iterator j = i->cbegin(), en = i->cend(); j != en; ++j) {
 			if (j->emoji) {
-				p.drawPixmap(QPoint(left + (st::emojiReplaceWidth - _esize) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2), App::emojiLarge(), QRect(j->emoji->x * _esize, j->emoji->y * _esize, _esize, _esize));
+				p.drawPixmap(QPoint(left + (st::emojiReplaceWidth - (_esize / cIntRetinaFactor())) / 2, top + (st::emojiReplaceHeight - _blockHeight) / 2), App::emojiLarge(), QRect(j->emoji->x * _esize, j->emoji->y * _esize, _esize, _esize));
 			}
 			QRect trect(left, top + (st::emojiReplaceHeight + _blockHeight) / 2 - st::emojiTextFont->height, st::emojiReplaceWidth, st::emojiTextFont->height);
 			p.drawText(trect, j->text, QTextOption(Qt::AlignHCenter | Qt::AlignTop));
