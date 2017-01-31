@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Chatliste lässt sich zusammenschieben, so dass man nur noch die Profilbilder sehen kann.\n— Drag und Drop von Bildern klappt wieder mit Firefox (Windows)\n— Fehlerbehebungen und sonstige Verbesserungen.";
+"lng_new_version_text" = "— Angeheftete Chats lassen sich verschieben (gedrückt halten und nach oben oder unter ziehen).\n— Fehlerbehebungen und sonstige Softwareoptimierungen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

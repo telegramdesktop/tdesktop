@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Nieuwe optie, minimaliseer het overzicht met chats naar een overzicht van profielfoto's. Formaat wijzigen door de lijst aan te klikken en te slepen.\n— Probleem het slepen en neerzetten van afbeeldingen vanuit Firefox onder Windows opgelost.\n— Probleemoplossing en andere kleine verbeteringen.";
+"lng_new_version_text" = "— Klik en sleep om de volgorde van vastgezette chats aan te passen.\n— Probleemoplossing en andere kleine verbeteringen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

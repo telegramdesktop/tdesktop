@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 대화방목록 크기를 프로필사진 목록으로 최소화하는 옵션 추가. 클릭 후 드래그를 하여 리스트 크기 조절 가능\n— 윈도우 파이어폭스에서 이미지 드래그 후 드롭 수정\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 클릭 후 드래그로 고정된 대화 순서 변경\n— 버그 수정 및 일부기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

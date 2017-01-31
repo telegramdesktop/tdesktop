@@ -142,6 +142,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 	auto fullWidth = getFullWidth();
 	auto ms = getms();
 	if (_state == DefaultState) {
+		_a_pinnedShifting.step(ms, false);
+
 		auto rows = shownDialogs();
 		auto dialogsClip = r;
 		if (_dialogsImportant) {
@@ -559,8 +561,10 @@ void DialogsInner::mousePressEvent(QMouseEvent *e) {
 		});
 	} else if (_pressed) {
 		auto row = _pressed;
-		row->addRipple(e->pos() - QPoint(0, dialogsOffset() + _pressed->pos() * st::dialogsRowHeight), QSize(getFullWidth(), st::dialogsRowHeight), [row] {
-			row->history()->updateChatListEntry();
+		row->addRipple(e->pos() - QPoint(0, dialogsOffset() + _pressed->pos() * st::dialogsRowHeight), QSize(getFullWidth(), st::dialogsRowHeight), [this, row] {
+			if (!_a_pinnedShifting.animating()) {
+				row->history()->updateChatListEntry();
+			}
 		});
 		_dragStart = e->pos();
 	} else if (_hashtagPressed >= 0 && _hashtagPressed < _hashtagResults.size() && !_hashtagDeletePressed) {

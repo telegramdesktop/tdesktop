@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Nueva opción para minimizar la lista de chats en una columna de imágenes de perfil. Cambia el tamaño de la lista haciendo clic y arrastrando.\n— Arrastrar y soltar arreglado para las imágenes desde Firefox en Windows.\n— Corrección de errores y otras mejoras menores.";
+"lng_new_version_text" = "— Arrastra un chat anclado para cambiar su posición.\n— Corrección de errores y otras mejoras menores.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
