@@ -827,13 +827,13 @@ void RegisterCustomScheme() {
 	
 	if (!_psOpenRegKey(L"Software\\TelegramDesktop", &rkey)) return;
 	if (!_psOpenRegKey(L"Software\\TelegramDesktop\\Capabilities", &rkey)) return;
-	if (!_psSetKeyValue(rkey, L"ApplicationName", qls("Telegram Desktop"))) return;
+	if (!_psSetKeyValue(rkey, L"ApplicationName", qls("TelegramDesktop"))) return;
 	if (!_psSetKeyValue(rkey, L"ApplicationDescription", qls("Telegram Desktop"))) return;
 	if (!_psOpenRegKey(L"Software\\TelegramDesktop\\Capabilities\\UrlAssociations", &rkey)) return;
 	if (!_psSetKeyValue(rkey, L"tg", qls("tg"))) return;
 	
 	if (!_psOpenRegKey(L"Software\\RegisteredApplications", &rkey)) return;
-	if (!_psSetKeyValue(key, L"Telegram Desktop", qls("SOFTWARE\\TelegramDesktop\\Capabilities"))) return;
+	if (!_psSetKeyValue(key, L"TelegramDesktop", qls("SOFTWARE\\TelegramDesktop\\Capabilities"))) return;
 #endif // !TDESKTOP_DISABLE_REGISTER_CUSTOM_SCHEME
 }
 
