@@ -55,6 +55,7 @@ f_RoGetActivationFactory RoGetActivationFactory;
 f_WindowsCreateStringReference WindowsCreateStringReference;
 f_WindowsDeleteString WindowsDeleteString;
 f_PropVariantToString PropVariantToString;
+f_PSStringFromPropertyKey PSStringFromPropertyKey;
 
 HINSTANCE LibUxTheme;
 HINSTANCE LibShell32;
@@ -89,6 +90,7 @@ void start() {
 
 		LibPropSys = LoadLibrary(L"PROPSYS.DLL");
 		load(LibPropSys, "PropVariantToString", PropVariantToString);
+		load(LibPropSys, "PSStringFromPropertyKey", PSStringFromPropertyKey);
 
 		if (version >= QSysInfo::WV_WINDOWS8) {
 			LibComBase = LoadLibrary(L"COMBASE.DLL");

@@ -44,7 +44,7 @@
           ],
           'conditions': [
             [ '"<(official_build_target)" != "" and "<(official_build_target)" != "linux"', {
-              'sources': [ '__Wrong_Official_Build_Target__' ],
+              'sources': [ '__Wrong_Official_Build_Target_<(official_build_target)_' ],
             }],
           ],
         }, {

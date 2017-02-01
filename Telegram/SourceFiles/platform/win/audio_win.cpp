@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "platform/win/audio_win.h"
 
+#include "platform/win/windows_dlls.h"
 #include "media/media_audio.h"
 
 #include <mmdeviceapi.h>
@@ -73,13 +74,42 @@ STDMETHODIMP DeviceListener::QueryInterface(REFIID iid, void** object) {
 }
 
 STDMETHODIMP DeviceListener::OnPropertyValueChanged(LPCWSTR device_id, const PROPERTYKEY key) {
-	LOG(("Audio Info: OnPropertyValueChanged() scheduling detach from audio device."));
-	Media::Player::DetachFromDeviceByTimer();
+	auto deviceName = device_id ? '"' + QString::fromWCharArray(device_id) + '"' : QString("nullptr");
+
+	constexpr auto kKeyBufferSize = 1024;
+	WCHAR keyBuffer[kKeyBufferSize] = { 0 };
+	auto hr = Dlls::PSStringFromPropertyKey(key, keyBuffer, kKeyBufferSize);
+	auto keyName = Dlls::PSStringFromPropertyKey ? (SUCCEEDED(hr) ? '"' + QString::fromWCharArray(keyBuffer) + '"' : QString("unknown")) : QString("unsupported");
+
+	// BAD GUID { 0xD4EF3098, 0xC967, 0x4A4E, { 0xB2, 0x19, 0xAC, 0xB6, 0xDA, 0x1D, 0xC3, 0x73 } };
+	// BAD GUID { 0x3DE556E2, 0xE087, 0x4721, { 0xBE, 0x97, 0xEC, 0x16, 0x2D, 0x54, 0x81, 0xF8 } };
+
+	// VERY BAD GUID { 0x91F1336D, 0xC37C, 0x4C48, { 0xAD, 0xEB, 0x92, 0x17, 0x2F, 0xA8, 0x7E, 0xEB } };
+	// It is fired somewhere from CloseAudioPlaybackDevice() causing deadlock on AudioMutex.
+
+	// Sometimes unknown value change events come very frequently, like each 0.5 seconds.
+	// So we will handle only special value change events from mmdeviceapi.h
+	constexpr GUID pkey_AudioEndpoint = { 0x1da5d803, 0xd492, 0x4edd, { 0x8c, 0x23, 0xe0, 0xc0, 0xff, 0xee, 0x7f, 0x0e } };
+	constexpr GUID pkey_AudioEngine_Device = { 0xf19f064d, 0x82c, 0x4e27, { 0xbc, 0x73, 0x68, 0x82, 0xa1, 0xbb, 0x8e, 0x4c } };
+	constexpr GUID pkey_AudioEngine_OEM = { 0xe4870e26, 0x3cc5, 0x4cd2, { 0xba, 0x46, 0xca, 0xa, 0x9a, 0x70, 0xed, 0x4 } };
+	constexpr GUID pkey_AudioUnknown1 = { 0x3d6e1656, 0x2e50, 0x4c4c, { 0x8d, 0x85, 0xd0, 0xac, 0xae, 0x3c, 0x6c, 0x68 } };
+	constexpr GUID pkey_AudioUnknown2 = { 0x624f56de, 0xfd24, 0x473e, { 0x81, 0x4a, 0xde, 0x40, 0xaa, 0xca, 0xed, 0x16 } };
+	if (key.fmtid == pkey_AudioEndpoint
+		|| key.fmtid == pkey_AudioEngine_Device
+		|| key.fmtid == pkey_AudioEngine_OEM
+		|| key.fmtid == pkey_AudioUnknown1
+		|| key.fmtid == pkey_AudioUnknown2) {
+		LOG(("Audio Info: OnPropertyValueChanged(%1, %2) scheduling detach from audio device.").arg(deviceName).arg(keyName));
+		Media::Player::DetachFromDeviceByTimer();
+	} else {
+		DEBUG_LOG(("Audio Info: OnPropertyValueChanged(%1, %2) unknown, skipping.").arg(deviceName).arg(keyName));
+	}
 	return S_OK;
 }
 
 STDMETHODIMP DeviceListener::OnDeviceStateChanged(LPCWSTR device_id, DWORD new_state) {
-	LOG(("Audio Info: OnDeviceStateChanged() scheduling detach from audio device."));
+	auto deviceName = device_id ? '"' + QString::fromWCharArray(device_id) + '"' : QString("nullptr");
+	LOG(("Audio Info: OnDeviceStateChanged(%1, %2) scheduling detach from audio device.").arg(deviceName).arg(new_state));
 	Media::Player::DetachFromDeviceByTimer();
 	return S_OK;
 }

@@ -331,7 +331,9 @@ namespace Logs {
 		} else {
 			cForceWorkingDir(psAppDataPath());
 			workingDirChosen = true;
-#endif // Q_OS_WINRT
+#elif defined OS_WIN_STORE
+			cForceWorkingDir(psAppDataPath());
+#endif // OS_WIN_STORE
 		}
 
 		LogsData = new LogsDataFields();

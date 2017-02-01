@@ -103,6 +103,10 @@ call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%V
 call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 
+echo Patching appxmanifest.xml...
+set "ResourcePath=%FullScriptPath%..\Resources\uwp\appxmanifest.xml"
+call :repl "Replace=(Version=)&quot;\d+.\d+.\d+.\d+&quot;/$1&quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+
 exit /b
 
 :error

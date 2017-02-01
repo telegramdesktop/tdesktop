@@ -82,6 +82,9 @@ extern f_WTSUnRegisterSessionNotification WTSUnRegisterSessionNotification;
 typedef HRESULT (FAR STDAPICALLTYPE *f_PropVariantToString)(_In_ REFPROPVARIANT propvar, _Out_writes_(cch) PWSTR psz, _In_ UINT cch);
 extern f_PropVariantToString PropVariantToString;
 
+typedef HRESULT (FAR STDAPICALLTYPE *f_PSStringFromPropertyKey)(_In_ REFPROPERTYKEY pkey, _Out_writes_(cch) LPWSTR psz, _In_ UINT cch);
+extern f_PSStringFromPropertyKey PSStringFromPropertyKey;
+
 // COMBASE.DLL
 
 typedef HRESULT (FAR STDAPICALLTYPE *f_RoGetActivationFactory)(_In_ HSTRING activatableClassId, _In_ REFIID iid, _COM_Outptr_ void ** factory);
@@ -92,6 +95,8 @@ extern f_WindowsCreateStringReference WindowsCreateStringReference;
 
 typedef HRESULT (FAR STDAPICALLTYPE *f_WindowsDeleteString)(_In_opt_ HSTRING string);
 extern f_WindowsDeleteString WindowsDeleteString;
+
+
 
 } // namespace Dlls
 } // namespace Platform

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities">
+  <Identity Name="TelegramDesktop"
+    ProcessorArchitecture="x64"
+    Publisher="CN=Telegram Messenger LLP, O=Telegram Messenger LLP, L=London, C=GB"
+    Version="1.0.6.0" />
+  <Properties>
+    <DisplayName>Telegram Desktop</DisplayName>
+    <PublisherDisplayName>Reserved</PublisherDisplayName>
+    <Description>No description entered</Description>
+    <Logo>Assets\logo.png</Logo>
+  </Properties>
+  <Resources>
+    <Resource Language="en-us" />
+  </Resources>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="1.0.6.0" MaxVersionTested="10.0.14316.0" />
+  </Dependencies>
+  <Capabilities>
+    <rescap:Capability Name="runFullTrust"/>
+  </Capabilities>
+  <Applications>
+    <Application Id="Telegram.TelegramDesktop.Store" Executable="Telegram.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+       BackgroundColor="#0e6b99"
+       DisplayName="Telegram Desktop"
+       Square150x150Logo="Assets\logo150.png"
+       Square44x44Logo="Assets\logo44.png"
+       Description="Telegram Desktop official messenger" />
+    </Application>
+  </Applications>
+</Package>

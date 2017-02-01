@@ -88,5 +88,10 @@
         ],
       },
     },
+  }], [ 'build_uwp', {
+    'defines': [
+      'TDESKTOP_DISABLE_AUTOUPDATE',
+      'OS_WIN_STORE',
+    ]
   }]],
 }
