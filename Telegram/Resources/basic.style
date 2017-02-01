@@ -268,8 +268,6 @@ toastFadeOutDuration: 1000;
 
 historyReplyCancelIcon: icon {{ "box_button_close", historyReplyCancelFg }};
 historyReplyCancelIconOver: icon {{ "box_button_close", historyReplyCancelFgOver }};
-boxSearchCancelIcon: icon {{ "box_button_close", boxSearchCancelIconFg }};
-boxSearchCancelIconOver: icon {{ "box_button_close", boxSearchCancelIconFgOver }};
 boxTitleCloseIcon: icon {{ "box_button_close", boxTitleCloseFg }};
 boxTitleCloseIconOver: icon {{ "box_button_close", boxTitleCloseFgOver }};
 

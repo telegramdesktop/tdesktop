@@ -151,7 +151,7 @@ if %errorlevel% neq 0 goto error
 if %BuildUWP% neq 0 (
   cd "%HomePath%"
 
-  MakeAppx.exe pack /f Resources\uwp\mapping /p ..\out\Release\%BinaryName%.appx
+  MakeAppx.exe pack /f Resources\uwp\mapping /l /p ..\out\Release\%BinaryName%.appx
   if %errorlevel% neq 0 goto error
 
   call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
@@ -234,12 +234,12 @@ if %BuildUWP% neq 0 (
   if %errorlevel% neq 0 goto error
 )
 
+set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
+
 if %BuildUWP% equ 0 (
   echo.
   echo Version %AppVersionStrFull% is ready for deploy!
   echo.
-
-  set "FinalDeployPath=%FinalReleasePath%\%AppVersionStrMajor%\%AppVersionStrFull%"
 
   if not exist "%DeployPath%\%UpdateFile%" goto error
   if not exist "%DeployPath%\%PortableFile%" goto error
