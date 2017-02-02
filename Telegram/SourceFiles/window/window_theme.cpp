@@ -54,16 +54,16 @@ NeverFreedPointer<Data> instance;
 QByteArray readThemeContent(const QString &path) {
 	QFile file(path);
 	if (!file.exists()) {
-		LOG(("Error: theme file not found: %1").arg(path));
+		LOG(("Theme Error: theme file not found: %1").arg(path));
 		return QByteArray();
 	}
 
 	if (file.size() > kThemeFileSizeLimit) {
-		LOG(("Error: theme file too large: %1 (should be less than 5 MB, got %2)").arg(path).arg(file.size()));
+		LOG(("Theme Error: theme file too large: %1 (should be less than 5 MB, got %2)").arg(path).arg(file.size()));
 		return QByteArray();
 	}
 	if (!file.open(QIODevice::ReadOnly)) {
-		LOG(("Warning: could not open theme file: %1").arg(path));
+		LOG(("Theme Warning: could not open theme file: %1").arg(path));
 		return QByteArray();
 	}
 
@@ -94,36 +94,36 @@ bool readNameAndValue(const char *&from, const char *end, QLatin1String *outName
 
 	*outName = readName(from, end);
 	if (outName->size() == 0) {
-		LOG(("Error: Could not read name in the color scheme."));
+		LOG(("Theme Error: Could not read name in the color scheme."));
 		return false;
 	}
 	if (!skipWhitespaces(from, end)) {
-		LOG(("Error: Unexpected end of the color scheme."));
+		LOG(("Theme Error: Unexpected end of the color scheme."));
 		return false;
 	}
 	if (*from != ':') {
-		LOG(("Error: Expected ':' between each name and value in the color scheme."));
+		LOG(("Theme Error: Expected ':' between each name and value in the color scheme."));
 		return false;
 	}
 	if (!skipWhitespaces(++from, end)) {
-		LOG(("Error: Unexpected end of the color scheme."));
+		LOG(("Theme Error: Unexpected end of the color scheme."));
 		return false;
 	}
 	auto valueStart = from;
 	if (*from == '#') ++from;
 
 	if (readName(from, end).size() == 0) {
-		LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme."));
+		LOG(("Theme Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme."));
 		return false;
 	}
 	*outValue = QLatin1String(valueStart, from - valueStart);
 
 	if (!skipWhitespaces(from, end)) {
-		LOG(("Error: Unexpected end of the color scheme."));
+		LOG(("Theme Error: Unexpected end of the color scheme."));
 		return false;
 	}
 	if (*from != ';') {
-		LOG(("Error: Expected ';' after each value in the color scheme."));
+		LOG(("Theme Error: Expected ';' after each value in the color scheme."));
 		return false;
 	}
 	++from;
@@ -146,7 +146,7 @@ SetResult setColorSchemeValue(QLatin1String name, QLatin1String value, Instance 
 		auto b = readHexUchar(data[5], data[6], error);
 		auto a = (size == 9) ? readHexUchar(data[7], data[8], error) : uchar(255);
 		if (error) {
-			LOG(("Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme (while applying '%1: %2')").arg(QLatin1String(name)).arg(QLatin1String(value)));
+			LOG(("Theme Error: Expected a color value in #rrggbb or #rrggbbaa format in the color scheme (while applying '%1: %2')").arg(QLatin1String(name)).arg(QLatin1String(value)));
 			return SetResult::Bad;
 		} else if (out) {
 			found = out->palette.setColor(name, r, g, b, a);
@@ -165,7 +165,7 @@ SetResult setColorSchemeValue(QLatin1String name, QLatin1String value, Instance 
 
 bool loadColorScheme(const QByteArray &content, Instance *out = nullptr) {
 	if (content.size() > kThemeSchemeSizeLimit) {
-		LOG(("Error: color scheme file too large (should be less than 1 MB, got %2)").arg(content.size()));
+		LOG(("Theme Error: color scheme file too large (should be less than 1 MB, got %2)").arg(content.size()));
 		return false;
 	}
 
@@ -188,7 +188,7 @@ bool loadColorScheme(const QByteArray &content, Instance *out = nullptr) {
 		if (result == SetResult::Bad) {
 			return false;
 		} else if (result == SetResult::NotFound) {
-			LOG(("Warning: unexpected name or value in the color scheme (while applying '%1: %2')").arg(name).arg(value));
+			LOG(("Theme Warning: unexpected name or value in the color scheme (while applying '%1: %2')").arg(name).arg(value));
 			unsupported.insert(name, value);
 		}
 	}
@@ -248,7 +248,7 @@ LoadResult loadBackgroundFromFile(zlib::FileToRead &file, const char *filename, 
 		file.clearError();
 		return LoadResult::NotFound;
 	}
-	LOG(("Error: could not read '%1' in the theme file.").arg(filename));
+	LOG(("Theme Error: could not read '%1' in the theme file.").arg(filename));
 	return LoadResult::Failed;
 }
 
@@ -277,7 +277,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 	if (file.error() == UNZ_OK) {
 		auto schemeContent = file.readFileContent("colors.tdesktop-theme", zlib::kCaseInsensitive, kThemeSchemeSizeLimit);
 		if (file.error() != UNZ_OK) {
-			LOG(("Error: could not read 'colors.tdesktop-theme' in the theme file."));
+			LOG(("Theme Error: could not read 'colors.tdesktop-theme' in the theme file."));
 			return false;
 		}
 		if (!loadColorScheme(schemeContent, out)) {
@@ -293,12 +293,12 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 		if (!backgroundContent.isEmpty()) {
 			auto background = App::readImage(backgroundContent);
 			if (background.isNull()) {
-				LOG(("Error: could not read background image in the theme file."));
+				LOG(("Theme Error: could not read background image in the theme file."));
 				return false;
 			}
 			QBuffer buffer(&cache.background);
 			if (!background.save(&buffer, "BMP")) {
-				LOG(("Error: could not write background image as a BMP to cache."));
+				LOG(("Theme Error: could not write background image as a BMP to cache."));
 				return false;
 			}
 			cache.tiled = backgroundTiled;
@@ -587,7 +587,7 @@ ChatBackground *Background() {
 
 bool Load(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, Cached &cache) {
 	if (content.size() < 4) {
-		LOG(("Error: Could not load theme from '%1' (%2)").arg(pathRelative).arg(pathAbsolute));
+		LOG(("Theme Error: Could not load theme from '%1' (%2)").arg(pathRelative).arg(pathAbsolute));
 		return false;
 	}
 
@@ -662,7 +662,7 @@ void Revert() {
 bool LoadFromFile(const QString &path, Instance *out, QByteArray *outContent) {
 	*outContent = readThemeContent(path);
 	if (outContent->size() < 4) {
-		LOG(("Error: Could not load theme from %1").arg(path));
+		LOG(("Theme Error: Could not load theme from %1").arg(path));
 		return false;
 	}
 

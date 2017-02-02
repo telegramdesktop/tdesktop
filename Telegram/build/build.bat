@@ -89,7 +89,7 @@ if %BetaVersion% neq 0 (
       echo Can not build UWP version from an alpha!
       exit /b 1
     )
-    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\uwp\ (
+    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\AppX\ (
       echo UWP deploy folder for version %AppVersionStr% already exists!
       exit /b 1
     )
@@ -148,14 +148,7 @@ cd "%ReleasePath%"
 call "%SignPath%" "%BinaryName%.exe"
 if %errorlevel% neq 0 goto error
 
-if %BuildUWP% neq 0 (
-  cd "%HomePath%"
-
-  MakeAppx.exe pack /f Resources\uwp\mapping /l /p ..\out\Release\%BinaryName%.appx
-  if %errorlevel% neq 0 goto error
-
-  call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
-) else (
+if %BuildUWP% equ 0 (
   call "%SignPath%" "Updater.exe"
   if %errorlevel% neq 0 goto error
 
@@ -203,11 +196,24 @@ move "%ReleasePath%\%BinaryName%.exe.sym" %DropboxSymbolsPath%\%BinaryName%.exe.
 echo Done!
 
 if %BuildUWP% neq 0 (
-  mkdir "%DeployPath%\uwp"
-  move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\uwp\"
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\uwp\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\uwp\"
-  move "%ReleasePath%\Telegram.appx" "%DeployPath%\uwp\"
+  cd "%HomePath%"
+
+  mkdir "%DeployPath%\AppX"
+  xcopy /e "Resources\uwp\AppX\*" "%DeployPath%\AppX\"
+
+  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %DeployPath%\AppX\AppxManifest.xml /of %DeployPath%\AppX\resources.pri
+  if %errorlevel% neq 0 goto error
+
+  move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\AppX\"
+
+  MakeAppx.exe pack /d "%DeployPath%\AppX" /l /p ..\out\Release\%BinaryName%.appx
+  if %errorlevel% neq 0 goto error
+
+  call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
+
+  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.appx" "%DeployPath%\AppX\"
 ) else (
   if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"
   if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"

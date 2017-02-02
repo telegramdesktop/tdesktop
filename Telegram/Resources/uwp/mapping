@@ -1,6 +1,0 @@
-[Files]
-"..\out\Release\Telegram.exe"         "Telegram.exe"
-"Resources\uwp\appxmanifest.xml"      "AppxManifest.xml"
-"Resources\art\uwp\logo.png"          "Assets\logo.png"
-"Resources\art\uwp\logo44.png"        "Assets\logo44.png"
-"Resources\art\uwp\logo150.png"       "Assets\logo150.png"
