@@ -21,7 +21,7 @@
 // |-background.jpg (or tiled.jpg, background.png, tiled.png)
 //
 
-windowBg: #ffffff;
+windowBg: #fffff8;
 windowFg: #000000;
 windowBgOver: #f1f1f1;
 windowBgRipple: #e5e5e5;
