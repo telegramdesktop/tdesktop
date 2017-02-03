@@ -19,12 +19,12 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "window/window_theme_warning.h"
+#include "window/themes/window_theme_warning.h"
 
 #include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "lang.h"
 
 namespace Window {

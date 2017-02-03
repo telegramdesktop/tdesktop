@@ -30,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "localstorage.h"
 #include "mainwindow.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 
 namespace Settings {
 
@@ -240,7 +240,7 @@ void BackgroundWidget::needBackgroundUpdate(bool tile) {
 
 void BackgroundWidget::onChooseFromFile() {
 	auto imgExtensions = cImgExtensions();
-	auto filters = QStringList(qsl("Theme files (*.tdesktop-theme *") + imgExtensions.join(qsl(" *")) + qsl(")"));
+	auto filters = QStringList(qsl("Theme files (*.tdesktop-theme *.tdesktop-palette *") + imgExtensions.join(qsl(" *")) + qsl(")"));
 	filters.push_back(filedialogAllFilesFilter());
 
 	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
@@ -261,7 +261,8 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 	}
 
 	auto filePath = update.filePaths.front();
-	if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
+	if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
+		|| filePath.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
 		Window::Theme::Apply(filePath);
 		return;
 	}

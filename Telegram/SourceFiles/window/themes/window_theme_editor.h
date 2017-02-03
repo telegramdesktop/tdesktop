@@ -20,18 +20,47 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/window_theme.h"
+class BoxLayerTitleShadow;
+
+namespace Ui {
+class FlatButton;
+class ScrollArea;
+class CrossButton;
+class MultiSelect;
+} // namespace Ui
 
 namespace Window {
 namespace Theme {
 
-struct CurrentData {
-	int32 backgroundId = 0;
-	QPixmap backgroundImage;
-	bool backgroundTiled = false;
-};
+class Editor : public TWidget {
+	Q_OBJECT
 
-std_::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data);
+public:
+	Editor(QWidget*, const QString &path);
+
+	static void StartFromCurrentTheme(const QString &path);
+	static void Start(const QString &path);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+	void keyPressEvent(QKeyEvent *e) override;
+
+	void focusInEvent(QFocusEvent *e) override;
+
+private:
+	void closeEditor();
+
+	object_ptr<Ui::ScrollArea> _scroll;
+	class Inner;
+	QPointer<Inner> _inner;
+	object_ptr<Ui::CrossButton> _close;
+	object_ptr<Ui::MultiSelect> _select;
+	object_ptr<BoxLayerTitleShadow> _leftShadow;
+	object_ptr<BoxLayerTitleShadow> _topShadow;
+	object_ptr<Ui::FlatButton> _export;
+
+};
 
 } // namespace Theme
 } // namespace Window

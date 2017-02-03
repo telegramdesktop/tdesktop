@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "autoupdater.h"
 #include "core/observer.h"
 #include "observer_peer.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
 #include "history/history_location_manager.h"

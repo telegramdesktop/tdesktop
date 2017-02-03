@@ -31,7 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "localstorage.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 
 namespace Settings {
 

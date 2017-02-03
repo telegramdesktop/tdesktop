@@ -35,7 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "history/history_media_types.h"
 #include "styles/style_history.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 
 namespace {
 

@@ -57,7 +57,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "window/player_wrap_widget.h"
 #include "styles/style_boxes.h"
 

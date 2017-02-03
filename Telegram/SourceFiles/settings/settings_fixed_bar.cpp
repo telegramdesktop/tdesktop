@@ -24,12 +24,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "mainwindow.h"
-#include "lang.h"
 
 namespace Settings {
 
 FixedBar::FixedBar(QWidget *parent) : TWidget(parent) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
+}
+
+void FixedBar::setText(const QString &text) {
+	_text = text;
+	update();
 }
 
 int FixedBar::resizeGetHeight(int newWidth) {
@@ -43,7 +47,7 @@ void FixedBar::paintEvent(QPaintEvent *e) {
 
 	p.setFont(st::settingsFixedBarFont);
 	p.setPen(st::windowFg);
-	p.drawTextLeft(st::settingsFixedBarTextPosition.x(), st::settingsFixedBarTextPosition.y() - st::boxRadius, width(), lang(lng_menu_settings));
+	p.drawTextLeft(st::settingsFixedBarTextPosition.x(), st::settingsFixedBarTextPosition.y() - st::boxRadius, width(), _text);
 }
 
 } // namespace Settings

@@ -40,6 +40,10 @@ Manager::Manager(QWidget *parent) : QObject(parent) {
 }
 
 Manager *Manager::instance(QWidget *parent) {
+	if (!parent) {
+		return nullptr;
+	}
+
 	_managers.createIfNull();
 	auto i = _managers->constFind(parent);
 	if (i == _managers->cend()) {

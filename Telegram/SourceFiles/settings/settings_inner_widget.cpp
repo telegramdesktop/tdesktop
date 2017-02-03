@@ -35,7 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Settings {
 
-InnerWidget::InnerWidget(QWidget *parent) : TWidget(parent)
+InnerWidget::InnerWidget(QWidget *parent) : LayerInner(parent)
 , _self(App::self()) {
 	refreshBlocks();
 	subscribe(Global::RefSelfChanged(), [this]() { selfUpdated(); });

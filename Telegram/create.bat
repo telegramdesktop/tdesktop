@@ -4,10 +4,7 @@ set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
 set "Command=%1"
-if "%Command%" == "module" (
-  call :write_module %2
-  exit /b %errorlevel%
-) else if "%Command%" == "header" (
+if "%Command%" == "header" (
   call :write_header %2
   exit /b %errorlevel%
 ) else if "%Command%" == "source" (
@@ -15,11 +12,8 @@ if "%Command%" == "module" (
   exit /b %errorlevel%
 )
 
-cd gyp
-call refresh.bat
-cd ..
-
-exit /b
+call :write_module %Command%
+exit /b %errorlevel%
 
 :write_module
 (
@@ -30,8 +24,8 @@ exit /b
     exit /b 1
   )
   echo Generating module !CommandPathUnix!..
-  call prepare.bat header !CommandPathUnix!
-  call prepare.bat source !CommandPathUnix!
+  call create.bat header !CommandPathUnix!
+  call create.bat source !CommandPathUnix!
   exit /b
 )
 

@@ -81,10 +81,6 @@ bool Processor::write(const structure::Module &module) const {
 	if (!generator.writeSource()) {
 		return false;
 	}
-	auto themePath = srcFile.absoluteDir().absolutePath() + "/default.tdesktop-theme";
-	if (options_.isPalette && !generator.writeSampleTheme(themePath)) {
-		return false;
-	}
 	return true;
 }
 

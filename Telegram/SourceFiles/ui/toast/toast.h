@@ -36,6 +36,8 @@ struct Config {
 	QMargins padding;
 };
 void Show(QWidget *parent, const Config &config);
+void Show(const Config &config);
+void Show(const QString &text);
 
 class Instance {
 	struct Private {

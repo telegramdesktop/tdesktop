@@ -161,10 +161,7 @@ void UsernameBox::onChanged() {
 
 void UsernameBox::onLinkClick() {
 	Application::clipboard()->setText(CreateInternalLinkHttps(getName()));
-
-	Ui::Toast::Config toast;
-	toast.text = lang(lng_username_copied);
-	Ui::Toast::Show(App::wnd(), toast);
+	Ui::Toast::Show(lang(lng_username_copied));
 }
 
 void UsernameBox::onUpdateDone(const MTPUser &user) {

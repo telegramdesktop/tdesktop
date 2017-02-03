@@ -106,12 +106,13 @@ char hexFirstChar(char ch) {
 	return hexChar((*reinterpret_cast<uchar*>(&ch)) >> 4);
 }
 
-QString stringToEncodedString(const std::string &str) {
+QString stringToEncodedString(const QString &str) {
 	QString result, lineBreak = "\\\n";
 	result.reserve(str.size() * 8);
 	bool writingHexEscapedCharacters = false, startOnNewLine = false;
 	int lastCutSize = 0;
-	for (uchar ch : str) {
+	auto utf = str.toUtf8();
+	for (auto ch : utf) {
 		if (result.size() - lastCutSize > 80) {
 			startOnNewLine = true;
 			result.append(lineBreak);
@@ -138,6 +139,10 @@ QString stringToEncodedString(const std::string &str) {
 		}
 	}
 	return '"' + (startOnNewLine ? lineBreak : QString()) + result + '"';
+}
+
+QString stringToEncodedString(const std::string &str) {
+	return stringToEncodedString(QString::fromStdString(str));
 }
 
 QString stringToBinaryArray(const std::string &str) {
@@ -334,7 +339,7 @@ QString Generator::valueAssignmentCode(structure::Value value) const {
 	case Tag::Int: return QString("%1").arg(value.Int());
 	case Tag::Double: return QString("%1").arg(value.Double());
 	case Tag::Pixels: return pxValueName(value.Int());
-	case Tag::String: return QString("qsl(%1)").arg(stringToEncodedString(value.String()));
+	case Tag::String: return QString("QString::fromUtf8(%1)").arg(stringToEncodedString(value.String()));
 	case Tag::Color: {
 		auto v(value.Color());
 		if (v.red == v.green && v.red == v.blue && v.red == 0 && v.alpha == 255) {
@@ -441,8 +446,15 @@ public:\n\
 \n\
 	QByteArray save() const;\n\
 	bool load(const QByteArray &cache);\n\
-	bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
-	bool setColor(QLatin1String name, QLatin1String from);\n\
+\n\
+	enum class SetResult {\n\
+		Ok,\n\
+		KeyNotFound,\n\
+		ValueNotFound,\n\
+		Duplicate,\n\
+	};\n\
+	SetResult setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
+	SetResult setColor(QLatin1String name, QLatin1String from);\n\
 	void reset() {\n\
 		clear();\n\
 		finalize();\n\
@@ -564,11 +576,19 @@ namespace main_palette {\n\
 \n\
 QByteArray save();\n\
 bool load(const QByteArray &cache);\n\
-bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
-bool setColor(QLatin1String name, QLatin1String from);\n\
+palette::SetResult setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a);\n\
+palette::SetResult setColor(QLatin1String name, QLatin1String from);\n\
 void apply(const palette &other);\n\
 void reset();\n\
 int indexOfColor(color c);\n\
+\n\
+struct row {\n\
+\tQLatin1String name;\n\
+\tQLatin1String value;\n\
+\tQLatin1String fallback;\n\
+\tQLatin1String description;\n\
+};\n\
+QList<row> data();\n\
 \n\
 } // namespace main_palette\n";
 
@@ -739,10 +759,17 @@ void palette::finalize() {\n\
 \n\
 	compute(0, -1, { 255, 255, 255, 0}); // special color\n";
 
+	QList<structure::FullName> names;
+	module_.enumVariables([this, &names](const Variable &variable) -> bool {
+		names.push_back(variable.name);
+		return true;
+	});
+
+	QString dataRows;
 	int indexInPalette = 1;
 	QByteArray checksumString;
 	checksumString.append("&transparent:{ 255, 255, 255, 0 }");
-	bool result = module_.enumVariables([this, &indexInPalette, &checksumString](const Variable &variable) -> bool {
+	auto result = module_.enumVariables([this, &indexInPalette, &checksumString, &dataRows, &names](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
 		paletteIndices_[name] = index;
@@ -754,8 +781,27 @@ void palette::finalize() {\n\
 		auto assignment = QString("{ %1, %2, %3, %4 }").arg(color.red).arg(color.green).arg(color.blue).arg(color.alpha);
 		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", " << assignment << ");\n";
 		checksumString.append('&' + name + ':' + assignment);
+
+		auto isCopy = !variable.value.copyOf().isEmpty();
+		auto colorString = paletteColorValue(color);
+		auto fallbackName = QString();
+		if (fallbackIndex > 0) {
+			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex - 1], module_);
+			if (fallbackVariable && fallbackVariable->value.type().tag == structure::TypeTag::Color) {
+				fallbackName = fallbackVariable->name.back();
+			}
+		}
+		auto value = isCopy ? fallbackName : '#' + colorString;
+		if (value.isEmpty()) {
+			return false;
+		}
+
+		dataRows.append("\tresult.push_back({ qstr(\"" + name + "\"), qstr(\"" + value + "\"), qstr(\"" + (isCopy ? QString() : fallbackName) + "\"), qstr(" + stringToEncodedString(variable.description.toStdString()) + ") });\n");
 		return true;
 	});
+	if (!result) {
+		return false;
+	}
 	auto count = indexInPalette;
 	auto checksum = hashCrc32(checksumString.constData(), checksumString.size());
 
@@ -854,23 +900,25 @@ bool palette::load(const QByteArray &cache) {\n\
 	return true;\n\
 }\n\
 \n\
-bool palette::setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
-	auto index = getPaletteIndex(name);\n\
-	if (index >= 0) {\n\
-		setData(index, { r, g, b, a });\n\
-		return true;\n\
-	}\n\
-	return false;\n\
+palette::SetResult palette::setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
+	auto nameIndex = getPaletteIndex(name);\n\
+	if (nameIndex < 0) return SetResult::KeyNotFound;\n\
+	auto duplicate = (_status[nameIndex] != Status::Initial);\n\
+\n\
+	setData(nameIndex, { r, g, b, a });\n\
+	return duplicate ? SetResult::Duplicate : SetResult::Ok;\n\
 }\n\
 \n\
-bool palette::setColor(QLatin1String name, QLatin1String from) {\n\
+palette::SetResult palette::setColor(QLatin1String name, QLatin1String from) {\n\
 	auto nameIndex = getPaletteIndex(name);\n\
+	if (nameIndex < 0) return SetResult::KeyNotFound;\n\
+	auto duplicate = (_status[nameIndex] != Status::Initial);\n\
+\n\
 	auto fromIndex = getPaletteIndex(from);\n\
-	if (nameIndex >= 0 && fromIndex >= 0 && _status[fromIndex] == Status::Loaded) {\n\
-		setData(nameIndex, *data(fromIndex));\n\
-		return true;\n\
-	}\n\
-	return false;\n\
+	if (fromIndex < 0 || _status[fromIndex] != Status::Loaded) return SetResult::ValueNotFound;\n\
+\n\
+	setData(nameIndex, *data(fromIndex));\n\
+	return duplicate ? SetResult::Duplicate : SetResult::Ok;\n\
 }\n\
 \n\
 namespace main_palette {\n\
@@ -887,11 +935,11 @@ bool load(const QByteArray &cache) {\n\
 	return false;\n\
 }\n\
 \n\
-bool setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
+palette::SetResult setColor(QLatin1String name, uchar r, uchar g, uchar b, uchar a) {\n\
 	return _palette.setColor(name, r, g, b, a);\n\
 }\n\
 \n\
-bool setColor(QLatin1String name, QLatin1String from) {\n\
+palette::SetResult setColor(QLatin1String name, QLatin1String from) {\n\
 	return _palette.setColor(name, from);\n\
 }\n\
 \n\
@@ -907,6 +955,14 @@ void reset() {\n\
 \n\
 int indexOfColor(color c) {\n\
 	return _palette.indexOfColor(c);\n\
+}\n\
+\n\
+QList<row> data() {\n\
+	auto result = QList<row>();\n\
+	result.reserve(" << count << ");\n\
+\n\
+" << dataRows << "\n\
+	return result;\n\
 }\n\
 \n\
 } // namespace main_palette\n\
@@ -1206,92 +1262,6 @@ bool Generator::collectUniqueValues() {
 		return true;
 	};
 	return module_.enumVariables(collector);
-}
-
-bool Generator::writeSampleTheme(const QString &filepath) {
-	QByteArray content;
-	QTextStream stream(&content);
-
-	stream << "\
-//\n\
-// This is a sample Telegram Desktop theme file.\n\
-// It was generated from the 'colors.palette' style file.\n\
-//\n\
-// To create a theme with a background image included you should\n\
-// put two files in a .zip archive:\n\
-//\n\
-// First one is the color scheme like the one you're viewing\n\
-// right now, this file should be named 'colors.tdesktop-theme'.\n\
-//\n\
-// Second one should be the background image and it can be named\n\
-// 'background.jpg', 'background.png', 'tiled.jpg' or 'tiled.png'.\n\
-// You should name it 'background' (if you'd like it not to be tiled),\n\
-// or it can be named 'tiled' (if you'd like it to be tiled).\n\
-//\n\
-// After that you need to change the extension of your .zip archive\n\
-// to 'tdesktop-theme', so you'll have:\n\
-//\n\
-// mytheme.tdesktop-theme\n\
-// |-colors.tdesktop-theme\n\
-// |-background.jpg (or tiled.jpg, background.png, tiled.png)\n\
-//\n\n";
-
-	QList<structure::FullName> names;
-	module_.enumVariables([this, &names](const Variable &variable) -> bool {
-		names.push_back(variable.name);
-		return true;
-	});
-	bool result = module_.enumVariables([this, &names, &stream](const Variable &variable) -> bool {
-		auto name = variable.name.back();
-		if (variable.value.type().tag != structure::TypeTag::Color) {
-			return false;
-		}
-		auto color = variable.value.Color();
-		//color.red = uchar(rand() % 256);
-		//color.green = uchar(rand() % 256);
-		//color.blue = uchar(rand() % 256);
-		//auto fallbackIndex = -1;
-		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
-		auto colorString = paletteColorValue(color);
-		if (fallbackIndex >= 0) {
-			auto fallbackVariable = module_.findVariableInModule(names[fallbackIndex - 1], module_);
-			if (!fallbackVariable || fallbackVariable->value.type().tag != structure::TypeTag::Color) {
-				return false;
-			}
-			auto fallbackName = fallbackVariable->name.back();
-			auto fallbackColor = fallbackVariable->value.Color();
-			if (colorString == paletteColorValue(fallbackColor)) {
-				stream << name << ": " << fallbackName << ";\n";
-			} else {
-				stream << name << ": #" << colorString << "; // " << fallbackName << ";\n";
-			}
-		} else {
-			stream << name << ": #" << colorString << ";\n";
-		}
-		return true;
-	});
-	if (!result) {
-		return result;
-	}
-
-	stream.flush();
-
-	QFile file(filepath);
-	if (file.open(QIODevice::ReadOnly)) {
-		if (file.readAll() == content) {
-			file.close();
-			return true;
-		}
-		file.close();
-	}
-
-	if (!file.open(QIODevice::WriteOnly)) {
-		return false;
-	}
-	if (file.write(content) != content.size()) {
-		return false;
-	}
-	return true;
 }
 
 } // namespace style

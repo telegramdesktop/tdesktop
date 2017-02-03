@@ -20,11 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "core/utils.h"
+#include "window/themes/window_theme.h"
 
-#define BETA_VERSION_MACRO (1000006001ULL)
+namespace Window {
+namespace Theme {
 
-constexpr int AppVersion = 1000006;
-constexpr str_const AppVersionStr = "1.0.6";
-constexpr bool AppAlphaVersion = false;
-constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;
+struct CurrentData {
+	int32 backgroundId = 0;
+	QPixmap backgroundImage;
+	bool backgroundTiled = false;
+};
+
+std_::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data);
+
+} // namespace Theme
+} // namespace Window

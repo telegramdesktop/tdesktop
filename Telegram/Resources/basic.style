@@ -275,3 +275,5 @@ notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 stickerIconLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 stickerIconRight: icon {{ "fade_horizontal", emojiPanCategories }};
+
+transparentPlaceholderSize: 4px;

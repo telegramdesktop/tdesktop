@@ -1023,6 +1023,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_send" = "Send";
 "lng_confirm_phone_enter_code" = "Please enter the code.";
 
+"lng_theme_editor_no_keys" = "No keys in the palette yet";
+"lng_theme_editor_cant_change_theme" = "You can not apply themes while you edit a color palette. Please close the palette editor first.";
+"lng_theme_editor_new_keys" = "Not in the palette yet";
+"lng_theme_editor_background_image" = "Background image";
+"lng_theme_editor_saved_to_jpg" = "Saved to JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "JPEG image, {size}";
+"lng_theme_editor_read_from_png" = "PNG image, {size}";
+"lng_theme_editor_export" = "Export";
+"lng_theme_editor_choose_image" = "Choose background image";
+"lng_theme_editor_save_palette" = "Save palette file";
+"lng_theme_editor_choose_name" = "Choose theme filename";
+"lng_theme_editor_error" = "Editor encountered an error :( See 'log.txt' for details.";
+"lng_theme_editor_done" = "Theme export was successfull!";
+"lng_theme_editor_title" = "Edit color palette";
+"lng_theme_editor_export_button" = "Export theme";
+
 // Not used
 
 "lng_topbar_info" = "Info";

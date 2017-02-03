@@ -38,6 +38,7 @@ public:
 	CleanFile &operator=(const CleanFile &other) = delete;
 
 	bool read();
+	QVector<QByteArray> singleLineComments() const;
 
 	const char *data() const {
 		return result_.constData();
@@ -55,11 +56,8 @@ private:
 	QString filepath_;
 	QByteArray content_, result_;
 	bool read_;
-	//struct Comment {
-	//	int offset;
-	//	QByteArray content;
-	//};
-	//QVector<Comment> comments_;
+
+	QVector<QByteArray> singleLineComments_;
 
 };
 

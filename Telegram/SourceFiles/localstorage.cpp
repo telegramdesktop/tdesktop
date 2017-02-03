@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "serialize/serialize_document.h"
 #include "serialize/serialize_common.h"
 #include "data/data_drafts.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -601,6 +601,7 @@ bool _backgroundWasRead = false;
 bool _backgroundCanWrite = true;
 
 FileKey _themeKey = 0;
+QString _themePaletteAbsolutePath;
 
 bool _readingUserSettings = false;
 FileKey _userSettingsKey = 0;
@@ -3717,6 +3718,9 @@ bool readThemeUsingKey(FileKey key) {
 	if (theme.stream.status() != QDataStream::Ok) {
 		return false;
 	}
+
+	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
+
 	QFile file(pathRelative);
 	if (pathRelative.isEmpty() || !file.exists()) {
 		file.setFileName(pathAbsolute);
@@ -3748,6 +3752,7 @@ bool readThemeUsingKey(FileKey key) {
 
 void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const QByteArray &content, const Window::Theme::Cached &cache) {
 	if (content.isEmpty()) {
+		_themePaletteAbsolutePath = QString();
 		if (_themeKey) {
 			clearKey(_themeKey);
 			_themeKey = 0;
@@ -3755,6 +3760,8 @@ void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const 
 		}
 		return;
 	}
+
+	_themePaletteAbsolutePath = Window::Theme::IsPaletteTestingPath(pathAbsolute) ? pathAbsolute : QString();
 	if (!_themeKey) {
 		_themeKey = genKey();
 		writeSettings();
@@ -3785,6 +3792,29 @@ void readTheme() {
 
 bool hasTheme() {
 	return (_themeKey != 0);
+}
+
+QString themePaletteAbsolutePath() {
+	return _themePaletteAbsolutePath;
+}
+
+bool copyThemeColorsToPalette(const QString &path) {
+	if (!_themeKey) {
+		return false;
+	}
+
+	FileReadDescriptor theme;
+	if (!readEncryptedFile(theme, _themeKey, FileOption::Safe, _settingsKey)) {
+		return false;
+	}
+
+	QByteArray themeContent;
+	theme.stream >> themeContent;
+	if (theme.stream.status() != QDataStream::Ok) {
+		return false;
+	}
+
+	return Window::Theme::CopyColorsToPalette(path, themeContent);
 }
 
 uint32 _peerSize(PeerData *peer) {

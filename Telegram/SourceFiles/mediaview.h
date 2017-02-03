@@ -166,8 +166,6 @@ private:
 	void findCurrent();
 	void loadBack();
 
-	void generateTransparentBrush();
-
 	void updateCursor();
 	void setZoomLevel(int newZoom);
 

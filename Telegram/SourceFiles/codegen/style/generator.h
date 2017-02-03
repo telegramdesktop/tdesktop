@@ -40,7 +40,6 @@ public:
 
 	bool writeHeader();
 	bool writeSource();
-	bool writeSampleTheme(const QString &filepath);
 
 private:
 	QString typeToString(structure::Type type) const;

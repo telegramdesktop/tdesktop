@@ -110,9 +110,7 @@ void InviteLinkWidget::refreshLink() {
 			}
 
 			QApplication::clipboard()->setText(link);
-			Ui::Toast::Config toast;
-			toast.text = lang(lng_group_invite_copied);
-			Ui::Toast::Show(App::wnd(), toast);
+			Ui::Toast::Show(lang(lng_group_invite_copied));
 			return false;
 		});
 	}

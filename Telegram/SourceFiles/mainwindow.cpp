@@ -47,9 +47,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "settings/settings_widget.h"
 #include "platform/platform_notifications_manager.h"
 #include "window/notifications_manager.h"
-#include "window/window_theme.h"
-#include "window/window_theme_warning.h"
+#include "window/themes/window_theme.h"
+#include "window/themes/window_theme_warning.h"
 #include "window/window_main_menu.h"
+#include "core/task_queue.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _reconnect(this, QString()) {
@@ -379,14 +380,18 @@ void MainWindow::setupMain(const MTPUser *self) {
 }
 
 void MainWindow::showSettings() {
-	if (_passcode) return;
-
 	if (isHidden()) showFromTray();
+
+	showSpecialLayer(Box<Settings::Widget>());
+}
+
+void MainWindow::showSpecialLayer(object_ptr<LayerWidget> layer) {
+	if (_passcode) return;
 
 	if (!_layerBg) {
 		_layerBg.create(bodyWidget());
 	}
-	_layerBg->showSpecialLayer(Box<Settings::Widget>());
+	_layerBg->showSpecialLayer(std_::move(layer));
 }
 
 void MainWindow::showMainMenu() {
@@ -527,17 +532,37 @@ void MainWindow::hideConnecting() {
 
 void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	using Type = Window::Theme::BackgroundUpdate::Type;
+
+	// We delay animating theme warning because we want all other
+	// subscribers to receive paltte changed notification before any
+	// animations (that include pixmap caches with old palette values).
 	if (data.type == Type::TestingTheme) {
 		if (!_testingThemeWarning) {
 			_testingThemeWarning.create(bodyWidget());
+			_testingThemeWarning->hide();
 			_testingThemeWarning->setGeometry(rect());
 			_testingThemeWarning->setHiddenCallback([this] { _testingThemeWarning.destroyDelayed(); });
 		}
-		_testingThemeWarning->showAnimated();
+
+		base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+			if (_testingThemeWarning) {
+				_testingThemeWarning->showAnimated();
+			}
+		}));
 	} else if (data.type == Type::RevertingTheme || data.type == Type::ApplyingTheme) {
-		_testingThemeWarning->hideAnimated();
-		_testingThemeWarning = nullptr;
-		setInnerFocus();
+		if (_testingThemeWarning) {
+			if (_testingThemeWarning->isHidden()) {
+				_testingThemeWarning.destroy();
+			} else {
+				base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+					if (_testingThemeWarning) {
+						_testingThemeWarning->hideAnimated();
+						_testingThemeWarning = nullptr;
+					}
+					setInnerFocus();
+				}));
+			}
+		}
 	}
 }
 
@@ -834,12 +859,9 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 	}
 }
 
-void MainWindow::resizeEvent(QResizeEvent *e) {
-	Platform::MainWindow::resizeEvent(e);
-	updateControlsGeometry();
-}
-
 void MainWindow::updateControlsGeometry() {
+	Platform::MainWindow::updateControlsGeometry();
+
 	auto body = bodyWidget()->rect();
 	if (_passcode) _passcode->setGeometry(body);
 	if (_main) _main->setGeometry(body);
