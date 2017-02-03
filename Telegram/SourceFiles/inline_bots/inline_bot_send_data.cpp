@@ -54,13 +54,13 @@ SendDataCommon::SentMTPMessageFields SendText::getSentMessageFields() const {
 
 SendDataCommon::SentMTPMessageFields SendGeo::getSentMessageFields() const {
 	SentMTPMessageFields result;
-	result.media = MTP_messageMediaGeo(MTP_geoPoint(MTP_double(_location.lon), MTP_double(_location.lat)));
+	result.media = MTP_messageMediaGeo(_location.toMTP());
 	return result;
 }
 
 SendDataCommon::SentMTPMessageFields SendVenue::getSentMessageFields() const {
 	SentMTPMessageFields result;
-	result.media = MTP_messageMediaVenue(MTP_geoPoint(MTP_double(_location.lon), MTP_double(_location.lat)), MTP_string(_title), MTP_string(_address), MTP_string(_provider), MTP_string(_venueId));
+	result.media = MTP_messageMediaVenue(_location.toMTP(), MTP_string(_title), MTP_string(_address), MTP_string(_provider), MTP_string(_venueId));
 	return result;
 }
 

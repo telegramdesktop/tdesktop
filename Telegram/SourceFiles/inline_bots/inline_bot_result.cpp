@@ -202,7 +202,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 			w /= 2;
 			h /= 2;
 		}
-		QString coords = qsl("%1,%2").arg(location.lat).arg(location.lon);
+		auto coords = location.latAsString() + ',' + location.lonAsString();
 		QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
 		result->_locationThumb = ImagePtr(url);
 	}

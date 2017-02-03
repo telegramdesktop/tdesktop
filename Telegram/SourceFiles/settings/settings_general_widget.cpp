@@ -189,19 +189,21 @@ void GeneralWidget::refreshControls() {
 
 	if (cPlatform() == dbipWindows || cSupportTray()) {
 		addChildRow(_enableTrayIcon, marginSmall, lang(lng_settings_workmode_tray), SLOT(onEnableTrayIcon()), (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray));
-		if (cPlatform() == dbipWindows) {
-			addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
+#ifdef Q_OS_WIN
+		addChildRow(_enableTaskbarIcon, marginLarge, lang(lng_settings_workmode_window), SLOT(onEnableTaskbarIcon()), (cWorkMode() == dbiwmWindowOnly || cWorkMode() == dbiwmWindowAndTray));
 
-			addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
-			addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), (cStartMinimized() && !Global::LocalPasscode()));
-			subscribe(Global::RefLocalPasscodeChanged(), [this] {
-				_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
-			});
-			if (!cAutoStart()) {
-				_startMinimized->hideFast();
-			}
-			addChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), SLOT(onAddInSendTo()), cSendToMenu());
+#ifndef OS_WIN_STORE
+		addChildRow(_autoStart, marginSmall, lang(lng_settings_auto_start), SLOT(onAutoStart()), cAutoStart());
+		addChildRow(_startMinimized, marginLarge, slidedPadding, lang(lng_settings_start_min), SLOT(onStartMinimized()), (cStartMinimized() && !Global::LocalPasscode()));
+		subscribe(Global::RefLocalPasscodeChanged(), [this] {
+			_startMinimized->entity()->setChecked(cStartMinimized() && !Global::LocalPasscode());
+		});
+		if (!cAutoStart()) {
+			_startMinimized->hideFast();
 		}
+		addChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), SLOT(onAddInSendTo()), cSendToMenu());
+#endif // OS_WIN_STORE
+#endif // Q_OS_WIN
 	}
 }
 
@@ -295,6 +297,7 @@ void GeneralWidget::updateWorkmode() {
 	Local::writeSettings();
 }
 
+#if defined Q_OS_WIN && !defined OS_WIN_STORE
 void GeneralWidget::onAutoStart() {
 	cSetAutoStart(_autoStart->checked());
 	if (cAutoStart()) {
@@ -332,5 +335,6 @@ void GeneralWidget::onAddInSendTo() {
 	psSendToMenu(_addInSendTo->checked());
 	Local::writeSettings();
 }
+#endif // Q_OS_WIN && !OS_WIN_STORE
 
 } // namespace Settings

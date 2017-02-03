@@ -44,7 +44,7 @@ using GifItems = QHash<Media::Clip::Reader*, HistoryItem*>;
 using PhotosData = QHash<PhotoId, PhotoData*>;
 using DocumentsData = QHash<DocumentId, DocumentData*>;
 
-struct LocationCoords;
+class LocationCoords;
 struct LocationData;
 
 namespace App {

@@ -25,6 +25,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "pspecific.h"
 
+namespace {
+
+constexpr auto kCoordPrecision = 8;
+
+} // namespace
+
 QString LocationClickHandler::copyToClipboardContextItemText() const {
 	return lang(lng_context_copy_link);
 }
@@ -36,7 +42,7 @@ void LocationClickHandler::onClick(Qt::MouseButton button) const {
 }
 
 void LocationClickHandler::setup() {
-	QString latlon(qsl("%1,%2").arg(_coords.lat).arg(_coords.lon));
+	auto latlon = _coords.latAsString() + ',' + _coords.lonAsString();
 	_text = qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
 }
 
@@ -118,7 +124,7 @@ void LocationManager::getData(LocationData *data) {
 		w = convertScale(w);
 		h = convertScale(h);
 	}
-	QString coords = qsl("%1,%2").arg(data->coords.lat).arg(data->coords.lon);
+	auto coords = data->coords.latAsString() + ',' + data->coords.lonAsString();
 	QString url = qsl("https://maps.googleapis.com/maps/api/staticmap?center=") + coords + qsl("&zoom=%1&size=%2x%3&maptype=roadmap&scale=%4&markers=color:red|size:big|").arg(zoom).arg(w).arg(h).arg(scale) + coords + qsl("&sensor=false");
 	QNetworkReply *reply = manager->get(QNetworkRequest(QUrl(url)));
 	imageLoadings[reply] = data;
@@ -224,7 +230,7 @@ void LocationManager::onFailed(QNetworkReply *reply) {
 			imageLoadings.erase(i);
 		}
 	}
-	DEBUG_LOG(("Network Error: failed to get data for image link %1,%2 error %3").arg(d ? d->coords.lat : 0).arg(d ? d->coords.lon : 0).arg(reply->errorString()));
+	DEBUG_LOG(("Network Error: failed to get data for image link %1,%2 error %3").arg(d ? d->coords.latAsString() : QString()).arg(d ? d->coords.lonAsString() : QString()).arg(reply->errorString()));
 	if (d) {
 		failed(d);
 	}

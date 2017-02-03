@@ -699,7 +699,7 @@ AppClass::AppClass() : QObject() {
 
 	if (cLaunchMode() == LaunchModeAutoStart && !cAutoStart()) {
 		psAutoStart(false, true);
-		application()->quit();
+		App::quit();
 		return;
 	}
 

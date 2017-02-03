@@ -144,7 +144,11 @@ void settingsParseArgs(int argc, char *argv[]) {
 	switch (cPlatform()) {
 	case dbipWindows:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/win/tupdates/current"));
+#ifndef OS_WIN_STORE
 		gPlatformString = qsl("Windows");
+#else // OS_WIN_STORE
+		gPlatformString = qsl("WinStore");
+#endif // OS_WIN_STORE
 	break;
 	case dbipMac:
 		gUpdateURL = QUrl(qsl("http://tdesktop.com/mac/tupdates/current"));

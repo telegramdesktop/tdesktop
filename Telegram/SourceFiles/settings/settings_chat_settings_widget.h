@@ -51,6 +51,7 @@ private:
 
 };
 
+#ifndef OS_WIN_STORE
 class DownloadPathState : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
@@ -85,6 +86,7 @@ private:
 	object_ptr<Ui::LinkButton> _clear;
 
 };
+#endif // OS_WIN_STORE
 
 class ChatSettingsWidget : public BlockWidget {
 	Q_OBJECT
@@ -107,7 +109,11 @@ private:
 	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _viewList = { nullptr };
 	object_ptr<Ui::Checkbox> _dontAskDownloadPath = { nullptr };
+
+#ifndef OS_WIN_STORE
 	object_ptr<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
+#endif // OS_WIN_STORE
+
 	object_ptr<Ui::Radiobutton> _sendByEnter = { nullptr };
 	object_ptr<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
 	object_ptr<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };

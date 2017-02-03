@@ -460,7 +460,7 @@ QByteArray psPathBookmark(const QString &path) {
 }
 
 bool psLaunchMaps(const LocationCoords &coords) {
-	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(coords.lat).arg(coords.lon));
+	return QDesktopServices::openUrl(qsl("https://maps.apple.com/?q=Point&z=16&ll=%1,%2").arg(coords.latAsString()).arg(coords.lonAsString()));
 }
 
 QString strNotificationAboutThemeChange() {

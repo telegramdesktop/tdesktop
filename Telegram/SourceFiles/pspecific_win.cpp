@@ -1552,5 +1552,5 @@ void psWriteStackTrace() {
 }
 
 bool psLaunchMaps(const LocationCoords &coords) {
-	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(coords.lat).arg(coords.lon));
+	return QDesktopServices::openUrl(qsl("bingmaps:?lvl=16&collection=point.%1_%2_Point").arg(coords.latAsString()).arg(coords.lonAsString()));
 }

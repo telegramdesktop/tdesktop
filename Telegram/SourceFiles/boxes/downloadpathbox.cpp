@@ -116,11 +116,13 @@ void DownloadPathBox::onEditPath() {
 }
 
 void DownloadPathBox::save() {
+#ifndef OS_WIN_STORE
 	Global::SetDownloadPath(_default->checked() ? QString() : (_temp->checked() ? qsl("tmp") : _path));
 	Global::SetDownloadPathBookmark((_default->checked() || _temp->checked()) ? QByteArray() : _pathBookmark);
 	Local::writeUserSettings();
 	Global::RefDownloadPathChanged().notify();
 	closeBox();
+#endif // OS_WIN_STORE
 }
 
 void DownloadPathBox::setPathText(const QString &text) {

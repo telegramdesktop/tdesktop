@@ -64,9 +64,9 @@ void filedialogInit() {
 				cSetDialogHelperPath(temppath.absolutePath());
 			}
 		}
-#else
+#else // Q_OS_WIN
 		cSetDialogLastPath(QStandardPaths::writableLocation(QStandardPaths::DownloadLocation));
-#endif
+#endif // Q_OS_WIN
 	}
 }
 
@@ -116,7 +116,8 @@ bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &capt
 #endif
 
 	// hack for fast non-native dialog create
-	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, cDialogHelperPathFinal(), filter);
+	auto helperPath = cDialogHelperPathFinal();
+	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, helperPath, filter);
 
 	dialog.setModal(true);
 	if (type == Type::ReadFile || type == Type::ReadFiles) {
@@ -132,7 +133,12 @@ bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &capt
 	}
 	dialog.show();
 
-	if (!cDialogLastPath().isEmpty()) dialog.setDirectory(cDialogLastPath());
+	auto realLastPath = cDialogLastPath();
+	if (realLastPath.isEmpty() || realLastPath.endsWith(qstr("/tdummy"))) {
+		realLastPath = QStandardPaths::writableLocation(QStandardPaths::DownloadLocation);
+	}
+	dialog.setDirectory(realLastPath);
+
 	if (type == Type::WriteFile) {
 		QString toSelect(startFile);
 #ifdef Q_OS_WIN

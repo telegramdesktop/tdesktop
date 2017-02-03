@@ -63,6 +63,7 @@ int LabeledLink::resizeGetHeight(int newWidth) {
 	return _label->height();
 }
 
+#ifndef OS_WIN_STORE
 DownloadPathState::DownloadPathState(QWidget *parent) : TWidget(parent)
 , _path(this, lang(lng_download_path_label), downloadPathText(), LabeledLink::Type::Secondary, SLOT(onDownloadPath()))
 , _clear(this, lang(lng_download_path_clear)) {
@@ -146,6 +147,7 @@ void DownloadPathState::onTempDirClearFailed(int task) {
 	}
 	updateControls();
 }
+#endif // OS_WIN_STORE
 
 ChatSettingsWidget::ChatSettingsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_chat_settings)) {
 	createControls();
@@ -164,12 +166,20 @@ void ChatSettingsWidget::createControls() {
 		_viewList->hideFast();
 	}
 
-	addChildRow(_dontAskDownloadPath, marginSub, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !Global::AskDownloadPath());
+#ifndef OS_WIN_STORE
+	auto pathMargin = marginSub;
+#else // OS_WIN_STORE
+	auto pathMargin = marginSkip;
+#endif // OS_WIN_STORE
+	addChildRow(_dontAskDownloadPath, pathMargin, lang(lng_download_path_dont_ask), SLOT(onDontAskDownloadPath()), !Global::AskDownloadPath());
+
+#ifndef OS_WIN_STORE
 	style::margins marginPath(st::defaultBoxCheckbox.textPosition.x(), 0, 0, st::settingsSkip);
 	addChildRow(_downloadPath, marginPath, slidedPadding);
 	if (Global::AskDownloadPath()) {
 		_downloadPath->hideFast();
 	}
+#endif // OS_WIN_STORE
 
 	addChildRow(_sendByEnter, marginSmall, qsl("send_key"), 0, lang(lng_settings_send_enter), SLOT(onSendByEnter()), !cCtrlEnter());
 	addChildRow(_sendByCtrlEnter, marginSkip, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), SLOT(onSendByCtrlEnter()), cCtrlEnter());
@@ -195,11 +205,13 @@ void ChatSettingsWidget::onViewList() {
 void ChatSettingsWidget::onDontAskDownloadPath() {
 	Global::SetAskDownloadPath(!_dontAskDownloadPath->checked());
 	Local::writeUserSettings();
+#ifndef OS_WIN_STORE
 	if (_dontAskDownloadPath->checked()) {
 		_downloadPath->slideDown();
 	} else {
 		_downloadPath->slideUp();
 	}
+#endif // OS_WIN_STORE
 }
 
 void ChatSettingsWidget::onSendByEnter() {

@@ -1269,11 +1269,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		QString v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
-
+#ifndef OS_WIN_STORE
 		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
 		Global::SetDownloadPath(v);
 		Global::SetDownloadPathBookmark(QByteArray());
 		Global::RefDownloadPathChanged().notify();
+#endif // OS_WIN_STORE
 	} break;
 
 	case dbiDownloadPath: {
@@ -1281,12 +1282,13 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		QByteArray bookmark;
 		stream >> v >> bookmark;
 		if (!_checkStreamStatus(stream)) return false;
-
+#ifndef OS_WIN_STORE
 		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
 		Global::SetDownloadPath(v);
 		Global::SetDownloadPathBookmark(bookmark);
 		psDownloadPathEnableAccess();
 		Global::RefDownloadPathChanged().notify();
+#endif // OS_WIN_STORE
 	} break;
 
 	case dbiCompressPastedImage: {

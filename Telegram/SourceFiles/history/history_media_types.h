@@ -844,7 +844,7 @@ private:
 
 };
 
-struct LocationCoords;
+class LocationCoords;
 struct LocationData;
 
 class HistoryLocation : public HistoryMedia {

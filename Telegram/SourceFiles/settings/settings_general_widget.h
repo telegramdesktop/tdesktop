@@ -94,9 +94,11 @@ private slots:
 	void onEnableTrayIcon();
 	void onEnableTaskbarIcon();
 
+#if defined Q_OS_WIN && !defined OS_WIN_STORE
 	void onAutoStart();
 	void onStartMinimized();
 	void onAddInSendTo();
+#endif // Q_OS_WIN && !OS_WIN_STORE
 
 	void onRestart();
 
