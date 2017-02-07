@@ -731,18 +731,6 @@ Editor::Editor(QWidget*, const QString &path)
 	resizeToWidth(st::windowMinWidth);
 }
 
-void Editor::StartFromCurrentTheme(const QString &path) {
-	if (!Local::copyThemeColorsToPalette(path)) {
-		writeDefaultPalette(path);
-	}
-	if (!Apply(path)) {
-		Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
-		return;
-	}
-	KeepApplied();
-	Start(path);
-}
-
 void Editor::resizeEvent(QResizeEvent *e) {
 	_export->resizeToWidth(width());
 	_close->moveToRight(0, 0);
@@ -801,9 +789,24 @@ void Editor::paintEvent(QPaintEvent *e) {
 	p.drawTextLeft(st::themeEditorMargin.left(), st::themeEditorMargin.top(), width(), lang(lng_theme_editor_title));
 }
 
-void Editor::Start(const QString &path) {
-	if (auto window = App::wnd()) {
-		window->showRightColumn(Box<Editor>(path));
+void Editor::Start() {
+	auto palettePath = Local::themePaletteAbsolutePath();
+	if (palettePath.isEmpty()) {
+		FileDialog::askWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
+			if (!Local::copyThemeColorsToPalette(path)) {
+				writeDefaultPalette(path);
+			}
+			if (!Apply(path)) {
+				Ui::show(Box<InformBox>(lang(lng_theme_editor_error)));
+				return;
+			}
+			KeepApplied();
+			if (auto window = App::wnd()) {
+				window->showRightColumn(Box<Editor>(path));
+			}
+		});
+	} else if (auto window = App::wnd()) {
+		window->showRightColumn(Box<Editor>(palettePath));
 	}
 }
 

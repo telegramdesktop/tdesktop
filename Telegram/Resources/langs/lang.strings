@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Select a square area for your profile photo";
 "lng_settings_uploading_photo" = "Uploading photo...";
 "lng_settings_edit" = "Edit";
-
 "lng_settings_drop_area_subtitle" = "to set it as your photo";
 
 "lng_username_title" = "Username";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Use default color theme";
 "lng_settings_bg_from_gallery" = "Choose from gallery";
 "lng_settings_bg_from_file" = "Choose from file";
+"lng_settings_bg_edit_theme" = "Edit theme";
 "lng_settings_bg_tile" = "Tile background";
 "lng_settings_adaptive_wide" = "Adaptive layout for wide screens";
 
@@ -1024,7 +1024,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_enter_code" = "Please enter the code.";
 
 "lng_theme_editor_no_keys" = "No keys in the palette yet";
-"lng_theme_editor_cant_change_theme" = "You can not apply themes while you edit a color palette. Please close the palette editor first.";
+"lng_theme_editor_cant_change_theme" = "You can not apply new themes while you're editing the color palette. Please close the theme editor first.";
 "lng_theme_editor_new_keys" = "Not in the palette yet";
 "lng_theme_editor_background_image" = "Background image";
 "lng_theme_editor_saved_to_jpg" = "Saved to JPEG, {size}";
@@ -1033,9 +1033,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_export" = "Export";
 "lng_theme_editor_choose_image" = "Choose background image";
 "lng_theme_editor_save_palette" = "Save palette file";
-"lng_theme_editor_choose_name" = "Choose theme filename";
-"lng_theme_editor_error" = "Editor encountered an error :( See 'log.txt' for details.";
-"lng_theme_editor_done" = "Theme export was successfull!";
+"lng_theme_editor_choose_name" = "Save theme file";
+"lng_theme_editor_error" = "The editor encountered an error :( See 'log.txt' for details.";
+"lng_theme_editor_done" = "Theme exported successfully!";
 "lng_theme_editor_title" = "Edit color palette";
 "lng_theme_editor_export_button" = "Export theme";
 

@@ -31,17 +31,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "mainwindow.h"
 #include "window/themes/window_theme.h"
+#include "window/themes/window_theme_editor.h"
 
 namespace Settings {
 
 BackgroundRow::BackgroundRow(QWidget *parent) : TWidget(parent)
 , _chooseFromGallery(this, lang(lng_settings_bg_from_gallery), st::boxLinkButton)
 , _chooseFromFile(this, lang(lng_settings_bg_from_file), st::boxLinkButton)
+, _editTheme(this, lang(lng_settings_bg_edit_theme), st::boxLinkButton)
 , _radial(animation(this, &BackgroundRow::step_radial)) {
 	updateImage();
 
 	connect(_chooseFromGallery, SIGNAL(clicked()), this, SIGNAL(chooseFromGallery()));
 	connect(_chooseFromFile, SIGNAL(clicked()), this, SIGNAL(chooseFromFile()));
+	connect(_editTheme, SIGNAL(clicked()), this, SIGNAL(editTheme()));
 	checkNonDefaultTheme();
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.type == Window::Theme::BackgroundUpdate::Type::ApplyingTheme) {
@@ -108,6 +111,7 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 	auto linkWidth = newWidth - linkLeft;
 	_chooseFromGallery->resizeToWidth(qMin(linkWidth, _chooseFromGallery->naturalWidth()));
 	_chooseFromFile->resizeToWidth(qMin(linkWidth, _chooseFromFile->naturalWidth()));
+	_editTheme->resizeToWidth(qMin(linkWidth, _editTheme->naturalWidth()));
 	if (_useDefaultTheme) {
 		_useDefaultTheme->resizeToWidth(qMin(linkWidth, _useDefaultTheme->naturalWidth()));
 		_useDefaultTheme->moveToLeft(linkLeft, linkTop, newWidth);
@@ -116,6 +120,8 @@ int BackgroundRow::resizeGetHeight(int newWidth) {
 	_chooseFromGallery->moveToLeft(linkLeft, linkTop, newWidth);
 	linkTop += _chooseFromGallery->height() + st::settingsSmallSkip;
 	_chooseFromFile->moveToLeft(linkLeft, linkTop, newWidth);
+	linkTop += _chooseFromFile->height() + st::settingsSmallSkip;
+	_editTheme->moveToLeft(linkLeft, linkTop, newWidth);
 
 	return st::settingsBackgroundSize;
 }
@@ -220,6 +226,7 @@ void BackgroundWidget::createControls() {
 	addChildRow(_background, margin);
 	connect(_background, SIGNAL(chooseFromGallery()), this, SLOT(onChooseFromGallery()));
 	connect(_background, SIGNAL(chooseFromFile()), this, SLOT(onChooseFromFile()));
+	connect(_background, SIGNAL(editTheme()), this, SLOT(onEditTheme()));
 	connect(_background, SIGNAL(useDefault()), this, SLOT(onUseDefaultTheme()));
 
 	addChildRow(_tile, margin, lang(lng_settings_bg_tile), SLOT(onTile()), Window::Theme::Background()->tile());
@@ -244,6 +251,10 @@ void BackgroundWidget::onChooseFromFile() {
 	filters.push_back(filedialogAllFilesFilter());
 
 	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
+}
+
+void BackgroundWidget::onEditTheme() {
+	Window::Theme::Editor::Start();
 }
 
 void BackgroundWidget::onUseDefaultTheme() {

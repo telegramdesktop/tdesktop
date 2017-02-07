@@ -1069,8 +1069,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000004) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Click and drag to reorder pinned chats.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000007) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Added Theme editor to Settings.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000005) {
 				versionFeatures = langNewVersionText();
 			} else {

@@ -38,8 +38,7 @@ class Editor : public TWidget {
 public:
 	Editor(QWidget*, const QString &path);
 
-	static void StartFromCurrentTheme(const QString &path);
-	static void Start(const QString &path);
+	static void Start();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;

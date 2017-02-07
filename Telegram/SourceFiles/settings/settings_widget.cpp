@@ -100,14 +100,7 @@ void fillCodes() {
 		});
 	});
 	Codes.insert(qsl("edittheme"), []() {
-		auto palettePath = Local::themePaletteAbsolutePath();
-		if (palettePath.isEmpty()) {
-			FileDialog::askWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
-				Window::Theme::Editor::StartFromCurrentTheme(path);
-			});
-		} else {
-			Window::Theme::Editor::Start(palettePath);
-		}
+		Window::Theme::Editor::Start();
 	});
 }
 
