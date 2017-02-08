@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Italiano";
-"lng_switch_to_this" = "Passa all'italiano";
+"lng_switch_to_this" = "Passa all'Italiano";
 
 "lng_menu_contacts" = "Contatti";
 "lng_menu_settings" = "Impostazioni";
