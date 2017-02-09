@@ -106,18 +106,21 @@ bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &capt
     if (file.isEmpty()) {
         files = QStringList();
         return false;
-    } else {
-		QString path = QFileInfo(file).absoluteDir().absolutePath();
-		if (!path.isEmpty() && path != cDialogLastPath()) {
-			cSetDialogLastPath(path);
-			Local::writeUserSettings();
-		}
-        files = QStringList(file);
-        return true;
     }
-#endif
+	QString path = QFileInfo(file).absoluteDir().absolutePath();
+	if (!path.isEmpty() && path != cDialogLastPath()) {
+		cSetDialogLastPath(path);
+		Local::writeUserSettings();
+	}
+	files = QStringList(file);
+	return true;
+#else // Q_OS_LINUX || Q_OS_MAC
 
-	// hack for fast non-native dialog create
+	// A hack for fast dialog create. There was some huge performance problem
+	// if we open a file dialog in some folder with a large amount of files.
+	// Some internal Qt watcher iterated over all of them, querying some information
+	// that forced file icon and maybe other properties being resolved and this was
+	// a blocking operation.
 	auto helperPath = cDialogHelperPathFinal();
 	QFileDialog dialog(App::wnd() ? App::wnd()->filedialogParent() : 0, caption, helperPath, filter);
 
@@ -127,7 +130,11 @@ bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &capt
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
 	} else if (type == Type::ReadFolder) { // save dir
 		dialog.setAcceptMode(QFileDialog::AcceptOpen);
-		dialog.setFileMode(QFileDialog::Directory);
+
+		// We use "obsolete" value ::DirectoryOnly instead of ::Directory + ::ShowDirsOnly
+		// because in Windows XP native dialog this one works, while the "preferred" one
+		// shows a native file choose dialog where you can't choose a directory, only open one.
+		dialog.setFileMode(QFileDialog::DirectoryOnly);
 		dialog.setOption(QFileDialog::ShowDirsOnly);
 	} else { // save file
 		dialog.setFileMode(QFileDialog::AnyFile);
@@ -181,6 +188,7 @@ bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &capt
 	files = QStringList();
 	remoteContent = QByteArray();
 	return false;
+#endif // Q_OS_WIN
 }
 
 } // namespace internal
