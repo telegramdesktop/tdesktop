@@ -38,7 +38,7 @@ PopupMenu::PopupMenu(QWidget*, QMenu *menu, const style::PopupMenu &st) : TWidge
 
 	for (auto action : actions()) {
 		if (auto submenu = action->menu()) {
-			auto it = _submenus.insert(action, new PopupMenu(submenu, st));
+			auto it = _submenus.insert(action, new PopupMenu(nullptr, submenu, st));
 			it.value()->deleteOnHide(false);
 		}
 	}
