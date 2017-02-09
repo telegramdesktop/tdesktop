@@ -729,8 +729,8 @@ void EditorBlock::addRowRipple(int index) {
 	auto ripple = row.ripple();
 	if (!ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), row.height()));
-		ripple = row.setRipple(std_::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std_::move(mask), [this, index] {
-			updateRow(rowAtIndex(index));
+		ripple = row.setRipple(std_::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std_::move(mask), [this, index = findRowIndex(&row)] {
+			updateRow(_data[index]);
 		}));
 	}
 	auto origin = mapFromGlobal(QCursor::pos()) - QPoint(0, row.top());
