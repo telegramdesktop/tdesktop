@@ -247,11 +247,17 @@ stickerPanDeleteFg: windowFgActive; // delete X button icon for custom sent stic
 stickerPreviewBg: #ffffffb0; // sticker and GIF preview background (when you press and hold on a sticker)
 
 historyTextInFg: windowFg; // inbox message text
+historyTextInFgSelected: historyTextInFg; // inbox message selected text or text in a selected message
 historyTextOutFg: windowFg; // outbox message text
-historyCaptionInFg: historyTextInFg; // inbox media caption text
-historyCaptionOutFg: historyTextOutFg; // outbox media caption text
+historyTextOutFgSelected: historyTextOutFg; // outbox message selected text or text in a selected message
+historyLinkInFg: windowActiveTextFg; // inbox message link
+historyLinkInFgSelected: historyLinkInFg; // inbox message link in a selected text or message
+historyLinkOutFg: windowActiveTextFg; // outbox message link
+historyLinkOutFgSelected: historyLinkOutFg; // outbox message link in a selected text or message
 historyFileNameInFg: historyTextInFg; // inbox media filename text
+historyFileNameInFgSelected: historyFileNameInFg; // inbox media filename text in a selected message
 historyFileNameOutFg: historyTextOutFg; // outbox media filename text
+historyFileNameOutFgSelected: historyFileNameOutFg; // outbox media filename text in a selected message
 historyOutIconFg: dialogsSentIconFg; // outbox message tick / double tick icon
 historyOutIconFgSelected: #4da79f; // outbox message tick / double tick icon in a selected message
 historyIconFgInverted: windowFgActive; // media message tick / double tick icon (like in sent photo)
@@ -267,20 +273,28 @@ historyForwardChooseBg: #0000004c; // forwarding messages in a large window size
 historyForwardChooseFg: windowFgActive; // forwarding messages in a large window size "choose recipient" text
 
 historyPeer1NameFg: #c03d33; // red group member name
+historyPeer1NameFgSelected: historyPeer1NameFg; // red group member name in a selected message
 historyPeer1UserpicBg: #e17076; // red userpic background
 historyPeer2NameFg: #4fad2d; // green group member name
+historyPeer2NameFgSelected: historyPeer2NameFg; // green group member name in a selected message
 historyPeer2UserpicBg: #7bc862; // green userpic background
 historyPeer3NameFg: #d09306; // yellow group member name
+historyPeer3NameFgSelected: historyPeer3NameFg; // yellow group member name in a selected message
 historyPeer3UserpicBg: #e5ca77; // yellow userpic background
 historyPeer4NameFg: windowActiveTextFg; // blue group member name
+historyPeer4NameFgSelected: historyPeer4NameFg; // blue group member name in a selected message
 historyPeer4UserpicBg: #65aadd; // blue userpic background
 historyPeer5NameFg: #8544d6; // purple group member name
+historyPeer5NameFgSelected: historyPeer5NameFg; // purple group member name in a selected message
 historyPeer5UserpicBg: #a695e7; // purple userpic background
 historyPeer6NameFg: #cd4073; // pink group member name
+historyPeer6NameFgSelected: historyPeer6NameFg; // pink group member name in a selected message
 historyPeer6UserpicBg: #ee7aae; // pink userpic background
 historyPeer7NameFg: #2996ad; // sea group member name
+historyPeer7NameFgSelected: historyPeer7NameFg; // sea group member name in a selected message
 historyPeer7UserpicBg: #6ec9cb; // sea userpic background
 historyPeer8NameFg: #ce671b; // orange group member name
+historyPeer8NameFgSelected: historyPeer8NameFg; // orange group member name in a selected message
 historyPeer8UserpicBg: #faa774; // orange userpic background
 historyPeerUserpicFg: windowFgActive; // default userpic initials
 
@@ -321,6 +335,8 @@ msgOutReplyBarSelColor: historyOutIconFgSelected; // outbox selected message rep
 msgImgReplyBarColor: msgServiceFg; // sticker message reply outline
 msgInMonoFg: #4e7391; // inbox message monospace text (like a message sent with `test` text)
 msgOutMonoFg: #469165; // outbox message monospace text
+msgInMonoFgSelected: msgInMonoFg; // inbox message monospace text in a selected text or message
+msgOutMonoFgSelected: msgOutMonoFg; // outbox message monospace text in a selected text or message
 msgDateImgFg: msgServiceFg; // media message time text (like time text in a sent photo)
 msgDateImgBg: #00000054; // media message time bubble background (like time bubble in a sent photo) or file with thumbnail download icon circle background
 msgDateImgBgOver: #00000074; // media message download icon circle background with mouse over (like file with thumbnail download icon)

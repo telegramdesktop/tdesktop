@@ -1122,16 +1122,6 @@ public:
 		return _lookupResult;
 	}
 
-	const QPen &blockPen(ITextBlock *block) {
-		if (block->lnkIndex()) {
-			return _p->textPalette().linkFg->p;
-		}
-		if ((block->flags() & TextBlockFCode) || (block->flags() & TextBlockFPre)) {
-			return _p->textPalette().monoFg->p;
-		}
-		return _originalPen;
-	}
-
 	bool drawLine(uint16 _lineEnd, const Text::TextBlocks::const_iterator &_endBlockIter, const Text::TextBlocks::const_iterator &_end) {
 		_yDelta = (_lineHeight - _fontHeight) / 2;
 		if (_yTo >= 0 && (_y + _yDelta >= _yTo || _y >= _yTo)) return false;
@@ -1230,12 +1220,12 @@ public:
 
 			if ((selectFromStart && _parDirection == Qt::LeftToRight) || (selectTillEnd && _parDirection == Qt::RightToLeft)) {
 				if (x > _x) {
-					_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
+					_p->fillRect(QRectF(_x.toReal(), _y + _yDelta, (x - _x).toReal(), _fontHeight), _p->textPalette().selectBg);
 				}
 			}
 			if ((selectTillEnd && _parDirection == Qt::LeftToRight) || (selectFromStart && _parDirection == Qt::RightToLeft)) {
 				if (x < _x + _wLeft) {
-					_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
+					_p->fillRect(QRectF((x + _w - _wLeft).toReal(), _y + _yDelta, (_x + _wLeft - x).toReal(), _fontHeight), _p->textPalette().selectBg);
 				}
 			}
 		}
@@ -1298,8 +1288,7 @@ public:
 
 		int32 textY = _y + _yDelta + _t->_st->font->ascent, emojiY = (_t->_st->font->height - st::emojiSize) / 2;
 
-		eSetFont(currentBlock);
-		if (_p) _p->setPen(blockPen(currentBlock));
+		applyBlockProperties(currentBlock);
 		for (int i = 0; i < nItems; ++i) {
 			int item = firstItem + visualOrder[i];
 			const QScriptItem &si = engine.layoutData->items.at(item);
@@ -1308,14 +1297,12 @@ public:
 			while (blockIndex > _lineStartBlock + 1 && _t->_blocks[blockIndex - 1]->from() > _localFrom + si.position) {
 				nextBlock = currentBlock;
 				currentBlock = _t->_blocks[--blockIndex - 1];
-				if (_p) _p->setPen(blockPen(currentBlock));
-				eSetFont(currentBlock);
+				applyBlockProperties(currentBlock);
 			}
 			while (nextBlock && nextBlock->from() <= _localFrom + si.position) {
 				currentBlock = nextBlock;
 				nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
-				if (_p) _p->setPen(blockPen(currentBlock));
-				eSetFont(currentBlock);
+				applyBlockProperties(currentBlock);
 			}
 			if (si.analysis.flags >= QScriptAnalysis::TabOrObject) {
 				TextBlockType _type = currentBlock->type();
@@ -1378,7 +1365,7 @@ public:
 							}
 						} else if (chTo > chFrom && (chTo - 1)->unicode() == QChar::Space && (chTo - 1 - _str) >= _selection.from) {
 							if (rtl) { // rtl space only
-								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _p->textPalette().selectBg->b);
+								_p->fillRect(QRectF(x.toReal(), _y + _yDelta, (glyphX - x).toReal(), _fontHeight), _p->textPalette().selectBg);
 							} else { // ltr space only
 								_p->fillRect(QRectF((x + currentBlock->f_width()).toReal(), _y + _yDelta, (si.width - currentBlock->f_width()).toReal(), _fontHeight), _p->textPalette().selectBg);
 							}
@@ -1466,9 +1453,17 @@ public:
 				gf.width = itemWidth;
 				gf.justified = false;
 				gf.initWithScriptItem(si);
+
+				auto hasSelected = false;
+				auto hasNotSelected = true;
+				auto selectedRect = QRect();
 				if (_localFrom + itemStart < _selection.to && _localFrom + itemEnd > _selection.from) {
-					QFixed selX = x, selWidth = itemWidth;
-					if (_localFrom + itemEnd > _selection.to || _localFrom + itemStart < _selection.from) {
+					hasSelected = true;
+					auto selX = x;
+					auto selWidth = itemWidth;
+					if (_localFrom + itemStart >= _selection.from && _localFrom + itemEnd <= _selection.to) {
+						hasNotSelected = false;
+					} else {
 						selWidth = 0;
 						int itemL = itemEnd - itemStart;
 						int selStart = _selection.from - (_localFrom + itemStart), selEnd = _selection.to - (_localFrom + itemStart);
@@ -1503,10 +1498,32 @@ public:
 						}
 					}
 					if (rtl) selX = x + itemWidth - (selX - x) - selWidth;
-					_p->fillRect(QRectF(selX.toReal(), _y + _yDelta, selWidth.toReal(), _fontHeight), _p->textPalette().selectBg->b);
+					selectedRect = QRect(qRound(selX.toReal()), _y + _yDelta, qRound(selWidth.toReal()), _fontHeight);
+					_p->fillRect(selectedRect, _p->textPalette().selectBg);
 				}
-
-				_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+				if (Q_UNLIKELY(hasSelected)) {
+					if (Q_UNLIKELY(hasNotSelected)) {
+						auto clippingEnabled = _p->hasClipping();
+						auto clippingRegion = _p->clipRegion();
+						_p->setClipRect(selectedRect, Qt::IntersectClip);
+						_p->setPen(*_currentPenSelected);
+						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+						_p->setClipRegion((clippingEnabled ? clippingRegion : QRegion(QRect(0, 0, QFIXED_MAX - 1, QFIXED_MAX - 1))) - selectedRect);
+						_p->setPen(*_currentPen);
+						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+						if (clippingEnabled) {
+							_p->setClipRegion(clippingRegion);
+						} else {
+							_p->setClipping(false);
+						}
+					} else {
+						_p->setPen(*_currentPenSelected);
+						_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+					}
+				} else {
+					_p->setPen(*_currentPen);
+					_p->drawTextItem(QPointF(x.toReal(), textY), gf);
+				}
 			}
 
 			x += itemWidth;
@@ -2277,6 +2294,22 @@ public:
 	}
 
 private:
+	void applyBlockProperties(ITextBlock *block) {
+		eSetFont(block);
+		if (_p) {
+			auto &palette = _p->textPalette();
+			if (block->lnkIndex()) {
+				_currentPen = &palette.linkFg->p;
+				_currentPenSelected = &palette.selectLinkFg->p;
+			} else if ((block->flags() & TextBlockFCode) || (block->flags() & TextBlockFPre)) {
+				_currentPen = &palette.monoFg->p;
+				_currentPenSelected = &palette.selectMonoFg->p;
+			} else {
+				_currentPen = &_originalPen;
+				_currentPenSelected = &palette.selectFg->p;
+			}
+		}
+	}
 
 	Painter *_p;
 	const Text *_t;
@@ -2285,6 +2318,8 @@ private:
 	int32 _elideRemoveFromEnd = 0;
 	style::align _align;
 	QPen _originalPen;
+	const QPen *_currentPen = nullptr;
+	const QPen *_currentPenSelected = nullptr;
 	int32 _yFrom, _yTo, _yToElide;
 	TextSelection _selection = { 0, 0 };
 	bool _fullWidthSelection = true;

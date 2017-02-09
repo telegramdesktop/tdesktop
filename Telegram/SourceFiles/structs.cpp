@@ -60,20 +60,6 @@ ImagePtr generateUserpicImage(const style::icon &icon) {
 
 } // namespace
 
-style::color peerColor(int index) {
-	static style::color peerColors[kUserColorsCount] = {
-		st::historyPeer1NameFg,
-		st::historyPeer2NameFg,
-		st::historyPeer3NameFg,
-		st::historyPeer4NameFg,
-		st::historyPeer5NameFg,
-		st::historyPeer6NameFg,
-		st::historyPeer7NameFg,
-		st::historyPeer8NameFg,
-	};
-	return peerColors[index];
-}
-
 style::color peerUserpicColor(int index) {
 	static style::color peerColors[kUserColorsCount] = {
 		st::historyPeer1UserpicBg,
@@ -248,11 +234,9 @@ using UpdateFlag = Notify::PeerUpdate::Flag;
 NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 NotifySettingsPtr globalNotifyAllPtr = UnknownNotifySettings, globalNotifyUsersPtr = UnknownNotifySettings, globalNotifyChatsPtr = UnknownNotifySettings;
 
-PeerData::PeerData(const PeerId &id) : id(id)
-, colorIndex(peerColorIndex(id))
-, color(peerColor(colorIndex)) {
+PeerData::PeerData(const PeerId &id) : id(id), _colorIndex(peerColorIndex(id)) {
 	nameText.setText(st::msgNameStyle, QString(), _textNameOptions);
-	_userpicEmpty.set(colorIndex, QString());
+	_userpicEmpty.set(_colorIndex, QString());
 }
 
 void PeerData::updateNameDelayed(const QString &newName, const QString &newNameOrPhone, const QString &newUsername) {
@@ -274,7 +258,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 	name = newName;
 	nameText.setText(st::msgNameStyle, name, _textNameOptions);
 	if (!_userpic) {
-		_userpicEmpty.set(colorIndex, name);
+		_userpicEmpty.set(_colorIndex, name);
 	}
 
 	Notify::PeerUpdate update(this);
@@ -309,7 +293,7 @@ void PeerData::updateNameDelayed(const QString &newName, const QString &newNameO
 void PeerData::setUserpic(ImagePtr userpic) {
 	_userpic = userpic;
 	if (!_userpic || !_userpic->loaded()) {
-		_userpicEmpty.set(colorIndex, name);
+		_userpicEmpty.set(_colorIndex, name);
 	} else {
 		_userpicEmpty.clear();
 	}

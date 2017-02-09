@@ -203,8 +203,6 @@ static constexpr int kUserColorsCount = 8;
 static constexpr int kChatColorsCount = 4;
 static constexpr int kChannelColorsCount = 4;
 
-style::color peerColor(int index);
-
 class EmptyUserpic {
 public:
 	EmptyUserpic();
@@ -311,9 +309,9 @@ public:
 	LoadedStatus loadedStatus = NotLoaded;
 	MTPinputPeer input;
 
-	int colorIndex;
-	style::color color;
-
+	int colorIndex() const {
+		return _colorIndex;
+	}
 	void setUserpic(ImagePtr userpic);
 	void paintUserpic(Painter &p, int x, int y, int size) const;
 	void paintUserpicLeft(Painter &p, int x, int y, int w, int size) const {
@@ -363,6 +361,8 @@ private:
 	void fillNames();
 
 	ClickHandlerPtr _openLink;
+
+	int _colorIndex = 0;
 
 };
 

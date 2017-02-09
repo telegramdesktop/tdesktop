@@ -450,7 +450,7 @@ void HistoryPhoto::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 		}
 	} else {
-		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
+		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	}
 }
@@ -791,7 +791,7 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 			_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
 		}
 	} else {
-		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
+		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	}
 }
@@ -1273,7 +1273,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		}
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
-		p.setPen(outbg ? st::historyFileNameOutFg : st::historyFileNameInFg);
+		p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
 		if (namewidth < named->_namew) {
 			p.drawTextLeft(nameleft, nametop, _width, st::semiboldFont->elided(named->_name, namewidth, Qt::ElideMiddle));
 		} else {
@@ -1300,7 +1300,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	}
 
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
-		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
+		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
 	}
 }
@@ -1802,7 +1802,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	}
 
 	if (!_caption.isEmpty()) {
-		p.setPen(outbg ? st::historyCaptionOutFg : st::historyCaptionInFg);
+		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->getMedia() == this && (_data->uploading() || App::hoveredItem() == _parent)) {
 		int32 fullRight = skipx + width, fullBottom = skipy + height;
@@ -2337,7 +2337,7 @@ void HistoryContact::draw(Painter &p, const QRect &r, TextSelection selection, T
 	int32 namewidth = width - nameleft - nameright;
 
 	p.setFont(st::semiboldFont);
-	p.setPen(outbg ? st::historyFileNameOutFg : st::historyFileNameInFg);
+	p.setPen(outbg ? (selected ? st::historyFileNameOutFgSelected : st::historyFileNameOutFg) : (selected ? st::historyFileNameInFgSelected : st::historyFileNameInFg));
 	_name.drawLeftElided(p, nameleft, nametop, namewidth, width);
 
 	auto &status = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
