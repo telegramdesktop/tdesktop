@@ -102,8 +102,14 @@ bool skipComment(const char *&data, const char *end) {
 				while (data != end && *data != '*') {
 					++data;
 				}
-				if (data != end) ++data;
-				if (data == end || *data == '/') {
+				if (data != end) {
+					++data;
+					if (data != end && *data == '/') {
+						++data;
+						break;
+					}
+				}
+				if (data == end) {
 					break;
 				}
 			}
