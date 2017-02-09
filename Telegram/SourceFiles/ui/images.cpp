@@ -1242,9 +1242,21 @@ bool FileLocation::check() const {
 	if (!f.isReadable()) return false;
 
 	quint64 s = f.size();
-	if (s > INT_MAX) return false;
+	if (s > INT_MAX) {
+		DEBUG_LOG(("File location check: Wrong size %1").arg(s));
+		return false;
+	}
 
-	return (f.lastModified() == modified) && (qint32(s) == size);
+	if (qint32(s) != size) {
+		DEBUG_LOG(("File location check: Wrong size %1 when should be %2").arg(s).arg(size));
+		return false;
+	}
+	auto realModified = f.lastModified();
+	if (realModified != modified) {
+		DEBUG_LOG(("File location check: Wrong last modified time %1 when should be %2").arg(realModified.toMSecsSinceEpoch()).arg(modified.toMSecsSinceEpoch()));
+		return false;
+	}
+	return true;
 }
 
 const QString &FileLocation::name() const {
