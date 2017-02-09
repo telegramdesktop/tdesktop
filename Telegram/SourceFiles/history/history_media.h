@@ -145,9 +145,6 @@ public:
 	virtual QMargins bubbleMargins() const {
 		return QMargins();
 	}
-	virtual bool hideFromName() const {
-		return false;
-	}
 	virtual bool hideForwardedFrom() const {
 		return false;
 	}

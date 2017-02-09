@@ -161,16 +161,13 @@ public:
 		if (!_caption.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
-	}
-	bool hideFromName() const override {
-		return true;
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -251,16 +248,13 @@ public:
 		if (!_caption.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
-	}
-	bool hideFromName() const override {
-		return true;
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -480,16 +474,13 @@ public:
 		if (!_caption.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
-	}
-	bool hideFromName() const override {
-		return true;
 	}
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
@@ -884,10 +875,10 @@ public:
 		if (!_title.isEmpty() || !_description.isEmpty()) {
 			return true;
 		}
-		if (_parent->viaBot()) {
-			return true;
+		if (auto message = _parent->toHistoryMessage()) {
+			return message->displayFromName();
 		}
-		return (_parent->Has<HistoryMessageForwarded>() || _parent->Has<HistoryMessageReply>());
+		return false;
 	}
 	bool customInfoLayout() const override {
 		return true;

@@ -60,8 +60,7 @@ public:
 	bool displayFromName() const {
 		if (!hasFromName()) return false;
 		if (isAttachedToPrevious()) return false;
-
-		return (!emptyText() || !_media || !_media->isDisplayed() || Has<HistoryMessageReply>() || Has<HistoryMessageForwarded>() || viaBot() || !_media->hideFromName());
+		return true;
 	}
 	bool displayEditedBadge(bool hasViaBotOrInlineMarkup) const;
 	bool uploading() const {
