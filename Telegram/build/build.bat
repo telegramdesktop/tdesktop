@@ -70,31 +70,29 @@ if not exist %FinalReleasePath% (
   exit /b 1
 )
 
-if %BetaVersion% neq 0 (
-  if %BuildUWP% neq 0 (
-    echo Can not build UWP version from a closed beta!
+if %BuildUWP% neq 0 (
+  if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\AppX\ (
+    echo UWP deploy folder for version %AppVersionStr% already exists!
     exit /b 1
   )
-  if exist %DeployPath%\ (
-    echo Deploy folder for version %AppVersionStr% already exists!
+  if exist %ReleasePath%\AppX\ (
+    echo Result folder out\Release\AppX already exists!
     exit /b 1
   )
-  if exist %ReleasePath%\%BetaKeyFile% (
-    echo Beta version key file for version %AppVersion% already exists!
-    exit /b 1
-  )
-) else (
-  if %BuildUWP% neq 0 (
-    if "%AlphaBetaParam%" neq "" (
-      echo Can not build UWP version from an alpha!
-      exit /b 1
-    )
-    if exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\AppX\ (
-      echo UWP deploy folder for version %AppVersionStr% already exists!
-      exit /b 1
-    )
+  if "%AlphaBetaParam%" equ "" (
     if not exist %ReleasePath%\deploy\%AppVersionStrMajor%\%AppVersionStr%\ (
       echo Deploy folder for version %AppVersionStr% does not exist!
+      exit /b 1
+    )
+  )
+) else (
+  if %BetaVersion% neq 0 (
+    if exist %DeployPath%\ (
+      echo Deploy folder for version %AppVersionStr% already exists!
+      exit /b 1
+    )
+    if exist %ReleasePath%\%BetaKeyFile% (
+      echo Beta version key file for version %AppVersion% already exists!
       exit /b 1
     )
   ) else (
@@ -198,22 +196,28 @@ echo Done!
 if %BuildUWP% neq 0 (
   cd "%HomePath%"
 
-  mkdir "%DeployPath%\AppX"
-  xcopy /e "Resources\uwp\AppX\*" "%DeployPath%\AppX\"
+  mkdir "%ReleasePath%\AppX"
+  xcopy /e "Resources\uwp\AppX\*" "%ReleasePath%\AppX\"
 
-  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %DeployPath%\AppX\AppxManifest.xml /of %DeployPath%\AppX\resources.pri
+  makepri new /pr Resources\uwp\AppX\ /cf Resources\uwp\priconfig.xml /mn %ReleasePath%\AppX\AppxManifest.xml /of %ReleasePath%\AppX\resources.pri
   if %errorlevel% neq 0 goto error
 
-  move "%ReleasePath%\%BinaryName%.exe" "%DeployPath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.exe" "%ReleasePath%\AppX\"
 
-  MakeAppx.exe pack /d "%DeployPath%\AppX" /l /p ..\out\Release\%BinaryName%.appx
+  MakeAppx.exe pack /d "%ReleasePath%\AppX" /l /p ..\out\Release\%BinaryName%.appx
   if %errorlevel% neq 0 goto error
 
   call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
 
-  xcopy "%ReleasePath%\%BinaryName%.pdb" "%DeployPath%\AppX\"
-  move "%ReleasePath%\%BinaryName%.exe.pdb" "%DeployPath%\AppX\"
-  move "%ReleasePath%\%BinaryName%.appx" "%DeployPath%\AppX\"
+  xcopy "%ReleasePath%\%BinaryName%.pdb" "%ReleasePath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.exe.pdb" "%ReleasePath%\AppX\"
+  move "%ReleasePath%\%BinaryName%.appx" "%ReleasePath%\AppX\"
+
+  if "%AlphaBetaParam%" equ "" (
+    move "%ReleasePath%\AppX" "%DeployPath%\"
+  ) else (
+    echo Leaving result in out\Release\AppX for now..
+  )
 ) else (
   if not exist "%ReleasePath%\deploy" mkdir "%ReleasePath%\deploy"
   if not exist "%ReleasePath%\deploy\%AppVersionStrMajor%" mkdir "%ReleasePath%\deploy\%AppVersionStrMajor%"
