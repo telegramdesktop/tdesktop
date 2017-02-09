@@ -118,7 +118,7 @@ If you already have multiple commits, you can add the commits together (squash t
 1. Open `Git Bash` (or `Git Shell`)
 2. Enter following command to squash the recent {N} commits: `git reset --soft HEAD~{N} && git commit` (replace `{N}` with the number of commits you want to squash)
 3. Press <kbd>i</kbd> to get into Insert-mode
-4. Enter the commit message of the new commit (and add the [signature](#sign-your-work) at the and)
+4. Enter the commit message of the new commit (and add the [signature](#sign-your-work) at the end)
 5. After adding the message, press <kbd>ESC</kbd> to get out of the Insert-mode
 6. Write `:wq` and press <kbd>Enter</kbd> to save the new message or write `:q!` to discard your changes
 7. Enter `git push --force` to push the new commit to the remote repository
