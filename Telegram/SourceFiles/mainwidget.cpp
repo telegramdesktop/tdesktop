@@ -3067,6 +3067,11 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 				Global::RefDialogsListFocused().set(true, false);
 			}
 		}
+	} else if (e->type() == QEvent::MouseButtonPress) {
+		if (static_cast<QMouseEvent*>(e)->button() == Qt::BackButton) {
+			showBackFromStack();
+			return true;
+		}
 	}
 	return TWidget::eventFilter(o, e);
 }

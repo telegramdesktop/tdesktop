@@ -130,7 +130,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 }
 
 void InnerWidget::keyPressEvent(QKeyEvent *e) {
-	if (e->key() == Qt::Key_Escape) {
+	if (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Back) {
 		emit cancelled();
 	}
 }
