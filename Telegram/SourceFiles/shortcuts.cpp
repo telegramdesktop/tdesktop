@@ -84,7 +84,7 @@ bool media_play() {
 }
 
 bool media_pause() {
-	Media::Player::instance()->pause();
+	Media::Player::instance()->pause(AudioMsgId::Type::Song);
 	return true;
 }
 

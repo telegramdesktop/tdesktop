@@ -1671,6 +1671,60 @@ HistoryTextState HistoryMessage::getState(int x, int y, HistoryStateRequest requ
 	return result;
 }
 
+// Forward to _media.
+void HistoryMessage::updatePressed(int x, int y) {
+	if (!_media) return;
+
+	auto left = 0, width = 0, height = _height;
+	countPositionAndSize(left, width);
+
+	auto keyboard = inlineReplyKeyboard();
+	if (keyboard) {
+		auto h = st::msgBotKbButton.margin + keyboard->naturalHeight();
+		height -= h;
+	}
+
+	if (drawBubble()) {
+		auto mediaDisplayed = _media && _media->isDisplayed();
+		auto top = marginTop();
+		QRect r(left, top, width, height - top - marginBottom());
+		QRect trect(r.marginsAdded(-st::msgPadding));
+		if (mediaDisplayed && _media->isBubbleTop()) {
+			trect.setY(trect.y() - st::msgPadding.top());
+		} else {
+			if (displayFromName()) trect.setTop(trect.top() + st::msgNameFont->height);
+			if (displayForwardedFrom()) {
+				auto fwd = Get<HistoryMessageForwarded>();
+				auto fwdheight = ((fwd->_text.maxWidth() > trect.width()) ? 2 : 1) * st::semiboldFont->height;
+				trect.setTop(trect.top() + fwdheight);
+			}
+			if (Get<HistoryMessageReply>()) {
+				auto h = st::msgReplyPadding.top() + st::msgReplyBarSize.height() + st::msgReplyPadding.bottom();
+				trect.setTop(trect.top() + h);
+			}
+			if (!displayFromName() && !Has<HistoryMessageForwarded>()) {
+				if (auto via = Get<HistoryMessageVia>()) {
+					trect.setTop(trect.top() + st::msgNameFont->height);
+				}
+			}
+		}
+		if (mediaDisplayed && _media->isBubbleBottom()) {
+			trect.setHeight(trect.height() + st::msgPadding.bottom());
+		}
+
+		auto needDateCheck = true;
+		if (mediaDisplayed) {
+			auto mediaAboveText = _media->isAboveMessage();
+			auto mediaHeight = _media->height();
+			auto mediaLeft = trect.x() - st::msgPadding.left();
+			auto mediaTop = mediaAboveText ? trect.y() : (trect.y() + trect.height() - mediaHeight);
+			_media->updatePressed(x - mediaLeft, y - mediaTop);
+		}
+	} else {
+		_media->updatePressed(x - left, y - marginTop());
+	}
+}
+
 bool HistoryMessage::getStateFromName(int x, int y, QRect &trect, HistoryTextState *outResult) const {
 	if (displayFromName()) {
 		if (y >= trect.top() && y < trect.top() + st::msgNameFont->height) {

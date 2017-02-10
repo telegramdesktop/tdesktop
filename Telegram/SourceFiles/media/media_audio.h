@@ -28,6 +28,7 @@ namespace Player {
 
 constexpr auto kDefaultFrequency = 48000; // 48 kHz
 constexpr auto kTogetherLimit = 4;
+constexpr auto kWaveformSamplesCount = 100;
 
 class Fader;
 class Loaders;

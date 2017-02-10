@@ -990,6 +990,11 @@ void HistoryInner::onDragExec() {
 		}
 	}
 	auto pressedHandler = ClickHandler::getPressed();
+
+	if (dynamic_cast<VoiceSeekClickHandler*>(pressedHandler.data())) {
+		return;
+	}
+
 	TextWithEntities sel;
 	QList<QUrl> urls;
 	if (uponSelected) {
@@ -2081,7 +2086,7 @@ void HistoryInner::onUpdateSelected() {
 			}
 		}
 	}
-	bool lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
 	if (lnkChanged || dragState.cursor != _dragCursorState) {
 		Ui::Tooltip::Hide();
 	}
@@ -2101,7 +2106,7 @@ void HistoryInner::onUpdateSelected() {
 		}
 	} else if (item) {
 		if (_dragAction == Selecting) {
-			bool canSelectMany = (_history != nullptr);
+			auto canSelectMany = (_history != nullptr);
 			if (selectingText) {
 				uint16 second = dragState.symbol;
 				if (dragState.afterSymbol && _dragSelType == TextSelectType::Letters) {
@@ -2118,8 +2123,8 @@ void HistoryInner::onUpdateSelected() {
 				}
 				updateDragSelection(0, 0, false);
 			} else if (canSelectMany) {
-				bool selectingDown = (itemTop(_dragItem) < itemTop(item)) || (_dragItem == item && _dragStartPos.y() < m.y());
-				HistoryItem *dragSelFrom = _dragItem, *dragSelTo = item;
+				auto selectingDown = (itemTop(_dragItem) < itemTop(item)) || (_dragItem == item && _dragStartPos.y() < m.y());
+				auto dragSelFrom = _dragItem, dragSelTo = item;
 				if (!dragSelFrom->hasPoint(_dragStartPos.x(), _dragStartPos.y())) { // maybe exclude dragSelFrom
 					if (selectingDown) {
 						if (_dragStartPos.y() >= dragSelFrom->height() - dragSelFrom->marginBottom() || ((item == dragSelFrom) && (m.y() < _dragStartPos.y() + QApplication::startDragDistance() || m.y() < dragSelFrom->marginTop()))) {
@@ -2142,13 +2147,13 @@ void HistoryInner::onUpdateSelected() {
 						}
 					}
 				}
-				bool dragSelecting = false;
-				HistoryItem *dragFirstAffected = dragSelFrom;
+				auto dragSelecting = false;
+				auto dragFirstAffected = dragSelFrom;
 				while (dragFirstAffected && (dragFirstAffected->id < 0 || dragFirstAffected->serviceMsg())) {
 					dragFirstAffected = (dragFirstAffected == dragSelTo) ? 0 : (selectingDown ? nextItem(dragFirstAffected) : prevItem(dragFirstAffected));
 				}
 				if (dragFirstAffected) {
-					SelectedItems::const_iterator i = _selected.constFind(dragFirstAffected);
+					auto i = _selected.constFind(dragFirstAffected);
 					dragSelecting = (i == _selected.cend() || i.value() != FullSelection);
 				}
 				updateDragSelection(dragSelFrom, dragSelTo, dragSelecting);
@@ -2164,6 +2169,17 @@ void HistoryInner::onUpdateSelected() {
 			}
 		}
 	}
+
+	// Voice message seek support.
+	if (auto pressedItem = App::pressedLinkItem()) {
+		if (!pressedItem->detached()) {
+			if (pressedItem->history() == _history || pressedItem->history() == _migrated) {
+				auto adjustedPoint = mapMouseToItem(point, pressedItem);
+				pressedItem->updatePressed(adjustedPoint.x(), adjustedPoint.y());
+			}
+		}
+	}
+
 	if (_dragAction == Selecting) {
 		_widget->checkSelectingScroll(mousePos);
 	} else {

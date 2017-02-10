@@ -1686,12 +1686,12 @@ public:
 		QByteArray buffer;
 		buffer.reserve(AudioVoiceMsgBufferSize);
 		int64 countbytes = sampleSize * duration(), processed = 0, sumbytes = 0;
-		if (duration() < WaveformSamplesCount) {
+		if (duration() < Media::Player::kWaveformSamplesCount) {
 			return false;
 		}
 
 		QVector<uint16> peaks;
-		peaks.reserve(WaveformSamplesCount);
+		peaks.reserve(Media::Player::kWaveformSamplesCount);
 
 		int32 fmt = format();
 		uint16 peak = 0;
@@ -1716,7 +1716,7 @@ public:
 					}
 
 					i += sizeof(uchar);
-					sumbytes += WaveformSamplesCount;
+					sumbytes += Media::Player::kWaveformSamplesCount;
 					if (sumbytes >= countbytes) {
 						sumbytes -= countbytes;
 						peaks.push_back(peak);
@@ -1731,7 +1731,7 @@ public:
 					}
 
 					i += sizeof(uint16);
-					sumbytes += sizeof(uint16) * WaveformSamplesCount;
+					sumbytes += sizeof(uint16) * Media::Player::kWaveformSamplesCount;
 					if (sumbytes >= countbytes) {
 						sumbytes -= countbytes;
 						peaks.push_back(peak);
@@ -1741,7 +1741,7 @@ public:
 			}
 			processed += sampleSize * samples;
 		}
-		if (sumbytes > 0 && peaks.size() < WaveformSamplesCount) {
+		if (sumbytes > 0 && peaks.size() < Media::Player::kWaveformSamplesCount) {
 			peaks.push_back(peak);
 		}
 

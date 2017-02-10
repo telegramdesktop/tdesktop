@@ -78,6 +78,7 @@ public:
 	bool pointInTime(int32 right, int32 bottom, int x, int y, InfoDisplayType type) const override;
 
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;
+	void updatePressed(int x, int y) override;
 
 	TextSelection adjustSelection(TextSelection selection, TextSelectType type) const override;
 

@@ -409,6 +409,7 @@ struct HistoryMessageUnreadBar : public RuntimeComponent<HistoryMessageUnreadBar
 	// we've seen the bar and new messages are marked as read
 	// as soon as they are added to the chat history
 	bool _freezed = false;
+
 };
 
 // HistoryMedia has a special owning smart pointer
@@ -616,6 +617,8 @@ public:
 	}
 
 	virtual HistoryTextState getState(int x, int y, HistoryStateRequest request) const = 0;
+	virtual void updatePressed(int x, int y) {
+	}
 
 	virtual TextSelection adjustSelection(TextSelection selection, TextSelectType type) const {
 		return selection;

@@ -1076,12 +1076,11 @@ struct SongData : public DocumentAdditionalData {
 
 typedef QVector<char> VoiceWaveform; // [0] == -1 -- counting, [0] == -2 -- could not count
 struct VoiceData : public DocumentAdditionalData {
-	VoiceData() : duration(0), wavemax(0) {
-	}
 	~VoiceData();
-	int32 duration;
+
+	int duration = 0;
 	VoiceWaveform waveform;
-	char wavemax;
+	char wavemax = 0;
 };
 
 bool fileIsImage(const QString &name, const QString &mime);
@@ -1360,6 +1359,14 @@ public:
 	using DocumentOpenClickHandler::DocumentOpenClickHandler;
 protected:
 	void onClickImpl() const override;
+};
+
+class VoiceSeekClickHandler : public DocumentOpenClickHandler {
+public:
+	using DocumentOpenClickHandler::DocumentOpenClickHandler;
+protected:
+	void onClickImpl() const override {
+	}
 };
 
 class DocumentCancelClickHandler : public DocumentClickHandler {

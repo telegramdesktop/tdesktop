@@ -270,7 +270,6 @@ void ReplyKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool act
 	}
 }
 
-
 ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const ClickHandlerPtr &p) {
 	for (int i = 0, rows = _rows.size(); i != rows; ++i) {
 		auto &row = _rows[i];

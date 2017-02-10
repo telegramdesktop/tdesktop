@@ -103,8 +103,6 @@ enum {
 	AudioVoiceMsgBufferSize = 256 * 1024, // 256 Kb buffers (1.3 - 3.0 secs)
 	AudioVoiceMsgInMemory = 2 * 1024 * 1024, // 2 Mb audio is hold in memory and auto loaded
 
-	WaveformSamplesCount = 100,
-
 	StickerInMemory = 2 * 1024 * 1024, // 2 Mb stickers hold in memory, auto loaded and displayed inline
 	StickerMaxSize = 2048, // 2048x2048 is a max image size for sticker
 

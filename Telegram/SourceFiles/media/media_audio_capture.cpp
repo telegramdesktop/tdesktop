@@ -396,9 +396,9 @@ void Instance::Inner::onStop(bool needResult) {
 	qint32 samples = d->fullSamples;
 	if (samples && !d->waveform.isEmpty()) {
 		int64 count = d->waveform.size(), sum = 0;
-		if (count >= WaveformSamplesCount) {
+		if (count >= Player::kWaveformSamplesCount) {
 			QVector<uint16> peaks;
-			peaks.reserve(WaveformSamplesCount);
+			peaks.reserve(Player::kWaveformSamplesCount);
 
 			uint16 peak = 0;
 			for (int32 i = 0; i < count; ++i) {
@@ -406,7 +406,7 @@ void Instance::Inner::onStop(bool needResult) {
 				if (peak < sample) {
 					peak = sample;
 				}
-				sum += WaveformSamplesCount;
+				sum += Player::kWaveformSamplesCount;
 				if (sum >= count) {
 					sum -= count;
 					peaks.push_back(peak);

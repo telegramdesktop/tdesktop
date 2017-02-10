@@ -910,15 +910,25 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(const HistoryDocument
 
 void HistoryDocumentVoice::ensurePlayback(const HistoryDocument *that) const {
 	if (!_playback) {
-		_playback = new HistoryDocumentVoicePlayback(that);
+		_playback = std_::make_unique<HistoryDocumentVoicePlayback>(that);
 	}
 }
 
 void HistoryDocumentVoice::checkPlaybackFinished() const {
 	if (_playback && !_playback->_a_progress.animating()) {
-		delete _playback;
-		_playback = nullptr;
+		_playback.reset();
 	}
+}
+
+void HistoryDocumentVoice::startSeeking() {
+	_seeking = true;
+	_seekingCurrent = _seekingStart;
+	Media::Player::instance()->startSeeking(AudioMsgId::Type::Voice);
+}
+
+void HistoryDocumentVoice::stopSeeking() {
+	_seeking = false;
+	Media::Player::instance()->stopSeeking(AudioMsgId::Type::Voice);
 }
 
 HistoryDocument::HistoryDocument(HistoryItem *parent, DocumentData *document, const QString &caption) : HistoryFileMedia(parent)
@@ -979,8 +989,11 @@ void HistoryDocument::createComponents(bool caption) {
 	}
 	UpdateComponents(mask);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
-		thumbed->_linksavel.reset(new DocumentSaveClickHandler(_data));
-		thumbed->_linkcancell.reset(new DocumentCancelClickHandler(_data));
+		thumbed->_linksavel = MakeShared<DocumentSaveClickHandler>(_data);
+		thumbed->_linkcancell = MakeShared<DocumentCancelClickHandler>(_data);
+	}
+	if (auto voice = Get<HistoryDocumentVoice>()) {
+		voice->_seekl = MakeShared<VoiceSeekClickHandler>(_data);
 	}
 }
 
@@ -1211,6 +1224,7 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 	auto namewidth = _width - nameleft - nameright;
 	auto statuswidth = namewidth;
 
+	auto voiceStatusOverride = QString();
 	if (auto voice = Get<HistoryDocumentVoice>()) {
 		const VoiceWaveform *wf = nullptr;
 		uchar norm_value = 0;
@@ -1227,28 +1241,40 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 				norm_value = _data->voice()->wavemax;
 			}
 		}
-		auto prg = voice->_playback ? voice->_playback->a_progress.current() : 0.;
+		auto progress = ([voice] {
+			if (voice->seeking()) {
+				return voice->seekingCurrent();
+			} else if (voice->_playback) {
+				return voice->_playback->a_progress.current();
+			}
+			return 0.;
+		})();
+		if (voice->seeking()) {
+			voiceStatusOverride = formatPlayedText(qRound(progress * voice->_lastDurationMs) / 1000, voice->_lastDurationMs / 1000);
+		}
 
 		// rescale waveform by going in waveform.size * bar_count 1D grid
-		auto &active = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
-		auto &inactive = outbg ? (selected ? st::msgWaveformOutInactiveSelected : st::msgWaveformOutInactive) : (selected ? st::msgWaveformInInactiveSelected : st::msgWaveformInInactive);
-		int32 wf_size = wf ? wf->size() : WaveformSamplesCount, availw = int32(namewidth + st::msgWaveformSkip), activew = qRound(availw * prg);
+		auto active = outbg ? (selected ? st::msgWaveformOutActiveSelected : st::msgWaveformOutActive) : (selected ? st::msgWaveformInActiveSelected : st::msgWaveformInActive);
+		auto inactive = outbg ? (selected ? st::msgWaveformOutInactiveSelected : st::msgWaveformOutInactive) : (selected ? st::msgWaveformInInactiveSelected : st::msgWaveformInInactive);
+		auto wf_size = wf ? wf->size() : Media::Player::kWaveformSamplesCount;
+		auto availw = namewidth + st::msgWaveformSkip;
+		auto activew = qRound(availw * progress);
 		if (!outbg && !voice->_playback && _parent->isMediaUnread()) {
 			activew = availw;
 		}
-		int32 bar_count = qMin(availw / int32(st::msgWaveformBar + st::msgWaveformSkip), wf_size);
-		uchar max_value = 0;
+		auto bar_count = qMin(availw / (st::msgWaveformBar + st::msgWaveformSkip), wf_size);
+		auto max_value = 0;
 		auto max_delta = st::msgWaveformMax - st::msgWaveformMin;
 		auto bottom = st::msgFilePadding.top() - topMinus + st::msgWaveformMax;
 		p.setPen(Qt::NoPen);
-		for (int32 i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
-			uchar value = wf ? wf->at(i) : 0;
+		for (auto i = 0, bar_x = 0, sum_i = 0; i < wf_size; ++i) {
+			auto value = wf ? wf->at(i) : 0;
 			if (sum_i + bar_count >= wf_size) { // draw bar
 				sum_i = sum_i + bar_count - wf_size;
 				if (sum_i < (bar_count + 1) / 2) {
 					if (max_value < value) max_value = value;
 				}
-				int32 bar_value = ((max_value * max_delta) + ((norm_value + 1) / 2)) / (norm_value + 1);
+				auto bar_value = ((max_value * max_delta) + ((norm_value + 1) / 2)) / (norm_value + 1);
 
 				if (bar_x >= activew) {
 					p.fillRect(nameleft + bar_x, bottom - bar_value, st::msgWaveformBar, st::msgWaveformMin + bar_value, inactive);
@@ -1281,13 +1307,14 @@ void HistoryDocument::draw(Painter &p, const QRect &r, TextSelection selection, 
 		}
 	}
 
-	auto &status = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
+	auto statusText = voiceStatusOverride.isEmpty() ? _statusText : voiceStatusOverride;
+	auto status = outbg ? (selected ? st::mediaOutFgSelected : st::mediaOutFg) : (selected ? st::mediaInFgSelected : st::mediaInFg);
 	p.setFont(st::normalFont);
 	p.setPen(status);
-	p.drawTextLeft(nameleft, statustop, _width, _statusText);
+	p.drawTextLeft(nameleft, statustop, _width, statusText);
 
 	if (_parent->isMediaUnread()) {
-		int32 w = st::normalFont->width(_statusText);
+		auto w = st::normalFont->width(statusText);
 		if (w + st::mediaUnreadSkip + st::mediaUnreadSize <= statuswidth) {
 			p.setPen(Qt::NoPen);
 			p.setBrush(outbg ? (selected ? st::msgFileOutBgSelected : st::msgFileOutBg) : (selected ? st::msgFileInBgSelected : st::msgFileInBg));
@@ -1319,6 +1346,8 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 	auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
+		nameright = st::msgFileThumbPadding.left();
+		nametop = st::msgFileThumbNameTop - topMinus;
 		linktop = st::msgFileThumbLinkTop - topMinus;
 		bottom = st::msgFileThumbPadding.top() + st::msgFileThumbSize + st::msgFileThumbPadding.bottom() - topMinus;
 
@@ -1336,12 +1365,30 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 			}
 		}
 	} else {
+		nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+		nameright = st::msgFilePadding.left();
+		nametop = st::msgFileNameTop - topMinus;
 		bottom = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom() - topMinus;
 
 		QRect inner(rtlrect(st::msgFilePadding.left(), st::msgFilePadding.top() - topMinus, st::msgFileSize, st::msgFileSize, _width));
 		if ((_data->loading() || _data->uploading() || !loaded) && inner.contains(x, y)) {
 			result.link = (_data->loading() || _data->uploading()) ? _cancell : _savel;
 			return result;
+		}
+	}
+
+	if (auto voice = Get<HistoryDocumentVoice>()) {
+		auto namewidth = _width - nameleft - nameright;
+		auto waveformbottom = st::msgFilePadding.top() - topMinus + st::msgWaveformMax + st::msgWaveformMin;
+		if (x >= nameleft && x < nameleft + namewidth && y >= nametop && y < waveformbottom) {
+			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state)) {
+				if (!voice->seeking()) {
+					voice->setSeekingStart((x - nameleft) / float64(namewidth));
+				}
+				result.link = voice->_seekl;
+				return result;
+			}
 		}
 	}
 
@@ -1362,6 +1409,23 @@ HistoryTextState HistoryDocument::getState(int x, int y, HistoryStateRequest req
 		return result;
 	}
 	return result;
+}
+
+void HistoryDocument::updatePressed(int x, int y) {
+	if (auto voice = Get<HistoryDocumentVoice>()) {
+		if (voice->seeking()) {
+			auto nameleft = 0, nameright = 0;
+			if (auto thumbed = Get<HistoryDocumentThumbed>()) {
+				nameleft = st::msgFileThumbPadding.left() + st::msgFileThumbSize + st::msgFileThumbPadding.right();
+				nameright = st::msgFileThumbPadding.left();
+			} else {
+				nameleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
+				nameright = st::msgFilePadding.left();
+			}
+			voice->setSeekingCurrent(snap((x - nameleft) / float64(_width - nameleft - nameright), 0., 1.));
+			Ui::repaintHistoryItem(_parent);
+		}
+	}
 }
 
 QString HistoryDocument::notificationText() const {
@@ -1450,7 +1514,7 @@ bool HistoryDocument::updateStatusText() const {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Voice);
 			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
 				if (auto voice = Get<HistoryDocumentVoice>()) {
-					bool was = voice->_playback;
+					bool was = (voice->_playback != nullptr);
 					voice->ensurePlayback(this);
 					if (!was || state.position != voice->_playback->_position) {
 						float64 prg = state.duration ? snap(float64(state.position) / state.duration, 0., 1.) : 0.;
@@ -1462,6 +1526,7 @@ bool HistoryDocument::updateStatusText() const {
 						voice->_playback->_position = state.position;
 						voice->_playback->_a_progress.start();
 					}
+					voice->_lastDurationMs = static_cast<int>((state.duration * 1000LL) / state.frequency); // Bad :(
 				}
 
 				statusSize = -1 - (state.position / state.frequency);
@@ -1472,6 +1537,9 @@ bool HistoryDocument::updateStatusText() const {
 					voice->checkPlaybackFinished();
 				}
 			}
+			if (!showPause && (state.id == AudioMsgId(_data, _parent->fullId()))) {
+				showPause = Media::Player::instance()->isSeeking(AudioMsgId::Type::Voice);
+			}
 		} else if (_data->song()) {
 			auto state = Media::Player::mixer()->currentState(AudioMsgId::Type::Song);
 			if (state.id == AudioMsgId(_data, _parent->fullId()) && !Media::Player::IsStopped(state.state) && state.state != State::Finishing) {
@@ -1481,7 +1549,7 @@ bool HistoryDocument::updateStatusText() const {
 			} else {
 			}
 			if (!showPause && (state.id == AudioMsgId(_data, _parent->fullId()))) {
-				showPause = Media::Player::instance()->isSeeking();
+				showPause = Media::Player::instance()->isSeeking(AudioMsgId::Type::Song);
 			}
 		}
 	} else {
@@ -1510,6 +1578,28 @@ void HistoryDocument::step_voiceProgress(float64 ms, bool timer) {
 			if (timer) Ui::repaintHistoryItem(_parent);
 		}
 	}
+}
+
+void HistoryDocument::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	if (auto voice = Get<HistoryDocumentVoice>()) {
+		if (pressed && p == voice->_seekl && !voice->seeking()) {
+			voice->startSeeking();
+		} else if (!pressed && voice->seeking()) {
+			auto type = AudioMsgId::Type::Voice;
+			auto state = Media::Player::mixer()->currentState(type);
+			if (state.id == AudioMsgId(_data, _parent->fullId()) && state.duration) {
+				auto currentProgress = voice->seekingCurrent();
+				auto currentPosition = qRound(currentProgress * state.duration);
+				Media::Player::mixer()->seek(type, currentPosition);
+
+				voice->ensurePlayback(this);
+				voice->_playback->_position = 0;
+				voice->_playback->a_progress = anim::value(currentProgress, currentProgress);
+			}
+			voice->stopSeeking();
+		}
+	}
+	HistoryFileMedia::clickHandlerPressedChanged(p, pressed);
 }
 
 void HistoryDocument::attachToParent() {
@@ -2455,7 +2545,9 @@ void HistoryWebPage::initDimensions() {
 	}
 	if (!_lineHeight) _lineHeight = qMax(st::webPageTitleFont->height, st::webPageDescriptionFont->height);
 
-	if (!_openl && !_data->url.isEmpty()) _openl.reset(new UrlClickHandler(_data->url, true));
+	if (!_openl && !_data->url.isEmpty()) {
+		_openl = MakeShared<UrlClickHandler>(_data->url, true);
+	}
 
 	// init layout
 	QString title(_data->title.isEmpty() ? _data->author : _data->title);

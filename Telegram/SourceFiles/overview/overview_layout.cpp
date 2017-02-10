@@ -940,7 +940,7 @@ bool Document::updateStatusText() {
 				realDuration = (state.duration / state.frequency);
 				showPause = (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
 			}
-			if (!showPause && (state.id == AudioMsgId(_data, _parent->fullId())) && Media::Player::instance()->isSeeking()) {
+			if (!showPause && (state.id == AudioMsgId(_data, _parent->fullId())) && Media::Player::instance()->isSeeking(AudioMsgId::Type::Song)) {
 				showPause = true;
 			}
 		} else {

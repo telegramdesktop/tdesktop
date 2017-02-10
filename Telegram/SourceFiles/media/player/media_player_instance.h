@@ -39,7 +39,7 @@ struct TrackState;
 class Instance : private base::Subscriber {
 public:
 	void play();
-	void pause();
+	void pause(AudioMsgId::Type type);
 	void stop();
 	void playPause();
 	void next();
@@ -60,11 +60,16 @@ public:
 		_repeatChangedNotifier.notify();
 	}
 
-	bool isSeeking() const {
-		return (_seeking == _current);
+	bool isSeeking(AudioMsgId::Type type) const {
+		if (type == AudioMsgId::Type::Song) {
+			return (_seeking == _current);
+		} else if (type == AudioMsgId::Type::Voice) {
+			return (_seekingVoice == _currentVoice);
+		}
+		return false;
 	}
-	void startSeeking();
-	void stopSeeking();
+	void startSeeking(AudioMsgId::Type type);
+	void stopSeeking(AudioMsgId::Type type);
 
 	const QList<FullMsgId> &playlist() const {
 		return _playlist;
@@ -111,7 +116,7 @@ private:
 	void handleLogout();
 
 	template <typename CheckCallback>
-	void emitUpdate(CheckCallback check);
+	void emitUpdate(AudioMsgId::Type type, CheckCallback check);
 
 	AudioMsgId _current, _seeking;
 	History *_history = nullptr;
@@ -121,6 +126,8 @@ private:
 
 	QList<FullMsgId> _playlist;
 	bool _isPlaying = false;
+
+	AudioMsgId _currentVoice, _seekingVoice;
 
 	base::Observable<bool> _usePanelPlayer;
 	base::Observable<bool> _titleButtonOver;

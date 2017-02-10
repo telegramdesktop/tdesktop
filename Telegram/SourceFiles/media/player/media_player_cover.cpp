@@ -141,7 +141,7 @@ void CoverWidget::handleSeekProgress(float64 progress) {
 	if (_seekPositionMs != positionMs) {
 		_seekPositionMs = positionMs;
 		updateTimeLabel();
-		instance()->startSeeking();
+		instance()->startSeeking(AudioMsgId::Type::Song);
 	}
 }
 
@@ -157,7 +157,7 @@ void CoverWidget::handleSeekFinished(float64 progress) {
 		Media::Player::mixer()->seek(type, qRound(progress * state.duration));
 	}
 
-	instance()->stopSeeking();
+	instance()->stopSeeking(type);
 }
 
 void CoverWidget::resizeEvent(QResizeEvent *e) {
@@ -239,7 +239,7 @@ void CoverWidget::handleSongUpdate(const TrackState &state) {
 
 	auto stopped = (IsStopped(state.state) || state.state == State::Finishing);
 	auto showPause = !stopped && (state.state == State::Playing || state.state == State::Resuming || state.state == State::Starting);
-	if (instance()->isSeeking()) {
+	if (instance()->isSeeking(AudioMsgId::Type::Song)) {
 		showPause = true;
 	}
 	auto buttonState = [audio = state.id.audio(), showPause] {
