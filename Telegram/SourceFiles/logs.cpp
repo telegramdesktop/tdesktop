@@ -332,7 +332,11 @@ namespace Logs {
 			cForceWorkingDir(psAppDataPath());
 			workingDirChosen = true;
 #elif defined OS_WIN_STORE
+#ifdef _DEBUG
+			cForceWorkingDir(cExeDir());
+#else // _DEBUG
 			cForceWorkingDir(psAppDataPath());
+#endif // else for _DEBUG
 #endif // OS_WIN_STORE
 		}
 
