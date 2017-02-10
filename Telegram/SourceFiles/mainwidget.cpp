@@ -881,16 +881,16 @@ void MainWidget::deleteAllFromUser(ChannelData *channel, UserData *from) {
 	t_assert(channel != nullptr && from != nullptr);
 
 	QVector<MsgId> toDestroy;
-	if (History *history = App::historyLoaded(channel->id)) {
-		for (HistoryBlock *block : history->blocks) {
-			for (HistoryItem *item : block->items) {
-				if (item->from() == from && item->type() == HistoryItemMsg && item->canDelete()) {
+	if (auto history = App::historyLoaded(channel->id)) {
+		for_const (auto block, history->blocks) {
+			for_const (auto item, block->items) {
+				if (item->from() == from && item->canDelete()) {
 					toDestroy.push_back(item->id);
 				}
 			}
 		}
-		for (const MsgId &msgId : toDestroy) {
-			if (HistoryItem *item = App::histItemById(peerToChannel(channel->id), msgId)) {
+		for_const (auto &msgId, toDestroy) {
+			if (auto item = App::histItemById(peerToChannel(channel->id), msgId)) {
 				item->destroy();
 			}
 		}
@@ -3867,17 +3867,17 @@ void MainWidget::onFullPeerUpdated(PeerData *peer) {
 }
 
 void MainWidget::onSelfParticipantUpdated(ChannelData *channel) {
-	History *h = App::historyLoaded(channel->id);
+	auto history = App::historyLoaded(channel->id);
 	if (_updatedChannels.contains(channel)) {
 		_updatedChannels.remove(channel);
-		if ((h ? h : App::history(channel->id))->isEmpty()) {
+		if ((history ? history : App::history(channel->id))->isEmpty()) {
 			checkPeerHistory(channel);
 		} else {
-			h->asChannelHistory()->checkJoinedMessage(true);
+			history->asChannelHistory()->checkJoinedMessage(true);
 			_history->peerMessagesUpdated(channel->id);
 		}
-	} else if (h) {
-		h->asChannelHistory()->checkJoinedMessage();
+	} else if (history) {
+		history->asChannelHistory()->checkJoinedMessage();
 		_history->peerMessagesUpdated(channel->id);
 	}
 }

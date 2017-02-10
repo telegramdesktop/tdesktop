@@ -989,7 +989,7 @@ void HistoryInner::onDragExec() {
 			}
 		}
 	}
-	ClickHandlerPtr pressedHandler = ClickHandler::getPressed();
+	auto pressedHandler = ClickHandler::getPressed();
 	TextWithEntities sel;
 	QList<QUrl> urls;
 	if (uponSelected) {
@@ -1004,7 +1004,7 @@ void HistoryInner::onDragExec() {
 		updateDragSelection(0, 0, false);
 		_widget->noSelectingScroll();
 
-		QDrag *drag = new QDrag(App::wnd());
+		auto drag = std_::make_unique<QDrag>(App::wnd());
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
 		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn()) {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
@@ -1017,15 +1017,15 @@ void HistoryInner::onDragExec() {
 		if (App::main()) App::main()->updateAfterDrag();
 		return;
 	} else {
-		QString forwardMimeType;
-		HistoryMedia *pressedMedia = nullptr;
-		if (HistoryItem *pressedItem = App::pressedItem()) {
+		auto forwardMimeType = QString();
+		auto pressedMedia = static_cast<HistoryMedia*>(nullptr);
+		if (auto pressedItem = App::pressedItem()) {
 			pressedMedia = pressedItem->getMedia();
 			if (_dragCursorState == HistoryInDateCursorState || (pressedMedia && pressedMedia->dragItem())) {
 				forwardMimeType = qsl("application/x-td-forward-pressed");
 			}
 		}
-		if (HistoryItem *pressedLnkItem = App::pressedLinkItem()) {
+		if (auto pressedLnkItem = App::pressedLinkItem()) {
 			if ((pressedMedia = pressedLnkItem->getMedia())) {
 				if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
 					forwardMimeType = qsl("application/x-td-forward-pressed-link");
@@ -1033,12 +1033,12 @@ void HistoryInner::onDragExec() {
 			}
 		}
 		if (!forwardMimeType.isEmpty()) {
-			QDrag *drag = new QDrag(App::wnd());
-			QMimeData *mimeData = new QMimeData();
+			auto drag = std_::make_unique<QDrag>(App::wnd());
+			auto mimeData = std_::make_unique<QMimeData>();
 
 			mimeData->setData(forwardMimeType, "1");
-			if (DocumentData *document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
-				QString filepath = document->filepath(DocumentData::FilePathResolveChecked);
+			if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
+				auto filepath = document->filepath(DocumentData::FilePathResolveChecked);
 				if (!filepath.isEmpty()) {
 					QList<QUrl> urls;
 					urls.push_back(QUrl::fromLocalFile(filepath));
@@ -1046,7 +1046,7 @@ void HistoryInner::onDragExec() {
 				}
 			}
 
-			drag->setMimeData(mimeData);
+			drag->setMimeData(mimeData.release());
 			drag->exec(Qt::CopyAction);
 
 			// We don't receive mouseReleaseEvent when drag is finished.
@@ -1315,8 +1315,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			App::contextItem(App::hoveredLinkItem());
 		}
 	} else { // maybe cursor on some text history item?
-		bool canDelete = (item && item->type() == HistoryItemMsg) && item->canDelete();
-		bool canForward = (item && item->type() == HistoryItemMsg) && (item->id > 0) && !item->serviceMsg();
+		bool canDelete = item && item->canDelete() && (item->id > 0 || !item->serviceMsg());
+		bool canForward = item && (item->id > 0) && !item->serviceMsg();
 
 		HistoryMessage *msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
@@ -1835,7 +1835,7 @@ void HistoryInner::enterEvent(QEvent *e) {
 }
 
 void HistoryInner::leaveEvent(QEvent *e) {
-	if (HistoryItem *item = App::hoveredItem()) {
+	if (auto item = App::hoveredItem()) {
 		repaintItem(item);
 		App::hoveredItem(nullptr);
 	}
@@ -1948,8 +1948,8 @@ bool HistoryInner::canDeleteSelected() const {
 
 void HistoryInner::getSelectionState(int32 &selectedForForward, int32 &selectedForDelete) const {
 	selectedForForward = selectedForDelete = 0;
-	for (SelectedItems::const_iterator i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
-		if (i.key()->type() == HistoryItemMsg && i.value() == FullSelection) {
+	for (auto i = _selected.cbegin(), e = _selected.cend(); i != e; ++i) {
+		if (i.value() == FullSelection) {
 			if (i.key()->canDelete()) {
 				++selectedForDelete;
 			}
@@ -2005,8 +2005,8 @@ void HistoryInner::onUpdateSelected() {
 		return;
 	}
 
-	QPoint mousePos(mapFromGlobal(_dragPos));
-	QPoint point(_widget->clampMousePosition(mousePos));
+	auto mousePos = mapFromGlobal(_dragPos);
+	auto point = _widget->clampMousePosition(mousePos);
 
 	HistoryBlock *block = 0;
 	HistoryItem *item = 0;
@@ -6180,15 +6180,15 @@ void HistoryWidget::contextMenuEvent(QContextMenuEvent *e) {
 }
 
 void HistoryWidget::forwardMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+	auto item = App::contextItem();
+	if (!item || item->id < 0 || item->serviceMsg()) return;
 
 	App::main()->forwardLayer();
 }
 
 void HistoryWidget::selectMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+	auto item = App::contextItem();
+	if (!item || item->id < 0 || item->serviceMsg()) return;
 
 	if (_list) _list->selectItem(item);
 }
@@ -7861,12 +7861,12 @@ void HistoryWidget::onReplyToMessage() {
 			onReplyToMessage();
 			App::contextItem(to);
 		} else {
-			if (to->type() != HistoryItemMsg || to->serviceMsg()) {
+			if (to->id < 0 || to->serviceMsg()) {
 				Ui::show(Box<InformBox>(lang(lng_reply_cant)));
 			} else {
 				Ui::show(Box<ConfirmBox>(lang(lng_reply_cant_forward), lang(lng_selected_forward), base::lambda_guarded(this, [this] {
 					auto item = App::contextItem();
-					if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+					if (!item || item->id < 0 || item->serviceMsg()) return;
 
 					App::forward(_peer->id, ForwardContextMessage);
 				})));
@@ -8381,7 +8381,7 @@ void HistoryWidget::onForwardSelected() {
 
 void HistoryWidget::confirmDeleteContextItem() {
 	auto item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) return;
+	if (!item) return;
 
 	if (auto message = item->toHistoryMessage()) {
 		if (message->uploading()) {
@@ -8406,7 +8406,7 @@ void HistoryWidget::deleteContextItem(bool forEveryone) {
 	Ui::hideLayer();
 
 	auto item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) {
+	if (!item) {
 		return;
 	}
 

@@ -161,7 +161,7 @@ void ConfirmBox::mousePressEvent(QMouseEvent *e) {
 void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	_lastMousePos = e->globalPos();
 	updateHover();
-	if (ClickHandlerPtr activated = ClickHandler::unpressed()) {
+	if (auto activated = ClickHandler::unpressed()) {
 		Ui::hideLayer();
 		App::activateClickHandler(activated, e->button());
 	}

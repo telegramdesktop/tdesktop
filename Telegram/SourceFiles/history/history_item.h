@@ -101,11 +101,6 @@ enum InfoDisplayType {
 	InfoDisplayOverBackground,
 };
 
-enum HistoryItemType {
-	HistoryItemMsg = 0,
-	HistoryItemJoined
-};
-
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia> {
 	void create(int32 userId);
 	void resize(int32 availw) const;
@@ -630,9 +625,6 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) override;
 
-	virtual HistoryItemType type() const {
-		return HistoryItemMsg;
-	}
 	virtual bool serviceMsg() const {
 		return false;
 	}
@@ -687,7 +679,7 @@ public:
 	}
 
 	bool canDelete() const {
-		ChannelData *channel = _history->peer->asChannel();
+		auto channel = _history->peer->asChannel();
 		if (!channel) return !(_flags & MTPDmessage_ClientFlag::f_is_group_migrate);
 
 		if (id == 1) return false;
@@ -707,7 +699,7 @@ public:
 	bool canDeleteForEveryone(const QDateTime &cur) const;
 
 	bool suggestBanReportDeleteAll() const {
-		ChannelData *channel = history()->peer->asChannel();
+		auto channel = history()->peer->asChannel();
 		if (!channel || (!channel->amEditor() && !channel->amCreator())) return false;
 		return !isPost() && !out() && from()->isUser() && toHistoryMessage();
 	}

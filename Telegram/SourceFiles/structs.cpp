@@ -1861,6 +1861,6 @@ ClickHandlerPtr peerOpenClickHandler(PeerData *peer) {
 
 MsgId clientMsgId() {
 	static MsgId currentClientMsgId = StartClientMsgId;
-	Q_ASSERT(currentClientMsgId < EndClientMsgId);
+	t_assert(currentClientMsgId < EndClientMsgId);
 	return currentClientMsgId++;
 }

@@ -349,17 +349,13 @@ bool History::updateSendActionNeedsAnimating(TimeMs ms, bool force) {
 	return result;
 }
 
-ChannelHistory::ChannelHistory(const PeerId &peer) : History(peer)
-, _joinedMessage(nullptr) {
-}
-
 void ChannelHistory::getRangeDifference() {
-	MsgId fromId = 0, toId = 0;
-	for (int32 blockIndex = 0, blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) {
-		HistoryBlock *block = blocks.at(blockIndex);
-		for (int32 itemIndex = 0, itemsCount = block->items.size(); itemIndex < itemsCount; ++itemIndex) {
-			HistoryItem *item = block->items.at(itemIndex);
-			if (item->type() == HistoryItemMsg && item->id > 0) {
+	auto fromId = MsgId(0), toId = MsgId(0);
+	for (auto blockIndex = 0, blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) {
+		auto block = blocks.at(blockIndex);
+		for (auto itemIndex = 0, itemsCount = block->items.size(); itemIndex < itemsCount; ++itemIndex) {
+			auto item = block->items.at(itemIndex);
+			if (item->id > 0) {
 				fromId = item->id;
 				break;
 			}
@@ -367,11 +363,12 @@ void ChannelHistory::getRangeDifference() {
 		if (fromId) break;
 	}
 	if (!fromId) return;
-	for (int32 blockIndex = blocks.size(); blockIndex > 0;) {
-		HistoryBlock *block = blocks.at(--blockIndex);
-		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
-			HistoryItem *item = block->items.at(--itemIndex);
-			if (item->type() == HistoryItemMsg && item->id > 0) {
+
+	for (auto blockIndex = blocks.size(); blockIndex > 0;) {
+		auto block = blocks.at(--blockIndex);
+		for (auto itemIndex = block->items.size(); itemIndex > 0;) {
+			auto item = block->items.at(--itemIndex);
+			if (item->id > 0) {
 				toId = item->id;
 				break;
 			}
@@ -423,31 +420,29 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 		return _joinedMessage;
 	}
 
-	for (int32 blockIndex = blocks.size(); blockIndex > 0;) {
-		HistoryBlock *block = blocks.at(--blockIndex);
-		for (int32 itemIndex = block->items.size(); itemIndex > 0;) {
-			HistoryItem *item = block->items.at(--itemIndex);
-			HistoryItemType type = item->type();
-			if (type == HistoryItemMsg) {
-				// Due to a server bug sometimes inviteDate is less (before) than the
-				// first message in the megagroup (message about migration), let us
-				// ignore that and think, that the inviteDate is always greater-or-equal.
-				if (item->isGroupMigrate() && peer->isMegagroup() && peer->migrateFrom()) {
-					peer->asChannel()->mgInfo->joinedMessageFound = true;
-					return nullptr;
-				}
-				if (item->date <= inviteDate) {
-					++itemIndex;
-					_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
-					addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex);
-					if (lastMsgDate.isNull() || inviteDate >= lastMsgDate) {
-						setLastMessage(_joinedMessage);
-						if (unread) {
-							newItemAdded(_joinedMessage);
-						}
+	for (auto blockIndex = blocks.size(); blockIndex > 0;) {
+		auto block = blocks.at(--blockIndex);
+		for (auto itemIndex = block->items.size(); itemIndex > 0;) {
+			auto item = block->items.at(--itemIndex);
+
+			// Due to a server bug sometimes inviteDate is less (before) than the
+			// first message in the megagroup (message about migration), let us
+			// ignore that and think, that the inviteDate is always greater-or-equal.
+			if (item->isGroupMigrate() && peer->isMegagroup() && peer->migrateFrom()) {
+				peer->asChannel()->mgInfo->joinedMessageFound = true;
+				return nullptr;
+			}
+			if (item->date <= inviteDate) {
+				++itemIndex;
+				_joinedMessage = HistoryJoined::create(this, inviteDate, inviter, flags);
+				addNewInTheMiddle(_joinedMessage, blockIndex, itemIndex);
+				if (lastMsgDate.isNull() || inviteDate >= lastMsgDate) {
+					setLastMessage(_joinedMessage);
+					if (unread) {
+						newItemAdded(_joinedMessage);
 					}
-					return _joinedMessage;
 				}
+				return _joinedMessage;
 			}
 		}
 	}
@@ -479,34 +474,10 @@ void ChannelHistory::checkJoinedMessage(bool createUnread) {
 
 	QDateTime inviteDate = peer->asChannel()->inviteDate;
 	QDateTime firstDate, lastDate;
-	for (int blockIndex = 0, blocksCount = blocks.size(); blockIndex < blocksCount; ++blockIndex) {
-		HistoryBlock *block = blocks.at(blockIndex);
-		int itemIndex = 0, itemsCount = block->items.size();
-		for (; itemIndex < itemsCount; ++itemIndex) {
-			HistoryItem *item = block->items.at(itemIndex);
-			HistoryItemType type = item->type();
-			if (type == HistoryItemMsg) {
-				firstDate = item->date;
-				break;
-			}
-		}
-		if (itemIndex < itemsCount) break;
+	if (!blocks.isEmpty()) {
+		firstDate = blocks.front()->items.front()->date;
+		lastDate = blocks.back()->items.back()->date;
 	}
-	for (int blockIndex = blocks.size(); blockIndex > 0;) {
-		HistoryBlock *block = blocks.at(--blockIndex);
-		int itemIndex = block->items.size();
-		for (; itemIndex > 0;) {
-			HistoryItem *item = block->items.at(--itemIndex);
-			HistoryItemType type = item->type();
-			if (type == HistoryItemMsg) {
-				lastDate = item->date;
-				++itemIndex;
-				break;
-			}
-		}
-		if (itemIndex) break;
-	}
-
 	if (!firstDate.isNull() && !lastDate.isNull() && (firstDate <= inviteDate || loadedAtTop()) && (lastDate > inviteDate || loadedAtBottom())) {
 		bool willBeLastMsg = (inviteDate >= lastDate);
 		if (insertJoinedMessage(createUnread && willBeLastMsg) && willBeLastMsg) {
@@ -565,25 +536,6 @@ HistoryItem *ChannelHistory::addNewToBlocks(const MTPMessage &msg, NewMessageTyp
 
 void ChannelHistory::cleared(bool leaveItems) {
 	_joinedMessage = nullptr;
-}
-
-HistoryItem *ChannelHistory::findPrevItem(HistoryItem *item) const {
-	if (item->detached()) return nullptr;
-
-	int itemIndex = item->indexInBlock();
-	int blockIndex = item->block()->indexInHistory();
-	for (++blockIndex, ++itemIndex; blockIndex > 0;) {
-		--blockIndex;
-		HistoryBlock *block = blocks.at(blockIndex);
-		if (!itemIndex) itemIndex = block->items.size();
-		for (; itemIndex > 0;) {
-			--itemIndex;
-			if (block->items.at(itemIndex)->type() == HistoryItemMsg) {
-				return block->items.at(itemIndex);
-			}
-		}
-	}
-	return nullptr;
 }
 
 void ChannelHistory::messageDetached(HistoryItem *msg) {
@@ -1415,7 +1367,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 	if (slice.isEmpty()) {
 		newLoaded = true;
 		if (!lastMsg) {
-			setLastMessage(lastImportantMessage());
+			setLastMessage(lastAvailableMessage());
 		}
 	}
 
@@ -1433,7 +1385,7 @@ void History::addNewerSlice(const QVector<MTPMessage> &slice) {
 
 		if (!atLeastOneAdded) {
 			newLoaded = true;
-			setLastMessage(lastImportantMessage());
+			setLastMessage(lastAvailableMessage());
 		}
 	}
 
@@ -1452,7 +1404,7 @@ void History::checkLastMsg() {
 			checkAddAllToOverview();
 		}
 	} else if (newLoaded) {
-		setLastMessage(lastImportantMessage());
+		setLastMessage(lastAvailableMessage());
 	}
 }
 
@@ -1506,7 +1458,7 @@ void History::updateShowFrom() {
 		--i;
 		for (auto j = (*i)->items.cend(); j != (*i)->items.cbegin();) {
 			--j;
-			if ((*j)->type() == HistoryItemMsg && (*j)->id > 0 && (!(*j)->out() || !showFrom)) {
+			if ((*j)->id > 0 && (!(*j)->out() || !showFrom)) {
 				if ((*j)->id >= inboxReadBefore) {
 					showFrom = *j;
 				} else {
@@ -1556,27 +1508,14 @@ MsgId History::outboxRead(HistoryItem *wasRead) {
 	return outboxRead(wasRead ? wasRead->id : 0);
 }
 
-HistoryItem *History::lastImportantMessage() const {
-	if (isEmpty()) {
-		return nullptr;
-	}
-	bool importantOnly = isChannel() && !isMegagroup();
-	for (int blockIndex = blocks.size(); blockIndex > 0;) {
-		HistoryBlock *block = blocks.at(--blockIndex);
-		for (int itemIndex = block->items.size(); itemIndex > 0;) {
-			HistoryItem *item = block->items.at(--itemIndex);
-			if (item->type() == HistoryItemMsg) {
-				return item;
-			}
-		}
-	}
-	return nullptr;
+HistoryItem *History::lastAvailableMessage() const {
+	return isEmpty() ? nullptr : blocks.back()->items.back();
 }
 
 void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount != newUnreadCount) {
 		if (newUnreadCount == 1) {
-			if (loadedAtBottom()) showFrom = lastImportantMessage();
+			if (loadedAtBottom()) showFrom = lastAvailableMessage();
 			inboxReadBefore = qMax(inboxReadBefore, msgIdForRead());
 		} else if (!newUnreadCount) {
 			showFrom = nullptr;
@@ -1626,19 +1565,19 @@ void History::setUnreadCount(int newUnreadCount) {
 
 void History::getNextShowFrom(HistoryBlock *block, int i) {
 	if (i >= 0) {
-		int l = block->items.size();
+		auto l = block->items.size();
 		for (++i; i < l; ++i) {
-			if (block->items.at(i)->type() == HistoryItemMsg) {
+			if (block->items[i]->id > 0) {
 				showFrom = block->items.at(i);
 				return;
 			}
 		}
 	}
 
-	for (int j = block->indexInHistory() + 1, s = blocks.size(); j < s; ++j) {
+	for (auto j = block->indexInHistory() + 1, s = blocks.size(); j < s; ++j) {
 		block = blocks.at(j);
-		for_const (HistoryItem *item, block->items) {
-			if (item->type() == HistoryItemMsg) {
+		for_const (auto item, block->items) {
+			if (item->id > 0) {
 				showFrom = item;
 				return;
 			}
@@ -1935,7 +1874,7 @@ void History::updateChatListSortPosition() {
 }
 
 void History::fixLastMessage(bool wasAtBottom) {
-	setLastMessage(wasAtBottom ? lastImportantMessage() : 0);
+	setLastMessage(wasAtBottom ? lastAvailableMessage() : 0);
 }
 
 MsgId History::minMsgId() const {

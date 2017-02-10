@@ -357,10 +357,6 @@ public:
 		return _create(history, date, from, flags);
 	}
 
-	HistoryItemType type() const {
-		return HistoryItemJoined;
-	}
-
 protected:
 	HistoryJoined(History *history, const QDateTime &date, UserData *from, MTPDmessage::Flags flags);
 	using HistoryItemInstantiated<HistoryJoined>::_create;

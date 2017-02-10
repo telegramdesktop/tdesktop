@@ -1142,9 +1142,8 @@ void OverviewInner::enterEvent(QEvent *e) {
 }
 
 void OverviewInner::leaveEvent(QEvent *e) {
-	if (_selectedMsgId) {
-		repaintItem(_selectedMsgId, -1);
-		_selectedMsgId = 0;
+	if (auto selectedMsgId = base::take(_selectedMsgId)) {
+		repaintItem(selectedMsgId, -1);
 	}
 	ClickHandler::clearActive();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
@@ -1406,8 +1405,8 @@ void OverviewInner::goToMessage() {
 }
 
 void OverviewInner::forwardMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+	auto item = App::contextItem();
+	if (!item || item->id < 0) return;
 
 	App::main()->forwardLayer();
 }
@@ -1417,8 +1416,8 @@ MsgId OverviewInner::complexMsgId(const HistoryItem *item) const {
 }
 
 void OverviewInner::selectMessage() {
-	HistoryItem *item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg || item->serviceMsg()) return;
+	auto item = App::contextItem();
+	if (!item || item->id < 0) return;
 
 	if (!_selected.isEmpty() && _selected.cbegin().value() != FullSelection) {
 		_selected.clear();
@@ -2274,7 +2273,7 @@ void OverviewWidget::onForwardSelected() {
 
 void OverviewWidget::confirmDeleteContextItem() {
 	auto item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) return;
+	if (!item) return;
 
 	if (auto message = item->toHistoryMessage()) {
 		if (message->uploading()) {
@@ -2297,7 +2296,7 @@ void OverviewWidget::deleteContextItem(bool forEveryone) {
 	Ui::hideLayer();
 
 	auto item = App::contextItem();
-	if (!item || item->type() != HistoryItemMsg) {
+	if (!item) {
 		return;
 	}
 

@@ -32,7 +32,6 @@ enum ExpandLinksMode {
 
 class ClickHandlerHost {
 protected:
-
 	virtual void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
 	}
 	virtual void clickHandlerPressedChanged(const ClickHandlerPtr &action, bool pressed) {

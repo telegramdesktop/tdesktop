@@ -650,7 +650,7 @@ void HistoryItem::destroy() {
 	// All this must be done for all items manually in History::clear(false)!
 	eraseFromOverview();
 
-	bool wasAtBottom = history()->loadedAtBottom();
+	auto wasAtBottom = history()->loadedAtBottom();
 	_history->removeNotification(this);
 	detach();
 	if (history()->isChannel()) {
