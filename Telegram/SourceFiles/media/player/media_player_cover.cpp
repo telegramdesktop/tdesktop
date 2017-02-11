@@ -227,7 +227,7 @@ void CoverWidget::updateRepeatTrackIcon() {
 }
 
 void CoverWidget::handleSongUpdate(const TrackState &state) {
-	if (!state.id || !state.id.audio()->song()) {
+	if (!state.id.audio() || !state.id.audio()->song()) {
 		return;
 	}
 
