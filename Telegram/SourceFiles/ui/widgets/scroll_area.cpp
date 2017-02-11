@@ -40,7 +40,7 @@ void ScrollShadow::changeVisibility(bool shown) {
 	setVisible(shown);
 }
 
-ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : QWidget(parent)
+ScrollBar::ScrollBar(ScrollArea *parent, bool vert, const style::ScrollArea *st) : TWidget(parent)
 , _st(st)
 , _vertical(vert)
 , _hiding(_st->hiding != 0)
@@ -214,13 +214,13 @@ void ScrollBar::hideTimeout(TimeMs dt) {
 	}
 }
 
-void ScrollBar::enterEvent(QEvent *e) {
+void ScrollBar::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	setMouseTracking(true);
 	setOver(true);
 }
 
-void ScrollBar::leaveEvent(QEvent *e) {
+void ScrollBar::leaveEventHook(QEvent *e) {
 	if (!_moving) {
 		setMouseTracking(false);
 	}
@@ -320,7 +320,7 @@ void SplittedWidgetOther::paintEvent(QPaintEvent *e) {
 	}
 }
 
-ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch) : QScrollArea(parent)
+ScrollArea::ScrollArea(QWidget *parent, const style::ScrollArea &st, bool handleTouch) : TWidgetHelper<QScrollArea>(parent)
 , _st(st)
 , _horizontalBar(this, false, &_st)
 , _verticalBar(this, true, &_st)

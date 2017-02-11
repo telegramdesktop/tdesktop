@@ -156,11 +156,11 @@ void ContinuousSlider::updateDownValueFromPos(const QPoint &pos) {
 	}
 }
 
-void ContinuousSlider::enterEvent(QEvent *e) {
+void ContinuousSlider::enterEventHook(QEvent *e) {
 	setOver(true);
 }
 
-void ContinuousSlider::leaveEvent(QEvent *e) {
+void ContinuousSlider::leaveEventHook(QEvent *e) {
 	setOver(false);
 }
 

@@ -225,12 +225,12 @@ void PeerListWidget::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-void PeerListWidget::enterEvent(QEvent *e) {
+void PeerListWidget::enterEventHook(QEvent *e) {
 	_mousePosition = QCursor::pos();
 	updateSelection();
 }
 
-void PeerListWidget::leaveEvent(QEvent *e) {
+void PeerListWidget::leaveEventHook(QEvent *e) {
 	_mousePosition = QPoint(-1, -1);
 	updateSelection();
 }

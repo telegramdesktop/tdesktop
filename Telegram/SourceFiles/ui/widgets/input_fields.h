@@ -28,9 +28,8 @@ namespace Ui {
 
 static UserData * const LookingUpInlineBot = SharedMemoryLocation<UserData, 0>();
 
-class FlatTextarea : public QTextEdit, private base::Subscriber {
+class FlatTextarea : public TWidgetHelper<QTextEdit>, private base::Subscriber {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	using TagList = TextWithTags::Tags;
@@ -111,10 +110,6 @@ public:
 		}
 	};
 	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
-
-	QMargins getMargins() const {
-		return QMargins();
-	}
 
 public slots:
 	void onTouchTimer();
@@ -243,9 +238,8 @@ inline bool operator!=(const FlatTextarea::LinkRange &a, const FlatTextarea::Lin
 	return !(a == b);
 }
 
-class FlatInput : public QLineEdit, private base::Subscriber {
+class FlatInput : public TWidgetHelper<QLineEdit>, private base::Subscriber {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	FlatInput(QWidget *parent, const style::FlatInput &st, const QString &ph = QString(), const QString &val = QString());
@@ -262,10 +256,6 @@ public:
 	void customUpDown(bool isCustom);
 	const QString &getLastText() const {
 		return _oldtext;
-	}
-
-	QMargins getMargins() const {
-		return QMargins();
 	}
 
 public slots:
@@ -694,9 +684,8 @@ private:
 	bool _correcting = false;
 };
 
-class MaskedInputField : public QLineEdit, private base::Subscriber {
+class MaskedInputField : public TWidgetHelper<QLineEdit>, private base::Subscriber {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder = QString(), const QString &val = QString());
@@ -727,10 +716,6 @@ public:
 	void clear() {
 		QLineEdit::clear();
 		startPlaceholderAnimation();
-	}
-
-	QMargins getMargins() const {
-		return QMargins();
 	}
 
 public slots:

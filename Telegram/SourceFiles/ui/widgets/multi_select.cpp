@@ -606,7 +606,7 @@ QMargins MultiSelect::Inner::itemPaintMargins() const {
 	};
 }
 
-void MultiSelect::Inner::leaveEvent(QEvent *e) {
+void MultiSelect::Inner::leaveEventHook(QEvent *e) {
 	clearSelection();
 }
 

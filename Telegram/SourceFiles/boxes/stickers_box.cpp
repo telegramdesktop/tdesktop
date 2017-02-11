@@ -972,7 +972,7 @@ void StickersBox::Inner::setRowRemoved(int index, bool removed) {
 	}
 }
 
-void StickersBox::Inner::leaveEvent(QEvent *e) {
+void StickersBox::Inner::leaveEventHook(QEvent *e) {
 	_mouse = QPoint(-1, -1);
 	onUpdateSelected();
 }

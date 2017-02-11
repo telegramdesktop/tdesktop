@@ -1137,11 +1137,11 @@ void OverviewInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void OverviewInner::enterEvent(QEvent *e) {
-	return QWidget::enterEvent(e);
+void OverviewInner::enterEventHook(QEvent *e) {
+	return TWidget::enterEventHook(e);
 }
 
-void OverviewInner::leaveEvent(QEvent *e) {
+void OverviewInner::leaveEventHook(QEvent *e) {
 	if (auto selectedMsgId = base::take(_selectedMsgId)) {
 		repaintItem(selectedMsgId, -1);
 	}
@@ -1150,7 +1150,7 @@ void OverviewInner::leaveEvent(QEvent *e) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
 	}
-	return QWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void OverviewInner::resizeEvent(QResizeEvent *e) {

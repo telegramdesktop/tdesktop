@@ -836,13 +836,13 @@ void FieldAutocompleteInner::mouseReleaseEvent(QMouseEvent *e) {
 	chooseSelected(FieldAutocomplete::ChooseMethod::ByClick);
 }
 
-void FieldAutocompleteInner::enterEvent(QEvent *e) {
+void FieldAutocompleteInner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 	_mousePos = QCursor::pos();
 	onUpdateSelected(true);
 }
 
-void FieldAutocompleteInner::leaveEvent(QEvent *e) {
+void FieldAutocompleteInner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	if (_sel >= 0) {
 		setSel(-1);

@@ -792,7 +792,7 @@ bool Notification::unlinkHistory(History *history) {
 	return unlink;
 }
 
-void Notification::enterEvent(QEvent *e) {
+void Notification::enterEventHook(QEvent *e) {
 	if (!_history) return;
 	if (auto manager = ManagerInstance.data()) {
 		manager->stopAllHiding();
@@ -802,7 +802,7 @@ void Notification::enterEvent(QEvent *e) {
 	}
 }
 
-void Notification::leaveEvent(QEvent *e) {
+void Notification::leaveEventHook(QEvent *e) {
 	if (!_history) return;
 	if (auto manager = ManagerInstance.data()) {
 		manager->startAllHiding();
@@ -892,12 +892,12 @@ HideAllButton::~HideAllButton() {
 	}
 }
 
-void HideAllButton::enterEvent(QEvent *e) {
+void HideAllButton::enterEventHook(QEvent *e) {
 	_mouseOver = true;
 	update();
 }
 
-void HideAllButton::leaveEvent(QEvent *e) {
+void HideAllButton::leaveEventHook(QEvent *e) {
 	_mouseOver = false;
 	update();
 }

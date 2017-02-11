@@ -181,11 +181,11 @@ void MembersBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void MembersBox::Inner::enterEvent(QEvent *e) {
+void MembersBox::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void MembersBox::Inner::leaveEvent(QEvent *e) {
+void MembersBox::Inner::leaveEventHook(QEvent *e) {
 	_mouseSelection = false;
 	setMouseTracking(false);
 	if (_selected >= 0) {

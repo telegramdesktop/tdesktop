@@ -133,7 +133,7 @@ QString FlatTextarea::tagsMimeType() {
 	return qsl("application/x-td-field-tags");
 }
 
-FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : QTextEdit(parent)
+FlatTextarea::FlatTextarea(QWidget *parent, const style::FlatTextarea &st, const QString &pholder, const QString &v, const TagList &tags) : TWidgetHelper<QTextEdit>(parent)
 , _placeholderVisible(!v.length())
 , _lastTextWithTags { v, tags }
 , _st(st) {
@@ -1464,7 +1464,7 @@ void FlatTextarea::contextMenuEvent(QContextMenuEvent *e) {
 	}
 }
 
-FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString &pholder, const QString &v) : QLineEdit(v, parent)
+FlatInput::FlatInput(QWidget *parent, const style::FlatInput &st, const QString &pholder, const QString &v) : TWidgetHelper<QLineEdit>(v, parent)
 , _oldtext(v)
 , _fullph(pholder)
 , _placeholderVisible(!v.length())
@@ -3228,7 +3228,7 @@ void InputField::setErrorShown(bool error) {
 	}
 }
 
-MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder, const QString &val) : QLineEdit(val, parent)
+MaskedInputField::MaskedInputField(QWidget *parent, const style::InputField &st, const QString &placeholder, const QString &val) : TWidgetHelper<QLineEdit>(val, parent)
 , _st(st)
 , _oldtext(val)
 , _placeholderFull(placeholder) {

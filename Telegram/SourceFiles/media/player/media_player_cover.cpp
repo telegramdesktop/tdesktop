@@ -194,7 +194,7 @@ void CoverWidget::mouseMoveEvent(QMouseEvent *e) {
 	setCloseVisible(closeVisible);
 }
 
-void CoverWidget::leaveEvent(QEvent *e) {
+void CoverWidget::leaveEventHook(QEvent *e) {
 	setCloseVisible(false);
 }
 

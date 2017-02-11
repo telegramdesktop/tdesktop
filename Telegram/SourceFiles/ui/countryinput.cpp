@@ -165,11 +165,11 @@ void CountryInput::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void CountryInput::enterEvent(QEvent *e) {
+void CountryInput::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void CountryInput::leaveEvent(QEvent *e) {
+void CountryInput::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	_active = false;
 	setCursor(style::cur_default);
@@ -366,11 +366,11 @@ void CountrySelectBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void CountrySelectBox::Inner::enterEvent(QEvent *e) {
+void CountrySelectBox::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void CountrySelectBox::Inner::leaveEvent(QEvent *e) {
+void CountrySelectBox::Inner::leaveEventHook(QEvent *e) {
 	_mouseSelection = false;
 	setMouseTracking(false);
 	if (_selected >= 0) {

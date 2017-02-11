@@ -277,7 +277,7 @@ void StickerSetBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void StickerSetBox::Inner::leaveEvent(QEvent *e) {
+void StickerSetBox::Inner::leaveEventHook(QEvent *e) {
 	setSelected(-1);
 }
 

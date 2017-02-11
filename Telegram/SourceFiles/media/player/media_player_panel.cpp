@@ -177,7 +177,7 @@ void Panel::paintEvent(QPaintEvent *e) {
 	App::roundRect(p, shadowedRect, st::menuBg, MenuCorners, nullptr, parts);
 }
 
-void Panel::enterEvent(QEvent *e) {
+void Panel::enterEventHook(QEvent *e) {
 	if (_ignoringEnterEvents) return;
 
 	_hideTimer.stop();
@@ -186,17 +186,17 @@ void Panel::enterEvent(QEvent *e) {
 	} else {
 		_showTimer.start(0);
 	}
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void Panel::leaveEvent(QEvent *e) {
+void Panel::leaveEventHook(QEvent *e) {
 	_showTimer.stop();
 	if (_a_appearance.animating(getms())) {
 		onHideStart();
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void Panel::showFromOther() {

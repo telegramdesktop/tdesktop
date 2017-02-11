@@ -546,7 +546,7 @@ void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void SetupChannelBox::leaveEvent(QEvent *e) {
+void SetupChannelBox::leaveEventHook(QEvent *e) {
 	updateSelected(QCursor::pos());
 }
 

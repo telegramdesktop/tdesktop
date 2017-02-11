@@ -51,7 +51,7 @@ private:
 
 };
 
-class ScrollBar : public QWidget {
+class ScrollBar : public TWidget {
 	Q_OBJECT
 
 public:
@@ -73,8 +73,8 @@ signals:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	void enterEvent(QEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
@@ -170,9 +170,8 @@ private:
 };
 
 class SplittedWidgetOther;
-class ScrollArea : public QScrollArea {
+class ScrollArea : public TWidgetHelper<QScrollArea> {
 	Q_OBJECT
-	T_WIDGET
 
 public:
 	ScrollArea(QWidget *parent, const style::ScrollArea &st = st::defaultScrollArea, bool handleTouch = true);
@@ -204,10 +203,6 @@ public:
 
 	bool viewportEvent(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
-
-	QMargins getMargins() const {
-		return QMargins();
-	}
 
 protected:
 	bool eventFilter(QObject *obj, QEvent *e) override;

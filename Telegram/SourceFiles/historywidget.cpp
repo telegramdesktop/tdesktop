@@ -1834,12 +1834,12 @@ void HistoryInner::updateSize() {
 	}
 }
 
-void HistoryInner::enterEvent(QEvent *e) {
+void HistoryInner::enterEventHook(QEvent *e) {
 	dragActionUpdate(QCursor::pos());
-//	return QWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void HistoryInner::leaveEvent(QEvent *e) {
+void HistoryInner::leaveEventHook(QEvent *e) {
 	if (auto item = App::hoveredItem()) {
 		repaintItem(item);
 		App::hoveredItem(nullptr);
@@ -1850,7 +1850,7 @@ void HistoryInner::leaveEvent(QEvent *e) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
 	}
-	return QWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 HistoryInner::~HistoryInner() {
@@ -2577,12 +2577,12 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void BotKeyboard::enterEvent(QEvent *e) {
+void BotKeyboard::enterEventHook(QEvent *e) {
 	_lastMousePos = QCursor::pos();
 	updateSelected();
 }
 
-void BotKeyboard::leaveEvent(QEvent *e) {
+void BotKeyboard::leaveEventHook(QEvent *e) {
 	clearSelection();
 }
 
@@ -2988,7 +2988,7 @@ public:
 protected:
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 private:
 	bool _checked = false;
@@ -3015,8 +3015,8 @@ void SilentToggle::setChecked(bool checked) {
 	}
 }
 
-void SilentToggle::leaveEvent(QEvent *e) {
-	IconButton::leaveEvent(e);
+void SilentToggle::leaveEventHook(QEvent *e) {
+	IconButton::leaveEventHook(e);
 	Ui::Tooltip::Hide();
 }
 
@@ -5627,7 +5627,7 @@ void HistoryWidget::dragLeaveEvent(QDragLeaveEvent *e) {
 	}
 }
 
-void HistoryWidget::leaveEvent(QEvent *e) {
+void HistoryWidget::leaveEventHook(QEvent *e) {
 	if (_attachDrag != DragStateNone || !_attachDragPhoto->isHidden() || !_attachDragDocument->isHidden()) {
 		_attachDrag = DragStateNone;
 		updateDragAreas();

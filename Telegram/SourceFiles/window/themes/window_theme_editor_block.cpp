@@ -621,7 +621,7 @@ void EditorBlock::updateSelected(QPoint localPosition) {
 	setSelected(underMouseIndex);
 }
 
-void EditorBlock::leaveEvent(QEvent *e) {
+void EditorBlock::leaveEventHook(QEvent *e) {
 	_mouseSelection = false;
 	setSelected(-1);
 }

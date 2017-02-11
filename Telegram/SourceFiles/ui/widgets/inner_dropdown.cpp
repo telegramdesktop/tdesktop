@@ -127,19 +127,19 @@ void InnerDropdown::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void InnerDropdown::enterEvent(QEvent *e) {
+void InnerDropdown::enterEventHook(QEvent *e) {
 	showAnimated(_origin);
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void InnerDropdown::leaveEvent(QEvent *e) {
+void InnerDropdown::leaveEventHook(QEvent *e) {
 	auto ms = getms();
 	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
 		hideAnimated();
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void InnerDropdown::otherEnter() {

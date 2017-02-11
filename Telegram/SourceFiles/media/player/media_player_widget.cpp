@@ -233,7 +233,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void Widget::leaveEvent(QEvent *e) {
+void Widget::leaveEventHook(QEvent *e) {
 	updateOverLabelsState(false);
 }
 

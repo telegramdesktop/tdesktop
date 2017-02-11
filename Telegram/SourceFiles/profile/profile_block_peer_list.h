@@ -107,13 +107,13 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-	void enterEvent(QEvent *e) override;
+	void enterEventHook(QEvent *e) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override {
-		enterEvent(e);
+		enterEventHook(e);
 	}
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override {
-		leaveEvent(e);
+		leaveEventHook(e);
 	}
 
 	virtual Ui::PopupMenu *fillPeerMenu(PeerData *peer) {

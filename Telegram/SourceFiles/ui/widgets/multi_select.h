@@ -100,7 +100,7 @@ protected:
 	int resizeGetHeight(int newWidth) override;
 
 	void paintEvent(QPaintEvent *e) override;
-	void leaveEvent(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void mousePressEvent(QMouseEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;

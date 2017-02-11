@@ -332,7 +332,7 @@ void NotificationsBox::mouseMoveEvent(QMouseEvent *e) {
 	}
 }
 
-void NotificationsBox::leaveEvent(QEvent *e) {
+void NotificationsBox::leaveEventHook(QEvent *e) {
 	clearOverCorner();
 }
 

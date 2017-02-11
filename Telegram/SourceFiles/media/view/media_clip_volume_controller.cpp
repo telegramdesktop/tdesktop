@@ -93,11 +93,11 @@ void VolumeController::mouseReleaseEvent(QMouseEvent *e) {
 	_downCoord = -1;
 }
 
-void VolumeController::enterEvent(QEvent *e) {
+void VolumeController::enterEventHook(QEvent *e) {
 	setOver(true);
 }
 
-void VolumeController::leaveEvent(QEvent *e) {
+void VolumeController::leaveEventHook(QEvent *e) {
 	setOver(false);
 }
 

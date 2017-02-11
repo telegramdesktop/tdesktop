@@ -1088,7 +1088,7 @@ void DialogsInner::updateDialogRow(PeerData *peer, MsgId msgId, QRect updateRect
 	}
 }
 
-void DialogsInner::enterEvent(QEvent *e) {
+void DialogsInner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 	updateSelected();
 }
@@ -1131,7 +1131,7 @@ void DialogsInner::updateSelectedRow(PeerData *peer) {
 	}
 }
 
-void DialogsInner::leaveEvent(QEvent *e) {
+void DialogsInner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 	clearSelection();
 }

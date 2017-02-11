@@ -105,14 +105,14 @@ void EmojiColorPicker::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void EmojiColorPicker::enterEvent(QEvent *e) {
+void EmojiColorPicker::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	if (_hiding) showAnimated();
-	TWidget::enterEvent(e);
+	TWidget::enterEventHook(e);
 }
 
-void EmojiColorPicker::leaveEvent(QEvent *e) {
-	TWidget::leaveEvent(e);
+void EmojiColorPicker::leaveEventHook(QEvent *e) {
+	TWidget::leaveEventHook(e);
 }
 
 void EmojiColorPicker::mousePressEvent(QMouseEvent *e) {
@@ -542,7 +542,7 @@ void EmojiPanInner::mouseMoveEvent(QMouseEvent *e) {
 	updateSelected();
 }
 
-void EmojiPanInner::leaveEvent(QEvent *e) {
+void EmojiPanInner::leaveEventHook(QEvent *e) {
 	clearSelection();
 }
 
@@ -1253,7 +1253,7 @@ void StickerPanInner::mouseMoveEvent(QMouseEvent *e) {
 	updateSelected();
 }
 
-void StickerPanInner::leaveEvent(QEvent *e) {
+void StickerPanInner::leaveEventHook(QEvent *e) {
 	clearSelection();
 }
 
@@ -2991,7 +2991,7 @@ void EmojiPan::moveByBottom() {
 	updateContentHeight();
 }
 
-void EmojiPan::enterEvent(QEvent *e) {
+void EmojiPan::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	if (_hiding) showAnimated(_origin);
 }
@@ -3000,7 +3000,7 @@ bool EmojiPan::preventAutoHide() const {
 	return _removingSetId || _displayingSetId;
 }
 
-void EmojiPan::leaveEvent(QEvent *e) {
+void EmojiPan::leaveEventHook(QEvent *e) {
 	if (preventAutoHide() || s_inner->inlineResultsShown()) return;
 	auto ms = getms();
 	if (_a_show.animating(ms) || _a_opacity.animating(ms)) {
@@ -3008,7 +3008,7 @@ void EmojiPan::leaveEvent(QEvent *e) {
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void EmojiPan::otherEnter() {

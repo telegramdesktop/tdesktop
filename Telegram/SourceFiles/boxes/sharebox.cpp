@@ -578,11 +578,11 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void ShareBox::Inner::enterEvent(QEvent *e) {
+void ShareBox::Inner::enterEventHook(QEvent *e) {
 	setMouseTracking(true);
 }
 
-void ShareBox::Inner::leaveEvent(QEvent *e) {
+void ShareBox::Inner::leaveEventHook(QEvent *e) {
 	setMouseTracking(false);
 }
 

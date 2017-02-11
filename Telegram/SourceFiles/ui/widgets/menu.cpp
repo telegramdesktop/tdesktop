@@ -298,17 +298,17 @@ void Menu::clearMouseSelection() {
 	}
 }
 
-void Menu::enterEvent(QEvent *e) {
+void Menu::enterEventHook(QEvent *e) {
 	QPoint mouse = QCursor::pos();
 	if (!rect().marginsRemoved(QMargins(0, _st.skip, 0, _st.skip)).contains(mapFromGlobal(mouse))) {
 		clearMouseSelection();
 	}
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void Menu::leaveEvent(QEvent *e) {
+void Menu::leaveEventHook(QEvent *e) {
 	clearMouseSelection();
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void Menu::setSelected(int selected) {

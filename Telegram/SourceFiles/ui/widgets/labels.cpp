@@ -359,12 +359,12 @@ void FlatLabel::mouseDoubleClickEvent(QMouseEvent *e) {
 	}
 }
 
-void FlatLabel::enterEvent(QEvent *e) {
+void FlatLabel::enterEventHook(QEvent *e) {
 	_lastMousePos = QCursor::pos();
 	dragActionUpdate();
 }
 
-void FlatLabel::leaveEvent(QEvent *e) {
+void FlatLabel::leaveEventHook(QEvent *e) {
 	ClickHandler::clearActive(this);
 }
 

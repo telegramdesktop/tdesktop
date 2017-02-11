@@ -150,24 +150,24 @@ void VolumeWidget::paintEvent(QPaintEvent *e) {
 	App::roundRect(p, QRect(shadowedRect.x(), -st::buttonRadius, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::buttonRadius), st::menuBg, MenuCorners, nullptr, parts);
 }
 
-void VolumeWidget::enterEvent(QEvent *e) {
+void VolumeWidget::enterEventHook(QEvent *e) {
 	_hideTimer.stop();
 	if (_a_appearance.animating(getms())) {
 		onShowStart();
 	} else {
 		_showTimer.start(0);
 	}
-	return TWidget::enterEvent(e);
+	return TWidget::enterEventHook(e);
 }
 
-void VolumeWidget::leaveEvent(QEvent *e) {
+void VolumeWidget::leaveEventHook(QEvent *e) {
 	_showTimer.stop();
 	if (_a_appearance.animating(getms())) {
 		onHideStart();
 	} else {
 		_hideTimer.start(300);
 	}
-	return TWidget::leaveEvent(e);
+	return TWidget::leaveEventHook(e);
 }
 
 void VolumeWidget::otherEnter() {

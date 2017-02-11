@@ -168,7 +168,7 @@ void ConfirmBox::mouseReleaseEvent(QMouseEvent *e) {
 	return BoxContent::mouseReleaseEvent(e);
 }
 
-void ConfirmBox::leaveEvent(QEvent *e) {
+void ConfirmBox::leaveEventHook(QEvent *e) {
 	ClickHandler::clearActive(this);
 }
 
@@ -245,7 +245,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void MaxInviteBox::leaveEvent(QEvent *e) {
+void MaxInviteBox::leaveEventHook(QEvent *e) {
 	updateSelected(QCursor::pos());
 }
 

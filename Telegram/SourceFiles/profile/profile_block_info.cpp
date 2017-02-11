@@ -120,7 +120,7 @@ int InfoWidget::resizeGetHeight(int newWidth) {
 	return newHeight;
 }
 
-void InfoWidget::leaveEvent(QEvent *e) {
+void InfoWidget::leaveEventHook(QEvent *e) {
 	BotCommandClickHandler::setPeerForCommand(nullptr);
 	BotCommandClickHandler::setBotForCommand(nullptr);
 }
