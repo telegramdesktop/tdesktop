@@ -162,7 +162,10 @@ public:
 			return true;
 		}
 		if (auto message = _parent->toHistoryMessage()) {
-			return message->displayFromName();
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
 		return false;
 	}
@@ -249,7 +252,10 @@ public:
 			return true;
 		}
 		if (auto message = _parent->toHistoryMessage()) {
-			return message->displayFromName();
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
 		return false;
 	}
@@ -503,7 +509,10 @@ public:
 			return true;
 		}
 		if (auto message = _parent->toHistoryMessage()) {
-			return message->displayFromName();
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
 		return false;
 	}
@@ -904,7 +913,10 @@ public:
 			return true;
 		}
 		if (auto message = _parent->toHistoryMessage()) {
-			return message->displayFromName();
+			return message->viaBot()
+				|| message->Has<HistoryMessageForwarded>()
+				|| message->Has<HistoryMessageReply>()
+				|| message->displayFromName();
 		}
 		return false;
 	}
