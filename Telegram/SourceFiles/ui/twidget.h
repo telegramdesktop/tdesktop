@@ -140,13 +140,13 @@ public:
 		auto margins = getMargins();
 		x -= margins.left();
 		y -= margins.top();
-		move(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()) : x, y);
+		Base::move(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()) : x, y);
 	}
 	void moveToRight(int x, int y, int outerw = 0) {
 		auto margins = getMargins();
 		x -= margins.right();
 		y -= margins.top();
-		move(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - width()), y);
+		Base::move(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - Base::width()), y);
 	}
 	void setGeometryToLeft(int x, int y, int w, int h, int outerw = 0) {
 		auto margins = getMargins();
@@ -154,7 +154,7 @@ public:
 		y -= margins.top();
 		w -= margins.left() - margins.right();
 		h -= margins.top() - margins.bottom();
-		setGeometry(rtl() ? ((outerw > 0 ? outerw : parentWidget()->width()) - x - w) : x, y, w, h);
+		Base::setGeometry(rtl() ? ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w) : x, y, w, h);
 	}
 	void setGeometryToRight(int x, int y, int w, int h, int outerw = 0) {
 		auto margins = getMargins();
@@ -162,25 +162,25 @@ public:
 		y -= margins.top();
 		w -= margins.left() - margins.right();
 		h -= margins.top() - margins.bottom();
-		setGeometry(rtl() ? x : ((outerw > 0 ? outerw : parentWidget()->width()) - x - w), y, w, h);
+		Base::setGeometry(rtl() ? x : ((outerw > 0 ? outerw : Base::parentWidget()->width()) - x - w), y, w, h);
 	}
 	QPoint myrtlpoint(int x, int y) const {
-		return rtlpoint(x, y, width());
+		return rtlpoint(x, y, Base::width());
 	}
 	QPoint myrtlpoint(const QPoint p) const {
-		return rtlpoint(p, width());
+		return rtlpoint(p, Base::width());
 	}
 	QRect myrtlrect(int x, int y, int w, int h) const {
-		return rtlrect(x, y, w, h, width());
+		return rtlrect(x, y, w, h, Base::width());
 	}
 	QRect myrtlrect(const QRect &r) const {
-		return rtlrect(r, width());
+		return rtlrect(r, Base::width());
 	}
 	void rtlupdate(const QRect &r) {
-		update(myrtlrect(r));
+		Base::update(myrtlrect(r));
 	}
 	void rtlupdate(int x, int y, int w, int h) {
-		update(myrtlrect(x, y, w, h));
+		Base::update(myrtlrect(x, y, w, h));
 	}
 
 protected:
@@ -214,10 +214,10 @@ protected:
 
 private:
 	TWidget *tparent() {
-		return qobject_cast<TWidget*>(parentWidget());
+		return qobject_cast<TWidget*>(Base::parentWidget());
 	}
 	const TWidget *tparent() const {
-		return qobject_cast<const TWidget*>(parentWidget());
+		return qobject_cast<const TWidget*>(Base::parentWidget());
 	}
 
 };

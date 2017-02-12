@@ -211,8 +211,8 @@ protected:
 	void moveEvent(QMoveEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 
-	void enterEventHook(QEvent *e);
-	void leaveEventHook(QEvent *e);
+	void enterEventHook(QEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
 
 public slots:
 	void scrollToY(int toTop, int toBottom = -1);

@@ -130,13 +130,6 @@ signals:
 	void linksChanged();
 
 protected:
-	void enterEventHook(QEvent *e) {
-		return QTextEdit::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QTextEdit::leaveEvent(e);
-	}
-
 	bool viewportEvent(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
@@ -272,13 +265,6 @@ signals:
 	void blurred();
 
 protected:
-	void enterEventHook(QEvent *e) {
-		return QLineEdit::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QLineEdit::leaveEvent(e);
-	}
-
 	bool event(QEvent *e) override;
 	void touchEvent(QTouchEvent *e);
 	void paintEvent(QPaintEvent *e) override;
@@ -745,13 +731,6 @@ protected:
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 	void contextMenuEvent(QContextMenuEvent *e) override;
-
-	void enterEventHook(QEvent *e) {
-		return QLineEdit::enterEvent(e);
-	}
-	void leaveEventHook(QEvent *e) {
-		return QLineEdit::leaveEvent(e);
-	}
 
 	virtual void correctValue(const QString &was, int32 wasCursor, QString &now, int32 &nowCursor) {
 	}
