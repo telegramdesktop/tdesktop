@@ -528,6 +528,7 @@ enum {
 	// 0x1b reserved
 	dbiNotifyView = 0x1c,
 	dbiSendToMenu = 0x1d,
+	dbiUseExternalVideoPlayer = 0x49,
 	dbiCompressPastedImage = 0x1e,
 	dbiLang = 0x1f,
 	dbiLangFile = 0x20,
@@ -926,6 +927,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		cSetSendToMenu(v == 1);
+	} break;
+
+	case dbiUseExternalVideoPlayer: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		cSetUseExternalVideoPlayer(v == 1);
 	} break;
 
 	case dbiSoundNotify: {
@@ -2251,6 +2260,7 @@ void writeSettings() {
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 	data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
+	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 	data.stream << quint32(dbiWorkMode) << qint32(cWorkMode());
 	data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
 	data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
