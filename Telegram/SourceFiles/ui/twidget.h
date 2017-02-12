@@ -220,6 +220,9 @@ private:
 		return qobject_cast<const TWidget*>(Base::parentWidget());
 	}
 
+	template <typename OtherBase>
+	friend class TWidgetHelper;
+
 };
 
 class TWidget : public TWidgetHelper<QWidget> {
@@ -302,9 +305,6 @@ protected:
 	virtual int resizeGetHeight(int newWidth) {
 		return height();
 	}
-
-	template <typename Base>
-	friend class TWidgetHelper;
 
 };
 

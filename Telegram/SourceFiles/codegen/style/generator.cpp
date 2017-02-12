@@ -127,7 +127,7 @@ QString stringToEncodedString(const QString &str) {
 		} else if (ch == '"' || ch == '\\') {
 			writingHexEscapedCharacters = false;
 			result.append('\\').append(ch);
-		} else if (ch < 32 || ch > 127) {
+		} else if (ch < 32 || static_cast<uchar>(ch) > 127) {
 			writingHexEscapedCharacters = true;
 			result.append("\\x").append(hexFirstChar(ch)).append(hexSecondChar(ch));
 		} else {
