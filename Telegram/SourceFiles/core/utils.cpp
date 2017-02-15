@@ -151,7 +151,7 @@ struct CRYPTO_dynlock_value {
 
 namespace {
 	bool _sslInited = false;
-	QMutex *_sslLocks = 0;
+	QMutex *_sslLocks = nullptr;
 	void _sslLockingCallback(int mode, int type, const char *file, int line) {
 		if (!_sslLocks) return; // not inited
 
@@ -271,17 +271,30 @@ namespace ThirdParty {
 			}
 		}
 
-		int32 numLocks = CRYPTO_num_locks();
-		if (numLocks) {
-			_sslLocks = new QMutex[numLocks];
-			CRYPTO_set_locking_callback(_sslLockingCallback);
-		} else {
-			LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
+		// Force OpenSSL loading if it is linked in Qt,
+		// so that we won't mess with our OpenSSL locking with Qt OpenSSL locking.
+		auto sslSupported = QSslSocket::supportsSsl();
+		if (!sslSupported) {
+			LOG(("Error: current Qt build doesn't support SSL requests."));
 		}
-		CRYPTO_THREADID_set_callback(_sslThreadId);
-		CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
-		CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
-		CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
+		if (!CRYPTO_get_locking_callback()) {
+			// Qt didn't initialize OpenSSL, so we will.
+			auto numLocks = CRYPTO_num_locks();
+			if (numLocks) {
+				_sslLocks = new QMutex[numLocks];
+				CRYPTO_set_locking_callback(_sslLockingCallback);
+			} else {
+				LOG(("MTP Error: Could not init OpenSSL threads, CRYPTO_num_locks() returned zero!"));
+			}
+			CRYPTO_THREADID_set_callback(_sslThreadId);
+		}
+		if (!CRYPTO_get_dynlock_create_callback()) {
+			CRYPTO_set_dynlock_create_callback(_sslCreateFunction);
+			CRYPTO_set_dynlock_lock_callback(_sslLockFunction);
+			CRYPTO_set_dynlock_destroy_callback(_sslDestroyFunction);
+		} else if (!CRYPTO_get_dynlock_lock_callback()) {
+			LOG(("MTP Error: dynlock_create callback is set without dynlock_lock callback!"));
+		}
 
 		av_register_all();
 		avcodec_register_all();
@@ -303,8 +316,7 @@ namespace ThirdParty {
 		ERR_remove_thread_state(nullptr);
 		EVP_cleanup();
 
-		delete[] _sslLocks;
-		_sslLocks = nullptr;
+		delete[] base::take(_sslLocks);
 
 		Platform::ThirdParty::finish();
 	}
