@@ -18,6 +18,16 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include <QtCore/QTimer>
+#include <QtGui/QGuiApplication>
 
-#include "genemoji.h"
+#include "codegen/emoji/options.h"
+#include "codegen/emoji/generator.h"
+
+int main(int argc, char *argv[]) {
+	QGuiApplication app(argc, argv);
+
+	auto options = codegen::emoji::parseOptions();
+
+	codegen::emoji::Generator generator(options);
+	return generator.generate();
+}

@@ -2048,8 +2048,8 @@ HistorySticker::HistorySticker(HistoryItem *parent, DocumentData *document) : Hi
 , _data(document)
 , _emoji(_data->sticker()->alt) {
 	_data->thumb->load();
-	if (auto e = emojiFromText(_emoji)) {
-		_emoji = emojiString(e);
+	if (auto emoji = Ui::Emoji::Find(_emoji)) {
+		_emoji = emoji->text();
 	}
 }
 

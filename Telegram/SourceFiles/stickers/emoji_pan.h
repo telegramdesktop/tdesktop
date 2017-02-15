@@ -42,7 +42,6 @@ class RippleAnimation;
 namespace internal {
 
 constexpr int InlineItemsMaxPerRow = 5;
-constexpr int EmojiColorsCount = 5;
 
 using InlineResult = InlineBots::Result;
 using InlineResults = QList<InlineBots::Result*>;
@@ -64,7 +63,7 @@ class EmojiColorPicker : public TWidget {
 public:
 	EmojiColorPicker(QWidget *parent);
 
-	void showEmoji(uint32 code);
+	void showEmoji(EmojiPtr emoji);
 
 	void clearSelection();
 	void handleMouseMove(QPoint globalPos);
@@ -98,7 +97,7 @@ private:
 
 	bool _ignoreShow = false;
 
-	EmojiPtr _variants[EmojiColorsCount + 1];
+	QVector<EmojiPtr> _variants;
 
 	int _selected = -1;
 	int _pressedSel = -1;

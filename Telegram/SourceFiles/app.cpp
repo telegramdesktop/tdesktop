@@ -119,9 +119,9 @@ namespace {
 	CornersMap cornersMap;
 	QImage *cornersMaskLarge[4] = { nullptr }, *cornersMaskSmall[4] = { nullptr };
 
-	using EmojiMap = QMap<uint64, QPixmap>;
-	EmojiMap mainEmojiMap;
-	QMap<int32, EmojiMap> otherEmojiMap;
+	using EmojiImagesMap = QMap<int, QPixmap>;
+	EmojiImagesMap MainEmojiMap;
+	QMap<int, EmojiImagesMap> OtherEmojiMap;
 
 	int32 serviceImageCacheSize = 0;
 
@@ -2278,13 +2278,13 @@ namespace {
 			if (family.isEmpty()) family = QFontDatabase::systemFont(QFontDatabase::FixedFont).family();
 			::monofont = style::font(st::normalFont->f.pixelSize(), 0, family);
 		}
-		emojiInit();
+		Ui::Emoji::Init();
 		if (!::emoji) {
-			::emoji = new QPixmap(QLatin1String(EName));
+			::emoji = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index()));
             if (cRetina()) ::emoji->setDevicePixelRatio(cRetinaFactor());
 		}
 		if (!::emojiLarge) {
-			::emojiLarge = new QPixmap(QLatin1String(EmojiNames[EIndex + 1]));
+			::emojiLarge = new QPixmap(Ui::Emoji::Filename(Ui::Emoji::Index() + 1));
 			if (cRetina()) ::emojiLarge->setDevicePixelRatio(cRetinaFactor());
 		}
 
@@ -2336,8 +2336,8 @@ namespace {
 
 		clearCorners();
 
-		mainEmojiMap.clear();
-		otherEmojiMap.clear();
+		MainEmojiMap.clear();
+		OtherEmojiMap.clear();
 
 		Data::clearGlobalStructures();
 
@@ -2414,20 +2414,17 @@ namespace {
 	}
 
 	const QPixmap &emojiSingle(EmojiPtr emoji, int32 fontHeight) {
-		EmojiMap *map = &(fontHeight == st::msgFont->height ? mainEmojiMap : otherEmojiMap[fontHeight]);
-		EmojiMap::const_iterator i = map->constFind(emojiKey(emoji));
-		if (i == map->cend()) {
-			QImage img(ESize + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-            if (cRetina()) img.setDevicePixelRatio(cRetinaFactor());
+		auto &map = (fontHeight == st::msgFont->height) ? MainEmojiMap : OtherEmojiMap[fontHeight];
+		auto i = map.constFind(emoji->index());
+		if (i == map.cend()) {
+			auto image = QImage(Ui::Emoji::Size() + st::emojiPadding * cIntRetinaFactor() * 2, fontHeight * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+            if (cRetina()) image.setDevicePixelRatio(cRetinaFactor());
+			image.fill(Qt::transparent);
 			{
-				QPainter p(&img);
-				QPainter::CompositionMode m = p.compositionMode();
-				p.setCompositionMode(QPainter::CompositionMode_Source);
-				p.fillRect(0, 0, img.width(), img.height(), Qt::transparent);
-				p.setCompositionMode(m);
-				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - ESize) / 2);
+				QPainter p(&image);
+				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - Ui::Emoji::Size()) / 2);
 			}
-			i = map->insert(emojiKey(emoji), App::pixmapFromImageInPlace(std_::move(img)));
+			i = map.insert(emoji->index(), App::pixmapFromImageInPlace(std_::move(image)));
 		}
 		return i.value();
 	}

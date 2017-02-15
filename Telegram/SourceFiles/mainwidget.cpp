@@ -5203,20 +5203,22 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 					}
 					it->emoji.clear();
 					auto &packs = set.vpacks.c_vector().v;
-					for (int i = 0, l = packs.size(); i < l; ++i) {
-						if (packs.at(i).type() != mtpc_stickerPack) continue;
+					for (auto i = 0, l = packs.size(); i != l; ++i) {
+						if (packs[i].type() != mtpc_stickerPack) continue;
 						auto &pack = packs.at(i).c_stickerPack();
-						if (auto e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
+						if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+							emoji = emoji->original();
 							auto &stickers = pack.vdocuments.c_vector().v;
+							
 							StickerPack p;
 							p.reserve(stickers.size());
-							for (int j = 0, c = stickers.size(); j < c; ++j) {
-								auto doc = App::document(stickers.at(j).v);
+							for (auto j = 0, c = stickers.size(); j != c; ++j) {
+								auto doc = App::document(stickers[j].v);
 								if (!doc || !doc->sticker()) continue;
 
 								p.push_back(doc);
 							}
-							it->emoji.insert(e, p);
+							it->emoji.insert(emoji, p);
 						}
 					}
 

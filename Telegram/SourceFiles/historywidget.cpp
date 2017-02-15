@@ -131,11 +131,6 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll,
 	_touchSelectTimer.setSingleShot(true);
 	connect(&_touchSelectTimer, SIGNAL(timeout()), this, SLOT(onTouchSelect()));
 
-	auto tmp = App::LambdaDelayed(200, this, [this] {
-		int a = 0;
-	});
-	tmp();
-
 	setAttribute(Qt::WA_AcceptTouchEvents);
 	connect(&_touchScrollTimer, SIGNAL(timeout()), this, SLOT(onTouchScrollTimer()));
 
@@ -3319,7 +3314,7 @@ void HistoryWidget::updateStickersByEmoji() {
 	int len = 0;
 	if (!_editMsgId) {
 		auto &text = _field->getTextWithTags().text;
-		if (auto emoji = emojiFromText(text, &len)) {
+		if (auto emoji = Ui::Emoji::Find(text, &len)) {
 			if (text.size() > len) {
 				len = 0;
 			} else {

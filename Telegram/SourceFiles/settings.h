@@ -141,29 +141,26 @@ T convertScale(T v) {
 	return v;
 }
 
-struct EmojiData {
-	EmojiData(uint16 x, uint16 y, uint32 code, uint32 code2, uint16 len, uint16 postfix, uint32 color) : x(x), y(y), code(code), code2(code2), len(len), postfix(postfix), color(color) {
-	}
-	uint16 x, y;
-	uint32 code, code2;
-	uint16 len;
-	uint16 postfix;
-	uint32 color;
-};
+namespace Ui {
+namespace Emoji {
+class One;
+} // namespace Emoji
+} // namespace Ui
 
-typedef const EmojiData *EmojiPtr;
-static EmojiPtr TwoSymbolEmoji = EmojiPtr(0x01);
+using EmojiPtr = const Ui::Emoji::One*;
 
-typedef QVector<EmojiPtr> EmojiPack;
-typedef QVector<QPair<uint32, ushort> > RecentEmojisPreloadOld;
-typedef QVector<QPair<uint64, ushort> > RecentEmojisPreload;
-typedef QVector<QPair<EmojiPtr, ushort> > RecentEmojiPack;
-typedef QMap<uint32, uint64> EmojiColorVariants;
-DeclareRefSetting(RecentEmojiPack, RecentEmojis);
-DeclareSetting(RecentEmojisPreload, RecentEmojisPreload);
+using EmojiPack = QVector<EmojiPtr>;
+using RecentEmojiPreloadOldOld = QVector<QPair<uint32, ushort>>;
+using RecentEmojiPreloadOld = QVector<QPair<uint64, ushort>>;
+using RecentEmojiPreload = QVector<QPair<QString, ushort>>;
+using RecentEmojiPack = QVector<QPair<EmojiPtr, ushort>>;
+using EmojiColorVariantsOld = QMap<uint32, uint64>;
+using EmojiColorVariants = QMap<QString, int>;
+DeclareRefSetting(RecentEmojiPack, RecentEmoji);
+DeclareSetting(RecentEmojiPreload, RecentEmojiPreload);
 DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
-RecentEmojiPack &cGetRecentEmojis();
+RecentEmojiPack &cGetRecentEmoji();
 
 class DocumentData;
 typedef QVector<DocumentData*> StickerPack;

@@ -20,32 +20,37 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
+#include "codegen/common/logging.h"
+#include <vector>
+#include <map>
+#include <memory>
+#include <functional>
+#include <QtCore/QString>
+#include <QtCore/QSet>
+#include <QtCore/QMap>
 
-class EmojiBox : public BoxContent {
-public:
-	EmojiBox(QWidget*);
+namespace codegen {
+namespace emoji {
 
-protected:
-	void prepare() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void fillBlocks();
-
-	int32 _esize;
-
-	int32 _blockHeight;
-	struct Block {
-		Block(EmojiPtr emoji = nullptr, const QString &text = QString()) : emoji(emoji), text(text) {
-		}
-		EmojiPtr emoji;
-		QString text;
-	};
-	typedef QVector<Block> BlockRow;
-	typedef QVector<BlockRow> Blocks;
-	Blocks _blocks;
-
+using Id = QString;
+struct Emoji {
+	Id id;
+	bool postfixed = false;
+	bool variated = false;
+	bool colored = false;
 };
+
+struct Data {
+	std::vector<Emoji> list;
+	std::map<Id, int, std::greater<Id>> map;
+	std::vector<std::vector<int>> categories;
+	std::map<QString, int, std::greater<QString>> replaces;
+};
+Data PrepareData();
+
+constexpr auto kPostfix = 0xFE0FU;
+
+common::LogStream logDataError();
+
+} // namespace emoji
+} // namespace codegen

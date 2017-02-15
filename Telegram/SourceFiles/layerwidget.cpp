@@ -719,7 +719,7 @@ LayerStackWidget::~LayerStackWidget() {
 }
 
 MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
-, _emojiSize(EmojiSizes[EIndex + 1] / cIntRetinaFactor()) {
+, _emojiSize(Ui::Emoji::Size(Ui::Emoji::Index() + 1) / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
 }
@@ -744,12 +744,12 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	p.fillRect(r, st::stickerPreviewBg);
 	p.drawPixmap((width() - w) / 2, (height() - h) / 2, image);
 	if (!_emojiList.isEmpty()) {
-		int emojiCount = _emojiList.size();
-		int emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
-		int emojiLeft = (width() - emojiWidth) / 2;
-		int esize = EmojiSizes[EIndex + 1];
+		auto emojiCount = _emojiList.size();
+		auto emojiWidth = (emojiCount * _emojiSize) + (emojiCount - 1) * st::stickerEmojiSkip;
+		auto emojiLeft = (width() - emojiWidth) / 2;
+		auto esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
 		for_const (auto emoji, _emojiList) {
-			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - (_emojiSize * 2), width(), App::emojiLarge(), QRect(emoji->x * esize, emoji->y * esize, esize, esize));
+			p.drawPixmapLeft(emojiLeft, (height() - h) / 2 - (_emojiSize * 2), width(), App::emojiLarge(), QRect(emoji->x() * esize, emoji->y() * esize, esize, esize));
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
 	}
@@ -837,7 +837,7 @@ void MediaPreviewWidget::fillEmojiString() {
 			_emojiList = getStickerEmojiList(inputSet.c_inputStickerSetID().vid.v);
 		} else {
 			_emojiList.clear();
-			if (auto emoji = emojiFromText(sticker->alt)) {
+			if (auto emoji = Ui::Emoji::Find(sticker->alt)) {
 				_emojiList.append(emoji);
 			}
 		}

@@ -87,7 +87,6 @@ enum {
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize
 
-	SaveRecentEmojisTimeout = 3000, // 3 secs
 	SaveWindowPositionTimeout = 1000, // 1 sec
 
 	AutoSearchTimeout = 900, // 0.9 secs

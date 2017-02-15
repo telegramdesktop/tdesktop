@@ -74,8 +74,8 @@ bool gCompressPastedImage = true;
 
 QString gTimeFormat = qsl("hh:mm");
 
-RecentEmojiPack gRecentEmojis;
-RecentEmojisPreload gRecentEmojisPreload;
+RecentEmojiPack gRecentEmoji;
+RecentEmojiPreload gRecentEmojiPreload;
 EmojiColorVariants gEmojiVariants;
 
 RecentStickerPreload gRecentStickersPreload;
@@ -223,30 +223,27 @@ void settingsParseArgs(int argc, char *argv[]) {
 	}
 }
 
-RecentEmojiPack &cGetRecentEmojis() {
-	if (cRecentEmojis().isEmpty()) {
-		RecentEmojiPack r;
-		if (!cRecentEmojisPreload().isEmpty()) {
-			RecentEmojisPreload p(cRecentEmojisPreload());
-			cSetRecentEmojisPreload(RecentEmojisPreload());
-			r.reserve(p.size());
-			for (RecentEmojisPreload::const_iterator i = p.cbegin(), e = p.cend(); i != e; ++i) {
-				uint64 code = ((!(i->first & 0xFFFFFFFF00000000LLU) && (i->first & 0xFFFFU) == 0xFE0FU)) ? ((i->first >> 16) & 0xFFFFU) : i->first;
-				EmojiPtr ep(emojiFromKey(code));
-				if (!ep) continue;
-
-				if (ep->postfix) {
-					int32 j = 0, l = r.size();
-					for (; j < l; ++j) {
-						if (emojiKey(r[j].first) == code) {
-							break;
-						}
-					}
-					if (j < l) {
-						continue;
+RecentEmojiPack &cGetRecentEmoji() {
+	if (cRecentEmoji().isEmpty()) {
+		RecentEmojiPack result;
+		auto haveAlready = [&result](EmojiPtr emoji) {
+			for (auto &row : result) {
+				if (row.first->id() == emoji->id()) {
+					return true;
+				}
+			}
+			return false;
+		};
+		if (!cRecentEmojiPreload().isEmpty()) {
+			auto preload = cRecentEmojiPreload();
+			cSetRecentEmojiPreload(RecentEmojiPreload());
+			result.reserve(preload.size());
+			for (auto i = preload.cbegin(), e = preload.cend(); i != e; ++i) {
+				if (auto emoji = Ui::Emoji::Find(i->first)) {
+					if (!haveAlready(emoji)) {
+						result.push_back(qMakePair(emoji, i->second));
 					}
 				}
-				r.push_back(qMakePair(ep, i->second));
 			}
 		}
 		uint64 defaultRecent[] = {
@@ -285,25 +282,18 @@ RecentEmojiPack &cGetRecentEmojis() {
 			0xD83DDE10LLU,
 			0xD83DDE15LLU,
 		};
-		for (int32 i = 0, s = sizeof(defaultRecent) / sizeof(defaultRecent[0]); i < s; ++i) {
-			if (r.size() >= EmojiPanPerRow * EmojiPanRowsPerPage) break;
+		for (auto oldKey : defaultRecent) {
+			if (result.size() >= EmojiPanPerRow * EmojiPanRowsPerPage) break;
 
-			EmojiPtr ep(emojiGet(defaultRecent[i]));
-			if (!ep || ep == TwoSymbolEmoji) continue;
-
-			int32 j = 0, l = r.size();
-			for (; j < l; ++j) {
-				if (r[j].first == ep) {
-					break;
+			if (auto emoji = Ui::Emoji::FromOldKey(oldKey)) {
+				if (!haveAlready(emoji)) {
+					result.push_back(qMakePair(emoji, 1));
 				}
 			}
-			if (j < l) continue;
-
-			r.push_back(qMakePair(ep, 1));
 		}
-		cSetRecentEmojis(r);
+		cSetRecentEmoji(result);
 	}
-	return cRefRecentEmojis();
+	return cRefRecentEmoji();
 }
 
 RecentStickerPack &cGetRecentStickers() {

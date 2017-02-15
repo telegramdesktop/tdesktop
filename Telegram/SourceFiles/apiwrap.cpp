@@ -1089,22 +1089,24 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	} else {
 		it->stickers = pack;
 		it->emoji.clear();
-		const auto &v(d.vpacks.c_vector().v);
-		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).type() != mtpc_stickerPack) continue;
+		auto &v = d.vpacks.c_vector().v;
+		for (auto i = 0, l = v.size(); i != l; ++i) {
+			if (v[i].type() != mtpc_stickerPack) continue;
 
-			const auto &pack(v.at(i).c_stickerPack());
-			if (EmojiPtr e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-				const auto &stickers(pack.vdocuments.c_vector().v);
+			auto &pack = v[i].c_stickerPack();
+			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+				emoji = emoji->original();
+				auto &stickers = pack.vdocuments.c_vector().v;
+				
 				StickerPack p;
 				p.reserve(stickers.size());
-				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
-					DocumentData *doc = App::document(stickers.at(j).v);
+				for (auto j = 0, c = stickers.size(); j != c; ++j) {
+					auto doc = App::document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
 					p.push_back(doc);
 				}
-				it->emoji.insert(e, p);
+				it->emoji.insert(emoji, p);
 			}
 		}
 	}

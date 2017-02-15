@@ -136,21 +136,23 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_pack.push_back(doc);
 			_packOvers.push_back(Animation());
 		}
-		auto &packs(d.vpacks.c_vector().v);
-		for (int i = 0, l = packs.size(); i < l; ++i) {
+		auto &packs = d.vpacks.c_vector().v;
+		for (auto i = 0, l = packs.size(); i != l; ++i) {
 			if (packs.at(i).type() != mtpc_stickerPack) continue;
-			auto &pack(packs.at(i).c_stickerPack());
-			if (auto e = emojiGetNoColor(emojiFromText(qs(pack.vemoticon)))) {
-				auto &stickers(pack.vdocuments.c_vector().v);
+			auto &pack = packs.at(i).c_stickerPack();
+			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
+				emoji = emoji->original();
+				auto &stickers = pack.vdocuments.c_vector().v;
+
 				StickerPack p;
 				p.reserve(stickers.size());
-				for (int32 j = 0, c = stickers.size(); j < c; ++j) {
-					DocumentData *doc = App::document(stickers.at(j).v);
+				for (auto j = 0, c = stickers.size(); j != c; ++j) {
+					auto doc = App::document(stickers[j].v);
 					if (!doc || !doc->sticker()) continue;
 
 					p.push_back(doc);
 				}
-				_emoji.insert(e, p);
+				_emoji.insert(emoji, p);
 			}
 		}
 		if (d.vset.type() == mtpc_stickerSet) {

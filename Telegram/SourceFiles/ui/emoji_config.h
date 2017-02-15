@@ -22,148 +22,218 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/text/text.h"
 
-void emojiInit();
-EmojiPtr emojiGet(uint32 code);
-EmojiPtr emojiGet(uint32 code, uint32 code2);
-EmojiPtr emojiGet(EmojiPtr emoji, uint32 color);
-EmojiPtr emojiGet(const QChar *from, const QChar *end);
-QString emojiGetSequence(int index);
+namespace Ui {
+namespace Emoji {
+namespace internal {
 
-inline QString emojiString(EmojiPtr emoji) {
-	if ((emoji->code & 0xFFFF0000U) == 0xFFFF0000U) { // sequence
-		return emojiGetSequence(emoji->code & 0xFFFFU);
-	}
+EmojiPtr ByIndex(int index);
 
-	QString result;
-	result.reserve(emoji->len + (emoji->postfix ? 1 : 0));
-	if (!(emoji->code >> 16)) {
-		result.append(QChar(emoji->code & 0xFFFF));
-	} else {
-		result.append(QChar((emoji->code >> 16) & 0xFFFF));
-		result.append(QChar(emoji->code & 0xFFFF));
-		if (emoji->code2) {
-			result.append(QChar((emoji->code2 >> 16) & 0xFFFF));
-			result.append(QChar(emoji->code2 & 0xFFFF));
-		}
-	}
-	if (emoji->color && ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) {
-		result.append(QChar((emoji->color >> 16) & 0xFFFF));
-		result.append(QChar(emoji->color & 0xFFFF));
-	}
-	if (emoji->postfix) result.append(QChar(emoji->postfix));
-	return result;
-}
+EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr);
 
-inline uint64 emojiKey(EmojiPtr emoji) {
-	uint64 key = emoji->code;
-	if (emoji->code2) {
-		key = (key << 32) | uint64(emoji->code2);
-	} else if (emoji->color && ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) {
-		key = (key << 32) | uint64(emoji->color);
-	}
-	return key;
-}
-
-inline EmojiPtr emojiFromKey(uint64 key) {
-	uint32 code = uint32(key >> 32), code2 = uint32(key & 0xFFFFFFFFLLU);
-	if (!code && code2) {
-		code = code2;
-		code2 = 0;
-	}
-	EmojiPtr emoji = emojiGet(code);
-	if (emoji == TwoSymbolEmoji) {
-		return emojiGet(code, code2);
-	} else if (emoji && emoji->color && code2) {
-		return emojiGet(emoji, code2);
-	}
-	return emoji;
-}
-
-inline EmojiPtr emojiFromUrl(const QString &url) {
-	return emojiFromKey(url.midRef(10).toULongLong(0, 16)); // skip emoji://e.
-}
-
-inline EmojiPtr emojiFromText(const QChar *ch, const QChar *end, int *outLength = nullptr) {
-	EmojiPtr emoji = nullptr;
-	if (ch + 1 < end && ((ch->isHighSurrogate() && (ch + 1)->isLowSurrogate()) || (((ch->unicode() >= 0x30 && ch->unicode() < 0x3A) || ch->unicode() == 0x23 || ch->unicode() == 0x2A) && (ch + 1)->unicode() == 0x20E3))) {
-		uint32 code = (ch->unicode() << 16) | (ch + 1)->unicode();
-		emoji = emojiGet(code);
-		if (emoji) {
-			if (emoji == TwoSymbolEmoji) { // check two symbol
-				if (ch + 3 >= end) {
-					emoji = 0;
-				} else {
-					uint32 code2 = ((uint32((ch + 2)->unicode()) << 16) | uint32((ch + 3)->unicode()));
-					emoji = emojiGet(code, code2);
-				}
-			} else {
-				if (ch + 2 < end && (ch + 2)->unicode() == 0x200D) { // check sequence
-					EmojiPtr seq = emojiGet(ch, end);
-					if (seq) {
-						emoji = seq;
-					}
-				}
-			}
-		}
-	} else if (ch + 2 < end && ((ch->unicode() >= 0x30 && ch->unicode() < 0x3A) || ch->unicode() == 0x23 || ch->unicode() == 0x2A) && (ch + 1)->unicode() == 0xFE0F && (ch + 2)->unicode() == 0x20E3) {
-		uint32 code = (ch->unicode() << 16) | (ch + 2)->unicode();
-		emoji = emojiGet(code);
-		if (outLength) *outLength = emoji->len + 1;
-		return emoji;
-	} else if (ch < end) {
-		emoji = emojiGet(ch->unicode());
-		t_assert(emoji != TwoSymbolEmoji);
-	}
-
-	if (emoji) {
-		int32 len = emoji->len + ((ch + emoji->len < end && (ch + emoji->len)->unicode() == 0xFE0F) ? 1 : 0);
-		if (emoji->color && (ch + len + 1 < end && (ch + len)->isHighSurrogate() && (ch + len + 1)->isLowSurrogate())) { // color
-			uint32 color = ((uint32((ch + len)->unicode()) << 16) | uint32((ch + len + 1)->unicode()));
-			EmojiPtr col = emojiGet(emoji, color);
-			if (col && col != emoji) {
-				len += col->len - emoji->len;
-				emoji = col;
-				if (ch + len < end && (ch + len)->unicode() == 0xFE0F) {
-					++len;
-				}
-			}
-		}
-		if (outLength) *outLength = len;
-	}
-
-	return emoji;
-}
-
-inline EmojiPtr emojiFromText(const QString &text, int32 *plen = 0) {
-	return text.isEmpty() ? EmojiPtr(0) : emojiFromText(text.constBegin(), text.constEnd(), plen);
-}
-
-inline EmojiPtr emojiGetNoColor(EmojiPtr emoji) {
-	if (emoji && emoji->color && (emoji->color & 0xFFFF0000U) != 0xFFFF0000U) {
-		EmojiPtr result = emojiGet(emoji->code);
-		return (result == TwoSymbolEmoji) ? emojiGet(emoji->code, emoji->code2) : result;
-	}
-	return emoji;
-}
-
-extern int EmojiSizes[5], EIndex, ESize;
-extern const char *EmojiNames[5], *EName;
-
-void emojiFind(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode);
-
-inline bool emojiEdge(const QChar *ch) {
+inline bool IsReplaceEdge(const QChar *ch) {
 	return true;
 
-	switch (ch->unicode()) {
-	case '.': case ',': case ':': case ';': case '!': case '?': case '#': case '@':
-	case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':
-	case '+': case '=': case '-': case '_': case '*': case '/': case '\\': case '^': case '$':
-	case '"': case '\'':
-	case 8212: case 171: case 187: // --, <<, >>
-		return true;
-	}
-	return false;
+//	switch (ch->unicode()) {
+//	case '.': case ',': case ':': case ';': case '!': case '?': case '#': case '@':
+//	case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':
+//	case '+': case '=': case '-': case '_': case '*': case '/': case '\\': case '^': case '$':
+//	case '"': case '\'':
+//	case 8212: case 171: case 187: // --, <<, >>
+//		return true;
+//	}
+//	return false;
 }
+
+EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr);
+
+} // namespace internal
+
+void Init();
+
+constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
+
+class One {
+public:
+	QString id() const {
+		return _id;
+	}
+	QString text() const {
+		return hasPostfix() ? (_id + QChar(kPostfix)) : _id;
+	}
+
+	bool colored() const {
+		return (_original != nullptr);
+	}
+	EmojiPtr original() const {
+		return _original ? _original : this;
+	}
+	QString nonColoredId() const {
+		return original()->id();
+	}
+
+	bool hasPostfix() const {
+		return _hasPostfix;
+	}
+
+	bool hasVariants() const {
+		return _colorizable || colored();
+	}
+	int variantsCount() const;
+	int variantIndex(EmojiPtr variant) const;
+	EmojiPtr variant(int index) const;
+
+	int index() const;
+	QString toUrl() const {
+		return qsl("emoji://e.") + QString::number(index());
+	}
+
+	int x() const {
+		return _x;
+	}
+	int y() const {
+		return _y;
+	}
+
+private:
+	One() = default; // For QVector<> to compile.
+	One(const One &other) = default;
+
+	One(const QString &id, uint16 x, uint16 y, bool hasPostfix, bool colorizable, EmojiPtr original)
+	: _id(id)
+	, _x(x)
+	, _y(y)
+	, _hasPostfix(hasPostfix)
+	, _colorizable(colorizable)
+	, _original(original) {
+		t_assert(!_colorizable || !colored());
+	}
+
+	const QString _id;
+	const uint16 _x = 0;
+	const uint16 _y = 0;
+	const bool _hasPostfix = false;
+	const bool _colorizable = false;
+	const EmojiPtr _original = nullptr;
+
+	friend void Init();
+	friend class QVector<One>;
+
+};
+
+inline EmojiPtr FromUrl(const QString &url) {
+	auto start = qstr("emoji://e.");
+	if (url.startsWith(start)) {
+		return internal::ByIndex(url.midRef(start.size()).toInt()); // skip emoji://e.
+	}
+	return nullptr;
+}
+
+inline EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr) {
+	if (ch != end) {
+		if (auto result = internal::Find(ch, end, outLength)) {
+			if (outLength && result->hasPostfix()) {
+				// Try to consume a pending 0xFE0F postfix.
+				// Comment out hasPostfix() check if you want to consume it anyway.
+				auto resultEnd = ch + *outLength;
+				if (resultEnd != end && resultEnd->unicode() == kPostfix) {
+					++*outLength;
+				}
+			}
+			return result;
+		}
+	}
+	return nullptr;
+}
+
+inline EmojiPtr Find(const QString &text, int *outLength = nullptr) {
+	return Find(text.constBegin(), text.constEnd(), outLength);
+}
+
+inline QString IdFromOldKey(uint64 oldKey) {
+	auto code = uint32(oldKey >> 32);
+	auto code2 = uint32(oldKey & 0xFFFFFFFFLLU);
+	if (!code && code2) {
+		code = base::take(code2);
+	}
+	if ((code & 0xFFFF0000U) != 0xFFFF0000U) { // code and code2 contain the whole id
+		auto result = QString();
+		result.reserve(4);
+		auto addCode = [&result](uint32 code) {
+			if (auto high = (code >> 16)) {
+				result.append(QChar(static_cast<ushort>(high & 0xFFFFU)));
+			}
+			result.append(QChar(static_cast<ushort>(code & 0xFFFFU)));
+		};
+		addCode(code);
+		if (code2) addCode(code2);
+		return result;
+	}
+
+	// old sequence
+	auto sequenceIndex = int(code & 0xFFFFU);
+	switch (sequenceIndex) {
+	case 0: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7");
+	case 1: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 2: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 3: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7");
+	case 4: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 5: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7");
+	case 6: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 7: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 8: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7");
+	case 9: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 10: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7");
+	case 11: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 12: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6");
+	case 13: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7");
+	case 14: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x91\xa9");
+	case 15: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x91\xa8");
+	case 16: return QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa9");
+	case 17: return QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa8");
+	case 18: return QString::fromUtf8("\xf0\x9f\x91\x81\xe2\x80\x8d\xf0\x9f\x97\xa8");
+	}
+	return QString();
+}
+
+inline EmojiPtr FromOldKey(uint64 oldKey) {
+	return Find(IdFromOldKey(oldKey));
+}
+
+inline int ColorIndexFromCode(uint32 code) {
+	switch (code) {
+	case 0xD83CDFFB: return 1;
+	case 0xD83CDFFC: return 2;
+	case 0xD83CDFFD: return 3;
+	case 0xD83CDFFE: return 4;
+	case 0xD83CDFFF: return 5;
+	}
+	return 0;
+}
+
+inline int ColorIndexFromOldKey(uint64 oldKey) {
+	return ColorIndexFromCode(uint32(oldKey & 0xFFFFFFFFLLU));
+}
+
+int Index();
+
+inline int Size(int index = Index()) {
+	int sizes[] = { 18, 22, 27, 36, 45 };
+	return sizes[index];
+}
+
+inline QString Filename(int index = Index()) {
+	const char *EmojiNames[] = {
+		":/gui/art/emoji.webp",
+		":/gui/art/emoji_125x.webp",
+		":/gui/art/emoji_150x.webp",
+		":/gui/art/emoji_200x.webp",
+		":/gui/art/emoji_250x.webp",
+	};
+	return QString::fromLatin1(EmojiNames[index]);
+}
+
+int GetPackCount(DBIEmojiTab tab);
+EmojiPack GetPack(DBIEmojiTab tab);
 
 inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText *inOutEntities) {
 	if (to > from) {
@@ -181,48 +251,43 @@ inline void appendPartToResult(QString &result, const QChar *start, const QChar 
 	}
 }
 
-inline QString replaceEmojis(const QString &text, EntitiesInText *inOutEntities) {
-	QString result;
-	auto currentEntity = inOutEntities->begin(), entitiesEnd = inOutEntities->end();
-	const QChar *emojiStart = text.constData(), *emojiEnd = emojiStart, *e = text.constData() + text.size();
-	bool canFindEmoji = true;
-	for (const QChar *ch = emojiEnd; ch != e;) {
-		uint32 emojiCode = 0;
-		const QChar *newEmojiEnd = 0;
-		if (canFindEmoji) {
-			emojiFind(ch, e, newEmojiEnd, emojiCode);
-		}
+inline QString ReplaceInText(const QString &text, EntitiesInText *inOutEntities) {
+	auto result = QString();
+	auto currentEntity = inOutEntities->begin();
+	auto entitiesEnd = inOutEntities->end();
+	auto emojiStart = text.constData();
+	auto emojiEnd = emojiStart;
+	auto end = emojiStart + text.size();
+	auto canFindEmoji = true;
+	for (auto ch = emojiEnd; ch != end;) {
+		auto emojiLength = 0;
+		auto emoji = canFindEmoji ? internal::FindReplace(ch, end, &emojiLength) : nullptr;
+		auto newEmojiEnd = ch + emojiLength;
 
 		while (currentEntity != entitiesEnd && ch >= emojiStart + currentEntity->offset() + currentEntity->length()) {
 			++currentEntity;
 		}
-		EmojiPtr emoji = emojiCode ? emojiGet(emojiCode) : 0;
-		if (emoji && emoji != TwoSymbolEmoji &&
+		if (emoji &&
 		    (ch == emojiStart || !ch->isLetterOrNumber() || !(ch - 1)->isLetterOrNumber()) &&
-		    (newEmojiEnd == e || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
+		    (newEmojiEnd == end || !newEmojiEnd->isLetterOrNumber() || newEmojiEnd == emojiStart || !(newEmojiEnd - 1)->isLetterOrNumber()) &&
 			(currentEntity == entitiesEnd || (ch < emojiStart + currentEntity->offset() && newEmojiEnd <= emojiStart + currentEntity->offset()) || (ch >= emojiStart + currentEntity->offset() + currentEntity->length() && newEmojiEnd > emojiStart + currentEntity->offset() + currentEntity->length()))
 		) {
 			if (result.isEmpty()) result.reserve(text.size());
 
 			appendPartToResult(result, emojiStart, emojiEnd, ch, inOutEntities);
 
-			if (emoji->color) {
-				EmojiColorVariants::const_iterator it = cEmojiVariants().constFind(emoji->code);
+			if (emoji->hasVariants()) {
+				auto it = cEmojiVariants().constFind(emoji->nonColoredId());
 				if (it != cEmojiVariants().cend()) {
-					EmojiPtr replace = emojiFromKey(it.value());
-					if (replace) {
-						if (replace != TwoSymbolEmoji && replace->code == emoji->code && replace->code2 == emoji->code2) {
-							emoji = replace;
-						}
-					}
+					emoji = emoji->variant(it.value());
 				}
 			}
-			result.append(emojiString(emoji));
+			result.append(emoji->text());
 
 			ch = emojiEnd = newEmojiEnd;
 			canFindEmoji = true;
 		} else {
-			if (emojiEdge(ch)) {
+			if (internal::IsReplaceEdge(ch)) {
 				canFindEmoji = true;
 			} else {
 				canFindEmoji = false;
@@ -232,10 +297,10 @@ inline QString replaceEmojis(const QString &text, EntitiesInText *inOutEntities)
 	}
 	if (result.isEmpty()) return text;
 
-	appendPartToResult(result, emojiStart, emojiEnd, e, inOutEntities);
+	appendPartToResult(result, emojiStart, emojiEnd, end, inOutEntities);
 
 	return result;
 }
 
-int emojiPackCount(DBIEmojiTab tab);
-EmojiPack emojiPack(DBIEmojiTab tab);
+} // namespace Emoji
+} // namespace Ui

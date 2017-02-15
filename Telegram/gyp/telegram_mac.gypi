@@ -26,7 +26,6 @@
       'CURRENT_PROJECT_VERSION': '<!(./print_version.sh)',
       'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon',
       'OTHER_LDFLAGS': [
-        '-lcups',
         '-lbsm',
         '-lm',
         '-lssl',

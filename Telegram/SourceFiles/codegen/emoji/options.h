@@ -20,32 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
+#include <QtCore/QString>
+#include <QtCore/QStringList>
 
-class EmojiBox : public BoxContent {
-public:
-	EmojiBox(QWidget*);
+namespace codegen {
+namespace emoji {
 
-protected:
-	void prepare() override;
-
-	void keyPressEvent(QKeyEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	void fillBlocks();
-
-	int32 _esize;
-
-	int32 _blockHeight;
-	struct Block {
-		Block(EmojiPtr emoji = nullptr, const QString &text = QString()) : emoji(emoji), text(text) {
-		}
-		EmojiPtr emoji;
-		QString text;
-	};
-	typedef QVector<Block> BlockRow;
-	typedef QVector<BlockRow> Blocks;
-	Blocks _blocks;
-
+struct Options {
+	QString outputPath = ".";
 };
+
+// Parsing failed if inputPath is empty in the result.
+Options parseOptions();
+
+} // namespace emoji
+} // namespace codegen

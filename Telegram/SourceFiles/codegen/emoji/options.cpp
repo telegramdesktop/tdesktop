@@ -18,19 +18,17 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "codegen/numbers/options.h"
+#include "codegen/emoji/options.h"
 
 #include <ostream>
 #include <QtCore/QCoreApplication>
 #include "codegen/common/logging.h"
 
 namespace codegen {
-namespace numbers {
+namespace emoji {
 namespace {
 
 constexpr int kErrorOutputPathExpected      = 902;
-constexpr int kErrorInputPathExpected       = 903;
-constexpr int kErrorSingleInputPathExpected = 904;
 
 } // namespace
 
@@ -39,7 +37,7 @@ using common::logError;
 Options parseOptions() {
 	Options result;
 	auto args = QCoreApplication::instance()->arguments();
-	for (auto i = 1, count = args.size(); i < count; ++i) { // skip first
+	for (int i = 1, count = args.size(); i < count; ++i) { // skip first
 		auto &arg = args.at(i);
 
 		// Output path
@@ -52,23 +50,14 @@ Options parseOptions() {
 			}
 		} else if (arg.startsWith("-o")) {
 			result.outputPath = arg.mid(2);
-
-		// Input path
-		} else {
-			if (result.inputPath.isEmpty()) {
-				result.inputPath = arg;
-			} else {
-				logError(kErrorSingleInputPathExpected, "Command Line") << "only one input path expected";
-				return Options();
-			}
 		}
 	}
-	if (result.inputPath.isEmpty()) {
-		logError(kErrorInputPathExpected, "Command Line") << "input path expected";
+	if (result.outputPath.isEmpty()) {
+		logError(kErrorOutputPathExpected, "Command Line") << "output path expected";
 		return Options();
 	}
 	return result;
 }
 
-} // namespace numbers
+} // namespace emoji
 } // namespace codegen

@@ -196,9 +196,9 @@ public:
 
 private:
 
-	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, const EmojiData *emoji);
+	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji);
 
-	const EmojiData *emoji;
+	EmojiPtr emoji = nullptr;
 
 	friend class Text;
 	friend class TextParser;

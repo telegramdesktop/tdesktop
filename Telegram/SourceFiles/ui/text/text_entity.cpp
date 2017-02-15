@@ -1215,59 +1215,60 @@ bool textSplit(QString &sendingText, EntitiesInText &sendingEntities, QString &l
 			++currentEntity;
 		}
 
-#define MARK_GOOD_AS_LEVEL(level) \
-if (goodLevel <= (level)) {\
-goodLevel = (level);\
-good = ch;\
-goodEntity = currentEntity;\
-goodInEntity = inEntity;\
-goodCanBreakEntity = canBreakEntity;\
-}
-
 		if (s > half) {
 			bool inEntity = (currentEntity < entityCount) && (ch > start + leftEntities.at(currentEntity).offset()) && (ch < start + leftEntities.at(currentEntity).offset() + leftEntities.at(currentEntity).length());
 			EntityInTextType entityType = (currentEntity < entityCount) ? leftEntities.at(currentEntity).type() : EntityInTextInvalid;
 			bool canBreakEntity = (entityType == EntityInTextPre || entityType == EntityInTextCode);
 			int32 noEntityLevel = inEntity ? 0 : 1;
+
+			auto markGoodAsLevel = [&](int newLevel) {
+				if (goodLevel > newLevel) {
+					return;
+				}
+				goodLevel = newLevel;
+				good = ch;
+				goodEntity = currentEntity;
+				goodInEntity = inEntity;
+				goodCanBreakEntity = canBreakEntity;
+			};
+
 			if (inEntity && !canBreakEntity) {
-				MARK_GOOD_AS_LEVEL(0);
+				markGoodAsLevel(0);
 			} else {
 				if (chIsNewline(*ch)) {
 					if (inEntity) {
 						if (ch + 1 < end && chIsNewline(*(ch + 1))) {
-							MARK_GOOD_AS_LEVEL(12);
+							markGoodAsLevel(12);
 						} else {
-							MARK_GOOD_AS_LEVEL(11);
+							markGoodAsLevel(11);
 						}
 					} else if (ch + 1 < end && chIsNewline(*(ch + 1))) {
-						MARK_GOOD_AS_LEVEL(15);
+						markGoodAsLevel(15);
 					} else if (currentEntity < entityCount && ch + 1 == start + leftEntities.at(currentEntity).offset() && leftEntities.at(currentEntity).type() == EntityInTextPre) {
-						MARK_GOOD_AS_LEVEL(14);
+						markGoodAsLevel(14);
 					} else if (currentEntity > 0 && ch == start + leftEntities.at(currentEntity - 1).offset() + leftEntities.at(currentEntity - 1).length() && leftEntities.at(currentEntity - 1).type() == EntityInTextPre) {
-						MARK_GOOD_AS_LEVEL(14);
+						markGoodAsLevel(14);
 					} else {
-						MARK_GOOD_AS_LEVEL(13);
+						markGoodAsLevel(13);
 					}
 				} else if (chIsSpace(*ch)) {
 					if (chIsSentenceEnd(*(ch - 1))) {
-						MARK_GOOD_AS_LEVEL(9 + noEntityLevel);
+						markGoodAsLevel(9 + noEntityLevel);
 					} else if (chIsSentencePartEnd(*(ch - 1))) {
-						MARK_GOOD_AS_LEVEL(7 + noEntityLevel);
+						markGoodAsLevel(7 + noEntityLevel);
 					} else {
-						MARK_GOOD_AS_LEVEL(5 + noEntityLevel);
+						markGoodAsLevel(5 + noEntityLevel);
 					}
 				} else if (chIsWordSeparator(*(ch - 1))) {
-					MARK_GOOD_AS_LEVEL(3 + noEntityLevel);
+					markGoodAsLevel(3 + noEntityLevel);
 				} else {
-					MARK_GOOD_AS_LEVEL(1 + noEntityLevel);
+					markGoodAsLevel(1 + noEntityLevel);
 				}
 			}
 		}
 
-#undef MARK_GOOD_AS_LEVEL
-
 		int elen = 0;
-		if (EmojiPtr e = emojiFromText(ch, end, &elen)) {
+		if (auto e = Ui::Emoji::Find(ch, end, &elen)) {
 			for (int i = 0; i < elen; ++i, ++ch, ++s) {
 				if (ch->isHighSurrogate() && i + 1 < elen && (ch + 1)->isLowSurrogate()) {
 					++ch;
@@ -1927,7 +1928,7 @@ QString prepareTextWithEntities(QString result, int32 flags, EntitiesInText *inO
 	replaceStringWithEntities(qstr(">>"), QChar(187), result, inOutEntities);
 
 	if (cReplaceEmojis()) {
-		result = replaceEmojis(result, inOutEntities);
+		result = Ui::Emoji::ReplaceInText(result, inOutEntities);
 	}
 
 	trimTextWithEntities(result, inOutEntities);

@@ -1,9 +1,8 @@
 /*
-Created from emoji config by '/MetaEmoji' project
-
 WARNING! All changes made in this file will be lost!
+Created from 'empty' by 'codegen_emoji'
 
-This file is part of Telegram Desktop, 
+This file is part of Telegram Desktop,
 the official desktop version of Telegram messaging app, see https://telegram.org
 
 Telegram Desktop is free software: you can redistribute it and/or modify
@@ -23,4990 +22,13914 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "ui/emoji_config.h"
+#include "emoji_config.h"
 
+namespace Ui {
+namespace Emoji {
 namespace {
-	EmojiData *emojis = 0;
-	char emojisData[sizeof(EmojiData) * 1604];
+
+constexpr auto kCount = 2167;
+auto WorkingIndex = -1;
+
+QVector<One> Items;
+
+} // namespace
+
+namespace internal {
+
+EmojiPtr ByIndex(int index) {
+	return (index >= 0 && index < Items.size()) ? &Items[index] : nullptr;
 }
 
-int EmojiSizes[] = { 18, 22, 27, 36, 45 }, EIndex = -1, ESize = 0;
-const char *EmojiNames[] = { ":/gui/art/emoji.webp", ":/gui/art/emoji_125x.webp", ":/gui/art/emoji_150x.webp", ":/gui/art/emoji_200x.webp", ":/gui/art/emoji_250x.webp" }, *EName = 0;
-void emojiInit() {
-	DBIScale emojiForScale = cRetina() ? dbisTwo : cScale();
-
-	switch (emojiForScale) {
-		case dbisOne: EIndex = 0; break;
-		case dbisOneAndQuarter: EIndex = 1; break;
-		case dbisOneAndHalf: EIndex = 2; break;
-		case dbisTwo: EIndex = 3; break;
-	};
-	ESize = EmojiSizes[EIndex];
-	EName = EmojiNames[EIndex];
-
-	EmojiData *toFill = emojis = (EmojiData*)emojisData;
-
-	new (toFill++) EmojiData(4, 32, 0xA9U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(5, 32, 0xAEU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(13, 29, 0x203CU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(14, 29, 0x2049U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(6, 32, 0x2122U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(27, 31, 0x2139U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(19, 31, 0x2194U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(18, 31, 0x2195U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(17, 31, 0x2196U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(14, 31, 0x2197U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(15, 31, 0x2198U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(16, 31, 0x2199U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(22, 31, 0x21A9U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(21, 31, 0x21AAU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(30, 22, 0x231AU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(26, 23, 0x231BU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(34, 22, 0x2328U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(0, 31, 0x23E9U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(1, 31, 0x23EAU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(8, 31, 0x23EBU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(9, 31, 0x23ECU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(38, 30, 0x23EDU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(39, 30, 0x23EEU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(35, 30, 0x23EFU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(23, 23, 0x23F0U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(21, 23, 0x23F1U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(22, 23, 0x23F2U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(25, 23, 0x23F3U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(34, 30, 0x23F8U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(36, 30, 0x23F9U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(37, 30, 0x23FAU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(35, 29, 0x24C2U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(23, 32, 0x25AAU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(24, 32, 0x25ABU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(33, 30, 0x25B6U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(5, 31, 0x25C0U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(29, 32, 0x25FBU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(28, 32, 0x25FCU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(31, 32, 0x25FDU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(30, 32, 0x25FEU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(1, 15, 0x2600U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(6, 15, 0x2601U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(21, 15, 0x2602U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(15, 15, 0x2603U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(0, 15, 0x2604U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(13, 23, 0x260EU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(12, 32, 0x2611U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(22, 15, 0x2614U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(9, 17, 0x2615U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(39, 13, 0x2618U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(5, 4, 0x261DU, 0, 1, 0xFE0F, 0xFFFF040DU);
-	new (toFill++) EmojiData(19, 24, 0x2620U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(11, 28, 0x2622U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(12, 28, 0x2623U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(32, 27, 0x2626U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(25, 27, 0x262AU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(23, 27, 0x262EU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(31, 27, 0x262FU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(27, 27, 0x2638U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(3, 1, 0x2639U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(13, 0, 0x263AU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(35, 27, 0x2648U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(36, 27, 0x2649U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(37, 27, 0x264AU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(38, 27, 0x264BU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(39, 27, 0x264CU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(0, 28, 0x264DU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(1, 28, 0x264EU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(2, 28, 0x264FU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(3, 28, 0x2650U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(4, 28, 0x2651U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(5, 28, 0x2652U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(6, 28, 0x2653U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(4, 33, 0x2660U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(5, 33, 0x2663U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(6, 33, 0x2665U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(7, 33, 0x2666U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(2, 29, 0x2668U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(24, 29, 0x267BU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(2, 30, 0x267FU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(6, 24, 0x2692U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(3, 21, 0x2693U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(16, 24, 0x2694U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(3, 24, 0x2696U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(26, 24, 0x2697U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(10, 24, 0x2699U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(8, 28, 0x269BU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(19, 29, 0x269CU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(21, 29, 0x26A0U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(10, 15, 0x26A1U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(14, 32, 0x26AAU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(15, 32, 0x26ABU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(20, 24, 0x26B0U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(21, 24, 0x26B1U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(13, 17, 0x26BDU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(16, 17, 0x26BEU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(16, 15, 0x26C4U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(3, 15, 0x26C5U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(8, 15, 0x26C8U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(34, 27, 0x26CEU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(8, 24, 0x26CFU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(29, 11, 0x26D1U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(11, 24, 0x26D3U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(36, 28, 0x26D4U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(29, 22, 0x26E9U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(25, 22, 0x26EAU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(20, 21, 0x26F0U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(7, 25, 0x26F1U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(18, 21, 0x26F2U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(21, 17, 0x26F3U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(38, 20, 0x26F4U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(35, 20, 0x26F5U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(29, 17, 0x26F7U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(31, 17, 0x26F8U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(18, 18, 0x26F9U, 0, 1, 0, 0xFFFF0412U);
-	new (toFill++) EmojiData(26, 21, 0x26FAU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(5, 21, 0x26FDU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(27, 26, 0x2702U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(30, 29, 0x2705U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(32, 20, 0x2708U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(20, 25, 0x2709U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(3, 3, 0x270AU, 0, 1, 0, 0xFFFF0417U);
-	new (toFill++) EmojiData(21, 3, 0x270BU, 0, 1, 0, 0xFFFF041CU);
-	new (toFill++) EmojiData(9, 3, 0x270CU, 0, 1, 0, 0xFFFF0421U);
-	new (toFill++) EmojiData(19, 5, 0x270DU, 0, 1, 0, 0xFFFF0426U);
-	new (toFill++) EmojiData(3, 27, 0x270FU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(1, 27, 0x2712U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(36, 31, 0x2714U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(1, 32, 0x2716U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(24, 27, 0x271DU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(28, 27, 0x2721U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(39, 14, 0x2728U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(28, 29, 0x2733U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(20, 28, 0x2734U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(13, 15, 0x2744U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(27, 29, 0x2747U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(39, 28, 0x274CU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(29, 29, 0x274EU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(11, 29, 0x2753U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(12, 29, 0x2754U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(10, 29, 0x2755U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(9, 29, 0x2757U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(14, 27, 0x2763U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(8, 27, 0x2764U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(38, 31, 0x2795U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(39, 31, 0x2796U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(0, 32, 0x2797U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(10, 31, 0x27A1U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(35, 31, 0x27B0U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(33, 29, 0x27BFU, 0, 1, 0, 0);
-	new (toFill++) EmojiData(23, 31, 0x2934U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(24, 31, 0x2935U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(11, 31, 0x2B05U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(12, 31, 0x2B06U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(13, 31, 0x2B07U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(25, 32, 0x2B1BU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(26, 32, 0x2B1CU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(36, 14, 0x2B50U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(0, 29, 0x2B55U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(34, 31, 0x3030U, 0, 1, 0, 0);
-	new (toFill++) EmojiData(20, 29, 0x303DU, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(26, 28, 0x3297U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(25, 28, 0x3299U, 0, 1, 0xFE0F, 0);
-	new (toFill++) EmojiData(25, 31, 0x2320E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 31, 0x2A20E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 30, 0x3020E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 30, 0x3120E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 30, 0x3220E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 30, 0x3320E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 30, 0x3420E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 30, 0x3520E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 30, 0x3620E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 30, 0x3720E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 30, 0x3820E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 30, 0x3920E3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 33, 0xD83CDC04U, 0, 2, 0xFE0F, 0);
-	new (toFill++) EmojiData(2, 33, 0xD83CDCCFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 28, 0xD83CDD70U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 28, 0xD83CDD71U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 28, 0xD83CDD7EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 30, 0xD83CDD7FU, 0, 2, 0xFE0F, 0);
-	new (toFill++) EmojiData(32, 28, 0xD83CDD8EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 28, 0xD83CDD91U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 30, 0xD83CDD92U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 30, 0xD83CDD93U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 28, 0xD83CDD94U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 30, 0xD83CDD95U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 30, 0xD83CDD96U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 30, 0xD83CDD97U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 28, 0xD83CDD98U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 30, 0xD83CDD99U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 28, 0xD83CDD9AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 30, 0xD83CDE01U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 29, 0xD83CDE02U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 28, 0xD83CDE1AU, 0, 2, 0xFE0F, 0);
-	new (toFill++) EmojiData(25, 29, 0xD83CDE2FU, 0, 2, 0xFE0F, 0);
-	new (toFill++) EmojiData(29, 28, 0xD83CDE32U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 28, 0xD83CDE33U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 28, 0xD83CDE34U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 28, 0xD83CDE35U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 28, 0xD83CDE36U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 28, 0xD83CDE37U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 28, 0xD83CDE38U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 28, 0xD83CDE39U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 28, 0xD83CDE3AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 28, 0xD83CDE50U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 28, 0xD83CDE51U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 29, 0xD83CDF00U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 21, 0xD83CDF01U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 11, 0xD83CDF02U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 21, 0xD83CDF03U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 21, 0xD83CDF04U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 21, 0xD83CDF05U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 21, 0xD83CDF06U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 21, 0xD83CDF07U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 22, 0xD83CDF08U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 21, 0xD83CDF09U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 15, 0xD83CDF0AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 21, 0xD83CDF0BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 22, 0xD83CDF0CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 14, 0xD83CDF0DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 14, 0xD83CDF0EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 14, 0xD83CDF0FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 29, 0xD83CDF10U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 14, 0xD83CDF11U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 14, 0xD83CDF12U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 14, 0xD83CDF13U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 14, 0xD83CDF14U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 14, 0xD83CDF15U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 14, 0xD83CDF16U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 14, 0xD83CDF17U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 14, 0xD83CDF18U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 14, 0xD83CDF19U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 14, 0xD83CDF1AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 14, 0xD83CDF1BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 14, 0xD83CDF1CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 14, 0xD83CDF1DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 14, 0xD83CDF1EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 14, 0xD83CDF1FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 22, 0xD83CDF20U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 24, 0xD83CDF21U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 15, 0xD83CDF24U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 15, 0xD83CDF25U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 15, 0xD83CDF26U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 15, 0xD83CDF27U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 15, 0xD83CDF28U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 15, 0xD83CDF29U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 15, 0xD83CDF2AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 15, 0xD83CDF2BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 15, 0xD83CDF2CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 16, 0xD83CDF2DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 16, 0xD83CDF2EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 16, 0xD83CDF2FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 14, 0xD83CDF30U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 13, 0xD83CDF31U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 13, 0xD83CDF32U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 13, 0xD83CDF33U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 13, 0xD83CDF34U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 13, 0xD83CDF35U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 16, 0xD83CDF36U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 14, 0xD83CDF37U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 14, 0xD83CDF38U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 14, 0xD83CDF39U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 14, 0xD83CDF3AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 14, 0xD83CDF3BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 14, 0xD83CDF3CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 16, 0xD83CDF3DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 14, 0xD83CDF3EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 13, 0xD83CDF3FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 14, 0xD83CDF40U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 14, 0xD83CDF41U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 14, 0xD83CDF42U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 14, 0xD83CDF43U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 14, 0xD83CDF44U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 15, 0xD83CDF45U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 16, 0xD83CDF46U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 15, 0xD83CDF47U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 15, 0xD83CDF48U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 15, 0xD83CDF49U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 15, 0xD83CDF4AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 15, 0xD83CDF4BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 15, 0xD83CDF4CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 15, 0xD83CDF4DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 15, 0xD83CDF4EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 15, 0xD83CDF4FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 15, 0xD83CDF50U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 15, 0xD83CDF51U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 15, 0xD83CDF52U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 15, 0xD83CDF53U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 16, 0xD83CDF54U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 16, 0xD83CDF55U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 16, 0xD83CDF56U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 16, 0xD83CDF57U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 16, 0xD83CDF58U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 16, 0xD83CDF59U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 16, 0xD83CDF5AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 16, 0xD83CDF5BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 16, 0xD83CDF5CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 16, 0xD83CDF5DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 16, 0xD83CDF5EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 16, 0xD83CDF5FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 16, 0xD83CDF60U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 16, 0xD83CDF61U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 16, 0xD83CDF62U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 16, 0xD83CDF63U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 16, 0xD83CDF64U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 16, 0xD83CDF65U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 16, 0xD83CDF66U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 16, 0xD83CDF67U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 16, 0xD83CDF68U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 16, 0xD83CDF69U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 17, 0xD83CDF6AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 16, 0xD83CDF6BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 16, 0xD83CDF6CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 16, 0xD83CDF6DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 16, 0xD83CDF6EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 16, 0xD83CDF6FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 16, 0xD83CDF70U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 16, 0xD83CDF71U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 16, 0xD83CDF72U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 16, 0xD83CDF73U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 17, 0xD83CDF74U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 17, 0xD83CDF75U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 17, 0xD83CDF76U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 17, 0xD83CDF77U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 17, 0xD83CDF78U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 17, 0xD83CDF79U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 17, 0xD83CDF7AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 17, 0xD83CDF7BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 17, 0xD83CDF7CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 17, 0xD83CDF7DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 17, 0xD83CDF7EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 16, 0xD83CDF7FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 25, 0xD83CDF80U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 25, 0xD83CDF81U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 16, 0xD83CDF82U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 14, 0xD83CDF83U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 13, 0xD83CDF84U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 8, 0xD83CDF85U, 0, 2, 0, 0xFFFF0522U);
-	new (toFill++) EmojiData(3, 22, 0xD83CDF86U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 22, 0xD83CDF87U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 25, 0xD83CDF88U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 25, 0xD83CDF89U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 25, 0xD83CDF8AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 14, 0xD83CDF8BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 25, 0xD83CDF8CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 14, 0xD83CDF8DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 25, 0xD83CDF8EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 25, 0xD83CDF8FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 25, 0xD83CDF90U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 21, 0xD83CDF91U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 11, 0xD83CDF92U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 11, 0xD83CDF93U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 19, 0xD83CDF96U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 19, 0xD83CDF97U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 23, 0xD83CDF99U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 23, 0xD83CDF9AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 23, 0xD83CDF9BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 23, 0xD83CDF9EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 19, 0xD83CDF9FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 21, 0xD83CDFA0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 21, 0xD83CDFA1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 21, 0xD83CDFA2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 17, 0xD83CDFA3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 19, 0xD83CDFA4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 23, 0xD83CDFA5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 30, 0xD83CDFA6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 19, 0xD83CDFA7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 19, 0xD83CDFA8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 11, 0xD83CDFA9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 19, 0xD83CDFAAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 19, 0xD83CDFABU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 19, 0xD83CDFACU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 19, 0xD83CDFADU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 19, 0xD83CDFAEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 19, 0xD83CDFAFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 19, 0xD83CDFB0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 17, 0xD83CDFB1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 19, 0xD83CDFB2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 19, 0xD83CDFB3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 33, 0xD83CDFB4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 31, 0xD83CDFB5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 31, 0xD83CDFB6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 19, 0xD83CDFB7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 19, 0xD83CDFB8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 19, 0xD83CDFB9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 19, 0xD83CDFBAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 19, 0xD83CDFBBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 19, 0xD83CDFBCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 19, 0xD83CDFBDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 17, 0xD83CDFBEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 17, 0xD83CDFBFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 17, 0xD83CDFC0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 21, 0xD83CDFC1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 17, 0xD83CDFC2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 8, 0xD83CDFC3U, 0, 2, 0, 0xFFFF0527U);
-	new (toFill++) EmojiData(6, 18, 0xD83CDFC4U, 0, 2, 0, 0xFFFF052CU);
-	new (toFill++) EmojiData(11, 19, 0xD83CDFC5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 19, 0xD83CDFC6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 19, 0xD83CDFC7U, 0, 2, 0, 0xFFFF0531U);
-	new (toFill++) EmojiData(15, 17, 0xD83CDFC8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 17, 0xD83CDFC9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 18, 0xD83CDFCAU, 0, 2, 0, 0xFFFF0536U);
-	new (toFill++) EmojiData(24, 18, 0xD83CDFCBU, 0, 2, 0, 0xFFFF053BU);
-	new (toFill++) EmojiData(22, 17, 0xD83CDFCCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 20, 0xD83CDFCDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 20, 0xD83CDFCEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 17, 0xD83CDFCFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 17, 0xD83CDFD0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 17, 0xD83CDFD1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 17, 0xD83CDFD2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 17, 0xD83CDFD3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 21, 0xD83CDFD4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 21, 0xD83CDFD5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 21, 0xD83CDFD6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 21, 0xD83CDFD7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 22, 0xD83CDFD8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 21, 0xD83CDFD9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 22, 0xD83CDFDAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 22, 0xD83CDFDBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 21, 0xD83CDFDCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 21, 0xD83CDFDDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 21, 0xD83CDFDEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 22, 0xD83CDFDFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 22, 0xD83CDFE0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 22, 0xD83CDFE1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 22, 0xD83CDFE2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 22, 0xD83CDFE3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 22, 0xD83CDFE4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 22, 0xD83CDFE5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 22, 0xD83CDFE6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 29, 0xD83CDFE7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 22, 0xD83CDFE8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 22, 0xD83CDFE9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 22, 0xD83CDFEAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 22, 0xD83CDFEBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 22, 0xD83CDFECU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 21, 0xD83CDFEDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 25, 0xD83CDFEEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 22, 0xD83CDFEFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 22, 0xD83CDFF0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 26, 0xD83CDFF3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 26, 0xD83CDFF4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 19, 0xD83CDFF5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 24, 0xD83CDFF7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 17, 0xD83CDFF8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 17, 0xD83CDFF9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 24, 0xD83CDFFAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 13, 0xD83DDC00U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 13, 0xD83DDC01U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 13, 0xD83DDC02U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 13, 0xD83DDC03U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 13, 0xD83DDC04U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 13, 0xD83DDC05U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 13, 0xD83DDC06U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 13, 0xD83DDC07U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 13, 0xD83DDC08U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 13, 0xD83DDC09U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 13, 0xD83DDC0AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 13, 0xD83DDC0BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 12, 0xD83DDC0CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 12, 0xD83DDC0DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 13, 0xD83DDC0EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 13, 0xD83DDC0FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 13, 0xD83DDC10U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 13, 0xD83DDC11U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 12, 0xD83DDC12U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 13, 0xD83DDC13U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 12, 0xD83DDC14U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 13, 0xD83DDC15U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 13, 0xD83DDC16U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 12, 0xD83DDC17U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 13, 0xD83DDC18U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 12, 0xD83DDC19U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 14, 0xD83DDC1AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 12, 0xD83DDC1BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 12, 0xD83DDC1CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 12, 0xD83DDC1DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 12, 0xD83DDC1EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 13, 0xD83DDC1FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 12, 0xD83DDC20U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 13, 0xD83DDC21U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 12, 0xD83DDC22U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 12, 0xD83DDC23U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 12, 0xD83DDC24U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 12, 0xD83DDC25U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 12, 0xD83DDC26U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 12, 0xD83DDC27U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 12, 0xD83DDC28U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 13, 0xD83DDC29U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 13, 0xD83DDC2AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 13, 0xD83DDC2BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 13, 0xD83DDC2CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 12, 0xD83DDC2DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 12, 0xD83DDC2EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 12, 0xD83DDC2FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 12, 0xD83DDC30U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 12, 0xD83DDC31U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 13, 0xD83DDC32U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 13, 0xD83DDC33U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 12, 0xD83DDC34U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 12, 0xD83DDC35U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 11, 0xD83DDC36U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 12, 0xD83DDC37U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 12, 0xD83DDC38U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 12, 0xD83DDC39U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 12, 0xD83DDC3AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 12, 0xD83DDC3BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 12, 0xD83DDC3CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 12, 0xD83DDC3DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 13, 0xD83DDC3EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 13, 0xD83DDC3FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 6, 0xD83DDC40U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 6, 0xD83DDC41U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 5, 0xD83DDC42U, 0, 2, 0, 0xFFFF0540U);
-	new (toFill++) EmojiData(39, 5, 0xD83DDC43U, 0, 2, 0, 0xFFFF0545U);
-	new (toFill++) EmojiData(31, 5, 0xD83DDC44U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 5, 0xD83DDC45U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 4, 0xD83DDC46U, 0, 2, 0, 0xFFFF054AU);
-	new (toFill++) EmojiData(17, 4, 0xD83DDC47U, 0, 2, 0, 0xFFFF054FU);
-	new (toFill++) EmojiData(23, 4, 0xD83DDC48U, 0, 2, 0, 0xFFFF0554U);
-	new (toFill++) EmojiData(29, 4, 0xD83DDC49U, 0, 2, 0, 0xFFFF0559U);
-	new (toFill++) EmojiData(37, 2, 0xD83DDC4AU, 0, 2, 0, 0xFFFF055EU);
-	new (toFill++) EmojiData(19, 2, 0xD83DDC4BU, 0, 2, 0, 0xFFFF0563U);
-	new (toFill++) EmojiData(15, 3, 0xD83DDC4CU, 0, 2, 0, 0xFFFF0568U);
-	new (toFill++) EmojiData(25, 2, 0xD83DDC4DU, 0, 2, 0, 0xFFFF056DU);
-	new (toFill++) EmojiData(31, 2, 0xD83DDC4EU, 0, 2, 0, 0xFFFF0572U);
-	new (toFill++) EmojiData(13, 2, 0xD83DDC4FU, 0, 2, 0, 0xFFFF0577U);
-	new (toFill++) EmojiData(27, 3, 0xD83DDC50U, 0, 2, 0, 0xFFFF057CU);
-	new (toFill++) EmojiData(28, 11, 0xD83DDC51U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 11, 0xD83DDC52U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 11, 0xD83DDC53U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 11, 0xD83DDC54U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 11, 0xD83DDC55U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 11, 0xD83DDC56U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 11, 0xD83DDC57U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 11, 0xD83DDC58U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 11, 0xD83DDC59U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 11, 0xD83DDC5AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 11, 0xD83DDC5BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 11, 0xD83DDC5CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 11, 0xD83DDC5DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 11, 0xD83DDC5EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 11, 0xD83DDC5FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 11, 0xD83DDC60U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 11, 0xD83DDC61U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 11, 0xD83DDC62U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 11, 0xD83DDC63U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 6, 0xD83DDC64U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 6, 0xD83DDC65U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 6, 0xD83DDC66U, 0, 2, 0, 0xFFFF0581U);
-	new (toFill++) EmojiData(22, 6, 0xD83DDC67U, 0, 2, 0, 0xFFFF0586U);
-	new (toFill++) EmojiData(28, 6, 0xD83DDC68U, 0, 2, 0, 0xFFFF058BU);
-	new (toFill++) EmojiData(34, 6, 0xD83DDC69U, 0, 2, 0, 0xFFFF0590U);
-	new (toFill++) EmojiData(35, 10, 0xD83DDC6AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 9, 0xD83DDC6BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 9, 0xD83DDC6CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 9, 0xD83DDC6DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 7, 0xD83DDC6EU, 0, 2, 0, 0xFFFF0595U);
-	new (toFill++) EmojiData(11, 9, 0xD83DDC6FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 8, 0xD83DDC70U, 0, 2, 0, 0xFFFF059AU);
-	new (toFill++) EmojiData(0, 7, 0xD83DDC71U, 0, 2, 0, 0xFFFF059FU);
-	new (toFill++) EmojiData(18, 7, 0xD83DDC72U, 0, 2, 0, 0xFFFF05A4U);
-	new (toFill++) EmojiData(24, 7, 0xD83DDC73U, 0, 2, 0, 0xFFFF05A9U);
-	new (toFill++) EmojiData(6, 7, 0xD83DDC74U, 0, 2, 0, 0xFFFF05AEU);
-	new (toFill++) EmojiData(12, 7, 0xD83DDC75U, 0, 2, 0, 0xFFFF05B3U);
-	new (toFill++) EmojiData(10, 6, 0xD83DDC76U, 0, 2, 0, 0xFFFF05B8U);
-	new (toFill++) EmojiData(36, 7, 0xD83DDC77U, 0, 2, 0, 0xFFFF05BDU);
-	new (toFill++) EmojiData(21, 8, 0xD83DDC78U, 0, 2, 0, 0xFFFF05C2U);
-	new (toFill++) EmojiData(32, 1, 0xD83DDC79U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 1, 0xD83DDC7AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 1, 0xD83DDC7BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 8, 0xD83DDC7CU, 0, 2, 0, 0xFFFF05C7U);
-	new (toFill++) EmojiData(36, 1, 0xD83DDC7DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 19, 0xD83DDC7EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 1, 0xD83DDC7FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 1, 0xD83DDC80U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 9, 0xD83DDC81U, 0, 2, 0, 0xFFFF05CCU);
-	new (toFill++) EmojiData(2, 8, 0xD83DDC82U, 0, 2, 0, 0xFFFF05D1U);
-	new (toFill++) EmojiData(5, 9, 0xD83DDC83U, 0, 2, 0, 0xFFFF05D6U);
-	new (toFill++) EmojiData(17, 11, 0xD83DDC84U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 5, 0xD83DDC85U, 0, 2, 0, 0xFFFF05DBU);
-	new (toFill++) EmojiData(23, 10, 0xD83DDC86U, 0, 2, 0, 0xFFFF05E0U);
-	new (toFill++) EmojiData(17, 10, 0xD83DDC87U, 0, 2, 0, 0xFFFF05E5U);
-	new (toFill++) EmojiData(25, 24, 0xD83DDC88U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 24, 0xD83DDC89U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 24, 0xD83DDC8AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 11, 0xD83DDC8BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 25, 0xD83DDC8CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 11, 0xD83DDC8DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 24, 0xD83DDC8EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 10, 0xD83DDC8FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 14, 0xD83DDC90U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 10, 0xD83DDC91U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 22, 0xD83DDC92U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 27, 0xD83DDC93U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 27, 0xD83DDC94U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 27, 0xD83DDC95U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 27, 0xD83DDC96U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 27, 0xD83DDC97U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 27, 0xD83DDC98U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 27, 0xD83DDC99U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 27, 0xD83DDC9AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 27, 0xD83DDC9BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 27, 0xD83DDC9CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 27, 0xD83DDC9DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 27, 0xD83DDC9EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 27, 0xD83DDC9FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 29, 0xD83DDCA0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 23, 0xD83DDCA1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 29, 0xD83DDCA2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 24, 0xD83DDCA3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 1, 0xD83DDCA4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 15, 0xD83DDCA5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 15, 0xD83DDCA6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 15, 0xD83DDCA7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 15, 0xD83DDCA8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 1, 0xD83DDCA9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 3, 0xD83DDCAAU, 0, 2, 0, 0xFFFF05EAU);
-	new (toFill++) EmojiData(38, 14, 0xD83DDCABU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 33, 0xD83DDCACU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 33, 0xD83DDCADU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 28, 0xD83DDCAEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 29, 0xD83DDCAFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 24, 0xD83DDCB0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 32, 0xD83DDCB1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 32, 0xD83DDCB2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 24, 0xD83DDCB3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 23, 0xD83DDCB4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 23, 0xD83DDCB5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 23, 0xD83DDCB6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 23, 0xD83DDCB7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 23, 0xD83DDCB8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 29, 0xD83DDCB9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 21, 0xD83DDCBAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 22, 0xD83DDCBBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 11, 0xD83DDCBCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 23, 0xD83DDCBDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 23, 0xD83DDCBEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 23, 0xD83DDCBFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 23, 0xD83DDCC0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 26, 0xD83DDCC1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 26, 0xD83DDCC2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 25, 0xD83DDCC3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 26, 0xD83DDCC4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 26, 0xD83DDCC5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 26, 0xD83DDCC6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 26, 0xD83DDCC7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 25, 0xD83DDCC8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 25, 0xD83DDCC9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 25, 0xD83DDCCAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 26, 0xD83DDCCBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 26, 0xD83DDCCCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 26, 0xD83DDCCDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 26, 0xD83DDCCEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 26, 0xD83DDCCFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 26, 0xD83DDCD0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 25, 0xD83DDCD1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 26, 0xD83DDCD2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 26, 0xD83DDCD3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 26, 0xD83DDCD4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 26, 0xD83DDCD5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 26, 0xD83DDCD6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 26, 0xD83DDCD7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 26, 0xD83DDCD8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 26, 0xD83DDCD9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 26, 0xD83DDCDAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 28, 0xD83DDCDBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 25, 0xD83DDCDCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 27, 0xD83DDCDDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 23, 0xD83DDCDEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 23, 0xD83DDCDFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 23, 0xD83DDCE0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 23, 0xD83DDCE1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 32, 0xD83DDCE2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 32, 0xD83DDCE3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 25, 0xD83DDCE4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 25, 0xD83DDCE5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 25, 0xD83DDCE6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 25, 0xD83DDCE7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 25, 0xD83DDCE8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 25, 0xD83DDCE9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 25, 0xD83DDCEAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 25, 0xD83DDCEBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 25, 0xD83DDCECU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 25, 0xD83DDCEDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 25, 0xD83DDCEEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 25, 0xD83DDCEFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 26, 0xD83DDCF0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 22, 0xD83DDCF1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 22, 0xD83DDCF2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 28, 0xD83DDCF3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 28, 0xD83DDCF4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 29, 0xD83DDCF5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 30, 0xD83DDCF6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 23, 0xD83DDCF7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 23, 0xD83DDCF8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 23, 0xD83DDCF9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 23, 0xD83DDCFAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 23, 0xD83DDCFBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 23, 0xD83DDCFCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 23, 0xD83DDCFDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 24, 0xD83DDCFFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 31, 0xD83DDD00U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 31, 0xD83DDD01U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 31, 0xD83DDD02U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 31, 0xD83DDD03U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 31, 0xD83DDD04U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 29, 0xD83DDD05U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 29, 0xD83DDD06U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 32, 0xD83DDD07U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 32, 0xD83DDD08U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 32, 0xD83DDD09U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 32, 0xD83DDD0AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 23, 0xD83DDD0BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 23, 0xD83DDD0CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 27, 0xD83DDD0DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 27, 0xD83DDD0EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 26, 0xD83DDD0FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 26, 0xD83DDD10U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 24, 0xD83DDD11U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 26, 0xD83DDD12U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 26, 0xD83DDD13U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 33, 0xD83DDD14U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 33, 0xD83DDD15U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 24, 0xD83DDD16U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 26, 0xD83DDD17U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 32, 0xD83DDD18U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 32, 0xD83DDD19U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 32, 0xD83DDD1AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 32, 0xD83DDD1BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 32, 0xD83DDD1CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 32, 0xD83DDD1DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 29, 0xD83DDD1EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 30, 0xD83DDD1FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 31, 0xD83DDD20U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 31, 0xD83DDD21U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 30, 0xD83DDD22U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 31, 0xD83DDD23U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 31, 0xD83DDD24U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 15, 0xD83DDD25U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 23, 0xD83DDD26U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 24, 0xD83DDD27U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 24, 0xD83DDD28U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 24, 0xD83DDD29U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 24, 0xD83DDD2AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 24, 0xD83DDD2BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 24, 0xD83DDD2CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 24, 0xD83DDD2DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 24, 0xD83DDD2EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 27, 0xD83DDD2FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 29, 0xD83DDD30U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 29, 0xD83DDD31U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 32, 0xD83DDD32U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 32, 0xD83DDD33U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 32, 0xD83DDD34U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 32, 0xD83DDD35U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 32, 0xD83DDD36U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 32, 0xD83DDD37U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 32, 0xD83DDD38U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 32, 0xD83DDD39U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 32, 0xD83DDD3AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 32, 0xD83DDD3BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 31, 0xD83DDD3CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 31, 0xD83DDD3DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 27, 0xD83DDD49U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 13, 0xD83DDD4AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 22, 0xD83DDD4BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 22, 0xD83DDD4CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 22, 0xD83DDD4DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 27, 0xD83DDD4EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 33, 0xD83DDD50U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 33, 0xD83DDD51U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 33, 0xD83DDD52U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 33, 0xD83DDD53U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 33, 0xD83DDD54U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 33, 0xD83DDD55U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 33, 0xD83DDD56U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 33, 0xD83DDD57U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 33, 0xD83DDD58U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 33, 0xD83DDD59U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 33, 0xD83DDD5AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 33, 0xD83DDD5BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 33, 0xD83DDD5CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 33, 0xD83DDD5DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 33, 0xD83DDD5EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 33, 0xD83DDD5FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 33, 0xD83DDD60U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 33, 0xD83DDD61U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 33, 0xD83DDD62U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 33, 0xD83DDD63U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 33, 0xD83DDD64U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 33, 0xD83DDD65U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 33, 0xD83DDD66U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 33, 0xD83DDD67U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 23, 0xD83DDD6FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 23, 0xD83DDD70U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 24, 0xD83DDD73U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 19, 0xD83DDD74U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 8, 0xD83DDD75U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 11, 0xD83DDD76U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 12, 0xD83DDD77U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 14, 0xD83DDD78U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 22, 0xD83DDD79U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 26, 0xD83DDD87U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 26, 0xD83DDD8AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 27, 0xD83DDD8BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 27, 0xD83DDD8CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 27, 0xD83DDD8DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 5, 0xD83DDD90U, 0, 2, 0, 0xFFFF05EFU);
-	new (toFill++) EmojiData(35, 4, 0xD83DDD95U, 0, 2, 0, 0xFFFF05F4U);
-	new (toFill++) EmojiData(13, 5, 0xD83DDD96U, 0, 2, 0, 0xFFFF05F9U);
-	new (toFill++) EmojiData(35, 22, 0xD83DDDA5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 22, 0xD83DDDA8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 22, 0xD83DDDB1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 22, 0xD83DDDB2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 25, 0xD83DDDBCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 26, 0xD83DDDC2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 26, 0xD83DDDC3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 26, 0xD83DDDC4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 23, 0xD83DDDD1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 26, 0xD83DDDD2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 26, 0xD83DDDD3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 23, 0xD83DDDDCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 24, 0xD83DDDDDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 26, 0xD83DDDDEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 24, 0xD83DDDE1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 6, 0xD83DDDE3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 33, 0xD83DDDEFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 26, 0xD83DDDF3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 25, 0xD83DDDFAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 21, 0xD83DDDFBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 21, 0xD83DDDFCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 22, 0xD83DDDFDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 21, 0xD83DDDFEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 25, 0xD83DDDFFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 0, 0xD83DDE00U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 0, 0xD83DDE01U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 0, 0xD83DDE02U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 0, 0xD83DDE03U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 0, 0xD83DDE04U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 0, 0xD83DDE05U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 0, 0xD83DDE06U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 0, 0xD83DDE07U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 1, 0xD83DDE08U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 0, 0xD83DDE09U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 0, 0xD83DDE0AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 0, 0xD83DDE0BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 0, 0xD83DDE0CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 0, 0xD83DDE0DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 0, 0xD83DDE0EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 0, 0xD83DDE0FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 0, 0xD83DDE10U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 0, 0xD83DDE11U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 0, 0xD83DDE12U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 1, 0xD83DDE13U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 1, 0xD83DDE14U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 1, 0xD83DDE15U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 1, 0xD83DDE16U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 0, 0xD83DDE17U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 0, 0xD83DDE18U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 0, 0xD83DDE19U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 0, 0xD83DDE1AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 0, 0xD83DDE1BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 0, 0xD83DDE1CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 0, 0xD83DDE1DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 0, 0xD83DDE1EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 0, 0xD83DDE1FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 0, 0xD83DDE20U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 0, 0xD83DDE21U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 1, 0xD83DDE22U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 1, 0xD83DDE23U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 1, 0xD83DDE24U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 1, 0xD83DDE25U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 1, 0xD83DDE26U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 1, 0xD83DDE27U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 1, 0xD83DDE28U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 1, 0xD83DDE29U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 1, 0xD83DDE2AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 1, 0xD83DDE2BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 0, 0xD83DDE2CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 1, 0xD83DDE2DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 1, 0xD83DDE2EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 1, 0xD83DDE2FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 1, 0xD83DDE30U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 1, 0xD83DDE31U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 1, 0xD83DDE32U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 0, 0xD83DDE33U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 1, 0xD83DDE34U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 1, 0xD83DDE35U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 0, 0xD83DDE36U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 1, 0xD83DDE37U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 1, 0xD83DDE38U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 2, 0xD83DDE39U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 1, 0xD83DDE3AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 2, 0xD83DDE3BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 2, 0xD83DDE3CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 2, 0xD83DDE3DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 2, 0xD83DDE3EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 2, 0xD83DDE3FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 2, 0xD83DDE40U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 1, 0xD83DDE41U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 0, 0xD83DDE42U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 0, 0xD83DDE43U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 0, 0xD83DDE44U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 9, 0xD83DDE45U, 0, 2, 0, 0xFFFF05FEU);
-	new (toFill++) EmojiData(33, 9, 0xD83DDE46U, 0, 2, 0, 0xFFFF0603U);
-	new (toFill++) EmojiData(15, 9, 0xD83DDE47U, 0, 2, 0, 0xFFFF0608U);
-	new (toFill++) EmojiData(15, 12, 0xD83DDE48U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 12, 0xD83DDE49U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 12, 0xD83DDE4AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 9, 0xD83DDE4BU, 0, 2, 0, 0xFFFF060DU);
-	new (toFill++) EmojiData(7, 2, 0xD83DDE4CU, 0, 2, 0, 0xFFFF0612U);
-	new (toFill++) EmojiData(11, 10, 0xD83DDE4DU, 0, 2, 0, 0xFFFF0617U);
-	new (toFill++) EmojiData(5, 10, 0xD83DDE4EU, 0, 2, 0, 0xFFFF061CU);
-	new (toFill++) EmojiData(39, 3, 0xD83DDE4FU, 0, 2, 0, 0xFFFF0621U);
-	new (toFill++) EmojiData(0, 21, 0xD83DDE80U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 20, 0xD83DDE81U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 20, 0xD83DDE82U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 20, 0xD83DDE83U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(21, 20, 0xD83DDE84U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 20, 0xD83DDE85U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 20, 0xD83DDE86U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 20, 0xD83DDE87U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 20, 0xD83DDE88U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 20, 0xD83DDE89U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 20, 0xD83DDE8AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(19, 20, 0xD83DDE8BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 19, 0xD83DDE8CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 20, 0xD83DDE8DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 19, 0xD83DDE8EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 21, 0xD83DDE8FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 20, 0xD83DDE90U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 20, 0xD83DDE91U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 20, 0xD83DDE92U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 20, 0xD83DDE93U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 20, 0xD83DDE94U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 19, 0xD83DDE95U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(14, 20, 0xD83DDE96U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 19, 0xD83DDE97U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(13, 20, 0xD83DDE98U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 19, 0xD83DDE99U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 20, 0xD83DDE9AU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 20, 0xD83DDE9BU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 20, 0xD83DDE9CU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(20, 20, 0xD83DDE9DU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 20, 0xD83DDE9EU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 20, 0xD83DDE9FU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(16, 20, 0xD83DDEA0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(15, 20, 0xD83DDEA1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 21, 0xD83DDEA2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 17, 0xD83DDEA3U, 0, 2, 0, 0xFFFF0626U);
-	new (toFill++) EmojiData(37, 20, 0xD83DDEA4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 21, 0xD83DDEA5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 21, 0xD83DDEA6U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 21, 0xD83DDEA7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 20, 0xD83DDEA8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(32, 26, 0xD83DDEA9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 25, 0xD83DDEAAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 28, 0xD83DDEABU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(18, 24, 0xD83DDEACU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(3, 30, 0xD83DDEADU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(11, 30, 0xD83DDEAEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 29, 0xD83DDEAFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 30, 0xD83DDEB0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 29, 0xD83DDEB1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 20, 0xD83DDEB2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(5, 29, 0xD83DDEB3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(30, 18, 0xD83DDEB4U, 0, 2, 0, 0xFFFF062BU);
-	new (toFill++) EmojiData(36, 18, 0xD83DDEB5U, 0, 2, 0, 0xFFFF0630U);
-	new (toFill++) EmojiData(33, 8, 0xD83DDEB6U, 0, 2, 0, 0xFFFF0635U);
-	new (toFill++) EmojiData(3, 29, 0xD83DDEB7U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 29, 0xD83DDEB8U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 30, 0xD83DDEB9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 30, 0xD83DDEBAU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(10, 30, 0xD83DDEBBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 30, 0xD83DDEBCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 24, 0xD83DDEBDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 30, 0xD83DDEBEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 24, 0xD83DDEBFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(12, 18, 0xD83DDEC0U, 0, 2, 0, 0xFFFF063AU);
-	new (toFill++) EmojiData(37, 24, 0xD83DDEC1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(38, 29, 0xD83DDEC2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 29, 0xD83DDEC3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 30, 0xD83DDEC4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 30, 0xD83DDEC5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(0, 25, 0xD83DDECBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 25, 0xD83DDECCU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(9, 25, 0xD83DDECDU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(4, 25, 0xD83DDECEU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(2, 25, 0xD83DDECFU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 27, 0xD83DDED0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 24, 0xD83DDEE0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(17, 24, 0xD83DDEE1U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 23, 0xD83DDEE2U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 21, 0xD83DDEE3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(29, 21, 0xD83DDEE4U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 20, 0xD83DDEE5U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(31, 20, 0xD83DDEE9U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(33, 20, 0xD83DDEEBU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 20, 0xD83DDEECU, 0, 2, 0, 0);
-	new (toFill++) EmojiData(1, 21, 0xD83DDEF0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(39, 20, 0xD83DDEF3U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(23, 1, 0xD83EDD10U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(24, 0, 0xD83EDD11U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 1, 0xD83EDD12U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(25, 0, 0xD83EDD13U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(34, 0, 0xD83EDD14U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(26, 1, 0xD83EDD15U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(37, 1, 0xD83EDD16U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(27, 0, 0xD83EDD17U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(7, 5, 0xD83EDD18U, 0, 2, 0, 0xFFFF063FU);
-	new (toFill++) EmojiData(36, 12, 0xD83EDD80U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(8, 12, 0xD83EDD81U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(35, 12, 0xD83EDD82U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(22, 13, 0xD83EDD83U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(28, 12, 0xD83EDD84U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(6, 16, 0xD83EDDC0U, 0, 2, 0, 0);
-	new (toFill++) EmojiData(36, 10, 0xFFFF0000U, 0, 8, 0, 0);
-	new (toFill++) EmojiData(37, 10, 0xFFFF0001U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(38, 10, 0xFFFF0002U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(39, 10, 0xFFFF0003U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(0, 11, 0xFFFF0004U, 0, 8, 0, 0);
-	new (toFill++) EmojiData(1, 11, 0xFFFF0005U, 0, 8, 0, 0);
-	new (toFill++) EmojiData(2, 11, 0xFFFF0006U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(3, 11, 0xFFFF0007U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(4, 11, 0xFFFF0008U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(5, 11, 0xFFFF0009U, 0, 8, 0, 0);
-	new (toFill++) EmojiData(6, 11, 0xFFFF000AU, 0, 8, 0, 0);
-	new (toFill++) EmojiData(7, 11, 0xFFFF000BU, 0, 11, 0, 0);
-	new (toFill++) EmojiData(8, 11, 0xFFFF000CU, 0, 11, 0, 0);
-	new (toFill++) EmojiData(9, 11, 0xFFFF000DU, 0, 11, 0, 0);
-	new (toFill++) EmojiData(30, 10, 0xFFFF000EU, 0, 8, 0, 0);
-	new (toFill++) EmojiData(31, 10, 0xFFFF000FU, 0, 8, 0, 0);
-	new (toFill++) EmojiData(33, 10, 0xFFFF0010U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(34, 10, 0xFFFF0011U, 0, 11, 0, 0);
-	new (toFill++) EmojiData(9, 33, 0xFFFF0012U, 0, 5, 0, 0);
-	new (toFill++) EmojiData(6, 4, 0x261DU, 0, 3, 0xFE0F, 0xD83CDFFBU);
-	new (toFill++) EmojiData(7, 4, 0x261DU, 0, 3, 0xFE0F, 0xD83CDFFCU);
-	new (toFill++) EmojiData(8, 4, 0x261DU, 0, 3, 0xFE0F, 0xD83CDFFDU);
-	new (toFill++) EmojiData(9, 4, 0x261DU, 0, 3, 0xFE0F, 0xD83CDFFEU);
-	new (toFill++) EmojiData(10, 4, 0x261DU, 0, 3, 0xFE0F, 0xD83CDFFFU);
-	new (toFill++) EmojiData(19, 18, 0x26F9U, 0, 3, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(20, 18, 0x26F9U, 0, 3, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(21, 18, 0x26F9U, 0, 3, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(22, 18, 0x26F9U, 0, 3, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(23, 18, 0x26F9U, 0, 3, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(4, 3, 0x270AU, 0, 3, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(5, 3, 0x270AU, 0, 3, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(6, 3, 0x270AU, 0, 3, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(7, 3, 0x270AU, 0, 3, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(8, 3, 0x270AU, 0, 3, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(22, 3, 0x270BU, 0, 3, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(23, 3, 0x270BU, 0, 3, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(24, 3, 0x270BU, 0, 3, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(25, 3, 0x270BU, 0, 3, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(26, 3, 0x270BU, 0, 3, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(10, 3, 0x270CU, 0, 3, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(11, 3, 0x270CU, 0, 3, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(12, 3, 0x270CU, 0, 3, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(13, 3, 0x270CU, 0, 3, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(14, 3, 0x270CU, 0, 3, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(20, 5, 0x270DU, 0, 3, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(21, 5, 0x270DU, 0, 3, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(22, 5, 0x270DU, 0, 3, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(23, 5, 0x270DU, 0, 3, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(24, 5, 0x270DU, 0, 3, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(2, 34, 0xD83CDDE6U, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(30, 39, 0xD83CDDE6U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(37, 33, 0xD83CDDE6U, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(6, 34, 0xD83CDDE6U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(4, 34, 0xD83CDDE6U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(39, 33, 0xD83CDDE6U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(8, 34, 0xD83CDDE6U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(3, 34, 0xD83CDDE6U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(5, 34, 0xD83CDDE6U, 0xD83CDDF6U, 4, 0, 0);
-	new (toFill++) EmojiData(7, 34, 0xD83CDDE6U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(1, 34, 0xD83CDDE6U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(11, 34, 0xD83CDDE6U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(10, 34, 0xD83CDDE6U, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(9, 34, 0xD83CDDE6U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(38, 33, 0xD83CDDE6U, 0xD83CDDFDU, 4, 0, 0);
-	new (toFill++) EmojiData(12, 34, 0xD83CDDE6U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(24, 34, 0xD83CDDE7U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(16, 34, 0xD83CDDE7U, 0xD83CDDE7U, 4, 0, 0);
-	new (toFill++) EmojiData(15, 34, 0xD83CDDE7U, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(18, 34, 0xD83CDDE7U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(31, 34, 0xD83CDDE7U, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(30, 34, 0xD83CDDE7U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(14, 34, 0xD83CDDE7U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(32, 34, 0xD83CDDE7U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(20, 34, 0xD83CDDE7U, 0xD83CDDEFU, 4, 0, 0);
-	new (toFill++) EmojiData(1, 39, 0xD83CDDE7U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(21, 34, 0xD83CDDE7U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(29, 34, 0xD83CDDE7U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(23, 34, 0xD83CDDE7U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(38, 34, 0xD83CDDE7U, 0xD83CDDF6U, 4, 0, 0);
-	new (toFill++) EmojiData(26, 34, 0xD83CDDE7U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(13, 34, 0xD83CDDE7U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(22, 34, 0xD83CDDE7U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(25, 34, 0xD83CDDE7U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(17, 34, 0xD83CDDE7U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(19, 34, 0xD83CDDE7U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(35, 34, 0xD83CDDE8U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(5, 35, 0xD83CDDE8U, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(9, 35, 0xD83CDDE8U, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(0, 35, 0xD83CDDE8U, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(8, 35, 0xD83CDDE8U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(11, 39, 0xD83CDDE8U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(12, 35, 0xD83CDDE8U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(10, 35, 0xD83CDDE8U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(2, 35, 0xD83CDDE8U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(34, 34, 0xD83CDDE8U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(3, 35, 0xD83CDDE8U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(6, 35, 0xD83CDDE8U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(11, 35, 0xD83CDDE8U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(14, 35, 0xD83CDDE8U, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(37, 34, 0xD83CDDE8U, 0xD83CDDFBU, 4, 0, 0);
-	new (toFill++) EmojiData(15, 35, 0xD83CDDE8U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(4, 35, 0xD83CDDE8U, 0xD83CDDFDU, 4, 0, 0);
-	new (toFill++) EmojiData(16, 35, 0xD83CDDE8U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(17, 35, 0xD83CDDE8U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(1, 36, 0xD83CDDE9U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(19, 35, 0xD83CDDE9U, 0xD83CDDEFU, 4, 0, 0);
-	new (toFill++) EmojiData(18, 35, 0xD83CDDE9U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(20, 35, 0xD83CDDE9U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(21, 35, 0xD83CDDE9U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(0, 34, 0xD83CDDE9U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(22, 35, 0xD83CDDEAU, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(27, 35, 0xD83CDDEAU, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(23, 35, 0xD83CDDEAU, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(0, 40, 0xD83CDDEAU, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(26, 35, 0xD83CDDEAU, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(39, 38, 0xD83CDDEAU, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(28, 35, 0xD83CDDEAU, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(29, 35, 0xD83CDDEAU, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(33, 35, 0xD83CDDEBU, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(32, 35, 0xD83CDDEBU, 0xD83CDDEFU, 4, 0, 0);
-	new (toFill++) EmojiData(30, 35, 0xD83CDDEBU, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(20, 37, 0xD83CDDEBU, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(31, 35, 0xD83CDDEBU, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(34, 35, 0xD83CDDEBU, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(38, 35, 0xD83CDDECU, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(31, 39, 0xD83CDDECU, 0xD83CDDE7U, 4, 0, 0);
-	new (toFill++) EmojiData(6, 36, 0xD83CDDECU, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(0, 36, 0xD83CDDECU, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(35, 35, 0xD83CDDECU, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(10, 36, 0xD83CDDECU, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(2, 36, 0xD83CDDECU, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(3, 36, 0xD83CDDECU, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(5, 36, 0xD83CDDECU, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(39, 35, 0xD83CDDECU, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(11, 36, 0xD83CDDECU, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(7, 36, 0xD83CDDECU, 0xD83CDDF5U, 4, 0, 0);
-	new (toFill++) EmojiData(25, 35, 0xD83CDDECU, 0xD83CDDF6U, 4, 0, 0);
-	new (toFill++) EmojiData(4, 36, 0xD83CDDECU, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(33, 38, 0xD83CDDECU, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(9, 36, 0xD83CDDECU, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(8, 36, 0xD83CDDECU, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(12, 36, 0xD83CDDECU, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(13, 36, 0xD83CDDECU, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(16, 36, 0xD83CDDEDU, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(15, 36, 0xD83CDDEDU, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(13, 35, 0xD83CDDEDU, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(14, 36, 0xD83CDDEDU, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(17, 36, 0xD83CDDEDU, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(36, 34, 0xD83CDDEEU, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(20, 36, 0xD83CDDEEU, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(23, 36, 0xD83CDDEEU, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(25, 36, 0xD83CDDEEU, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(24, 36, 0xD83CDDEEU, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(19, 36, 0xD83CDDEEU, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(27, 34, 0xD83CDDEEU, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(22, 36, 0xD83CDDEEU, 0xD83CDDF6U, 4, 0, 0);
-	new (toFill++) EmojiData(21, 36, 0xD83CDDEEU, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(18, 36, 0xD83CDDEEU, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(26, 36, 0xD83CDDEEU, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(29, 36, 0xD83CDDEFU, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(27, 36, 0xD83CDDEFU, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(30, 36, 0xD83CDDEFU, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(28, 36, 0xD83CDDEFU, 0xD83CDDF5U, 4, 0, 0);
-	new (toFill++) EmojiData(32, 36, 0xD83CDDF0U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(36, 36, 0xD83CDDF0U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(33, 34, 0xD83CDDF0U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(33, 36, 0xD83CDDF0U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(7, 35, 0xD83CDDF0U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(3, 39, 0xD83CDDF0U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(0, 38, 0xD83CDDF0U, 0xD83CDDF5U, 4, 0, 0);
-	new (toFill++) EmojiData(37, 38, 0xD83CDDF0U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(35, 36, 0xD83CDDF0U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(39, 34, 0xD83CDDF0U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(31, 36, 0xD83CDDF0U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(37, 36, 0xD83CDDF1U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(39, 36, 0xD83CDDF1U, 0xD83CDDE7U, 4, 0, 0);
-	new (toFill++) EmojiData(4, 39, 0xD83CDDF1U, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(3, 37, 0xD83CDDF1U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(0, 39, 0xD83CDDF1U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(1, 37, 0xD83CDDF1U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(0, 37, 0xD83CDDF1U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(4, 37, 0xD83CDDF1U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(5, 37, 0xD83CDDF1U, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(38, 36, 0xD83CDDF1U, 0xD83CDDFBU, 4, 0, 0);
-	new (toFill++) EmojiData(2, 37, 0xD83CDDF1U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(26, 37, 0xD83CDDF2U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(22, 37, 0xD83CDDF2U, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(21, 37, 0xD83CDDF2U, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(24, 37, 0xD83CDDF2U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(8, 37, 0xD83CDDF2U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(14, 37, 0xD83CDDF2U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(7, 37, 0xD83CDDF2U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(12, 37, 0xD83CDDF2U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(28, 37, 0xD83CDDF2U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(23, 37, 0xD83CDDF2U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(6, 37, 0xD83CDDF2U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(1, 38, 0xD83CDDF2U, 0xD83CDDF5U, 4, 0, 0);
-	new (toFill++) EmojiData(15, 37, 0xD83CDDF2U, 0xD83CDDF6U, 4, 0, 0);
-	new (toFill++) EmojiData(16, 37, 0xD83CDDF2U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(25, 37, 0xD83CDDF2U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(13, 37, 0xD83CDDF2U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(17, 37, 0xD83CDDF2U, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(11, 37, 0xD83CDDF2U, 0xD83CDDFBU, 4, 0, 0);
-	new (toFill++) EmojiData(9, 37, 0xD83CDDF2U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(19, 37, 0xD83CDDF2U, 0xD83CDDFDU, 4, 0, 0);
-	new (toFill++) EmojiData(10, 37, 0xD83CDDF2U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(27, 37, 0xD83CDDF2U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(29, 37, 0xD83CDDF3U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(33, 37, 0xD83CDDF3U, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(36, 37, 0xD83CDDF3U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(39, 37, 0xD83CDDF3U, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(37, 37, 0xD83CDDF3U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(35, 37, 0xD83CDDF3U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(32, 37, 0xD83CDDF3U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(2, 38, 0xD83CDDF3U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(31, 37, 0xD83CDDF3U, 0xD83CDDF5U, 4, 0, 0);
-	new (toFill++) EmojiData(30, 37, 0xD83CDDF3U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(38, 37, 0xD83CDDF3U, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(34, 37, 0xD83CDDF3U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(3, 38, 0xD83CDDF4U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(7, 38, 0xD83CDDF5U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(10, 38, 0xD83CDDF5U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(36, 35, 0xD83CDDF5U, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(8, 38, 0xD83CDDF5U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(11, 38, 0xD83CDDF5U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(4, 38, 0xD83CDDF5U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(13, 38, 0xD83CDDF5U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(5, 39, 0xD83CDDF5U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(12, 38, 0xD83CDDF5U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(15, 38, 0xD83CDDF5U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(6, 38, 0xD83CDDF5U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(14, 38, 0xD83CDDF5U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(5, 38, 0xD83CDDF5U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(9, 38, 0xD83CDDF5U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(16, 38, 0xD83CDDF6U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(17, 38, 0xD83CDDF7U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(18, 38, 0xD83CDDF7U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(26, 38, 0xD83CDDF7U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(19, 38, 0xD83CDDF7U, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(20, 38, 0xD83CDDF7U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(24, 38, 0xD83CDDF8U, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(34, 38, 0xD83CDDF8U, 0xD83CDDE7U, 4, 0, 0);
-	new (toFill++) EmojiData(27, 38, 0xD83CDDF8U, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(7, 39, 0xD83CDDF8U, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(10, 39, 0xD83CDDF8U, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(29, 38, 0xD83CDDF8U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(2, 39, 0xD83CDDF8U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(32, 38, 0xD83CDDF8U, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(31, 38, 0xD83CDDF8U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(28, 38, 0xD83CDDF8U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(22, 38, 0xD83CDDF8U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(25, 38, 0xD83CDDF8U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(35, 38, 0xD83CDDF8U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(8, 39, 0xD83CDDF8U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(38, 38, 0xD83CDDF8U, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(23, 38, 0xD83CDDF8U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(24, 35, 0xD83CDDF8U, 0xD83CDDFBU, 4, 0, 0);
-	new (toFill++) EmojiData(30, 38, 0xD83CDDF8U, 0xD83CDDFDU, 4, 0, 0);
-	new (toFill++) EmojiData(12, 39, 0xD83CDDF8U, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(9, 39, 0xD83CDDF8U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(25, 39, 0xD83CDDF9U, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(1, 35, 0xD83CDDF9U, 0xD83CDDE9U, 4, 0, 0);
-	new (toFill++) EmojiData(37, 35, 0xD83CDDF9U, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(18, 39, 0xD83CDDF9U, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(16, 39, 0xD83CDDF9U, 0xD83CDDEDU, 4, 0, 0);
-	new (toFill++) EmojiData(14, 39, 0xD83CDDF9U, 0xD83CDDEFU, 4, 0, 0);
-	new (toFill++) EmojiData(19, 39, 0xD83CDDF9U, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(17, 39, 0xD83CDDF9U, 0xD83CDDF1U, 4, 0, 0);
-	new (toFill++) EmojiData(24, 39, 0xD83CDDF9U, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(22, 39, 0xD83CDDF9U, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(20, 39, 0xD83CDDF9U, 0xD83CDDF4U, 4, 0, 0);
-	new (toFill++) EmojiData(23, 39, 0xD83CDDF9U, 0xD83CDDF7U, 4, 0, 0);
-	new (toFill++) EmojiData(21, 39, 0xD83CDDF9U, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(26, 39, 0xD83CDDF9U, 0xD83CDDFBU, 4, 0, 0);
-	new (toFill++) EmojiData(13, 39, 0xD83CDDF9U, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(15, 39, 0xD83CDDF9U, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(29, 39, 0xD83CDDFAU, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(28, 39, 0xD83CDDFAU, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(32, 39, 0xD83CDDFAU, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(33, 39, 0xD83CDDFAU, 0xD83CDDFEU, 4, 0, 0);
-	new (toFill++) EmojiData(34, 39, 0xD83CDDFAU, 0xD83CDDFFU, 4, 0, 0);
-	new (toFill++) EmojiData(36, 39, 0xD83CDDFBU, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(6, 39, 0xD83CDDFBU, 0xD83CDDE8U, 4, 0, 0);
-	new (toFill++) EmojiData(37, 39, 0xD83CDDFBU, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(28, 34, 0xD83CDDFBU, 0xD83CDDECU, 4, 0, 0);
-	new (toFill++) EmojiData(27, 39, 0xD83CDDFBU, 0xD83CDDEEU, 4, 0, 0);
-	new (toFill++) EmojiData(38, 39, 0xD83CDDFBU, 0xD83CDDF3U, 4, 0, 0);
-	new (toFill++) EmojiData(35, 39, 0xD83CDDFBU, 0xD83CDDFAU, 4, 0, 0);
-	new (toFill++) EmojiData(39, 39, 0xD83CDDFCU, 0xD83CDDEBU, 4, 0, 0);
-	new (toFill++) EmojiData(21, 38, 0xD83CDDFCU, 0xD83CDDF8U, 4, 0, 0);
-	new (toFill++) EmojiData(34, 36, 0xD83CDDFDU, 0xD83CDDF0U, 4, 0, 0);
-	new (toFill++) EmojiData(1, 40, 0xD83CDDFEU, 0xD83CDDEAU, 4, 0, 0);
-	new (toFill++) EmojiData(18, 37, 0xD83CDDFEU, 0xD83CDDF9U, 4, 0, 0);
-	new (toFill++) EmojiData(36, 38, 0xD83CDDFFU, 0xD83CDDE6U, 4, 0, 0);
-	new (toFill++) EmojiData(2, 40, 0xD83CDDFFU, 0xD83CDDF2U, 4, 0, 0);
-	new (toFill++) EmojiData(3, 40, 0xD83CDDFFU, 0xD83CDDFCU, 4, 0, 0);
-	new (toFill++) EmojiData(10, 8, 0xD83CDF85U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(11, 8, 0xD83CDF85U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(12, 8, 0xD83CDF85U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(13, 8, 0xD83CDF85U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(14, 8, 0xD83CDF85U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(0, 9, 0xD83CDFC3U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(1, 9, 0xD83CDFC3U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(2, 9, 0xD83CDFC3U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(3, 9, 0xD83CDFC3U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(4, 9, 0xD83CDFC3U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(7, 18, 0xD83CDFC4U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(8, 18, 0xD83CDFC4U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(9, 18, 0xD83CDFC4U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(10, 18, 0xD83CDFC4U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(11, 18, 0xD83CDFC4U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(3, 19, 0xD83CDFC7U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(4, 19, 0xD83CDFC7U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(5, 19, 0xD83CDFC7U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(6, 19, 0xD83CDFC7U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(7, 19, 0xD83CDFC7U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(1, 18, 0xD83CDFCAU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(2, 18, 0xD83CDFCAU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(3, 18, 0xD83CDFCAU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(4, 18, 0xD83CDFCAU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(5, 18, 0xD83CDFCAU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(25, 18, 0xD83CDFCBU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(26, 18, 0xD83CDFCBU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(27, 18, 0xD83CDFCBU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(28, 18, 0xD83CDFCBU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(29, 18, 0xD83CDFCBU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(34, 5, 0xD83DDC42U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(35, 5, 0xD83DDC42U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(36, 5, 0xD83DDC42U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(37, 5, 0xD83DDC42U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(38, 5, 0xD83DDC42U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(0, 6, 0xD83DDC43U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(1, 6, 0xD83DDC43U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(2, 6, 0xD83DDC43U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(3, 6, 0xD83DDC43U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(4, 6, 0xD83DDC43U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(12, 4, 0xD83DDC46U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(13, 4, 0xD83DDC46U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(14, 4, 0xD83DDC46U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(15, 4, 0xD83DDC46U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(16, 4, 0xD83DDC46U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(18, 4, 0xD83DDC47U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(19, 4, 0xD83DDC47U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(20, 4, 0xD83DDC47U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(21, 4, 0xD83DDC47U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(22, 4, 0xD83DDC47U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(24, 4, 0xD83DDC48U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(25, 4, 0xD83DDC48U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(26, 4, 0xD83DDC48U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(27, 4, 0xD83DDC48U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(28, 4, 0xD83DDC48U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(30, 4, 0xD83DDC49U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(31, 4, 0xD83DDC49U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(32, 4, 0xD83DDC49U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(33, 4, 0xD83DDC49U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(34, 4, 0xD83DDC49U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(38, 2, 0xD83DDC4AU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(39, 2, 0xD83DDC4AU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(0, 3, 0xD83DDC4AU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(1, 3, 0xD83DDC4AU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(2, 3, 0xD83DDC4AU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(20, 2, 0xD83DDC4BU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(21, 2, 0xD83DDC4BU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(22, 2, 0xD83DDC4BU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(23, 2, 0xD83DDC4BU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(24, 2, 0xD83DDC4BU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(16, 3, 0xD83DDC4CU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(17, 3, 0xD83DDC4CU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(18, 3, 0xD83DDC4CU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(19, 3, 0xD83DDC4CU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(20, 3, 0xD83DDC4CU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(26, 2, 0xD83DDC4DU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(27, 2, 0xD83DDC4DU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(28, 2, 0xD83DDC4DU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(29, 2, 0xD83DDC4DU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(30, 2, 0xD83DDC4DU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(32, 2, 0xD83DDC4EU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(33, 2, 0xD83DDC4EU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(34, 2, 0xD83DDC4EU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(35, 2, 0xD83DDC4EU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(36, 2, 0xD83DDC4EU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(14, 2, 0xD83DDC4FU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(15, 2, 0xD83DDC4FU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(16, 2, 0xD83DDC4FU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(17, 2, 0xD83DDC4FU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(18, 2, 0xD83DDC4FU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(28, 3, 0xD83DDC50U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(29, 3, 0xD83DDC50U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(30, 3, 0xD83DDC50U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(31, 3, 0xD83DDC50U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(32, 3, 0xD83DDC50U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(17, 6, 0xD83DDC66U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(18, 6, 0xD83DDC66U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(19, 6, 0xD83DDC66U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(20, 6, 0xD83DDC66U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(21, 6, 0xD83DDC66U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(23, 6, 0xD83DDC67U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(24, 6, 0xD83DDC67U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(25, 6, 0xD83DDC67U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(26, 6, 0xD83DDC67U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(27, 6, 0xD83DDC67U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(29, 6, 0xD83DDC68U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(30, 6, 0xD83DDC68U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(31, 6, 0xD83DDC68U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(32, 6, 0xD83DDC68U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(33, 6, 0xD83DDC68U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(35, 6, 0xD83DDC69U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(36, 6, 0xD83DDC69U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(37, 6, 0xD83DDC69U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(38, 6, 0xD83DDC69U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(39, 6, 0xD83DDC69U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(31, 7, 0xD83DDC6EU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(32, 7, 0xD83DDC6EU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(33, 7, 0xD83DDC6EU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(34, 7, 0xD83DDC6EU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(35, 7, 0xD83DDC6EU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(28, 8, 0xD83DDC70U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(29, 8, 0xD83DDC70U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(30, 8, 0xD83DDC70U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(31, 8, 0xD83DDC70U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(32, 8, 0xD83DDC70U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(1, 7, 0xD83DDC71U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(2, 7, 0xD83DDC71U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(3, 7, 0xD83DDC71U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(4, 7, 0xD83DDC71U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(5, 7, 0xD83DDC71U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(19, 7, 0xD83DDC72U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(20, 7, 0xD83DDC72U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(21, 7, 0xD83DDC72U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(22, 7, 0xD83DDC72U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(23, 7, 0xD83DDC72U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(25, 7, 0xD83DDC73U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(26, 7, 0xD83DDC73U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(27, 7, 0xD83DDC73U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(28, 7, 0xD83DDC73U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(29, 7, 0xD83DDC73U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(7, 7, 0xD83DDC74U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(8, 7, 0xD83DDC74U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(9, 7, 0xD83DDC74U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(10, 7, 0xD83DDC74U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(11, 7, 0xD83DDC74U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(13, 7, 0xD83DDC75U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(14, 7, 0xD83DDC75U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(15, 7, 0xD83DDC75U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(16, 7, 0xD83DDC75U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(17, 7, 0xD83DDC75U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(11, 6, 0xD83DDC76U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(12, 6, 0xD83DDC76U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(13, 6, 0xD83DDC76U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(14, 6, 0xD83DDC76U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(15, 6, 0xD83DDC76U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(37, 7, 0xD83DDC77U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(38, 7, 0xD83DDC77U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(39, 7, 0xD83DDC77U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(0, 8, 0xD83DDC77U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(1, 8, 0xD83DDC77U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(22, 8, 0xD83DDC78U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(23, 8, 0xD83DDC78U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(24, 8, 0xD83DDC78U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(25, 8, 0xD83DDC78U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(26, 8, 0xD83DDC78U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(16, 8, 0xD83DDC7CU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(17, 8, 0xD83DDC7CU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(18, 8, 0xD83DDC7CU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(19, 8, 0xD83DDC7CU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(20, 8, 0xD83DDC7CU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(22, 9, 0xD83DDC81U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(23, 9, 0xD83DDC81U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(24, 9, 0xD83DDC81U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(25, 9, 0xD83DDC81U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(26, 9, 0xD83DDC81U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(3, 8, 0xD83DDC82U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(4, 8, 0xD83DDC82U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(5, 8, 0xD83DDC82U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(6, 8, 0xD83DDC82U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(7, 8, 0xD83DDC82U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(6, 9, 0xD83DDC83U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(7, 9, 0xD83DDC83U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(8, 9, 0xD83DDC83U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(9, 9, 0xD83DDC83U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(10, 9, 0xD83DDC83U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(26, 5, 0xD83DDC85U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(27, 5, 0xD83DDC85U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(28, 5, 0xD83DDC85U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(29, 5, 0xD83DDC85U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(30, 5, 0xD83DDC85U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(24, 10, 0xD83DDC86U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(25, 10, 0xD83DDC86U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(26, 10, 0xD83DDC86U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(27, 10, 0xD83DDC86U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(28, 10, 0xD83DDC86U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(18, 10, 0xD83DDC87U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(19, 10, 0xD83DDC87U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(20, 10, 0xD83DDC87U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(21, 10, 0xD83DDC87U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(22, 10, 0xD83DDC87U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(34, 3, 0xD83DDCAAU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(35, 3, 0xD83DDCAAU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(36, 3, 0xD83DDCAAU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(37, 3, 0xD83DDCAAU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(38, 3, 0xD83DDCAAU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(2, 5, 0xD83DDD90U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(3, 5, 0xD83DDD90U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(4, 5, 0xD83DDD90U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(5, 5, 0xD83DDD90U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(6, 5, 0xD83DDD90U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(36, 4, 0xD83DDD95U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(37, 4, 0xD83DDD95U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(38, 4, 0xD83DDD95U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(39, 4, 0xD83DDD95U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(0, 5, 0xD83DDD95U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(14, 5, 0xD83DDD96U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(15, 5, 0xD83DDD96U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(16, 5, 0xD83DDD96U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(17, 5, 0xD83DDD96U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(18, 5, 0xD83DDD96U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(28, 9, 0xD83DDE45U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(29, 9, 0xD83DDE45U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(30, 9, 0xD83DDE45U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(31, 9, 0xD83DDE45U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(32, 9, 0xD83DDE45U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(34, 9, 0xD83DDE46U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(35, 9, 0xD83DDE46U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(36, 9, 0xD83DDE46U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(37, 9, 0xD83DDE46U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(38, 9, 0xD83DDE46U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(16, 9, 0xD83DDE47U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(17, 9, 0xD83DDE47U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(18, 9, 0xD83DDE47U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(19, 9, 0xD83DDE47U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(20, 9, 0xD83DDE47U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(0, 10, 0xD83DDE4BU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(1, 10, 0xD83DDE4BU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(2, 10, 0xD83DDE4BU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(3, 10, 0xD83DDE4BU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(4, 10, 0xD83DDE4BU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(8, 2, 0xD83DDE4CU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(9, 2, 0xD83DDE4CU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(10, 2, 0xD83DDE4CU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(11, 2, 0xD83DDE4CU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(12, 2, 0xD83DDE4CU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(12, 10, 0xD83DDE4DU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(13, 10, 0xD83DDE4DU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(14, 10, 0xD83DDE4DU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(15, 10, 0xD83DDE4DU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(16, 10, 0xD83DDE4DU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(6, 10, 0xD83DDE4EU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(7, 10, 0xD83DDE4EU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(8, 10, 0xD83DDE4EU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(9, 10, 0xD83DDE4EU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(10, 10, 0xD83DDE4EU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(0, 4, 0xD83DDE4FU, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(1, 4, 0xD83DDE4FU, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(2, 4, 0xD83DDE4FU, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(3, 4, 0xD83DDE4FU, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(4, 4, 0xD83DDE4FU, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(35, 17, 0xD83DDEA3U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(36, 17, 0xD83DDEA3U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(37, 17, 0xD83DDEA3U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(38, 17, 0xD83DDEA3U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(39, 17, 0xD83DDEA3U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(31, 18, 0xD83DDEB4U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(32, 18, 0xD83DDEB4U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(33, 18, 0xD83DDEB4U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(34, 18, 0xD83DDEB4U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(35, 18, 0xD83DDEB4U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(37, 18, 0xD83DDEB5U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(38, 18, 0xD83DDEB5U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(39, 18, 0xD83DDEB5U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(0, 19, 0xD83DDEB5U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(1, 19, 0xD83DDEB5U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(34, 8, 0xD83DDEB6U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(35, 8, 0xD83DDEB6U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(36, 8, 0xD83DDEB6U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(37, 8, 0xD83DDEB6U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(38, 8, 0xD83DDEB6U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(13, 18, 0xD83DDEC0U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(14, 18, 0xD83DDEC0U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(15, 18, 0xD83DDEC0U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(16, 18, 0xD83DDEC0U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(17, 18, 0xD83DDEC0U, 0, 4, 0, 0xD83CDFFFU);
-	new (toFill++) EmojiData(8, 5, 0xD83EDD18U, 0, 4, 0, 0xD83CDFFBU);
-	new (toFill++) EmojiData(9, 5, 0xD83EDD18U, 0, 4, 0, 0xD83CDFFCU);
-	new (toFill++) EmojiData(10, 5, 0xD83EDD18U, 0, 4, 0, 0xD83CDFFDU);
-	new (toFill++) EmojiData(11, 5, 0xD83EDD18U, 0, 4, 0, 0xD83CDFFEU);
-	new (toFill++) EmojiData(12, 5, 0xD83EDD18U, 0, 4, 0, 0xD83CDFFFU);
-};
-
-EmojiPtr emojiGet(uint32 code) {
-	if (!emojis) return 0;
-
-	uint32 highCode = code >> 16;
-	if (!highCode) {
-		switch (code) {
-			case 0xA9U: return &emojis[0];
-			case 0xAEU: return &emojis[1];
-		}
-
-		if (code < 0x203CU || code > 0x3299U) return 0;
-
-		switch (code) {
-			case 0x203CU: return &emojis[2];
-			case 0x2049U: return &emojis[3];
-			case 0x2122U: return &emojis[4];
-			case 0x2139U: return &emojis[5];
-			case 0x2194U: return &emojis[6];
-			case 0x2195U: return &emojis[7];
-			case 0x2196U: return &emojis[8];
-			case 0x2197U: return &emojis[9];
-			case 0x2198U: return &emojis[10];
-			case 0x2199U: return &emojis[11];
-			case 0x21A9U: return &emojis[12];
-			case 0x21AAU: return &emojis[13];
-			case 0x231AU: return &emojis[14];
-			case 0x231BU: return &emojis[15];
-			case 0x2328U: return &emojis[16];
-			case 0x23E9U: return &emojis[17];
-			case 0x23EAU: return &emojis[18];
-			case 0x23EBU: return &emojis[19];
-			case 0x23ECU: return &emojis[20];
-			case 0x23EDU: return &emojis[21];
-			case 0x23EEU: return &emojis[22];
-			case 0x23EFU: return &emojis[23];
-			case 0x23F0U: return &emojis[24];
-			case 0x23F1U: return &emojis[25];
-			case 0x23F2U: return &emojis[26];
-			case 0x23F3U: return &emojis[27];
-			case 0x23F8U: return &emojis[28];
-			case 0x23F9U: return &emojis[29];
-			case 0x23FAU: return &emojis[30];
-			case 0x24C2U: return &emojis[31];
-			case 0x25AAU: return &emojis[32];
-			case 0x25ABU: return &emojis[33];
-			case 0x25B6U: return &emojis[34];
-			case 0x25C0U: return &emojis[35];
-			case 0x25FBU: return &emojis[36];
-			case 0x25FCU: return &emojis[37];
-			case 0x25FDU: return &emojis[38];
-			case 0x25FEU: return &emojis[39];
-			case 0x2600U: return &emojis[40];
-			case 0x2601U: return &emojis[41];
-			case 0x2602U: return &emojis[42];
-			case 0x2603U: return &emojis[43];
-			case 0x2604U: return &emojis[44];
-			case 0x260EU: return &emojis[45];
-			case 0x2611U: return &emojis[46];
-			case 0x2614U: return &emojis[47];
-			case 0x2615U: return &emojis[48];
-			case 0x2618U: return &emojis[49];
-			case 0x261DU: return &emojis[50];
-			case 0x2620U: return &emojis[51];
-			case 0x2622U: return &emojis[52];
-			case 0x2623U: return &emojis[53];
-			case 0x2626U: return &emojis[54];
-			case 0x262AU: return &emojis[55];
-			case 0x262EU: return &emojis[56];
-			case 0x262FU: return &emojis[57];
-			case 0x2638U: return &emojis[58];
-			case 0x2639U: return &emojis[59];
-			case 0x263AU: return &emojis[60];
-			case 0x2648U: return &emojis[61];
-			case 0x2649U: return &emojis[62];
-			case 0x264AU: return &emojis[63];
-			case 0x264BU: return &emojis[64];
-			case 0x264CU: return &emojis[65];
-			case 0x264DU: return &emojis[66];
-			case 0x264EU: return &emojis[67];
-			case 0x264FU: return &emojis[68];
-			case 0x2650U: return &emojis[69];
-			case 0x2651U: return &emojis[70];
-			case 0x2652U: return &emojis[71];
-			case 0x2653U: return &emojis[72];
-			case 0x2660U: return &emojis[73];
-			case 0x2663U: return &emojis[74];
-			case 0x2665U: return &emojis[75];
-			case 0x2666U: return &emojis[76];
-			case 0x2668U: return &emojis[77];
-			case 0x267BU: return &emojis[78];
-			case 0x267FU: return &emojis[79];
-			case 0x2692U: return &emojis[80];
-			case 0x2693U: return &emojis[81];
-			case 0x2694U: return &emojis[82];
-			case 0x2696U: return &emojis[83];
-			case 0x2697U: return &emojis[84];
-			case 0x2699U: return &emojis[85];
-			case 0x269BU: return &emojis[86];
-			case 0x269CU: return &emojis[87];
-			case 0x26A0U: return &emojis[88];
-			case 0x26A1U: return &emojis[89];
-			case 0x26AAU: return &emojis[90];
-			case 0x26ABU: return &emojis[91];
-			case 0x26B0U: return &emojis[92];
-			case 0x26B1U: return &emojis[93];
-			case 0x26BDU: return &emojis[94];
-			case 0x26BEU: return &emojis[95];
-			case 0x26C4U: return &emojis[96];
-			case 0x26C5U: return &emojis[97];
-			case 0x26C8U: return &emojis[98];
-			case 0x26CEU: return &emojis[99];
-			case 0x26CFU: return &emojis[100];
-			case 0x26D1U: return &emojis[101];
-			case 0x26D3U: return &emojis[102];
-			case 0x26D4U: return &emojis[103];
-			case 0x26E9U: return &emojis[104];
-			case 0x26EAU: return &emojis[105];
-			case 0x26F0U: return &emojis[106];
-			case 0x26F1U: return &emojis[107];
-			case 0x26F2U: return &emojis[108];
-			case 0x26F3U: return &emojis[109];
-			case 0x26F4U: return &emojis[110];
-			case 0x26F5U: return &emojis[111];
-			case 0x26F7U: return &emojis[112];
-			case 0x26F8U: return &emojis[113];
-			case 0x26F9U: return &emojis[114];
-			case 0x26FAU: return &emojis[115];
-			case 0x26FDU: return &emojis[116];
-			case 0x2702U: return &emojis[117];
-			case 0x2705U: return &emojis[118];
-			case 0x2708U: return &emojis[119];
-			case 0x2709U: return &emojis[120];
-			case 0x270AU: return &emojis[121];
-			case 0x270BU: return &emojis[122];
-			case 0x270CU: return &emojis[123];
-			case 0x270DU: return &emojis[124];
-			case 0x270FU: return &emojis[125];
-			case 0x2712U: return &emojis[126];
-			case 0x2714U: return &emojis[127];
-			case 0x2716U: return &emojis[128];
-			case 0x271DU: return &emojis[129];
-			case 0x2721U: return &emojis[130];
-			case 0x2728U: return &emojis[131];
-			case 0x2733U: return &emojis[132];
-			case 0x2734U: return &emojis[133];
-			case 0x2744U: return &emojis[134];
-			case 0x2747U: return &emojis[135];
-			case 0x274CU: return &emojis[136];
-			case 0x274EU: return &emojis[137];
-			case 0x2753U: return &emojis[138];
-			case 0x2754U: return &emojis[139];
-			case 0x2755U: return &emojis[140];
-			case 0x2757U: return &emojis[141];
-			case 0x2763U: return &emojis[142];
-			case 0x2764U: return &emojis[143];
-			case 0x2795U: return &emojis[144];
-			case 0x2796U: return &emojis[145];
-			case 0x2797U: return &emojis[146];
-			case 0x27A1U: return &emojis[147];
-			case 0x27B0U: return &emojis[148];
-			case 0x27BFU: return &emojis[149];
-			case 0x2934U: return &emojis[150];
-			case 0x2935U: return &emojis[151];
-			case 0x2B05U: return &emojis[152];
-			case 0x2B06U: return &emojis[153];
-			case 0x2B07U: return &emojis[154];
-			case 0x2B1BU: return &emojis[155];
-			case 0x2B1CU: return &emojis[156];
-			case 0x2B50U: return &emojis[157];
-			case 0x2B55U: return &emojis[158];
-			case 0x3030U: return &emojis[159];
-			case 0x303DU: return &emojis[160];
-			case 0x3297U: return &emojis[161];
-			case 0x3299U: return &emojis[162];
-		}
-
-		return 0;
-	}
-
-	if (highCode == 0x23 || highCode == 0x2A || (highCode >= 0x30 && highCode < 0x3A)) {
-		if ((code & 0xFFFFU) != 0x20E3U) return 0;
-
-		switch (code) {
-			case 0x2320E3U: return &emojis[163];
-			case 0x2A20E3U: return &emojis[164];
-			case 0x3020E3U: return &emojis[165];
-			case 0x3120E3U: return &emojis[166];
-			case 0x3220E3U: return &emojis[167];
-			case 0x3320E3U: return &emojis[168];
-			case 0x3420E3U: return &emojis[169];
-			case 0x3520E3U: return &emojis[170];
-			case 0x3620E3U: return &emojis[171];
-			case 0x3720E3U: return &emojis[172];
-			case 0x3820E3U: return &emojis[173];
-			case 0x3920E3U: return &emojis[174];
-		}
-
-		return 0;
-	}
-
-	if (highCode == 0xFFFFU) {
-		static const int sequenceOffset = 1018;
-
-		uint32 index = (code & 0xFFFFU);
-		return (index < 19) ? &emojis[sequenceOffset + index] : 0;
-	}
-
-	if (code < 0xD83CDC04U || code > 0xD83EDDC0U) return 0;
-
-	switch (code) {
-		case 0xD83CDC04U: return &emojis[175];
-		case 0xD83CDCCFU: return &emojis[176];
-		case 0xD83CDD70U: return &emojis[177];
-		case 0xD83CDD71U: return &emojis[178];
-		case 0xD83CDD7EU: return &emojis[179];
-		case 0xD83CDD7FU: return &emojis[180];
-		case 0xD83CDD8EU: return &emojis[181];
-		case 0xD83CDD91U: return &emojis[182];
-		case 0xD83CDD92U: return &emojis[183];
-		case 0xD83CDD93U: return &emojis[184];
-		case 0xD83CDD94U: return &emojis[185];
-		case 0xD83CDD95U: return &emojis[186];
-		case 0xD83CDD96U: return &emojis[187];
-		case 0xD83CDD97U: return &emojis[188];
-		case 0xD83CDD98U: return &emojis[189];
-		case 0xD83CDD99U: return &emojis[190];
-		case 0xD83CDD9AU: return &emojis[191];
-		case 0xD83CDE01U: return &emojis[192];
-		case 0xD83CDE02U: return &emojis[193];
-		case 0xD83CDE1AU: return &emojis[194];
-		case 0xD83CDE2FU: return &emojis[195];
-		case 0xD83CDE32U: return &emojis[196];
-		case 0xD83CDE33U: return &emojis[197];
-		case 0xD83CDE34U: return &emojis[198];
-		case 0xD83CDE35U: return &emojis[199];
-		case 0xD83CDE36U: return &emojis[200];
-		case 0xD83CDE37U: return &emojis[201];
-		case 0xD83CDE38U: return &emojis[202];
-		case 0xD83CDE39U: return &emojis[203];
-		case 0xD83CDE3AU: return &emojis[204];
-		case 0xD83CDE50U: return &emojis[205];
-		case 0xD83CDE51U: return &emojis[206];
-		case 0xD83CDF00U: return &emojis[207];
-		case 0xD83CDF01U: return &emojis[208];
-		case 0xD83CDF02U: return &emojis[209];
-		case 0xD83CDF03U: return &emojis[210];
-		case 0xD83CDF04U: return &emojis[211];
-		case 0xD83CDF05U: return &emojis[212];
-		case 0xD83CDF06U: return &emojis[213];
-		case 0xD83CDF07U: return &emojis[214];
-		case 0xD83CDF08U: return &emojis[215];
-		case 0xD83CDF09U: return &emojis[216];
-		case 0xD83CDF0AU: return &emojis[217];
-		case 0xD83CDF0BU: return &emojis[218];
-		case 0xD83CDF0CU: return &emojis[219];
-		case 0xD83CDF0DU: return &emojis[220];
-		case 0xD83CDF0EU: return &emojis[221];
-		case 0xD83CDF0FU: return &emojis[222];
-		case 0xD83CDF10U: return &emojis[223];
-		case 0xD83CDF11U: return &emojis[224];
-		case 0xD83CDF12U: return &emojis[225];
-		case 0xD83CDF13U: return &emojis[226];
-		case 0xD83CDF14U: return &emojis[227];
-		case 0xD83CDF15U: return &emojis[228];
-		case 0xD83CDF16U: return &emojis[229];
-		case 0xD83CDF17U: return &emojis[230];
-		case 0xD83CDF18U: return &emojis[231];
-		case 0xD83CDF19U: return &emojis[232];
-		case 0xD83CDF1AU: return &emojis[233];
-		case 0xD83CDF1BU: return &emojis[234];
-		case 0xD83CDF1CU: return &emojis[235];
-		case 0xD83CDF1DU: return &emojis[236];
-		case 0xD83CDF1EU: return &emojis[237];
-		case 0xD83CDF1FU: return &emojis[238];
-		case 0xD83CDF20U: return &emojis[239];
-		case 0xD83CDF21U: return &emojis[240];
-		case 0xD83CDF24U: return &emojis[241];
-		case 0xD83CDF25U: return &emojis[242];
-		case 0xD83CDF26U: return &emojis[243];
-		case 0xD83CDF27U: return &emojis[244];
-		case 0xD83CDF28U: return &emojis[245];
-		case 0xD83CDF29U: return &emojis[246];
-		case 0xD83CDF2AU: return &emojis[247];
-		case 0xD83CDF2BU: return &emojis[248];
-		case 0xD83CDF2CU: return &emojis[249];
-		case 0xD83CDF2DU: return &emojis[250];
-		case 0xD83CDF2EU: return &emojis[251];
-		case 0xD83CDF2FU: return &emojis[252];
-		case 0xD83CDF30U: return &emojis[253];
-		case 0xD83CDF31U: return &emojis[254];
-		case 0xD83CDF32U: return &emojis[255];
-		case 0xD83CDF33U: return &emojis[256];
-		case 0xD83CDF34U: return &emojis[257];
-		case 0xD83CDF35U: return &emojis[258];
-		case 0xD83CDF36U: return &emojis[259];
-		case 0xD83CDF37U: return &emojis[260];
-		case 0xD83CDF38U: return &emojis[261];
-		case 0xD83CDF39U: return &emojis[262];
-		case 0xD83CDF3AU: return &emojis[263];
-		case 0xD83CDF3BU: return &emojis[264];
-		case 0xD83CDF3CU: return &emojis[265];
-		case 0xD83CDF3DU: return &emojis[266];
-		case 0xD83CDF3EU: return &emojis[267];
-		case 0xD83CDF3FU: return &emojis[268];
-		case 0xD83CDF40U: return &emojis[269];
-		case 0xD83CDF41U: return &emojis[270];
-		case 0xD83CDF42U: return &emojis[271];
-		case 0xD83CDF43U: return &emojis[272];
-		case 0xD83CDF44U: return &emojis[273];
-		case 0xD83CDF45U: return &emojis[274];
-		case 0xD83CDF46U: return &emojis[275];
-		case 0xD83CDF47U: return &emojis[276];
-		case 0xD83CDF48U: return &emojis[277];
-		case 0xD83CDF49U: return &emojis[278];
-		case 0xD83CDF4AU: return &emojis[279];
-		case 0xD83CDF4BU: return &emojis[280];
-		case 0xD83CDF4CU: return &emojis[281];
-		case 0xD83CDF4DU: return &emojis[282];
-		case 0xD83CDF4EU: return &emojis[283];
-		case 0xD83CDF4FU: return &emojis[284];
-		case 0xD83CDF50U: return &emojis[285];
-		case 0xD83CDF51U: return &emojis[286];
-		case 0xD83CDF52U: return &emojis[287];
-		case 0xD83CDF53U: return &emojis[288];
-		case 0xD83CDF54U: return &emojis[289];
-		case 0xD83CDF55U: return &emojis[290];
-		case 0xD83CDF56U: return &emojis[291];
-		case 0xD83CDF57U: return &emojis[292];
-		case 0xD83CDF58U: return &emojis[293];
-		case 0xD83CDF59U: return &emojis[294];
-		case 0xD83CDF5AU: return &emojis[295];
-		case 0xD83CDF5BU: return &emojis[296];
-		case 0xD83CDF5CU: return &emojis[297];
-		case 0xD83CDF5DU: return &emojis[298];
-		case 0xD83CDF5EU: return &emojis[299];
-		case 0xD83CDF5FU: return &emojis[300];
-		case 0xD83CDF60U: return &emojis[301];
-		case 0xD83CDF61U: return &emojis[302];
-		case 0xD83CDF62U: return &emojis[303];
-		case 0xD83CDF63U: return &emojis[304];
-		case 0xD83CDF64U: return &emojis[305];
-		case 0xD83CDF65U: return &emojis[306];
-		case 0xD83CDF66U: return &emojis[307];
-		case 0xD83CDF67U: return &emojis[308];
-		case 0xD83CDF68U: return &emojis[309];
-		case 0xD83CDF69U: return &emojis[310];
-		case 0xD83CDF6AU: return &emojis[311];
-		case 0xD83CDF6BU: return &emojis[312];
-		case 0xD83CDF6CU: return &emojis[313];
-		case 0xD83CDF6DU: return &emojis[314];
-		case 0xD83CDF6EU: return &emojis[315];
-		case 0xD83CDF6FU: return &emojis[316];
-		case 0xD83CDF70U: return &emojis[317];
-		case 0xD83CDF71U: return &emojis[318];
-		case 0xD83CDF72U: return &emojis[319];
-		case 0xD83CDF73U: return &emojis[320];
-		case 0xD83CDF74U: return &emojis[321];
-		case 0xD83CDF75U: return &emojis[322];
-		case 0xD83CDF76U: return &emojis[323];
-		case 0xD83CDF77U: return &emojis[324];
-		case 0xD83CDF78U: return &emojis[325];
-		case 0xD83CDF79U: return &emojis[326];
-		case 0xD83CDF7AU: return &emojis[327];
-		case 0xD83CDF7BU: return &emojis[328];
-		case 0xD83CDF7CU: return &emojis[329];
-		case 0xD83CDF7DU: return &emojis[330];
-		case 0xD83CDF7EU: return &emojis[331];
-		case 0xD83CDF7FU: return &emojis[332];
-		case 0xD83CDF80U: return &emojis[333];
-		case 0xD83CDF81U: return &emojis[334];
-		case 0xD83CDF82U: return &emojis[335];
-		case 0xD83CDF83U: return &emojis[336];
-		case 0xD83CDF84U: return &emojis[337];
-		case 0xD83CDF85U: return &emojis[338];
-		case 0xD83CDF86U: return &emojis[339];
-		case 0xD83CDF87U: return &emojis[340];
-		case 0xD83CDF88U: return &emojis[341];
-		case 0xD83CDF89U: return &emojis[342];
-		case 0xD83CDF8AU: return &emojis[343];
-		case 0xD83CDF8BU: return &emojis[344];
-		case 0xD83CDF8CU: return &emojis[345];
-		case 0xD83CDF8DU: return &emojis[346];
-		case 0xD83CDF8EU: return &emojis[347];
-		case 0xD83CDF8FU: return &emojis[348];
-		case 0xD83CDF90U: return &emojis[349];
-		case 0xD83CDF91U: return &emojis[350];
-		case 0xD83CDF92U: return &emojis[351];
-		case 0xD83CDF93U: return &emojis[352];
-		case 0xD83CDF96U: return &emojis[353];
-		case 0xD83CDF97U: return &emojis[354];
-		case 0xD83CDF99U: return &emojis[355];
-		case 0xD83CDF9AU: return &emojis[356];
-		case 0xD83CDF9BU: return &emojis[357];
-		case 0xD83CDF9EU: return &emojis[358];
-		case 0xD83CDF9FU: return &emojis[359];
-		case 0xD83CDFA0U: return &emojis[360];
-		case 0xD83CDFA1U: return &emojis[361];
-		case 0xD83CDFA2U: return &emojis[362];
-		case 0xD83CDFA3U: return &emojis[363];
-		case 0xD83CDFA4U: return &emojis[364];
-		case 0xD83CDFA5U: return &emojis[365];
-		case 0xD83CDFA6U: return &emojis[366];
-		case 0xD83CDFA7U: return &emojis[367];
-		case 0xD83CDFA8U: return &emojis[368];
-		case 0xD83CDFA9U: return &emojis[369];
-		case 0xD83CDFAAU: return &emojis[370];
-		case 0xD83CDFABU: return &emojis[371];
-		case 0xD83CDFACU: return &emojis[372];
-		case 0xD83CDFADU: return &emojis[373];
-		case 0xD83CDFAEU: return &emojis[374];
-		case 0xD83CDFAFU: return &emojis[375];
-		case 0xD83CDFB0U: return &emojis[376];
-		case 0xD83CDFB1U: return &emojis[377];
-		case 0xD83CDFB2U: return &emojis[378];
-		case 0xD83CDFB3U: return &emojis[379];
-		case 0xD83CDFB4U: return &emojis[380];
-		case 0xD83CDFB5U: return &emojis[381];
-		case 0xD83CDFB6U: return &emojis[382];
-		case 0xD83CDFB7U: return &emojis[383];
-		case 0xD83CDFB8U: return &emojis[384];
-		case 0xD83CDFB9U: return &emojis[385];
-		case 0xD83CDFBAU: return &emojis[386];
-		case 0xD83CDFBBU: return &emojis[387];
-		case 0xD83CDFBCU: return &emojis[388];
-		case 0xD83CDFBDU: return &emojis[389];
-		case 0xD83CDFBEU: return &emojis[390];
-		case 0xD83CDFBFU: return &emojis[391];
-		case 0xD83CDFC0U: return &emojis[392];
-		case 0xD83CDFC1U: return &emojis[393];
-		case 0xD83CDFC2U: return &emojis[394];
-		case 0xD83CDFC3U: return &emojis[395];
-		case 0xD83CDFC4U: return &emojis[396];
-		case 0xD83CDFC5U: return &emojis[397];
-		case 0xD83CDFC6U: return &emojis[398];
-		case 0xD83CDFC7U: return &emojis[399];
-		case 0xD83CDFC8U: return &emojis[400];
-		case 0xD83CDFC9U: return &emojis[401];
-		case 0xD83CDFCAU: return &emojis[402];
-		case 0xD83CDFCBU: return &emojis[403];
-		case 0xD83CDFCCU: return &emojis[404];
-		case 0xD83CDFCDU: return &emojis[405];
-		case 0xD83CDFCEU: return &emojis[406];
-		case 0xD83CDFCFU: return &emojis[407];
-		case 0xD83CDFD0U: return &emojis[408];
-		case 0xD83CDFD1U: return &emojis[409];
-		case 0xD83CDFD2U: return &emojis[410];
-		case 0xD83CDFD3U: return &emojis[411];
-		case 0xD83CDFD4U: return &emojis[412];
-		case 0xD83CDFD5U: return &emojis[413];
-		case 0xD83CDFD6U: return &emojis[414];
-		case 0xD83CDFD7U: return &emojis[415];
-		case 0xD83CDFD8U: return &emojis[416];
-		case 0xD83CDFD9U: return &emojis[417];
-		case 0xD83CDFDAU: return &emojis[418];
-		case 0xD83CDFDBU: return &emojis[419];
-		case 0xD83CDFDCU: return &emojis[420];
-		case 0xD83CDFDDU: return &emojis[421];
-		case 0xD83CDFDEU: return &emojis[422];
-		case 0xD83CDFDFU: return &emojis[423];
-		case 0xD83CDFE0U: return &emojis[424];
-		case 0xD83CDFE1U: return &emojis[425];
-		case 0xD83CDFE2U: return &emojis[426];
-		case 0xD83CDFE3U: return &emojis[427];
-		case 0xD83CDFE4U: return &emojis[428];
-		case 0xD83CDFE5U: return &emojis[429];
-		case 0xD83CDFE6U: return &emojis[430];
-		case 0xD83CDFE7U: return &emojis[431];
-		case 0xD83CDFE8U: return &emojis[432];
-		case 0xD83CDFE9U: return &emojis[433];
-		case 0xD83CDFEAU: return &emojis[434];
-		case 0xD83CDFEBU: return &emojis[435];
-		case 0xD83CDFECU: return &emojis[436];
-		case 0xD83CDFEDU: return &emojis[437];
-		case 0xD83CDFEEU: return &emojis[438];
-		case 0xD83CDFEFU: return &emojis[439];
-		case 0xD83CDFF0U: return &emojis[440];
-		case 0xD83CDFF3U: return &emojis[441];
-		case 0xD83CDFF4U: return &emojis[442];
-		case 0xD83CDFF5U: return &emojis[443];
-		case 0xD83CDFF7U: return &emojis[444];
-		case 0xD83CDFF8U: return &emojis[445];
-		case 0xD83CDFF9U: return &emojis[446];
-		case 0xD83CDFFAU: return &emojis[447];
-		case 0xD83DDC00U: return &emojis[448];
-		case 0xD83DDC01U: return &emojis[449];
-		case 0xD83DDC02U: return &emojis[450];
-		case 0xD83DDC03U: return &emojis[451];
-		case 0xD83DDC04U: return &emojis[452];
-		case 0xD83DDC05U: return &emojis[453];
-		case 0xD83DDC06U: return &emojis[454];
-		case 0xD83DDC07U: return &emojis[455];
-		case 0xD83DDC08U: return &emojis[456];
-		case 0xD83DDC09U: return &emojis[457];
-		case 0xD83DDC0AU: return &emojis[458];
-		case 0xD83DDC0BU: return &emojis[459];
-		case 0xD83DDC0CU: return &emojis[460];
-		case 0xD83DDC0DU: return &emojis[461];
-		case 0xD83DDC0EU: return &emojis[462];
-		case 0xD83DDC0FU: return &emojis[463];
-		case 0xD83DDC10U: return &emojis[464];
-		case 0xD83DDC11U: return &emojis[465];
-		case 0xD83DDC12U: return &emojis[466];
-		case 0xD83DDC13U: return &emojis[467];
-		case 0xD83DDC14U: return &emojis[468];
-		case 0xD83DDC15U: return &emojis[469];
-		case 0xD83DDC16U: return &emojis[470];
-		case 0xD83DDC17U: return &emojis[471];
-		case 0xD83DDC18U: return &emojis[472];
-		case 0xD83DDC19U: return &emojis[473];
-		case 0xD83DDC1AU: return &emojis[474];
-		case 0xD83DDC1BU: return &emojis[475];
-		case 0xD83DDC1CU: return &emojis[476];
-		case 0xD83DDC1DU: return &emojis[477];
-		case 0xD83DDC1EU: return &emojis[478];
-		case 0xD83DDC1FU: return &emojis[479];
-		case 0xD83DDC20U: return &emojis[480];
-		case 0xD83DDC21U: return &emojis[481];
-		case 0xD83DDC22U: return &emojis[482];
-		case 0xD83DDC23U: return &emojis[483];
-		case 0xD83DDC24U: return &emojis[484];
-		case 0xD83DDC25U: return &emojis[485];
-		case 0xD83DDC26U: return &emojis[486];
-		case 0xD83DDC27U: return &emojis[487];
-		case 0xD83DDC28U: return &emojis[488];
-		case 0xD83DDC29U: return &emojis[489];
-		case 0xD83DDC2AU: return &emojis[490];
-		case 0xD83DDC2BU: return &emojis[491];
-		case 0xD83DDC2CU: return &emojis[492];
-		case 0xD83DDC2DU: return &emojis[493];
-		case 0xD83DDC2EU: return &emojis[494];
-		case 0xD83DDC2FU: return &emojis[495];
-		case 0xD83DDC30U: return &emojis[496];
-		case 0xD83DDC31U: return &emojis[497];
-		case 0xD83DDC32U: return &emojis[498];
-		case 0xD83DDC33U: return &emojis[499];
-		case 0xD83DDC34U: return &emojis[500];
-		case 0xD83DDC35U: return &emojis[501];
-		case 0xD83DDC36U: return &emojis[502];
-		case 0xD83DDC37U: return &emojis[503];
-		case 0xD83DDC38U: return &emojis[504];
-		case 0xD83DDC39U: return &emojis[505];
-		case 0xD83DDC3AU: return &emojis[506];
-		case 0xD83DDC3BU: return &emojis[507];
-		case 0xD83DDC3CU: return &emojis[508];
-		case 0xD83DDC3DU: return &emojis[509];
-		case 0xD83DDC3EU: return &emojis[510];
-		case 0xD83DDC3FU: return &emojis[511];
-		case 0xD83DDC40U: return &emojis[512];
-		case 0xD83DDC41U: return &emojis[513];
-		case 0xD83DDC42U: return &emojis[514];
-		case 0xD83DDC43U: return &emojis[515];
-		case 0xD83DDC44U: return &emojis[516];
-		case 0xD83DDC45U: return &emojis[517];
-		case 0xD83DDC46U: return &emojis[518];
-		case 0xD83DDC47U: return &emojis[519];
-		case 0xD83DDC48U: return &emojis[520];
-		case 0xD83DDC49U: return &emojis[521];
-		case 0xD83DDC4AU: return &emojis[522];
-		case 0xD83DDC4BU: return &emojis[523];
-		case 0xD83DDC4CU: return &emojis[524];
-		case 0xD83DDC4DU: return &emojis[525];
-		case 0xD83DDC4EU: return &emojis[526];
-		case 0xD83DDC4FU: return &emojis[527];
-		case 0xD83DDC50U: return &emojis[528];
-		case 0xD83DDC51U: return &emojis[529];
-		case 0xD83DDC52U: return &emojis[530];
-		case 0xD83DDC53U: return &emojis[531];
-		case 0xD83DDC54U: return &emojis[532];
-		case 0xD83DDC55U: return &emojis[533];
-		case 0xD83DDC56U: return &emojis[534];
-		case 0xD83DDC57U: return &emojis[535];
-		case 0xD83DDC58U: return &emojis[536];
-		case 0xD83DDC59U: return &emojis[537];
-		case 0xD83DDC5AU: return &emojis[538];
-		case 0xD83DDC5BU: return &emojis[539];
-		case 0xD83DDC5CU: return &emojis[540];
-		case 0xD83DDC5DU: return &emojis[541];
-		case 0xD83DDC5EU: return &emojis[542];
-		case 0xD83DDC5FU: return &emojis[543];
-		case 0xD83DDC60U: return &emojis[544];
-		case 0xD83DDC61U: return &emojis[545];
-		case 0xD83DDC62U: return &emojis[546];
-		case 0xD83DDC63U: return &emojis[547];
-		case 0xD83DDC64U: return &emojis[548];
-		case 0xD83DDC65U: return &emojis[549];
-		case 0xD83DDC66U: return &emojis[550];
-		case 0xD83DDC67U: return &emojis[551];
-		case 0xD83DDC68U: return &emojis[552];
-		case 0xD83DDC69U: return &emojis[553];
-		case 0xD83DDC6AU: return &emojis[554];
-		case 0xD83DDC6BU: return &emojis[555];
-		case 0xD83DDC6CU: return &emojis[556];
-		case 0xD83DDC6DU: return &emojis[557];
-		case 0xD83DDC6EU: return &emojis[558];
-		case 0xD83DDC6FU: return &emojis[559];
-		case 0xD83DDC70U: return &emojis[560];
-		case 0xD83DDC71U: return &emojis[561];
-		case 0xD83DDC72U: return &emojis[562];
-		case 0xD83DDC73U: return &emojis[563];
-		case 0xD83DDC74U: return &emojis[564];
-		case 0xD83DDC75U: return &emojis[565];
-		case 0xD83DDC76U: return &emojis[566];
-		case 0xD83DDC77U: return &emojis[567];
-		case 0xD83DDC78U: return &emojis[568];
-		case 0xD83DDC79U: return &emojis[569];
-		case 0xD83DDC7AU: return &emojis[570];
-		case 0xD83DDC7BU: return &emojis[571];
-		case 0xD83DDC7CU: return &emojis[572];
-		case 0xD83DDC7DU: return &emojis[573];
-		case 0xD83DDC7EU: return &emojis[574];
-		case 0xD83DDC7FU: return &emojis[575];
-		case 0xD83DDC80U: return &emojis[576];
-		case 0xD83DDC81U: return &emojis[577];
-		case 0xD83DDC82U: return &emojis[578];
-		case 0xD83DDC83U: return &emojis[579];
-		case 0xD83DDC84U: return &emojis[580];
-		case 0xD83DDC85U: return &emojis[581];
-		case 0xD83DDC86U: return &emojis[582];
-		case 0xD83DDC87U: return &emojis[583];
-		case 0xD83DDC88U: return &emojis[584];
-		case 0xD83DDC89U: return &emojis[585];
-		case 0xD83DDC8AU: return &emojis[586];
-		case 0xD83DDC8BU: return &emojis[587];
-		case 0xD83DDC8CU: return &emojis[588];
-		case 0xD83DDC8DU: return &emojis[589];
-		case 0xD83DDC8EU: return &emojis[590];
-		case 0xD83DDC8FU: return &emojis[591];
-		case 0xD83DDC90U: return &emojis[592];
-		case 0xD83DDC91U: return &emojis[593];
-		case 0xD83DDC92U: return &emojis[594];
-		case 0xD83DDC93U: return &emojis[595];
-		case 0xD83DDC94U: return &emojis[596];
-		case 0xD83DDC95U: return &emojis[597];
-		case 0xD83DDC96U: return &emojis[598];
-		case 0xD83DDC97U: return &emojis[599];
-		case 0xD83DDC98U: return &emojis[600];
-		case 0xD83DDC99U: return &emojis[601];
-		case 0xD83DDC9AU: return &emojis[602];
-		case 0xD83DDC9BU: return &emojis[603];
-		case 0xD83DDC9CU: return &emojis[604];
-		case 0xD83DDC9DU: return &emojis[605];
-		case 0xD83DDC9EU: return &emojis[606];
-		case 0xD83DDC9FU: return &emojis[607];
-		case 0xD83DDCA0U: return &emojis[608];
-		case 0xD83DDCA1U: return &emojis[609];
-		case 0xD83DDCA2U: return &emojis[610];
-		case 0xD83DDCA3U: return &emojis[611];
-		case 0xD83DDCA4U: return &emojis[612];
-		case 0xD83DDCA5U: return &emojis[613];
-		case 0xD83DDCA6U: return &emojis[614];
-		case 0xD83DDCA7U: return &emojis[615];
-		case 0xD83DDCA8U: return &emojis[616];
-		case 0xD83DDCA9U: return &emojis[617];
-		case 0xD83DDCAAU: return &emojis[618];
-		case 0xD83DDCABU: return &emojis[619];
-		case 0xD83DDCACU: return &emojis[620];
-		case 0xD83DDCADU: return &emojis[621];
-		case 0xD83DDCAEU: return &emojis[622];
-		case 0xD83DDCAFU: return &emojis[623];
-		case 0xD83DDCB0U: return &emojis[624];
-		case 0xD83DDCB1U: return &emojis[625];
-		case 0xD83DDCB2U: return &emojis[626];
-		case 0xD83DDCB3U: return &emojis[627];
-		case 0xD83DDCB4U: return &emojis[628];
-		case 0xD83DDCB5U: return &emojis[629];
-		case 0xD83DDCB6U: return &emojis[630];
-		case 0xD83DDCB7U: return &emojis[631];
-		case 0xD83DDCB8U: return &emojis[632];
-		case 0xD83DDCB9U: return &emojis[633];
-		case 0xD83DDCBAU: return &emojis[634];
-		case 0xD83DDCBBU: return &emojis[635];
-		case 0xD83DDCBCU: return &emojis[636];
-		case 0xD83DDCBDU: return &emojis[637];
-		case 0xD83DDCBEU: return &emojis[638];
-		case 0xD83DDCBFU: return &emojis[639];
-		case 0xD83DDCC0U: return &emojis[640];
-		case 0xD83DDCC1U: return &emojis[641];
-		case 0xD83DDCC2U: return &emojis[642];
-		case 0xD83DDCC3U: return &emojis[643];
-		case 0xD83DDCC4U: return &emojis[644];
-		case 0xD83DDCC5U: return &emojis[645];
-		case 0xD83DDCC6U: return &emojis[646];
-		case 0xD83DDCC7U: return &emojis[647];
-		case 0xD83DDCC8U: return &emojis[648];
-		case 0xD83DDCC9U: return &emojis[649];
-		case 0xD83DDCCAU: return &emojis[650];
-		case 0xD83DDCCBU: return &emojis[651];
-		case 0xD83DDCCCU: return &emojis[652];
-		case 0xD83DDCCDU: return &emojis[653];
-		case 0xD83DDCCEU: return &emojis[654];
-		case 0xD83DDCCFU: return &emojis[655];
-		case 0xD83DDCD0U: return &emojis[656];
-		case 0xD83DDCD1U: return &emojis[657];
-		case 0xD83DDCD2U: return &emojis[658];
-		case 0xD83DDCD3U: return &emojis[659];
-		case 0xD83DDCD4U: return &emojis[660];
-		case 0xD83DDCD5U: return &emojis[661];
-		case 0xD83DDCD6U: return &emojis[662];
-		case 0xD83DDCD7U: return &emojis[663];
-		case 0xD83DDCD8U: return &emojis[664];
-		case 0xD83DDCD9U: return &emojis[665];
-		case 0xD83DDCDAU: return &emojis[666];
-		case 0xD83DDCDBU: return &emojis[667];
-		case 0xD83DDCDCU: return &emojis[668];
-		case 0xD83DDCDDU: return &emojis[669];
-		case 0xD83DDCDEU: return &emojis[670];
-		case 0xD83DDCDFU: return &emojis[671];
-		case 0xD83DDCE0U: return &emojis[672];
-		case 0xD83DDCE1U: return &emojis[673];
-		case 0xD83DDCE2U: return &emojis[674];
-		case 0xD83DDCE3U: return &emojis[675];
-		case 0xD83DDCE4U: return &emojis[676];
-		case 0xD83DDCE5U: return &emojis[677];
-		case 0xD83DDCE6U: return &emojis[678];
-		case 0xD83DDCE7U: return &emojis[679];
-		case 0xD83DDCE8U: return &emojis[680];
-		case 0xD83DDCE9U: return &emojis[681];
-		case 0xD83DDCEAU: return &emojis[682];
-		case 0xD83DDCEBU: return &emojis[683];
-		case 0xD83DDCECU: return &emojis[684];
-		case 0xD83DDCEDU: return &emojis[685];
-		case 0xD83DDCEEU: return &emojis[686];
-		case 0xD83DDCEFU: return &emojis[687];
-		case 0xD83DDCF0U: return &emojis[688];
-		case 0xD83DDCF1U: return &emojis[689];
-		case 0xD83DDCF2U: return &emojis[690];
-		case 0xD83DDCF3U: return &emojis[691];
-		case 0xD83DDCF4U: return &emojis[692];
-		case 0xD83DDCF5U: return &emojis[693];
-		case 0xD83DDCF6U: return &emojis[694];
-		case 0xD83DDCF7U: return &emojis[695];
-		case 0xD83DDCF8U: return &emojis[696];
-		case 0xD83DDCF9U: return &emojis[697];
-		case 0xD83DDCFAU: return &emojis[698];
-		case 0xD83DDCFBU: return &emojis[699];
-		case 0xD83DDCFCU: return &emojis[700];
-		case 0xD83DDCFDU: return &emojis[701];
-		case 0xD83DDCFFU: return &emojis[702];
-		case 0xD83DDD00U: return &emojis[703];
-		case 0xD83DDD01U: return &emojis[704];
-		case 0xD83DDD02U: return &emojis[705];
-		case 0xD83DDD03U: return &emojis[706];
-		case 0xD83DDD04U: return &emojis[707];
-		case 0xD83DDD05U: return &emojis[708];
-		case 0xD83DDD06U: return &emojis[709];
-		case 0xD83DDD07U: return &emojis[710];
-		case 0xD83DDD08U: return &emojis[711];
-		case 0xD83DDD09U: return &emojis[712];
-		case 0xD83DDD0AU: return &emojis[713];
-		case 0xD83DDD0BU: return &emojis[714];
-		case 0xD83DDD0CU: return &emojis[715];
-		case 0xD83DDD0DU: return &emojis[716];
-		case 0xD83DDD0EU: return &emojis[717];
-		case 0xD83DDD0FU: return &emojis[718];
-		case 0xD83DDD10U: return &emojis[719];
-		case 0xD83DDD11U: return &emojis[720];
-		case 0xD83DDD12U: return &emojis[721];
-		case 0xD83DDD13U: return &emojis[722];
-		case 0xD83DDD14U: return &emojis[723];
-		case 0xD83DDD15U: return &emojis[724];
-		case 0xD83DDD16U: return &emojis[725];
-		case 0xD83DDD17U: return &emojis[726];
-		case 0xD83DDD18U: return &emojis[727];
-		case 0xD83DDD19U: return &emojis[728];
-		case 0xD83DDD1AU: return &emojis[729];
-		case 0xD83DDD1BU: return &emojis[730];
-		case 0xD83DDD1CU: return &emojis[731];
-		case 0xD83DDD1DU: return &emojis[732];
-		case 0xD83DDD1EU: return &emojis[733];
-		case 0xD83DDD1FU: return &emojis[734];
-		case 0xD83DDD20U: return &emojis[735];
-		case 0xD83DDD21U: return &emojis[736];
-		case 0xD83DDD22U: return &emojis[737];
-		case 0xD83DDD23U: return &emojis[738];
-		case 0xD83DDD24U: return &emojis[739];
-		case 0xD83DDD25U: return &emojis[740];
-		case 0xD83DDD26U: return &emojis[741];
-		case 0xD83DDD27U: return &emojis[742];
-		case 0xD83DDD28U: return &emojis[743];
-		case 0xD83DDD29U: return &emojis[744];
-		case 0xD83DDD2AU: return &emojis[745];
-		case 0xD83DDD2BU: return &emojis[746];
-		case 0xD83DDD2CU: return &emojis[747];
-		case 0xD83DDD2DU: return &emojis[748];
-		case 0xD83DDD2EU: return &emojis[749];
-		case 0xD83DDD2FU: return &emojis[750];
-		case 0xD83DDD30U: return &emojis[751];
-		case 0xD83DDD31U: return &emojis[752];
-		case 0xD83DDD32U: return &emojis[753];
-		case 0xD83DDD33U: return &emojis[754];
-		case 0xD83DDD34U: return &emojis[755];
-		case 0xD83DDD35U: return &emojis[756];
-		case 0xD83DDD36U: return &emojis[757];
-		case 0xD83DDD37U: return &emojis[758];
-		case 0xD83DDD38U: return &emojis[759];
-		case 0xD83DDD39U: return &emojis[760];
-		case 0xD83DDD3AU: return &emojis[761];
-		case 0xD83DDD3BU: return &emojis[762];
-		case 0xD83DDD3CU: return &emojis[763];
-		case 0xD83DDD3DU: return &emojis[764];
-		case 0xD83DDD49U: return &emojis[765];
-		case 0xD83DDD4AU: return &emojis[766];
-		case 0xD83DDD4BU: return &emojis[767];
-		case 0xD83DDD4CU: return &emojis[768];
-		case 0xD83DDD4DU: return &emojis[769];
-		case 0xD83DDD4EU: return &emojis[770];
-		case 0xD83DDD50U: return &emojis[771];
-		case 0xD83DDD51U: return &emojis[772];
-		case 0xD83DDD52U: return &emojis[773];
-		case 0xD83DDD53U: return &emojis[774];
-		case 0xD83DDD54U: return &emojis[775];
-		case 0xD83DDD55U: return &emojis[776];
-		case 0xD83DDD56U: return &emojis[777];
-		case 0xD83DDD57U: return &emojis[778];
-		case 0xD83DDD58U: return &emojis[779];
-		case 0xD83DDD59U: return &emojis[780];
-		case 0xD83DDD5AU: return &emojis[781];
-		case 0xD83DDD5BU: return &emojis[782];
-		case 0xD83DDD5CU: return &emojis[783];
-		case 0xD83DDD5DU: return &emojis[784];
-		case 0xD83DDD5EU: return &emojis[785];
-		case 0xD83DDD5FU: return &emojis[786];
-		case 0xD83DDD60U: return &emojis[787];
-		case 0xD83DDD61U: return &emojis[788];
-		case 0xD83DDD62U: return &emojis[789];
-		case 0xD83DDD63U: return &emojis[790];
-		case 0xD83DDD64U: return &emojis[791];
-		case 0xD83DDD65U: return &emojis[792];
-		case 0xD83DDD66U: return &emojis[793];
-		case 0xD83DDD67U: return &emojis[794];
-		case 0xD83DDD6FU: return &emojis[795];
-		case 0xD83DDD70U: return &emojis[796];
-		case 0xD83DDD73U: return &emojis[797];
-		case 0xD83DDD74U: return &emojis[798];
-		case 0xD83DDD75U: return &emojis[799];
-		case 0xD83DDD76U: return &emojis[800];
-		case 0xD83DDD77U: return &emojis[801];
-		case 0xD83DDD78U: return &emojis[802];
-		case 0xD83DDD79U: return &emojis[803];
-		case 0xD83DDD87U: return &emojis[804];
-		case 0xD83DDD8AU: return &emojis[805];
-		case 0xD83DDD8BU: return &emojis[806];
-		case 0xD83DDD8CU: return &emojis[807];
-		case 0xD83DDD8DU: return &emojis[808];
-		case 0xD83DDD90U: return &emojis[809];
-		case 0xD83DDD95U: return &emojis[810];
-		case 0xD83DDD96U: return &emojis[811];
-		case 0xD83DDDA5U: return &emojis[812];
-		case 0xD83DDDA8U: return &emojis[813];
-		case 0xD83DDDB1U: return &emojis[814];
-		case 0xD83DDDB2U: return &emojis[815];
-		case 0xD83DDDBCU: return &emojis[816];
-		case 0xD83DDDC2U: return &emojis[817];
-		case 0xD83DDDC3U: return &emojis[818];
-		case 0xD83DDDC4U: return &emojis[819];
-		case 0xD83DDDD1U: return &emojis[820];
-		case 0xD83DDDD2U: return &emojis[821];
-		case 0xD83DDDD3U: return &emojis[822];
-		case 0xD83DDDDCU: return &emojis[823];
-		case 0xD83DDDDDU: return &emojis[824];
-		case 0xD83DDDDEU: return &emojis[825];
-		case 0xD83DDDE1U: return &emojis[826];
-		case 0xD83DDDE3U: return &emojis[827];
-		case 0xD83DDDEFU: return &emojis[828];
-		case 0xD83DDDF3U: return &emojis[829];
-		case 0xD83DDDFAU: return &emojis[830];
-		case 0xD83DDDFBU: return &emojis[831];
-		case 0xD83DDDFCU: return &emojis[832];
-		case 0xD83DDDFDU: return &emojis[833];
-		case 0xD83DDDFEU: return &emojis[834];
-		case 0xD83DDDFFU: return &emojis[835];
-		case 0xD83DDE00U: return &emojis[836];
-		case 0xD83DDE01U: return &emojis[837];
-		case 0xD83DDE02U: return &emojis[838];
-		case 0xD83DDE03U: return &emojis[839];
-		case 0xD83DDE04U: return &emojis[840];
-		case 0xD83DDE05U: return &emojis[841];
-		case 0xD83DDE06U: return &emojis[842];
-		case 0xD83DDE07U: return &emojis[843];
-		case 0xD83DDE08U: return &emojis[844];
-		case 0xD83DDE09U: return &emojis[845];
-		case 0xD83DDE0AU: return &emojis[846];
-		case 0xD83DDE0BU: return &emojis[847];
-		case 0xD83DDE0CU: return &emojis[848];
-		case 0xD83DDE0DU: return &emojis[849];
-		case 0xD83DDE0EU: return &emojis[850];
-		case 0xD83DDE0FU: return &emojis[851];
-		case 0xD83DDE10U: return &emojis[852];
-		case 0xD83DDE11U: return &emojis[853];
-		case 0xD83DDE12U: return &emojis[854];
-		case 0xD83DDE13U: return &emojis[855];
-		case 0xD83DDE14U: return &emojis[856];
-		case 0xD83DDE15U: return &emojis[857];
-		case 0xD83DDE16U: return &emojis[858];
-		case 0xD83DDE17U: return &emojis[859];
-		case 0xD83DDE18U: return &emojis[860];
-		case 0xD83DDE19U: return &emojis[861];
-		case 0xD83DDE1AU: return &emojis[862];
-		case 0xD83DDE1BU: return &emojis[863];
-		case 0xD83DDE1CU: return &emojis[864];
-		case 0xD83DDE1DU: return &emojis[865];
-		case 0xD83DDE1EU: return &emojis[866];
-		case 0xD83DDE1FU: return &emojis[867];
-		case 0xD83DDE20U: return &emojis[868];
-		case 0xD83DDE21U: return &emojis[869];
-		case 0xD83DDE22U: return &emojis[870];
-		case 0xD83DDE23U: return &emojis[871];
-		case 0xD83DDE24U: return &emojis[872];
-		case 0xD83DDE25U: return &emojis[873];
-		case 0xD83DDE26U: return &emojis[874];
-		case 0xD83DDE27U: return &emojis[875];
-		case 0xD83DDE28U: return &emojis[876];
-		case 0xD83DDE29U: return &emojis[877];
-		case 0xD83DDE2AU: return &emojis[878];
-		case 0xD83DDE2BU: return &emojis[879];
-		case 0xD83DDE2CU: return &emojis[880];
-		case 0xD83DDE2DU: return &emojis[881];
-		case 0xD83DDE2EU: return &emojis[882];
-		case 0xD83DDE2FU: return &emojis[883];
-		case 0xD83DDE30U: return &emojis[884];
-		case 0xD83DDE31U: return &emojis[885];
-		case 0xD83DDE32U: return &emojis[886];
-		case 0xD83DDE33U: return &emojis[887];
-		case 0xD83DDE34U: return &emojis[888];
-		case 0xD83DDE35U: return &emojis[889];
-		case 0xD83DDE36U: return &emojis[890];
-		case 0xD83DDE37U: return &emojis[891];
-		case 0xD83DDE38U: return &emojis[892];
-		case 0xD83DDE39U: return &emojis[893];
-		case 0xD83DDE3AU: return &emojis[894];
-		case 0xD83DDE3BU: return &emojis[895];
-		case 0xD83DDE3CU: return &emojis[896];
-		case 0xD83DDE3DU: return &emojis[897];
-		case 0xD83DDE3EU: return &emojis[898];
-		case 0xD83DDE3FU: return &emojis[899];
-		case 0xD83DDE40U: return &emojis[900];
-		case 0xD83DDE41U: return &emojis[901];
-		case 0xD83DDE42U: return &emojis[902];
-		case 0xD83DDE43U: return &emojis[903];
-		case 0xD83DDE44U: return &emojis[904];
-		case 0xD83DDE45U: return &emojis[905];
-		case 0xD83DDE46U: return &emojis[906];
-		case 0xD83DDE47U: return &emojis[907];
-		case 0xD83DDE48U: return &emojis[908];
-		case 0xD83DDE49U: return &emojis[909];
-		case 0xD83DDE4AU: return &emojis[910];
-		case 0xD83DDE4BU: return &emojis[911];
-		case 0xD83DDE4CU: return &emojis[912];
-		case 0xD83DDE4DU: return &emojis[913];
-		case 0xD83DDE4EU: return &emojis[914];
-		case 0xD83DDE4FU: return &emojis[915];
-		case 0xD83DDE80U: return &emojis[916];
-		case 0xD83DDE81U: return &emojis[917];
-		case 0xD83DDE82U: return &emojis[918];
-		case 0xD83DDE83U: return &emojis[919];
-		case 0xD83DDE84U: return &emojis[920];
-		case 0xD83DDE85U: return &emojis[921];
-		case 0xD83DDE86U: return &emojis[922];
-		case 0xD83DDE87U: return &emojis[923];
-		case 0xD83DDE88U: return &emojis[924];
-		case 0xD83DDE89U: return &emojis[925];
-		case 0xD83DDE8AU: return &emojis[926];
-		case 0xD83DDE8BU: return &emojis[927];
-		case 0xD83DDE8CU: return &emojis[928];
-		case 0xD83DDE8DU: return &emojis[929];
-		case 0xD83DDE8EU: return &emojis[930];
-		case 0xD83DDE8FU: return &emojis[931];
-		case 0xD83DDE90U: return &emojis[932];
-		case 0xD83DDE91U: return &emojis[933];
-		case 0xD83DDE92U: return &emojis[934];
-		case 0xD83DDE93U: return &emojis[935];
-		case 0xD83DDE94U: return &emojis[936];
-		case 0xD83DDE95U: return &emojis[937];
-		case 0xD83DDE96U: return &emojis[938];
-		case 0xD83DDE97U: return &emojis[939];
-		case 0xD83DDE98U: return &emojis[940];
-		case 0xD83DDE99U: return &emojis[941];
-		case 0xD83DDE9AU: return &emojis[942];
-		case 0xD83DDE9BU: return &emojis[943];
-		case 0xD83DDE9CU: return &emojis[944];
-		case 0xD83DDE9DU: return &emojis[945];
-		case 0xD83DDE9EU: return &emojis[946];
-		case 0xD83DDE9FU: return &emojis[947];
-		case 0xD83DDEA0U: return &emojis[948];
-		case 0xD83DDEA1U: return &emojis[949];
-		case 0xD83DDEA2U: return &emojis[950];
-		case 0xD83DDEA3U: return &emojis[951];
-		case 0xD83DDEA4U: return &emojis[952];
-		case 0xD83DDEA5U: return &emojis[953];
-		case 0xD83DDEA6U: return &emojis[954];
-		case 0xD83DDEA7U: return &emojis[955];
-		case 0xD83DDEA8U: return &emojis[956];
-		case 0xD83DDEA9U: return &emojis[957];
-		case 0xD83DDEAAU: return &emojis[958];
-		case 0xD83DDEABU: return &emojis[959];
-		case 0xD83DDEACU: return &emojis[960];
-		case 0xD83DDEADU: return &emojis[961];
-		case 0xD83DDEAEU: return &emojis[962];
-		case 0xD83DDEAFU: return &emojis[963];
-		case 0xD83DDEB0U: return &emojis[964];
-		case 0xD83DDEB1U: return &emojis[965];
-		case 0xD83DDEB2U: return &emojis[966];
-		case 0xD83DDEB3U: return &emojis[967];
-		case 0xD83DDEB4U: return &emojis[968];
-		case 0xD83DDEB5U: return &emojis[969];
-		case 0xD83DDEB6U: return &emojis[970];
-		case 0xD83DDEB7U: return &emojis[971];
-		case 0xD83DDEB8U: return &emojis[972];
-		case 0xD83DDEB9U: return &emojis[973];
-		case 0xD83DDEBAU: return &emojis[974];
-		case 0xD83DDEBBU: return &emojis[975];
-		case 0xD83DDEBCU: return &emojis[976];
-		case 0xD83DDEBDU: return &emojis[977];
-		case 0xD83DDEBEU: return &emojis[978];
-		case 0xD83DDEBFU: return &emojis[979];
-		case 0xD83DDEC0U: return &emojis[980];
-		case 0xD83DDEC1U: return &emojis[981];
-		case 0xD83DDEC2U: return &emojis[982];
-		case 0xD83DDEC3U: return &emojis[983];
-		case 0xD83DDEC4U: return &emojis[984];
-		case 0xD83DDEC5U: return &emojis[985];
-		case 0xD83DDECBU: return &emojis[986];
-		case 0xD83DDECCU: return &emojis[987];
-		case 0xD83DDECDU: return &emojis[988];
-		case 0xD83DDECEU: return &emojis[989];
-		case 0xD83DDECFU: return &emojis[990];
-		case 0xD83DDED0U: return &emojis[991];
-		case 0xD83DDEE0U: return &emojis[992];
-		case 0xD83DDEE1U: return &emojis[993];
-		case 0xD83DDEE2U: return &emojis[994];
-		case 0xD83DDEE3U: return &emojis[995];
-		case 0xD83DDEE4U: return &emojis[996];
-		case 0xD83DDEE5U: return &emojis[997];
-		case 0xD83DDEE9U: return &emojis[998];
-		case 0xD83DDEEBU: return &emojis[999];
-		case 0xD83DDEECU: return &emojis[1000];
-		case 0xD83DDEF0U: return &emojis[1001];
-		case 0xD83DDEF3U: return &emojis[1002];
-		case 0xD83EDD10U: return &emojis[1003];
-		case 0xD83EDD11U: return &emojis[1004];
-		case 0xD83EDD12U: return &emojis[1005];
-		case 0xD83EDD13U: return &emojis[1006];
-		case 0xD83EDD14U: return &emojis[1007];
-		case 0xD83EDD15U: return &emojis[1008];
-		case 0xD83EDD16U: return &emojis[1009];
-		case 0xD83EDD17U: return &emojis[1010];
-		case 0xD83EDD18U: return &emojis[1011];
-		case 0xD83EDD80U: return &emojis[1012];
-		case 0xD83EDD81U: return &emojis[1013];
-		case 0xD83EDD82U: return &emojis[1014];
-		case 0xD83EDD83U: return &emojis[1015];
-		case 0xD83EDD84U: return &emojis[1016];
-		case 0xD83EDDC0U: return &emojis[1017];
-		case 0xFFFF0000U: return &emojis[1018];
-		case 0xFFFF0001U: return &emojis[1019];
-		case 0xFFFF0002U: return &emojis[1020];
-		case 0xFFFF0003U: return &emojis[1021];
-		case 0xFFFF0004U: return &emojis[1022];
-		case 0xFFFF0005U: return &emojis[1023];
-		case 0xFFFF0006U: return &emojis[1024];
-		case 0xFFFF0007U: return &emojis[1025];
-		case 0xFFFF0008U: return &emojis[1026];
-		case 0xFFFF0009U: return &emojis[1027];
-		case 0xFFFF000AU: return &emojis[1028];
-		case 0xFFFF000BU: return &emojis[1029];
-		case 0xFFFF000CU: return &emojis[1030];
-		case 0xFFFF000DU: return &emojis[1031];
-		case 0xFFFF000EU: return &emojis[1032];
-		case 0xFFFF000FU: return &emojis[1033];
-		case 0xFFFF0010U: return &emojis[1034];
-		case 0xFFFF0011U: return &emojis[1035];
-		case 0xFFFF0012U: return &emojis[1036];
-		case 0xD83CDDE6U: return TwoSymbolEmoji;
-		case 0xD83CDDE7U: return TwoSymbolEmoji;
-		case 0xD83CDDE8U: return TwoSymbolEmoji;
-		case 0xD83CDDE9U: return TwoSymbolEmoji;
-		case 0xD83CDDEAU: return TwoSymbolEmoji;
-		case 0xD83CDDEBU: return TwoSymbolEmoji;
-		case 0xD83CDDECU: return TwoSymbolEmoji;
-		case 0xD83CDDEDU: return TwoSymbolEmoji;
-		case 0xD83CDDEEU: return TwoSymbolEmoji;
-		case 0xD83CDDEFU: return TwoSymbolEmoji;
-		case 0xD83CDDF0U: return TwoSymbolEmoji;
-		case 0xD83CDDF1U: return TwoSymbolEmoji;
-		case 0xD83CDDF2U: return TwoSymbolEmoji;
-		case 0xD83CDDF3U: return TwoSymbolEmoji;
-		case 0xD83CDDF4U: return TwoSymbolEmoji;
-		case 0xD83CDDF5U: return TwoSymbolEmoji;
-		case 0xD83CDDF6U: return TwoSymbolEmoji;
-		case 0xD83CDDF7U: return TwoSymbolEmoji;
-		case 0xD83CDDF8U: return TwoSymbolEmoji;
-		case 0xD83CDDF9U: return TwoSymbolEmoji;
-		case 0xD83CDDFAU: return TwoSymbolEmoji;
-		case 0xD83CDDFBU: return TwoSymbolEmoji;
-		case 0xD83CDDFCU: return TwoSymbolEmoji;
-		case 0xD83CDDFDU: return TwoSymbolEmoji;
-		case 0xD83CDDFEU: return TwoSymbolEmoji;
-		case 0xD83CDDFFU: return TwoSymbolEmoji;
-	}
-
-	return 0;
+inline void AppendChars(QString &result) {
 }
 
-EmojiPtr emojiGet(uint32 code, uint32 code2) {
-	if (code < 0xD83CDDE6U || code > 0xD83CDDFFU) return 0;
-
-	switch (code) {
-		case 0xD83CDDE6U: switch (code2) {
-			case 0xD83CDDE9U: return &emojis[1067];
-			case 0xD83CDDEAU: return &emojis[1068];
-			case 0xD83CDDEBU: return &emojis[1069];
-			case 0xD83CDDECU: return &emojis[1070];
-			case 0xD83CDDEEU: return &emojis[1071];
-			case 0xD83CDDF1U: return &emojis[1072];
-			case 0xD83CDDF2U: return &emojis[1073];
-			case 0xD83CDDF4U: return &emojis[1074];
-			case 0xD83CDDF6U: return &emojis[1075];
-			case 0xD83CDDF7U: return &emojis[1076];
-			case 0xD83CDDF8U: return &emojis[1077];
-			case 0xD83CDDF9U: return &emojis[1078];
-			case 0xD83CDDFAU: return &emojis[1079];
-			case 0xD83CDDFCU: return &emojis[1080];
-			case 0xD83CDDFDU: return &emojis[1081];
-			case 0xD83CDDFFU: return &emojis[1082];
-			default: return 0;
-		} break;
-		case 0xD83CDDE7U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1083];
-			case 0xD83CDDE7U: return &emojis[1084];
-			case 0xD83CDDE9U: return &emojis[1085];
-			case 0xD83CDDEAU: return &emojis[1086];
-			case 0xD83CDDEBU: return &emojis[1087];
-			case 0xD83CDDECU: return &emojis[1088];
-			case 0xD83CDDEDU: return &emojis[1089];
-			case 0xD83CDDEEU: return &emojis[1090];
-			case 0xD83CDDEFU: return &emojis[1091];
-			case 0xD83CDDF1U: return &emojis[1092];
-			case 0xD83CDDF2U: return &emojis[1093];
-			case 0xD83CDDF3U: return &emojis[1094];
-			case 0xD83CDDF4U: return &emojis[1095];
-			case 0xD83CDDF6U: return &emojis[1096];
-			case 0xD83CDDF7U: return &emojis[1097];
-			case 0xD83CDDF8U: return &emojis[1098];
-			case 0xD83CDDF9U: return &emojis[1099];
-			case 0xD83CDDFCU: return &emojis[1100];
-			case 0xD83CDDFEU: return &emojis[1101];
-			case 0xD83CDDFFU: return &emojis[1102];
-			default: return 0;
-		} break;
-		case 0xD83CDDE8U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1103];
-			case 0xD83CDDE8U: return &emojis[1104];
-			case 0xD83CDDE9U: return &emojis[1105];
-			case 0xD83CDDEBU: return &emojis[1106];
-			case 0xD83CDDECU: return &emojis[1107];
-			case 0xD83CDDEDU: return &emojis[1108];
-			case 0xD83CDDEEU: return &emojis[1109];
-			case 0xD83CDDF0U: return &emojis[1110];
-			case 0xD83CDDF1U: return &emojis[1111];
-			case 0xD83CDDF2U: return &emojis[1112];
-			case 0xD83CDDF3U: return &emojis[1113];
-			case 0xD83CDDF4U: return &emojis[1114];
-			case 0xD83CDDF7U: return &emojis[1115];
-			case 0xD83CDDFAU: return &emojis[1116];
-			case 0xD83CDDFBU: return &emojis[1117];
-			case 0xD83CDDFCU: return &emojis[1118];
-			case 0xD83CDDFDU: return &emojis[1119];
-			case 0xD83CDDFEU: return &emojis[1120];
-			case 0xD83CDDFFU: return &emojis[1121];
-			default: return 0;
-		} break;
-		case 0xD83CDDE9U: switch (code2) {
-			case 0xD83CDDEAU: return &emojis[1122];
-			case 0xD83CDDEFU: return &emojis[1123];
-			case 0xD83CDDF0U: return &emojis[1124];
-			case 0xD83CDDF2U: return &emojis[1125];
-			case 0xD83CDDF4U: return &emojis[1126];
-			case 0xD83CDDFFU: return &emojis[1127];
-			default: return 0;
-		} break;
-		case 0xD83CDDEAU: switch (code2) {
-			case 0xD83CDDE8U: return &emojis[1128];
-			case 0xD83CDDEAU: return &emojis[1129];
-			case 0xD83CDDECU: return &emojis[1130];
-			case 0xD83CDDEDU: return &emojis[1131];
-			case 0xD83CDDF7U: return &emojis[1132];
-			case 0xD83CDDF8U: return &emojis[1133];
-			case 0xD83CDDF9U: return &emojis[1134];
-			case 0xD83CDDFAU: return &emojis[1135];
-			default: return 0;
-		} break;
-		case 0xD83CDDEBU: switch (code2) {
-			case 0xD83CDDEEU: return &emojis[1136];
-			case 0xD83CDDEFU: return &emojis[1137];
-			case 0xD83CDDF0U: return &emojis[1138];
-			case 0xD83CDDF2U: return &emojis[1139];
-			case 0xD83CDDF4U: return &emojis[1140];
-			case 0xD83CDDF7U: return &emojis[1141];
-			default: return 0;
-		} break;
-		case 0xD83CDDECU: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1142];
-			case 0xD83CDDE7U: return &emojis[1143];
-			case 0xD83CDDE9U: return &emojis[1144];
-			case 0xD83CDDEAU: return &emojis[1145];
-			case 0xD83CDDEBU: return &emojis[1146];
-			case 0xD83CDDECU: return &emojis[1147];
-			case 0xD83CDDEDU: return &emojis[1148];
-			case 0xD83CDDEEU: return &emojis[1149];
-			case 0xD83CDDF1U: return &emojis[1150];
-			case 0xD83CDDF2U: return &emojis[1151];
-			case 0xD83CDDF3U: return &emojis[1152];
-			case 0xD83CDDF5U: return &emojis[1153];
-			case 0xD83CDDF6U: return &emojis[1154];
-			case 0xD83CDDF7U: return &emojis[1155];
-			case 0xD83CDDF8U: return &emojis[1156];
-			case 0xD83CDDF9U: return &emojis[1157];
-			case 0xD83CDDFAU: return &emojis[1158];
-			case 0xD83CDDFCU: return &emojis[1159];
-			case 0xD83CDDFEU: return &emojis[1160];
-			default: return 0;
-		} break;
-		case 0xD83CDDEDU: switch (code2) {
-			case 0xD83CDDF0U: return &emojis[1161];
-			case 0xD83CDDF3U: return &emojis[1162];
-			case 0xD83CDDF7U: return &emojis[1163];
-			case 0xD83CDDF9U: return &emojis[1164];
-			case 0xD83CDDFAU: return &emojis[1165];
-			default: return 0;
-		} break;
-		case 0xD83CDDEEU: switch (code2) {
-			case 0xD83CDDE8U: return &emojis[1166];
-			case 0xD83CDDE9U: return &emojis[1167];
-			case 0xD83CDDEAU: return &emojis[1168];
-			case 0xD83CDDF1U: return &emojis[1169];
-			case 0xD83CDDF2U: return &emojis[1170];
-			case 0xD83CDDF3U: return &emojis[1171];
-			case 0xD83CDDF4U: return &emojis[1172];
-			case 0xD83CDDF6U: return &emojis[1173];
-			case 0xD83CDDF7U: return &emojis[1174];
-			case 0xD83CDDF8U: return &emojis[1175];
-			case 0xD83CDDF9U: return &emojis[1176];
-			default: return 0;
-		} break;
-		case 0xD83CDDEFU: switch (code2) {
-			case 0xD83CDDEAU: return &emojis[1177];
-			case 0xD83CDDF2U: return &emojis[1178];
-			case 0xD83CDDF4U: return &emojis[1179];
-			case 0xD83CDDF5U: return &emojis[1180];
-			default: return 0;
-		} break;
-		case 0xD83CDDF0U: switch (code2) {
-			case 0xD83CDDEAU: return &emojis[1181];
-			case 0xD83CDDECU: return &emojis[1182];
-			case 0xD83CDDEDU: return &emojis[1183];
-			case 0xD83CDDEEU: return &emojis[1184];
-			case 0xD83CDDF2U: return &emojis[1185];
-			case 0xD83CDDF3U: return &emojis[1186];
-			case 0xD83CDDF5U: return &emojis[1187];
-			case 0xD83CDDF7U: return &emojis[1188];
-			case 0xD83CDDFCU: return &emojis[1189];
-			case 0xD83CDDFEU: return &emojis[1190];
-			case 0xD83CDDFFU: return &emojis[1191];
-			default: return 0;
-		} break;
-		case 0xD83CDDF1U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1192];
-			case 0xD83CDDE7U: return &emojis[1193];
-			case 0xD83CDDE8U: return &emojis[1194];
-			case 0xD83CDDEEU: return &emojis[1195];
-			case 0xD83CDDF0U: return &emojis[1196];
-			case 0xD83CDDF7U: return &emojis[1197];
-			case 0xD83CDDF8U: return &emojis[1198];
-			case 0xD83CDDF9U: return &emojis[1199];
-			case 0xD83CDDFAU: return &emojis[1200];
-			case 0xD83CDDFBU: return &emojis[1201];
-			case 0xD83CDDFEU: return &emojis[1202];
-			default: return 0;
-		} break;
-		case 0xD83CDDF2U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1203];
-			case 0xD83CDDE8U: return &emojis[1204];
-			case 0xD83CDDE9U: return &emojis[1205];
-			case 0xD83CDDEAU: return &emojis[1206];
-			case 0xD83CDDECU: return &emojis[1207];
-			case 0xD83CDDEDU: return &emojis[1208];
-			case 0xD83CDDF0U: return &emojis[1209];
-			case 0xD83CDDF1U: return &emojis[1210];
-			case 0xD83CDDF2U: return &emojis[1211];
-			case 0xD83CDDF3U: return &emojis[1212];
-			case 0xD83CDDF4U: return &emojis[1213];
-			case 0xD83CDDF5U: return &emojis[1214];
-			case 0xD83CDDF6U: return &emojis[1215];
-			case 0xD83CDDF7U: return &emojis[1216];
-			case 0xD83CDDF8U: return &emojis[1217];
-			case 0xD83CDDF9U: return &emojis[1218];
-			case 0xD83CDDFAU: return &emojis[1219];
-			case 0xD83CDDFBU: return &emojis[1220];
-			case 0xD83CDDFCU: return &emojis[1221];
-			case 0xD83CDDFDU: return &emojis[1222];
-			case 0xD83CDDFEU: return &emojis[1223];
-			case 0xD83CDDFFU: return &emojis[1224];
-			default: return 0;
-		} break;
-		case 0xD83CDDF3U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1225];
-			case 0xD83CDDE8U: return &emojis[1226];
-			case 0xD83CDDEAU: return &emojis[1227];
-			case 0xD83CDDEBU: return &emojis[1228];
-			case 0xD83CDDECU: return &emojis[1229];
-			case 0xD83CDDEEU: return &emojis[1230];
-			case 0xD83CDDF1U: return &emojis[1231];
-			case 0xD83CDDF4U: return &emojis[1232];
-			case 0xD83CDDF5U: return &emojis[1233];
-			case 0xD83CDDF7U: return &emojis[1234];
-			case 0xD83CDDFAU: return &emojis[1235];
-			case 0xD83CDDFFU: return &emojis[1236];
-			default: return 0;
-		} break;
-		case 0xD83CDDF4U: switch (code2) {
-			case 0xD83CDDF2U: return &emojis[1237];
-			default: return 0;
-		} break;
-		case 0xD83CDDF5U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1238];
-			case 0xD83CDDEAU: return &emojis[1239];
-			case 0xD83CDDEBU: return &emojis[1240];
-			case 0xD83CDDECU: return &emojis[1241];
-			case 0xD83CDDEDU: return &emojis[1242];
-			case 0xD83CDDF0U: return &emojis[1243];
-			case 0xD83CDDF1U: return &emojis[1244];
-			case 0xD83CDDF2U: return &emojis[1245];
-			case 0xD83CDDF3U: return &emojis[1246];
-			case 0xD83CDDF7U: return &emojis[1247];
-			case 0xD83CDDF8U: return &emojis[1248];
-			case 0xD83CDDF9U: return &emojis[1249];
-			case 0xD83CDDFCU: return &emojis[1250];
-			case 0xD83CDDFEU: return &emojis[1251];
-			default: return 0;
-		} break;
-		case 0xD83CDDF6U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1252];
-			default: return 0;
-		} break;
-		case 0xD83CDDF7U: switch (code2) {
-			case 0xD83CDDEAU: return &emojis[1253];
-			case 0xD83CDDF4U: return &emojis[1254];
-			case 0xD83CDDF8U: return &emojis[1255];
-			case 0xD83CDDFAU: return &emojis[1256];
-			case 0xD83CDDFCU: return &emojis[1257];
-			default: return 0;
-		} break;
-		case 0xD83CDDF8U: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1258];
-			case 0xD83CDDE7U: return &emojis[1259];
-			case 0xD83CDDE8U: return &emojis[1260];
-			case 0xD83CDDE9U: return &emojis[1261];
-			case 0xD83CDDEAU: return &emojis[1262];
-			case 0xD83CDDECU: return &emojis[1263];
-			case 0xD83CDDEDU: return &emojis[1264];
-			case 0xD83CDDEEU: return &emojis[1265];
-			case 0xD83CDDF0U: return &emojis[1266];
-			case 0xD83CDDF1U: return &emojis[1267];
-			case 0xD83CDDF2U: return &emojis[1268];
-			case 0xD83CDDF3U: return &emojis[1269];
-			case 0xD83CDDF4U: return &emojis[1270];
-			case 0xD83CDDF7U: return &emojis[1271];
-			case 0xD83CDDF8U: return &emojis[1272];
-			case 0xD83CDDF9U: return &emojis[1273];
-			case 0xD83CDDFBU: return &emojis[1274];
-			case 0xD83CDDFDU: return &emojis[1275];
-			case 0xD83CDDFEU: return &emojis[1276];
-			case 0xD83CDDFFU: return &emojis[1277];
-			default: return 0;
-		} break;
-		case 0xD83CDDF9U: switch (code2) {
-			case 0xD83CDDE8U: return &emojis[1278];
-			case 0xD83CDDE9U: return &emojis[1279];
-			case 0xD83CDDEBU: return &emojis[1280];
-			case 0xD83CDDECU: return &emojis[1281];
-			case 0xD83CDDEDU: return &emojis[1282];
-			case 0xD83CDDEFU: return &emojis[1283];
-			case 0xD83CDDF0U: return &emojis[1284];
-			case 0xD83CDDF1U: return &emojis[1285];
-			case 0xD83CDDF2U: return &emojis[1286];
-			case 0xD83CDDF3U: return &emojis[1287];
-			case 0xD83CDDF4U: return &emojis[1288];
-			case 0xD83CDDF7U: return &emojis[1289];
-			case 0xD83CDDF9U: return &emojis[1290];
-			case 0xD83CDDFBU: return &emojis[1291];
-			case 0xD83CDDFCU: return &emojis[1292];
-			case 0xD83CDDFFU: return &emojis[1293];
-			default: return 0;
-		} break;
-		case 0xD83CDDFAU: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1294];
-			case 0xD83CDDECU: return &emojis[1295];
-			case 0xD83CDDF8U: return &emojis[1296];
-			case 0xD83CDDFEU: return &emojis[1297];
-			case 0xD83CDDFFU: return &emojis[1298];
-			default: return 0;
-		} break;
-		case 0xD83CDDFBU: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1299];
-			case 0xD83CDDE8U: return &emojis[1300];
-			case 0xD83CDDEAU: return &emojis[1301];
-			case 0xD83CDDECU: return &emojis[1302];
-			case 0xD83CDDEEU: return &emojis[1303];
-			case 0xD83CDDF3U: return &emojis[1304];
-			case 0xD83CDDFAU: return &emojis[1305];
-			default: return 0;
-		} break;
-		case 0xD83CDDFCU: switch (code2) {
-			case 0xD83CDDEBU: return &emojis[1306];
-			case 0xD83CDDF8U: return &emojis[1307];
-			default: return 0;
-		} break;
-		case 0xD83CDDFDU: switch (code2) {
-			case 0xD83CDDF0U: return &emojis[1308];
-			default: return 0;
-		} break;
-		case 0xD83CDDFEU: switch (code2) {
-			case 0xD83CDDEAU: return &emojis[1309];
-			case 0xD83CDDF9U: return &emojis[1310];
-			default: return 0;
-		} break;
-		case 0xD83CDDFFU: switch (code2) {
-			case 0xD83CDDE6U: return &emojis[1311];
-			case 0xD83CDDF2U: return &emojis[1312];
-			case 0xD83CDDFCU: return &emojis[1313];
-			default: return 0;
-		} break;
-	}
-
-	return 0;
+template <typename ...Args>
+inline void AppendChars(QString &result, ushort unicode, Args... args) {
+	result.append(QChar(unicode));
+	AppendChars(result, args...);
 }
 
-EmojiPtr emojiGet(EmojiPtr emoji, uint32 color) {
-	if (!emoji || ((emoji->color & 0xFFFF0000U) != 0xFFFF0000U)) return emoji;
-
-	int index = 0;
-	switch (color) {
-		case 0xD83CDFFB: index = 0; break;
-		case 0xD83CDFFC: index = 1; break;
-		case 0xD83CDFFD: index = 2; break;
-		case 0xD83CDFFE: index = 3; break;
-		case 0xD83CDFFF: index = 4; break;
-		default: return emoji;
-	}
-
-	return &emojis[(emoji->color & 0xFFFFU) + index];
-}
-
-EmojiPtr emojiGet(const QChar *from, const QChar *end) {
-	static const int sequenceOffset = 1018;
-
-	if (from + 4 < end && (from + 2)->unicode() == 0x200D) {
-		uint32 one = (uint32(from->unicode()) << 16) | uint32((from + 1)->unicode()), two = (uint32((from + 3)->unicode()) << 16) | uint32((from + 4)->unicode());
-		if (one == 0xD83DDC41 && two == 0xD83DDDE8) {
-			return &emojis[sequenceOffset + 18];
-		}
-	}
-
-	if (end < from + 8 || (from + 2)->unicode() != 0x200D || (from + 5)->unicode() != 0x200D) return 0;
-
-	static const uint32 man = 0xD83DDC68, woman = 0xD83DDC69, boy = 0xD83DDC66, girl = 0xD83DDC67, heart = 0x2764FE0F, kiss = 0xD83DDC8B;
-	uint32 one = (uint32(from->unicode()) << 16) | uint32((from + 1)->unicode()), two = (uint32((from + 3)->unicode()) << 16) | uint32((from + 4)->unicode()), three = (uint32((from + 6)->unicode()) << 16) | uint32((from + 7)->unicode());
-
-	if (one != man && one != woman) return 0;
-
-	if (end > from + 10 && (from + 8)->unicode() == 0x200D) {
-		uint32 four = (uint32((from + 9)->unicode()) << 16) | uint32((from + 10)->unicode());
-
-		if (one == man) {
-			if (two == man) {
-				if (three == girl) {
-					if (four == girl) return &emojis[sequenceOffset + 13];
-					if (four == boy) return &emojis[sequenceOffset + 11];
-				} else if (three == boy) {
-					if (four == boy) return &emojis[sequenceOffset + 12];
-				}
-			} else if (two == woman) {
-				if (three == girl) {
-					if (four == girl) return &emojis[sequenceOffset + 3];
-					if (four == boy) return &emojis[sequenceOffset + 1];
-				} else if (three == boy) {
-					if (four == boy) return &emojis[sequenceOffset + 2];
-				}
-			} else if (two == heart) {
-				if (three == kiss && four == man) return &emojis[sequenceOffset + 17];
-			}
-		} else {
-			if (two == woman) {
-				if (three == girl) {
-					if (four == girl) return &emojis[sequenceOffset + 8];
-					if (four == boy) return &emojis[sequenceOffset + 6];
-				} else if (three == boy) {
-					if (four == boy) return &emojis[sequenceOffset + 7];
-				}
-			} else if (two == heart) {
-				if (three == kiss && four == woman) return &emojis[sequenceOffset + 16];
-			}
-		}
-	}
-	if (one == man) {
-		if (two == man) {
-			if (three == girl) return &emojis[sequenceOffset + 10];
-			if (three == boy) return &emojis[sequenceOffset + 9];
-		} else if (two == woman) {
-			if (three == girl) return &emojis[sequenceOffset + 0];
-		} else if (two == heart) {
-			if (three == man) return &emojis[sequenceOffset + 15];
-		}
-	} else {
-		if (two == woman) {
-			if (three == girl) return &emojis[sequenceOffset + 5];
-			if (three == boy) return &emojis[sequenceOffset + 4];
-		} else if (two == heart) {
-			if (three == woman) return &emojis[sequenceOffset + 14];
-		}
-	}
-	return 0;
-}
-
-QString emojiGetSequence(int index) {
-	static QVector<QString> sequences;
-	if (sequences.isEmpty()) {
-		sequences.reserve(19);
-
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa9\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa6\xe2\x80\x8d\xf0\x9f\x91\xa6"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa8\xe2\x80\x8d\xf0\x9f\x91\xa7\xe2\x80\x8d\xf0\x9f\x91\xa7"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x91\xa9"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x91\xa8"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa9\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa9"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\xa8\xe2\x80\x8d\xe2\x9d\xa4\xef\xb8\x8f\xe2\x80\x8d\xf0\x9f\x92\x8b\xe2\x80\x8d\xf0\x9f\x91\xa8"));
-		sequences.push_back(QString::fromUtf8("\xf0\x9f\x91\x81\xe2\x80\x8d\xf0\x9f\x97\xa8"));
-	}
-
-	return (index >= 0 && index < sequences.size()) ? sequences.at(index) : QString();
-}
-
-void emojiFind(const QChar *ch, const QChar *e, const QChar *&newEmojiEnd, uint32 &emojiCode) {
-	switch (ch->unicode()) {
-	case '}':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case ':':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE08U;
-					return;
-				}
-			break;
-			}
-		break;
-		}
-	break;
-	case 'x':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case 'D':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE06U;
-				return;
-			}
-		break;
-		}
-	break;
-	case 'O':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case ':':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE07U;
-					return;
-				}
-			break;
-			}
-		break;
-		}
-	break;
-	case 'B':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case '-':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE0EU;
-					return;
-				}
-			break;
-			}
-		break;
-		}
-	break;
-	case '>':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case '(':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case '(':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE21U;
-					return;
-				}
-			break;
-			}
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE20U;
-				return;
-			}
-		break;
-		}
-	break;
-	case '<':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case '3':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0x2764U;
-				return;
-			}
-		break;
-		}
-	break;
-	case ';':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case 'o':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE30U;
-				return;
-			}
-		break;
-		case '-':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'P':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE1CU;
-					return;
-				}
-			break;
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE09U;
-					return;
-				}
-			break;
-			}
-		break;
-		}
-	break;
-	case ':':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case '|':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE10U;
-				return;
-			}
-		break;
-		case 'v':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case ':':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0x270CU;
-					return;
-				}
-			break;
-			}
-		break;
-		case 'u':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'p':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case ':':
-					newEmojiEnd = ch + 4;
-					if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-						emojiCode = 0x261DU;
-						return;
-					}
-				break;
-				}
-			break;
-			}
-		break;
-		case 'o':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'k':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case ':':
-					newEmojiEnd = ch + 4;
-					if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-						emojiCode = 0xD83DDC4CU;
-						return;
-					}
-				break;
-				}
-			break;
-			}
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE28U;
-				return;
-			}
-		break;
-		case 'l':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'i':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case 'k':
-					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
-					case 'e':
-						if (ch + 5 != e) switch ((ch + 5)->unicode()) {
-						case ':':
-							newEmojiEnd = ch + 6;
-							if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-								emojiCode = 0xD83DDC4DU;
-								return;
-							}
-						break;
-						}
-					break;
-					}
-				break;
-				}
-			break;
-			}
-		break;
-		case 'k':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'i':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case 's':
-					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
-					case 's':
-						if (ch + 5 != e) switch ((ch + 5)->unicode()) {
-						case ':':
-							newEmojiEnd = ch + 6;
-							if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-								emojiCode = 0xD83DDC8BU;
-								return;
-							}
-						break;
-						}
-					break;
-					}
-				break;
-				}
-			break;
-			}
-		break;
-		case 'j':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'o':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case 'y':
-					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
-					case ':':
-						newEmojiEnd = ch + 5;
-						if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-							emojiCode = 0xD83DDE02U;
-							return;
-						}
-					break;
-					}
-				break;
-				}
-			break;
-			}
-		break;
-		case 'g':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'r':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case 'i':
-					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
-					case 'n':
-						if (ch + 5 != e) switch ((ch + 5)->unicode()) {
-						case ':':
-							newEmojiEnd = ch + 6;
-							if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-								emojiCode = 0xD83DDE01U;
-								return;
-							}
-						break;
-						}
-					break;
-					}
-				break;
-				}
-			break;
-			}
-		break;
-		case 'd':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'i':
-				if (ch + 3 != e) switch ((ch + 3)->unicode()) {
-				case 's':
-					if (ch + 4 != e) switch ((ch + 4)->unicode()) {
-					case 'l':
-						if (ch + 5 != e) switch ((ch + 5)->unicode()) {
-						case 'i':
-							if (ch + 6 != e) switch ((ch + 6)->unicode()) {
-							case 'k':
-								if (ch + 7 != e) switch ((ch + 7)->unicode()) {
-								case 'e':
-									if (ch + 8 != e) switch ((ch + 8)->unicode()) {
-									case ':':
-										newEmojiEnd = ch + 9;
-										if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-											emojiCode = 0xD83DDC4EU;
-											return;
-										}
-									break;
-									}
-								break;
-								}
-							break;
-							}
-						break;
-						}
-					break;
-					}
-				break;
-				}
-			break;
-			}
-		break;
-		case '_':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case '(':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE2DU;
-					return;
-				}
-			break;
-			}
-		break;
-		case ']':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE0FU;
-				return;
-			}
-		break;
-		case 'X':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE37U;
-				return;
-			}
-		break;
-		case '-':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case 'p':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE0BU;
-					return;
-				}
-			break;
-			case 'D':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE03U;
-					return;
-				}
-			break;
-			case '*':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE1AU;
-					return;
-				}
-			break;
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE0AU;
-					return;
-				}
-			break;
-			case '(':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE1EU;
-					return;
-				}
-			break;
-			}
-		break;
-		case '(':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case '(':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE29U;
-					return;
-				}
-			break;
-			}
-		break;
-		case '\'':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case '(':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE22U;
-					return;
-				}
-			break;
-			}
-		break;
-		}
-	break;
-	case '8':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case '|':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE33U;
-				return;
-			}
-		break;
-		case 'o':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE32U;
-				return;
-			}
-		break;
-		case '-':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE0DU;
-					return;
-				}
-			break;
-			}
-		break;
-		}
-	break;
-	case '3':
-		if (ch + 1 != e) switch ((ch + 1)->unicode()) {
-		case '-':
-			if (ch + 2 != e) switch ((ch + 2)->unicode()) {
-			case ')':
-				newEmojiEnd = ch + 3;
-				if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-					emojiCode = 0xD83DDE0CU;
-					return;
-				}
-			break;
-			}
-		break;
-		case '(':
-			newEmojiEnd = ch + 2;
-			if (newEmojiEnd == e || emojiEdge(newEmojiEnd) || newEmojiEnd->unicode() == ' ') {
-				emojiCode = 0xD83DDE14U;
-				return;
-			}
-		break;
-		}
-	break;
-	}
-}
-
-int emojiPackCount(DBIEmojiTab tab) {
-	switch (tab) {
-		case dbietRecent  : return cGetRecentEmojis().size();
-		case dbietPeople  : return 204;
-		case dbietNature  : return 147;
-		case dbietFood    : return 67;
-		case dbietActivity: return 57;
-		case dbietTravel  : return 115;
-		case dbietObjects : return 178;
-		case dbietSymbols : return 516;
-	};
-	return 0;
-}
-
-EmojiPack emojiPack(DBIEmojiTab tab) {
-	switch (tab) {
-
-	case dbietPeople: {
-		static QVector<EmojiPtr> vPeople;
-		if (vPeople.isEmpty()) {
-			vPeople.resize(204);
-			vPeople[0] = &emojis[836];
-			vPeople[1] = &emojis[880];
-			vPeople[2] = &emojis[837];
-			vPeople[3] = &emojis[838];
-			vPeople[4] = &emojis[839];
-			vPeople[5] = &emojis[840];
-			vPeople[6] = &emojis[841];
-			vPeople[7] = &emojis[842];
-			vPeople[8] = &emojis[843];
-			vPeople[9] = &emojis[845];
-			vPeople[10] = &emojis[846];
-			vPeople[11] = &emojis[902];
-			vPeople[12] = &emojis[903];
-			vPeople[13] = &emojis[60];
-			vPeople[14] = &emojis[847];
-			vPeople[15] = &emojis[848];
-			vPeople[16] = &emojis[849];
-			vPeople[17] = &emojis[860];
-			vPeople[18] = &emojis[859];
-			vPeople[19] = &emojis[861];
-			vPeople[20] = &emojis[862];
-			vPeople[21] = &emojis[864];
-			vPeople[22] = &emojis[865];
-			vPeople[23] = &emojis[863];
-			vPeople[24] = &emojis[1004];
-			vPeople[25] = &emojis[1006];
-			vPeople[26] = &emojis[850];
-			vPeople[27] = &emojis[1010];
-			vPeople[28] = &emojis[851];
-			vPeople[29] = &emojis[890];
-			vPeople[30] = &emojis[852];
-			vPeople[31] = &emojis[853];
-			vPeople[32] = &emojis[854];
-			vPeople[33] = &emojis[904];
-			vPeople[34] = &emojis[1007];
-			vPeople[35] = &emojis[887];
-			vPeople[36] = &emojis[866];
-			vPeople[37] = &emojis[867];
-			vPeople[38] = &emojis[868];
-			vPeople[39] = &emojis[869];
-			vPeople[40] = &emojis[856];
-			vPeople[41] = &emojis[857];
-			vPeople[42] = &emojis[901];
-			vPeople[43] = &emojis[59];
-			vPeople[44] = &emojis[871];
-			vPeople[45] = &emojis[858];
-			vPeople[46] = &emojis[879];
-			vPeople[47] = &emojis[877];
-			vPeople[48] = &emojis[872];
-			vPeople[49] = &emojis[882];
-			vPeople[50] = &emojis[885];
-			vPeople[51] = &emojis[876];
-			vPeople[52] = &emojis[884];
-			vPeople[53] = &emojis[883];
-			vPeople[54] = &emojis[874];
-			vPeople[55] = &emojis[875];
-			vPeople[56] = &emojis[870];
-			vPeople[57] = &emojis[873];
-			vPeople[58] = &emojis[878];
-			vPeople[59] = &emojis[855];
-			vPeople[60] = &emojis[881];
-			vPeople[61] = &emojis[889];
-			vPeople[62] = &emojis[886];
-			vPeople[63] = &emojis[1003];
-			vPeople[64] = &emojis[891];
-			vPeople[65] = &emojis[1005];
-			vPeople[66] = &emojis[1008];
-			vPeople[67] = &emojis[888];
-			vPeople[68] = &emojis[612];
-			vPeople[69] = &emojis[617];
-			vPeople[70] = &emojis[844];
-			vPeople[71] = &emojis[575];
-			vPeople[72] = &emojis[569];
-			vPeople[73] = &emojis[570];
-			vPeople[74] = &emojis[576];
-			vPeople[75] = &emojis[571];
-			vPeople[76] = &emojis[573];
-			vPeople[77] = &emojis[1009];
-			vPeople[78] = &emojis[894];
-			vPeople[79] = &emojis[892];
-			vPeople[80] = &emojis[893];
-			vPeople[81] = &emojis[895];
-			vPeople[82] = &emojis[896];
-			vPeople[83] = &emojis[897];
-			vPeople[84] = &emojis[900];
-			vPeople[85] = &emojis[899];
-			vPeople[86] = &emojis[898];
-			vPeople[87] = &emojis[912];
-			vPeople[88] = &emojis[527];
-			vPeople[89] = &emojis[523];
-			vPeople[90] = &emojis[525];
-			vPeople[91] = &emojis[526];
-			vPeople[92] = &emojis[522];
-			vPeople[93] = &emojis[121];
-			vPeople[94] = &emojis[123];
-			vPeople[95] = &emojis[524];
-			vPeople[96] = &emojis[122];
-			vPeople[97] = &emojis[528];
-			vPeople[98] = &emojis[618];
-			vPeople[99] = &emojis[915];
-			vPeople[100] = &emojis[50];
-			vPeople[101] = &emojis[518];
-			vPeople[102] = &emojis[519];
-			vPeople[103] = &emojis[520];
-			vPeople[104] = &emojis[521];
-			vPeople[105] = &emojis[810];
-			vPeople[106] = &emojis[809];
-			vPeople[107] = &emojis[1011];
-			vPeople[108] = &emojis[811];
-			vPeople[109] = &emojis[124];
-			vPeople[110] = &emojis[581];
-			vPeople[111] = &emojis[516];
-			vPeople[112] = &emojis[517];
-			vPeople[113] = &emojis[514];
-			vPeople[114] = &emojis[515];
-			vPeople[115] = &emojis[513];
-			vPeople[116] = &emojis[512];
-			vPeople[117] = &emojis[548];
-			vPeople[118] = &emojis[549];
-			vPeople[119] = &emojis[827];
-			vPeople[120] = &emojis[566];
-			vPeople[121] = &emojis[550];
-			vPeople[122] = &emojis[551];
-			vPeople[123] = &emojis[552];
-			vPeople[124] = &emojis[553];
-			vPeople[125] = &emojis[561];
-			vPeople[126] = &emojis[564];
-			vPeople[127] = &emojis[565];
-			vPeople[128] = &emojis[562];
-			vPeople[129] = &emojis[563];
-			vPeople[130] = &emojis[558];
-			vPeople[131] = &emojis[567];
-			vPeople[132] = &emojis[578];
-			vPeople[133] = &emojis[799];
-			vPeople[134] = &emojis[338];
-			vPeople[135] = &emojis[572];
-			vPeople[136] = &emojis[568];
-			vPeople[137] = &emojis[560];
-			vPeople[138] = &emojis[970];
-			vPeople[139] = &emojis[395];
-			vPeople[140] = &emojis[579];
-			vPeople[141] = &emojis[559];
-			vPeople[142] = &emojis[555];
-			vPeople[143] = &emojis[556];
-			vPeople[144] = &emojis[557];
-			vPeople[145] = &emojis[907];
-			vPeople[146] = &emojis[577];
-			vPeople[147] = &emojis[905];
-			vPeople[148] = &emojis[906];
-			vPeople[149] = &emojis[911];
-			vPeople[150] = &emojis[914];
-			vPeople[151] = &emojis[913];
-			vPeople[152] = &emojis[583];
-			vPeople[153] = &emojis[582];
-			vPeople[154] = &emojis[593];
-			vPeople[155] = &emojis[1032];
-			vPeople[156] = &emojis[1033];
-			vPeople[157] = &emojis[591];
-			vPeople[158] = &emojis[1034];
-			vPeople[159] = &emojis[1035];
-			vPeople[160] = &emojis[554];
-			vPeople[161] = &emojis[1018];
-			vPeople[162] = &emojis[1019];
-			vPeople[163] = &emojis[1020];
-			vPeople[164] = &emojis[1021];
-			vPeople[165] = &emojis[1022];
-			vPeople[166] = &emojis[1023];
-			vPeople[167] = &emojis[1024];
-			vPeople[168] = &emojis[1025];
-			vPeople[169] = &emojis[1026];
-			vPeople[170] = &emojis[1027];
-			vPeople[171] = &emojis[1028];
-			vPeople[172] = &emojis[1029];
-			vPeople[173] = &emojis[1030];
-			vPeople[174] = &emojis[1031];
-			vPeople[175] = &emojis[538];
-			vPeople[176] = &emojis[533];
-			vPeople[177] = &emojis[534];
-			vPeople[178] = &emojis[532];
-			vPeople[179] = &emojis[535];
-			vPeople[180] = &emojis[537];
-			vPeople[181] = &emojis[536];
-			vPeople[182] = &emojis[580];
-			vPeople[183] = &emojis[587];
-			vPeople[184] = &emojis[547];
-			vPeople[185] = &emojis[544];
-			vPeople[186] = &emojis[545];
-			vPeople[187] = &emojis[546];
-			vPeople[188] = &emojis[542];
-			vPeople[189] = &emojis[543];
-			vPeople[190] = &emojis[530];
-			vPeople[191] = &emojis[369];
-			vPeople[192] = &emojis[352];
-			vPeople[193] = &emojis[529];
-			vPeople[194] = &emojis[101];
-			vPeople[195] = &emojis[351];
-			vPeople[196] = &emojis[541];
-			vPeople[197] = &emojis[539];
-			vPeople[198] = &emojis[540];
-			vPeople[199] = &emojis[636];
-			vPeople[200] = &emojis[531];
-			vPeople[201] = &emojis[800];
-			vPeople[202] = &emojis[589];
-			vPeople[203] = &emojis[209];
-		}
-		return vPeople;
-	} break;
-
-	case dbietNature: {
-		static QVector<EmojiPtr> vNature;
-		if (vNature.isEmpty()) {
-			vNature.resize(147);
-			vNature[0] = &emojis[502];
-			vNature[1] = &emojis[497];
-			vNature[2] = &emojis[493];
-			vNature[3] = &emojis[505];
-			vNature[4] = &emojis[496];
-			vNature[5] = &emojis[507];
-			vNature[6] = &emojis[508];
-			vNature[7] = &emojis[488];
-			vNature[8] = &emojis[495];
-			vNature[9] = &emojis[1013];
-			vNature[10] = &emojis[494];
-			vNature[11] = &emojis[503];
-			vNature[12] = &emojis[509];
-			vNature[13] = &emojis[504];
-			vNature[14] = &emojis[473];
-			vNature[15] = &emojis[501];
-			vNature[16] = &emojis[908];
-			vNature[17] = &emojis[909];
-			vNature[18] = &emojis[910];
-			vNature[19] = &emojis[466];
-			vNature[20] = &emojis[468];
-			vNature[21] = &emojis[487];
-			vNature[22] = &emojis[486];
-			vNature[23] = &emojis[484];
-			vNature[24] = &emojis[483];
-			vNature[25] = &emojis[485];
-			vNature[26] = &emojis[506];
-			vNature[27] = &emojis[471];
-			vNature[28] = &emojis[500];
-			vNature[29] = &emojis[1016];
-			vNature[30] = &emojis[477];
-			vNature[31] = &emojis[475];
-			vNature[32] = &emojis[460];
-			vNature[33] = &emojis[478];
-			vNature[34] = &emojis[476];
-			vNature[35] = &emojis[801];
-			vNature[36] = &emojis[1014];
-			vNature[37] = &emojis[1012];
-			vNature[38] = &emojis[461];
-			vNature[39] = &emojis[482];
-			vNature[40] = &emojis[480];
-			vNature[41] = &emojis[479];
-			vNature[42] = &emojis[481];
-			vNature[43] = &emojis[492];
-			vNature[44] = &emojis[499];
-			vNature[45] = &emojis[459];
-			vNature[46] = &emojis[458];
-			vNature[47] = &emojis[454];
-			vNature[48] = &emojis[453];
-			vNature[49] = &emojis[451];
-			vNature[50] = &emojis[450];
-			vNature[51] = &emojis[452];
-			vNature[52] = &emojis[490];
-			vNature[53] = &emojis[491];
-			vNature[54] = &emojis[472];
-			vNature[55] = &emojis[464];
-			vNature[56] = &emojis[463];
-			vNature[57] = &emojis[465];
-			vNature[58] = &emojis[462];
-			vNature[59] = &emojis[470];
-			vNature[60] = &emojis[448];
-			vNature[61] = &emojis[449];
-			vNature[62] = &emojis[467];
-			vNature[63] = &emojis[1015];
-			vNature[64] = &emojis[766];
-			vNature[65] = &emojis[469];
-			vNature[66] = &emojis[489];
-			vNature[67] = &emojis[456];
-			vNature[68] = &emojis[455];
-			vNature[69] = &emojis[511];
-			vNature[70] = &emojis[510];
-			vNature[71] = &emojis[457];
-			vNature[72] = &emojis[498];
-			vNature[73] = &emojis[258];
-			vNature[74] = &emojis[337];
-			vNature[75] = &emojis[255];
-			vNature[76] = &emojis[256];
-			vNature[77] = &emojis[257];
-			vNature[78] = &emojis[254];
-			vNature[79] = &emojis[268];
-			vNature[80] = &emojis[49];
-			vNature[81] = &emojis[269];
-			vNature[82] = &emojis[346];
-			vNature[83] = &emojis[344];
-			vNature[84] = &emojis[272];
-			vNature[85] = &emojis[271];
-			vNature[86] = &emojis[270];
-			vNature[87] = &emojis[267];
-			vNature[88] = &emojis[263];
-			vNature[89] = &emojis[264];
-			vNature[90] = &emojis[262];
-			vNature[91] = &emojis[260];
-			vNature[92] = &emojis[265];
-			vNature[93] = &emojis[261];
-			vNature[94] = &emojis[592];
-			vNature[95] = &emojis[273];
-			vNature[96] = &emojis[253];
-			vNature[97] = &emojis[336];
-			vNature[98] = &emojis[474];
-			vNature[99] = &emojis[802];
-			vNature[100] = &emojis[221];
-			vNature[101] = &emojis[220];
-			vNature[102] = &emojis[222];
-			vNature[103] = &emojis[228];
-			vNature[104] = &emojis[229];
-			vNature[105] = &emojis[230];
-			vNature[106] = &emojis[231];
-			vNature[107] = &emojis[224];
-			vNature[108] = &emojis[225];
-			vNature[109] = &emojis[226];
-			vNature[110] = &emojis[227];
-			vNature[111] = &emojis[233];
-			vNature[112] = &emojis[236];
-			vNature[113] = &emojis[234];
-			vNature[114] = &emojis[235];
-			vNature[115] = &emojis[237];
-			vNature[116] = &emojis[232];
-			vNature[117] = &emojis[157];
-			vNature[118] = &emojis[238];
-			vNature[119] = &emojis[619];
-			vNature[120] = &emojis[131];
-			vNature[121] = &emojis[44];
-			vNature[122] = &emojis[40];
-			vNature[123] = &emojis[241];
-			vNature[124] = &emojis[97];
-			vNature[125] = &emojis[242];
-			vNature[126] = &emojis[243];
-			vNature[127] = &emojis[41];
-			vNature[128] = &emojis[244];
-			vNature[129] = &emojis[98];
-			vNature[130] = &emojis[246];
-			vNature[131] = &emojis[89];
-			vNature[132] = &emojis[740];
-			vNature[133] = &emojis[613];
-			vNature[134] = &emojis[134];
-			vNature[135] = &emojis[245];
-			vNature[136] = &emojis[43];
-			vNature[137] = &emojis[96];
-			vNature[138] = &emojis[249];
-			vNature[139] = &emojis[616];
-			vNature[140] = &emojis[247];
-			vNature[141] = &emojis[248];
-			vNature[142] = &emojis[42];
-			vNature[143] = &emojis[47];
-			vNature[144] = &emojis[615];
-			vNature[145] = &emojis[614];
-			vNature[146] = &emojis[217];
-		}
-		return vNature;
-	} break;
-
-	case dbietFood: {
-		static QVector<EmojiPtr> vFood;
-		if (vFood.isEmpty()) {
-			vFood.resize(67);
-			vFood[0] = &emojis[284];
-			vFood[1] = &emojis[283];
-			vFood[2] = &emojis[285];
-			vFood[3] = &emojis[279];
-			vFood[4] = &emojis[280];
-			vFood[5] = &emojis[281];
-			vFood[6] = &emojis[278];
-			vFood[7] = &emojis[276];
-			vFood[8] = &emojis[288];
-			vFood[9] = &emojis[277];
-			vFood[10] = &emojis[287];
-			vFood[11] = &emojis[286];
-			vFood[12] = &emojis[282];
-			vFood[13] = &emojis[274];
-			vFood[14] = &emojis[275];
-			vFood[15] = &emojis[259];
-			vFood[16] = &emojis[266];
-			vFood[17] = &emojis[301];
-			vFood[18] = &emojis[316];
-			vFood[19] = &emojis[299];
-			vFood[20] = &emojis[1017];
-			vFood[21] = &emojis[292];
-			vFood[22] = &emojis[291];
-			vFood[23] = &emojis[305];
-			vFood[24] = &emojis[320];
-			vFood[25] = &emojis[289];
-			vFood[26] = &emojis[300];
-			vFood[27] = &emojis[250];
-			vFood[28] = &emojis[290];
-			vFood[29] = &emojis[298];
-			vFood[30] = &emojis[251];
-			vFood[31] = &emojis[252];
-			vFood[32] = &emojis[297];
-			vFood[33] = &emojis[319];
-			vFood[34] = &emojis[306];
-			vFood[35] = &emojis[304];
-			vFood[36] = &emojis[318];
-			vFood[37] = &emojis[296];
-			vFood[38] = &emojis[294];
-			vFood[39] = &emojis[295];
-			vFood[40] = &emojis[293];
-			vFood[41] = &emojis[303];
-			vFood[42] = &emojis[302];
-			vFood[43] = &emojis[308];
-			vFood[44] = &emojis[309];
-			vFood[45] = &emojis[307];
-			vFood[46] = &emojis[317];
-			vFood[47] = &emojis[335];
-			vFood[48] = &emojis[315];
-			vFood[49] = &emojis[313];
-			vFood[50] = &emojis[314];
-			vFood[51] = &emojis[312];
-			vFood[52] = &emojis[332];
-			vFood[53] = &emojis[310];
-			vFood[54] = &emojis[311];
-			vFood[55] = &emojis[327];
-			vFood[56] = &emojis[328];
-			vFood[57] = &emojis[324];
-			vFood[58] = &emojis[325];
-			vFood[59] = &emojis[326];
-			vFood[60] = &emojis[331];
-			vFood[61] = &emojis[323];
-			vFood[62] = &emojis[322];
-			vFood[63] = &emojis[48];
-			vFood[64] = &emojis[329];
-			vFood[65] = &emojis[321];
-			vFood[66] = &emojis[330];
-		}
-		return vFood;
-	} break;
-
-	case dbietActivity: {
-		static QVector<EmojiPtr> vActivity;
-		if (vActivity.isEmpty()) {
-			vActivity.resize(57);
-			vActivity[0] = &emojis[94];
-			vActivity[1] = &emojis[392];
-			vActivity[2] = &emojis[400];
-			vActivity[3] = &emojis[95];
-			vActivity[4] = &emojis[390];
-			vActivity[5] = &emojis[408];
-			vActivity[6] = &emojis[401];
-			vActivity[7] = &emojis[377];
-			vActivity[8] = &emojis[109];
-			vActivity[9] = &emojis[404];
-			vActivity[10] = &emojis[411];
-			vActivity[11] = &emojis[445];
-			vActivity[12] = &emojis[410];
-			vActivity[13] = &emojis[409];
-			vActivity[14] = &emojis[407];
-			vActivity[15] = &emojis[391];
-			vActivity[16] = &emojis[112];
-			vActivity[17] = &emojis[394];
-			vActivity[18] = &emojis[113];
-			vActivity[19] = &emojis[446];
-			vActivity[20] = &emojis[363];
-			vActivity[21] = &emojis[951];
-			vActivity[22] = &emojis[402];
-			vActivity[23] = &emojis[396];
-			vActivity[24] = &emojis[980];
-			vActivity[25] = &emojis[114];
-			vActivity[26] = &emojis[403];
-			vActivity[27] = &emojis[968];
-			vActivity[28] = &emojis[969];
-			vActivity[29] = &emojis[399];
-			vActivity[30] = &emojis[798];
-			vActivity[31] = &emojis[398];
-			vActivity[32] = &emojis[389];
-			vActivity[33] = &emojis[397];
-			vActivity[34] = &emojis[353];
-			vActivity[35] = &emojis[354];
-			vActivity[36] = &emojis[443];
-			vActivity[37] = &emojis[371];
-			vActivity[38] = &emojis[359];
-			vActivity[39] = &emojis[373];
-			vActivity[40] = &emojis[368];
-			vActivity[41] = &emojis[370];
-			vActivity[42] = &emojis[364];
-			vActivity[43] = &emojis[367];
-			vActivity[44] = &emojis[388];
-			vActivity[45] = &emojis[385];
-			vActivity[46] = &emojis[383];
-			vActivity[47] = &emojis[386];
-			vActivity[48] = &emojis[384];
-			vActivity[49] = &emojis[387];
-			vActivity[50] = &emojis[372];
-			vActivity[51] = &emojis[374];
-			vActivity[52] = &emojis[574];
-			vActivity[53] = &emojis[375];
-			vActivity[54] = &emojis[378];
-			vActivity[55] = &emojis[376];
-			vActivity[56] = &emojis[379];
-		}
-		return vActivity;
-	} break;
-
-	case dbietTravel: {
-		static QVector<EmojiPtr> vTravel;
-		if (vTravel.isEmpty()) {
-			vTravel.resize(115);
-			vTravel[0] = &emojis[939];
-			vTravel[1] = &emojis[937];
-			vTravel[2] = &emojis[941];
-			vTravel[3] = &emojis[928];
-			vTravel[4] = &emojis[930];
-			vTravel[5] = &emojis[406];
-			vTravel[6] = &emojis[935];
-			vTravel[7] = &emojis[933];
-			vTravel[8] = &emojis[934];
-			vTravel[9] = &emojis[932];
-			vTravel[10] = &emojis[942];
-			vTravel[11] = &emojis[943];
-			vTravel[12] = &emojis[944];
-			vTravel[13] = &emojis[405];
-			vTravel[14] = &emojis[966];
-			vTravel[15] = &emojis[956];
-			vTravel[16] = &emojis[936];
-			vTravel[17] = &emojis[929];
-			vTravel[18] = &emojis[940];
-			vTravel[19] = &emojis[938];
-			vTravel[20] = &emojis[949];
-			vTravel[21] = &emojis[948];
-			vTravel[22] = &emojis[947];
-			vTravel[23] = &emojis[919];
-			vTravel[24] = &emojis[927];
-			vTravel[25] = &emojis[945];
-			vTravel[26] = &emojis[920];
-			vTravel[27] = &emojis[921];
-			vTravel[28] = &emojis[924];
-			vTravel[29] = &emojis[946];
-			vTravel[30] = &emojis[918];
-			vTravel[31] = &emojis[922];
-			vTravel[32] = &emojis[923];
-			vTravel[33] = &emojis[926];
-			vTravel[34] = &emojis[925];
-			vTravel[35] = &emojis[917];
-			vTravel[36] = &emojis[998];
-			vTravel[37] = &emojis[119];
-			vTravel[38] = &emojis[999];
-			vTravel[39] = &emojis[1000];
-			vTravel[40] = &emojis[111];
-			vTravel[41] = &emojis[997];
-			vTravel[42] = &emojis[952];
-			vTravel[43] = &emojis[110];
-			vTravel[44] = &emojis[1002];
-			vTravel[45] = &emojis[916];
-			vTravel[46] = &emojis[1001];
-			vTravel[47] = &emojis[634];
-			vTravel[48] = &emojis[81];
-			vTravel[49] = &emojis[955];
-			vTravel[50] = &emojis[116];
-			vTravel[51] = &emojis[931];
-			vTravel[52] = &emojis[954];
-			vTravel[53] = &emojis[953];
-			vTravel[54] = &emojis[393];
-			vTravel[55] = &emojis[950];
-			vTravel[56] = &emojis[361];
-			vTravel[57] = &emojis[362];
-			vTravel[58] = &emojis[360];
-			vTravel[59] = &emojis[415];
-			vTravel[60] = &emojis[208];
-			vTravel[61] = &emojis[832];
-			vTravel[62] = &emojis[437];
-			vTravel[63] = &emojis[108];
-			vTravel[64] = &emojis[350];
-			vTravel[65] = &emojis[106];
-			vTravel[66] = &emojis[412];
-			vTravel[67] = &emojis[831];
-			vTravel[68] = &emojis[218];
-			vTravel[69] = &emojis[834];
-			vTravel[70] = &emojis[413];
-			vTravel[71] = &emojis[115];
-			vTravel[72] = &emojis[422];
-			vTravel[73] = &emojis[995];
-			vTravel[74] = &emojis[996];
-			vTravel[75] = &emojis[212];
-			vTravel[76] = &emojis[211];
-			vTravel[77] = &emojis[420];
-			vTravel[78] = &emojis[414];
-			vTravel[79] = &emojis[421];
-			vTravel[80] = &emojis[214];
-			vTravel[81] = &emojis[213];
-			vTravel[82] = &emojis[417];
-			vTravel[83] = &emojis[210];
-			vTravel[84] = &emojis[216];
-			vTravel[85] = &emojis[219];
-			vTravel[86] = &emojis[239];
-			vTravel[87] = &emojis[340];
-			vTravel[88] = &emojis[339];
-			vTravel[89] = &emojis[215];
-			vTravel[90] = &emojis[416];
-			vTravel[91] = &emojis[440];
-			vTravel[92] = &emojis[439];
-			vTravel[93] = &emojis[423];
-			vTravel[94] = &emojis[833];
-			vTravel[95] = &emojis[424];
-			vTravel[96] = &emojis[425];
-			vTravel[97] = &emojis[418];
-			vTravel[98] = &emojis[426];
-			vTravel[99] = &emojis[436];
-			vTravel[100] = &emojis[427];
-			vTravel[101] = &emojis[428];
-			vTravel[102] = &emojis[429];
-			vTravel[103] = &emojis[430];
-			vTravel[104] = &emojis[432];
-			vTravel[105] = &emojis[434];
-			vTravel[106] = &emojis[435];
-			vTravel[107] = &emojis[433];
-			vTravel[108] = &emojis[594];
-			vTravel[109] = &emojis[419];
-			vTravel[110] = &emojis[105];
-			vTravel[111] = &emojis[768];
-			vTravel[112] = &emojis[769];
-			vTravel[113] = &emojis[767];
-			vTravel[114] = &emojis[104];
-		}
-		return vTravel;
-	} break;
-
-	case dbietObjects: {
-		static QVector<EmojiPtr> vObjects;
-		if (vObjects.isEmpty()) {
-			vObjects.resize(178);
-			vObjects[0] = &emojis[14];
-			vObjects[1] = &emojis[689];
-			vObjects[2] = &emojis[690];
-			vObjects[3] = &emojis[635];
-			vObjects[4] = &emojis[16];
-			vObjects[5] = &emojis[812];
-			vObjects[6] = &emojis[813];
-			vObjects[7] = &emojis[814];
-			vObjects[8] = &emojis[815];
-			vObjects[9] = &emojis[803];
-			vObjects[10] = &emojis[823];
-			vObjects[11] = &emojis[637];
-			vObjects[12] = &emojis[638];
-			vObjects[13] = &emojis[639];
-			vObjects[14] = &emojis[640];
-			vObjects[15] = &emojis[700];
-			vObjects[16] = &emojis[695];
-			vObjects[17] = &emojis[696];
-			vObjects[18] = &emojis[697];
-			vObjects[19] = &emojis[365];
-			vObjects[20] = &emojis[701];
-			vObjects[21] = &emojis[358];
-			vObjects[22] = &emojis[670];
-			vObjects[23] = &emojis[45];
-			vObjects[24] = &emojis[671];
-			vObjects[25] = &emojis[672];
-			vObjects[26] = &emojis[698];
-			vObjects[27] = &emojis[699];
-			vObjects[28] = &emojis[355];
-			vObjects[29] = &emojis[356];
-			vObjects[30] = &emojis[357];
-			vObjects[31] = &emojis[25];
-			vObjects[32] = &emojis[26];
-			vObjects[33] = &emojis[24];
-			vObjects[34] = &emojis[796];
-			vObjects[35] = &emojis[27];
-			vObjects[36] = &emojis[15];
-			vObjects[37] = &emojis[673];
-			vObjects[38] = &emojis[714];
-			vObjects[39] = &emojis[715];
-			vObjects[40] = &emojis[609];
-			vObjects[41] = &emojis[741];
-			vObjects[42] = &emojis[795];
-			vObjects[43] = &emojis[820];
-			vObjects[44] = &emojis[994];
-			vObjects[45] = &emojis[632];
-			vObjects[46] = &emojis[629];
-			vObjects[47] = &emojis[628];
-			vObjects[48] = &emojis[630];
-			vObjects[49] = &emojis[631];
-			vObjects[50] = &emojis[624];
-			vObjects[51] = &emojis[627];
-			vObjects[52] = &emojis[590];
-			vObjects[53] = &emojis[83];
-			vObjects[54] = &emojis[742];
-			vObjects[55] = &emojis[743];
-			vObjects[56] = &emojis[80];
-			vObjects[57] = &emojis[992];
-			vObjects[58] = &emojis[100];
-			vObjects[59] = &emojis[744];
-			vObjects[60] = &emojis[85];
-			vObjects[61] = &emojis[102];
-			vObjects[62] = &emojis[746];
-			vObjects[63] = &emojis[611];
-			vObjects[64] = &emojis[745];
-			vObjects[65] = &emojis[826];
-			vObjects[66] = &emojis[82];
-			vObjects[67] = &emojis[993];
-			vObjects[68] = &emojis[960];
-			vObjects[69] = &emojis[51];
-			vObjects[70] = &emojis[92];
-			vObjects[71] = &emojis[93];
-			vObjects[72] = &emojis[447];
-			vObjects[73] = &emojis[749];
-			vObjects[74] = &emojis[702];
-			vObjects[75] = &emojis[584];
-			vObjects[76] = &emojis[84];
-			vObjects[77] = &emojis[748];
-			vObjects[78] = &emojis[747];
-			vObjects[79] = &emojis[797];
-			vObjects[80] = &emojis[586];
-			vObjects[81] = &emojis[585];
-			vObjects[82] = &emojis[240];
-			vObjects[83] = &emojis[444];
-			vObjects[84] = &emojis[725];
-			vObjects[85] = &emojis[977];
-			vObjects[86] = &emojis[979];
-			vObjects[87] = &emojis[981];
-			vObjects[88] = &emojis[720];
-			vObjects[89] = &emojis[824];
-			vObjects[90] = &emojis[986];
-			vObjects[91] = &emojis[987];
-			vObjects[92] = &emojis[990];
-			vObjects[93] = &emojis[958];
-			vObjects[94] = &emojis[989];
-			vObjects[95] = &emojis[816];
-			vObjects[96] = &emojis[830];
-			vObjects[97] = &emojis[107];
-			vObjects[98] = &emojis[835];
-			vObjects[99] = &emojis[988];
-			vObjects[100] = &emojis[341];
-			vObjects[101] = &emojis[348];
-			vObjects[102] = &emojis[333];
-			vObjects[103] = &emojis[334];
-			vObjects[104] = &emojis[343];
-			vObjects[105] = &emojis[342];
-			vObjects[106] = &emojis[347];
-			vObjects[107] = &emojis[349];
-			vObjects[108] = &emojis[345];
-			vObjects[109] = &emojis[438];
-			vObjects[110] = &emojis[120];
-			vObjects[111] = &emojis[681];
-			vObjects[112] = &emojis[680];
-			vObjects[113] = &emojis[679];
-			vObjects[114] = &emojis[588];
-			vObjects[115] = &emojis[686];
-			vObjects[116] = &emojis[682];
-			vObjects[117] = &emojis[683];
-			vObjects[118] = &emojis[684];
-			vObjects[119] = &emojis[685];
-			vObjects[120] = &emojis[678];
-			vObjects[121] = &emojis[687];
-			vObjects[122] = &emojis[677];
-			vObjects[123] = &emojis[676];
-			vObjects[124] = &emojis[668];
-			vObjects[125] = &emojis[643];
-			vObjects[126] = &emojis[657];
-			vObjects[127] = &emojis[650];
-			vObjects[128] = &emojis[648];
-			vObjects[129] = &emojis[649];
-			vObjects[130] = &emojis[644];
-			vObjects[131] = &emojis[645];
-			vObjects[132] = &emojis[646];
-			vObjects[133] = &emojis[822];
-			vObjects[134] = &emojis[647];
-			vObjects[135] = &emojis[818];
-			vObjects[136] = &emojis[829];
-			vObjects[137] = &emojis[819];
-			vObjects[138] = &emojis[651];
-			vObjects[139] = &emojis[821];
-			vObjects[140] = &emojis[641];
-			vObjects[141] = &emojis[642];
-			vObjects[142] = &emojis[817];
-			vObjects[143] = &emojis[825];
-			vObjects[144] = &emojis[688];
-			vObjects[145] = &emojis[659];
-			vObjects[146] = &emojis[661];
-			vObjects[147] = &emojis[663];
-			vObjects[148] = &emojis[664];
-			vObjects[149] = &emojis[665];
-			vObjects[150] = &emojis[660];
-			vObjects[151] = &emojis[658];
-			vObjects[152] = &emojis[666];
-			vObjects[153] = &emojis[662];
-			vObjects[154] = &emojis[726];
-			vObjects[155] = &emojis[654];
-			vObjects[156] = &emojis[804];
-			vObjects[157] = &emojis[117];
-			vObjects[158] = &emojis[656];
-			vObjects[159] = &emojis[655];
-			vObjects[160] = &emojis[652];
-			vObjects[161] = &emojis[653];
-			vObjects[162] = &emojis[957];
-			vObjects[163] = &emojis[441];
-			vObjects[164] = &emojis[442];
-			vObjects[165] = &emojis[719];
-			vObjects[166] = &emojis[721];
-			vObjects[167] = &emojis[722];
-			vObjects[168] = &emojis[718];
-			vObjects[169] = &emojis[805];
-			vObjects[170] = &emojis[806];
-			vObjects[171] = &emojis[126];
-			vObjects[172] = &emojis[669];
-			vObjects[173] = &emojis[125];
-			vObjects[174] = &emojis[808];
-			vObjects[175] = &emojis[807];
-			vObjects[176] = &emojis[716];
-			vObjects[177] = &emojis[717];
-		}
-		return vObjects;
-	} break;
-
-	case dbietSymbols: {
-		static QVector<EmojiPtr> vSymbols;
-		if (vSymbols.isEmpty()) {
-			vSymbols.resize(516);
-			vSymbols[0] = &emojis[143];
-			vSymbols[1] = &emojis[603];
-			vSymbols[2] = &emojis[602];
-			vSymbols[3] = &emojis[601];
-			vSymbols[4] = &emojis[604];
-			vSymbols[5] = &emojis[596];
-			vSymbols[6] = &emojis[142];
-			vSymbols[7] = &emojis[597];
-			vSymbols[8] = &emojis[606];
-			vSymbols[9] = &emojis[595];
-			vSymbols[10] = &emojis[599];
-			vSymbols[11] = &emojis[598];
-			vSymbols[12] = &emojis[600];
-			vSymbols[13] = &emojis[605];
-			vSymbols[14] = &emojis[607];
-			vSymbols[15] = &emojis[56];
-			vSymbols[16] = &emojis[129];
-			vSymbols[17] = &emojis[55];
-			vSymbols[18] = &emojis[765];
-			vSymbols[19] = &emojis[58];
-			vSymbols[20] = &emojis[130];
-			vSymbols[21] = &emojis[750];
-			vSymbols[22] = &emojis[770];
-			vSymbols[23] = &emojis[57];
-			vSymbols[24] = &emojis[54];
-			vSymbols[25] = &emojis[991];
-			vSymbols[26] = &emojis[99];
-			vSymbols[27] = &emojis[61];
-			vSymbols[28] = &emojis[62];
-			vSymbols[29] = &emojis[63];
-			vSymbols[30] = &emojis[64];
-			vSymbols[31] = &emojis[65];
-			vSymbols[32] = &emojis[66];
-			vSymbols[33] = &emojis[67];
-			vSymbols[34] = &emojis[68];
-			vSymbols[35] = &emojis[69];
-			vSymbols[36] = &emojis[70];
-			vSymbols[37] = &emojis[71];
-			vSymbols[38] = &emojis[72];
-			vSymbols[39] = &emojis[185];
-			vSymbols[40] = &emojis[86];
-			vSymbols[41] = &emojis[197];
-			vSymbols[42] = &emojis[203];
-			vSymbols[43] = &emojis[52];
-			vSymbols[44] = &emojis[53];
-			vSymbols[45] = &emojis[692];
-			vSymbols[46] = &emojis[691];
-			vSymbols[47] = &emojis[200];
-			vSymbols[48] = &emojis[194];
-			vSymbols[49] = &emojis[202];
-			vSymbols[50] = &emojis[204];
-			vSymbols[51] = &emojis[201];
-			vSymbols[52] = &emojis[133];
-			vSymbols[53] = &emojis[191];
-			vSymbols[54] = &emojis[206];
-			vSymbols[55] = &emojis[622];
-			vSymbols[56] = &emojis[205];
-			vSymbols[57] = &emojis[162];
-			vSymbols[58] = &emojis[161];
-			vSymbols[59] = &emojis[198];
-			vSymbols[60] = &emojis[199];
-			vSymbols[61] = &emojis[196];
-			vSymbols[62] = &emojis[177];
-			vSymbols[63] = &emojis[178];
-			vSymbols[64] = &emojis[181];
-			vSymbols[65] = &emojis[182];
-			vSymbols[66] = &emojis[179];
-			vSymbols[67] = &emojis[189];
-			vSymbols[68] = &emojis[103];
-			vSymbols[69] = &emojis[667];
-			vSymbols[70] = &emojis[959];
-			vSymbols[71] = &emojis[136];
-			vSymbols[72] = &emojis[158];
-			vSymbols[73] = &emojis[610];
-			vSymbols[74] = &emojis[77];
-			vSymbols[75] = &emojis[971];
-			vSymbols[76] = &emojis[963];
-			vSymbols[77] = &emojis[967];
-			vSymbols[78] = &emojis[965];
-			vSymbols[79] = &emojis[733];
-			vSymbols[80] = &emojis[693];
-			vSymbols[81] = &emojis[141];
-			vSymbols[82] = &emojis[140];
-			vSymbols[83] = &emojis[138];
-			vSymbols[84] = &emojis[139];
-			vSymbols[85] = &emojis[2];
-			vSymbols[86] = &emojis[3];
-			vSymbols[87] = &emojis[623];
-			vSymbols[88] = &emojis[708];
-			vSymbols[89] = &emojis[709];
-			vSymbols[90] = &emojis[752];
-			vSymbols[91] = &emojis[87];
-			vSymbols[92] = &emojis[160];
-			vSymbols[93] = &emojis[88];
-			vSymbols[94] = &emojis[972];
-			vSymbols[95] = &emojis[751];
-			vSymbols[96] = &emojis[78];
-			vSymbols[97] = &emojis[195];
-			vSymbols[98] = &emojis[633];
-			vSymbols[99] = &emojis[135];
-			vSymbols[100] = &emojis[132];
-			vSymbols[101] = &emojis[137];
-			vSymbols[102] = &emojis[118];
-			vSymbols[103] = &emojis[608];
-			vSymbols[104] = &emojis[207];
-			vSymbols[105] = &emojis[149];
-			vSymbols[106] = &emojis[223];
-			vSymbols[107] = &emojis[31];
-			vSymbols[108] = &emojis[431];
-			vSymbols[109] = &emojis[193];
-			vSymbols[110] = &emojis[982];
-			vSymbols[111] = &emojis[983];
-			vSymbols[112] = &emojis[984];
-			vSymbols[113] = &emojis[985];
-			vSymbols[114] = &emojis[79];
-			vSymbols[115] = &emojis[961];
-			vSymbols[116] = &emojis[978];
-			vSymbols[117] = &emojis[180];
-			vSymbols[118] = &emojis[964];
-			vSymbols[119] = &emojis[973];
-			vSymbols[120] = &emojis[974];
-			vSymbols[121] = &emojis[976];
-			vSymbols[122] = &emojis[975];
-			vSymbols[123] = &emojis[962];
-			vSymbols[124] = &emojis[366];
-			vSymbols[125] = &emojis[694];
-			vSymbols[126] = &emojis[192];
-			vSymbols[127] = &emojis[187];
-			vSymbols[128] = &emojis[188];
-			vSymbols[129] = &emojis[190];
-			vSymbols[130] = &emojis[183];
-			vSymbols[131] = &emojis[186];
-			vSymbols[132] = &emojis[184];
-			vSymbols[133] = &emojis[165];
-			vSymbols[134] = &emojis[166];
-			vSymbols[135] = &emojis[167];
-			vSymbols[136] = &emojis[168];
-			vSymbols[137] = &emojis[169];
-			vSymbols[138] = &emojis[170];
-			vSymbols[139] = &emojis[171];
-			vSymbols[140] = &emojis[172];
-			vSymbols[141] = &emojis[173];
-			vSymbols[142] = &emojis[174];
-			vSymbols[143] = &emojis[734];
-			vSymbols[144] = &emojis[737];
-			vSymbols[145] = &emojis[34];
-			vSymbols[146] = &emojis[28];
-			vSymbols[147] = &emojis[23];
-			vSymbols[148] = &emojis[29];
-			vSymbols[149] = &emojis[30];
-			vSymbols[150] = &emojis[21];
-			vSymbols[151] = &emojis[22];
-			vSymbols[152] = &emojis[17];
-			vSymbols[153] = &emojis[18];
-			vSymbols[154] = &emojis[703];
-			vSymbols[155] = &emojis[704];
-			vSymbols[156] = &emojis[705];
-			vSymbols[157] = &emojis[35];
-			vSymbols[158] = &emojis[763];
-			vSymbols[159] = &emojis[764];
-			vSymbols[160] = &emojis[19];
-			vSymbols[161] = &emojis[20];
-			vSymbols[162] = &emojis[147];
-			vSymbols[163] = &emojis[152];
-			vSymbols[164] = &emojis[153];
-			vSymbols[165] = &emojis[154];
-			vSymbols[166] = &emojis[9];
-			vSymbols[167] = &emojis[10];
-			vSymbols[168] = &emojis[11];
-			vSymbols[169] = &emojis[8];
-			vSymbols[170] = &emojis[7];
-			vSymbols[171] = &emojis[6];
-			vSymbols[172] = &emojis[707];
-			vSymbols[173] = &emojis[13];
-			vSymbols[174] = &emojis[12];
-			vSymbols[175] = &emojis[150];
-			vSymbols[176] = &emojis[151];
-			vSymbols[177] = &emojis[163];
-			vSymbols[178] = &emojis[164];
-			vSymbols[179] = &emojis[5];
-			vSymbols[180] = &emojis[739];
-			vSymbols[181] = &emojis[736];
-			vSymbols[182] = &emojis[735];
-			vSymbols[183] = &emojis[738];
-			vSymbols[184] = &emojis[381];
-			vSymbols[185] = &emojis[382];
-			vSymbols[186] = &emojis[159];
-			vSymbols[187] = &emojis[148];
-			vSymbols[188] = &emojis[127];
-			vSymbols[189] = &emojis[706];
-			vSymbols[190] = &emojis[144];
-			vSymbols[191] = &emojis[145];
-			vSymbols[192] = &emojis[146];
-			vSymbols[193] = &emojis[128];
-			vSymbols[194] = &emojis[626];
-			vSymbols[195] = &emojis[625];
-			vSymbols[196] = &emojis[0];
-			vSymbols[197] = &emojis[1];
-			vSymbols[198] = &emojis[4];
-			vSymbols[199] = &emojis[729];
-			vSymbols[200] = &emojis[728];
-			vSymbols[201] = &emojis[730];
-			vSymbols[202] = &emojis[732];
-			vSymbols[203] = &emojis[731];
-			vSymbols[204] = &emojis[46];
-			vSymbols[205] = &emojis[727];
-			vSymbols[206] = &emojis[90];
-			vSymbols[207] = &emojis[91];
-			vSymbols[208] = &emojis[755];
-			vSymbols[209] = &emojis[756];
-			vSymbols[210] = &emojis[759];
-			vSymbols[211] = &emojis[760];
-			vSymbols[212] = &emojis[757];
-			vSymbols[213] = &emojis[758];
-			vSymbols[214] = &emojis[761];
-			vSymbols[215] = &emojis[32];
-			vSymbols[216] = &emojis[33];
-			vSymbols[217] = &emojis[155];
-			vSymbols[218] = &emojis[156];
-			vSymbols[219] = &emojis[762];
-			vSymbols[220] = &emojis[37];
-			vSymbols[221] = &emojis[36];
-			vSymbols[222] = &emojis[39];
-			vSymbols[223] = &emojis[38];
-			vSymbols[224] = &emojis[753];
-			vSymbols[225] = &emojis[754];
-			vSymbols[226] = &emojis[711];
-			vSymbols[227] = &emojis[712];
-			vSymbols[228] = &emojis[713];
-			vSymbols[229] = &emojis[710];
-			vSymbols[230] = &emojis[675];
-			vSymbols[231] = &emojis[674];
-			vSymbols[232] = &emojis[723];
-			vSymbols[233] = &emojis[724];
-			vSymbols[234] = &emojis[176];
-			vSymbols[235] = &emojis[175];
-			vSymbols[236] = &emojis[73];
-			vSymbols[237] = &emojis[74];
-			vSymbols[238] = &emojis[75];
-			vSymbols[239] = &emojis[76];
-			vSymbols[240] = &emojis[380];
-			vSymbols[241] = &emojis[1036];
-			vSymbols[242] = &emojis[621];
-			vSymbols[243] = &emojis[828];
-			vSymbols[244] = &emojis[620];
-			vSymbols[245] = &emojis[771];
-			vSymbols[246] = &emojis[772];
-			vSymbols[247] = &emojis[773];
-			vSymbols[248] = &emojis[774];
-			vSymbols[249] = &emojis[775];
-			vSymbols[250] = &emojis[776];
-			vSymbols[251] = &emojis[777];
-			vSymbols[252] = &emojis[778];
-			vSymbols[253] = &emojis[779];
-			vSymbols[254] = &emojis[780];
-			vSymbols[255] = &emojis[781];
-			vSymbols[256] = &emojis[782];
-			vSymbols[257] = &emojis[783];
-			vSymbols[258] = &emojis[784];
-			vSymbols[259] = &emojis[785];
-			vSymbols[260] = &emojis[786];
-			vSymbols[261] = &emojis[787];
-			vSymbols[262] = &emojis[788];
-			vSymbols[263] = &emojis[789];
-			vSymbols[264] = &emojis[790];
-			vSymbols[265] = &emojis[791];
-			vSymbols[266] = &emojis[792];
-			vSymbols[267] = &emojis[793];
-			vSymbols[268] = &emojis[794];
-			vSymbols[269] = &emojis[1069];
-			vSymbols[270] = &emojis[1081];
-			vSymbols[271] = &emojis[1072];
-			vSymbols[272] = &emojis[1127];
-			vSymbols[273] = &emojis[1077];
-			vSymbols[274] = &emojis[1067];
-			vSymbols[275] = &emojis[1074];
-			vSymbols[276] = &emojis[1071];
-			vSymbols[277] = &emojis[1075];
-			vSymbols[278] = &emojis[1070];
-			vSymbols[279] = &emojis[1076];
-			vSymbols[280] = &emojis[1073];
-			vSymbols[281] = &emojis[1080];
-			vSymbols[282] = &emojis[1079];
-			vSymbols[283] = &emojis[1078];
-			vSymbols[284] = &emojis[1082];
-			vSymbols[285] = &emojis[1098];
-			vSymbols[286] = &emojis[1089];
-			vSymbols[287] = &emojis[1085];
-			vSymbols[288] = &emojis[1084];
-			vSymbols[289] = &emojis[1101];
-			vSymbols[290] = &emojis[1086];
-			vSymbols[291] = &emojis[1102];
-			vSymbols[292] = &emojis[1091];
-			vSymbols[293] = &emojis[1093];
-			vSymbols[294] = &emojis[1099];
-			vSymbols[295] = &emojis[1095];
-			vSymbols[296] = &emojis[1083];
-			vSymbols[297] = &emojis[1100];
-			vSymbols[298] = &emojis[1097];
-			vSymbols[299] = &emojis[1172];
-			vSymbols[300] = &emojis[1302];
-			vSymbols[301] = &emojis[1094];
-			vSymbols[302] = &emojis[1088];
-			vSymbols[303] = &emojis[1087];
-			vSymbols[304] = &emojis[1090];
-			vSymbols[305] = &emojis[1183];
-			vSymbols[306] = &emojis[1112];
-			vSymbols[307] = &emojis[1103];
-			vSymbols[308] = &emojis[1166];
-			vSymbols[309] = &emojis[1117];
-			vSymbols[310] = &emojis[1096];
-			vSymbols[311] = &emojis[1190];
-			vSymbols[312] = &emojis[1106];
-			vSymbols[313] = &emojis[1279];
-			vSymbols[314] = &emojis[1111];
-			vSymbols[315] = &emojis[1113];
-			vSymbols[316] = &emojis[1119];
-			vSymbols[317] = &emojis[1104];
-			vSymbols[318] = &emojis[1114];
-			vSymbols[319] = &emojis[1185];
-			vSymbols[320] = &emojis[1107];
-			vSymbols[321] = &emojis[1105];
-			vSymbols[322] = &emojis[1110];
-			vSymbols[323] = &emojis[1115];
-			vSymbols[324] = &emojis[1109];
-			vSymbols[325] = &emojis[1163];
-			vSymbols[326] = &emojis[1116];
-			vSymbols[327] = &emojis[1118];
-			vSymbols[328] = &emojis[1120];
-			vSymbols[329] = &emojis[1121];
-			vSymbols[330] = &emojis[1124];
-			vSymbols[331] = &emojis[1123];
-			vSymbols[332] = &emojis[1125];
-			vSymbols[333] = &emojis[1126];
-			vSymbols[334] = &emojis[1128];
-			vSymbols[335] = &emojis[1130];
-			vSymbols[336] = &emojis[1274];
-			vSymbols[337] = &emojis[1154];
-			vSymbols[338] = &emojis[1132];
-			vSymbols[339] = &emojis[1129];
-			vSymbols[340] = &emojis[1134];
-			vSymbols[341] = &emojis[1135];
-			vSymbols[342] = &emojis[1138];
-			vSymbols[343] = &emojis[1140];
-			vSymbols[344] = &emojis[1137];
-			vSymbols[345] = &emojis[1136];
-			vSymbols[346] = &emojis[1141];
-			vSymbols[347] = &emojis[1146];
-			vSymbols[348] = &emojis[1240];
-			vSymbols[349] = &emojis[1280];
-			vSymbols[350] = &emojis[1142];
-			vSymbols[351] = &emojis[1151];
-			vSymbols[352] = &emojis[1145];
-			vSymbols[353] = &emojis[1122];
-			vSymbols[354] = &emojis[1148];
-			vSymbols[355] = &emojis[1149];
-			vSymbols[356] = &emojis[1155];
-			vSymbols[357] = &emojis[1150];
-			vSymbols[358] = &emojis[1144];
-			vSymbols[359] = &emojis[1153];
-			vSymbols[360] = &emojis[1158];
-			vSymbols[361] = &emojis[1157];
-			vSymbols[362] = &emojis[1147];
-			vSymbols[363] = &emojis[1152];
-			vSymbols[364] = &emojis[1159];
-			vSymbols[365] = &emojis[1160];
-			vSymbols[366] = &emojis[1164];
-			vSymbols[367] = &emojis[1162];
-			vSymbols[368] = &emojis[1161];
-			vSymbols[369] = &emojis[1165];
-			vSymbols[370] = &emojis[1175];
-			vSymbols[371] = &emojis[1171];
-			vSymbols[372] = &emojis[1167];
-			vSymbols[373] = &emojis[1174];
-			vSymbols[374] = &emojis[1173];
-			vSymbols[375] = &emojis[1168];
-			vSymbols[376] = &emojis[1170];
-			vSymbols[377] = &emojis[1169];
-			vSymbols[378] = &emojis[1176];
-			vSymbols[379] = &emojis[1178];
-			vSymbols[380] = &emojis[1180];
-			vSymbols[381] = &emojis[1177];
-			vSymbols[382] = &emojis[1179];
-			vSymbols[383] = &emojis[1191];
-			vSymbols[384] = &emojis[1181];
-			vSymbols[385] = &emojis[1184];
-			vSymbols[386] = &emojis[1308];
-			vSymbols[387] = &emojis[1189];
-			vSymbols[388] = &emojis[1182];
-			vSymbols[389] = &emojis[1192];
-			vSymbols[390] = &emojis[1201];
-			vSymbols[391] = &emojis[1193];
-			vSymbols[392] = &emojis[1198];
-			vSymbols[393] = &emojis[1197];
-			vSymbols[394] = &emojis[1202];
-			vSymbols[395] = &emojis[1195];
-			vSymbols[396] = &emojis[1199];
-			vSymbols[397] = &emojis[1200];
-			vSymbols[398] = &emojis[1213];
-			vSymbols[399] = &emojis[1209];
-			vSymbols[400] = &emojis[1207];
-			vSymbols[401] = &emojis[1221];
-			vSymbols[402] = &emojis[1223];
-			vSymbols[403] = &emojis[1220];
-			vSymbols[404] = &emojis[1210];
-			vSymbols[405] = &emojis[1218];
-			vSymbols[406] = &emojis[1208];
-			vSymbols[407] = &emojis[1215];
-			vSymbols[408] = &emojis[1216];
-			vSymbols[409] = &emojis[1219];
-			vSymbols[410] = &emojis[1310];
-			vSymbols[411] = &emojis[1222];
-			vSymbols[412] = &emojis[1139];
-			vSymbols[413] = &emojis[1205];
-			vSymbols[414] = &emojis[1204];
-			vSymbols[415] = &emojis[1212];
-			vSymbols[416] = &emojis[1206];
-			vSymbols[417] = &emojis[1217];
-			vSymbols[418] = &emojis[1203];
-			vSymbols[419] = &emojis[1224];
-			vSymbols[420] = &emojis[1211];
-			vSymbols[421] = &emojis[1225];
-			vSymbols[422] = &emojis[1234];
-			vSymbols[423] = &emojis[1233];
-			vSymbols[424] = &emojis[1231];
-			vSymbols[425] = &emojis[1226];
-			vSymbols[426] = &emojis[1236];
-			vSymbols[427] = &emojis[1230];
-			vSymbols[428] = &emojis[1227];
-			vSymbols[429] = &emojis[1229];
-			vSymbols[430] = &emojis[1235];
-			vSymbols[431] = &emojis[1228];
-			vSymbols[432] = &emojis[1187];
-			vSymbols[433] = &emojis[1214];
-			vSymbols[434] = &emojis[1232];
-			vSymbols[435] = &emojis[1237];
-			vSymbols[436] = &emojis[1243];
-			vSymbols[437] = &emojis[1250];
-			vSymbols[438] = &emojis[1248];
-			vSymbols[439] = &emojis[1238];
-			vSymbols[440] = &emojis[1241];
-			vSymbols[441] = &emojis[1251];
-			vSymbols[442] = &emojis[1239];
-			vSymbols[443] = &emojis[1242];
-			vSymbols[444] = &emojis[1246];
-			vSymbols[445] = &emojis[1244];
-			vSymbols[446] = &emojis[1249];
-			vSymbols[447] = &emojis[1247];
-			vSymbols[448] = &emojis[1252];
-			vSymbols[449] = &emojis[1253];
-			vSymbols[450] = &emojis[1254];
-			vSymbols[451] = &emojis[1256];
-			vSymbols[452] = &emojis[1257];
-			vSymbols[453] = &emojis[1307];
-			vSymbols[454] = &emojis[1268];
-			vSymbols[455] = &emojis[1273];
-			vSymbols[456] = &emojis[1258];
-			vSymbols[457] = &emojis[1269];
-			vSymbols[458] = &emojis[1255];
-			vSymbols[459] = &emojis[1260];
-			vSymbols[460] = &emojis[1267];
-			vSymbols[461] = &emojis[1263];
-			vSymbols[462] = &emojis[1275];
-			vSymbols[463] = &emojis[1266];
-			vSymbols[464] = &emojis[1265];
-			vSymbols[465] = &emojis[1156];
-			vSymbols[466] = &emojis[1259];
-			vSymbols[467] = &emojis[1270];
-			vSymbols[468] = &emojis[1311];
-			vSymbols[469] = &emojis[1188];
-			vSymbols[470] = &emojis[1272];
-			vSymbols[471] = &emojis[1133];
-			vSymbols[472] = &emojis[1196];
-			vSymbols[473] = &emojis[1092];
-			vSymbols[474] = &emojis[1264];
-			vSymbols[475] = &emojis[1186];
-			vSymbols[476] = &emojis[1194];
-			vSymbols[477] = &emojis[1245];
-			vSymbols[478] = &emojis[1300];
-			vSymbols[479] = &emojis[1261];
-			vSymbols[480] = &emojis[1271];
-			vSymbols[481] = &emojis[1277];
-			vSymbols[482] = &emojis[1262];
-			vSymbols[483] = &emojis[1108];
-			vSymbols[484] = &emojis[1276];
-			vSymbols[485] = &emojis[1292];
-			vSymbols[486] = &emojis[1283];
-			vSymbols[487] = &emojis[1293];
-			vSymbols[488] = &emojis[1282];
-			vSymbols[489] = &emojis[1285];
-			vSymbols[490] = &emojis[1281];
-			vSymbols[491] = &emojis[1284];
-			vSymbols[492] = &emojis[1288];
-			vSymbols[493] = &emojis[1290];
-			vSymbols[494] = &emojis[1287];
-			vSymbols[495] = &emojis[1289];
-			vSymbols[496] = &emojis[1286];
-			vSymbols[497] = &emojis[1278];
-			vSymbols[498] = &emojis[1291];
-			vSymbols[499] = &emojis[1303];
-			vSymbols[500] = &emojis[1295];
-			vSymbols[501] = &emojis[1294];
-			vSymbols[502] = &emojis[1068];
-			vSymbols[503] = &emojis[1143];
-			vSymbols[504] = &emojis[1296];
-			vSymbols[505] = &emojis[1297];
-			vSymbols[506] = &emojis[1298];
-			vSymbols[507] = &emojis[1305];
-			vSymbols[508] = &emojis[1299];
-			vSymbols[509] = &emojis[1301];
-			vSymbols[510] = &emojis[1304];
-			vSymbols[511] = &emojis[1306];
-			vSymbols[512] = &emojis[1131];
-			vSymbols[513] = &emojis[1309];
-			vSymbols[514] = &emojis[1312];
-			vSymbols[515] = &emojis[1313];
-		}
-		return vSymbols;
-	} break;
-
-	};
-
-	EmojiPack result;
-	result.reserve(cGetRecentEmojis().size());
-	for (RecentEmojiPack::const_iterator i = cGetRecentEmojis().cbegin(), e = cGetRecentEmojis().cend(); i != e; ++i) {
-		result.push_back(i->first);
-	}
+template <typename ...Args>
+inline QString ComputeId(Args... args) {
+	auto result = QString();
+	result.reserve(sizeof...(args));
+	AppendChars(result, args...);
 	return result;
 }
 
+EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength) {
+	if (ch + 1 < end) switch (ch->unicode()) {
+	case 0x7d:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0x3a && (ch + 2)->unicode() == 0x29) {
+			if (outLength) *outLength = 3;
+			return &Items[75];
+		}
+	break;
+	case 0x78:
+		if ((ch + 1)->unicode() == 0x44) {
+			if (outLength) *outLength = 2;
+			return &Items[4];
+		}
+	break;
+	case 0x4f:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0x3a && (ch + 2)->unicode() == 0x29) {
+			if (outLength) *outLength = 3;
+			return &Items[10];
+		}
+	break;
+	case 0x42:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0x2d && (ch + 2)->unicode() == 0x29) {
+			if (outLength) *outLength = 3;
+			return &Items[27];
+		}
+	break;
+	case 0x3e:
+		if ((ch + 1)->unicode() == 0x28 && (ch + 2)->unicode() == 0x28) {
+			if (outLength) *outLength = 3;
+			return &Items[44];
+		}
+		if (outLength) *outLength = 2;
+		return &Items[43];
+	break;
+	case 0x3c:
+		if ((ch + 1)->unicode() == 0x33) {
+			if (outLength) *outLength = 2;
+			return &Items[1643];
+		}
+	break;
+	case 0x3b:
+		switch ((ch + 1)->unicode()) {
+		case 0x6f:
+			if (outLength) *outLength = 2;
+			return &Items[57];
+		break;
+		case 0x2d:
+			if (ch + 2 != end) switch ((ch + 2)->unicode()) {
+			case 0x50:
+				if (outLength) *outLength = 3;
+				return &Items[21];
+			break;
+			case 0x29:
+				if (outLength) *outLength = 3;
+				return &Items[13];
+			break;
+			}
+		break;
+		}
+	break;
+	case 0x3a:
+		switch ((ch + 1)->unicode()) {
+		case 0x7c:
+			if (outLength) *outLength = 2;
+			return &Items[46];
+		break;
+		case 0x76:
+			if (ch + 2 != end && (ch + 2)->unicode() == 0x3a) {
+				if (outLength) *outLength = 3;
+				return &Items[163];
+			}
+		break;
+		case 0x75:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0x70 && (ch + 3)->unicode() == 0x3a) {
+				if (outLength) *outLength = 4;
+				return &Items[205];
+			}
+		break;
+		case 0x6f:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0x6b && (ch + 3)->unicode() == 0x3a) {
+				if (outLength) *outLength = 4;
+				return &Items[175];
+			}
+			if (outLength) *outLength = 2;
+			return &Items[56];
+		break;
+		case 0x6c:
+			if (ch + 5 < end && (ch + 2)->unicode() == 0x69 && (ch + 3)->unicode() == 0x6b && (ch + 4)->unicode() == 0x65 && (ch + 5)->unicode() == 0x3a) {
+				if (outLength) *outLength = 6;
+				return &Items[121];
+			}
+		break;
+		case 0x6b:
+			if (ch + 5 < end && (ch + 2)->unicode() == 0x69 && (ch + 3)->unicode() == 0x73 && (ch + 4)->unicode() == 0x73 && (ch + 5)->unicode() == 0x3a) {
+				if (outLength) *outLength = 6;
+				return &Items[279];
+			}
+		break;
+		case 0x6a:
+			if (ch + 4 < end && (ch + 2)->unicode() == 0x6f && (ch + 3)->unicode() == 0x79 && (ch + 4)->unicode() == 0x3a) {
+				if (outLength) *outLength = 5;
+				return &Items[6];
+			}
+		break;
+		case 0x67:
+			if (ch + 5 < end && (ch + 2)->unicode() == 0x72 && (ch + 3)->unicode() == 0x69 && (ch + 4)->unicode() == 0x6e && (ch + 5)->unicode() == 0x3a) {
+				if (outLength) *outLength = 6;
+				return &Items[3];
+			}
+		break;
+		case 0x64:
+			if (ch + 8 < end && (ch + 2)->unicode() == 0x69 && (ch + 3)->unicode() == 0x73 && (ch + 4)->unicode() == 0x6c && (ch + 5)->unicode() == 0x69 && (ch + 6)->unicode() == 0x6b && (ch + 7)->unicode() == 0x65 && (ch + 8)->unicode() == 0x3a) {
+				if (outLength) *outLength = 9;
+				return &Items[127];
+			}
+		break;
+		case 0x5f:
+			if (ch + 2 != end && (ch + 2)->unicode() == 0x28) {
+				if (outLength) *outLength = 3;
+				return &Items[61];
+			}
+		break;
+		case 0x5d:
+			if (outLength) *outLength = 2;
+			return &Items[30];
+		break;
+		case 0x58:
+			if (outLength) *outLength = 2;
+			return &Items[72];
+		break;
+		case 0x2d:
+			if (ch + 2 != end) switch ((ch + 2)->unicode()) {
+			case 0x70:
+				if (outLength) *outLength = 3;
+				return &Items[20];
+			break;
+			case 0x44:
+				if (outLength) *outLength = 3;
+				return &Items[1];
+			break;
+			case 0x2a:
+				if (outLength) *outLength = 3;
+				return &Items[19];
+			break;
+			case 0x29:
+				if (outLength) *outLength = 3;
+				return &Items[9];
+			break;
+			case 0x28:
+				if (outLength) *outLength = 3;
+				return &Items[32];
+			break;
+			}
+		break;
+		case 0x28:
+			if (ch + 2 != end && (ch + 2)->unicode() == 0x28) {
+				if (outLength) *outLength = 3;
+				return &Items[41];
+			}
+		break;
+		case 0x27:
+			if (ch + 2 != end && (ch + 2)->unicode() == 0x28) {
+				if (outLength) *outLength = 3;
+				return &Items[58];
+			}
+		break;
+		}
+	break;
+	case 0x38:
+		switch ((ch + 1)->unicode()) {
+		case 0x7c:
+			if (outLength) *outLength = 2;
+			return &Items[54];
+		break;
+		case 0x6f:
+			if (outLength) *outLength = 2;
+			return &Items[52];
+		break;
+		case 0x2d:
+			if (ch + 2 != end && (ch + 2)->unicode() == 0x29) {
+				if (outLength) *outLength = 3;
+				return &Items[15];
+			}
+		break;
+		}
+	break;
+	case 0x33:
+		switch ((ch + 1)->unicode()) {
+		case 0x2d:
+			if (ch + 2 != end && (ch + 2)->unicode() == 0x29) {
+				if (outLength) *outLength = 3;
+				return &Items[14];
+			}
+		break;
+		case 0x28:
+			if (outLength) *outLength = 2;
+			return &Items[33];
+		break;
+		}
+	break;
+	}
+
+	return nullptr;
+}
+
+EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
+	switch (ch->unicode()) {
+	case 0xd83e:
+		if (ch + 1 != end) switch ((ch + 1)->unicode()) {
+		case 0xddc0:
+			if (outLength) *outLength = 2;
+			return &Items[1084];
+		break;
+		case 0xdd91:
+			if (outLength) *outLength = 2;
+			return &Items[944];
+		break;
+		case 0xdd90:
+			if (outLength) *outLength = 2;
+			return &Items[946];
+		break;
+		case 0xdd8f:
+			if (outLength) *outLength = 2;
+			return &Items[964];
+		break;
+		case 0xdd8e:
+			if (outLength) *outLength = 2;
+			return &Items[941];
+		break;
+		case 0xdd8d:
+			if (outLength) *outLength = 2;
+			return &Items[965];
+		break;
+		case 0xdd8c:
+			if (outLength) *outLength = 2;
+			return &Items[960];
+		break;
+		case 0xdd8b:
+			if (outLength) *outLength = 2;
+			return &Items[932];
+		break;
+		case 0xdd8a:
+			if (outLength) *outLength = 2;
+			return &Items[901];
+		break;
+		case 0xdd89:
+			if (outLength) *outLength = 2;
+			return &Items[924];
+		break;
+		case 0xdd88:
+			if (outLength) *outLength = 2;
+			return &Items[951];
+		break;
+		case 0xdd87:
+			if (outLength) *outLength = 2;
+			return &Items[925];
+		break;
+		case 0xdd86:
+			if (outLength) *outLength = 2;
+			return &Items[922];
+		break;
+		case 0xdd85:
+			if (outLength) *outLength = 2;
+			return &Items[923];
+		break;
+		case 0xdd84:
+			if (outLength) *outLength = 2;
+			return &Items[929];
+		break;
+		case 0xdd83:
+			if (outLength) *outLength = 2;
+			return &Items[975];
+		break;
+		case 0xdd82:
+			if (outLength) *outLength = 2;
+			return &Items[942];
+		break;
+		case 0xdd81:
+			if (outLength) *outLength = 2;
+			return &Items[906];
+		break;
+		case 0xdd80:
+			if (outLength) *outLength = 2;
+			return &Items[943];
+		break;
+		case 0xdd5e:
+			if (outLength) *outLength = 2;
+			return &Items[1088];
+		break;
+		case 0xdd5d:
+			if (outLength) *outLength = 2;
+			return &Items[1068];
+		break;
+		case 0xdd5c:
+			if (outLength) *outLength = 2;
+			return &Items[1079];
+		break;
+		case 0xdd5b:
+			if (outLength) *outLength = 2;
+			return &Items[1125];
+		break;
+		case 0xdd5a:
+			if (outLength) *outLength = 2;
+			return &Items[1085];
+		break;
+		case 0xdd59:
+			if (outLength) *outLength = 2;
+			return &Items[1096];
+		break;
+		case 0xdd58:
+			if (outLength) *outLength = 2;
+			return &Items[1100];
+		break;
+		case 0xdd57:
+			if (outLength) *outLength = 2;
+			return &Items[1099];
+		break;
+		case 0xdd56:
+			if (outLength) *outLength = 2;
+			return &Items[1083];
+		break;
+		case 0xdd55:
+			if (outLength) *outLength = 2;
+			return &Items[1073];
+		break;
+		case 0xdd54:
+			if (outLength) *outLength = 2;
+			return &Items[1076];
+		break;
+		case 0xdd53:
+			if (outLength) *outLength = 2;
+			return &Items[1087];
+		break;
+		case 0xdd52:
+			if (outLength) *outLength = 2;
+			return &Items[1072];
+		break;
+		case 0xdd51:
+			if (outLength) *outLength = 2;
+			return &Items[1069];
+		break;
+		case 0xdd50:
+			if (outLength) *outLength = 2;
+			return &Items[1081];
+		break;
+		case 0xdd4b:
+			if (outLength) *outLength = 2;
+			return &Items[1159];
+		break;
+		case 0xdd4a:
+			if (outLength) *outLength = 2;
+			return &Items[1158];
+		break;
+		case 0xdd49:
+			if (outLength) *outLength = 2;
+			return &Items[1310];
+		break;
+		case 0xdd48:
+			if (outLength) *outLength = 2;
+			return &Items[1309];
+		break;
+		case 0xdd47:
+			if (outLength) *outLength = 2;
+			return &Items[1308];
+		break;
+		case 0xdd45:
+			if (outLength) *outLength = 2;
+			return &Items[1151];
+		break;
+		case 0xdd44:
+			if (outLength) *outLength = 2;
+			return &Items[1138];
+		break;
+		case 0xdd43:
+			if (outLength) *outLength = 2;
+			return &Items[1134];
+		break;
+		case 0xdd42:
+			if (outLength) *outLength = 2;
+			return &Items[1132];
+		break;
+		case 0xdd41:
+			if (outLength) *outLength = 2;
+			return &Items[1336];
+		break;
+		case 0xdd40:
+			if (outLength) *outLength = 2;
+			return &Items[1003];
+		break;
+		case 0xdd3e:
+			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1214];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1208];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffe:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1213];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1207];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffd:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1212];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1206];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffc:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1211];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1205];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffb:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1210];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1204];
+							}
+						break;
+						}
+					}
+				break;
+				}
+			break;
+			case 0x200d:
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1209];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1203];
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 0xdd3d:
+			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1262];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1256];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffe:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1261];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1255];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffd:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1260];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1254];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffc:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1259];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1253];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffb:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1258];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1252];
+							}
+						break;
+						}
+					}
+				break;
+				}
+			break;
+			case 0x200d:
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1257];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1251];
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 0xdd3c:
+			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d) {
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1178];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1177];
+					}
+				break;
+				}
+			}
+		break;
+		case 0xdd3a:
+			if (outLength) *outLength = 2;
+			return &Items[1176];
+		break;
+		case 0xdd39:
+			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1328];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1322];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffe:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1327];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1321];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffd:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1326];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1320];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffc:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1325];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1319];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffb:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1324];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1318];
+							}
+						break;
+						}
+					}
+				break;
+				}
+			break;
+			case 0x200d:
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1323];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1317];
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 0xdd38:
+			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1190];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1184];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffe:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1189];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1183];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffd:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1188];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1182];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffc:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1187];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1181];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffb:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1186];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[1180];
+							}
+						break;
+						}
+					}
+				break;
+				}
+			break;
+			case 0x200d:
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1185];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[1179];
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 0xdd37:
+			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[743];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[737];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffe:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[742];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[736];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffd:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[741];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[735];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffc:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[740];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[734];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffb:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[739];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[733];
+							}
+						break;
+						}
+					}
+				break;
+				}
+			break;
+			case 0x200d:
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[738];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[732];
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 0xdd36:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[617];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[616];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[615];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[614];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[613];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[612];
+		break;
+		case 0xdd35:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[647];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[646];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[645];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[644];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[643];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[642];
+		break;
+		case 0xdd34:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[635];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[634];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[633];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[632];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[631];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[630];
+		break;
+		case 0xdd33:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[270];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[269];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[268];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[267];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[266];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[265];
+		break;
+		case 0xdd30:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[659];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[658];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[657];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[656];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[655];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[654];
+		break;
+		case 0xdd27:
+			if (outLength) *outLength = 2;
+			return &Items[71];
+		break;
+		case 0xdd26:
+			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[731];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[725];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffe:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[730];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[724];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffd:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[729];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[723];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffc:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[728];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[722];
+							}
+						break;
+						}
+					}
+				break;
+				case 0xdffb:
+					if ((ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0x2642:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[727];
+							}
+						break;
+						case 0x2640:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[721];
+							}
+						break;
+						}
+					}
+				break;
+				}
+			break;
+			case 0x200d:
+				switch ((ch + 3)->unicode()) {
+				case 0x2642:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[726];
+					}
+				break;
+				case 0x2640:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[720];
+					}
+				break;
+				}
+			break;
+			}
+		break;
+		case 0xdd25:
+			if (outLength) *outLength = 2;
+			return &Items[67];
+		break;
+		case 0xdd24:
+			if (outLength) *outLength = 2;
+			return &Items[60];
+		break;
+		case 0xdd23:
+			if (outLength) *outLength = 2;
+			return &Items[7];
+		break;
+		case 0xdd22:
+			if (outLength) *outLength = 2;
+			return &Items[70];
+		break;
+		case 0xdd21:
+			if (outLength) *outLength = 2;
+			return &Items[28];
+		break;
+		case 0xdd20:
+			if (outLength) *outLength = 2;
+			return &Items[29];
+		break;
+		case 0xdd1e:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[162];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[161];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[160];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[159];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[158];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[157];
+		break;
+		case 0xdd1d:
+			if (outLength) *outLength = 2;
+			return &Items[120];
+		break;
+		case 0xdd1c:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[156];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[155];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[154];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[153];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[152];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[151];
+		break;
+		case 0xdd1b:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[150];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[149];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[148];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[147];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[146];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[145];
+		break;
+		case 0xdd1a:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[222];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[221];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[220];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[219];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[218];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[217];
+		break;
+		case 0xdd19:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[246];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[245];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[244];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[243];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[242];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[241];
+		break;
+		case 0xdd18:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[174];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[173];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[172];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[171];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[170];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[169];
+		break;
+		case 0xdd17:
+			if (outLength) *outLength = 2;
+			return &Items[25];
+		break;
+		case 0xdd16:
+			if (outLength) *outLength = 2;
+			return &Items[85];
+		break;
+		case 0xdd15:
+			if (outLength) *outLength = 2;
+			return &Items[74];
+		break;
+		case 0xdd14:
+			if (outLength) *outLength = 2;
+			return &Items[66];
+		break;
+		case 0xdd13:
+			if (outLength) *outLength = 2;
+			return &Items[26];
+		break;
+		case 0xdd12:
+			if (outLength) *outLength = 2;
+			return &Items[73];
+		break;
+		case 0xdd11:
+			if (outLength) *outLength = 2;
+			return &Items[24];
+		break;
+		case 0xdd10:
+			if (outLength) *outLength = 2;
+			return &Items[69];
+		break;
+		}
+	break;
+	case 0xd83d:
+		if (ch + 1 != end) switch ((ch + 1)->unicode()) {
+		case 0xdef6:
+			if (outLength) *outLength = 2;
+			return &Items[1391];
+		break;
+		case 0xdef5:
+			if (outLength) *outLength = 2;
+			return &Items[1361];
+		break;
+		case 0xdef4:
+			if (outLength) *outLength = 2;
+			return &Items[1359];
+		break;
+		case 0xdef3:
+			if (outLength) *outLength = 2;
+			return &Items[1395];
+		break;
+		case 0xdef0:
+			if (outLength) *outLength = 2;
+			return &Items[1389];
+		break;
+		case 0xdeec:
+			if (outLength) *outLength = 2;
+			return &Items[1387];
+		break;
+		case 0xdeeb:
+			if (outLength) *outLength = 2;
+			return &Items[1386];
+		break;
+		case 0xdee9:
+			if (outLength) *outLength = 2;
+			return &Items[1384];
+		break;
+		case 0xdee5:
+			if (outLength) *outLength = 2;
+			return &Items[1393];
+		break;
+		case 0xdee4:
+			if (outLength) *outLength = 2;
+			return &Items[1425];
+		break;
+		case 0xdee3:
+			if (outLength) *outLength = 2;
+			return &Items[1426];
+		break;
+		case 0xdee2:
+			if (outLength) *outLength = 2;
+			return &Items[1509];
+		break;
+		case 0xdee1:
+			if (outLength) *outLength = 2;
+			return &Items[1532];
+		break;
+		case 0xdee0:
+			if (outLength) *outLength = 2;
+			return &Items[1522];
+		break;
+		case 0xded2:
+			if (outLength) *outLength = 2;
+			return &Items[1566];
+		break;
+		case 0xded1:
+			if (outLength) *outLength = 2;
+			return &Items[1713];
+		break;
+		case 0xded0:
+			if (outLength) *outLength = 2;
+			return &Items[1669];
+		break;
+		case 0xdecf:
+			if (outLength) *outLength = 2;
+			return &Items[1562];
+		break;
+		case 0xdece:
+			if (outLength) *outLength = 2;
+			return &Items[1557];
+		break;
+		case 0xdecd:
+			if (outLength) *outLength = 2;
+			return &Items[1565];
+		break;
+		case 0xdecc:
+			if (outLength) *outLength = 2;
+			return &Items[1563];
+		break;
+		case 0xdecb:
+			if (outLength) *outLength = 2;
+			return &Items[1561];
+		break;
+		case 0xdec5:
+			if (outLength) *outLength = 2;
+			return &Items[1762];
+		break;
+		case 0xdec4:
+			if (outLength) *outLength = 2;
+			return &Items[1761];
+		break;
+		case 0xdec3:
+			if (outLength) *outLength = 2;
+			return &Items[1760];
+		break;
+		case 0xdec2:
+			if (outLength) *outLength = 2;
+			return &Items[1759];
+		break;
+		case 0xdec1:
+			if (outLength) *outLength = 2;
+			return &Items[1550];
+		break;
+		case 0xdec0:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[1556];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[1555];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[1554];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[1553];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[1552];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1551];
+		break;
+		case 0xdebf:
+			if (outLength) *outLength = 2;
+			return &Items[1549];
+		break;
+		case 0xdebe:
+			if (outLength) *outLength = 2;
+			return &Items[1754];
+		break;
+		case 0xdebd:
+			if (outLength) *outLength = 2;
+			return &Items[1547];
+		break;
+		case 0xdebc:
+			if (outLength) *outLength = 2;
+			return &Items[1765];
+		break;
+		case 0xdebb:
+			if (outLength) *outLength = 2;
+			return &Items[1766];
+		break;
+		case 0xdeba:
+			if (outLength) *outLength = 2;
+			return &Items[1764];
+		break;
+		case 0xdeb9:
+			if (outLength) *outLength = 2;
+			return &Items[1763];
+		break;
+		case 0xdeb8:
+			if (outLength) *outLength = 2;
+			return &Items[1737];
+		break;
+		case 0xdeb7:
+			if (outLength) *outLength = 2;
+			return &Items[1720];
+		break;
+		case 0xdeb6:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[817];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[823];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[816];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[822];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[815];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[821];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[814];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[820];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[813];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[819];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[812];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[818];
+		break;
+		case 0xdeb5:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1298];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1304];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1297];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1303];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1296];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1302];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1295];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1301];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1294];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1300];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[1293];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1299];
+		break;
+		case 0xdeb4:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1286];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1292];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1285];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1291];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1284];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1290];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1283];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1289];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1282];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1288];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[1281];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1287];
+		break;
+		case 0xdeb3:
+			if (outLength) *outLength = 2;
+			return &Items[1722];
+		break;
+		case 0xdeb2:
+			if (outLength) *outLength = 2;
+			return &Items[1360];
+		break;
+		case 0xdeb1:
+			if (outLength) *outLength = 2;
+			return &Items[1723];
+		break;
+		case 0xdeb0:
+			if (outLength) *outLength = 2;
+			return &Items[1548];
+		break;
+		case 0xdeaf:
+			if (outLength) *outLength = 2;
+			return &Items[1721];
+		break;
+		case 0xdeae:
+			if (outLength) *outLength = 2;
+			return &Items[1767];
+		break;
+		case 0xdead:
+			if (outLength) *outLength = 2;
+			return &Items[1726];
+		break;
+		case 0xdeac:
+			if (outLength) *outLength = 2;
+			return &Items[1533];
+		break;
+		case 0xdeab:
+			if (outLength) *outLength = 2;
+			return &Items[1716];
+		break;
+		case 0xdeaa:
+			if (outLength) *outLength = 2;
+			return &Items[1560];
+		break;
+		case 0xdea9:
+			if (outLength) *outLength = 2;
+			return &Items[1917];
+		break;
+		case 0xdea8:
+			if (outLength) *outLength = 2;
+			return &Items[1363];
+		break;
+		case 0xdea7:
+			if (outLength) *outLength = 2;
+			return &Items[1399];
+		break;
+		case 0xdea6:
+			if (outLength) *outLength = 2;
+			return &Items[1402];
+		break;
+		case 0xdea5:
+			if (outLength) *outLength = 2;
+			return &Items[1403];
+		break;
+		case 0xdea4:
+			if (outLength) *outLength = 2;
+			return &Items[1394];
+		break;
+		case 0xdea3:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1268];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1274];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1267];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1273];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1266];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1272];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1265];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1271];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1264];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1270];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[1263];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1269];
+		break;
+		case 0xdea2:
+			if (outLength) *outLength = 2;
+			return &Items[1397];
+		break;
+		case 0xdea1:
+			if (outLength) *outLength = 2;
+			return &Items[1368];
+		break;
+		case 0xdea0:
+			if (outLength) *outLength = 2;
+			return &Items[1369];
+		break;
+		case 0xde9f:
+			if (outLength) *outLength = 2;
+			return &Items[1370];
+		break;
+		case 0xde9e:
+			if (outLength) *outLength = 2;
+			return &Items[1373];
+		break;
+		case 0xde9d:
+			if (outLength) *outLength = 2;
+			return &Items[1374];
+		break;
+		case 0xde9c:
+			if (outLength) *outLength = 2;
+			return &Items[1358];
+		break;
+		case 0xde9b:
+			if (outLength) *outLength = 2;
+			return &Items[1357];
+		break;
+		case 0xde9a:
+			if (outLength) *outLength = 2;
+			return &Items[1356];
+		break;
+		case 0xde99:
+			if (outLength) *outLength = 2;
+			return &Items[1348];
+		break;
+		case 0xde98:
+			if (outLength) *outLength = 2;
+			return &Items[1366];
+		break;
+		case 0xde97:
+			if (outLength) *outLength = 2;
+			return &Items[1346];
+		break;
+		case 0xde96:
+			if (outLength) *outLength = 2;
+			return &Items[1367];
+		break;
+		case 0xde95:
+			if (outLength) *outLength = 2;
+			return &Items[1347];
+		break;
+		case 0xde94:
+			if (outLength) *outLength = 2;
+			return &Items[1364];
+		break;
+		case 0xde93:
+			if (outLength) *outLength = 2;
+			return &Items[1352];
+		break;
+		case 0xde92:
+			if (outLength) *outLength = 2;
+			return &Items[1354];
+		break;
+		case 0xde91:
+			if (outLength) *outLength = 2;
+			return &Items[1353];
+		break;
+		case 0xde90:
+			if (outLength) *outLength = 2;
+			return &Items[1355];
+		break;
+		case 0xde8f:
+			if (outLength) *outLength = 2;
+			return &Items[1401];
+		break;
+		case 0xde8e:
+			if (outLength) *outLength = 2;
+			return &Items[1350];
+		break;
+		case 0xde8d:
+			if (outLength) *outLength = 2;
+			return &Items[1365];
+		break;
+		case 0xde8c:
+			if (outLength) *outLength = 2;
+			return &Items[1349];
+		break;
+		case 0xde8b:
+			if (outLength) *outLength = 2;
+			return &Items[1372];
+		break;
+		case 0xde8a:
+			if (outLength) *outLength = 2;
+			return &Items[1381];
+		break;
+		case 0xde89:
+			if (outLength) *outLength = 2;
+			return &Items[1382];
+		break;
+		case 0xde88:
+			if (outLength) *outLength = 2;
+			return &Items[1377];
+		break;
+		case 0xde87:
+			if (outLength) *outLength = 2;
+			return &Items[1380];
+		break;
+		case 0xde86:
+			if (outLength) *outLength = 2;
+			return &Items[1379];
+		break;
+		case 0xde85:
+			if (outLength) *outLength = 2;
+			return &Items[1376];
+		break;
+		case 0xde84:
+			if (outLength) *outLength = 2;
+			return &Items[1375];
+		break;
+		case 0xde83:
+			if (outLength) *outLength = 2;
+			return &Items[1371];
+		break;
+		case 0xde82:
+			if (outLength) *outLength = 2;
+			return &Items[1378];
+		break;
+		case 0xde81:
+			if (outLength) *outLength = 2;
+			return &Items[1383];
+		break;
+		case 0xde80:
+			if (outLength) *outLength = 2;
+			return &Items[1388];
+		break;
+		case 0xde4f:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[119];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[118];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[117];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[116];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[115];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[114];
+		break;
+		case 0xde4e:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[755];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[749];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[754];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[748];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[753];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[747];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[752];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[746];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[751];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[745];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[750];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[744];
+		break;
+		case 0xde4d:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[767];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[761];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[766];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[760];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[765];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[759];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[764];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[758];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[763];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[757];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[762];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[756];
+		break;
+		case 0xde4c:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[107];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[106];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[105];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[104];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[103];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[102];
+		break;
+		case 0xde4b:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[719];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[713];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[718];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[712];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[717];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[711];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[716];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[710];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[715];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[709];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[714];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[708];
+		break;
+		case 0xde4a:
+			if (outLength) *outLength = 2;
+			return &Items[914];
+		break;
+		case 0xde49:
+			if (outLength) *outLength = 2;
+			return &Items[913];
+		break;
+		case 0xde48:
+			if (outLength) *outLength = 2;
+			return &Items[912];
+		break;
+		case 0xde47:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[665];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[671];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[664];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[670];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[663];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[669];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[662];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[668];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[661];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[667];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[660];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[666];
+		break;
+		case 0xde46:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[707];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[701];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[706];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[700];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[705];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[699];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[704];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[698];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[703];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[697];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[702];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[696];
+		break;
+		case 0xde45:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[695];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[689];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[694];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[688];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[693];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[687];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[692];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[686];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[691];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[685];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[690];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[684];
+		break;
+		case 0xde44:
+			if (outLength) *outLength = 2;
+			return &Items[65];
+		break;
+		case 0xde43:
+			if (outLength) *outLength = 2;
+			return &Items[12];
+		break;
+		case 0xde42:
+			if (outLength) *outLength = 2;
+			return &Items[11];
+		break;
+		case 0xde41:
+			if (outLength) *outLength = 2;
+			return &Items[36];
+		break;
+		case 0xde40:
+			if (outLength) *outLength = 2;
+			return &Items[93];
+		break;
+		case 0xde3f:
+			if (outLength) *outLength = 2;
+			return &Items[94];
+		break;
+		case 0xde3e:
+			if (outLength) *outLength = 2;
+			return &Items[95];
+		break;
+		case 0xde3d:
+			if (outLength) *outLength = 2;
+			return &Items[92];
+		break;
+		case 0xde3c:
+			if (outLength) *outLength = 2;
+			return &Items[91];
+		break;
+		case 0xde3b:
+			if (outLength) *outLength = 2;
+			return &Items[90];
+		break;
+		case 0xde3a:
+			if (outLength) *outLength = 2;
+			return &Items[87];
+		break;
+		case 0xde39:
+			if (outLength) *outLength = 2;
+			return &Items[89];
+		break;
+		case 0xde38:
+			if (outLength) *outLength = 2;
+			return &Items[88];
+		break;
+		case 0xde37:
+			if (outLength) *outLength = 2;
+			return &Items[72];
+		break;
+		case 0xde36:
+			if (outLength) *outLength = 2;
+			return &Items[45];
+		break;
+		case 0xde35:
+			if (outLength) *outLength = 2;
+			return &Items[53];
+		break;
+		case 0xde34:
+			if (outLength) *outLength = 2;
+			return &Items[64];
+		break;
+		case 0xde33:
+			if (outLength) *outLength = 2;
+			return &Items[54];
+		break;
+		case 0xde32:
+			if (outLength) *outLength = 2;
+			return &Items[52];
+		break;
+		case 0xde31:
+			if (outLength) *outLength = 2;
+			return &Items[55];
+		break;
+		case 0xde30:
+			if (outLength) *outLength = 2;
+			return &Items[57];
+		break;
+		case 0xde2f:
+			if (outLength) *outLength = 2;
+			return &Items[48];
+		break;
+		case 0xde2e:
+			if (outLength) *outLength = 2;
+			return &Items[51];
+		break;
+		case 0xde2d:
+			if (outLength) *outLength = 2;
+			return &Items[61];
+		break;
+		case 0xde2c:
+			if (outLength) *outLength = 2;
+			return &Items[68];
+		break;
+		case 0xde2b:
+			if (outLength) *outLength = 2;
+			return &Items[40];
+		break;
+		case 0xde2a:
+			if (outLength) *outLength = 2;
+			return &Items[63];
+		break;
+		case 0xde29:
+			if (outLength) *outLength = 2;
+			return &Items[41];
+		break;
+		case 0xde28:
+			if (outLength) *outLength = 2;
+			return &Items[56];
+		break;
+		case 0xde27:
+			if (outLength) *outLength = 2;
+			return &Items[50];
+		break;
+		case 0xde26:
+			if (outLength) *outLength = 2;
+			return &Items[49];
+		break;
+		case 0xde25:
+			if (outLength) *outLength = 2;
+			return &Items[59];
+		break;
+		case 0xde24:
+			if (outLength) *outLength = 2;
+			return &Items[42];
+		break;
+		case 0xde23:
+			if (outLength) *outLength = 2;
+			return &Items[38];
+		break;
+		case 0xde22:
+			if (outLength) *outLength = 2;
+			return &Items[58];
+		break;
+		case 0xde21:
+			if (outLength) *outLength = 2;
+			return &Items[44];
+		break;
+		case 0xde20:
+			if (outLength) *outLength = 2;
+			return &Items[43];
+		break;
+		case 0xde1f:
+			if (outLength) *outLength = 2;
+			return &Items[34];
+		break;
+		case 0xde1e:
+			if (outLength) *outLength = 2;
+			return &Items[32];
+		break;
+		case 0xde1d:
+			if (outLength) *outLength = 2;
+			return &Items[22];
+		break;
+		case 0xde1c:
+			if (outLength) *outLength = 2;
+			return &Items[21];
+		break;
+		case 0xde1b:
+			if (outLength) *outLength = 2;
+			return &Items[23];
+		break;
+		case 0xde1a:
+			if (outLength) *outLength = 2;
+			return &Items[19];
+		break;
+		case 0xde19:
+			if (outLength) *outLength = 2;
+			return &Items[18];
+		break;
+		case 0xde18:
+			if (outLength) *outLength = 2;
+			return &Items[16];
+		break;
+		case 0xde17:
+			if (outLength) *outLength = 2;
+			return &Items[17];
+		break;
+		case 0xde16:
+			if (outLength) *outLength = 2;
+			return &Items[39];
+		break;
+		case 0xde15:
+			if (outLength) *outLength = 2;
+			return &Items[35];
+		break;
+		case 0xde14:
+			if (outLength) *outLength = 2;
+			return &Items[33];
+		break;
+		case 0xde13:
+			if (outLength) *outLength = 2;
+			return &Items[62];
+		break;
+		case 0xde12:
+			if (outLength) *outLength = 2;
+			return &Items[31];
+		break;
+		case 0xde11:
+			if (outLength) *outLength = 2;
+			return &Items[47];
+		break;
+		case 0xde10:
+			if (outLength) *outLength = 2;
+			return &Items[46];
+		break;
+		case 0xde0f:
+			if (outLength) *outLength = 2;
+			return &Items[30];
+		break;
+		case 0xde0e:
+			if (outLength) *outLength = 2;
+			return &Items[27];
+		break;
+		case 0xde0d:
+			if (outLength) *outLength = 2;
+			return &Items[15];
+		break;
+		case 0xde0c:
+			if (outLength) *outLength = 2;
+			return &Items[14];
+		break;
+		case 0xde0b:
+			if (outLength) *outLength = 2;
+			return &Items[20];
+		break;
+		case 0xde0a:
+			if (outLength) *outLength = 2;
+			return &Items[9];
+		break;
+		case 0xde09:
+			if (outLength) *outLength = 2;
+			return &Items[13];
+		break;
+		case 0xde08:
+			if (outLength) *outLength = 2;
+			return &Items[75];
+		break;
+		case 0xde07:
+			if (outLength) *outLength = 2;
+			return &Items[10];
+		break;
+		case 0xde06:
+			if (outLength) *outLength = 2;
+			return &Items[4];
+		break;
+		case 0xde05:
+			if (outLength) *outLength = 2;
+			return &Items[5];
+		break;
+		case 0xde04:
+			if (outLength) *outLength = 2;
+			return &Items[2];
+		break;
+		case 0xde03:
+			if (outLength) *outLength = 2;
+			return &Items[1];
+		break;
+		case 0xde02:
+			if (outLength) *outLength = 2;
+			return &Items[6];
+		break;
+		case 0xde01:
+			if (outLength) *outLength = 2;
+			return &Items[3];
+		break;
+		case 0xde00:
+			if (outLength) *outLength = 2;
+			return &Items[0];
+		break;
+		case 0xddff:
+			if (outLength) *outLength = 2;
+			return &Items[1405];
+		break;
+		case 0xddfe:
+			if (outLength) *outLength = 2;
+			return &Items[1450];
+		break;
+		case 0xddfd:
+			if (outLength) *outLength = 2;
+			return &Items[1406];
+		break;
+		case 0xddfc:
+			if (outLength) *outLength = 2;
+			return &Items[1408];
+		break;
+		case 0xddfb:
+			if (outLength) *outLength = 2;
+			return &Items[1420];
+		break;
+		case 0xddfa:
+			if (outLength) *outLength = 2;
+			return &Items[1404];
+		break;
+		case 0xddf3:
+			if (outLength) *outLength = 2;
+			return &Items[1604];
+		break;
+		case 0xddef:
+			if (outLength) *outLength = 2;
+			return &Items[1882];
+		break;
+		case 0xdde3:
+			if (outLength) *outLength = 2;
+			return &Items[297];
+		break;
+		case 0xdde1:
+			if (outLength) *outLength = 2;
+			return &Items[1530];
+		break;
+		case 0xddde:
+			if (outLength) *outLength = 2;
+			return &Items[1610];
+		break;
+		case 0xdddd:
+			if (outLength) *outLength = 2;
+			return &Items[1559];
+		break;
+		case 0xdddc:
+			if (outLength) *outLength = 2;
+			return &Items[1475];
+		break;
+		case 0xddd3:
+			if (outLength) *outLength = 2;
+			return &Items[1599];
+		break;
+		case 0xddd2:
+			if (outLength) *outLength = 2;
+			return &Items[1598];
+		break;
+		case 0xddd1:
+			if (outLength) *outLength = 2;
+			return &Items[1508];
+		break;
+		case 0xddc4:
+			if (outLength) *outLength = 2;
+			return &Items[1605];
+		break;
+		case 0xddc3:
+			if (outLength) *outLength = 2;
+			return &Items[1603];
+		break;
+		case 0xddc2:
+			if (outLength) *outLength = 2;
+			return &Items[1609];
+		break;
+		case 0xddbc:
+			if (outLength) *outLength = 2;
+			return &Items[1564];
+		break;
+		case 0xddb2:
+			if (outLength) *outLength = 2;
+			return &Items[1473];
+		break;
+		case 0xddb1:
+			if (outLength) *outLength = 2;
+			return &Items[1472];
+		break;
+		case 0xdda8:
+			if (outLength) *outLength = 2;
+			return &Items[1471];
+		break;
+		case 0xdda5:
+			if (outLength) *outLength = 2;
+			return &Items[1470];
+		break;
+		case 0xdda4:
+			if (outLength) *outLength = 2;
+			return &Items[1648];
+		break;
+		case 0xdd96:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[234];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[233];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[232];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[231];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[230];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[229];
+		break;
+		case 0xdd95:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[258];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[257];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[256];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[255];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[254];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[253];
+		break;
+		case 0xdd90:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[228];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[227];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[226];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[225];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[224];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[223];
+		break;
+		case 0xdd8d:
+			if (outLength) *outLength = 2;
+			return &Items[1634];
+		break;
+		case 0xdd8c:
+			if (outLength) *outLength = 2;
+			return &Items[1633];
+		break;
+		case 0xdd8b:
+			if (outLength) *outLength = 2;
+			return &Items[1631];
+		break;
+		case 0xdd8a:
+			if (outLength) *outLength = 2;
+			return &Items[1630];
+		break;
+		case 0xdd87:
+			if (outLength) *outLength = 2;
+			return &Items[1624];
+		break;
+		case 0xdd7a:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[809];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[808];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[807];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[806];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[805];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[804];
+		break;
+		case 0xdd79:
+			if (outLength) *outLength = 2;
+			return &Items[1474];
+		break;
+		case 0xdd78:
+			if (outLength) *outLength = 2;
+			return &Items[938];
+		break;
+		case 0xdd77:
+			if (outLength) *outLength = 2;
+			return &Items[937];
+		break;
+		case 0xdd76:
+			if (outLength) *outLength = 2;
+			return &Items[893];
+		break;
+		case 0xdd75:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xfe0f:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[408];
+				}
+			break;
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[413];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[419];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[412];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[418];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[411];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[417];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[410];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[416];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[409];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[415];
+				break;
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[414];
+		break;
+		case 0xdd74:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[797];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[796];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[795];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[794];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[793];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[792];
+		break;
+		case 0xdd73:
+			if (outLength) *outLength = 2;
+			return &Items[1543];
+		break;
+		case 0xdd70:
+			if (outLength) *outLength = 2;
+			return &Items[1499];
+		break;
+		case 0xdd6f:
+			if (outLength) *outLength = 2;
+			return &Items[1507];
+		break;
+		case 0xdd67:
+			if (outLength) *outLength = 2;
+			return &Items[1913];
+		break;
+		case 0xdd66:
+			if (outLength) *outLength = 2;
+			return &Items[1912];
+		break;
+		case 0xdd65:
+			if (outLength) *outLength = 2;
+			return &Items[1911];
+		break;
+		case 0xdd64:
+			if (outLength) *outLength = 2;
+			return &Items[1910];
+		break;
+		case 0xdd63:
+			if (outLength) *outLength = 2;
+			return &Items[1909];
+		break;
+		case 0xdd62:
+			if (outLength) *outLength = 2;
+			return &Items[1908];
+		break;
+		case 0xdd61:
+			if (outLength) *outLength = 2;
+			return &Items[1907];
+		break;
+		case 0xdd60:
+			if (outLength) *outLength = 2;
+			return &Items[1906];
+		break;
+		case 0xdd5f:
+			if (outLength) *outLength = 2;
+			return &Items[1905];
+		break;
+		case 0xdd5e:
+			if (outLength) *outLength = 2;
+			return &Items[1904];
+		break;
+		case 0xdd5d:
+			if (outLength) *outLength = 2;
+			return &Items[1903];
+		break;
+		case 0xdd5c:
+			if (outLength) *outLength = 2;
+			return &Items[1902];
+		break;
+		case 0xdd5b:
+			if (outLength) *outLength = 2;
+			return &Items[1901];
+		break;
+		case 0xdd5a:
+			if (outLength) *outLength = 2;
+			return &Items[1900];
+		break;
+		case 0xdd59:
+			if (outLength) *outLength = 2;
+			return &Items[1899];
+		break;
+		case 0xdd58:
+			if (outLength) *outLength = 2;
+			return &Items[1898];
+		break;
+		case 0xdd57:
+			if (outLength) *outLength = 2;
+			return &Items[1897];
+		break;
+		case 0xdd56:
+			if (outLength) *outLength = 2;
+			return &Items[1896];
+		break;
+		case 0xdd55:
+			if (outLength) *outLength = 2;
+			return &Items[1895];
+		break;
+		case 0xdd54:
+			if (outLength) *outLength = 2;
+			return &Items[1894];
+		break;
+		case 0xdd53:
+			if (outLength) *outLength = 2;
+			return &Items[1893];
+		break;
+		case 0xdd52:
+			if (outLength) *outLength = 2;
+			return &Items[1892];
+		break;
+		case 0xdd51:
+			if (outLength) *outLength = 2;
+			return &Items[1891];
+		break;
+		case 0xdd50:
+			if (outLength) *outLength = 2;
+			return &Items[1890];
+		break;
+		case 0xdd4e:
+			if (outLength) *outLength = 2;
+			return &Items[1666];
+		break;
+		case 0xdd4d:
+			if (outLength) *outLength = 2;
+			return &Items[1447];
+		break;
+		case 0xdd4c:
+			if (outLength) *outLength = 2;
+			return &Items[1446];
+		break;
+		case 0xdd4b:
+			if (outLength) *outLength = 2;
+			return &Items[1448];
+		break;
+		case 0xdd4a:
+			if (outLength) *outLength = 2;
+			return &Items[976];
+		break;
+		case 0xdd49:
+			if (outLength) *outLength = 2;
+			return &Items[1662];
+		break;
+		case 0xdd3d:
+			if (outLength) *outLength = 2;
+			return &Items[1809];
+		break;
+		case 0xdd3c:
+			if (outLength) *outLength = 2;
+			return &Items[1808];
+		break;
+		case 0xdd3b:
+			if (outLength) *outLength = 2;
+			return &Items[1856];
+		break;
+		case 0xdd3a:
+			if (outLength) *outLength = 2;
+			return &Items[1855];
+		break;
+		case 0xdd39:
+			if (outLength) *outLength = 2;
+			return &Items[1858];
+		break;
+		case 0xdd38:
+			if (outLength) *outLength = 2;
+			return &Items[1857];
+		break;
+		case 0xdd37:
+			if (outLength) *outLength = 2;
+			return &Items[1860];
+		break;
+		case 0xdd36:
+			if (outLength) *outLength = 2;
+			return &Items[1859];
+		break;
+		case 0xdd35:
+			if (outLength) *outLength = 2;
+			return &Items[1854];
+		break;
+		case 0xdd34:
+			if (outLength) *outLength = 2;
+			return &Items[1853];
+		break;
+		case 0xdd33:
+			if (outLength) *outLength = 2;
+			return &Items[1861];
+		break;
+		case 0xdd32:
+			if (outLength) *outLength = 2;
+			return &Items[1862];
+		break;
+		case 0xdd31:
+			if (outLength) *outLength = 2;
+			return &Items[1738];
+		break;
+		case 0xdd30:
+			if (outLength) *outLength = 2;
+			return &Items[1740];
+		break;
+		case 0xdd2f:
+			if (outLength) *outLength = 2;
+			return &Items[1665];
+		break;
+		case 0xdd2e:
+			if (outLength) *outLength = 2;
+			return &Items[1537];
+		break;
+		case 0xdd2d:
+			if (outLength) *outLength = 2;
+			return &Items[1541];
+		break;
+		case 0xdd2c:
+			if (outLength) *outLength = 2;
+			return &Items[1542];
+		break;
+		case 0xdd2b:
+			if (outLength) *outLength = 2;
+			return &Items[1527];
+		break;
+		case 0xdd2a:
+			if (outLength) *outLength = 2;
+			return &Items[1529];
+		break;
+		case 0xdd29:
+			if (outLength) *outLength = 2;
+			return &Items[1524];
+		break;
+		case 0xdd28:
+			if (outLength) *outLength = 2;
+			return &Items[1520];
+		break;
+		case 0xdd27:
+			if (outLength) *outLength = 2;
+			return &Items[1519];
+		break;
+		case 0xdd26:
+			if (outLength) *outLength = 2;
+			return &Items[1506];
+		break;
+		case 0xdd25:
+			if (outLength) *outLength = 2;
+			return &Items[1030];
+		break;
+		case 0xdd24:
+			if (outLength) *outLength = 2;
+			return &Items[1773];
+		break;
+		case 0xdd23:
+			if (outLength) *outLength = 2;
+			return &Items[1771];
+		break;
+		case 0xdd22:
+			if (outLength) *outLength = 2;
+			return &Items[1793];
+		break;
+		case 0xdd21:
+			if (outLength) *outLength = 2;
+			return &Items[1774];
+		break;
+		case 0xdd20:
+			if (outLength) *outLength = 2;
+			return &Items[1775];
+		break;
+		case 0xdd1f:
+			if (outLength) *outLength = 2;
+			return &Items[1792];
+		break;
+		case 0xdd1e:
+			if (outLength) *outLength = 2;
+			return &Items[1724];
+		break;
+		case 0xdd1d:
+			if (outLength) *outLength = 2;
+			return &Items[1846];
+		break;
+		case 0xdd1c:
+			if (outLength) *outLength = 2;
+			return &Items[1847];
+		break;
+		case 0xdd1b:
+			if (outLength) *outLength = 2;
+			return &Items[1845];
+		break;
+		case 0xdd1a:
+			if (outLength) *outLength = 2;
+			return &Items[1843];
+		break;
+		case 0xdd19:
+			if (outLength) *outLength = 2;
+			return &Items[1844];
+		break;
+		case 0xdd18:
+			if (outLength) *outLength = 2;
+			return &Items[1850];
+		break;
+		case 0xdd17:
+			if (outLength) *outLength = 2;
+			return &Items[1622];
+		break;
+		case 0xdd16:
+			if (outLength) *outLength = 2;
+			return &Items[1621];
+		break;
+		case 0xdd15:
+			if (outLength) *outLength = 2;
+			return &Items[1876];
+		break;
+		case 0xdd14:
+			if (outLength) *outLength = 2;
+			return &Items[1875];
+		break;
+		case 0xdd13:
+			if (outLength) *outLength = 2;
+			return &Items[1642];
+		break;
+		case 0xdd12:
+			if (outLength) *outLength = 2;
+			return &Items[1641];
+		break;
+		case 0xdd11:
+			if (outLength) *outLength = 2;
+			return &Items[1558];
+		break;
+		case 0xdd10:
+			if (outLength) *outLength = 2;
+			return &Items[1640];
+		break;
+		case 0xdd0f:
+			if (outLength) *outLength = 2;
+			return &Items[1639];
+		break;
+		case 0xdd0e:
+			if (outLength) *outLength = 2;
+			return &Items[1638];
+		break;
+		case 0xdd0d:
+			if (outLength) *outLength = 2;
+			return &Items[1637];
+		break;
+		case 0xdd0c:
+			if (outLength) *outLength = 2;
+			return &Items[1504];
+		break;
+		case 0xdd0b:
+			if (outLength) *outLength = 2;
+			return &Items[1503];
+		break;
+		case 0xdd0a:
+			if (outLength) *outLength = 2;
+			return &Items[1874];
+		break;
+		case 0xdd09:
+			if (outLength) *outLength = 2;
+			return &Items[1873];
+		break;
+		case 0xdd08:
+			if (outLength) *outLength = 2;
+			return &Items[1871];
+		break;
+		case 0xdd07:
+			if (outLength) *outLength = 2;
+			return &Items[1872];
+		break;
+		case 0xdd06:
+			if (outLength) *outLength = 2;
+			return &Items[1734];
+		break;
+		case 0xdd05:
+			if (outLength) *outLength = 2;
+			return &Items[1733];
+		break;
+		case 0xdd04:
+			if (outLength) *outLength = 2;
+			return &Items[1827];
+		break;
+		case 0xdd03:
+			if (outLength) *outLength = 2;
+			return &Items[1828];
+		break;
+		case 0xdd02:
+			if (outLength) *outLength = 2;
+			return &Items[1826];
+		break;
+		case 0xdd01:
+			if (outLength) *outLength = 2;
+			return &Items[1825];
+		break;
+		case 0xdd00:
+			if (outLength) *outLength = 2;
+			return &Items[1824];
+		break;
+		case 0xdcff:
+			if (outLength) *outLength = 2;
+			return &Items[1538];
+		break;
+		case 0xdcfd:
+			if (outLength) *outLength = 2;
+			return &Items[1485];
+		break;
+		case 0xdcfc:
+			if (outLength) *outLength = 2;
+			return &Items[1480];
+		break;
+		case 0xdcfb:
+			if (outLength) *outLength = 2;
+			return &Items[1492];
+		break;
+		case 0xdcfa:
+			if (outLength) *outLength = 2;
+			return &Items[1491];
+		break;
+		case 0xdcf9:
+			if (outLength) *outLength = 2;
+			return &Items[1483];
+		break;
+		case 0xdcf8:
+			if (outLength) *outLength = 2;
+			return &Items[1482];
+		break;
+		case 0xdcf7:
+			if (outLength) *outLength = 2;
+			return &Items[1481];
+		break;
+		case 0xdcf6:
+			if (outLength) *outLength = 2;
+			return &Items[1769];
+		break;
+		case 0xdcf5:
+			if (outLength) *outLength = 2;
+			return &Items[1725];
+		break;
+		case 0xdcf4:
+			if (outLength) *outLength = 2;
+			return &Items[1688];
+		break;
+		case 0xdcf3:
+			if (outLength) *outLength = 2;
+			return &Items[1689];
+		break;
+		case 0xdcf2:
+			if (outLength) *outLength = 2;
+			return &Items[1467];
+		break;
+		case 0xdcf1:
+			if (outLength) *outLength = 2;
+			return &Items[1466];
+		break;
+		case 0xdcf0:
+			if (outLength) *outLength = 2;
+			return &Items[1611];
+		break;
+		case 0xdcef:
+			if (outLength) *outLength = 2;
+			return &Items[1590];
+		break;
+		case 0xdcee:
+			if (outLength) *outLength = 2;
+			return &Items[1589];
+		break;
+		case 0xdced:
+			if (outLength) *outLength = 2;
+			return &Items[1588];
+		break;
+		case 0xdcec:
+			if (outLength) *outLength = 2;
+			return &Items[1587];
+		break;
+		case 0xdceb:
+			if (outLength) *outLength = 2;
+			return &Items[1586];
+		break;
+		case 0xdcea:
+			if (outLength) *outLength = 2;
+			return &Items[1585];
+		break;
+		case 0xdce9:
+			if (outLength) *outLength = 2;
+			return &Items[1577];
+		break;
+		case 0xdce8:
+			if (outLength) *outLength = 2;
+			return &Items[1578];
+		break;
+		case 0xdce7:
+			if (outLength) *outLength = 2;
+			return &Items[1579];
+		break;
+		case 0xdce6:
+			if (outLength) *outLength = 2;
+			return &Items[1583];
+		break;
+		case 0xdce5:
+			if (outLength) *outLength = 2;
+			return &Items[1581];
+		break;
+		case 0xdce4:
+			if (outLength) *outLength = 2;
+			return &Items[1582];
+		break;
+		case 0xdce3:
+			if (outLength) *outLength = 2;
+			return &Items[1877];
+		break;
+		case 0xdce2:
+			if (outLength) *outLength = 2;
+			return &Items[1878];
+		break;
+		case 0xdce1:
+			if (outLength) *outLength = 2;
+			return &Items[1502];
+		break;
+		case 0xdce0:
+			if (outLength) *outLength = 2;
+			return &Items[1490];
+		break;
+		case 0xdcdf:
+			if (outLength) *outLength = 2;
+			return &Items[1489];
+		break;
+		case 0xdcde:
+			if (outLength) *outLength = 2;
+			return &Items[1487];
+		break;
+		case 0xdcdd:
+			if (outLength) *outLength = 2;
+			return &Items[1635];
+		break;
+		case 0xdcdc:
+			if (outLength) *outLength = 2;
+			return &Items[1591];
+		break;
+		case 0xdcdb:
+			if (outLength) *outLength = 2;
+			return &Items[1715];
+		break;
+		case 0xdcda:
+			if (outLength) *outLength = 2;
+			return &Items[1619];
+		break;
+		case 0xdcd9:
+			if (outLength) *outLength = 2;
+			return &Items[1618];
+		break;
+		case 0xdcd8:
+			if (outLength) *outLength = 2;
+			return &Items[1617];
+		break;
+		case 0xdcd7:
+			if (outLength) *outLength = 2;
+			return &Items[1616];
+		break;
+		case 0xdcd6:
+			if (outLength) *outLength = 2;
+			return &Items[1620];
+		break;
+		case 0xdcd5:
+			if (outLength) *outLength = 2;
+			return &Items[1615];
+		break;
+		case 0xdcd4:
+			if (outLength) *outLength = 2;
+			return &Items[1613];
+		break;
+		case 0xdcd3:
+			if (outLength) *outLength = 2;
+			return &Items[1612];
+		break;
+		case 0xdcd2:
+			if (outLength) *outLength = 2;
+			return &Items[1614];
+		break;
+		case 0xdcd1:
+			if (outLength) *outLength = 2;
+			return &Items[1594];
+		break;
+		case 0xdcd0:
+			if (outLength) *outLength = 2;
+			return &Items[1625];
+		break;
+		case 0xdccf:
+			if (outLength) *outLength = 2;
+			return &Items[1626];
+		break;
+		case 0xdcce:
+			if (outLength) *outLength = 2;
+			return &Items[1623];
+		break;
+		case 0xdccd:
+			if (outLength) *outLength = 2;
+			return &Items[1628];
+		break;
+		case 0xdccc:
+			if (outLength) *outLength = 2;
+			return &Items[1627];
+		break;
+		case 0xdccb:
+			if (outLength) *outLength = 2;
+			return &Items[1606];
+		break;
+		case 0xdcca:
+			if (outLength) *outLength = 2;
+			return &Items[1595];
+		break;
+		case 0xdcc9:
+			if (outLength) *outLength = 2;
+			return &Items[1597];
+		break;
+		case 0xdcc8:
+			if (outLength) *outLength = 2;
+			return &Items[1596];
+		break;
+		case 0xdcc7:
+			if (outLength) *outLength = 2;
+			return &Items[1602];
+		break;
+		case 0xdcc6:
+			if (outLength) *outLength = 2;
+			return &Items[1600];
+		break;
+		case 0xdcc5:
+			if (outLength) *outLength = 2;
+			return &Items[1601];
+		break;
+		case 0xdcc4:
+			if (outLength) *outLength = 2;
+			return &Items[1593];
+		break;
+		case 0xdcc3:
+			if (outLength) *outLength = 2;
+			return &Items[1592];
+		break;
+		case 0xdcc2:
+			if (outLength) *outLength = 2;
+			return &Items[1608];
+		break;
+		case 0xdcc1:
+			if (outLength) *outLength = 2;
+			return &Items[1607];
+		break;
+		case 0xdcc0:
+			if (outLength) *outLength = 2;
+			return &Items[1479];
+		break;
+		case 0xdcbf:
+			if (outLength) *outLength = 2;
+			return &Items[1478];
+		break;
+		case 0xdcbe:
+			if (outLength) *outLength = 2;
+			return &Items[1477];
+		break;
+		case 0xdcbd:
+			if (outLength) *outLength = 2;
+			return &Items[1476];
+		break;
+		case 0xdcbc:
+			if (outLength) *outLength = 2;
+			return &Items[891];
+		break;
+		case 0xdcbb:
+			if (outLength) *outLength = 2;
+			return &Items[1468];
+		break;
+		case 0xdcba:
+			if (outLength) *outLength = 2;
+			return &Items[1390];
+		break;
+		case 0xdcb9:
+			if (outLength) *outLength = 2;
+			return &Items[1744];
+		break;
+		case 0xdcb8:
+			if (outLength) *outLength = 2;
+			return &Items[1510];
+		break;
+		case 0xdcb7:
+			if (outLength) *outLength = 2;
+			return &Items[1514];
+		break;
+		case 0xdcb6:
+			if (outLength) *outLength = 2;
+			return &Items[1513];
+		break;
+		case 0xdcb5:
+			if (outLength) *outLength = 2;
+			return &Items[1511];
+		break;
+		case 0xdcb4:
+			if (outLength) *outLength = 2;
+			return &Items[1512];
+		break;
+		case 0xdcb3:
+			if (outLength) *outLength = 2;
+			return &Items[1516];
+		break;
+		case 0xdcb2:
+			if (outLength) *outLength = 2;
+			return &Items[1835];
+		break;
+		case 0xdcb1:
+			if (outLength) *outLength = 2;
+			return &Items[1836];
+		break;
+		case 0xdcb0:
+			if (outLength) *outLength = 2;
+			return &Items[1515];
+		break;
+		case 0xdcaf:
+			if (outLength) *outLength = 2;
+			return &Items[1717];
+		break;
+		case 0xdcae:
+			if (outLength) *outLength = 2;
+			return &Items[1697];
+		break;
+		case 0xdcad:
+			if (outLength) *outLength = 2;
+			return &Items[1881];
+		break;
+		case 0xdcac:
+			if (outLength) *outLength = 2;
+			return &Items[1880];
+		break;
+		case 0xdcab:
+			if (outLength) *outLength = 2;
+			return &Items[1025];
+		break;
+		case 0xdcaa:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[252];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[251];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[250];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[249];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[248];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[247];
+		break;
+		case 0xdca9:
+			if (outLength) *outLength = 2;
+			return &Items[79];
+		break;
+		case 0xdca8:
+			if (outLength) *outLength = 2;
+			return &Items[1048];
+		break;
+		case 0xdca7:
+			if (outLength) *outLength = 2;
+			return &Items[1052];
+		break;
+		case 0xdca6:
+			if (outLength) *outLength = 2;
+			return &Items[1053];
+		break;
+		case 0xdca5:
+			if (outLength) *outLength = 2;
+			return &Items[1031];
+		break;
+		case 0xdca4:
+			if (outLength) *outLength = 2;
+			return &Items[1752];
+		break;
+		case 0xdca3:
+			if (outLength) *outLength = 2;
+			return &Items[1528];
+		break;
+		case 0xdca2:
+			if (outLength) *outLength = 2;
+			return &Items[1718];
+		break;
+		case 0xdca1:
+			if (outLength) *outLength = 2;
+			return &Items[1505];
+		break;
+		case 0xdca0:
+			if (outLength) *outLength = 2;
+			return &Items[1749];
+		break;
+		case 0xdc9f:
+			if (outLength) *outLength = 2;
+			return &Items[1658];
+		break;
+		case 0xdc9e:
+			if (outLength) *outLength = 2;
+			return &Items[1652];
+		break;
+		case 0xdc9d:
+			if (outLength) *outLength = 2;
+			return &Items[1657];
+		break;
+		case 0xdc9c:
+			if (outLength) *outLength = 2;
+			return &Items[1647];
+		break;
+		case 0xdc9b:
+			if (outLength) *outLength = 2;
+			return &Items[1644];
+		break;
+		case 0xdc9a:
+			if (outLength) *outLength = 2;
+			return &Items[1645];
+		break;
+		case 0xdc99:
+			if (outLength) *outLength = 2;
+			return &Items[1646];
+		break;
+		case 0xdc98:
+			if (outLength) *outLength = 2;
+			return &Items[1656];
+		break;
+		case 0xdc97:
+			if (outLength) *outLength = 2;
+			return &Items[1654];
+		break;
+		case 0xdc96:
+			if (outLength) *outLength = 2;
+			return &Items[1655];
+		break;
+		case 0xdc95:
+			if (outLength) *outLength = 2;
+			return &Items[1651];
+		break;
+		case 0xdc94:
+			if (outLength) *outLength = 2;
+			return &Items[1649];
+		break;
+		case 0xdc93:
+			if (outLength) *outLength = 2;
+			return &Items[1653];
+		break;
+		case 0xdc92:
+			if (outLength) *outLength = 2;
+			return &Items[1443];
+		break;
+		case 0xdc91:
+			if (outLength) *outLength = 2;
+			return &Items[839];
+		break;
+		case 0xdc90:
+			if (outLength) *outLength = 2;
+			return &Items[1000];
+		break;
+		case 0xdc8f:
+			if (outLength) *outLength = 2;
+			return &Items[842];
+		break;
+		case 0xdc8e:
+			if (outLength) *outLength = 2;
+			return &Items[1517];
+		break;
+		case 0xdc8d:
+			if (outLength) *outLength = 2;
+			return &Items[277];
+		break;
+		case 0xdc8c:
+			if (outLength) *outLength = 2;
+			return &Items[1580];
+		break;
+		case 0xdc8b:
+			if (outLength) *outLength = 2;
+			return &Items[279];
+		break;
+		case 0xdc8a:
+			if (outLength) *outLength = 2;
+			return &Items[1544];
+		break;
+		case 0xdc89:
+			if (outLength) *outLength = 2;
+			return &Items[1545];
+		break;
+		case 0xdc88:
+			if (outLength) *outLength = 2;
+			return &Items[1539];
+		break;
+		case 0xdc87:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[779];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[773];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[778];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[772];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[777];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[771];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[776];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[770];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[775];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[769];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[774];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[768];
+		break;
+		case 0xdc86:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[791];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[785];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[790];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[784];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[789];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[783];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[788];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[782];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[787];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[781];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[786];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[780];
+		break;
+		case 0xdc85:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[276];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[275];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[274];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[273];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[272];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[271];
+		break;
+		case 0xdc84:
+			if (outLength) *outLength = 2;
+			return &Items[278];
+		break;
+		case 0xdc83:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[803];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[802];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[801];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[800];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[799];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[798];
+		break;
+		case 0xdc82:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[401];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[407];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[400];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[406];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[399];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[405];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[398];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[404];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[397];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[403];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[396];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[402];
+		break;
+		case 0xdc81:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[683];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[677];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[682];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[676];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[681];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[675];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[680];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[674];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[679];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[673];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[678];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[672];
+		break;
+		case 0xdc80:
+			if (outLength) *outLength = 2;
+			return &Items[81];
+		break;
+		case 0xdc7f:
+			if (outLength) *outLength = 2;
+			return &Items[76];
+		break;
+		case 0xdc7e:
+			if (outLength) *outLength = 2;
+			return &Items[84];
+		break;
+		case 0xdc7d:
+			if (outLength) *outLength = 2;
+			return &Items[83];
+		break;
+		case 0xdc7c:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[653];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[652];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[651];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[650];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[649];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[648];
+		break;
+		case 0xdc7b:
+			if (outLength) *outLength = 2;
+			return &Items[80];
+		break;
+		case 0xdc7a:
+			if (outLength) *outLength = 2;
+			return &Items[78];
+		break;
+		case 0xdc79:
+			if (outLength) *outLength = 2;
+			return &Items[77];
+		break;
+		case 0xdc78:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[629];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[628];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[627];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[626];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[625];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[624];
+		break;
+		case 0xdc77:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[389];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[395];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[388];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[394];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[387];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[393];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[386];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[392];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[385];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[391];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[384];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[390];
+		break;
+		case 0xdc76:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[305];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[304];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[303];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[302];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[301];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[300];
+		break;
+		case 0xdc75:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[353];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[352];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[351];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[350];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[349];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[348];
+		break;
+		case 0xdc74:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[347];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[346];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[345];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[344];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[343];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[342];
+		break;
+		case 0xdc73:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[365];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[371];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[364];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[370];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[363];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[369];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[362];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[368];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[361];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[367];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[360];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[366];
+		break;
+		case 0xdc72:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[359];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[358];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[357];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[356];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[355];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[354];
+		break;
+		case 0xdc71:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[335];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[341];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[334];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[340];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[333];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[339];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[332];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[338];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[331];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[337];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[330];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[336];
+		break;
+		case 0xdc70:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[641];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[640];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[639];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[638];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[637];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[636];
+		break;
+		case 0xdc6f:
+			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
+				if (outLength) *outLength = 5;
+				return &Items[811];
+			}
+			if (outLength) *outLength = 2;
+			return &Items[810];
+		break;
+		case 0xdc6e:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[377];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[383];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[376];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[382];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[375];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[381];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[374];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[380];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[373];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[379];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[372];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[378];
+		break;
+		case 0xdc6d:
+			if (outLength) *outLength = 2;
+			return &Items[837];
+		break;
+		case 0xdc6c:
+			if (outLength) *outLength = 2;
+			return &Items[838];
+		break;
+		case 0xdc6b:
+			if (outLength) *outLength = 2;
+			return &Items[836];
+		break;
+		case 0xdc6a:
+			if (outLength) *outLength = 2;
+			return &Items[845];
+		break;
+		case 0xdc69:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[569];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[593];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[545];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[533];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[521];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[509];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[497];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[485];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[557];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[473];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[461];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[449];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[437];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[581];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[605];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[425];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[329];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[568];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[592];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[544];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[532];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[520];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[508];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[496];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[484];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[556];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[472];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[460];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[448];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[436];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[580];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[604];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[424];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[328];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[567];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[591];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[543];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[531];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[519];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[507];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[495];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[483];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[555];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[471];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[459];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[447];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[435];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[579];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[603];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[423];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[327];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[566];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[590];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[542];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[530];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[518];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[506];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[494];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[482];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[554];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[470];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[458];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[446];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[434];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[578];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[602];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[422];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[326];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[565];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[589];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[541];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[529];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[517];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[505];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[493];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[481];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[553];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[469];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[457];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[445];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[433];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[577];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[601];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[421];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[325];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end) switch ((ch + 3)->unicode()) {
+				case 0xd83d:
+					switch ((ch + 4)->unicode()) {
+					case 0xde92:
+						if (outLength) *outLength = 5;
+						return &Items[564];
+					break;
+					case 0xde80:
+						if (outLength) *outLength = 5;
+						return &Items[588];
+					break;
+					case 0xdd2c:
+						if (outLength) *outLength = 5;
+						return &Items[540];
+					break;
+					case 0xdd27:
+						if (outLength) *outLength = 5;
+						return &Items[528];
+					break;
+					case 0xdcbc:
+						if (outLength) *outLength = 5;
+						return &Items[516];
+					break;
+					case 0xdcbb:
+						if (outLength) *outLength = 5;
+						return &Items[504];
+					break;
+					case 0xdc69:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+							switch ((ch + 7)->unicode()) {
+							case 0xdc67:
+								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d) {
+									switch ((ch + 10)->unicode()) {
+									case 0xdc67:
+										if (outLength) *outLength = 11;
+										return &Items[854];
+									break;
+									case 0xdc66:
+										if (outLength) *outLength = 11;
+										return &Items[852];
+									break;
+									}
+								}
+								if (outLength) *outLength = 8;
+								return &Items[851];
+							break;
+							case 0xdc66:
+								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc66) {
+									if (outLength) *outLength = 11;
+									return &Items[853];
+								}
+								if (outLength) *outLength = 8;
+								return &Items[850];
+							break;
+							}
+						}
+					break;
+					case 0xdc67:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+							switch ((ch + 7)->unicode()) {
+							case 0xdc67:
+								if (outLength) *outLength = 8;
+								return &Items[864];
+							break;
+							case 0xdc66:
+								if (outLength) *outLength = 8;
+								return &Items[862];
+							break;
+							}
+						}
+						if (outLength) *outLength = 5;
+						return &Items[861];
+					break;
+					case 0xdc66:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d && (ch + 7)->unicode() == 0xdc66) {
+							if (outLength) *outLength = 8;
+							return &Items[863];
+						}
+						if (outLength) *outLength = 5;
+						return &Items[860];
+					break;
+					}
+				break;
+				case 0xd83c:
+					switch ((ch + 4)->unicode()) {
+					case 0xdfed:
+						if (outLength) *outLength = 5;
+						return &Items[492];
+					break;
+					case 0xdfeb:
+						if (outLength) *outLength = 5;
+						return &Items[480];
+					break;
+					case 0xdfa8:
+						if (outLength) *outLength = 5;
+						return &Items[552];
+					break;
+					case 0xdfa4:
+						if (outLength) *outLength = 5;
+						return &Items[468];
+					break;
+					case 0xdf93:
+						if (outLength) *outLength = 5;
+						return &Items[456];
+					break;
+					case 0xdf73:
+						if (outLength) *outLength = 5;
+						return &Items[444];
+					break;
+					case 0xdf3e:
+						if (outLength) *outLength = 5;
+						return &Items[432];
+					break;
+					}
+				break;
+				case 0x2764:
+					if (ch + 7 < end && (ch + 4)->unicode() == 0xfe0f && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+						switch ((ch + 7)->unicode()) {
+						case 0xdc8b:
+							if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc69) {
+								if (outLength) *outLength = 11;
+								return &Items[843];
+							}
+						break;
+						case 0xdc69:
+							if (outLength) *outLength = 8;
+							return &Items[840];
+						break;
+						}
+					}
+				break;
+				case 0x2708:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[576];
+					}
+				break;
+				case 0x2696:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[600];
+					}
+				break;
+				case 0x2695:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[420];
+					}
+				break;
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[324];
+		break;
+		case 0xdc68:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[575];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[599];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[551];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[539];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[527];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[515];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[503];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[491];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[563];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[479];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[467];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[455];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[443];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[587];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[611];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[431];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[323];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[574];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[598];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[550];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[538];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[526];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[514];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[502];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[490];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[562];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[478];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[466];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[454];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[442];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[586];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[610];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[430];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[322];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[573];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[597];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[549];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[537];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[525];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[513];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[501];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[489];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[561];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[477];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[465];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[453];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[441];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[585];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[609];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[429];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[321];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[572];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[596];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[548];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[536];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[524];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[512];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[500];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[488];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[560];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[476];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[464];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[452];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[440];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[584];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[608];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[428];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[320];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
+						switch ((ch + 5)->unicode()) {
+						case 0xd83d:
+							switch ((ch + 6)->unicode()) {
+							case 0xde92:
+								if (outLength) *outLength = 7;
+								return &Items[571];
+							break;
+							case 0xde80:
+								if (outLength) *outLength = 7;
+								return &Items[595];
+							break;
+							case 0xdd2c:
+								if (outLength) *outLength = 7;
+								return &Items[547];
+							break;
+							case 0xdd27:
+								if (outLength) *outLength = 7;
+								return &Items[535];
+							break;
+							case 0xdcbc:
+								if (outLength) *outLength = 7;
+								return &Items[523];
+							break;
+							case 0xdcbb:
+								if (outLength) *outLength = 7;
+								return &Items[511];
+							break;
+							}
+						break;
+						case 0xd83c:
+							switch ((ch + 6)->unicode()) {
+							case 0xdfed:
+								if (outLength) *outLength = 7;
+								return &Items[499];
+							break;
+							case 0xdfeb:
+								if (outLength) *outLength = 7;
+								return &Items[487];
+							break;
+							case 0xdfa8:
+								if (outLength) *outLength = 7;
+								return &Items[559];
+							break;
+							case 0xdfa4:
+								if (outLength) *outLength = 7;
+								return &Items[475];
+							break;
+							case 0xdf93:
+								if (outLength) *outLength = 7;
+								return &Items[463];
+							break;
+							case 0xdf73:
+								if (outLength) *outLength = 7;
+								return &Items[451];
+							break;
+							case 0xdf3e:
+								if (outLength) *outLength = 7;
+								return &Items[439];
+							break;
+							}
+						break;
+						case 0x2708:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[583];
+							}
+						break;
+						case 0x2696:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[607];
+							}
+						break;
+						case 0x2695:
+							if ((ch + 6)->unicode() == 0xfe0f) {
+								if (outLength) *outLength = 7;
+								return &Items[427];
+							}
+						break;
+						}
+					}
+					if (outLength) *outLength = 4;
+					return &Items[319];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end) switch ((ch + 3)->unicode()) {
+				case 0xd83d:
+					switch ((ch + 4)->unicode()) {
+					case 0xde92:
+						if (outLength) *outLength = 5;
+						return &Items[570];
+					break;
+					case 0xde80:
+						if (outLength) *outLength = 5;
+						return &Items[594];
+					break;
+					case 0xdd2c:
+						if (outLength) *outLength = 5;
+						return &Items[546];
+					break;
+					case 0xdd27:
+						if (outLength) *outLength = 5;
+						return &Items[534];
+					break;
+					case 0xdcbc:
+						if (outLength) *outLength = 5;
+						return &Items[522];
+					break;
+					case 0xdcbb:
+						if (outLength) *outLength = 5;
+						return &Items[510];
+					break;
+					case 0xdc69:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+							switch ((ch + 7)->unicode()) {
+							case 0xdc67:
+								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d) {
+									switch ((ch + 10)->unicode()) {
+									case 0xdc67:
+										if (outLength) *outLength = 11;
+										return &Items[849];
+									break;
+									case 0xdc66:
+										if (outLength) *outLength = 11;
+										return &Items[847];
+									break;
+									}
+								}
+								if (outLength) *outLength = 8;
+								return &Items[846];
+							break;
+							case 0xdc66:
+								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc66) {
+									if (outLength) *outLength = 11;
+									return &Items[848];
+								}
+							break;
+							}
+						}
+					break;
+					case 0xdc68:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+							switch ((ch + 7)->unicode()) {
+							case 0xdc67:
+								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d) {
+									switch ((ch + 10)->unicode()) {
+									case 0xdc67:
+										if (outLength) *outLength = 11;
+										return &Items[859];
+									break;
+									case 0xdc66:
+										if (outLength) *outLength = 11;
+										return &Items[857];
+									break;
+									}
+								}
+								if (outLength) *outLength = 8;
+								return &Items[856];
+							break;
+							case 0xdc66:
+								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc66) {
+									if (outLength) *outLength = 11;
+									return &Items[858];
+								}
+								if (outLength) *outLength = 8;
+								return &Items[855];
+							break;
+							}
+						}
+					break;
+					case 0xdc67:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+							switch ((ch + 7)->unicode()) {
+							case 0xdc67:
+								if (outLength) *outLength = 8;
+								return &Items[869];
+							break;
+							case 0xdc66:
+								if (outLength) *outLength = 8;
+								return &Items[867];
+							break;
+							}
+						}
+						if (outLength) *outLength = 5;
+						return &Items[866];
+					break;
+					case 0xdc66:
+						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d && (ch + 7)->unicode() == 0xdc66) {
+							if (outLength) *outLength = 8;
+							return &Items[868];
+						}
+						if (outLength) *outLength = 5;
+						return &Items[865];
+					break;
+					}
+				break;
+				case 0xd83c:
+					switch ((ch + 4)->unicode()) {
+					case 0xdfed:
+						if (outLength) *outLength = 5;
+						return &Items[498];
+					break;
+					case 0xdfeb:
+						if (outLength) *outLength = 5;
+						return &Items[486];
+					break;
+					case 0xdfa8:
+						if (outLength) *outLength = 5;
+						return &Items[558];
+					break;
+					case 0xdfa4:
+						if (outLength) *outLength = 5;
+						return &Items[474];
+					break;
+					case 0xdf93:
+						if (outLength) *outLength = 5;
+						return &Items[462];
+					break;
+					case 0xdf73:
+						if (outLength) *outLength = 5;
+						return &Items[450];
+					break;
+					case 0xdf3e:
+						if (outLength) *outLength = 5;
+						return &Items[438];
+					break;
+					}
+				break;
+				case 0x2764:
+					if (ch + 7 < end && (ch + 4)->unicode() == 0xfe0f && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
+						switch ((ch + 7)->unicode()) {
+						case 0xdc8b:
+							if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc68) {
+								if (outLength) *outLength = 11;
+								return &Items[844];
+							}
+						break;
+						case 0xdc68:
+							if (outLength) *outLength = 8;
+							return &Items[841];
+						break;
+						}
+					}
+				break;
+				case 0x2708:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[582];
+					}
+				break;
+				case 0x2696:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[606];
+					}
+				break;
+				case 0x2695:
+					if ((ch + 4)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 5;
+						return &Items[426];
+					}
+				break;
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[318];
+		break;
+		case 0xdc67:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[317];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[316];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[315];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[314];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[313];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[312];
+		break;
+		case 0xdc66:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[311];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[310];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[309];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[308];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[307];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[306];
+		break;
+		case 0xdc65:
+			if (outLength) *outLength = 2;
+			return &Items[299];
+		break;
+		case 0xdc64:
+			if (outLength) *outLength = 2;
+			return &Items[298];
+		break;
+		case 0xdc63:
+			if (outLength) *outLength = 2;
+			return &Items[294];
+		break;
+		case 0xdc62:
+			if (outLength) *outLength = 2;
+			return &Items[879];
+		break;
+		case 0xdc61:
+			if (outLength) *outLength = 2;
+			return &Items[878];
+		break;
+		case 0xdc60:
+			if (outLength) *outLength = 2;
+			return &Items[877];
+		break;
+		case 0xdc5f:
+			if (outLength) *outLength = 2;
+			return &Items[881];
+		break;
+		case 0xdc5e:
+			if (outLength) *outLength = 2;
+			return &Items[880];
+		break;
+		case 0xdc5d:
+			if (outLength) *outLength = 2;
+			return &Items[888];
+		break;
+		case 0xdc5c:
+			if (outLength) *outLength = 2;
+			return &Items[890];
+		break;
+		case 0xdc5b:
+			if (outLength) *outLength = 2;
+			return &Items[889];
+		break;
+		case 0xdc5a:
+			if (outLength) *outLength = 2;
+			return &Items[870];
+		break;
+		case 0xdc59:
+			if (outLength) *outLength = 2;
+			return &Items[875];
+		break;
+		case 0xdc58:
+			if (outLength) *outLength = 2;
+			return &Items[876];
+		break;
+		case 0xdc57:
+			if (outLength) *outLength = 2;
+			return &Items[874];
+		break;
+		case 0xdc56:
+			if (outLength) *outLength = 2;
+			return &Items[872];
+		break;
+		case 0xdc55:
+			if (outLength) *outLength = 2;
+			return &Items[871];
+		break;
+		case 0xdc54:
+			if (outLength) *outLength = 2;
+			return &Items[873];
+		break;
+		case 0xdc53:
+			if (outLength) *outLength = 2;
+			return &Items[892];
+		break;
+		case 0xdc52:
+			if (outLength) *outLength = 2;
+			return &Items[882];
+		break;
+		case 0xdc51:
+			if (outLength) *outLength = 2;
+			return &Items[885];
+		break;
+		case 0xdc50:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[101];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[100];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[99];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[98];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[97];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[96];
+		break;
+		case 0xdc4f:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[113];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[112];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[111];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[110];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[109];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[108];
+		break;
+		case 0xdc4e:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[132];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[131];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[130];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[129];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[128];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[127];
+		break;
+		case 0xdc4d:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[126];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[125];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[124];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[123];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[122];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[121];
+		break;
+		case 0xdc4c:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[180];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[179];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[178];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[177];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[176];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[175];
+		break;
+		case 0xdc4b:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[240];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[239];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[238];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[237];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[236];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[235];
+		break;
+		case 0xdc4a:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[138];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[137];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[136];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[135];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[134];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[133];
+		break;
+		case 0xdc49:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[192];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[191];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[190];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[189];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[188];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[187];
+		break;
+		case 0xdc48:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[186];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[185];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[184];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[183];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[182];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[181];
+		break;
+		case 0xdc47:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[204];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[203];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[202];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[201];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[200];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[199];
+		break;
+		case 0xdc46:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[198];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[197];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[196];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[195];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[194];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[193];
+		break;
+		case 0xdc45:
+			if (outLength) *outLength = 2;
+			return &Items[281];
+		break;
+		case 0xdc44:
+			if (outLength) *outLength = 2;
+			return &Items[280];
+		break;
+		case 0xdc43:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[293];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[292];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[291];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[290];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[289];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[288];
+		break;
+		case 0xdc42:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[287];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[286];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[285];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[284];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[283];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[282];
+		break;
+		case 0xdc41:
+			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d && (ch + 3)->unicode() == 0xd83d && (ch + 4)->unicode() == 0xdde8) {
+				if (outLength) *outLength = 5;
+				return &Items[1879];
+			}
+			if (outLength) *outLength = 2;
+			return &Items[295];
+		break;
+		case 0xdc40:
+			if (outLength) *outLength = 2;
+			return &Items[296];
+		break;
+		case 0xdc3f:
+			if (outLength) *outLength = 2;
+			return &Items[980];
+		break;
+		case 0xdc3e:
+			if (outLength) *outLength = 2;
+			return &Items[981];
+		break;
+		case 0xdc3d:
+			if (outLength) *outLength = 2;
+			return &Items[909];
+		break;
+		case 0xdc3c:
+			if (outLength) *outLength = 2;
+			return &Items[903];
+		break;
+		case 0xdc3b:
+			if (outLength) *outLength = 2;
+			return &Items[902];
+		break;
+		case 0xdc3a:
+			if (outLength) *outLength = 2;
+			return &Items[926];
+		break;
+		case 0xdc39:
+			if (outLength) *outLength = 2;
+			return &Items[899];
+		break;
+		case 0xdc38:
+			if (outLength) *outLength = 2;
+			return &Items[910];
+		break;
+		case 0xdc37:
+			if (outLength) *outLength = 2;
+			return &Items[908];
+		break;
+		case 0xdc36:
+			if (outLength) *outLength = 2;
+			return &Items[896];
+		break;
+		case 0xdc35:
+			if (outLength) *outLength = 2;
+			return &Items[911];
+		break;
+		case 0xdc34:
+			if (outLength) *outLength = 2;
+			return &Items[928];
+		break;
+		case 0xdc33:
+			if (outLength) *outLength = 2;
+			return &Items[952];
+		break;
+		case 0xdc32:
+			if (outLength) *outLength = 2;
+			return &Items[983];
+		break;
+		case 0xdc31:
+			if (outLength) *outLength = 2;
+			return &Items[897];
+		break;
+		case 0xdc30:
+			if (outLength) *outLength = 2;
+			return &Items[900];
+		break;
+		case 0xdc2f:
+			if (outLength) *outLength = 2;
+			return &Items[905];
+		break;
+		case 0xdc2e:
+			if (outLength) *outLength = 2;
+			return &Items[907];
+		break;
+		case 0xdc2d:
+			if (outLength) *outLength = 2;
+			return &Items[898];
+		break;
+		case 0xdc2c:
+			if (outLength) *outLength = 2;
+			return &Items[950];
+		break;
+		case 0xdc2b:
+			if (outLength) *outLength = 2;
+			return &Items[962];
+		break;
+		case 0xdc2a:
+			if (outLength) *outLength = 2;
+			return &Items[961];
+		break;
+		case 0xdc29:
+			if (outLength) *outLength = 2;
+			return &Items[972];
+		break;
+		case 0xdc28:
+			if (outLength) *outLength = 2;
+			return &Items[904];
+		break;
+		case 0xdc27:
+			if (outLength) *outLength = 2;
+			return &Items[917];
+		break;
+		case 0xdc26:
+			if (outLength) *outLength = 2;
+			return &Items[918];
+		break;
+		case 0xdc25:
+			if (outLength) *outLength = 2;
+			return &Items[921];
+		break;
+		case 0xdc24:
+			if (outLength) *outLength = 2;
+			return &Items[919];
+		break;
+		case 0xdc23:
+			if (outLength) *outLength = 2;
+			return &Items[920];
+		break;
+		case 0xdc22:
+			if (outLength) *outLength = 2;
+			return &Items[939];
+		break;
+		case 0xdc21:
+			if (outLength) *outLength = 2;
+			return &Items[949];
+		break;
+		case 0xdc20:
+			if (outLength) *outLength = 2;
+			return &Items[947];
+		break;
+		case 0xdc1f:
+			if (outLength) *outLength = 2;
+			return &Items[948];
+		break;
+		case 0xdc1e:
+			if (outLength) *outLength = 2;
+			return &Items[935];
+		break;
+		case 0xdc1d:
+			if (outLength) *outLength = 2;
+			return &Items[930];
+		break;
+		case 0xdc1c:
+			if (outLength) *outLength = 2;
+			return &Items[936];
+		break;
+		case 0xdc1b:
+			if (outLength) *outLength = 2;
+			return &Items[931];
+		break;
+		case 0xdc1a:
+			if (outLength) *outLength = 2;
+			return &Items[934];
+		break;
+		case 0xdc19:
+			if (outLength) *outLength = 2;
+			return &Items[945];
+		break;
+		case 0xdc18:
+			if (outLength) *outLength = 2;
+			return &Items[963];
+		break;
+		case 0xdc17:
+			if (outLength) *outLength = 2;
+			return &Items[927];
+		break;
+		case 0xdc16:
+			if (outLength) *outLength = 2;
+			return &Items[967];
+		break;
+		case 0xdc15:
+			if (outLength) *outLength = 2;
+			return &Items[971];
+		break;
+		case 0xdc14:
+			if (outLength) *outLength = 2;
+			return &Items[916];
+		break;
+		case 0xdc13:
+			if (outLength) *outLength = 2;
+			return &Items[974];
+		break;
+		case 0xdc12:
+			if (outLength) *outLength = 2;
+			return &Items[915];
+		break;
+		case 0xdc11:
+			if (outLength) *outLength = 2;
+			return &Items[970];
+		break;
+		case 0xdc10:
+			if (outLength) *outLength = 2;
+			return &Items[968];
+		break;
+		case 0xdc0f:
+			if (outLength) *outLength = 2;
+			return &Items[969];
+		break;
+		case 0xdc0e:
+			if (outLength) *outLength = 2;
+			return &Items[966];
+		break;
+		case 0xdc0d:
+			if (outLength) *outLength = 2;
+			return &Items[940];
+		break;
+		case 0xdc0c:
+			if (outLength) *outLength = 2;
+			return &Items[933];
+		break;
+		case 0xdc0b:
+			if (outLength) *outLength = 2;
+			return &Items[953];
+		break;
+		case 0xdc0a:
+			if (outLength) *outLength = 2;
+			return &Items[954];
+		break;
+		case 0xdc09:
+			if (outLength) *outLength = 2;
+			return &Items[982];
+		break;
+		case 0xdc08:
+			if (outLength) *outLength = 2;
+			return &Items[973];
+		break;
+		case 0xdc07:
+			if (outLength) *outLength = 2;
+			return &Items[977];
+		break;
+		case 0xdc06:
+			if (outLength) *outLength = 2;
+			return &Items[955];
+		break;
+		case 0xdc05:
+			if (outLength) *outLength = 2;
+			return &Items[956];
+		break;
+		case 0xdc04:
+			if (outLength) *outLength = 2;
+			return &Items[959];
+		break;
+		case 0xdc03:
+			if (outLength) *outLength = 2;
+			return &Items[957];
+		break;
+		case 0xdc02:
+			if (outLength) *outLength = 2;
+			return &Items[958];
+		break;
+		case 0xdc01:
+			if (outLength) *outLength = 2;
+			return &Items[978];
+		break;
+		case 0xdc00:
+			if (outLength) *outLength = 2;
+			return &Items[979];
+		break;
+		}
+	break;
+	case 0xd83c:
+		if (ch + 1 != end) switch ((ch + 1)->unicode()) {
+		case 0xdffa:
+			if (outLength) *outLength = 2;
+			return &Items[1536];
+		break;
+		case 0xdff9:
+			if (outLength) *outLength = 2;
+			return &Items[1156];
+		break;
+		case 0xdff8:
+			if (outLength) *outLength = 2;
+			return &Items[1150];
+		break;
+		case 0xdff7:
+			if (outLength) *outLength = 2;
+			return &Items[1584];
+		break;
+		case 0xdff5:
+			if (outLength) *outLength = 2;
+			return &Items[1312];
+		break;
+		case 0xdff4:
+			if (outLength) *outLength = 2;
+			return &Items[1915];
+		break;
+		case 0xdff3:
+			if (ch + 5 < end && (ch + 2)->unicode() == 0xfe0f && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0xd83c && (ch + 5)->unicode() == 0xdf08) {
+				if (outLength) *outLength = 6;
+				return &Items[1918];
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1914];
+		break;
+		case 0xdff0:
+			if (outLength) *outLength = 2;
+			return &Items[1409];
+		break;
+		case 0xdfef:
+			if (outLength) *outLength = 2;
+			return &Items[1410];
+		break;
+		case 0xdfee:
+			if (outLength) *outLength = 2;
+			return &Items[1574];
+		break;
+		case 0xdfed:
+			if (outLength) *outLength = 2;
+			return &Items[1428];
+		break;
+		case 0xdfec:
+			if (outLength) *outLength = 2;
+			return &Items[1434];
+		break;
+		case 0xdfeb:
+			if (outLength) *outLength = 2;
+			return &Items[1441];
+		break;
+		case 0xdfea:
+			if (outLength) *outLength = 2;
+			return &Items[1440];
+		break;
+		case 0xdfe9:
+			if (outLength) *outLength = 2;
+			return &Items[1442];
+		break;
+		case 0xdfe8:
+			if (outLength) *outLength = 2;
+			return &Items[1439];
+		break;
+		case 0xdfe7:
+			if (outLength) *outLength = 2;
+			return &Items[1753];
+		break;
+		case 0xdfe6:
+			if (outLength) *outLength = 2;
+			return &Items[1438];
+		break;
+		case 0xdfe5:
+			if (outLength) *outLength = 2;
+			return &Items[1437];
+		break;
+		case 0xdfe4:
+			if (outLength) *outLength = 2;
+			return &Items[1436];
+		break;
+		case 0xdfe3:
+			if (outLength) *outLength = 2;
+			return &Items[1435];
+		break;
+		case 0xdfe2:
+			if (outLength) *outLength = 2;
+			return &Items[1433];
+		break;
+		case 0xdfe1:
+			if (outLength) *outLength = 2;
+			return &Items[1430];
+		break;
+		case 0xdfe0:
+			if (outLength) *outLength = 2;
+			return &Items[1429];
+		break;
+		case 0xdfdf:
+			if (outLength) *outLength = 2;
+			return &Items[1411];
+		break;
+		case 0xdfde:
+			if (outLength) *outLength = 2;
+			return &Items[1452];
+		break;
+		case 0xdfdd:
+			if (outLength) *outLength = 2;
+			return &Items[1417];
+		break;
+		case 0xdfdc:
+			if (outLength) *outLength = 2;
+			return &Items[1422];
+		break;
+		case 0xdfdb:
+			if (outLength) *outLength = 2;
+			return &Items[1444];
+		break;
+		case 0xdfda:
+			if (outLength) *outLength = 2;
+			return &Items[1432];
+		break;
+		case 0xdfd9:
+			if (outLength) *outLength = 2;
+			return &Items[1460];
+		break;
+		case 0xdfd8:
+			if (outLength) *outLength = 2;
+			return &Items[1431];
+		break;
+		case 0xdfd7:
+			if (outLength) *outLength = 2;
+			return &Items[1427];
+		break;
+		case 0xdfd6:
+			if (outLength) *outLength = 2;
+			return &Items[1416];
+		break;
+		case 0xdfd5:
+			if (outLength) *outLength = 2;
+			return &Items[1423];
+		break;
+		case 0xdfd4:
+			if (outLength) *outLength = 2;
+			return &Items[1419];
+		break;
+		case 0xdfd3:
+			if (outLength) *outLength = 2;
+			return &Items[1149];
+		break;
+		case 0xdfd2:
+			if (outLength) *outLength = 2;
+			return &Items[1152];
+		break;
+		case 0xdfd1:
+			if (outLength) *outLength = 2;
+			return &Items[1153];
+		break;
+		case 0xdfd0:
+			if (outLength) *outLength = 2;
+			return &Items[1146];
+		break;
+		case 0xdfcf:
+			if (outLength) *outLength = 2;
+			return &Items[1154];
+		break;
+		case 0xdfce:
+			if (outLength) *outLength = 2;
+			return &Items[1351];
+		break;
+		case 0xdfcd:
+			if (outLength) *outLength = 2;
+			return &Items[1362];
+		break;
+		case 0xdfcc:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xfe0f:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1215];
+				}
+			break;
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1220];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1226];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1219];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1225];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1218];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1224];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1217];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1223];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1216];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1222];
+				break;
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1221];
+		break;
+		case 0xdfcb:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xfe0f:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1164];
+				}
+			break;
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1169];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1175];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1168];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1174];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1167];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1173];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1166];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1172];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1165];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1171];
+				break;
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1170];
+		break;
+		case 0xdfca:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1244];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1250];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1243];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1249];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1242];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1248];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1241];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1247];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1240];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1246];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[1239];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1245];
+		break;
+		case 0xdfc9:
+			if (outLength) *outLength = 2;
+			return &Items[1147];
+		break;
+		case 0xdfc8:
+			if (outLength) *outLength = 2;
+			return &Items[1143];
+		break;
+		case 0xdfc7:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[1280];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[1279];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[1278];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[1277];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[1276];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1275];
+		break;
+		case 0xdfc6:
+			if (outLength) *outLength = 2;
+			return &Items[1311];
+		break;
+		case 0xdfc5:
+			if (outLength) *outLength = 2;
+			return &Items[1306];
+		break;
+		case 0xdfc4:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1232];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1238];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1231];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1237];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1230];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1236];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1229];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1235];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[1228];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[1234];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[1227];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[1233];
+		break;
+		case 0xdfc3:
+			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			case 0xd83c:
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[829];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[835];
+				break;
+				case 0xdffe:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[828];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[834];
+				break;
+				case 0xdffd:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[827];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[833];
+				break;
+				case 0xdffc:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[826];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[832];
+				break;
+				case 0xdffb:
+					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
+						if (outLength) *outLength = 7;
+						return &Items[825];
+					}
+					if (outLength) *outLength = 4;
+					return &Items[831];
+				break;
+				}
+			break;
+			case 0x200d:
+				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 5;
+					return &Items[824];
+				}
+			break;
+			}
+			if (outLength) *outLength = 2;
+			return &Items[830];
+		break;
+		case 0xdfc2:
+			if (outLength) *outLength = 2;
+			return &Items[1163];
+		break;
+		case 0xdfc1:
+			if (outLength) *outLength = 2;
+			return &Items[1916];
+		break;
+		case 0xdfc0:
+			if (outLength) *outLength = 2;
+			return &Items[1142];
+		break;
+		case 0xdfbf:
+			if (outLength) *outLength = 2;
+			return &Items[1161];
+		break;
+		case 0xdfbe:
+			if (outLength) *outLength = 2;
+			return &Items[1145];
+		break;
+		case 0xdfbd:
+			if (outLength) *outLength = 2;
+			return &Items[1305];
+		break;
+		case 0xdfbc:
+			if (outLength) *outLength = 2;
+			return &Items[1334];
+		break;
+		case 0xdfbb:
+			if (outLength) *outLength = 2;
+			return &Items[1340];
+		break;
+		case 0xdfba:
+			if (outLength) *outLength = 2;
+			return &Items[1338];
+		break;
+		case 0xdfb9:
+			if (outLength) *outLength = 2;
+			return &Items[1335];
+		break;
+		case 0xdfb8:
+			if (outLength) *outLength = 2;
+			return &Items[1339];
+		break;
+		case 0xdfb7:
+			if (outLength) *outLength = 2;
+			return &Items[1337];
+		break;
+		case 0xdfb6:
+			if (outLength) *outLength = 2;
+			return &Items[1830];
+		break;
+		case 0xdfb5:
+			if (outLength) *outLength = 2;
+			return &Items[1829];
+		break;
+		case 0xdfb4:
+			if (outLength) *outLength = 2;
+			return &Items[1888];
+		break;
+		case 0xdfb3:
+			if (outLength) *outLength = 2;
+			return &Items[1343];
+		break;
+		case 0xdfb2:
+			if (outLength) *outLength = 2;
+			return &Items[1341];
+		break;
+		case 0xdfb1:
+			if (outLength) *outLength = 2;
+			return &Items[1148];
+		break;
+		case 0xdfb0:
+			if (outLength) *outLength = 2;
+			return &Items[1345];
+		break;
+		case 0xdfaf:
+			if (outLength) *outLength = 2;
+			return &Items[1342];
+		break;
+		case 0xdfae:
+			if (outLength) *outLength = 2;
+			return &Items[1344];
+		break;
+		case 0xdfad:
+			if (outLength) *outLength = 2;
+			return &Items[1329];
+		break;
+		case 0xdfac:
+			if (outLength) *outLength = 2;
+			return &Items[1331];
+		break;
+		case 0xdfab:
+			if (outLength) *outLength = 2;
+			return &Items[1314];
+		break;
+		case 0xdfaa:
+			if (outLength) *outLength = 2;
+			return &Items[1316];
+		break;
+		case 0xdfa9:
+			if (outLength) *outLength = 2;
+			return &Items[883];
+		break;
+		case 0xdfa8:
+			if (outLength) *outLength = 2;
+			return &Items[1330];
+		break;
+		case 0xdfa7:
+			if (outLength) *outLength = 2;
+			return &Items[1333];
+		break;
+		case 0xdfa6:
+			if (outLength) *outLength = 2;
+			return &Items[1768];
+		break;
+		case 0xdfa5:
+			if (outLength) *outLength = 2;
+			return &Items[1484];
+		break;
+		case 0xdfa4:
+			if (outLength) *outLength = 2;
+			return &Items[1332];
+		break;
+		case 0xdfa3:
+			if (outLength) *outLength = 2;
+			return &Items[1157];
+		break;
+		case 0xdfa2:
+			if (outLength) *outLength = 2;
+			return &Items[1413];
+		break;
+		case 0xdfa1:
+			if (outLength) *outLength = 2;
+			return &Items[1412];
+		break;
+		case 0xdfa0:
+			if (outLength) *outLength = 2;
+			return &Items[1414];
+		break;
+		case 0xdf9f:
+			if (outLength) *outLength = 2;
+			return &Items[1315];
+		break;
+		case 0xdf9e:
+			if (outLength) *outLength = 2;
+			return &Items[1486];
+		break;
+		case 0xdf9b:
+			if (outLength) *outLength = 2;
+			return &Items[1495];
+		break;
+		case 0xdf9a:
+			if (outLength) *outLength = 2;
+			return &Items[1494];
+		break;
+		case 0xdf99:
+			if (outLength) *outLength = 2;
+			return &Items[1493];
+		break;
+		case 0xdf97:
+			if (outLength) *outLength = 2;
+			return &Items[1313];
+		break;
+		case 0xdf96:
+			if (outLength) *outLength = 2;
+			return &Items[1307];
+		break;
+		case 0xdf93:
+			if (outLength) *outLength = 2;
+			return &Items[884];
+		break;
+		case 0xdf92:
+			if (outLength) *outLength = 2;
+			return &Items[887];
+		break;
+		case 0xdf91:
+			if (outLength) *outLength = 2;
+			return &Items[1451];
+		break;
+		case 0xdf90:
+			if (outLength) *outLength = 2;
+			return &Items[1575];
+		break;
+		case 0xdf8f:
+			if (outLength) *outLength = 2;
+			return &Items[1569];
+		break;
+		case 0xdf8e:
+			if (outLength) *outLength = 2;
+			return &Items[1573];
+		break;
+		case 0xdf8d:
+			if (outLength) *outLength = 2;
+			return &Items[993];
+		break;
+		case 0xdf8c:
+			if (outLength) *outLength = 2;
+			return &Items[2031];
+		break;
+		case 0xdf8b:
+			if (outLength) *outLength = 2;
+			return &Items[994];
+		break;
+		case 0xdf8a:
+			if (outLength) *outLength = 2;
+			return &Items[1571];
+		break;
+		case 0xdf89:
+			if (outLength) *outLength = 2;
+			return &Items[1572];
+		break;
+		case 0xdf88:
+			if (outLength) *outLength = 2;
+			return &Items[1568];
+		break;
+		case 0xdf87:
+			if (outLength) *outLength = 2;
+			return &Items[1456];
+		break;
+		case 0xdf86:
+			if (outLength) *outLength = 2;
+			return &Items[1457];
+		break;
+		case 0xdf85:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xdfff:
+					if (outLength) *outLength = 4;
+					return &Items[623];
+				break;
+				case 0xdffe:
+					if (outLength) *outLength = 4;
+					return &Items[622];
+				break;
+				case 0xdffd:
+					if (outLength) *outLength = 4;
+					return &Items[621];
+				break;
+				case 0xdffc:
+					if (outLength) *outLength = 4;
+					return &Items[620];
+				break;
+				case 0xdffb:
+					if (outLength) *outLength = 4;
+					return &Items[619];
+				break;
+				}
+			}
+			if (outLength) *outLength = 2;
+			return &Items[618];
+		break;
+		case 0xdf84:
+			if (outLength) *outLength = 2;
+			return &Items[985];
+		break;
+		case 0xdf83:
+			if (outLength) *outLength = 2;
+			return &Items[86];
+		break;
+		case 0xdf82:
+			if (outLength) *outLength = 2;
+			return &Items[1117];
+		break;
+		case 0xdf81:
+			if (outLength) *outLength = 2;
+			return &Items[1567];
+		break;
+		case 0xdf80:
+			if (outLength) *outLength = 2;
+			return &Items[1570];
+		break;
+		case 0xdf7f:
+			if (outLength) *outLength = 2;
+			return &Items[1122];
+		break;
+		case 0xdf7e:
+			if (outLength) *outLength = 2;
+			return &Items[1137];
+		break;
+		case 0xdf7d:
+			if (outLength) *outLength = 2;
+			return &Items[1140];
+		break;
+		case 0xdf7c:
+			if (outLength) *outLength = 2;
+			return &Items[1126];
+		break;
+		case 0xdf7b:
+			if (outLength) *outLength = 2;
+			return &Items[1131];
+		break;
+		case 0xdf7a:
+			if (outLength) *outLength = 2;
+			return &Items[1130];
+		break;
+		case 0xdf79:
+			if (outLength) *outLength = 2;
+			return &Items[1136];
+		break;
+		case 0xdf78:
+			if (outLength) *outLength = 2;
+			return &Items[1135];
+		break;
+		case 0xdf77:
+			if (outLength) *outLength = 2;
+			return &Items[1133];
+		break;
+		case 0xdf76:
+			if (outLength) *outLength = 2;
+			return &Items[1129];
+		break;
+		case 0xdf75:
+			if (outLength) *outLength = 2;
+			return &Items[1128];
+		break;
+		case 0xdf74:
+			if (outLength) *outLength = 2;
+			return &Items[1139];
+		break;
+		case 0xdf73:
+			if (outLength) *outLength = 2;
+			return &Items[1086];
+		break;
+		case 0xdf72:
+			if (outLength) *outLength = 2;
+			return &Items[1103];
+		break;
+		case 0xdf71:
+			if (outLength) *outLength = 2;
+			return &Items[1106];
+		break;
+		case 0xdf70:
+			if (outLength) *outLength = 2;
+			return &Items[1116];
+		break;
+		case 0xdf6f:
+			if (outLength) *outLength = 2;
+			return &Items[1080];
+		break;
+		case 0xdf6e:
+			if (outLength) *outLength = 2;
+			return &Items[1118];
+		break;
+		case 0xdf6d:
+			if (outLength) *outLength = 2;
+			return &Items[1119];
+		break;
+		case 0xdf6c:
+			if (outLength) *outLength = 2;
+			return &Items[1120];
+		break;
+		case 0xdf6b:
+			if (outLength) *outLength = 2;
+			return &Items[1121];
+		break;
+		case 0xdf6a:
+			if (outLength) *outLength = 2;
+			return &Items[1124];
+		break;
+		case 0xdf69:
+			if (outLength) *outLength = 2;
+			return &Items[1123];
+		break;
+		case 0xdf68:
+			if (outLength) *outLength = 2;
+			return &Items[1114];
+		break;
+		case 0xdf67:
+			if (outLength) *outLength = 2;
+			return &Items[1113];
+		break;
+		case 0xdf66:
+			if (outLength) *outLength = 2;
+			return &Items[1115];
+		break;
+		case 0xdf65:
+			if (outLength) *outLength = 2;
+			return &Items[1104];
+		break;
+		case 0xdf64:
+			if (outLength) *outLength = 2;
+			return &Items[1089];
+		break;
+		case 0xdf63:
+			if (outLength) *outLength = 2;
+			return &Items[1105];
+		break;
+		case 0xdf62:
+			if (outLength) *outLength = 2;
+			return &Items[1111];
+		break;
+		case 0xdf61:
+			if (outLength) *outLength = 2;
+			return &Items[1112];
+		break;
+		case 0xdf60:
+			if (outLength) *outLength = 2;
+			return &Items[1077];
+		break;
+		case 0xdf5f:
+			if (outLength) *outLength = 2;
+			return &Items[1095];
+		break;
+		case 0xdf5e:
+			if (outLength) *outLength = 2;
+			return &Items[1082];
+		break;
+		case 0xdf5d:
+			if (outLength) *outLength = 2;
+			return &Items[1101];
+		break;
+		case 0xdf5c:
+			if (outLength) *outLength = 2;
+			return &Items[1102];
+		break;
+		case 0xdf5b:
+			if (outLength) *outLength = 2;
+			return &Items[1107];
+		break;
+		case 0xdf5a:
+			if (outLength) *outLength = 2;
+			return &Items[1109];
+		break;
+		case 0xdf59:
+			if (outLength) *outLength = 2;
+			return &Items[1108];
+		break;
+		case 0xdf58:
+			if (outLength) *outLength = 2;
+			return &Items[1110];
+		break;
+		case 0xdf57:
+			if (outLength) *outLength = 2;
+			return &Items[1090];
+		break;
+		case 0xdf56:
+			if (outLength) *outLength = 2;
+			return &Items[1091];
+		break;
+		case 0xdf55:
+			if (outLength) *outLength = 2;
+			return &Items[1092];
+		break;
+		case 0xdf54:
+			if (outLength) *outLength = 2;
+			return &Items[1094];
+		break;
+		case 0xdf53:
+			if (outLength) *outLength = 2;
+			return &Items[1063];
+		break;
+		case 0xdf52:
+			if (outLength) *outLength = 2;
+			return &Items[1065];
+		break;
+		case 0xdf51:
+			if (outLength) *outLength = 2;
+			return &Items[1066];
+		break;
+		case 0xdf50:
+			if (outLength) *outLength = 2;
+			return &Items[1057];
+		break;
+		case 0xdf4f:
+			if (outLength) *outLength = 2;
+			return &Items[1055];
+		break;
+		case 0xdf4e:
+			if (outLength) *outLength = 2;
+			return &Items[1056];
+		break;
+		case 0xdf4d:
+			if (outLength) *outLength = 2;
+			return &Items[1067];
+		break;
+		case 0xdf4c:
+			if (outLength) *outLength = 2;
+			return &Items[1060];
+		break;
+		case 0xdf4b:
+			if (outLength) *outLength = 2;
+			return &Items[1059];
+		break;
+		case 0xdf4a:
+			if (outLength) *outLength = 2;
+			return &Items[1058];
+		break;
+		case 0xdf49:
+			if (outLength) *outLength = 2;
+			return &Items[1061];
+		break;
+		case 0xdf48:
+			if (outLength) *outLength = 2;
+			return &Items[1064];
+		break;
+		case 0xdf47:
+			if (outLength) *outLength = 2;
+			return &Items[1062];
+		break;
+		case 0xdf46:
+			if (outLength) *outLength = 2;
+			return &Items[1071];
+		break;
+		case 0xdf45:
+			if (outLength) *outLength = 2;
+			return &Items[1070];
+		break;
+		case 0xdf44:
+			if (outLength) *outLength = 2;
+			return &Items[998];
+		break;
+		case 0xdf43:
+			if (outLength) *outLength = 2;
+			return &Items[995];
+		break;
+		case 0xdf42:
+			if (outLength) *outLength = 2;
+			return &Items[996];
+		break;
+		case 0xdf41:
+			if (outLength) *outLength = 2;
+			return &Items[997];
+		break;
+		case 0xdf40:
+			if (outLength) *outLength = 2;
+			return &Items[992];
+		break;
+		case 0xdf3f:
+			if (outLength) *outLength = 2;
+			return &Items[990];
+		break;
+		case 0xdf3e:
+			if (outLength) *outLength = 2;
+			return &Items[999];
+		break;
+		case 0xdf3d:
+			if (outLength) *outLength = 2;
+			return &Items[1074];
+		break;
+		case 0xdf3c:
+			if (outLength) *outLength = 2;
+			return &Items[1005];
+		break;
+		case 0xdf3b:
+			if (outLength) *outLength = 2;
+			return &Items[1004];
+		break;
+		case 0xdf3a:
+			if (outLength) *outLength = 2;
+			return &Items[1007];
+		break;
+		case 0xdf39:
+			if (outLength) *outLength = 2;
+			return &Items[1002];
+		break;
+		case 0xdf38:
+			if (outLength) *outLength = 2;
+			return &Items[1006];
+		break;
+		case 0xdf37:
+			if (outLength) *outLength = 2;
+			return &Items[1001];
+		break;
+		case 0xdf36:
+			if (outLength) *outLength = 2;
+			return &Items[1075];
+		break;
+		case 0xdf35:
+			if (outLength) *outLength = 2;
+			return &Items[984];
+		break;
+		case 0xdf34:
+			if (outLength) *outLength = 2;
+			return &Items[988];
+		break;
+		case 0xdf33:
+			if (outLength) *outLength = 2;
+			return &Items[987];
+		break;
+		case 0xdf32:
+			if (outLength) *outLength = 2;
+			return &Items[986];
+		break;
+		case 0xdf31:
+			if (outLength) *outLength = 2;
+			return &Items[989];
+		break;
+		case 0xdf30:
+			if (outLength) *outLength = 2;
+			return &Items[1078];
+		break;
+		case 0xdf2f:
+			if (outLength) *outLength = 2;
+			return &Items[1098];
+		break;
+		case 0xdf2e:
+			if (outLength) *outLength = 2;
+			return &Items[1097];
+		break;
+		case 0xdf2d:
+			if (outLength) *outLength = 2;
+			return &Items[1093];
+		break;
+		case 0xdf2c:
+			if (outLength) *outLength = 2;
+			return &Items[1047];
+		break;
+		case 0xdf2b:
+			if (outLength) *outLength = 2;
+			return &Items[1050];
+		break;
+		case 0xdf2a:
+			if (outLength) *outLength = 2;
+			return &Items[1049];
+		break;
+		case 0xdf29:
+			if (outLength) *outLength = 2;
+			return &Items[1042];
+		break;
+		case 0xdf28:
+			if (outLength) *outLength = 2;
+			return &Items[1043];
+		break;
+		case 0xdf27:
+			if (outLength) *outLength = 2;
+			return &Items[1040];
+		break;
+		case 0xdf26:
+			if (outLength) *outLength = 2;
+			return &Items[1037];
+		break;
+		case 0xdf25:
+			if (outLength) *outLength = 2;
+			return &Items[1036];
+		break;
+		case 0xdf24:
+			if (outLength) *outLength = 2;
+			return &Items[1034];
+		break;
+		case 0xdf21:
+			if (outLength) *outLength = 2;
+			return &Items[1546];
+		break;
+		case 0xdf20:
+			if (outLength) *outLength = 2;
+			return &Items[1455];
+		break;
+		case 0xdf1f:
+			if (outLength) *outLength = 2;
+			return &Items[1027];
+		break;
+		case 0xdf1e:
+			if (outLength) *outLength = 2;
+			return &Items[1021];
+		break;
+		case 0xdf1d:
+			if (outLength) *outLength = 2;
+			return &Items[1020];
+		break;
+		case 0xdf1c:
+			if (outLength) *outLength = 2;
+			return &Items[1023];
+		break;
+		case 0xdf1b:
+			if (outLength) *outLength = 2;
+			return &Items[1022];
+		break;
+		case 0xdf1a:
+			if (outLength) *outLength = 2;
+			return &Items[1019];
+		break;
+		case 0xdf19:
+			if (outLength) *outLength = 2;
+			return &Items[1024];
+		break;
+		case 0xdf18:
+			if (outLength) *outLength = 2;
+			return &Items[1014];
+		break;
+		case 0xdf17:
+			if (outLength) *outLength = 2;
+			return &Items[1013];
+		break;
+		case 0xdf16:
+			if (outLength) *outLength = 2;
+			return &Items[1012];
+		break;
+		case 0xdf15:
+			if (outLength) *outLength = 2;
+			return &Items[1011];
+		break;
+		case 0xdf14:
+			if (outLength) *outLength = 2;
+			return &Items[1018];
+		break;
+		case 0xdf13:
+			if (outLength) *outLength = 2;
+			return &Items[1017];
+		break;
+		case 0xdf12:
+			if (outLength) *outLength = 2;
+			return &Items[1016];
+		break;
+		case 0xdf11:
+			if (outLength) *outLength = 2;
+			return &Items[1015];
+		break;
+		case 0xdf10:
+			if (outLength) *outLength = 2;
+			return &Items[1748];
+		break;
+		case 0xdf0f:
+			if (outLength) *outLength = 2;
+			return &Items[1010];
+		break;
+		case 0xdf0e:
+			if (outLength) *outLength = 2;
+			return &Items[1008];
+		break;
+		case 0xdf0d:
+			if (outLength) *outLength = 2;
+			return &Items[1009];
+		break;
+		case 0xdf0c:
+			if (outLength) *outLength = 2;
+			return &Items[1462];
+		break;
+		case 0xdf0b:
+			if (outLength) *outLength = 2;
+			return &Items[1421];
+		break;
+		case 0xdf0a:
+			if (outLength) *outLength = 2;
+			return &Items[1051];
+		break;
+		case 0xdf09:
+			if (outLength) *outLength = 2;
+			return &Items[1463];
+		break;
+		case 0xdf08:
+			if (outLength) *outLength = 2;
+			return &Items[1038];
+		break;
+		case 0xdf07:
+			if (outLength) *outLength = 2;
+			return &Items[1458];
+		break;
+		case 0xdf06:
+			if (outLength) *outLength = 2;
+			return &Items[1459];
+		break;
+		case 0xdf05:
+			if (outLength) *outLength = 2;
+			return &Items[1453];
+		break;
+		case 0xdf04:
+			if (outLength) *outLength = 2;
+			return &Items[1454];
+		break;
+		case 0xdf03:
+			if (outLength) *outLength = 2;
+			return &Items[1461];
+		break;
+		case 0xdf02:
+			if (outLength) *outLength = 2;
+			return &Items[894];
+		break;
+		case 0xdf01:
+			if (outLength) *outLength = 2;
+			return &Items[1464];
+		break;
+		case 0xdf00:
+			if (outLength) *outLength = 2;
+			return &Items[1751];
+		break;
+		case 0xde51:
+			if (outLength) *outLength = 2;
+			return &Items[1685];
+		break;
+		case 0xde50:
+			if (outLength) *outLength = 2;
+			return &Items[1698];
+		break;
+		case 0xde3a:
+			if (outLength) *outLength = 2;
+			return &Items[1693];
+		break;
+		case 0xde39:
+			if (outLength) *outLength = 2;
+			return &Items[1703];
+		break;
+		case 0xde38:
+			if (outLength) *outLength = 2;
+			return &Items[1692];
+		break;
+		case 0xde37:
+			if (outLength) *outLength = 2;
+			return &Items[1694];
+		break;
+		case 0xde36:
+			if (outLength) *outLength = 2;
+			return &Items[1690];
+		break;
+		case 0xde35:
+			if (outLength) *outLength = 2;
+			return &Items[1702];
+		break;
+		case 0xde34:
+			if (outLength) *outLength = 2;
+			return &Items[1701];
+		break;
+		case 0xde33:
+			if (outLength) *outLength = 2;
+			return &Items[1757];
+		break;
+		case 0xde32:
+			if (outLength) *outLength = 2;
+			return &Items[1704];
+		break;
+		case 0xde2f:
+			if (outLength) *outLength = 2;
+			return &Items[1743];
+		break;
+		case 0xde1a:
+			if (outLength) *outLength = 2;
+			return &Items[1691];
+		break;
+		case 0xde02:
+			if (outLength) *outLength = 2;
+			return &Items[1758];
+		break;
+		case 0xde01:
+			if (outLength) *outLength = 2;
+			return &Items[1770];
+		break;
+		case 0xddff:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2166];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2165];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2119];
+				break;
+				}
+			}
+		break;
+		case 0xddfe:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2061];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2164];
+				break;
+				}
+			}
+		break;
+		case 0xddfd:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c && (ch + 3)->unicode() == 0xddf0) {
+				if (outLength) *outLength = 4;
+				return &Items[2037];
+			}
+		break;
+		case 0xddfc:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2104];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[2162];
+				break;
+				}
+			}
+		break;
+		case 0xddfb:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2158];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2161];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[2150];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[1950];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2160];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[2129];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2159];
+				break;
+				}
+			}
+		break;
+		case 0xddfa:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[2157];
+				break;
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[2156];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2155];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2151];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2152];
+				break;
+				}
+			}
+		break;
+		case 0xddf9:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[2138];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2136];
+				break;
+				case 0xddfb:
+					if (outLength) *outLength = 4;
+					return &Items[2149];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2144];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2146];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[2143];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2145];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2147];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2140];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[2142];
+				break;
+				case 0xddef:
+					if (outLength) *outLength = 4;
+					return &Items[2137];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2139];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2141];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[1999];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[1963];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[2148];
+				break;
+				}
+			}
+		break;
+		case 0xddf8:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[2132];
+				break;
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[2135];
+				break;
+				case 0xddfd:
+					if (outLength) *outLength = 4;
+					return &Items[2113];
+				break;
+				case 0xddfb:
+					if (outLength) *outLength = 4;
+					return &Items[1986];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2106];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2121];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2131];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[2118];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2108];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2105];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2111];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[2114];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[2115];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2125];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2112];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2133];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[2130];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[2110];
+				break;
+				case 0xdde7:
+					if (outLength) *outLength = 4;
+					return &Items[2117];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2107];
+				break;
+				}
+			}
+		break;
+		case 0xddf7:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2103];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2102];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2109];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[2101];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2100];
+				break;
+				}
+			}
+		break;
+		case 0xddf6:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c && (ch + 3)->unicode() == 0xdde6) {
+				if (outLength) *outLength = 4;
+				return &Items[2099];
+			}
+		break;
+		case 0xddf5:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[2092];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2088];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2097];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2089];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2098];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2095];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2128];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2096];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[2087];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2094];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2091];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[1998];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2093];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2090];
+				break;
+				}
+			}
+		break;
+		case 0xddf4:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c && (ch + 3)->unicode() == 0xddf2) {
+				if (outLength) *outLength = 4;
+				return &Items[2086];
+			}
+		break;
+		case 0xddf3:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[2077];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2081];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2073];
+				break;
+				case 0xddf5:
+					if (outLength) *outLength = 4;
+					return &Items[2074];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[2085];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2075];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[2078];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2080];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[2082];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2079];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[2076];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2072];
+				break;
+				}
+			}
+		break;
+		case 0xddf2:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[2070];
+				break;
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[2053];
+				break;
+				case 0xddfd:
+					if (outLength) *outLength = 4;
+					return &Items[2062];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2052];
+				break;
+				case 0xddfb:
+					if (outLength) *outLength = 4;
+					return &Items[2054];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2060];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2056];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2068];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2059];
+				break;
+				case 0xddf6:
+					if (outLength) *outLength = 4;
+					return &Items[2058];
+				break;
+				case 0xddf5:
+					if (outLength) *outLength = 4;
+					return &Items[2084];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[2049];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2066];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2071];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2055];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[2050];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2057];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2051];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2067];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[2064];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[2065];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2069];
+				break;
+				}
+			}
+		break;
+		case 0xddf1:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[2045];
+				break;
+				case 0xddfb:
+					if (outLength) *outLength = 4;
+					return &Items[2041];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2048];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2047];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2043];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2044];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[2123];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[2046];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[2127];
+				break;
+				case 0xdde7:
+					if (outLength) *outLength = 4;
+					return &Items[2042];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2040];
+				break;
+				}
+			}
+		break;
+		case 0xddf0:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[2034];
+				break;
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[1961];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2038];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2120];
+				break;
+				case 0xddf5:
+					if (outLength) *outLength = 4;
+					return &Items[2083];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2126];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[1969];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[2036];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[1955];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2039];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2035];
+				break;
+				}
+			}
+		break;
+		case 0xddef:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddf5:
+					if (outLength) *outLength = 4;
+					return &Items[2030];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[2033];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2029];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2032];
+				break;
+				}
+			}
+		break;
+		case 0xddee:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2028];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2020];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2023];
+				break;
+				case 0xddf6:
+					if (outLength) *outLength = 4;
+					return &Items[2024];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[1949];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2021];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2026];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2027];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2025];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[2022];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[1958];
+				break;
+				}
+			}
+		break;
+		case 0xdded:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2019];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2016];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[1975];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2017];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[2018];
+				break;
+				}
+			}
+		break;
+		case 0xddec:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[2015];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[2014];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[2010];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[2011];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2116];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[2006];
+				break;
+				case 0xddf6:
+					if (outLength) *outLength = 4;
+					return &Items[1987];
+				break;
+				case 0xddf5:
+					if (outLength) *outLength = 4;
+					return &Items[2009];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[2013];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2001];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2007];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[2005];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2004];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[2012];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[1997];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2002];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[2008];
+				break;
+				case 0xdde7:
+					if (outLength) *outLength = 4;
+					return &Items[2154];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[2000];
+				break;
+				}
+			}
+		break;
+		case 0xddeb:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[1996];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[1993];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[2063];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[1992];
+				break;
+				case 0xddef:
+					if (outLength) *outLength = 4;
+					return &Items[1994];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[1995];
+				break;
+				}
+			}
+		break;
+		case 0xddea:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[1991];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[1990];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[2122];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[1988];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2163];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[1985];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[1989];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[1984];
+				break;
+				}
+			}
+		break;
+		case 0xdde9:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[1922];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[1983];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[1982];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[1980];
+				break;
+				case 0xddef:
+					if (outLength) *outLength = 4;
+					return &Items[1981];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2003];
+				break;
+				}
+			}
+		break;
+		case 0xdde8:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[1979];
+				break;
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[1978];
+				break;
+				case 0xddfd:
+					if (outLength) *outLength = 4;
+					return &Items[1966];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[1977];
+				break;
+				case 0xddfb:
+					if (outLength) *outLength = 4;
+					return &Items[1959];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[1976];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[1973];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[1968];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[1965];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[1956];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[1964];
+				break;
+				case 0xddf0:
+					if (outLength) *outLength = 4;
+					return &Items[1972];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[1974];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[2134];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[1970];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[1962];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[1971];
+				break;
+				case 0xdde8:
+					if (outLength) *outLength = 4;
+					return &Items[1967];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[1957];
+				break;
+				}
+			}
+		break;
+		case 0xdde7:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[1941];
+				break;
+				case 0xddfe:
+					if (outLength) *outLength = 4;
+					return &Items[1939];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[1947];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[1944];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[1935];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[1948];
+				break;
+				case 0xddf6:
+					if (outLength) *outLength = 4;
+					return &Items[1960];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[1945];
+				break;
+				case 0xddf3:
+					if (outLength) *outLength = 4;
+					return &Items[1951];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[1943];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[2124];
+				break;
+				case 0xddef:
+					if (outLength) *outLength = 4;
+					return &Items[1942];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[1954];
+				break;
+				case 0xdded:
+					if (outLength) *outLength = 4;
+					return &Items[1936];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[1952];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[1953];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[1940];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[1937];
+				break;
+				case 0xdde7:
+					if (outLength) *outLength = 4;
+					return &Items[1938];
+				break;
+				case 0xdde6:
+					if (outLength) *outLength = 4;
+					return &Items[1946];
+				break;
+				}
+			}
+		break;
+		case 0xdde6:
+			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
+				switch ((ch + 3)->unicode()) {
+				case 0xddff:
+					if (outLength) *outLength = 4;
+					return &Items[1934];
+				break;
+				case 0xddfd:
+					if (outLength) *outLength = 4;
+					return &Items[1920];
+				break;
+				case 0xddfc:
+					if (outLength) *outLength = 4;
+					return &Items[1931];
+				break;
+				case 0xddfa:
+					if (outLength) *outLength = 4;
+					return &Items[1932];
+				break;
+				case 0xddf9:
+					if (outLength) *outLength = 4;
+					return &Items[1933];
+				break;
+				case 0xddf8:
+					if (outLength) *outLength = 4;
+					return &Items[1923];
+				break;
+				case 0xddf7:
+					if (outLength) *outLength = 4;
+					return &Items[1929];
+				break;
+				case 0xddf6:
+					if (outLength) *outLength = 4;
+					return &Items[1927];
+				break;
+				case 0xddf4:
+					if (outLength) *outLength = 4;
+					return &Items[1925];
+				break;
+				case 0xddf2:
+					if (outLength) *outLength = 4;
+					return &Items[1930];
+				break;
+				case 0xddf1:
+					if (outLength) *outLength = 4;
+					return &Items[1921];
+				break;
+				case 0xddee:
+					if (outLength) *outLength = 4;
+					return &Items[1926];
+				break;
+				case 0xddec:
+					if (outLength) *outLength = 4;
+					return &Items[1928];
+				break;
+				case 0xddeb:
+					if (outLength) *outLength = 4;
+					return &Items[1919];
+				break;
+				case 0xddea:
+					if (outLength) *outLength = 4;
+					return &Items[2153];
+				break;
+				case 0xdde9:
+					if (outLength) *outLength = 4;
+					return &Items[1924];
+				break;
+				}
+			}
+		break;
+		case 0xdd9a:
+			if (outLength) *outLength = 2;
+			return &Items[1696];
+		break;
+		case 0xdd99:
+			if (outLength) *outLength = 2;
+			return &Items[1778];
+		break;
+		case 0xdd98:
+			if (outLength) *outLength = 2;
+			return &Items[1710];
+		break;
+		case 0xdd97:
+			if (outLength) *outLength = 2;
+			return &Items[1777];
+		break;
+		case 0xdd96:
+			if (outLength) *outLength = 2;
+			return &Items[1776];
+		break;
+		case 0xdd95:
+			if (outLength) *outLength = 2;
+			return &Items[1780];
+		break;
+		case 0xdd94:
+			if (outLength) *outLength = 2;
+			return &Items[1683];
+		break;
+		case 0xdd93:
+			if (outLength) *outLength = 2;
+			return &Items[1781];
+		break;
+		case 0xdd92:
+			if (outLength) *outLength = 2;
+			return &Items[1779];
+		break;
+		case 0xdd91:
+			if (outLength) *outLength = 2;
+			return &Items[1708];
+		break;
+		case 0xdd8e:
+			if (outLength) *outLength = 2;
+			return &Items[1707];
+		break;
+		case 0xdd7f:
+			if (outLength) *outLength = 2;
+			return &Items[1756];
+		break;
+		case 0xdd7e:
+			if (outLength) *outLength = 2;
+			return &Items[1709];
+		break;
+		case 0xdd71:
+			if (outLength) *outLength = 2;
+			return &Items[1706];
+		break;
+		case 0xdd70:
+			if (outLength) *outLength = 2;
+			return &Items[1705];
+		break;
+		case 0xdccf:
+			if (outLength) *outLength = 2;
+			return &Items[1887];
+		break;
+		case 0xdc04:
+			if (outLength) *outLength = 2;
+			return &Items[1889];
+		break;
+		}
+	break;
+	case 0x3299:
+		if (outLength) *outLength = 1;
+		return &Items[1699];
+	break;
+	case 0x3297:
+		if (outLength) *outLength = 1;
+		return &Items[1700];
+	break;
+	case 0x303d:
+		if (outLength) *outLength = 1;
+		return &Items[1735];
+	break;
+	case 0x3030:
+		if (outLength) *outLength = 1;
+		return &Items[1840];
+	break;
+	case 0x2b55:
+		if (outLength) *outLength = 1;
+		return &Items[1712];
+	break;
+	case 0x2b50:
+		if (outLength) *outLength = 1;
+		return &Items[1026];
+	break;
+	case 0x2b1c:
+		if (outLength) *outLength = 1;
+		return &Items[1870];
+	break;
+	case 0x2b1b:
+		if (outLength) *outLength = 1;
+		return &Items[1869];
+	break;
+	case 0x2b07:
+		if (outLength) *outLength = 1;
+		return &Items[1813];
+	break;
+	case 0x2b06:
+		if (outLength) *outLength = 1;
+		return &Items[1812];
+	break;
+	case 0x2b05:
+		if (outLength) *outLength = 1;
+		return &Items[1811];
+	break;
+	case 0x2935:
+		if (outLength) *outLength = 1;
+		return &Items[1823];
+	break;
+	case 0x2934:
+		if (outLength) *outLength = 1;
+		return &Items[1822];
+	break;
+	case 0x27bf:
+		if (outLength) *outLength = 1;
+		return &Items[1842];
+	break;
+	case 0x27b0:
+		if (outLength) *outLength = 1;
+		return &Items[1841];
+	break;
+	case 0x27a1:
+		if (outLength) *outLength = 1;
+		return &Items[1810];
+	break;
+	case 0x2797:
+		if (outLength) *outLength = 1;
+		return &Items[1833];
+	break;
+	case 0x2796:
+		if (outLength) *outLength = 1;
+		return &Items[1832];
+	break;
+	case 0x2795:
+		if (outLength) *outLength = 1;
+		return &Items[1831];
+	break;
+	case 0x2764:
+		if (outLength) *outLength = 1;
+		return &Items[1643];
+	break;
+	case 0x2763:
+		if (outLength) *outLength = 1;
+		return &Items[1650];
+	break;
+	case 0x2757:
+		if (outLength) *outLength = 1;
+		return &Items[1727];
+	break;
+	case 0x2755:
+		if (outLength) *outLength = 1;
+		return &Items[1728];
+	break;
+	case 0x2754:
+		if (outLength) *outLength = 1;
+		return &Items[1730];
+	break;
+	case 0x2753:
+		if (outLength) *outLength = 1;
+		return &Items[1729];
+	break;
+	case 0x274e:
+		if (outLength) *outLength = 1;
+		return &Items[1747];
+	break;
+	case 0x274c:
+		if (outLength) *outLength = 1;
+		return &Items[1711];
+	break;
+	case 0x2747:
+		if (outLength) *outLength = 1;
+		return &Items[1745];
+	break;
+	case 0x2744:
+		if (outLength) *outLength = 1;
+		return &Items[1046];
+	break;
+	case 0x2734:
+		if (outLength) *outLength = 1;
+		return &Items[1695];
+	break;
+	case 0x2733:
+		if (outLength) *outLength = 1;
+		return &Items[1746];
+	break;
+	case 0x2728:
+		if (outLength) *outLength = 1;
+		return &Items[1028];
+	break;
+	case 0x2721:
+		if (outLength) *outLength = 1;
+		return &Items[1664];
+	break;
+	case 0x271d:
+		if (outLength) *outLength = 1;
+		return &Items[1660];
+	break;
+	case 0x2716:
+		if (outLength) *outLength = 1;
+		return &Items[1834];
+	break;
+	case 0x2714:
+		if (outLength) *outLength = 1;
+		return &Items[1848];
+	break;
+	case 0x2712:
+		if (outLength) *outLength = 1;
+		return &Items[1632];
+	break;
+	case 0x270f:
+		if (outLength) *outLength = 1;
+		return &Items[1636];
+	break;
+	case 0x270d:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
+			switch ((ch + 2)->unicode()) {
+			case 0xdfff:
+				if (outLength) *outLength = 3;
+				return &Items[264];
+			break;
+			case 0xdffe:
+				if (outLength) *outLength = 3;
+				return &Items[263];
+			break;
+			case 0xdffd:
+				if (outLength) *outLength = 3;
+				return &Items[262];
+			break;
+			case 0xdffc:
+				if (outLength) *outLength = 3;
+				return &Items[261];
+			break;
+			case 0xdffb:
+				if (outLength) *outLength = 3;
+				return &Items[260];
+			break;
+			}
+		}
+		if (outLength) *outLength = 1;
+		return &Items[259];
+	break;
+	case 0x270c:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
+			switch ((ch + 2)->unicode()) {
+			case 0xdfff:
+				if (outLength) *outLength = 3;
+				return &Items[168];
+			break;
+			case 0xdffe:
+				if (outLength) *outLength = 3;
+				return &Items[167];
+			break;
+			case 0xdffd:
+				if (outLength) *outLength = 3;
+				return &Items[166];
+			break;
+			case 0xdffc:
+				if (outLength) *outLength = 3;
+				return &Items[165];
+			break;
+			case 0xdffb:
+				if (outLength) *outLength = 3;
+				return &Items[164];
+			break;
+			}
+		}
+		if (outLength) *outLength = 1;
+		return &Items[163];
+	break;
+	case 0x270b:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
+			switch ((ch + 2)->unicode()) {
+			case 0xdfff:
+				if (outLength) *outLength = 3;
+				return &Items[216];
+			break;
+			case 0xdffe:
+				if (outLength) *outLength = 3;
+				return &Items[215];
+			break;
+			case 0xdffd:
+				if (outLength) *outLength = 3;
+				return &Items[214];
+			break;
+			case 0xdffc:
+				if (outLength) *outLength = 3;
+				return &Items[213];
+			break;
+			case 0xdffb:
+				if (outLength) *outLength = 3;
+				return &Items[212];
+			break;
+			}
+		}
+		if (outLength) *outLength = 1;
+		return &Items[211];
+	break;
+	case 0x270a:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
+			switch ((ch + 2)->unicode()) {
+			case 0xdfff:
+				if (outLength) *outLength = 3;
+				return &Items[144];
+			break;
+			case 0xdffe:
+				if (outLength) *outLength = 3;
+				return &Items[143];
+			break;
+			case 0xdffd:
+				if (outLength) *outLength = 3;
+				return &Items[142];
+			break;
+			case 0xdffc:
+				if (outLength) *outLength = 3;
+				return &Items[141];
+			break;
+			case 0xdffb:
+				if (outLength) *outLength = 3;
+				return &Items[140];
+			break;
+			}
+		}
+		if (outLength) *outLength = 1;
+		return &Items[139];
+	break;
+	case 0x2709:
+		if (outLength) *outLength = 1;
+		return &Items[1576];
+	break;
+	case 0x2708:
+		if (outLength) *outLength = 1;
+		return &Items[1385];
+	break;
+	case 0x2705:
+		if (outLength) *outLength = 1;
+		return &Items[1742];
+	break;
+	case 0x2702:
+		if (outLength) *outLength = 1;
+		return &Items[1629];
+	break;
+	case 0x26fd:
+		if (outLength) *outLength = 1;
+		return &Items[1400];
+	break;
+	case 0x26fa:
+		if (outLength) *outLength = 1;
+		return &Items[1424];
+	break;
+	case 0x26f9:
+		if (ch + 2 < end) switch ((ch + 1)->unicode()) {
+		case 0xfe0f:
+			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
+				if (outLength) *outLength = 5;
+				return &Items[1191];
+			}
+		break;
+		case 0xd83c:
+			switch ((ch + 2)->unicode()) {
+			case 0xdfff:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1196];
+				}
+				if (outLength) *outLength = 3;
+				return &Items[1202];
+			break;
+			case 0xdffe:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1195];
+				}
+				if (outLength) *outLength = 3;
+				return &Items[1201];
+			break;
+			case 0xdffd:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1194];
+				}
+				if (outLength) *outLength = 3;
+				return &Items[1200];
+			break;
+			case 0xdffc:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1193];
+				}
+				if (outLength) *outLength = 3;
+				return &Items[1199];
+			break;
+			case 0xdffb:
+				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
+					if (outLength) *outLength = 6;
+					return &Items[1192];
+				}
+				if (outLength) *outLength = 3;
+				return &Items[1198];
+			break;
+			}
+		break;
+		}
+		if (outLength) *outLength = 1;
+		return &Items[1197];
+	break;
+	case 0x26f8:
+		if (outLength) *outLength = 1;
+		return &Items[1160];
+	break;
+	case 0x26f7:
+		if (outLength) *outLength = 1;
+		return &Items[1162];
+	break;
+	case 0x26f5:
+		if (outLength) *outLength = 1;
+		return &Items[1392];
+	break;
+	case 0x26f4:
+		if (outLength) *outLength = 1;
+		return &Items[1396];
+	break;
+	case 0x26f3:
+		if (outLength) *outLength = 1;
+		return &Items[1155];
+	break;
+	case 0x26f2:
+		if (outLength) *outLength = 1;
+		return &Items[1407];
+	break;
+	case 0x26f1:
+		if (outLength) *outLength = 1;
+		return &Items[1415];
+	break;
+	case 0x26f0:
+		if (outLength) *outLength = 1;
+		return &Items[1418];
+	break;
+	case 0x26ea:
+		if (outLength) *outLength = 1;
+		return &Items[1445];
+	break;
+	case 0x26e9:
+		if (outLength) *outLength = 1;
+		return &Items[1449];
+	break;
+	case 0x26d4:
+		if (outLength) *outLength = 1;
+		return &Items[1714];
+	break;
+	case 0x26d3:
+		if (outLength) *outLength = 1;
+		return &Items[1526];
+	break;
+	case 0x26d1:
+		if (outLength) *outLength = 1;
+		return &Items[886];
+	break;
+	case 0x26cf:
+		if (outLength) *outLength = 1;
+		return &Items[1523];
+	break;
+	case 0x26ce:
+		if (outLength) *outLength = 1;
+		return &Items[1670];
+	break;
+	case 0x26c8:
+		if (outLength) *outLength = 1;
+		return &Items[1041];
+	break;
+	case 0x26c5:
+		if (outLength) *outLength = 1;
+		return &Items[1035];
+	break;
+	case 0x26c4:
+		if (outLength) *outLength = 1;
+		return &Items[1045];
+	break;
+	case 0x26be:
+		if (outLength) *outLength = 1;
+		return &Items[1144];
+	break;
+	case 0x26bd:
+		if (outLength) *outLength = 1;
+		return &Items[1141];
+	break;
+	case 0x26b1:
+		if (outLength) *outLength = 1;
+		return &Items[1535];
+	break;
+	case 0x26b0:
+		if (outLength) *outLength = 1;
+		return &Items[1534];
+	break;
+	case 0x26ab:
+		if (outLength) *outLength = 1;
+		return &Items[1852];
+	break;
+	case 0x26aa:
+		if (outLength) *outLength = 1;
+		return &Items[1851];
+	break;
+	case 0x26a1:
+		if (outLength) *outLength = 1;
+		return &Items[1029];
+	break;
+	case 0x26a0:
+		if (outLength) *outLength = 1;
+		return &Items[1736];
+	break;
+	case 0x269c:
+		if (outLength) *outLength = 1;
+		return &Items[1739];
+	break;
+	case 0x269b:
+		if (outLength) *outLength = 1;
+		return &Items[1684];
+	break;
+	case 0x2699:
+		if (outLength) *outLength = 1;
+		return &Items[1525];
+	break;
+	case 0x2697:
+		if (outLength) *outLength = 1;
+		return &Items[1540];
+	break;
+	case 0x2696:
+		if (outLength) *outLength = 1;
+		return &Items[1518];
+	break;
+	case 0x2694:
+		if (outLength) *outLength = 1;
+		return &Items[1531];
+	break;
+	case 0x2693:
+		if (outLength) *outLength = 1;
+		return &Items[1398];
+	break;
+	case 0x2692:
+		if (outLength) *outLength = 1;
+		return &Items[1521];
+	break;
+	case 0x267f:
+		if (outLength) *outLength = 1;
+		return &Items[1755];
+	break;
+	case 0x267b:
+		if (outLength) *outLength = 1;
+		return &Items[1741];
+	break;
+	case 0x2668:
+		if (outLength) *outLength = 1;
+		return &Items[1719];
+	break;
+	case 0x2666:
+		if (outLength) *outLength = 1;
+		return &Items[1886];
+	break;
+	case 0x2665:
+		if (outLength) *outLength = 1;
+		return &Items[1885];
+	break;
+	case 0x2663:
+		if (outLength) *outLength = 1;
+		return &Items[1884];
+	break;
+	case 0x2660:
+		if (outLength) *outLength = 1;
+		return &Items[1883];
+	break;
+	case 0x2653:
+		if (outLength) *outLength = 1;
+		return &Items[1682];
+	break;
+	case 0x2652:
+		if (outLength) *outLength = 1;
+		return &Items[1681];
+	break;
+	case 0x2651:
+		if (outLength) *outLength = 1;
+		return &Items[1680];
+	break;
+	case 0x2650:
+		if (outLength) *outLength = 1;
+		return &Items[1679];
+	break;
+	case 0x264f:
+		if (outLength) *outLength = 1;
+		return &Items[1678];
+	break;
+	case 0x264e:
+		if (outLength) *outLength = 1;
+		return &Items[1677];
+	break;
+	case 0x264d:
+		if (outLength) *outLength = 1;
+		return &Items[1676];
+	break;
+	case 0x264c:
+		if (outLength) *outLength = 1;
+		return &Items[1675];
+	break;
+	case 0x264b:
+		if (outLength) *outLength = 1;
+		return &Items[1674];
+	break;
+	case 0x264a:
+		if (outLength) *outLength = 1;
+		return &Items[1673];
+	break;
+	case 0x2649:
+		if (outLength) *outLength = 1;
+		return &Items[1672];
+	break;
+	case 0x2648:
+		if (outLength) *outLength = 1;
+		return &Items[1671];
+	break;
+	case 0x263a:
+		if (outLength) *outLength = 1;
+		return &Items[8];
+	break;
+	case 0x2639:
+		if (outLength) *outLength = 1;
+		return &Items[37];
+	break;
+	case 0x2638:
+		if (outLength) *outLength = 1;
+		return &Items[1663];
+	break;
+	case 0x262f:
+		if (outLength) *outLength = 1;
+		return &Items[1667];
+	break;
+	case 0x262e:
+		if (outLength) *outLength = 1;
+		return &Items[1659];
+	break;
+	case 0x262a:
+		if (outLength) *outLength = 1;
+		return &Items[1661];
+	break;
+	case 0x2626:
+		if (outLength) *outLength = 1;
+		return &Items[1668];
+	break;
+	case 0x2623:
+		if (outLength) *outLength = 1;
+		return &Items[1687];
+	break;
+	case 0x2622:
+		if (outLength) *outLength = 1;
+		return &Items[1686];
+	break;
+	case 0x2620:
+		if (outLength) *outLength = 1;
+		return &Items[82];
+	break;
+	case 0x261d:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
+			switch ((ch + 2)->unicode()) {
+			case 0xdfff:
+				if (outLength) *outLength = 3;
+				return &Items[210];
+			break;
+			case 0xdffe:
+				if (outLength) *outLength = 3;
+				return &Items[209];
+			break;
+			case 0xdffd:
+				if (outLength) *outLength = 3;
+				return &Items[208];
+			break;
+			case 0xdffc:
+				if (outLength) *outLength = 3;
+				return &Items[207];
+			break;
+			case 0xdffb:
+				if (outLength) *outLength = 3;
+				return &Items[206];
+			break;
+			}
+		}
+		if (outLength) *outLength = 1;
+		return &Items[205];
+	break;
+	case 0x2618:
+		if (outLength) *outLength = 1;
+		return &Items[991];
+	break;
+	case 0x2615:
+		if (outLength) *outLength = 1;
+		return &Items[1127];
+	break;
+	case 0x2614:
+		if (outLength) *outLength = 1;
+		return &Items[1054];
+	break;
+	case 0x2611:
+		if (outLength) *outLength = 1;
+		return &Items[1849];
+	break;
+	case 0x260e:
+		if (outLength) *outLength = 1;
+		return &Items[1488];
+	break;
+	case 0x2604:
+		if (outLength) *outLength = 1;
+		return &Items[1032];
+	break;
+	case 0x2603:
+		if (outLength) *outLength = 1;
+		return &Items[1044];
+	break;
+	case 0x2602:
+		if (outLength) *outLength = 1;
+		return &Items[895];
+	break;
+	case 0x2601:
+		if (outLength) *outLength = 1;
+		return &Items[1039];
+	break;
+	case 0x2600:
+		if (outLength) *outLength = 1;
+		return &Items[1033];
+	break;
+	case 0x25fe:
+		if (outLength) *outLength = 1;
+		return &Items[1865];
+	break;
+	case 0x25fd:
+		if (outLength) *outLength = 1;
+		return &Items[1866];
+	break;
+	case 0x25fc:
+		if (outLength) *outLength = 1;
+		return &Items[1867];
+	break;
+	case 0x25fb:
+		if (outLength) *outLength = 1;
+		return &Items[1868];
+	break;
+	case 0x25c0:
+		if (outLength) *outLength = 1;
+		return &Items[1807];
+	break;
+	case 0x25b6:
+		if (outLength) *outLength = 1;
+		return &Items[1796];
+	break;
+	case 0x25ab:
+		if (outLength) *outLength = 1;
+		return &Items[1864];
+	break;
+	case 0x25aa:
+		if (outLength) *outLength = 1;
+		return &Items[1863];
+	break;
+	case 0x24c2:
+		if (outLength) *outLength = 1;
+		return &Items[1750];
+	break;
+	case 0x23fa:
+		if (outLength) *outLength = 1;
+		return &Items[1800];
+	break;
+	case 0x23f9:
+		if (outLength) *outLength = 1;
+		return &Items[1799];
+	break;
+	case 0x23f8:
+		if (outLength) *outLength = 1;
+		return &Items[1797];
+	break;
+	case 0x23f3:
+		if (outLength) *outLength = 1;
+		return &Items[1501];
+	break;
+	case 0x23f2:
+		if (outLength) *outLength = 1;
+		return &Items[1497];
+	break;
+	case 0x23f1:
+		if (outLength) *outLength = 1;
+		return &Items[1496];
+	break;
+	case 0x23f0:
+		if (outLength) *outLength = 1;
+		return &Items[1498];
+	break;
+	case 0x23ef:
+		if (outLength) *outLength = 1;
+		return &Items[1798];
+	break;
+	case 0x23ee:
+		if (outLength) *outLength = 1;
+		return &Items[1802];
+	break;
+	case 0x23ed:
+		if (outLength) *outLength = 1;
+		return &Items[1801];
+	break;
+	case 0x23ec:
+		if (outLength) *outLength = 1;
+		return &Items[1806];
+	break;
+	case 0x23eb:
+		if (outLength) *outLength = 1;
+		return &Items[1805];
+	break;
+	case 0x23ea:
+		if (outLength) *outLength = 1;
+		return &Items[1804];
+	break;
+	case 0x23e9:
+		if (outLength) *outLength = 1;
+		return &Items[1803];
+	break;
+	case 0x2328:
+		if (outLength) *outLength = 1;
+		return &Items[1469];
+	break;
+	case 0x231b:
+		if (outLength) *outLength = 1;
+		return &Items[1500];
+	break;
+	case 0x231a:
+		if (outLength) *outLength = 1;
+		return &Items[1465];
+	break;
+	case 0x21aa:
+		if (outLength) *outLength = 1;
+		return &Items[1820];
+	break;
+	case 0x21a9:
+		if (outLength) *outLength = 1;
+		return &Items[1821];
+	break;
+	case 0x2199:
+		if (outLength) *outLength = 1;
+		return &Items[1816];
+	break;
+	case 0x2198:
+		if (outLength) *outLength = 1;
+		return &Items[1815];
+	break;
+	case 0x2197:
+		if (outLength) *outLength = 1;
+		return &Items[1814];
+	break;
+	case 0x2196:
+		if (outLength) *outLength = 1;
+		return &Items[1817];
+	break;
+	case 0x2195:
+		if (outLength) *outLength = 1;
+		return &Items[1818];
+	break;
+	case 0x2194:
+		if (outLength) *outLength = 1;
+		return &Items[1819];
+	break;
+	case 0x2139:
+		if (outLength) *outLength = 1;
+		return &Items[1772];
+	break;
+	case 0x2122:
+		if (outLength) *outLength = 1;
+		return &Items[1837];
+	break;
+	case 0x2049:
+		if (outLength) *outLength = 1;
+		return &Items[1732];
+	break;
+	case 0x203c:
+		if (outLength) *outLength = 1;
+		return &Items[1731];
+	break;
+	case 0xae:
+		if (outLength) *outLength = 1;
+		return &Items[1839];
+	break;
+	case 0xa9:
+		if (outLength) *outLength = 1;
+		return &Items[1838];
+	break;
+	case 0x39:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1791];
+		}
+	break;
+	case 0x38:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1790];
+		}
+	break;
+	case 0x37:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1789];
+		}
+	break;
+	case 0x36:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1788];
+		}
+	break;
+	case 0x35:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1787];
+		}
+	break;
+	case 0x34:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1786];
+		}
+	break;
+	case 0x33:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1785];
+		}
+	break;
+	case 0x32:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1784];
+		}
+	break;
+	case 0x31:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1783];
+		}
+	break;
+	case 0x30:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1782];
+		}
+	break;
+	case 0x2a:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1795];
+		}
+	break;
+	case 0x23:
+		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
+			if (outLength) *outLength = 3;
+			return &Items[1794];
+		}
+	break;
+	}
+
+	return nullptr;
+}
+
+} // namespace internal
+
+void Init() {
+	auto scaleForEmoji = cRetina() ? dbisTwo : cScale();
+
+	switch (scaleForEmoji) {
+	case dbisOne: WorkingIndex = 0; break;
+	case dbisOneAndQuarter: WorkingIndex = 1; break;
+	case dbisOneAndHalf: WorkingIndex = 2; break;
+	case dbisTwo: WorkingIndex = 3; break;
+	};
+
+	Items.reserve(kCount);
+
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde00), 0, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde03), 1, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde04), 2, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde01), 3, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde06), 4, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde05), 5, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde02), 6, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd23), 7, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x263a), 8, 0, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde0a), 9, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde07), 10, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde42), 11, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde43), 12, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde09), 13, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde0c), 14, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde0d), 15, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde18), 16, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde17), 17, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde19), 18, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde1a), 19, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde0b), 20, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde1c), 21, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde1d), 22, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde1b), 23, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd11), 24, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd17), 25, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd13), 26, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde0e), 27, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd21), 28, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd20), 29, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde0f), 30, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde12), 31, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde1e), 32, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde14), 33, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde1f), 34, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde15), 35, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde41), 36, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2639), 37, 0, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde23), 38, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde16), 39, 0, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde2b), 0, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde29), 1, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde24), 2, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde20), 3, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde21), 4, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde36), 5, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde10), 6, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde11), 7, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde2f), 8, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde26), 9, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde27), 10, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde2e), 11, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde32), 12, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde35), 13, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde33), 14, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde31), 15, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde28), 16, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde30), 17, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde22), 18, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde25), 19, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd24), 20, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde2d), 21, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde13), 22, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde2a), 23, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde34), 24, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde44), 25, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd14), 26, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd25), 27, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde2c), 28, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd10), 29, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd22), 30, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd27), 31, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde37), 32, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd12), 33, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd15), 34, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde08), 35, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7f), 36, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc79), 37, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7a), 38, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca9), 39, 1, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7b), 0, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc80), 1, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2620), 2, 2, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7d), 3, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7e), 4, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd16), 5, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf83), 6, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde3a), 7, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde38), 8, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde39), 9, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde3b), 10, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde3c), 11, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde3d), 12, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde40), 13, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde3f), 14, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde3e), 15, 2, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc50), 16, 2, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc50, 0xd83c, 0xdffb), 17, 2, false, false, &Items[96] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc50, 0xd83c, 0xdffc), 18, 2, false, false, &Items[96] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc50, 0xd83c, 0xdffd), 19, 2, false, false, &Items[96] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc50, 0xd83c, 0xdffe), 20, 2, false, false, &Items[96] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc50, 0xd83c, 0xdfff), 21, 2, false, false, &Items[96] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4c), 22, 2, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4c, 0xd83c, 0xdffb), 23, 2, false, false, &Items[102] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4c, 0xd83c, 0xdffc), 24, 2, false, false, &Items[102] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4c, 0xd83c, 0xdffd), 25, 2, false, false, &Items[102] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4c, 0xd83c, 0xdffe), 26, 2, false, false, &Items[102] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4c, 0xd83c, 0xdfff), 27, 2, false, false, &Items[102] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4f), 28, 2, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4f, 0xd83c, 0xdffb), 29, 2, false, false, &Items[108] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4f, 0xd83c, 0xdffc), 30, 2, false, false, &Items[108] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4f, 0xd83c, 0xdffd), 31, 2, false, false, &Items[108] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4f, 0xd83c, 0xdffe), 32, 2, false, false, &Items[108] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4f, 0xd83c, 0xdfff), 33, 2, false, false, &Items[108] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4f), 34, 2, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4f, 0xd83c, 0xdffb), 35, 2, false, false, &Items[114] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4f, 0xd83c, 0xdffc), 36, 2, false, false, &Items[114] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4f, 0xd83c, 0xdffd), 37, 2, false, false, &Items[114] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4f, 0xd83c, 0xdffe), 38, 2, false, false, &Items[114] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4f, 0xd83c, 0xdfff), 39, 2, false, false, &Items[114] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1d), 0, 3, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4d), 1, 3, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4d, 0xd83c, 0xdffb), 2, 3, false, false, &Items[121] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4d, 0xd83c, 0xdffc), 3, 3, false, false, &Items[121] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4d, 0xd83c, 0xdffd), 4, 3, false, false, &Items[121] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4d, 0xd83c, 0xdffe), 5, 3, false, false, &Items[121] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4d, 0xd83c, 0xdfff), 6, 3, false, false, &Items[121] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4e), 7, 3, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4e, 0xd83c, 0xdffb), 8, 3, false, false, &Items[127] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4e, 0xd83c, 0xdffc), 9, 3, false, false, &Items[127] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4e, 0xd83c, 0xdffd), 10, 3, false, false, &Items[127] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4e, 0xd83c, 0xdffe), 11, 3, false, false, &Items[127] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4e, 0xd83c, 0xdfff), 12, 3, false, false, &Items[127] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4a), 13, 3, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4a, 0xd83c, 0xdffb), 14, 3, false, false, &Items[133] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4a, 0xd83c, 0xdffc), 15, 3, false, false, &Items[133] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4a, 0xd83c, 0xdffd), 16, 3, false, false, &Items[133] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4a, 0xd83c, 0xdffe), 17, 3, false, false, &Items[133] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4a, 0xd83c, 0xdfff), 18, 3, false, false, &Items[133] });
+	Items.push_back({ internal::ComputeId(0x270a), 19, 3, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x270a, 0xd83c, 0xdffb), 20, 3, false, false, &Items[139] });
+	Items.push_back({ internal::ComputeId(0x270a, 0xd83c, 0xdffc), 21, 3, false, false, &Items[139] });
+	Items.push_back({ internal::ComputeId(0x270a, 0xd83c, 0xdffd), 22, 3, false, false, &Items[139] });
+	Items.push_back({ internal::ComputeId(0x270a, 0xd83c, 0xdffe), 23, 3, false, false, &Items[139] });
+	Items.push_back({ internal::ComputeId(0x270a, 0xd83c, 0xdfff), 24, 3, false, false, &Items[139] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1b), 25, 3, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1b, 0xd83c, 0xdffb), 26, 3, false, false, &Items[145] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1b, 0xd83c, 0xdffc), 27, 3, false, false, &Items[145] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1b, 0xd83c, 0xdffd), 28, 3, false, false, &Items[145] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1b, 0xd83c, 0xdffe), 29, 3, false, false, &Items[145] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1b, 0xd83c, 0xdfff), 30, 3, false, false, &Items[145] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1c), 31, 3, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1c, 0xd83c, 0xdffb), 32, 3, false, false, &Items[151] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1c, 0xd83c, 0xdffc), 33, 3, false, false, &Items[151] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1c, 0xd83c, 0xdffd), 34, 3, false, false, &Items[151] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1c, 0xd83c, 0xdffe), 35, 3, false, false, &Items[151] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1c, 0xd83c, 0xdfff), 36, 3, false, false, &Items[151] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1e), 37, 3, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1e, 0xd83c, 0xdffb), 38, 3, false, false, &Items[157] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1e, 0xd83c, 0xdffc), 39, 3, false, false, &Items[157] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1e, 0xd83c, 0xdffd), 0, 4, false, false, &Items[157] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1e, 0xd83c, 0xdffe), 1, 4, false, false, &Items[157] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1e, 0xd83c, 0xdfff), 2, 4, false, false, &Items[157] });
+	Items.push_back({ internal::ComputeId(0x270c), 3, 4, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x270c, 0xd83c, 0xdffb), 4, 4, false, false, &Items[163] });
+	Items.push_back({ internal::ComputeId(0x270c, 0xd83c, 0xdffc), 5, 4, false, false, &Items[163] });
+	Items.push_back({ internal::ComputeId(0x270c, 0xd83c, 0xdffd), 6, 4, false, false, &Items[163] });
+	Items.push_back({ internal::ComputeId(0x270c, 0xd83c, 0xdffe), 7, 4, false, false, &Items[163] });
+	Items.push_back({ internal::ComputeId(0x270c, 0xd83c, 0xdfff), 8, 4, false, false, &Items[163] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd18), 9, 4, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd18, 0xd83c, 0xdffb), 10, 4, false, false, &Items[169] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd18, 0xd83c, 0xdffc), 11, 4, false, false, &Items[169] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd18, 0xd83c, 0xdffd), 12, 4, false, false, &Items[169] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd18, 0xd83c, 0xdffe), 13, 4, false, false, &Items[169] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd18, 0xd83c, 0xdfff), 14, 4, false, false, &Items[169] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4c), 15, 4, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4c, 0xd83c, 0xdffb), 16, 4, false, false, &Items[175] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4c, 0xd83c, 0xdffc), 17, 4, false, false, &Items[175] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4c, 0xd83c, 0xdffd), 18, 4, false, false, &Items[175] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4c, 0xd83c, 0xdffe), 19, 4, false, false, &Items[175] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4c, 0xd83c, 0xdfff), 20, 4, false, false, &Items[175] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc48), 21, 4, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc48, 0xd83c, 0xdffb), 22, 4, false, false, &Items[181] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc48, 0xd83c, 0xdffc), 23, 4, false, false, &Items[181] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc48, 0xd83c, 0xdffd), 24, 4, false, false, &Items[181] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc48, 0xd83c, 0xdffe), 25, 4, false, false, &Items[181] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc48, 0xd83c, 0xdfff), 26, 4, false, false, &Items[181] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc49), 27, 4, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc49, 0xd83c, 0xdffb), 28, 4, false, false, &Items[187] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc49, 0xd83c, 0xdffc), 29, 4, false, false, &Items[187] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc49, 0xd83c, 0xdffd), 30, 4, false, false, &Items[187] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc49, 0xd83c, 0xdffe), 31, 4, false, false, &Items[187] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc49, 0xd83c, 0xdfff), 32, 4, false, false, &Items[187] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc46), 33, 4, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc46, 0xd83c, 0xdffb), 34, 4, false, false, &Items[193] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc46, 0xd83c, 0xdffc), 35, 4, false, false, &Items[193] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc46, 0xd83c, 0xdffd), 36, 4, false, false, &Items[193] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc46, 0xd83c, 0xdffe), 37, 4, false, false, &Items[193] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc46, 0xd83c, 0xdfff), 38, 4, false, false, &Items[193] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc47), 39, 4, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc47, 0xd83c, 0xdffb), 0, 5, false, false, &Items[199] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc47, 0xd83c, 0xdffc), 1, 5, false, false, &Items[199] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc47, 0xd83c, 0xdffd), 2, 5, false, false, &Items[199] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc47, 0xd83c, 0xdffe), 3, 5, false, false, &Items[199] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc47, 0xd83c, 0xdfff), 4, 5, false, false, &Items[199] });
+	Items.push_back({ internal::ComputeId(0x261d), 5, 5, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x261d, 0xd83c, 0xdffb), 6, 5, false, false, &Items[205] });
+	Items.push_back({ internal::ComputeId(0x261d, 0xd83c, 0xdffc), 7, 5, false, false, &Items[205] });
+	Items.push_back({ internal::ComputeId(0x261d, 0xd83c, 0xdffd), 8, 5, false, false, &Items[205] });
+	Items.push_back({ internal::ComputeId(0x261d, 0xd83c, 0xdffe), 9, 5, false, false, &Items[205] });
+	Items.push_back({ internal::ComputeId(0x261d, 0xd83c, 0xdfff), 10, 5, false, false, &Items[205] });
+	Items.push_back({ internal::ComputeId(0x270b), 11, 5, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x270b, 0xd83c, 0xdffb), 12, 5, false, false, &Items[211] });
+	Items.push_back({ internal::ComputeId(0x270b, 0xd83c, 0xdffc), 13, 5, false, false, &Items[211] });
+	Items.push_back({ internal::ComputeId(0x270b, 0xd83c, 0xdffd), 14, 5, false, false, &Items[211] });
+	Items.push_back({ internal::ComputeId(0x270b, 0xd83c, 0xdffe), 15, 5, false, false, &Items[211] });
+	Items.push_back({ internal::ComputeId(0x270b, 0xd83c, 0xdfff), 16, 5, false, false, &Items[211] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1a), 17, 5, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1a, 0xd83c, 0xdffb), 18, 5, false, false, &Items[217] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1a, 0xd83c, 0xdffc), 19, 5, false, false, &Items[217] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1a, 0xd83c, 0xdffd), 20, 5, false, false, &Items[217] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1a, 0xd83c, 0xdffe), 21, 5, false, false, &Items[217] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd1a, 0xd83c, 0xdfff), 22, 5, false, false, &Items[217] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd90), 23, 5, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd90, 0xd83c, 0xdffb), 24, 5, false, false, &Items[223] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd90, 0xd83c, 0xdffc), 25, 5, false, false, &Items[223] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd90, 0xd83c, 0xdffd), 26, 5, false, false, &Items[223] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd90, 0xd83c, 0xdffe), 27, 5, false, false, &Items[223] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd90, 0xd83c, 0xdfff), 28, 5, false, false, &Items[223] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd96), 29, 5, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd96, 0xd83c, 0xdffb), 30, 5, false, false, &Items[229] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd96, 0xd83c, 0xdffc), 31, 5, false, false, &Items[229] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd96, 0xd83c, 0xdffd), 32, 5, false, false, &Items[229] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd96, 0xd83c, 0xdffe), 33, 5, false, false, &Items[229] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd96, 0xd83c, 0xdfff), 34, 5, false, false, &Items[229] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4b), 35, 5, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4b, 0xd83c, 0xdffb), 36, 5, false, false, &Items[235] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4b, 0xd83c, 0xdffc), 37, 5, false, false, &Items[235] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4b, 0xd83c, 0xdffd), 38, 5, false, false, &Items[235] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4b, 0xd83c, 0xdffe), 39, 5, false, false, &Items[235] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc4b, 0xd83c, 0xdfff), 0, 6, false, false, &Items[235] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd19), 1, 6, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd19, 0xd83c, 0xdffb), 2, 6, false, false, &Items[241] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd19, 0xd83c, 0xdffc), 3, 6, false, false, &Items[241] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd19, 0xd83c, 0xdffd), 4, 6, false, false, &Items[241] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd19, 0xd83c, 0xdffe), 5, 6, false, false, &Items[241] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd19, 0xd83c, 0xdfff), 6, 6, false, false, &Items[241] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaa), 7, 6, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaa, 0xd83c, 0xdffb), 8, 6, false, false, &Items[247] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaa, 0xd83c, 0xdffc), 9, 6, false, false, &Items[247] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaa, 0xd83c, 0xdffd), 10, 6, false, false, &Items[247] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaa, 0xd83c, 0xdffe), 11, 6, false, false, &Items[247] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaa, 0xd83c, 0xdfff), 12, 6, false, false, &Items[247] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd95), 13, 6, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd95, 0xd83c, 0xdffb), 14, 6, false, false, &Items[253] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd95, 0xd83c, 0xdffc), 15, 6, false, false, &Items[253] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd95, 0xd83c, 0xdffd), 16, 6, false, false, &Items[253] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd95, 0xd83c, 0xdffe), 17, 6, false, false, &Items[253] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd95, 0xd83c, 0xdfff), 18, 6, false, false, &Items[253] });
+	Items.push_back({ internal::ComputeId(0x270d), 19, 6, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x270d, 0xd83c, 0xdffb), 20, 6, false, false, &Items[259] });
+	Items.push_back({ internal::ComputeId(0x270d, 0xd83c, 0xdffc), 21, 6, false, false, &Items[259] });
+	Items.push_back({ internal::ComputeId(0x270d, 0xd83c, 0xdffd), 22, 6, false, false, &Items[259] });
+	Items.push_back({ internal::ComputeId(0x270d, 0xd83c, 0xdffe), 23, 6, false, false, &Items[259] });
+	Items.push_back({ internal::ComputeId(0x270d, 0xd83c, 0xdfff), 24, 6, false, false, &Items[259] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd33), 25, 6, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd33, 0xd83c, 0xdffb), 26, 6, false, false, &Items[265] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd33, 0xd83c, 0xdffc), 27, 6, false, false, &Items[265] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd33, 0xd83c, 0xdffd), 28, 6, false, false, &Items[265] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd33, 0xd83c, 0xdffe), 29, 6, false, false, &Items[265] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd33, 0xd83c, 0xdfff), 30, 6, false, false, &Items[265] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc85), 31, 6, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc85, 0xd83c, 0xdffb), 32, 6, false, false, &Items[271] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc85, 0xd83c, 0xdffc), 33, 6, false, false, &Items[271] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc85, 0xd83c, 0xdffd), 34, 6, false, false, &Items[271] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc85, 0xd83c, 0xdffe), 35, 6, false, false, &Items[271] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc85, 0xd83c, 0xdfff), 36, 6, false, false, &Items[271] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc8d), 37, 6, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc84), 38, 6, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc8b), 39, 6, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc44), 0, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc45), 1, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc42), 2, 7, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc42, 0xd83c, 0xdffb), 3, 7, false, false, &Items[282] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc42, 0xd83c, 0xdffc), 4, 7, false, false, &Items[282] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc42, 0xd83c, 0xdffd), 5, 7, false, false, &Items[282] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc42, 0xd83c, 0xdffe), 6, 7, false, false, &Items[282] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc42, 0xd83c, 0xdfff), 7, 7, false, false, &Items[282] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc43), 8, 7, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc43, 0xd83c, 0xdffb), 9, 7, false, false, &Items[288] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc43, 0xd83c, 0xdffc), 10, 7, false, false, &Items[288] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc43, 0xd83c, 0xdffd), 11, 7, false, false, &Items[288] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc43, 0xd83c, 0xdffe), 12, 7, false, false, &Items[288] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc43, 0xd83c, 0xdfff), 13, 7, false, false, &Items[288] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc63), 14, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc41), 15, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc40), 16, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdde3), 17, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc64), 18, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc65), 19, 7, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc76), 20, 7, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc76, 0xd83c, 0xdffb), 21, 7, false, false, &Items[300] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc76, 0xd83c, 0xdffc), 22, 7, false, false, &Items[300] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc76, 0xd83c, 0xdffd), 23, 7, false, false, &Items[300] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc76, 0xd83c, 0xdffe), 24, 7, false, false, &Items[300] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc76, 0xd83c, 0xdfff), 25, 7, false, false, &Items[300] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc66), 26, 7, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc66, 0xd83c, 0xdffb), 27, 7, false, false, &Items[306] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc66, 0xd83c, 0xdffc), 28, 7, false, false, &Items[306] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc66, 0xd83c, 0xdffd), 29, 7, false, false, &Items[306] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc66, 0xd83c, 0xdffe), 30, 7, false, false, &Items[306] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc66, 0xd83c, 0xdfff), 31, 7, false, false, &Items[306] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc67), 32, 7, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc67, 0xd83c, 0xdffb), 33, 7, false, false, &Items[312] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc67, 0xd83c, 0xdffc), 34, 7, false, false, &Items[312] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc67, 0xd83c, 0xdffd), 35, 7, false, false, &Items[312] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc67, 0xd83c, 0xdffe), 36, 7, false, false, &Items[312] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc67, 0xd83c, 0xdfff), 37, 7, false, false, &Items[312] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68), 38, 7, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb), 39, 7, false, false, &Items[318] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc), 0, 8, false, false, &Items[318] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd), 1, 8, false, false, &Items[318] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe), 2, 8, false, false, &Items[318] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff), 3, 8, false, false, &Items[318] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69), 4, 8, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb), 5, 8, false, false, &Items[324] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc), 6, 8, false, false, &Items[324] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd), 7, 8, false, false, &Items[324] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe), 8, 8, false, false, &Items[324] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff), 9, 8, false, false, &Items[324] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0x200d, 0x2640, 0xfe0f), 10, 8, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 11, 8, false, false, &Items[330] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 12, 8, false, false, &Items[330] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 13, 8, false, false, &Items[330] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 14, 8, false, false, &Items[330] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 15, 8, false, false, &Items[330] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71), 16, 8, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffb), 17, 8, false, false, &Items[336] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffc), 18, 8, false, false, &Items[336] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffd), 19, 8, false, false, &Items[336] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdffe), 20, 8, false, false, &Items[336] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc71, 0xd83c, 0xdfff), 21, 8, false, false, &Items[336] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc74), 22, 8, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc74, 0xd83c, 0xdffb), 23, 8, false, false, &Items[342] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc74, 0xd83c, 0xdffc), 24, 8, false, false, &Items[342] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc74, 0xd83c, 0xdffd), 25, 8, false, false, &Items[342] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc74, 0xd83c, 0xdffe), 26, 8, false, false, &Items[342] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc74, 0xd83c, 0xdfff), 27, 8, false, false, &Items[342] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc75), 28, 8, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc75, 0xd83c, 0xdffb), 29, 8, false, false, &Items[348] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc75, 0xd83c, 0xdffc), 30, 8, false, false, &Items[348] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc75, 0xd83c, 0xdffd), 31, 8, false, false, &Items[348] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc75, 0xd83c, 0xdffe), 32, 8, false, false, &Items[348] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc75, 0xd83c, 0xdfff), 33, 8, false, false, &Items[348] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc72), 34, 8, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc72, 0xd83c, 0xdffb), 35, 8, false, false, &Items[354] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc72, 0xd83c, 0xdffc), 36, 8, false, false, &Items[354] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc72, 0xd83c, 0xdffd), 37, 8, false, false, &Items[354] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc72, 0xd83c, 0xdffe), 38, 8, false, false, &Items[354] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc72, 0xd83c, 0xdfff), 39, 8, false, false, &Items[354] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0x200d, 0x2640, 0xfe0f), 0, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 1, 9, false, false, &Items[360] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 2, 9, false, false, &Items[360] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 3, 9, false, false, &Items[360] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 4, 9, false, false, &Items[360] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 5, 9, false, false, &Items[360] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73), 6, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffb), 7, 9, false, false, &Items[366] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffc), 8, 9, false, false, &Items[366] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffd), 9, 9, false, false, &Items[366] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdffe), 10, 9, false, false, &Items[366] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc73, 0xd83c, 0xdfff), 11, 9, false, false, &Items[366] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0x200d, 0x2640, 0xfe0f), 12, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 13, 9, false, false, &Items[372] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 14, 9, false, false, &Items[372] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 15, 9, false, false, &Items[372] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 16, 9, false, false, &Items[372] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 17, 9, false, false, &Items[372] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e), 18, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffb), 19, 9, false, false, &Items[378] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffc), 20, 9, false, false, &Items[378] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffd), 21, 9, false, false, &Items[378] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdffe), 22, 9, false, false, &Items[378] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6e, 0xd83c, 0xdfff), 23, 9, false, false, &Items[378] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0x200d, 0x2640, 0xfe0f), 24, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 25, 9, false, false, &Items[384] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 26, 9, false, false, &Items[384] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 27, 9, false, false, &Items[384] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 28, 9, false, false, &Items[384] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 29, 9, false, false, &Items[384] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77), 30, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffb), 31, 9, false, false, &Items[390] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffc), 32, 9, false, false, &Items[390] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffd), 33, 9, false, false, &Items[390] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdffe), 34, 9, false, false, &Items[390] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc77, 0xd83c, 0xdfff), 35, 9, false, false, &Items[390] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0x200d, 0x2640, 0xfe0f), 36, 9, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 37, 9, false, false, &Items[396] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 38, 9, false, false, &Items[396] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 39, 9, false, false, &Items[396] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 0, 10, false, false, &Items[396] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 1, 10, false, false, &Items[396] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82), 2, 10, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffb), 3, 10, false, false, &Items[402] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffc), 4, 10, false, false, &Items[402] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffd), 5, 10, false, false, &Items[402] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffe), 6, 10, false, false, &Items[402] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdfff), 7, 10, false, false, &Items[402] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 8, 10, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 9, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 10, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 11, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 12, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 13, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75), 14, 10, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffb), 15, 10, false, false, &Items[414] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffc), 16, 10, false, false, &Items[414] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffd), 17, 10, false, false, &Items[414] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffe), 18, 10, false, false, &Items[414] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdfff), 19, 10, false, false, &Items[414] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0x2695, 0xfe0f), 20, 10, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0x2695, 0xfe0f), 21, 10, false, false, &Items[420] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0x2695, 0xfe0f), 22, 10, false, false, &Items[420] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0x2695, 0xfe0f), 23, 10, false, false, &Items[420] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0x2695, 0xfe0f), 24, 10, false, false, &Items[420] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0x2695, 0xfe0f), 25, 10, false, false, &Items[420] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0x2695, 0xfe0f), 26, 10, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0x2695, 0xfe0f), 27, 10, false, false, &Items[426] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0x2695, 0xfe0f), 28, 10, false, false, &Items[426] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0x2695, 0xfe0f), 29, 10, false, false, &Items[426] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0x2695, 0xfe0f), 30, 10, false, false, &Items[426] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0x2695, 0xfe0f), 31, 10, false, false, &Items[426] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdf3e), 32, 10, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdf3e), 33, 10, false, false, &Items[432] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdf3e), 34, 10, false, false, &Items[432] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdf3e), 35, 10, false, false, &Items[432] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdf3e), 36, 10, false, false, &Items[432] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdf3e), 37, 10, false, false, &Items[432] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdf3e), 38, 10, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdf3e), 39, 10, false, false, &Items[438] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdf3e), 0, 11, false, false, &Items[438] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdf3e), 1, 11, false, false, &Items[438] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdf3e), 2, 11, false, false, &Items[438] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdf3e), 3, 11, false, false, &Items[438] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdf73), 4, 11, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdf73), 5, 11, false, false, &Items[444] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdf73), 6, 11, false, false, &Items[444] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdf73), 7, 11, false, false, &Items[444] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdf73), 8, 11, false, false, &Items[444] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdf73), 9, 11, false, false, &Items[444] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdf73), 10, 11, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdf73), 11, 11, false, false, &Items[450] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdf73), 12, 11, false, false, &Items[450] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdf73), 13, 11, false, false, &Items[450] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdf73), 14, 11, false, false, &Items[450] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdf73), 15, 11, false, false, &Items[450] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdf93), 16, 11, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdf93), 17, 11, false, false, &Items[456] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdf93), 18, 11, false, false, &Items[456] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdf93), 19, 11, false, false, &Items[456] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdf93), 20, 11, false, false, &Items[456] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdf93), 21, 11, false, false, &Items[456] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdf93), 22, 11, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdf93), 23, 11, false, false, &Items[462] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdf93), 24, 11, false, false, &Items[462] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdf93), 25, 11, false, false, &Items[462] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdf93), 26, 11, false, false, &Items[462] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdf93), 27, 11, false, false, &Items[462] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdfa4), 28, 11, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfa4), 29, 11, false, false, &Items[468] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfa4), 30, 11, false, false, &Items[468] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfa4), 31, 11, false, false, &Items[468] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfa4), 32, 11, false, false, &Items[468] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfa4), 33, 11, false, false, &Items[468] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdfa4), 34, 11, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfa4), 35, 11, false, false, &Items[474] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfa4), 36, 11, false, false, &Items[474] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfa4), 37, 11, false, false, &Items[474] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfa4), 38, 11, false, false, &Items[474] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfa4), 39, 11, false, false, &Items[474] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdfeb), 0, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfeb), 1, 12, false, false, &Items[480] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfeb), 2, 12, false, false, &Items[480] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfeb), 3, 12, false, false, &Items[480] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfeb), 4, 12, false, false, &Items[480] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfeb), 5, 12, false, false, &Items[480] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdfeb), 6, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfeb), 7, 12, false, false, &Items[486] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfeb), 8, 12, false, false, &Items[486] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfeb), 9, 12, false, false, &Items[486] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfeb), 10, 12, false, false, &Items[486] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfeb), 11, 12, false, false, &Items[486] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdfed), 12, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfed), 13, 12, false, false, &Items[492] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfed), 14, 12, false, false, &Items[492] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfed), 15, 12, false, false, &Items[492] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfed), 16, 12, false, false, &Items[492] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfed), 17, 12, false, false, &Items[492] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdfed), 18, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfed), 19, 12, false, false, &Items[498] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfed), 20, 12, false, false, &Items[498] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfed), 21, 12, false, false, &Items[498] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfed), 22, 12, false, false, &Items[498] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfed), 23, 12, false, false, &Items[498] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdcbb), 24, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdcbb), 25, 12, false, false, &Items[504] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdcbb), 26, 12, false, false, &Items[504] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdcbb), 27, 12, false, false, &Items[504] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdcbb), 28, 12, false, false, &Items[504] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdcbb), 29, 12, false, false, &Items[504] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdcbb), 30, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdcbb), 31, 12, false, false, &Items[510] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdcbb), 32, 12, false, false, &Items[510] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdcbb), 33, 12, false, false, &Items[510] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdcbb), 34, 12, false, false, &Items[510] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdcbb), 35, 12, false, false, &Items[510] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdcbc), 36, 12, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdcbc), 37, 12, false, false, &Items[516] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdcbc), 38, 12, false, false, &Items[516] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdcbc), 39, 12, false, false, &Items[516] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdcbc), 0, 13, false, false, &Items[516] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdcbc), 1, 13, false, false, &Items[516] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdcbc), 2, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdcbc), 3, 13, false, false, &Items[522] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdcbc), 4, 13, false, false, &Items[522] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdcbc), 5, 13, false, false, &Items[522] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdcbc), 6, 13, false, false, &Items[522] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdcbc), 7, 13, false, false, &Items[522] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdd27), 8, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdd27), 9, 13, false, false, &Items[528] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdd27), 10, 13, false, false, &Items[528] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdd27), 11, 13, false, false, &Items[528] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdd27), 12, 13, false, false, &Items[528] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdd27), 13, 13, false, false, &Items[528] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdd27), 14, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdd27), 15, 13, false, false, &Items[534] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdd27), 16, 13, false, false, &Items[534] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdd27), 17, 13, false, false, &Items[534] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdd27), 18, 13, false, false, &Items[534] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdd27), 19, 13, false, false, &Items[534] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdd2c), 20, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdd2c), 21, 13, false, false, &Items[540] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdd2c), 22, 13, false, false, &Items[540] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdd2c), 23, 13, false, false, &Items[540] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdd2c), 24, 13, false, false, &Items[540] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdd2c), 25, 13, false, false, &Items[540] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdd2c), 26, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xdd2c), 27, 13, false, false, &Items[546] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xdd2c), 28, 13, false, false, &Items[546] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xdd2c), 29, 13, false, false, &Items[546] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xdd2c), 30, 13, false, false, &Items[546] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xdd2c), 31, 13, false, false, &Items[546] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83c, 0xdfa8), 32, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfa8), 33, 13, false, false, &Items[552] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfa8), 34, 13, false, false, &Items[552] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfa8), 35, 13, false, false, &Items[552] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfa8), 36, 13, false, false, &Items[552] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfa8), 37, 13, false, false, &Items[552] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83c, 0xdfa8), 38, 13, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83c, 0xdfa8), 39, 13, false, false, &Items[558] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83c, 0xdfa8), 0, 14, false, false, &Items[558] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83c, 0xdfa8), 1, 14, false, false, &Items[558] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83c, 0xdfa8), 2, 14, false, false, &Items[558] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83c, 0xdfa8), 3, 14, false, false, &Items[558] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xde92), 4, 14, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xde92), 5, 14, false, false, &Items[564] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xde92), 6, 14, false, false, &Items[564] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xde92), 7, 14, false, false, &Items[564] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xde92), 8, 14, false, false, &Items[564] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xde92), 9, 14, false, false, &Items[564] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xde92), 10, 14, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xde92), 11, 14, false, false, &Items[570] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xde92), 12, 14, false, false, &Items[570] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xde92), 13, 14, false, false, &Items[570] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xde92), 14, 14, false, false, &Items[570] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xde92), 15, 14, false, false, &Items[570] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0x2708, 0xfe0f), 16, 14, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0x2708, 0xfe0f), 17, 14, false, false, &Items[576] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0x2708, 0xfe0f), 18, 14, false, false, &Items[576] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0x2708, 0xfe0f), 19, 14, false, false, &Items[576] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0x2708, 0xfe0f), 20, 14, false, false, &Items[576] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0x2708, 0xfe0f), 21, 14, false, false, &Items[576] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0x2708, 0xfe0f), 22, 14, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0x2708, 0xfe0f), 23, 14, false, false, &Items[582] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0x2708, 0xfe0f), 24, 14, false, false, &Items[582] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0x2708, 0xfe0f), 25, 14, false, false, &Items[582] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0x2708, 0xfe0f), 26, 14, false, false, &Items[582] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0x2708, 0xfe0f), 27, 14, false, false, &Items[582] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xde80), 28, 14, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xde80), 29, 14, false, false, &Items[588] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xde80), 30, 14, false, false, &Items[588] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xde80), 31, 14, false, false, &Items[588] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xde80), 32, 14, false, false, &Items[588] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xde80), 33, 14, false, false, &Items[588] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xde80), 34, 14, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0xd83d, 0xde80), 35, 14, false, false, &Items[594] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0xd83d, 0xde80), 36, 14, false, false, &Items[594] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0xd83d, 0xde80), 37, 14, false, false, &Items[594] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0xd83d, 0xde80), 38, 14, false, false, &Items[594] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0xd83d, 0xde80), 39, 14, false, false, &Items[594] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0x2696, 0xfe0f), 0, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffb, 0x200d, 0x2696, 0xfe0f), 1, 15, false, false, &Items[600] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffc, 0x200d, 0x2696, 0xfe0f), 2, 15, false, false, &Items[600] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffd, 0x200d, 0x2696, 0xfe0f), 3, 15, false, false, &Items[600] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdffe, 0x200d, 0x2696, 0xfe0f), 4, 15, false, false, &Items[600] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0xd83c, 0xdfff, 0x200d, 0x2696, 0xfe0f), 5, 15, false, false, &Items[600] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0x2696, 0xfe0f), 6, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffb, 0x200d, 0x2696, 0xfe0f), 7, 15, false, false, &Items[606] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffc, 0x200d, 0x2696, 0xfe0f), 8, 15, false, false, &Items[606] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffd, 0x200d, 0x2696, 0xfe0f), 9, 15, false, false, &Items[606] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdffe, 0x200d, 0x2696, 0xfe0f), 10, 15, false, false, &Items[606] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0xd83c, 0xdfff, 0x200d, 0x2696, 0xfe0f), 11, 15, false, false, &Items[606] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd36), 12, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd36, 0xd83c, 0xdffb), 13, 15, false, false, &Items[612] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd36, 0xd83c, 0xdffc), 14, 15, false, false, &Items[612] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd36, 0xd83c, 0xdffd), 15, 15, false, false, &Items[612] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd36, 0xd83c, 0xdffe), 16, 15, false, false, &Items[612] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd36, 0xd83c, 0xdfff), 17, 15, false, false, &Items[612] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf85), 18, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf85, 0xd83c, 0xdffb), 19, 15, false, false, &Items[618] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf85, 0xd83c, 0xdffc), 20, 15, false, false, &Items[618] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf85, 0xd83c, 0xdffd), 21, 15, false, false, &Items[618] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf85, 0xd83c, 0xdffe), 22, 15, false, false, &Items[618] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf85, 0xd83c, 0xdfff), 23, 15, false, false, &Items[618] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc78), 24, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc78, 0xd83c, 0xdffb), 25, 15, false, false, &Items[624] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc78, 0xd83c, 0xdffc), 26, 15, false, false, &Items[624] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc78, 0xd83c, 0xdffd), 27, 15, false, false, &Items[624] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc78, 0xd83c, 0xdffe), 28, 15, false, false, &Items[624] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc78, 0xd83c, 0xdfff), 29, 15, false, false, &Items[624] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd34), 30, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd34, 0xd83c, 0xdffb), 31, 15, false, false, &Items[630] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd34, 0xd83c, 0xdffc), 32, 15, false, false, &Items[630] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd34, 0xd83c, 0xdffd), 33, 15, false, false, &Items[630] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd34, 0xd83c, 0xdffe), 34, 15, false, false, &Items[630] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd34, 0xd83c, 0xdfff), 35, 15, false, false, &Items[630] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc70), 36, 15, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc70, 0xd83c, 0xdffb), 37, 15, false, false, &Items[636] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc70, 0xd83c, 0xdffc), 38, 15, false, false, &Items[636] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc70, 0xd83c, 0xdffd), 39, 15, false, false, &Items[636] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc70, 0xd83c, 0xdffe), 0, 16, false, false, &Items[636] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc70, 0xd83c, 0xdfff), 1, 16, false, false, &Items[636] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd35), 2, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd35, 0xd83c, 0xdffb), 3, 16, false, false, &Items[642] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd35, 0xd83c, 0xdffc), 4, 16, false, false, &Items[642] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd35, 0xd83c, 0xdffd), 5, 16, false, false, &Items[642] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd35, 0xd83c, 0xdffe), 6, 16, false, false, &Items[642] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd35, 0xd83c, 0xdfff), 7, 16, false, false, &Items[642] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7c), 8, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7c, 0xd83c, 0xdffb), 9, 16, false, false, &Items[648] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7c, 0xd83c, 0xdffc), 10, 16, false, false, &Items[648] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7c, 0xd83c, 0xdffd), 11, 16, false, false, &Items[648] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7c, 0xd83c, 0xdffe), 12, 16, false, false, &Items[648] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc7c, 0xd83c, 0xdfff), 13, 16, false, false, &Items[648] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd30), 14, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd30, 0xd83c, 0xdffb), 15, 16, false, false, &Items[654] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd30, 0xd83c, 0xdffc), 16, 16, false, false, &Items[654] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd30, 0xd83c, 0xdffd), 17, 16, false, false, &Items[654] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd30, 0xd83c, 0xdffe), 18, 16, false, false, &Items[654] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd30, 0xd83c, 0xdfff), 19, 16, false, false, &Items[654] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0x200d, 0x2640, 0xfe0f), 20, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 21, 16, false, false, &Items[660] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 22, 16, false, false, &Items[660] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 23, 16, false, false, &Items[660] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 24, 16, false, false, &Items[660] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 25, 16, false, false, &Items[660] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47), 26, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffb), 27, 16, false, false, &Items[666] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffc), 28, 16, false, false, &Items[666] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffd), 29, 16, false, false, &Items[666] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdffe), 30, 16, false, false, &Items[666] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde47, 0xd83c, 0xdfff), 31, 16, false, false, &Items[666] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81), 32, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffb), 33, 16, false, false, &Items[672] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffc), 34, 16, false, false, &Items[672] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffd), 35, 16, false, false, &Items[672] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffe), 36, 16, false, false, &Items[672] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdfff), 37, 16, false, false, &Items[672] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0x200d, 0x2642, 0xfe0f), 38, 16, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 39, 16, false, false, &Items[678] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 0, 17, false, false, &Items[678] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 1, 17, false, false, &Items[678] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 2, 17, false, false, &Items[678] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc81, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 3, 17, false, false, &Items[678] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45), 4, 17, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffb), 5, 17, false, false, &Items[684] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffc), 6, 17, false, false, &Items[684] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffd), 7, 17, false, false, &Items[684] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffe), 8, 17, false, false, &Items[684] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdfff), 9, 17, false, false, &Items[684] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0x200d, 0x2642, 0xfe0f), 10, 17, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 11, 17, false, false, &Items[690] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 12, 17, false, false, &Items[690] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 13, 17, false, false, &Items[690] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 14, 17, false, false, &Items[690] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde45, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 15, 17, false, false, &Items[690] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46), 16, 17, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffb), 17, 17, false, false, &Items[696] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffc), 18, 17, false, false, &Items[696] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffd), 19, 17, false, false, &Items[696] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffe), 20, 17, false, false, &Items[696] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdfff), 21, 17, false, false, &Items[696] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0x200d, 0x2642, 0xfe0f), 22, 17, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 23, 17, false, false, &Items[702] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 24, 17, false, false, &Items[702] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 25, 17, false, false, &Items[702] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 26, 17, false, false, &Items[702] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde46, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 27, 17, false, false, &Items[702] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b), 28, 17, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffb), 29, 17, false, false, &Items[708] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffc), 30, 17, false, false, &Items[708] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffd), 31, 17, false, false, &Items[708] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffe), 32, 17, false, false, &Items[708] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdfff), 33, 17, false, false, &Items[708] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0x200d, 0x2642, 0xfe0f), 34, 17, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 35, 17, false, false, &Items[714] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 36, 17, false, false, &Items[714] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 37, 17, false, false, &Items[714] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 38, 17, false, false, &Items[714] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4b, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 39, 17, false, false, &Items[714] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0x200d, 0x2640, 0xfe0f), 0, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 1, 18, false, false, &Items[720] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 2, 18, false, false, &Items[720] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 3, 18, false, false, &Items[720] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 4, 18, false, false, &Items[720] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 5, 18, false, false, &Items[720] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0x200d, 0x2642, 0xfe0f), 6, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 7, 18, false, false, &Items[726] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 8, 18, false, false, &Items[726] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 9, 18, false, false, &Items[726] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 10, 18, false, false, &Items[726] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd26, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 11, 18, false, false, &Items[726] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0x200d, 0x2640, 0xfe0f), 12, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 13, 18, false, false, &Items[732] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 14, 18, false, false, &Items[732] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 15, 18, false, false, &Items[732] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 16, 18, false, false, &Items[732] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 17, 18, false, false, &Items[732] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0x200d, 0x2642, 0xfe0f), 18, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 19, 18, false, false, &Items[738] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 20, 18, false, false, &Items[738] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 21, 18, false, false, &Items[738] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 22, 18, false, false, &Items[738] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd37, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 23, 18, false, false, &Items[738] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e), 24, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffb), 25, 18, false, false, &Items[744] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffc), 26, 18, false, false, &Items[744] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffd), 27, 18, false, false, &Items[744] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffe), 28, 18, false, false, &Items[744] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdfff), 29, 18, false, false, &Items[744] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0x200d, 0x2642, 0xfe0f), 30, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 31, 18, false, false, &Items[750] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 32, 18, false, false, &Items[750] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 33, 18, false, false, &Items[750] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 34, 18, false, false, &Items[750] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4e, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 35, 18, false, false, &Items[750] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d), 36, 18, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffb), 37, 18, false, false, &Items[756] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffc), 38, 18, false, false, &Items[756] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffd), 39, 18, false, false, &Items[756] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffe), 0, 19, false, false, &Items[756] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdfff), 1, 19, false, false, &Items[756] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0x200d, 0x2642, 0xfe0f), 2, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 3, 19, false, false, &Items[762] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 4, 19, false, false, &Items[762] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 5, 19, false, false, &Items[762] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 6, 19, false, false, &Items[762] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4d, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 7, 19, false, false, &Items[762] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87), 8, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffb), 9, 19, false, false, &Items[768] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffc), 10, 19, false, false, &Items[768] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffd), 11, 19, false, false, &Items[768] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffe), 12, 19, false, false, &Items[768] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdfff), 13, 19, false, false, &Items[768] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0x200d, 0x2642, 0xfe0f), 14, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 15, 19, false, false, &Items[774] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 16, 19, false, false, &Items[774] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 17, 19, false, false, &Items[774] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 18, 19, false, false, &Items[774] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc87, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 19, 19, false, false, &Items[774] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86), 20, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffb), 21, 19, false, false, &Items[780] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffc), 22, 19, false, false, &Items[780] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffd), 23, 19, false, false, &Items[780] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffe), 24, 19, false, false, &Items[780] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdfff), 25, 19, false, false, &Items[780] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0x200d, 0x2642, 0xfe0f), 26, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 27, 19, false, false, &Items[786] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 28, 19, false, false, &Items[786] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 29, 19, false, false, &Items[786] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 30, 19, false, false, &Items[786] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc86, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 31, 19, false, false, &Items[786] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd74), 32, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd74, 0xd83c, 0xdffb), 33, 19, false, false, &Items[792] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd74, 0xd83c, 0xdffc), 34, 19, false, false, &Items[792] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd74, 0xd83c, 0xdffd), 35, 19, false, false, &Items[792] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd74, 0xd83c, 0xdffe), 36, 19, false, false, &Items[792] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd74, 0xd83c, 0xdfff), 37, 19, false, false, &Items[792] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc83), 38, 19, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc83, 0xd83c, 0xdffb), 39, 19, false, false, &Items[798] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc83, 0xd83c, 0xdffc), 0, 20, false, false, &Items[798] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc83, 0xd83c, 0xdffd), 1, 20, false, false, &Items[798] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc83, 0xd83c, 0xdffe), 2, 20, false, false, &Items[798] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc83, 0xd83c, 0xdfff), 3, 20, false, false, &Items[798] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd7a), 4, 20, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd7a, 0xd83c, 0xdffb), 5, 20, false, false, &Items[804] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd7a, 0xd83c, 0xdffc), 6, 20, false, false, &Items[804] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd7a, 0xd83c, 0xdffd), 7, 20, false, false, &Items[804] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd7a, 0xd83c, 0xdffe), 8, 20, false, false, &Items[804] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd7a, 0xd83c, 0xdfff), 9, 20, false, false, &Items[804] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6f), 10, 20, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6f, 0x200d, 0x2642, 0xfe0f), 11, 20, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0x200d, 0x2640, 0xfe0f), 12, 20, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 13, 20, false, false, &Items[812] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 14, 20, false, false, &Items[812] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 15, 20, false, false, &Items[812] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 16, 20, false, false, &Items[812] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 17, 20, false, false, &Items[812] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6), 18, 20, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffb), 19, 20, false, false, &Items[818] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffc), 20, 20, false, false, &Items[818] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffd), 21, 20, false, false, &Items[818] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdffe), 22, 20, false, false, &Items[818] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb6, 0xd83c, 0xdfff), 23, 20, false, false, &Items[818] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0x200d, 0x2640, 0xfe0f), 24, 20, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 25, 20, false, false, &Items[824] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 26, 20, false, false, &Items[824] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 27, 20, false, false, &Items[824] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 28, 20, false, false, &Items[824] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 29, 20, false, false, &Items[824] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3), 30, 20, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffb), 31, 20, false, false, &Items[830] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffc), 32, 20, false, false, &Items[830] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffd), 33, 20, false, false, &Items[830] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdffe), 34, 20, false, false, &Items[830] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc3, 0xd83c, 0xdfff), 35, 20, false, false, &Items[830] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6b), 36, 20, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6d), 37, 20, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6c), 38, 20, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc91), 39, 20, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0x2764, 0xfe0f, 0x200d, 0xd83d, 0xdc69), 0, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0x2764, 0xfe0f, 0x200d, 0xd83d, 0xdc68), 1, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc8f), 2, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0x2764, 0xfe0f, 0x200d, 0xd83d, 0xdc8b, 0x200d, 0xd83d, 0xdc69), 3, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0x2764, 0xfe0f, 0x200d, 0xd83d, 0xdc8b, 0x200d, 0xd83d, 0xdc68), 4, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc6a), 5, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67), 6, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc66), 7, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc66, 0x200d, 0xd83d, 0xdc66), 8, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc67), 9, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc66), 10, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67), 11, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc66), 12, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc66, 0x200d, 0xd83d, 0xdc66), 13, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc67), 14, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc66), 15, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc67), 16, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc66), 17, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc66, 0x200d, 0xd83d, 0xdc66), 18, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc67), 19, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc66), 20, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67), 21, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc66), 22, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc66, 0x200d, 0xd83d, 0xdc66), 23, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc69, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc67), 24, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc66), 25, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc67), 26, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc66), 27, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc66, 0x200d, 0xd83d, 0xdc66), 28, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc68, 0x200d, 0xd83d, 0xdc67, 0x200d, 0xd83d, 0xdc67), 29, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc5a), 30, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc55), 31, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc56), 32, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc54), 33, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc57), 34, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc59), 35, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc58), 36, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc60), 37, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc61), 38, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc62), 39, 21, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc5e), 0, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc5f), 1, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc52), 2, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa9), 3, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf93), 4, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc51), 5, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26d1), 6, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf92), 7, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc5d), 8, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc5b), 9, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc5c), 10, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcbc), 11, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc53), 12, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd76), 13, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf02), 14, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2602), 15, 22, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc36), 16, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc31), 17, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc2d), 18, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc39), 19, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc30), 20, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd8a), 21, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc3b), 22, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc3c), 23, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc28), 24, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc2f), 25, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd81), 26, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc2e), 27, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc37), 28, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc3d), 29, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc38), 30, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc35), 31, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde48), 32, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde49), 33, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde4a), 34, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc12), 35, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc14), 36, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc27), 37, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc26), 38, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc24), 39, 22, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc23), 0, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc25), 1, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd86), 2, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd85), 3, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd89), 4, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd87), 5, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc3a), 6, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc17), 7, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc34), 8, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd84), 9, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc1d), 10, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc1b), 11, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd8b), 12, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc0c), 13, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc1a), 14, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc1e), 15, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc1c), 16, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd77), 17, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd78), 18, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc22), 19, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc0d), 20, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd8e), 21, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd82), 22, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd80), 23, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd91), 24, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc19), 25, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd90), 26, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc20), 27, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc1f), 28, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc21), 29, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc2c), 30, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd88), 31, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc33), 32, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc0b), 33, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc0a), 34, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc06), 35, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc05), 36, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc03), 37, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc02), 38, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc04), 39, 23, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd8c), 0, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc2a), 1, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc2b), 2, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc18), 3, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd8f), 4, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd8d), 5, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc0e), 6, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc16), 7, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc10), 8, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc0f), 9, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc11), 10, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc15), 11, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc29), 12, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc08), 13, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc13), 14, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd83), 15, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd4a), 16, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc07), 17, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc01), 18, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc00), 19, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc3f), 20, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc3e), 21, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc09), 22, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc32), 23, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf35), 24, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf84), 25, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf32), 26, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf33), 27, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf34), 28, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf31), 29, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf3f), 30, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2618), 31, 24, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf40), 32, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf8d), 33, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf8b), 34, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf43), 35, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf42), 36, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf41), 37, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf44), 38, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf3e), 39, 24, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc90), 0, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf37), 1, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf39), 2, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd40), 3, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf3b), 4, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf3c), 5, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf38), 6, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf3a), 7, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf0e), 8, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf0d), 9, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf0f), 10, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf15), 11, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf16), 12, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf17), 13, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf18), 14, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf11), 15, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf12), 16, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf13), 17, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf14), 18, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf1a), 19, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf1d), 20, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf1e), 21, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf1b), 22, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf1c), 23, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf19), 24, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcab), 25, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b50), 26, 25, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf1f), 27, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2728), 28, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26a1), 29, 25, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd25), 30, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca5), 31, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2604), 32, 25, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2600), 33, 25, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf24), 34, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26c5), 35, 25, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf25), 36, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf26), 37, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf08), 38, 25, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2601), 39, 25, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf27), 0, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26c8), 1, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf29), 2, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf28), 3, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2603), 4, 26, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26c4), 5, 26, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2744), 6, 26, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf2c), 7, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca8), 8, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf2a), 9, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf2b), 10, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf0a), 11, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca7), 12, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca6), 13, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2614), 14, 26, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf4f), 15, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf4e), 16, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf50), 17, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf4a), 18, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf4b), 19, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf4c), 20, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf49), 21, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf47), 22, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf53), 23, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf48), 24, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf52), 25, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf51), 26, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf4d), 27, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd5d), 28, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd51), 29, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf45), 30, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf46), 31, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd52), 32, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd55), 33, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf3d), 34, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf36), 35, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd54), 36, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf60), 37, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf30), 38, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd5c), 39, 26, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf6f), 0, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd50), 1, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf5e), 2, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd56), 3, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xddc0), 4, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd5a), 5, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf73), 6, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd53), 7, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd5e), 8, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf64), 9, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf57), 10, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf56), 11, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf55), 12, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf2d), 13, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf54), 14, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf5f), 15, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd59), 16, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf2e), 17, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf2f), 18, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd57), 19, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd58), 20, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf5d), 21, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf5c), 22, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf72), 23, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf65), 24, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf63), 25, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf71), 26, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf5b), 27, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf59), 28, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf5a), 29, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf58), 30, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf62), 31, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf61), 32, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf67), 33, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf68), 34, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf66), 35, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf70), 36, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf82), 37, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf6e), 38, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf6d), 39, 27, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf6c), 0, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf6b), 1, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf7f), 2, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf69), 3, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf6a), 4, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd5b), 5, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf7c), 6, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2615), 7, 28, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf75), 8, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf76), 9, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf7a), 10, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf7b), 11, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd42), 12, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf77), 13, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd43), 14, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf78), 15, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf79), 16, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf7e), 17, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd44), 18, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf74), 19, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf7d), 20, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26bd), 21, 28, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc0), 22, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc8), 23, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26be), 24, 28, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfbe), 25, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd0), 26, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc9), 27, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb1), 28, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd3), 29, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff8), 30, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd45), 31, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd2), 32, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd1), 33, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcf), 34, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f3), 35, 28, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff9), 36, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa3), 37, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd4a), 38, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd4b), 39, 28, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f8), 0, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfbf), 1, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f7), 2, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc2), 3, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 4, 29, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 5, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 6, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 7, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 8, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 9, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb), 10, 29, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffb), 11, 29, false, false, &Items[1170] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffc), 12, 29, false, false, &Items[1170] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffd), 13, 29, false, false, &Items[1170] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffe), 14, 29, false, false, &Items[1170] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdfff), 15, 29, false, false, &Items[1170] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3a), 16, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3c, 0x200d, 0x2640, 0xfe0f), 17, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3c, 0x200d, 0x2642, 0xfe0f), 18, 29, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0x200d, 0x2640, 0xfe0f), 19, 29, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 20, 29, false, false, &Items[1179] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 21, 29, false, false, &Items[1179] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 22, 29, false, false, &Items[1179] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 23, 29, false, false, &Items[1179] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 24, 29, false, false, &Items[1179] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0x200d, 0x2642, 0xfe0f), 25, 29, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 26, 29, false, false, &Items[1185] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 27, 29, false, false, &Items[1185] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 28, 29, false, false, &Items[1185] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 29, 29, false, false, &Items[1185] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 30, 29, false, false, &Items[1185] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 31, 29, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 32, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 33, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 34, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 35, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 36, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9), 37, 29, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffb), 38, 29, false, false, &Items[1197] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffc), 39, 29, false, false, &Items[1197] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffd), 0, 30, false, false, &Items[1197] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffe), 1, 30, false, false, &Items[1197] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdfff), 2, 30, false, false, &Items[1197] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0x200d, 0x2640, 0xfe0f), 3, 30, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 4, 30, false, false, &Items[1203] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 5, 30, false, false, &Items[1203] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 6, 30, false, false, &Items[1203] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 7, 30, false, false, &Items[1203] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 8, 30, false, false, &Items[1203] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0x200d, 0x2642, 0xfe0f), 9, 30, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 10, 30, false, false, &Items[1209] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 11, 30, false, false, &Items[1209] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 12, 30, false, false, &Items[1209] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 13, 30, false, false, &Items[1209] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 14, 30, false, false, &Items[1209] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 15, 30, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 16, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 17, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 18, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 19, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 20, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc), 21, 30, true, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffb), 22, 30, false, false, &Items[1221] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffc), 23, 30, false, false, &Items[1221] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffd), 24, 30, false, false, &Items[1221] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffe), 25, 30, false, false, &Items[1221] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdfff), 26, 30, false, false, &Items[1221] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0x200d, 0x2640, 0xfe0f), 27, 30, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 28, 30, false, false, &Items[1227] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 29, 30, false, false, &Items[1227] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 30, 30, false, false, &Items[1227] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 31, 30, false, false, &Items[1227] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 32, 30, false, false, &Items[1227] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4), 33, 30, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffb), 34, 30, false, false, &Items[1233] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffc), 35, 30, false, false, &Items[1233] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffd), 36, 30, false, false, &Items[1233] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdffe), 37, 30, false, false, &Items[1233] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc4, 0xd83c, 0xdfff), 38, 30, false, false, &Items[1233] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0x200d, 0x2640, 0xfe0f), 39, 30, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 0, 31, false, false, &Items[1239] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 1, 31, false, false, &Items[1239] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 2, 31, false, false, &Items[1239] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 3, 31, false, false, &Items[1239] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 4, 31, false, false, &Items[1239] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca), 5, 31, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffb), 6, 31, false, false, &Items[1245] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffc), 7, 31, false, false, &Items[1245] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffd), 8, 31, false, false, &Items[1245] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdffe), 9, 31, false, false, &Items[1245] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfca, 0xd83c, 0xdfff), 10, 31, false, false, &Items[1245] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0x200d, 0x2640, 0xfe0f), 11, 31, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 12, 31, false, false, &Items[1251] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 13, 31, false, false, &Items[1251] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 14, 31, false, false, &Items[1251] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 15, 31, false, false, &Items[1251] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 16, 31, false, false, &Items[1251] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0x200d, 0x2642, 0xfe0f), 17, 31, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 18, 31, false, false, &Items[1257] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 19, 31, false, false, &Items[1257] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 20, 31, false, false, &Items[1257] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 21, 31, false, false, &Items[1257] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3d, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 22, 31, false, false, &Items[1257] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0x200d, 0x2640, 0xfe0f), 23, 31, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 24, 31, false, false, &Items[1263] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 25, 31, false, false, &Items[1263] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 26, 31, false, false, &Items[1263] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 27, 31, false, false, &Items[1263] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 28, 31, false, false, &Items[1263] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3), 29, 31, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffb), 30, 31, false, false, &Items[1269] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffc), 31, 31, false, false, &Items[1269] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffd), 32, 31, false, false, &Items[1269] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdffe), 33, 31, false, false, &Items[1269] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea3, 0xd83c, 0xdfff), 34, 31, false, false, &Items[1269] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc7), 35, 31, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc7, 0xd83c, 0xdffb), 36, 31, false, false, &Items[1275] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc7, 0xd83c, 0xdffc), 37, 31, false, false, &Items[1275] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc7, 0xd83c, 0xdffd), 38, 31, false, false, &Items[1275] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc7, 0xd83c, 0xdffe), 39, 31, false, false, &Items[1275] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc7, 0xd83c, 0xdfff), 0, 32, false, false, &Items[1275] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0x200d, 0x2640, 0xfe0f), 1, 32, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 2, 32, false, false, &Items[1281] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 3, 32, false, false, &Items[1281] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 4, 32, false, false, &Items[1281] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 5, 32, false, false, &Items[1281] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 6, 32, false, false, &Items[1281] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4), 7, 32, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffb), 8, 32, false, false, &Items[1287] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffc), 9, 32, false, false, &Items[1287] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffd), 10, 32, false, false, &Items[1287] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdffe), 11, 32, false, false, &Items[1287] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb4, 0xd83c, 0xdfff), 12, 32, false, false, &Items[1287] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0x200d, 0x2640, 0xfe0f), 13, 32, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 14, 32, false, false, &Items[1293] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 15, 32, false, false, &Items[1293] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 16, 32, false, false, &Items[1293] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 17, 32, false, false, &Items[1293] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 18, 32, false, false, &Items[1293] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5), 19, 32, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffb), 20, 32, false, false, &Items[1299] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffc), 21, 32, false, false, &Items[1299] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffd), 22, 32, false, false, &Items[1299] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdffe), 23, 32, false, false, &Items[1299] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb5, 0xd83c, 0xdfff), 24, 32, false, false, &Items[1299] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfbd), 25, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc5), 26, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf96), 27, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd47), 28, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd48), 29, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd49), 30, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc6), 31, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff5), 32, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf97), 33, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfab), 34, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf9f), 35, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfaa), 36, 32, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0x200d, 0x2640, 0xfe0f), 37, 32, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 38, 32, false, false, &Items[1317] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 39, 32, false, false, &Items[1317] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 0, 33, false, false, &Items[1317] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 1, 33, false, false, &Items[1317] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 2, 33, false, false, &Items[1317] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0x200d, 0x2642, 0xfe0f), 3, 33, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffb, 0x200d, 0x2642, 0xfe0f), 4, 33, false, false, &Items[1323] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffc, 0x200d, 0x2642, 0xfe0f), 5, 33, false, false, &Items[1323] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffd, 0x200d, 0x2642, 0xfe0f), 6, 33, false, false, &Items[1323] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 7, 33, false, false, &Items[1323] });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd39, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 8, 33, false, false, &Items[1323] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfad), 9, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa8), 10, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfac), 11, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa4), 12, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa7), 13, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfbc), 14, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb9), 15, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83e, 0xdd41), 16, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb7), 17, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfba), 18, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb8), 19, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfbb), 20, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb2), 21, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfaf), 22, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb3), 23, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfae), 24, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb0), 25, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde97), 26, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde95), 27, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde99), 28, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde8c), 29, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde8e), 30, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfce), 31, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde93), 32, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde91), 33, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde92), 34, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde90), 35, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde9a), 36, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde9b), 37, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde9c), 38, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdef4), 39, 33, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb2), 0, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdef5), 1, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcd), 2, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea8), 3, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde94), 4, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde8d), 5, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde98), 6, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde96), 7, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea1), 8, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea0), 9, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde9f), 10, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde83), 11, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde8b), 12, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde9e), 13, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde9d), 14, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde84), 15, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde85), 16, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde88), 17, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde82), 18, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde86), 19, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde87), 20, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde8a), 21, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde89), 22, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde81), 23, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee9), 24, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2708), 25, 34, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeeb), 26, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeec), 27, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde80), 28, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdef0), 29, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcba), 30, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdef6), 31, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f5), 32, 34, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee5), 33, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea4), 34, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdef3), 35, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f4), 36, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea2), 37, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2693), 38, 34, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea7), 39, 34, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26fd), 0, 35, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xde8f), 1, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea6), 2, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea5), 3, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddfa), 4, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddff), 5, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddfd), 6, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f2), 7, 35, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddfc), 8, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff0), 9, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfef), 10, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfdf), 11, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa1), 12, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa2), 13, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa0), 14, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f1), 15, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd6), 16, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfdd), 17, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26f0), 18, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd4), 19, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddfb), 20, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf0b), 21, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfdc), 22, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd5), 23, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26fa), 24, 35, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee4), 25, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee3), 26, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd7), 27, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfed), 28, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe0), 29, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe1), 30, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd8), 31, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfda), 32, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe2), 33, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfec), 34, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe3), 35, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe4), 36, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe5), 37, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe6), 38, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe8), 39, 35, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfea), 0, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfeb), 1, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe9), 2, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc92), 3, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfdb), 4, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26ea), 5, 36, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd4c), 6, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd4d), 7, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd4b), 8, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26e9), 9, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddfe), 10, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf91), 11, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfde), 12, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf05), 13, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf04), 14, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf20), 15, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf87), 16, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf86), 17, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf07), 18, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf06), 19, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfd9), 20, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf03), 21, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf0c), 22, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf09), 23, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf01), 24, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x231a), 25, 36, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf1), 26, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf2), 27, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcbb), 28, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2328), 29, 36, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdda5), 30, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdda8), 31, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddb1), 32, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddb2), 33, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd79), 34, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdddc), 35, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcbd), 36, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcbe), 37, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcbf), 38, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc0), 39, 36, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcfc), 0, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf7), 1, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf8), 2, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf9), 3, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa5), 4, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcfd), 5, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf9e), 6, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcde), 7, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x260e), 8, 37, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcdf), 9, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce0), 10, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcfa), 11, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcfb), 12, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf99), 13, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf9a), 14, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf9b), 15, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23f1), 16, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23f2), 17, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23f0), 18, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd70), 19, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x231b), 20, 37, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23f3), 21, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce1), 22, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd0b), 23, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd0c), 24, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca1), 25, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd26), 26, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd6f), 27, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddd1), 28, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee2), 29, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb8), 30, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb5), 31, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb4), 32, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb6), 33, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb7), 34, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb0), 35, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb3), 36, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc8e), 37, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2696), 38, 37, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd27), 39, 37, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd28), 0, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2692), 1, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee0), 2, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26cf), 3, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd29), 4, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2699), 5, 38, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26d3), 6, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd2b), 7, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca3), 8, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd2a), 9, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdde1), 10, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2694), 11, 38, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdee1), 12, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeac), 13, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26b0), 14, 38, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26b1), 15, 38, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdffa), 16, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd2e), 17, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcff), 18, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc88), 19, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2697), 20, 38, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd2d), 21, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd2c), 22, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd73), 23, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc8a), 24, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc89), 25, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf21), 26, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdebd), 27, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb0), 28, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdebf), 29, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec1), 30, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec0), 31, 38, false, true, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec0, 0xd83c, 0xdffb), 32, 38, false, false, &Items[1551] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec0, 0xd83c, 0xdffc), 33, 38, false, false, &Items[1551] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec0, 0xd83c, 0xdffd), 34, 38, false, false, &Items[1551] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec0, 0xd83c, 0xdffe), 35, 38, false, false, &Items[1551] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec0, 0xd83c, 0xdfff), 36, 38, false, false, &Items[1551] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdece), 37, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd11), 38, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdddd), 39, 38, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeaa), 0, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdecb), 1, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdecf), 2, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdecc), 3, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddbc), 4, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdecd), 5, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xded2), 6, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf81), 7, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf88), 8, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf8f), 9, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf80), 10, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf8a), 11, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf89), 12, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf8e), 13, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfee), 14, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf90), 15, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2709), 16, 39, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce9), 17, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce8), 18, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce7), 19, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc8c), 20, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce5), 21, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce4), 22, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce6), 23, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff7), 24, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcea), 25, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdceb), 26, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcec), 27, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdced), 28, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcee), 29, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcef), 30, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcdc), 31, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc3), 32, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc4), 33, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd1), 34, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcca), 35, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc8), 36, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc9), 37, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddd2), 38, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddd3), 39, 39, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc6), 0, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc5), 1, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc7), 2, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddc3), 3, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddf3), 4, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddc4), 5, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdccb), 6, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc1), 7, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcc2), 8, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddc2), 9, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddde), 10, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf0), 11, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd3), 12, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd4), 13, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd2), 14, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd5), 15, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd7), 16, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd8), 17, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd9), 18, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcda), 19, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd6), 20, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd16), 21, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd17), 22, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcce), 23, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd87), 24, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcd0), 25, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdccf), 26, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdccc), 27, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdccd), 28, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2702), 29, 40, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd8a), 30, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd8b), 31, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2712), 32, 40, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd8c), 33, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd8d), 34, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcdd), 35, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x270f), 36, 40, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd0d), 37, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd0e), 38, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd0f), 39, 40, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd10), 0, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd12), 1, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd13), 2, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2764), 3, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc9b), 4, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc9a), 5, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc99), 6, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc9c), 7, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdda4), 8, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc94), 9, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2763), 10, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc95), 11, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc9e), 12, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc93), 13, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc97), 14, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc96), 15, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc98), 16, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc9d), 17, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc9f), 18, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x262e), 19, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x271d), 20, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x262a), 21, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd49), 22, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2638), 23, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2721), 24, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd2f), 25, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd4e), 26, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x262f), 27, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2626), 28, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xded0), 29, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26ce), 30, 41, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2648), 31, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2649), 32, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x264a), 33, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x264b), 34, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x264c), 35, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x264d), 36, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x264e), 37, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x264f), 38, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2650), 39, 41, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2651), 0, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2652), 1, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2653), 2, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd94), 3, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x269b), 4, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde51), 5, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2622), 6, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2623), 7, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf4), 8, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf3), 9, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde36), 10, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde1a), 11, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde38), 12, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde3a), 13, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde37), 14, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2734), 15, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd9a), 16, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcae), 17, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde50), 18, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x3299), 19, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x3297), 20, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde34), 21, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde35), 22, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde39), 23, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde32), 24, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd70), 25, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd71), 26, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd8e), 27, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd91), 28, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd7e), 29, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd98), 30, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x274c), 31, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b55), 32, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xded1), 33, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26d4), 34, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcdb), 35, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeab), 36, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcaf), 37, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca2), 38, 42, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2668), 39, 42, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb7), 0, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeaf), 1, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb3), 2, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb1), 3, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd1e), 4, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf5), 5, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdead), 6, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2757), 7, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2755), 8, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2753), 9, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2754), 10, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x203c), 11, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2049), 12, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd05), 13, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd06), 14, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x303d), 15, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26a0), 16, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb8), 17, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd31), 18, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x269c), 19, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd30), 20, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x267b), 21, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2705), 22, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde2f), 23, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb9), 24, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2747), 25, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2733), 26, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x274e), 27, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf10), 28, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca0), 29, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x24c2), 30, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf00), 31, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdca4), 32, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfe7), 33, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdebe), 34, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x267f), 35, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd7f), 36, 43, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde33), 37, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde02), 38, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec2), 39, 43, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec3), 0, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec4), 1, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdec5), 2, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeb9), 3, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeba), 4, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdebc), 5, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdebb), 6, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdeae), 7, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfa6), 8, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcf6), 9, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xde01), 10, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd23), 11, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2139), 12, 44, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd24), 13, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd21), 14, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd20), 15, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd96), 16, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd97), 17, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd99), 18, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd92), 19, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd95), 20, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdd93), 21, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x30, 0xfe0f, 0x20e3), 22, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x31, 0xfe0f, 0x20e3), 23, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x32, 0xfe0f, 0x20e3), 24, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x33, 0xfe0f, 0x20e3), 25, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x34, 0xfe0f, 0x20e3), 26, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x35, 0xfe0f, 0x20e3), 27, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x36, 0xfe0f, 0x20e3), 28, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x37, 0xfe0f, 0x20e3), 29, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x38, 0xfe0f, 0x20e3), 30, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x39, 0xfe0f, 0x20e3), 31, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd1f), 32, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd22), 33, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23, 0xfe0f, 0x20e3), 34, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2a, 0xfe0f, 0x20e3), 35, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25b6), 36, 44, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23f8), 37, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23ef), 38, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23f9), 39, 44, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23fa), 0, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23ed), 1, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23ee), 2, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23e9), 3, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23ea), 4, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23eb), 5, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x23ec), 6, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25c0), 7, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd3c), 8, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd3d), 9, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x27a1), 10, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b05), 11, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b06), 12, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b07), 13, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2197), 14, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2198), 15, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2199), 16, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2196), 17, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2195), 18, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2194), 19, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x21aa), 20, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x21a9), 21, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2934), 22, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2935), 23, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd00), 24, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd01), 25, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd02), 26, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd04), 27, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd03), 28, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb5), 29, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb6), 30, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2795), 31, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2796), 32, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2797), 33, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2716), 34, 45, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb2), 35, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcb1), 36, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2122), 37, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xa9), 38, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xae), 39, 45, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x3030), 0, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x27b0), 1, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x27bf), 2, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd1a), 3, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd19), 4, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd1b), 5, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd1d), 6, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd1c), 7, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2714), 8, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2611), 9, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd18), 10, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26aa), 11, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x26ab), 12, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd34), 13, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd35), 14, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd3a), 15, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd3b), 16, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd38), 17, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd39), 18, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd36), 19, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd37), 20, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd33), 21, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd32), 22, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25aa), 23, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25ab), 24, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25fe), 25, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25fd), 26, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25fc), 27, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x25fb), 28, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b1b), 29, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2b1c), 30, 46, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd08), 31, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd07), 32, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd09), 33, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd0a), 34, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd14), 35, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd15), 36, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce3), 37, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdce2), 38, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdc41, 0x200d, 0xd83d, 0xdde8), 39, 46, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcac), 0, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdcad), 1, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xddef), 2, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2660), 3, 47, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2663), 4, 47, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2665), 5, 47, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0x2666), 6, 47, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdccf), 7, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfb4), 8, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdc04), 9, 47, true, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd50), 10, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd51), 11, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd52), 12, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd53), 13, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd54), 14, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd55), 15, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd56), 16, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd57), 17, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd58), 18, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd59), 19, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd5a), 20, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd5b), 21, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd5c), 22, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd5d), 23, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd5e), 24, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd5f), 25, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd60), 26, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd61), 27, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd62), 28, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd63), 29, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd64), 30, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd65), 31, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd66), 32, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd67), 33, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff3), 34, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff4), 35, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc1), 36, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdea9), 37, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdff3, 0xfe0f, 0x200d, 0xd83c, 0xdf08), 38, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddeb), 39, 47, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddfd), 0, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf1), 1, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde9, 0xd83c, 0xddff), 2, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf8), 3, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xdde9), 4, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf4), 5, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddee), 6, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf6), 7, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddec), 8, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf7), 9, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf2), 10, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddfc), 11, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddfa), 12, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddf9), 13, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddff), 14, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf8), 15, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xdded), 16, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xdde9), 17, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xdde7), 18, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddfe), 19, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddea), 20, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddff), 21, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddef), 22, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf2), 23, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf9), 24, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf4), 25, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xdde6), 26, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddfc), 27, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf7), 28, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf4), 29, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xddec), 30, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf3), 31, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddec), 32, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddeb), 33, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddee), 34, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xdded), 35, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddf2), 36, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xdde6), 37, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xdde8), 38, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddfb), 39, 48, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf6), 0, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddfe), 1, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddeb), 2, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xdde9), 3, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddf1), 4, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddf3), 5, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddfd), 6, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xdde8), 7, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddf4), 8, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddf2), 9, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddec), 10, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xdde9), 11, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddf0), 12, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddf7), 13, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddee), 14, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdded, 0xd83c, 0xddf7), 15, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddfa), 16, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddfc), 17, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddfe), 18, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xddff), 19, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde9, 0xd83c, 0xddf0), 20, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde9, 0xd83c, 0xddef), 21, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde9, 0xd83c, 0xddf2), 22, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde9, 0xd83c, 0xddf4), 23, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xdde8), 24, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xddec), 25, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddfb), 26, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf6), 27, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xddf7), 28, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xddea), 29, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xddf9), 30, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xddfa), 31, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddeb, 0xd83c, 0xddf0), 32, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddeb, 0xd83c, 0xddf4), 33, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddeb, 0xd83c, 0xddef), 34, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddeb, 0xd83c, 0xddee), 35, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddeb, 0xd83c, 0xddf7), 36, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddeb), 37, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddeb), 38, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddeb), 39, 49, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xdde6), 0, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf2), 1, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddea), 2, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde9, 0xd83c, 0xddea), 3, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xdded), 4, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddee), 5, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf7), 6, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf1), 7, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xdde9), 8, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf5), 9, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddfa), 10, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf9), 11, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddec), 12, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf3), 13, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddfc), 14, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddfe), 15, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdded, 0xd83c, 0xddf9), 16, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdded, 0xd83c, 0xddf3), 17, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdded, 0xd83c, 0xddf0), 18, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdded, 0xd83c, 0xddfa), 19, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf8), 20, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf3), 21, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xdde9), 22, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf7), 23, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf6), 24, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddea), 25, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf2), 26, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf1), 27, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddee, 0xd83c, 0xddf9), 28, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddef, 0xd83c, 0xddf2), 29, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddef, 0xd83c, 0xddf5), 30, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdf8c), 31, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddef, 0xd83c, 0xddea), 32, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddef, 0xd83c, 0xddf4), 33, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddff), 34, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddea), 35, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddee), 36, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfd, 0xd83c, 0xddf0), 37, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddfc), 38, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddec), 39, 50, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xdde6), 0, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddfb), 1, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xdde7), 2, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddf8), 3, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddf7), 4, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddfe), 5, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddee), 6, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddf9), 7, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddfa), 8, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf4), 9, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf0), 10, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddec), 11, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddfc), 12, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddfe), 13, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddfb), 14, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf1), 15, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf9), 16, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xdded), 17, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf6), 18, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf7), 19, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddfa), 20, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfe, 0xd83c, 0xddf9), 21, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddfd), 22, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddeb, 0xd83c, 0xddf2), 23, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xdde9), 24, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xdde8), 25, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf3), 26, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddea), 27, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf8), 28, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xdde6), 29, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddff), 30, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf2), 31, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xdde6), 32, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddf7), 33, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddf5), 34, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddf1), 35, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xdde8), 36, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddff), 37, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddee), 38, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddea), 39, 51, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddec), 0, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddfa), 1, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddeb), 2, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddf5), 3, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf2, 0xd83c, 0xddf5), 4, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf3, 0xd83c, 0xddf4), 5, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf4, 0xd83c, 0xddf2), 6, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf0), 7, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddfc), 8, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf8), 9, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xdde6), 10, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddec), 11, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddfe), 12, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddea), 13, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xdded), 14, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf3), 15, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf1), 16, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf9), 17, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf7), 18, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf6, 0xd83c, 0xdde6), 19, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf7, 0xd83c, 0xddea), 20, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf7, 0xd83c, 0xddf4), 21, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf7, 0xd83c, 0xddfa), 22, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf7, 0xd83c, 0xddfc), 23, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfc, 0xd83c, 0xddf8), 24, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf2), 25, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf9), 26, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xdde6), 27, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf3), 28, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf7, 0xd83c, 0xddf8), 29, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xdde8), 30, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf1), 31, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddec), 32, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddfd), 33, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf0), 34, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddee), 35, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xddf8), 36, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xdde7), 37, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf4), 38, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddff, 0xd83c, 0xdde6), 39, 52, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddf7), 0, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf8), 1, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xddf8), 2, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xddf0), 3, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde7, 0xd83c, 0xddf1), 4, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xdded), 5, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf0, 0xd83c, 0xddf3), 6, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf1, 0xd83c, 0xdde8), 7, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf5, 0xd83c, 0xddf2), 8, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xdde8), 9, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xdde9), 10, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddf7), 11, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddff), 12, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddea), 13, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde8, 0xd83c, 0xdded), 14, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf8, 0xd83c, 0xddfe), 15, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddfc), 16, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddef), 17, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddff), 18, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xdded), 19, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf1), 20, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddec), 21, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf0), 22, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf4), 23, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf9), 24, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf3), 25, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf7), 26, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddf2), 27, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xdde8), 28, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddf9, 0xd83c, 0xddfb), 29, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xddee), 30, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfa, 0xd83c, 0xddec), 31, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfa, 0xd83c, 0xdde6), 32, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdde6, 0xd83c, 0xddea), 33, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddec, 0xd83c, 0xdde7), 34, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfa, 0xd83c, 0xddf8), 35, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfa, 0xd83c, 0xddfe), 36, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfa, 0xd83c, 0xddff), 37, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xddfa), 38, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xdde6), 39, 53, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xddea), 0, 54, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfb, 0xd83c, 0xddf3), 1, 54, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfc, 0xd83c, 0xddeb), 2, 54, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddea, 0xd83c, 0xdded), 3, 54, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddfe, 0xd83c, 0xddea), 4, 54, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddff, 0xd83c, 0xddf2), 5, 54, false, false, nullptr });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xddff, 0xd83c, 0xddfc), 6, 54, false, false, nullptr });
+}
+
+int GetPackCount(DBIEmojiTab tab) {
+	switch (tab) {
+	case dbietPeople: return 291;
+	case dbietNature: return 159;
+	case dbietFood: return 86;
+	case dbietActivity: return 80;
+	case dbietTravel: return 119;
+	case dbietObjects: return 173;
+	case dbietSymbols: return 524;
+	case dbietRecent: return cGetRecentEmoji().size();
+	}
+	return 0;
+}
+
+EmojiPack GetPack(DBIEmojiTab tab) {
+	switch (tab) {
+	case dbietPeople: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(291);
+			result.push_back(&Items[0]);
+			result.push_back(&Items[1]);
+			result.push_back(&Items[2]);
+			result.push_back(&Items[3]);
+			result.push_back(&Items[4]);
+			result.push_back(&Items[5]);
+			result.push_back(&Items[6]);
+			result.push_back(&Items[7]);
+			result.push_back(&Items[8]);
+			result.push_back(&Items[9]);
+			result.push_back(&Items[10]);
+			result.push_back(&Items[11]);
+			result.push_back(&Items[12]);
+			result.push_back(&Items[13]);
+			result.push_back(&Items[14]);
+			result.push_back(&Items[15]);
+			result.push_back(&Items[16]);
+			result.push_back(&Items[17]);
+			result.push_back(&Items[18]);
+			result.push_back(&Items[19]);
+			result.push_back(&Items[20]);
+			result.push_back(&Items[21]);
+			result.push_back(&Items[22]);
+			result.push_back(&Items[23]);
+			result.push_back(&Items[24]);
+			result.push_back(&Items[25]);
+			result.push_back(&Items[26]);
+			result.push_back(&Items[27]);
+			result.push_back(&Items[28]);
+			result.push_back(&Items[29]);
+			result.push_back(&Items[30]);
+			result.push_back(&Items[31]);
+			result.push_back(&Items[32]);
+			result.push_back(&Items[33]);
+			result.push_back(&Items[34]);
+			result.push_back(&Items[35]);
+			result.push_back(&Items[36]);
+			result.push_back(&Items[37]);
+			result.push_back(&Items[38]);
+			result.push_back(&Items[39]);
+			result.push_back(&Items[40]);
+			result.push_back(&Items[41]);
+			result.push_back(&Items[42]);
+			result.push_back(&Items[43]);
+			result.push_back(&Items[44]);
+			result.push_back(&Items[45]);
+			result.push_back(&Items[46]);
+			result.push_back(&Items[47]);
+			result.push_back(&Items[48]);
+			result.push_back(&Items[49]);
+			result.push_back(&Items[50]);
+			result.push_back(&Items[51]);
+			result.push_back(&Items[52]);
+			result.push_back(&Items[53]);
+			result.push_back(&Items[54]);
+			result.push_back(&Items[55]);
+			result.push_back(&Items[56]);
+			result.push_back(&Items[57]);
+			result.push_back(&Items[58]);
+			result.push_back(&Items[59]);
+			result.push_back(&Items[60]);
+			result.push_back(&Items[61]);
+			result.push_back(&Items[62]);
+			result.push_back(&Items[63]);
+			result.push_back(&Items[64]);
+			result.push_back(&Items[65]);
+			result.push_back(&Items[66]);
+			result.push_back(&Items[67]);
+			result.push_back(&Items[68]);
+			result.push_back(&Items[69]);
+			result.push_back(&Items[70]);
+			result.push_back(&Items[71]);
+			result.push_back(&Items[72]);
+			result.push_back(&Items[73]);
+			result.push_back(&Items[74]);
+			result.push_back(&Items[75]);
+			result.push_back(&Items[76]);
+			result.push_back(&Items[77]);
+			result.push_back(&Items[78]);
+			result.push_back(&Items[79]);
+			result.push_back(&Items[80]);
+			result.push_back(&Items[81]);
+			result.push_back(&Items[82]);
+			result.push_back(&Items[83]);
+			result.push_back(&Items[84]);
+			result.push_back(&Items[85]);
+			result.push_back(&Items[86]);
+			result.push_back(&Items[87]);
+			result.push_back(&Items[88]);
+			result.push_back(&Items[89]);
+			result.push_back(&Items[90]);
+			result.push_back(&Items[91]);
+			result.push_back(&Items[92]);
+			result.push_back(&Items[93]);
+			result.push_back(&Items[94]);
+			result.push_back(&Items[95]);
+			result.push_back(&Items[96]);
+			result.push_back(&Items[102]);
+			result.push_back(&Items[108]);
+			result.push_back(&Items[114]);
+			result.push_back(&Items[120]);
+			result.push_back(&Items[121]);
+			result.push_back(&Items[127]);
+			result.push_back(&Items[133]);
+			result.push_back(&Items[139]);
+			result.push_back(&Items[145]);
+			result.push_back(&Items[151]);
+			result.push_back(&Items[157]);
+			result.push_back(&Items[163]);
+			result.push_back(&Items[169]);
+			result.push_back(&Items[175]);
+			result.push_back(&Items[181]);
+			result.push_back(&Items[187]);
+			result.push_back(&Items[193]);
+			result.push_back(&Items[199]);
+			result.push_back(&Items[205]);
+			result.push_back(&Items[211]);
+			result.push_back(&Items[217]);
+			result.push_back(&Items[223]);
+			result.push_back(&Items[229]);
+			result.push_back(&Items[235]);
+			result.push_back(&Items[241]);
+			result.push_back(&Items[247]);
+			result.push_back(&Items[253]);
+			result.push_back(&Items[259]);
+			result.push_back(&Items[265]);
+			result.push_back(&Items[271]);
+			result.push_back(&Items[277]);
+			result.push_back(&Items[278]);
+			result.push_back(&Items[279]);
+			result.push_back(&Items[280]);
+			result.push_back(&Items[281]);
+			result.push_back(&Items[282]);
+			result.push_back(&Items[288]);
+			result.push_back(&Items[294]);
+			result.push_back(&Items[295]);
+			result.push_back(&Items[296]);
+			result.push_back(&Items[297]);
+			result.push_back(&Items[298]);
+			result.push_back(&Items[299]);
+			result.push_back(&Items[300]);
+			result.push_back(&Items[306]);
+			result.push_back(&Items[312]);
+			result.push_back(&Items[318]);
+			result.push_back(&Items[324]);
+			result.push_back(&Items[330]);
+			result.push_back(&Items[336]);
+			result.push_back(&Items[342]);
+			result.push_back(&Items[348]);
+			result.push_back(&Items[354]);
+			result.push_back(&Items[360]);
+			result.push_back(&Items[366]);
+			result.push_back(&Items[372]);
+			result.push_back(&Items[378]);
+			result.push_back(&Items[384]);
+			result.push_back(&Items[390]);
+			result.push_back(&Items[396]);
+			result.push_back(&Items[402]);
+			result.push_back(&Items[408]);
+			result.push_back(&Items[414]);
+			result.push_back(&Items[420]);
+			result.push_back(&Items[426]);
+			result.push_back(&Items[432]);
+			result.push_back(&Items[438]);
+			result.push_back(&Items[444]);
+			result.push_back(&Items[450]);
+			result.push_back(&Items[456]);
+			result.push_back(&Items[462]);
+			result.push_back(&Items[468]);
+			result.push_back(&Items[474]);
+			result.push_back(&Items[480]);
+			result.push_back(&Items[486]);
+			result.push_back(&Items[492]);
+			result.push_back(&Items[498]);
+			result.push_back(&Items[504]);
+			result.push_back(&Items[510]);
+			result.push_back(&Items[516]);
+			result.push_back(&Items[522]);
+			result.push_back(&Items[528]);
+			result.push_back(&Items[534]);
+			result.push_back(&Items[540]);
+			result.push_back(&Items[546]);
+			result.push_back(&Items[552]);
+			result.push_back(&Items[558]);
+			result.push_back(&Items[564]);
+			result.push_back(&Items[570]);
+			result.push_back(&Items[576]);
+			result.push_back(&Items[582]);
+			result.push_back(&Items[588]);
+			result.push_back(&Items[594]);
+			result.push_back(&Items[600]);
+			result.push_back(&Items[606]);
+			result.push_back(&Items[612]);
+			result.push_back(&Items[618]);
+			result.push_back(&Items[624]);
+			result.push_back(&Items[630]);
+			result.push_back(&Items[636]);
+			result.push_back(&Items[642]);
+			result.push_back(&Items[648]);
+			result.push_back(&Items[654]);
+			result.push_back(&Items[660]);
+			result.push_back(&Items[666]);
+			result.push_back(&Items[672]);
+			result.push_back(&Items[678]);
+			result.push_back(&Items[684]);
+			result.push_back(&Items[690]);
+			result.push_back(&Items[696]);
+			result.push_back(&Items[702]);
+			result.push_back(&Items[708]);
+			result.push_back(&Items[714]);
+			result.push_back(&Items[720]);
+			result.push_back(&Items[726]);
+			result.push_back(&Items[732]);
+			result.push_back(&Items[738]);
+			result.push_back(&Items[744]);
+			result.push_back(&Items[750]);
+			result.push_back(&Items[756]);
+			result.push_back(&Items[762]);
+			result.push_back(&Items[768]);
+			result.push_back(&Items[774]);
+			result.push_back(&Items[780]);
+			result.push_back(&Items[786]);
+			result.push_back(&Items[792]);
+			result.push_back(&Items[798]);
+			result.push_back(&Items[804]);
+			result.push_back(&Items[810]);
+			result.push_back(&Items[811]);
+			result.push_back(&Items[812]);
+			result.push_back(&Items[818]);
+			result.push_back(&Items[824]);
+			result.push_back(&Items[830]);
+			result.push_back(&Items[836]);
+			result.push_back(&Items[837]);
+			result.push_back(&Items[838]);
+			result.push_back(&Items[839]);
+			result.push_back(&Items[840]);
+			result.push_back(&Items[841]);
+			result.push_back(&Items[842]);
+			result.push_back(&Items[843]);
+			result.push_back(&Items[844]);
+			result.push_back(&Items[845]);
+			result.push_back(&Items[846]);
+			result.push_back(&Items[847]);
+			result.push_back(&Items[848]);
+			result.push_back(&Items[849]);
+			result.push_back(&Items[850]);
+			result.push_back(&Items[851]);
+			result.push_back(&Items[852]);
+			result.push_back(&Items[853]);
+			result.push_back(&Items[854]);
+			result.push_back(&Items[855]);
+			result.push_back(&Items[856]);
+			result.push_back(&Items[857]);
+			result.push_back(&Items[858]);
+			result.push_back(&Items[859]);
+			result.push_back(&Items[860]);
+			result.push_back(&Items[861]);
+			result.push_back(&Items[862]);
+			result.push_back(&Items[863]);
+			result.push_back(&Items[864]);
+			result.push_back(&Items[865]);
+			result.push_back(&Items[866]);
+			result.push_back(&Items[867]);
+			result.push_back(&Items[868]);
+			result.push_back(&Items[869]);
+			result.push_back(&Items[870]);
+			result.push_back(&Items[871]);
+			result.push_back(&Items[872]);
+			result.push_back(&Items[873]);
+			result.push_back(&Items[874]);
+			result.push_back(&Items[875]);
+			result.push_back(&Items[876]);
+			result.push_back(&Items[877]);
+			result.push_back(&Items[878]);
+			result.push_back(&Items[879]);
+			result.push_back(&Items[880]);
+			result.push_back(&Items[881]);
+			result.push_back(&Items[882]);
+			result.push_back(&Items[883]);
+			result.push_back(&Items[884]);
+			result.push_back(&Items[885]);
+			result.push_back(&Items[886]);
+			result.push_back(&Items[887]);
+			result.push_back(&Items[888]);
+			result.push_back(&Items[889]);
+			result.push_back(&Items[890]);
+			result.push_back(&Items[891]);
+			result.push_back(&Items[892]);
+			result.push_back(&Items[893]);
+			result.push_back(&Items[894]);
+			result.push_back(&Items[895]);
+		}
+		return result;
+	} break;
+
+	case dbietNature: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(159);
+			result.push_back(&Items[896]);
+			result.push_back(&Items[897]);
+			result.push_back(&Items[898]);
+			result.push_back(&Items[899]);
+			result.push_back(&Items[900]);
+			result.push_back(&Items[901]);
+			result.push_back(&Items[902]);
+			result.push_back(&Items[903]);
+			result.push_back(&Items[904]);
+			result.push_back(&Items[905]);
+			result.push_back(&Items[906]);
+			result.push_back(&Items[907]);
+			result.push_back(&Items[908]);
+			result.push_back(&Items[909]);
+			result.push_back(&Items[910]);
+			result.push_back(&Items[911]);
+			result.push_back(&Items[912]);
+			result.push_back(&Items[913]);
+			result.push_back(&Items[914]);
+			result.push_back(&Items[915]);
+			result.push_back(&Items[916]);
+			result.push_back(&Items[917]);
+			result.push_back(&Items[918]);
+			result.push_back(&Items[919]);
+			result.push_back(&Items[920]);
+			result.push_back(&Items[921]);
+			result.push_back(&Items[922]);
+			result.push_back(&Items[923]);
+			result.push_back(&Items[924]);
+			result.push_back(&Items[925]);
+			result.push_back(&Items[926]);
+			result.push_back(&Items[927]);
+			result.push_back(&Items[928]);
+			result.push_back(&Items[929]);
+			result.push_back(&Items[930]);
+			result.push_back(&Items[931]);
+			result.push_back(&Items[932]);
+			result.push_back(&Items[933]);
+			result.push_back(&Items[934]);
+			result.push_back(&Items[935]);
+			result.push_back(&Items[936]);
+			result.push_back(&Items[937]);
+			result.push_back(&Items[938]);
+			result.push_back(&Items[939]);
+			result.push_back(&Items[940]);
+			result.push_back(&Items[941]);
+			result.push_back(&Items[942]);
+			result.push_back(&Items[943]);
+			result.push_back(&Items[944]);
+			result.push_back(&Items[945]);
+			result.push_back(&Items[946]);
+			result.push_back(&Items[947]);
+			result.push_back(&Items[948]);
+			result.push_back(&Items[949]);
+			result.push_back(&Items[950]);
+			result.push_back(&Items[951]);
+			result.push_back(&Items[952]);
+			result.push_back(&Items[953]);
+			result.push_back(&Items[954]);
+			result.push_back(&Items[955]);
+			result.push_back(&Items[956]);
+			result.push_back(&Items[957]);
+			result.push_back(&Items[958]);
+			result.push_back(&Items[959]);
+			result.push_back(&Items[960]);
+			result.push_back(&Items[961]);
+			result.push_back(&Items[962]);
+			result.push_back(&Items[963]);
+			result.push_back(&Items[964]);
+			result.push_back(&Items[965]);
+			result.push_back(&Items[966]);
+			result.push_back(&Items[967]);
+			result.push_back(&Items[968]);
+			result.push_back(&Items[969]);
+			result.push_back(&Items[970]);
+			result.push_back(&Items[971]);
+			result.push_back(&Items[972]);
+			result.push_back(&Items[973]);
+			result.push_back(&Items[974]);
+			result.push_back(&Items[975]);
+			result.push_back(&Items[976]);
+			result.push_back(&Items[977]);
+			result.push_back(&Items[978]);
+			result.push_back(&Items[979]);
+			result.push_back(&Items[980]);
+			result.push_back(&Items[981]);
+			result.push_back(&Items[982]);
+			result.push_back(&Items[983]);
+			result.push_back(&Items[984]);
+			result.push_back(&Items[985]);
+			result.push_back(&Items[986]);
+			result.push_back(&Items[987]);
+			result.push_back(&Items[988]);
+			result.push_back(&Items[989]);
+			result.push_back(&Items[990]);
+			result.push_back(&Items[991]);
+			result.push_back(&Items[992]);
+			result.push_back(&Items[993]);
+			result.push_back(&Items[994]);
+			result.push_back(&Items[995]);
+			result.push_back(&Items[996]);
+			result.push_back(&Items[997]);
+			result.push_back(&Items[998]);
+			result.push_back(&Items[999]);
+			result.push_back(&Items[1000]);
+			result.push_back(&Items[1001]);
+			result.push_back(&Items[1002]);
+			result.push_back(&Items[1003]);
+			result.push_back(&Items[1004]);
+			result.push_back(&Items[1005]);
+			result.push_back(&Items[1006]);
+			result.push_back(&Items[1007]);
+			result.push_back(&Items[1008]);
+			result.push_back(&Items[1009]);
+			result.push_back(&Items[1010]);
+			result.push_back(&Items[1011]);
+			result.push_back(&Items[1012]);
+			result.push_back(&Items[1013]);
+			result.push_back(&Items[1014]);
+			result.push_back(&Items[1015]);
+			result.push_back(&Items[1016]);
+			result.push_back(&Items[1017]);
+			result.push_back(&Items[1018]);
+			result.push_back(&Items[1019]);
+			result.push_back(&Items[1020]);
+			result.push_back(&Items[1021]);
+			result.push_back(&Items[1022]);
+			result.push_back(&Items[1023]);
+			result.push_back(&Items[1024]);
+			result.push_back(&Items[1025]);
+			result.push_back(&Items[1026]);
+			result.push_back(&Items[1027]);
+			result.push_back(&Items[1028]);
+			result.push_back(&Items[1029]);
+			result.push_back(&Items[1030]);
+			result.push_back(&Items[1031]);
+			result.push_back(&Items[1032]);
+			result.push_back(&Items[1033]);
+			result.push_back(&Items[1034]);
+			result.push_back(&Items[1035]);
+			result.push_back(&Items[1036]);
+			result.push_back(&Items[1037]);
+			result.push_back(&Items[1038]);
+			result.push_back(&Items[1039]);
+			result.push_back(&Items[1040]);
+			result.push_back(&Items[1041]);
+			result.push_back(&Items[1042]);
+			result.push_back(&Items[1043]);
+			result.push_back(&Items[1044]);
+			result.push_back(&Items[1045]);
+			result.push_back(&Items[1046]);
+			result.push_back(&Items[1047]);
+			result.push_back(&Items[1048]);
+			result.push_back(&Items[1049]);
+			result.push_back(&Items[1050]);
+			result.push_back(&Items[1051]);
+			result.push_back(&Items[1052]);
+			result.push_back(&Items[1053]);
+			result.push_back(&Items[1054]);
+		}
+		return result;
+	} break;
+
+	case dbietFood: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(86);
+			result.push_back(&Items[1055]);
+			result.push_back(&Items[1056]);
+			result.push_back(&Items[1057]);
+			result.push_back(&Items[1058]);
+			result.push_back(&Items[1059]);
+			result.push_back(&Items[1060]);
+			result.push_back(&Items[1061]);
+			result.push_back(&Items[1062]);
+			result.push_back(&Items[1063]);
+			result.push_back(&Items[1064]);
+			result.push_back(&Items[1065]);
+			result.push_back(&Items[1066]);
+			result.push_back(&Items[1067]);
+			result.push_back(&Items[1068]);
+			result.push_back(&Items[1069]);
+			result.push_back(&Items[1070]);
+			result.push_back(&Items[1071]);
+			result.push_back(&Items[1072]);
+			result.push_back(&Items[1073]);
+			result.push_back(&Items[1074]);
+			result.push_back(&Items[1075]);
+			result.push_back(&Items[1076]);
+			result.push_back(&Items[1077]);
+			result.push_back(&Items[1078]);
+			result.push_back(&Items[1079]);
+			result.push_back(&Items[1080]);
+			result.push_back(&Items[1081]);
+			result.push_back(&Items[1082]);
+			result.push_back(&Items[1083]);
+			result.push_back(&Items[1084]);
+			result.push_back(&Items[1085]);
+			result.push_back(&Items[1086]);
+			result.push_back(&Items[1087]);
+			result.push_back(&Items[1088]);
+			result.push_back(&Items[1089]);
+			result.push_back(&Items[1090]);
+			result.push_back(&Items[1091]);
+			result.push_back(&Items[1092]);
+			result.push_back(&Items[1093]);
+			result.push_back(&Items[1094]);
+			result.push_back(&Items[1095]);
+			result.push_back(&Items[1096]);
+			result.push_back(&Items[1097]);
+			result.push_back(&Items[1098]);
+			result.push_back(&Items[1099]);
+			result.push_back(&Items[1100]);
+			result.push_back(&Items[1101]);
+			result.push_back(&Items[1102]);
+			result.push_back(&Items[1103]);
+			result.push_back(&Items[1104]);
+			result.push_back(&Items[1105]);
+			result.push_back(&Items[1106]);
+			result.push_back(&Items[1107]);
+			result.push_back(&Items[1108]);
+			result.push_back(&Items[1109]);
+			result.push_back(&Items[1110]);
+			result.push_back(&Items[1111]);
+			result.push_back(&Items[1112]);
+			result.push_back(&Items[1113]);
+			result.push_back(&Items[1114]);
+			result.push_back(&Items[1115]);
+			result.push_back(&Items[1116]);
+			result.push_back(&Items[1117]);
+			result.push_back(&Items[1118]);
+			result.push_back(&Items[1119]);
+			result.push_back(&Items[1120]);
+			result.push_back(&Items[1121]);
+			result.push_back(&Items[1122]);
+			result.push_back(&Items[1123]);
+			result.push_back(&Items[1124]);
+			result.push_back(&Items[1125]);
+			result.push_back(&Items[1126]);
+			result.push_back(&Items[1127]);
+			result.push_back(&Items[1128]);
+			result.push_back(&Items[1129]);
+			result.push_back(&Items[1130]);
+			result.push_back(&Items[1131]);
+			result.push_back(&Items[1132]);
+			result.push_back(&Items[1133]);
+			result.push_back(&Items[1134]);
+			result.push_back(&Items[1135]);
+			result.push_back(&Items[1136]);
+			result.push_back(&Items[1137]);
+			result.push_back(&Items[1138]);
+			result.push_back(&Items[1139]);
+			result.push_back(&Items[1140]);
+		}
+		return result;
+	} break;
+
+	case dbietActivity: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(80);
+			result.push_back(&Items[1141]);
+			result.push_back(&Items[1142]);
+			result.push_back(&Items[1143]);
+			result.push_back(&Items[1144]);
+			result.push_back(&Items[1145]);
+			result.push_back(&Items[1146]);
+			result.push_back(&Items[1147]);
+			result.push_back(&Items[1148]);
+			result.push_back(&Items[1149]);
+			result.push_back(&Items[1150]);
+			result.push_back(&Items[1151]);
+			result.push_back(&Items[1152]);
+			result.push_back(&Items[1153]);
+			result.push_back(&Items[1154]);
+			result.push_back(&Items[1155]);
+			result.push_back(&Items[1156]);
+			result.push_back(&Items[1157]);
+			result.push_back(&Items[1158]);
+			result.push_back(&Items[1159]);
+			result.push_back(&Items[1160]);
+			result.push_back(&Items[1161]);
+			result.push_back(&Items[1162]);
+			result.push_back(&Items[1163]);
+			result.push_back(&Items[1164]);
+			result.push_back(&Items[1170]);
+			result.push_back(&Items[1176]);
+			result.push_back(&Items[1177]);
+			result.push_back(&Items[1178]);
+			result.push_back(&Items[1179]);
+			result.push_back(&Items[1185]);
+			result.push_back(&Items[1191]);
+			result.push_back(&Items[1197]);
+			result.push_back(&Items[1203]);
+			result.push_back(&Items[1209]);
+			result.push_back(&Items[1215]);
+			result.push_back(&Items[1221]);
+			result.push_back(&Items[1227]);
+			result.push_back(&Items[1233]);
+			result.push_back(&Items[1239]);
+			result.push_back(&Items[1245]);
+			result.push_back(&Items[1251]);
+			result.push_back(&Items[1257]);
+			result.push_back(&Items[1263]);
+			result.push_back(&Items[1269]);
+			result.push_back(&Items[1275]);
+			result.push_back(&Items[1281]);
+			result.push_back(&Items[1287]);
+			result.push_back(&Items[1293]);
+			result.push_back(&Items[1299]);
+			result.push_back(&Items[1305]);
+			result.push_back(&Items[1306]);
+			result.push_back(&Items[1307]);
+			result.push_back(&Items[1308]);
+			result.push_back(&Items[1309]);
+			result.push_back(&Items[1310]);
+			result.push_back(&Items[1311]);
+			result.push_back(&Items[1312]);
+			result.push_back(&Items[1313]);
+			result.push_back(&Items[1314]);
+			result.push_back(&Items[1315]);
+			result.push_back(&Items[1316]);
+			result.push_back(&Items[1317]);
+			result.push_back(&Items[1323]);
+			result.push_back(&Items[1329]);
+			result.push_back(&Items[1330]);
+			result.push_back(&Items[1331]);
+			result.push_back(&Items[1332]);
+			result.push_back(&Items[1333]);
+			result.push_back(&Items[1334]);
+			result.push_back(&Items[1335]);
+			result.push_back(&Items[1336]);
+			result.push_back(&Items[1337]);
+			result.push_back(&Items[1338]);
+			result.push_back(&Items[1339]);
+			result.push_back(&Items[1340]);
+			result.push_back(&Items[1341]);
+			result.push_back(&Items[1342]);
+			result.push_back(&Items[1343]);
+			result.push_back(&Items[1344]);
+			result.push_back(&Items[1345]);
+		}
+		return result;
+	} break;
+
+	case dbietTravel: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(119);
+			result.push_back(&Items[1346]);
+			result.push_back(&Items[1347]);
+			result.push_back(&Items[1348]);
+			result.push_back(&Items[1349]);
+			result.push_back(&Items[1350]);
+			result.push_back(&Items[1351]);
+			result.push_back(&Items[1352]);
+			result.push_back(&Items[1353]);
+			result.push_back(&Items[1354]);
+			result.push_back(&Items[1355]);
+			result.push_back(&Items[1356]);
+			result.push_back(&Items[1357]);
+			result.push_back(&Items[1358]);
+			result.push_back(&Items[1359]);
+			result.push_back(&Items[1360]);
+			result.push_back(&Items[1361]);
+			result.push_back(&Items[1362]);
+			result.push_back(&Items[1363]);
+			result.push_back(&Items[1364]);
+			result.push_back(&Items[1365]);
+			result.push_back(&Items[1366]);
+			result.push_back(&Items[1367]);
+			result.push_back(&Items[1368]);
+			result.push_back(&Items[1369]);
+			result.push_back(&Items[1370]);
+			result.push_back(&Items[1371]);
+			result.push_back(&Items[1372]);
+			result.push_back(&Items[1373]);
+			result.push_back(&Items[1374]);
+			result.push_back(&Items[1375]);
+			result.push_back(&Items[1376]);
+			result.push_back(&Items[1377]);
+			result.push_back(&Items[1378]);
+			result.push_back(&Items[1379]);
+			result.push_back(&Items[1380]);
+			result.push_back(&Items[1381]);
+			result.push_back(&Items[1382]);
+			result.push_back(&Items[1383]);
+			result.push_back(&Items[1384]);
+			result.push_back(&Items[1385]);
+			result.push_back(&Items[1386]);
+			result.push_back(&Items[1387]);
+			result.push_back(&Items[1388]);
+			result.push_back(&Items[1389]);
+			result.push_back(&Items[1390]);
+			result.push_back(&Items[1391]);
+			result.push_back(&Items[1392]);
+			result.push_back(&Items[1393]);
+			result.push_back(&Items[1394]);
+			result.push_back(&Items[1395]);
+			result.push_back(&Items[1396]);
+			result.push_back(&Items[1397]);
+			result.push_back(&Items[1398]);
+			result.push_back(&Items[1399]);
+			result.push_back(&Items[1400]);
+			result.push_back(&Items[1401]);
+			result.push_back(&Items[1402]);
+			result.push_back(&Items[1403]);
+			result.push_back(&Items[1404]);
+			result.push_back(&Items[1405]);
+			result.push_back(&Items[1406]);
+			result.push_back(&Items[1407]);
+			result.push_back(&Items[1408]);
+			result.push_back(&Items[1409]);
+			result.push_back(&Items[1410]);
+			result.push_back(&Items[1411]);
+			result.push_back(&Items[1412]);
+			result.push_back(&Items[1413]);
+			result.push_back(&Items[1414]);
+			result.push_back(&Items[1415]);
+			result.push_back(&Items[1416]);
+			result.push_back(&Items[1417]);
+			result.push_back(&Items[1418]);
+			result.push_back(&Items[1419]);
+			result.push_back(&Items[1420]);
+			result.push_back(&Items[1421]);
+			result.push_back(&Items[1422]);
+			result.push_back(&Items[1423]);
+			result.push_back(&Items[1424]);
+			result.push_back(&Items[1425]);
+			result.push_back(&Items[1426]);
+			result.push_back(&Items[1427]);
+			result.push_back(&Items[1428]);
+			result.push_back(&Items[1429]);
+			result.push_back(&Items[1430]);
+			result.push_back(&Items[1431]);
+			result.push_back(&Items[1432]);
+			result.push_back(&Items[1433]);
+			result.push_back(&Items[1434]);
+			result.push_back(&Items[1435]);
+			result.push_back(&Items[1436]);
+			result.push_back(&Items[1437]);
+			result.push_back(&Items[1438]);
+			result.push_back(&Items[1439]);
+			result.push_back(&Items[1440]);
+			result.push_back(&Items[1441]);
+			result.push_back(&Items[1442]);
+			result.push_back(&Items[1443]);
+			result.push_back(&Items[1444]);
+			result.push_back(&Items[1445]);
+			result.push_back(&Items[1446]);
+			result.push_back(&Items[1447]);
+			result.push_back(&Items[1448]);
+			result.push_back(&Items[1449]);
+			result.push_back(&Items[1450]);
+			result.push_back(&Items[1451]);
+			result.push_back(&Items[1452]);
+			result.push_back(&Items[1453]);
+			result.push_back(&Items[1454]);
+			result.push_back(&Items[1455]);
+			result.push_back(&Items[1456]);
+			result.push_back(&Items[1457]);
+			result.push_back(&Items[1458]);
+			result.push_back(&Items[1459]);
+			result.push_back(&Items[1460]);
+			result.push_back(&Items[1461]);
+			result.push_back(&Items[1462]);
+			result.push_back(&Items[1463]);
+			result.push_back(&Items[1464]);
+		}
+		return result;
+	} break;
+
+	case dbietObjects: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(173);
+			result.push_back(&Items[1465]);
+			result.push_back(&Items[1466]);
+			result.push_back(&Items[1467]);
+			result.push_back(&Items[1468]);
+			result.push_back(&Items[1469]);
+			result.push_back(&Items[1470]);
+			result.push_back(&Items[1471]);
+			result.push_back(&Items[1472]);
+			result.push_back(&Items[1473]);
+			result.push_back(&Items[1474]);
+			result.push_back(&Items[1475]);
+			result.push_back(&Items[1476]);
+			result.push_back(&Items[1477]);
+			result.push_back(&Items[1478]);
+			result.push_back(&Items[1479]);
+			result.push_back(&Items[1480]);
+			result.push_back(&Items[1481]);
+			result.push_back(&Items[1482]);
+			result.push_back(&Items[1483]);
+			result.push_back(&Items[1484]);
+			result.push_back(&Items[1485]);
+			result.push_back(&Items[1486]);
+			result.push_back(&Items[1487]);
+			result.push_back(&Items[1488]);
+			result.push_back(&Items[1489]);
+			result.push_back(&Items[1490]);
+			result.push_back(&Items[1491]);
+			result.push_back(&Items[1492]);
+			result.push_back(&Items[1493]);
+			result.push_back(&Items[1494]);
+			result.push_back(&Items[1495]);
+			result.push_back(&Items[1496]);
+			result.push_back(&Items[1497]);
+			result.push_back(&Items[1498]);
+			result.push_back(&Items[1499]);
+			result.push_back(&Items[1500]);
+			result.push_back(&Items[1501]);
+			result.push_back(&Items[1502]);
+			result.push_back(&Items[1503]);
+			result.push_back(&Items[1504]);
+			result.push_back(&Items[1505]);
+			result.push_back(&Items[1506]);
+			result.push_back(&Items[1507]);
+			result.push_back(&Items[1508]);
+			result.push_back(&Items[1509]);
+			result.push_back(&Items[1510]);
+			result.push_back(&Items[1511]);
+			result.push_back(&Items[1512]);
+			result.push_back(&Items[1513]);
+			result.push_back(&Items[1514]);
+			result.push_back(&Items[1515]);
+			result.push_back(&Items[1516]);
+			result.push_back(&Items[1517]);
+			result.push_back(&Items[1518]);
+			result.push_back(&Items[1519]);
+			result.push_back(&Items[1520]);
+			result.push_back(&Items[1521]);
+			result.push_back(&Items[1522]);
+			result.push_back(&Items[1523]);
+			result.push_back(&Items[1524]);
+			result.push_back(&Items[1525]);
+			result.push_back(&Items[1526]);
+			result.push_back(&Items[1527]);
+			result.push_back(&Items[1528]);
+			result.push_back(&Items[1529]);
+			result.push_back(&Items[1530]);
+			result.push_back(&Items[1531]);
+			result.push_back(&Items[1532]);
+			result.push_back(&Items[1533]);
+			result.push_back(&Items[1534]);
+			result.push_back(&Items[1535]);
+			result.push_back(&Items[1536]);
+			result.push_back(&Items[1537]);
+			result.push_back(&Items[1538]);
+			result.push_back(&Items[1539]);
+			result.push_back(&Items[1540]);
+			result.push_back(&Items[1541]);
+			result.push_back(&Items[1542]);
+			result.push_back(&Items[1543]);
+			result.push_back(&Items[1544]);
+			result.push_back(&Items[1545]);
+			result.push_back(&Items[1546]);
+			result.push_back(&Items[1547]);
+			result.push_back(&Items[1548]);
+			result.push_back(&Items[1549]);
+			result.push_back(&Items[1550]);
+			result.push_back(&Items[1551]);
+			result.push_back(&Items[1557]);
+			result.push_back(&Items[1558]);
+			result.push_back(&Items[1559]);
+			result.push_back(&Items[1560]);
+			result.push_back(&Items[1561]);
+			result.push_back(&Items[1562]);
+			result.push_back(&Items[1563]);
+			result.push_back(&Items[1564]);
+			result.push_back(&Items[1565]);
+			result.push_back(&Items[1566]);
+			result.push_back(&Items[1567]);
+			result.push_back(&Items[1568]);
+			result.push_back(&Items[1569]);
+			result.push_back(&Items[1570]);
+			result.push_back(&Items[1571]);
+			result.push_back(&Items[1572]);
+			result.push_back(&Items[1573]);
+			result.push_back(&Items[1574]);
+			result.push_back(&Items[1575]);
+			result.push_back(&Items[1576]);
+			result.push_back(&Items[1577]);
+			result.push_back(&Items[1578]);
+			result.push_back(&Items[1579]);
+			result.push_back(&Items[1580]);
+			result.push_back(&Items[1581]);
+			result.push_back(&Items[1582]);
+			result.push_back(&Items[1583]);
+			result.push_back(&Items[1584]);
+			result.push_back(&Items[1585]);
+			result.push_back(&Items[1586]);
+			result.push_back(&Items[1587]);
+			result.push_back(&Items[1588]);
+			result.push_back(&Items[1589]);
+			result.push_back(&Items[1590]);
+			result.push_back(&Items[1591]);
+			result.push_back(&Items[1592]);
+			result.push_back(&Items[1593]);
+			result.push_back(&Items[1594]);
+			result.push_back(&Items[1595]);
+			result.push_back(&Items[1596]);
+			result.push_back(&Items[1597]);
+			result.push_back(&Items[1598]);
+			result.push_back(&Items[1599]);
+			result.push_back(&Items[1600]);
+			result.push_back(&Items[1601]);
+			result.push_back(&Items[1602]);
+			result.push_back(&Items[1603]);
+			result.push_back(&Items[1604]);
+			result.push_back(&Items[1605]);
+			result.push_back(&Items[1606]);
+			result.push_back(&Items[1607]);
+			result.push_back(&Items[1608]);
+			result.push_back(&Items[1609]);
+			result.push_back(&Items[1610]);
+			result.push_back(&Items[1611]);
+			result.push_back(&Items[1612]);
+			result.push_back(&Items[1613]);
+			result.push_back(&Items[1614]);
+			result.push_back(&Items[1615]);
+			result.push_back(&Items[1616]);
+			result.push_back(&Items[1617]);
+			result.push_back(&Items[1618]);
+			result.push_back(&Items[1619]);
+			result.push_back(&Items[1620]);
+			result.push_back(&Items[1621]);
+			result.push_back(&Items[1622]);
+			result.push_back(&Items[1623]);
+			result.push_back(&Items[1624]);
+			result.push_back(&Items[1625]);
+			result.push_back(&Items[1626]);
+			result.push_back(&Items[1627]);
+			result.push_back(&Items[1628]);
+			result.push_back(&Items[1629]);
+			result.push_back(&Items[1630]);
+			result.push_back(&Items[1631]);
+			result.push_back(&Items[1632]);
+			result.push_back(&Items[1633]);
+			result.push_back(&Items[1634]);
+			result.push_back(&Items[1635]);
+			result.push_back(&Items[1636]);
+			result.push_back(&Items[1637]);
+			result.push_back(&Items[1638]);
+			result.push_back(&Items[1639]);
+			result.push_back(&Items[1640]);
+			result.push_back(&Items[1641]);
+			result.push_back(&Items[1642]);
+		}
+		return result;
+	} break;
+
+	case dbietSymbols: {
+		static auto result = EmojiPack();
+		if (result.isEmpty()) {
+			result.reserve(524);
+			result.push_back(&Items[1643]);
+			result.push_back(&Items[1644]);
+			result.push_back(&Items[1645]);
+			result.push_back(&Items[1646]);
+			result.push_back(&Items[1647]);
+			result.push_back(&Items[1648]);
+			result.push_back(&Items[1649]);
+			result.push_back(&Items[1650]);
+			result.push_back(&Items[1651]);
+			result.push_back(&Items[1652]);
+			result.push_back(&Items[1653]);
+			result.push_back(&Items[1654]);
+			result.push_back(&Items[1655]);
+			result.push_back(&Items[1656]);
+			result.push_back(&Items[1657]);
+			result.push_back(&Items[1658]);
+			result.push_back(&Items[1659]);
+			result.push_back(&Items[1660]);
+			result.push_back(&Items[1661]);
+			result.push_back(&Items[1662]);
+			result.push_back(&Items[1663]);
+			result.push_back(&Items[1664]);
+			result.push_back(&Items[1665]);
+			result.push_back(&Items[1666]);
+			result.push_back(&Items[1667]);
+			result.push_back(&Items[1668]);
+			result.push_back(&Items[1669]);
+			result.push_back(&Items[1670]);
+			result.push_back(&Items[1671]);
+			result.push_back(&Items[1672]);
+			result.push_back(&Items[1673]);
+			result.push_back(&Items[1674]);
+			result.push_back(&Items[1675]);
+			result.push_back(&Items[1676]);
+			result.push_back(&Items[1677]);
+			result.push_back(&Items[1678]);
+			result.push_back(&Items[1679]);
+			result.push_back(&Items[1680]);
+			result.push_back(&Items[1681]);
+			result.push_back(&Items[1682]);
+			result.push_back(&Items[1683]);
+			result.push_back(&Items[1684]);
+			result.push_back(&Items[1685]);
+			result.push_back(&Items[1686]);
+			result.push_back(&Items[1687]);
+			result.push_back(&Items[1688]);
+			result.push_back(&Items[1689]);
+			result.push_back(&Items[1690]);
+			result.push_back(&Items[1691]);
+			result.push_back(&Items[1692]);
+			result.push_back(&Items[1693]);
+			result.push_back(&Items[1694]);
+			result.push_back(&Items[1695]);
+			result.push_back(&Items[1696]);
+			result.push_back(&Items[1697]);
+			result.push_back(&Items[1698]);
+			result.push_back(&Items[1699]);
+			result.push_back(&Items[1700]);
+			result.push_back(&Items[1701]);
+			result.push_back(&Items[1702]);
+			result.push_back(&Items[1703]);
+			result.push_back(&Items[1704]);
+			result.push_back(&Items[1705]);
+			result.push_back(&Items[1706]);
+			result.push_back(&Items[1707]);
+			result.push_back(&Items[1708]);
+			result.push_back(&Items[1709]);
+			result.push_back(&Items[1710]);
+			result.push_back(&Items[1711]);
+			result.push_back(&Items[1712]);
+			result.push_back(&Items[1713]);
+			result.push_back(&Items[1714]);
+			result.push_back(&Items[1715]);
+			result.push_back(&Items[1716]);
+			result.push_back(&Items[1717]);
+			result.push_back(&Items[1718]);
+			result.push_back(&Items[1719]);
+			result.push_back(&Items[1720]);
+			result.push_back(&Items[1721]);
+			result.push_back(&Items[1722]);
+			result.push_back(&Items[1723]);
+			result.push_back(&Items[1724]);
+			result.push_back(&Items[1725]);
+			result.push_back(&Items[1726]);
+			result.push_back(&Items[1727]);
+			result.push_back(&Items[1728]);
+			result.push_back(&Items[1729]);
+			result.push_back(&Items[1730]);
+			result.push_back(&Items[1731]);
+			result.push_back(&Items[1732]);
+			result.push_back(&Items[1733]);
+			result.push_back(&Items[1734]);
+			result.push_back(&Items[1735]);
+			result.push_back(&Items[1736]);
+			result.push_back(&Items[1737]);
+			result.push_back(&Items[1738]);
+			result.push_back(&Items[1739]);
+			result.push_back(&Items[1740]);
+			result.push_back(&Items[1741]);
+			result.push_back(&Items[1742]);
+			result.push_back(&Items[1743]);
+			result.push_back(&Items[1744]);
+			result.push_back(&Items[1745]);
+			result.push_back(&Items[1746]);
+			result.push_back(&Items[1747]);
+			result.push_back(&Items[1748]);
+			result.push_back(&Items[1749]);
+			result.push_back(&Items[1750]);
+			result.push_back(&Items[1751]);
+			result.push_back(&Items[1752]);
+			result.push_back(&Items[1753]);
+			result.push_back(&Items[1754]);
+			result.push_back(&Items[1755]);
+			result.push_back(&Items[1756]);
+			result.push_back(&Items[1757]);
+			result.push_back(&Items[1758]);
+			result.push_back(&Items[1759]);
+			result.push_back(&Items[1760]);
+			result.push_back(&Items[1761]);
+			result.push_back(&Items[1762]);
+			result.push_back(&Items[1763]);
+			result.push_back(&Items[1764]);
+			result.push_back(&Items[1765]);
+			result.push_back(&Items[1766]);
+			result.push_back(&Items[1767]);
+			result.push_back(&Items[1768]);
+			result.push_back(&Items[1769]);
+			result.push_back(&Items[1770]);
+			result.push_back(&Items[1771]);
+			result.push_back(&Items[1772]);
+			result.push_back(&Items[1773]);
+			result.push_back(&Items[1774]);
+			result.push_back(&Items[1775]);
+			result.push_back(&Items[1776]);
+			result.push_back(&Items[1777]);
+			result.push_back(&Items[1778]);
+			result.push_back(&Items[1779]);
+			result.push_back(&Items[1780]);
+			result.push_back(&Items[1781]);
+			result.push_back(&Items[1782]);
+			result.push_back(&Items[1783]);
+			result.push_back(&Items[1784]);
+			result.push_back(&Items[1785]);
+			result.push_back(&Items[1786]);
+			result.push_back(&Items[1787]);
+			result.push_back(&Items[1788]);
+			result.push_back(&Items[1789]);
+			result.push_back(&Items[1790]);
+			result.push_back(&Items[1791]);
+			result.push_back(&Items[1792]);
+			result.push_back(&Items[1793]);
+			result.push_back(&Items[1794]);
+			result.push_back(&Items[1795]);
+			result.push_back(&Items[1796]);
+			result.push_back(&Items[1797]);
+			result.push_back(&Items[1798]);
+			result.push_back(&Items[1799]);
+			result.push_back(&Items[1800]);
+			result.push_back(&Items[1801]);
+			result.push_back(&Items[1802]);
+			result.push_back(&Items[1803]);
+			result.push_back(&Items[1804]);
+			result.push_back(&Items[1805]);
+			result.push_back(&Items[1806]);
+			result.push_back(&Items[1807]);
+			result.push_back(&Items[1808]);
+			result.push_back(&Items[1809]);
+			result.push_back(&Items[1810]);
+			result.push_back(&Items[1811]);
+			result.push_back(&Items[1812]);
+			result.push_back(&Items[1813]);
+			result.push_back(&Items[1814]);
+			result.push_back(&Items[1815]);
+			result.push_back(&Items[1816]);
+			result.push_back(&Items[1817]);
+			result.push_back(&Items[1818]);
+			result.push_back(&Items[1819]);
+			result.push_back(&Items[1820]);
+			result.push_back(&Items[1821]);
+			result.push_back(&Items[1822]);
+			result.push_back(&Items[1823]);
+			result.push_back(&Items[1824]);
+			result.push_back(&Items[1825]);
+			result.push_back(&Items[1826]);
+			result.push_back(&Items[1827]);
+			result.push_back(&Items[1828]);
+			result.push_back(&Items[1829]);
+			result.push_back(&Items[1830]);
+			result.push_back(&Items[1831]);
+			result.push_back(&Items[1832]);
+			result.push_back(&Items[1833]);
+			result.push_back(&Items[1834]);
+			result.push_back(&Items[1835]);
+			result.push_back(&Items[1836]);
+			result.push_back(&Items[1837]);
+			result.push_back(&Items[1838]);
+			result.push_back(&Items[1839]);
+			result.push_back(&Items[1840]);
+			result.push_back(&Items[1841]);
+			result.push_back(&Items[1842]);
+			result.push_back(&Items[1843]);
+			result.push_back(&Items[1844]);
+			result.push_back(&Items[1845]);
+			result.push_back(&Items[1846]);
+			result.push_back(&Items[1847]);
+			result.push_back(&Items[1848]);
+			result.push_back(&Items[1849]);
+			result.push_back(&Items[1850]);
+			result.push_back(&Items[1851]);
+			result.push_back(&Items[1852]);
+			result.push_back(&Items[1853]);
+			result.push_back(&Items[1854]);
+			result.push_back(&Items[1855]);
+			result.push_back(&Items[1856]);
+			result.push_back(&Items[1857]);
+			result.push_back(&Items[1858]);
+			result.push_back(&Items[1859]);
+			result.push_back(&Items[1860]);
+			result.push_back(&Items[1861]);
+			result.push_back(&Items[1862]);
+			result.push_back(&Items[1863]);
+			result.push_back(&Items[1864]);
+			result.push_back(&Items[1865]);
+			result.push_back(&Items[1866]);
+			result.push_back(&Items[1867]);
+			result.push_back(&Items[1868]);
+			result.push_back(&Items[1869]);
+			result.push_back(&Items[1870]);
+			result.push_back(&Items[1871]);
+			result.push_back(&Items[1872]);
+			result.push_back(&Items[1873]);
+			result.push_back(&Items[1874]);
+			result.push_back(&Items[1875]);
+			result.push_back(&Items[1876]);
+			result.push_back(&Items[1877]);
+			result.push_back(&Items[1878]);
+			result.push_back(&Items[1879]);
+			result.push_back(&Items[1880]);
+			result.push_back(&Items[1881]);
+			result.push_back(&Items[1882]);
+			result.push_back(&Items[1883]);
+			result.push_back(&Items[1884]);
+			result.push_back(&Items[1885]);
+			result.push_back(&Items[1886]);
+			result.push_back(&Items[1887]);
+			result.push_back(&Items[1888]);
+			result.push_back(&Items[1889]);
+			result.push_back(&Items[1890]);
+			result.push_back(&Items[1891]);
+			result.push_back(&Items[1892]);
+			result.push_back(&Items[1893]);
+			result.push_back(&Items[1894]);
+			result.push_back(&Items[1895]);
+			result.push_back(&Items[1896]);
+			result.push_back(&Items[1897]);
+			result.push_back(&Items[1898]);
+			result.push_back(&Items[1899]);
+			result.push_back(&Items[1900]);
+			result.push_back(&Items[1901]);
+			result.push_back(&Items[1902]);
+			result.push_back(&Items[1903]);
+			result.push_back(&Items[1904]);
+			result.push_back(&Items[1905]);
+			result.push_back(&Items[1906]);
+			result.push_back(&Items[1907]);
+			result.push_back(&Items[1908]);
+			result.push_back(&Items[1909]);
+			result.push_back(&Items[1910]);
+			result.push_back(&Items[1911]);
+			result.push_back(&Items[1912]);
+			result.push_back(&Items[1913]);
+			result.push_back(&Items[1914]);
+			result.push_back(&Items[1915]);
+			result.push_back(&Items[1916]);
+			result.push_back(&Items[1917]);
+			result.push_back(&Items[1918]);
+			result.push_back(&Items[1919]);
+			result.push_back(&Items[1920]);
+			result.push_back(&Items[1921]);
+			result.push_back(&Items[1922]);
+			result.push_back(&Items[1923]);
+			result.push_back(&Items[1924]);
+			result.push_back(&Items[1925]);
+			result.push_back(&Items[1926]);
+			result.push_back(&Items[1927]);
+			result.push_back(&Items[1928]);
+			result.push_back(&Items[1929]);
+			result.push_back(&Items[1930]);
+			result.push_back(&Items[1931]);
+			result.push_back(&Items[1932]);
+			result.push_back(&Items[1933]);
+			result.push_back(&Items[1934]);
+			result.push_back(&Items[1935]);
+			result.push_back(&Items[1936]);
+			result.push_back(&Items[1937]);
+			result.push_back(&Items[1938]);
+			result.push_back(&Items[1939]);
+			result.push_back(&Items[1940]);
+			result.push_back(&Items[1941]);
+			result.push_back(&Items[1942]);
+			result.push_back(&Items[1943]);
+			result.push_back(&Items[1944]);
+			result.push_back(&Items[1945]);
+			result.push_back(&Items[1946]);
+			result.push_back(&Items[1947]);
+			result.push_back(&Items[1948]);
+			result.push_back(&Items[1949]);
+			result.push_back(&Items[1950]);
+			result.push_back(&Items[1951]);
+			result.push_back(&Items[1952]);
+			result.push_back(&Items[1953]);
+			result.push_back(&Items[1954]);
+			result.push_back(&Items[1955]);
+			result.push_back(&Items[1956]);
+			result.push_back(&Items[1957]);
+			result.push_back(&Items[1958]);
+			result.push_back(&Items[1959]);
+			result.push_back(&Items[1960]);
+			result.push_back(&Items[1961]);
+			result.push_back(&Items[1962]);
+			result.push_back(&Items[1963]);
+			result.push_back(&Items[1964]);
+			result.push_back(&Items[1965]);
+			result.push_back(&Items[1966]);
+			result.push_back(&Items[1967]);
+			result.push_back(&Items[1968]);
+			result.push_back(&Items[1969]);
+			result.push_back(&Items[1970]);
+			result.push_back(&Items[1971]);
+			result.push_back(&Items[1972]);
+			result.push_back(&Items[1973]);
+			result.push_back(&Items[1974]);
+			result.push_back(&Items[1975]);
+			result.push_back(&Items[1976]);
+			result.push_back(&Items[1977]);
+			result.push_back(&Items[1978]);
+			result.push_back(&Items[1979]);
+			result.push_back(&Items[1980]);
+			result.push_back(&Items[1981]);
+			result.push_back(&Items[1982]);
+			result.push_back(&Items[1983]);
+			result.push_back(&Items[1984]);
+			result.push_back(&Items[1985]);
+			result.push_back(&Items[1986]);
+			result.push_back(&Items[1987]);
+			result.push_back(&Items[1988]);
+			result.push_back(&Items[1989]);
+			result.push_back(&Items[1990]);
+			result.push_back(&Items[1991]);
+			result.push_back(&Items[1992]);
+			result.push_back(&Items[1993]);
+			result.push_back(&Items[1994]);
+			result.push_back(&Items[1995]);
+			result.push_back(&Items[1996]);
+			result.push_back(&Items[1997]);
+			result.push_back(&Items[1998]);
+			result.push_back(&Items[1999]);
+			result.push_back(&Items[2000]);
+			result.push_back(&Items[2001]);
+			result.push_back(&Items[2002]);
+			result.push_back(&Items[2003]);
+			result.push_back(&Items[2004]);
+			result.push_back(&Items[2005]);
+			result.push_back(&Items[2006]);
+			result.push_back(&Items[2007]);
+			result.push_back(&Items[2008]);
+			result.push_back(&Items[2009]);
+			result.push_back(&Items[2010]);
+			result.push_back(&Items[2011]);
+			result.push_back(&Items[2012]);
+			result.push_back(&Items[2013]);
+			result.push_back(&Items[2014]);
+			result.push_back(&Items[2015]);
+			result.push_back(&Items[2016]);
+			result.push_back(&Items[2017]);
+			result.push_back(&Items[2018]);
+			result.push_back(&Items[2019]);
+			result.push_back(&Items[2020]);
+			result.push_back(&Items[2021]);
+			result.push_back(&Items[2022]);
+			result.push_back(&Items[2023]);
+			result.push_back(&Items[2024]);
+			result.push_back(&Items[2025]);
+			result.push_back(&Items[2026]);
+			result.push_back(&Items[2027]);
+			result.push_back(&Items[2028]);
+			result.push_back(&Items[2029]);
+			result.push_back(&Items[2030]);
+			result.push_back(&Items[2031]);
+			result.push_back(&Items[2032]);
+			result.push_back(&Items[2033]);
+			result.push_back(&Items[2034]);
+			result.push_back(&Items[2035]);
+			result.push_back(&Items[2036]);
+			result.push_back(&Items[2037]);
+			result.push_back(&Items[2038]);
+			result.push_back(&Items[2039]);
+			result.push_back(&Items[2040]);
+			result.push_back(&Items[2041]);
+			result.push_back(&Items[2042]);
+			result.push_back(&Items[2043]);
+			result.push_back(&Items[2044]);
+			result.push_back(&Items[2045]);
+			result.push_back(&Items[2046]);
+			result.push_back(&Items[2047]);
+			result.push_back(&Items[2048]);
+			result.push_back(&Items[2049]);
+			result.push_back(&Items[2050]);
+			result.push_back(&Items[2051]);
+			result.push_back(&Items[2052]);
+			result.push_back(&Items[2053]);
+			result.push_back(&Items[2054]);
+			result.push_back(&Items[2055]);
+			result.push_back(&Items[2056]);
+			result.push_back(&Items[2057]);
+			result.push_back(&Items[2058]);
+			result.push_back(&Items[2059]);
+			result.push_back(&Items[2060]);
+			result.push_back(&Items[2061]);
+			result.push_back(&Items[2062]);
+			result.push_back(&Items[2063]);
+			result.push_back(&Items[2064]);
+			result.push_back(&Items[2065]);
+			result.push_back(&Items[2066]);
+			result.push_back(&Items[2067]);
+			result.push_back(&Items[2068]);
+			result.push_back(&Items[2069]);
+			result.push_back(&Items[2070]);
+			result.push_back(&Items[2071]);
+			result.push_back(&Items[2072]);
+			result.push_back(&Items[2073]);
+			result.push_back(&Items[2074]);
+			result.push_back(&Items[2075]);
+			result.push_back(&Items[2076]);
+			result.push_back(&Items[2077]);
+			result.push_back(&Items[2078]);
+			result.push_back(&Items[2079]);
+			result.push_back(&Items[2080]);
+			result.push_back(&Items[2081]);
+			result.push_back(&Items[2082]);
+			result.push_back(&Items[2083]);
+			result.push_back(&Items[2084]);
+			result.push_back(&Items[2085]);
+			result.push_back(&Items[2086]);
+			result.push_back(&Items[2087]);
+			result.push_back(&Items[2088]);
+			result.push_back(&Items[2089]);
+			result.push_back(&Items[2090]);
+			result.push_back(&Items[2091]);
+			result.push_back(&Items[2092]);
+			result.push_back(&Items[2093]);
+			result.push_back(&Items[2094]);
+			result.push_back(&Items[2095]);
+			result.push_back(&Items[2096]);
+			result.push_back(&Items[2097]);
+			result.push_back(&Items[2098]);
+			result.push_back(&Items[2099]);
+			result.push_back(&Items[2100]);
+			result.push_back(&Items[2101]);
+			result.push_back(&Items[2102]);
+			result.push_back(&Items[2103]);
+			result.push_back(&Items[2104]);
+			result.push_back(&Items[2105]);
+			result.push_back(&Items[2106]);
+			result.push_back(&Items[2107]);
+			result.push_back(&Items[2108]);
+			result.push_back(&Items[2109]);
+			result.push_back(&Items[2110]);
+			result.push_back(&Items[2111]);
+			result.push_back(&Items[2112]);
+			result.push_back(&Items[2113]);
+			result.push_back(&Items[2114]);
+			result.push_back(&Items[2115]);
+			result.push_back(&Items[2116]);
+			result.push_back(&Items[2117]);
+			result.push_back(&Items[2118]);
+			result.push_back(&Items[2119]);
+			result.push_back(&Items[2120]);
+			result.push_back(&Items[2121]);
+			result.push_back(&Items[2122]);
+			result.push_back(&Items[2123]);
+			result.push_back(&Items[2124]);
+			result.push_back(&Items[2125]);
+			result.push_back(&Items[2126]);
+			result.push_back(&Items[2127]);
+			result.push_back(&Items[2128]);
+			result.push_back(&Items[2129]);
+			result.push_back(&Items[2130]);
+			result.push_back(&Items[2131]);
+			result.push_back(&Items[2132]);
+			result.push_back(&Items[2133]);
+			result.push_back(&Items[2134]);
+			result.push_back(&Items[2135]);
+			result.push_back(&Items[2136]);
+			result.push_back(&Items[2137]);
+			result.push_back(&Items[2138]);
+			result.push_back(&Items[2139]);
+			result.push_back(&Items[2140]);
+			result.push_back(&Items[2141]);
+			result.push_back(&Items[2142]);
+			result.push_back(&Items[2143]);
+			result.push_back(&Items[2144]);
+			result.push_back(&Items[2145]);
+			result.push_back(&Items[2146]);
+			result.push_back(&Items[2147]);
+			result.push_back(&Items[2148]);
+			result.push_back(&Items[2149]);
+			result.push_back(&Items[2150]);
+			result.push_back(&Items[2151]);
+			result.push_back(&Items[2152]);
+			result.push_back(&Items[2153]);
+			result.push_back(&Items[2154]);
+			result.push_back(&Items[2155]);
+			result.push_back(&Items[2156]);
+			result.push_back(&Items[2157]);
+			result.push_back(&Items[2158]);
+			result.push_back(&Items[2159]);
+			result.push_back(&Items[2160]);
+			result.push_back(&Items[2161]);
+			result.push_back(&Items[2162]);
+			result.push_back(&Items[2163]);
+			result.push_back(&Items[2164]);
+			result.push_back(&Items[2165]);
+			result.push_back(&Items[2166]);
+		}
+		return result;
+	} break;
+
+	case dbietRecent: {
+		auto result = EmojiPack();
+		result.reserve(cGetRecentEmoji().size());
+		for (auto &item : cGetRecentEmoji()) {
+			result.push_back(item.first);
+		}
+		return result;
+	} break;
+	}
+	return EmojiPack();
+}
+
+int Index() {
+	return WorkingIndex;
+}
+
+int One::variantsCount() const {
+	return hasVariants() ? 5 : 0;
+}
+
+int One::variantIndex(EmojiPtr variant) const {
+	return (variant - original());
+}
+
+EmojiPtr One::variant(int index) const {
+	return (index >= 0 && index <= variantsCount()) ? (original() + index) : this;
+}
+
+int One::index() const {
+	return (this - &Items[0]);
+}
+
+} // namespace Emoji
+} // namespace Ui

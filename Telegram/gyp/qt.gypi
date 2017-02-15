@@ -232,6 +232,13 @@
         '-rdynamic',
       ],
     }],
+    [ 'build_mac', {
+      'xcode_settings': {
+        'OTHER_LDFLAGS': [
+          '-lcups',
+        ],
+      },
+    }],
   ],
 
   'rules': [{

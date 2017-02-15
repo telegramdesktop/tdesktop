@@ -124,5 +124,33 @@
       '<(src_loc)/codegen/numbers/processor.cpp',
       '<(src_loc)/codegen/numbers/processor.h',
     ],
+  }, {
+    'target_name': 'codegen_emoji',
+    'variables': {
+      'libs_loc': '../../../Libraries',
+      'src_loc': '../SourceFiles',
+      'mac_target': '10.10',
+    },
+    'includes': [
+      'common_executable.gypi',
+      'qt.gypi',
+    ],
+
+    'include_dirs': [
+      '<(src_loc)',
+    ],
+    'sources': [
+      '<(src_loc)/codegen/common/cpp_file.cpp',
+      '<(src_loc)/codegen/common/cpp_file.h',
+      '<(src_loc)/codegen/common/logging.cpp',
+      '<(src_loc)/codegen/common/logging.h',
+      '<(src_loc)/codegen/emoji/data.cpp',
+      '<(src_loc)/codegen/emoji/data.h',
+      '<(src_loc)/codegen/emoji/generator.cpp',
+      '<(src_loc)/codegen/emoji/generator.h',
+      '<(src_loc)/codegen/emoji/main.cpp',
+      '<(src_loc)/codegen/emoji/options.cpp',
+      '<(src_loc)/codegen/emoji/options.h',
+    ],
   }],
 }

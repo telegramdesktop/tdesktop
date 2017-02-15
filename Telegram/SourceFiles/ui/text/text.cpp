@@ -132,7 +132,6 @@ const QChar *textSkipCommand(const QChar *from, const QChar *end, bool canLink) 
 
 class TextParser {
 public:
-
 	static Qt::LayoutDirection stringDirection(const QString &str, int32 from, int32 to) {
 		const ushort *p = reinterpret_cast<const ushort*>(str.unicode()) + from;
 		const ushort *end = p + (to - from);
@@ -479,14 +478,14 @@ public:
 
 	void parseEmojiFromCurrent() {
 		int len = 0;
-		EmojiPtr e = emojiFromText(ptr - emojiLookback, end, &len);
+		auto e = Ui::Emoji::Find(ptr - emojiLookback, end, &len);
 		if (!e) return;
 
 		for (int l = len - emojiLookback - 1; l > 0; --l) {
 			_t->_text.push_back(*++ptr);
 		}
-		if (e->postfix && _t->_text.at(_t->_text.size() - 1).unicode() != e->postfix) {
-			_t->_text.push_back(e->postfix);
+		if (e->hasPostfix() && _t->_text.at(_t->_text.size() - 1).unicode() != Ui::Emoji::kPostfix) {
+			_t->_text.push_back(QChar(Ui::Emoji::kPostfix));
 			++len;
 		}
 
@@ -498,9 +497,6 @@ public:
 		src(text),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
-		maxLnkIndex(0),
-		flags(0),
-		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
 		if (options.flags & TextParseLinks) {
 			textParseEntities(src, options.flags, &entities, rich);
@@ -511,9 +507,6 @@ public:
 		src(textWithEntities.text),
 		rich(options.flags & TextParseRichText),
 		multiline(options.flags & TextParseMultiline),
-		maxLnkIndex(0),
-		flags(0),
-		lnkIndex(0),
 		stopAfterWidth(QFIXED_MAX) {
 		auto preparsed = textWithEntities.entities;
 		if ((options.flags & TextParseLinks) && !preparsed.isEmpty()) {
@@ -686,16 +679,17 @@ private:
 	typedef QMap<const QChar*, QList<int32> > RemoveFlagsMap;
 	RemoveFlagsMap removeFlags;
 
-	uint16 maxLnkIndex;
+	uint16 maxLnkIndex = 0;
 
 	// current state
-	int32 flags;
-	uint16 lnkIndex;
-	const EmojiData *emoji; // current emoji, if current word is an emoji, or zero
-	int32 blockStart; // offset in result, from which current parsed block is started
-	int32 diacs; // diac chars skipped without good char
+	int32 flags = 0;
+	uint16 lnkIndex = 0;
+	EmojiPtr emoji = nullptr; // current emoji, if current word is an emoji, or zero
+	int32 blockStart = 0; // offset in result, from which current parsed block is started
+	int32 diacs = 0; // diac chars skipped without good char
 	QFixed sumWidth, stopAfterWidth; // summary width of all added words
-	bool sumFinished, newlineAwaited;
+	bool sumFinished = false;
+	bool newlineAwaited = false;
 
 	// current char data
 	QChar ch; // current char (low surrogate, if current char is surrogate pair)
@@ -2516,35 +2510,31 @@ void Text::setMarkedText(const style::TextStyle &st, const TextWithEntities &tex
 	_st = &st;
 	clear();
 	{
-//		QString newText; // utf16 of the text for emoji
+		// utf codes of the text display for emoji extraction
+//		auto text = textWithEntities.text;
+//		auto newText = QString();
 //		newText.reserve(8 * text.size());
+//		newText.append("\t{ ");
 //		for (const QChar *ch = text.constData(), *e = ch + text.size(); ch != e; ++ch) {
-//			if (chIsNewline(*ch)) {
-//				newText.append(*ch);
+//			if (*ch == TextCommand) {
+//				break;
+//			} else if (chIsNewline(*ch)) {
+//				newText.append("},").append(*ch).append("\t{ ");
 //			} else {
 //				if (ch->isHighSurrogate() || ch->isLowSurrogate()) {
 //					if (ch->isHighSurrogate() && (ch + 1 != e) && ((ch + 1)->isLowSurrogate())) {
-//						newText.append("0x").append(QString::number((uint32(ch->unicode()) << 16) | uint32((ch + 1)->unicode()), 16).toUpper()).append("LLU,");
+//						newText.append("0x").append(QString::number((uint32(ch->unicode()) << 16) | uint32((ch + 1)->unicode()), 16).toUpper()).append("U, ");
 //						++ch;
 //					} else {
-//						newText.append("BADx").append(QString::number(ch->unicode(), 16).toUpper()).append("LLU,");
+//						newText.append("BADx").append(QString::number(ch->unicode(), 16).toUpper()).append("U, ");
 //					}
 //				} else {
-//					newText.append("0x").append(QString::number(ch->unicode(), 16).toUpper()).append("LLU,");
+//					newText.append("0x").append(QString::number(ch->unicode(), 16).toUpper()).append("U, ");
 //				}
 //			}
 //		}
-//		newText.append("\n\n").append(text);
-//		TextParser parser(this, newText, EntitiesInText(), options);
-
-//		QString newText; // utf8 of the text for emoji sequences
-//		newText.reserve(8 * text.size());
-//		QByteArray ba = text.toUtf8();
-//		for (int32 i = 0, l = ba.size(); i < l; ++i) {
-//			newText.append("\\x").append(QString::number(uchar(ba.at(i)), 16).toLower());
-//		}
-//		newText.append("\n\n").append(text);
-//		TextParser parser(this, newText, EntitiesInText(), options);
+//		newText.append("},\n\n").append(text);
+//		TextParser parser(this, { newText, EntitiesInText() }, options);
 
 		TextParser parser(this, textWithEntities, options);
 	}
@@ -3016,5 +3006,6 @@ void Text::clearFields() {
 }
 
 void emojiDraw(QPainter &p, EmojiPtr e, int x, int y) {
-	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x * ESize, e->y * ESize, ESize, ESize));
+	auto size = Ui::Emoji::Size();
+	p.drawPixmap(QPoint(x, y), App::emoji(), QRect(e->x() * size, e->y() * size, size, size));
 }

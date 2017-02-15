@@ -1,0 +1,66 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop version of Telegram messaging app, see https://telegram.org
+
+Telegram Desktop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+It is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+GNU General Public License for more details.
+
+In addition, as a special exception, the copyright holders give permission
+to link the code of portions of this program with the OpenSSL library.
+
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
+Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
+*/
+#pragma once
+
+#include <memory>
+#include <QtCore/QString>
+#include <QtCore/QSet>
+#include "codegen/common/cpp_file.h"
+#include "codegen/emoji/options.h"
+#include "codegen/emoji/data.h"
+
+namespace codegen {
+namespace emoji {
+
+class Generator {
+public:
+	Generator(const Options &options);
+	Generator(const Generator &other) = delete;
+	Generator &operator=(const Generator &other) = delete;
+
+	int generate();
+
+private:
+	QImage generateImage(int variantIndex);
+	bool writeImages();
+	bool writeSource();
+
+	bool writeInitCode();
+	bool writePacks();
+	bool writeFindReplace();
+	bool writeFind();
+	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary);
+
+	// min < 0 - this is last checked dictionary
+	// max < 0 - no outer min-max check
+	bool writeFindFromOneDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, int min = -1, int max = -1);
+
+	const common::ProjectInfo &project_;
+	int colorsCount_ = 0;
+	QString outputPath_;
+	QString spritePath_;
+	std::unique_ptr<common::CppFile> source_;
+	Data data_;
+
+};
+
+} // namespace emoji
+} // namespace codegen
