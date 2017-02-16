@@ -432,6 +432,7 @@ public:
 	enum class Known {
 		Unknown,
 		TDesktopTheme,
+		TDesktopPalette,
 		WebP,
 	};
 

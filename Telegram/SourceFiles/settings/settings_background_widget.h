@@ -42,6 +42,7 @@ protected:
 signals:
 	void chooseFromGallery();
 	void chooseFromFile();
+	void editTheme();
 	void useDefault();
 
 private:
@@ -58,6 +59,7 @@ private:
 	object_ptr<Ui::LinkButton> _useDefaultTheme = { nullptr };
 	object_ptr<Ui::LinkButton> _chooseFromGallery;
 	object_ptr<Ui::LinkButton> _chooseFromFile;
+	object_ptr<Ui::LinkButton> _editTheme;
 
 	Ui::RadialAnimation _radial;
 
@@ -72,6 +74,7 @@ public:
 private slots:
 	void onChooseFromGallery();
 	void onChooseFromFile();
+	void onEditTheme();
 	void onUseDefaultTheme();
 	void onTile();
 	void onAdaptive();

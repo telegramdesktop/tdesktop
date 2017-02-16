@@ -86,7 +86,7 @@ void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
 	toast.text = lang(lng_stickers_packs_archived);
 	toast.maxWidth = st::stickersToastMaxWidth;
 	toast.padding = st::stickersToastPadding;
-	Ui::Toast::Show(App::wnd(), toast);
+	Ui::Toast::Show(toast);
 //	Ui::show(Box<StickersBox>(archived), KeepOtherLayers);
 
 	emit App::main()->stickersUpdated();

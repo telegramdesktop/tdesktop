@@ -145,6 +145,8 @@ public:
 	void showMainMenu();
 	void updateTrayMenu(bool force = false) override;
 
+	void showSpecialLayer(object_ptr<LayerWidget> layer);
+
 	void ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options);
 	void ui_hideSettingsAndLayer(ShowLayerOptions options);
 	bool ui_isLayerShown();
@@ -156,11 +158,12 @@ public:
 protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 	void closeEvent(QCloseEvent *e) override;
-	void resizeEvent(QResizeEvent *e) override;
 
 	void initHook() override;
 	void updateIsActiveHook() override;
 	void clearWidgetsHook() override;
+
+	void updateControlsGeometry() override;
 
 public slots:
 	void checkAutoLock();
@@ -204,8 +207,6 @@ private:
 	void hideConnecting();
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
-
-	void updateControlsGeometry();
 
 	QPixmap grabInner();
 

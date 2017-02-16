@@ -241,10 +241,7 @@ void MaxInviteBox::mousePressEvent(QMouseEvent *e) {
 	mouseMoveEvent(e);
 	if (_linkOver) {
 		Application::clipboard()->setText(_link);
-
-		Ui::Toast::Config toast;
-		toast.text = lang(lng_create_channel_link_copied);
-		Ui::Toast::Show(App::wnd(), toast);
+		Ui::Toast::Show(lang(lng_create_channel_link_copied));
 	}
 }
 

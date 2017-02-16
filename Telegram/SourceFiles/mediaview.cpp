@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "media/media_audio.h"
 #include "history/history_media_types.h"
-#include "window/window_theme_preview.h"
+#include "window/themes/window_theme_preview.h"
 #include "core/task_queue.h"
 #include "observer_peer.h"
 
@@ -69,6 +69,7 @@ bool typeHasMediaOverview(MediaOverviewType type) {
 } // namespace
 
 MediaView::MediaView(QWidget*) : TWidget(nullptr)
+, _transparentBrush(style::transparentPlaceholderBrush())
 , _animStarted(getms())
 , _docDownload(this, lang(lng_media_download), st::mediaviewFileLink)
 , _docSaveAs(this, lang(lng_mediaview_save_as), st::mediaviewFileLink)
@@ -95,8 +96,6 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		mediaOverviewUpdated(update);
 	}));
-
-	generateTransparentBrush();
 
 	setWindowFlags(Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::Tool | Qt::NoDropShadowWindowHint);
 	moveToScreen();
@@ -1186,6 +1185,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 }
 
 void MediaView::destroyThemePreview() {
+	_themePreviewId = 0;
 	_themePreviewShown = false;
 	_themePreview.reset();
 	_themeApply.destroy();
@@ -2765,19 +2765,6 @@ void MediaView::loadBack() {
 		int32 limit = (_index < MediaOverviewStartPerPage && _user->photos.size() > MediaOverviewStartPerPage) ? SearchPerPage : MediaOverviewStartPerPage;
 		_loadRequest = MTP::send(MTPphotos_GetUserPhotos(_user->inputUser, MTP_int(_user->photos.size()), MTP_long(0), MTP_int(limit)), rpcDone(&MediaView::userPhotosLoaded, _user));
 	}
-}
-
-void MediaView::generateTransparentBrush() {
-	auto size = st::mediaviewTransparentSize * cIntRetinaFactor();
-	auto transparent = QImage(2 * size, 2 * size, QImage::Format_ARGB32_Premultiplied);
-	transparent.fill(st::mediaviewTransparentBg->c);
-	{
-		Painter p(&transparent);
-		p.fillRect(rtlrect(0, size, size, size, 2 * size), st::mediaviewTransparentFg);
-		p.fillRect(rtlrect(size, 0, size, size, 2 * size), st::mediaviewTransparentFg);
-	}
-	transparent.setDevicePixelRatio(cRetinaFactor());
-	_transparentBrush = QBrush(transparent);
 }
 
 MediaView::LastChatPhoto MediaView::computeLastOverviewChatPhoto() {

@@ -175,8 +175,8 @@ if %BuildUWP% equ 0 (
   if %errorlevel% neq 0 goto error
 
   if %BetaVersion% neq 0 (
-    set "UpdateFile=%UpdateFile%_%BetaSignature%"
-    set "PortableFile=tbeta%BetaVersion%_%BetaSignature%.zip"
+    set "UpdateFile=!UpdateFile!_!BetaSignature!"
+    set "PortableFile=tbeta!BetaVersion!_!BetaSignature!.zip"
   )
 )
 

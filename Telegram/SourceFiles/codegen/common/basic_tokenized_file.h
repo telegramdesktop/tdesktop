@@ -77,7 +77,11 @@ public:
 	};
 
 	bool read() {
-		return reader_.read();
+		if (reader_.read()) {
+			singleLineComments_ = reader_.singleLineComments();
+			return true;
+		}
+		return false;
 	}
 	bool atEnd() const {
 		return reader_.atEnd();
@@ -89,6 +93,8 @@ public:
 	bool failed() const {
 		return failed_;
 	}
+
+	QString getCurrentLineComment();
 
 	// Log error to std::cerr with 'code' at the current position in file.
 	LogStream logError(int code) const;
@@ -124,6 +130,7 @@ private:
 	int currentToken_ = 0;
 	int lineNumber_ = 1;
 	bool failed_ = false;
+	QVector<QByteArray> singleLineComments_;
 
 	// Where the last (currently read) token has started.
 	const char *tokenStart_ = nullptr;

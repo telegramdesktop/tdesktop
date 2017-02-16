@@ -56,7 +56,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "apiwrap.h"
 #include "window/top_bar_widget.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "core/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
@@ -5802,10 +5802,8 @@ void HistoryWidget::botCallbackDone(BotCallbackInfo info, const MTPmessages_BotC
 		if (answerData.has_message()) {
 			if (answerData.is_alert()) {
 				Ui::show(Box<InformBox>(qs(answerData.vmessage)));
-			} else if (App::wnd()) {
-				Ui::Toast::Config toast;
-				toast.text = qs(answerData.vmessage);
-				Ui::Toast::Show(App::wnd(), toast);
+			} else {
+				Ui::Toast::Show(qs(answerData.vmessage));
 			}
 		} else if (answerData.has_url()) {
 			auto url = qs(answerData.vurl);

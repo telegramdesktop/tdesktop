@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/toast/toast_manager.h"
 #include "ui/toast/toast_widget.h"
+#include "mainwindow.h"
 
 namespace Ui {
 namespace Toast {
@@ -38,6 +39,18 @@ void Show(QWidget *parent, const Config &config) {
 		auto toast = std_::make_unique<Instance>(config, parent, Instance::Private());
 		manager->addToast(std_::move(toast));
 	}
+}
+
+void Show(const Config &config) {
+	if (auto window = App::wnd()) {
+		Show(window->bodyWidget(), config);
+	}
+}
+
+void Show(const QString &text) {
+	Config toast;
+	toast.text = text;
+	Show(toast);
 }
 
 void Instance::opacityAnimationCallback() {

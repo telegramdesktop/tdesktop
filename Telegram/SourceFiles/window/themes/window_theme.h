@@ -27,6 +27,7 @@ namespace internal {
 constexpr int32 kUninitializedBackground = -999;
 constexpr int32 kTestingThemeBackground = -666;
 constexpr int32 kTestingDefaultBackground = -665;
+constexpr int32 kTestingEditorBackground = -664;
 
 } // namespace internal
 
@@ -62,10 +63,12 @@ struct Preview {
 bool Apply(const QString &filepath);
 bool Apply(std_::unique_ptr<Preview> preview);
 void ApplyDefault();
+bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
 void Revert();
 
 bool LoadFromFile(const QString &file, Instance *out, QByteArray *outContent);
+bool IsPaletteTestingPath(const QString &path);
 
 struct BackgroundUpdate {
 	enum class Type {
@@ -135,6 +138,10 @@ private:
 ChatBackground *Background();
 
 void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &from);
+
+bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent);
+
+bool ReadPaletteValues(const QByteArray &content, base::lambda<bool(QLatin1String name, QLatin1String value)> &&callback);
 
 } // namespace Theme
 } // namespace Window

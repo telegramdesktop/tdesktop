@@ -632,12 +632,17 @@ CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : Ripple
 	hide();
 }
 
-void CrossButton::hideAnimated() {
-	startAnimation(false);
-}
-
 void CrossButton::showAnimated() {
 	startAnimation(true);
+}
+
+void CrossButton::showFast() {
+	showAnimated();
+	_a_show.finish();
+}
+
+void CrossButton::hideAnimated() {
+	startAnimation(false);
 }
 
 void CrossButton::hideFast() {

@@ -1169,7 +1169,7 @@ public:
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
 	}
 	bool isTheme() const {
-		return name.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive);
+		return name.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive) || name.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive);
 	}
 	bool isMusic() const {
 		if (auto s = song()) {

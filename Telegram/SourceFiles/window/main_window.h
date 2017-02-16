@@ -68,6 +68,8 @@ public:
 
 	QWidget *filedialogParent();
 
+	void showRightColumn(object_ptr<TWidget> widget);
+
 	virtual void updateTrayMenu(bool force = false) {
 	}
 
@@ -125,6 +127,8 @@ protected:
 	virtual void showTrayTooltip() {
 	}
 
+	virtual void updateControlsGeometry();
+
 	// This one is overriden in Windows for historical reasons.
 	virtual int32 screenNameChecksum(const QString &name) const;
 
@@ -143,7 +147,6 @@ private slots:
 
 private:
 	void updatePalette();
-	void updateControlsGeometry();
 	void updateUnreadCounter();
 	void initSize();
 
@@ -154,6 +157,7 @@ private:
 
 	object_ptr<TitleWidget> _title = { nullptr };
 	object_ptr<TWidget> _body;
+	object_ptr<TWidget> _rightColumn = { nullptr };
 
 	QString _titleText;
 

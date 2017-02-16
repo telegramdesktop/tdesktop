@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 
 namespace Window {
 namespace Theme {

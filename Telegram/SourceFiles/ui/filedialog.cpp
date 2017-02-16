@@ -25,6 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "platform/platform_file_dialog.h"
 
+#include "core/task_queue.h"
+
 void filedialogInit() {
 	if (cDialogLastPath().isEmpty()) {
 #ifdef Q_OS_WIN
@@ -382,6 +384,69 @@ bool processQuery() {
 
 base::Observable<QueryUpdate> &QueryDone() {
 	return QueryDoneObservable;
+}
+
+void askOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> &&callback, base::lambda<void()> &&failed) {
+	base::TaskQueue::Main().Put([caption, filter, callback = std_::move(callback), failed = std_::move(failed)] {
+		auto file = QString();
+		auto remoteContent = QByteArray();
+		if (filedialogGetOpenFile(file, remoteContent, caption, filter) && (!file.isEmpty() || !remoteContent.isEmpty())) {
+			if (callback) {
+				auto result = OpenResult();
+				if (!file.isEmpty()) {
+					result.paths.push_back(file);
+				}
+				result.remoteContent = remoteContent;
+				callback(result);
+			}
+		} else if (failed) {
+			failed();
+		}
+	});
+}
+
+void askOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> &&callback, base::lambda<void()> &&failed) {
+	base::TaskQueue::Main().Put([caption, filter, callback = std_::move(callback), failed = std_::move(failed)] {
+		auto files = QStringList();
+		auto remoteContent = QByteArray();
+		if (filedialogGetOpenFiles(files, remoteContent, caption, filter) && (!files.isEmpty() || !remoteContent.isEmpty())) {
+			if (callback) {
+				auto result = OpenResult();
+				result.paths = files;
+				result.remoteContent = remoteContent;
+				callback(result);
+			}
+		} else if (failed) {
+			failed();
+		}
+	});
+
+}
+
+void askWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> &&callback, base::lambda<void()> &&failed) {
+	base::TaskQueue::Main().Put([caption, filter, initialPath, callback = std_::move(callback), failed = std_::move(failed)] {
+		auto file = QString();
+		if (filedialogGetSaveFile(file, caption, filter, initialPath)) {
+			if (callback) {
+				callback(file);
+			}
+		} else if (failed) {
+			failed();
+		}
+	});
+}
+
+void askFolder(const QString &caption, base::lambda<void(const QString &result)> &&callback, base::lambda<void()> &&failed) {
+	base::TaskQueue::Main().Put([caption, callback = std_::move(callback), failed = std_::move(failed)] {
+		auto folder = QString();
+		if (filedialogGetDir(folder, caption) && !folder.isEmpty()) {
+			if (callback) {
+				callback(folder);
+			}
+		} else if (failed) {
+			failed();
+		}
+	});
 }
 
 } // namespace FileDialog

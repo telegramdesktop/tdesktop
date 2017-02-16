@@ -213,6 +213,7 @@ public:
 	CrossButton(QWidget *parent, const style::CrossButton &st);
 
 	void showAnimated();
+	void showFast();
 	void hideAnimated();
 	void hideFast();
 

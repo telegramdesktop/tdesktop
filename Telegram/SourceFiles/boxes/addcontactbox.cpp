@@ -542,10 +542,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
 		Application::clipboard()->setText(_channel->inviteLink());
-
-		Ui::Toast::Config toast;
-		toast.text = lang(lng_create_channel_link_copied);
-		Ui::Toast::Show(App::wnd(), toast);
+		Ui::Toast::Show(lang(lng_create_channel_link_copied));
 	}
 }
 

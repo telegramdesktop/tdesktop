@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "boxes/contactsbox.h"
 
 ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
@@ -872,9 +872,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 
 							QApplication::clipboard()->setText(CreateInternalLinkHttps(bot->username + qsl("?game=") + shortName));
 
-							Ui::Toast::Config toast;
-							toast.text = lang(lng_share_game_link_copied);
-							Ui::Toast::Show(App::wnd(), toast);
+							Ui::Toast::Show(lang(lng_share_game_link_copied));
 						}
 					}
 				}
@@ -892,10 +890,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 			}
 			data->requests.remove(requestId);
 			if (data->requests.empty()) {
-				Ui::Toast::Config toast;
-				toast.text = lang(lng_share_done);
-				Ui::Toast::Show(App::wnd(), toast);
-
+				Ui::Toast::Show(lang(lng_share_done));
 				Ui::hideLayer();
 			}
 		};

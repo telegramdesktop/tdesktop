@@ -65,4 +65,13 @@ bool processQuery();
 
 base::Observable<QueryUpdate> &QueryDone();
 
+struct OpenResult {
+	QStringList paths;
+	QByteArray remoteContent;
+};
+void askOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> &&callback, base::lambda<void()> &&failed = base::lambda<void()>());
+void askOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> &&callback, base::lambda<void()> &&failed = base::lambda<void()>());
+void askWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> &&callback, base::lambda<void()> &&failed = base::lambda<void()>());
+void askFolder(const QString &caption, base::lambda<void(const QString &result)> &&callback, base::lambda<void()> &&failed = base::lambda<void()>());
+
 } // namespace FileDialog

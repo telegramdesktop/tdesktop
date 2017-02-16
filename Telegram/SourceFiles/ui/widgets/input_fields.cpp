@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "mainwindow.h"
 #include "ui/countryinput.h"
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "lang.h"
 #include "numbers.h"
 

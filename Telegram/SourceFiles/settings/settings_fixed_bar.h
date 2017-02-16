@@ -30,10 +30,15 @@ class FixedBar : public TWidget {
 public:
 	FixedBar(QWidget *parent);
 
+	void setText(const QString &text);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
 	int resizeGetHeight(int newWidth) override;
+
+private:
+	QString _text;
 
 };
 

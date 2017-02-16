@@ -63,6 +63,10 @@ public:
 		return (end_ - pos_);
 	}
 
+	QVector<QByteArray> singleLineComments() const {
+		return file_.singleLineComments();
+	}
+
 	// Log error to std::cerr with 'code' at line number 'line' in data().
 	LogStream logError(int code, int line) const {
 		return std::forward<LogStream>(file_.logError(code, line));

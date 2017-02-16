@@ -78,6 +78,8 @@ inline QImage colorizeImage(const QImage &src, const color &c, QRect srcRect = Q
 	return colorizeImage(src, c->c, srcRect);
 }
 
+QBrush transparentPlaceholderBrush();
+
 namespace internal {
 
 QImage createCircleMask(int size, QColor bg, QColor fg);

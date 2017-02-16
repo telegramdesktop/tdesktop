@@ -19,9 +19,9 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "window/window_theme_preview.h"
+#include "window/themes/window_theme_preview.h"
 
-#include "window/window_theme.h"
+#include "window/themes/window_theme.h"
 #include "lang.h"
 #include "platform/platform_window_title.h"
 #include "styles/style_widgets.h"

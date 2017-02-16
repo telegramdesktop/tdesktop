@@ -940,6 +940,7 @@ QStringList MimeType::globPatterns() const {
 	switch (_type) {
 	case Known::WebP: return QStringList(qsl("*.webp"));
 	case Known::TDesktopTheme: return QStringList(qsl("*.tdesktop-theme"));
+	case Known::TDesktopPalette: return QStringList(qsl("*.tdesktop-palette"));
 	default: break;
 	}
 	return _typeStruct.globPatterns();
@@ -948,6 +949,7 @@ QString MimeType::filterString() const {
 	switch (_type) {
 	case Known::WebP: return qsl("WebP image (*.webp)");
 	case Known::TDesktopTheme: return qsl("Theme files (*.tdesktop-theme)");
+	case Known::TDesktopPalette: return qsl("Palette files (*.tdesktop-palette)");
 	default: break;
 	}
 	return _typeStruct.filterString();
@@ -956,6 +958,7 @@ QString MimeType::name() const {
 	switch (_type) {
 	case Known::WebP: return qsl("image/webp");
 	case Known::TDesktopTheme: return qsl("application/x-tdesktop-theme");
+	case Known::TDesktopPalette: return qsl("application/x-tdesktop-palette");
 	default: break;
 	}
 	return _typeStruct.name();
@@ -966,17 +969,22 @@ MimeType mimeTypeForName(const QString &mime) {
 		return MimeType(MimeType::Known::WebP);
 	} else if (mime == qsl("application/x-tdesktop-theme")) {
 		return MimeType(MimeType::Known::TDesktopTheme);
+	} else if (mime == qsl("application/x-tdesktop-palette")) {
+		return MimeType(MimeType::Known::TDesktopPalette);
 	}
 	return MimeType(QMimeDatabase().mimeTypeForName(mime));
 }
 
 MimeType mimeTypeForFile(const QFileInfo &file) {
 	QString path = file.absoluteFilePath();
-	if (path.endsWith(qsl(".webp"), Qt::CaseInsensitive)) {
+	if (path.endsWith(qstr(".webp"), Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::WebP);
-	} else if (path.endsWith(qsl(".tdesktop-theme"), Qt::CaseInsensitive)) {
+	} else if (path.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::TDesktopTheme);
+	} else if (path.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
+		return MimeType(MimeType::Known::TDesktopPalette);
 	}
+
 	{
 		QFile f(path);
 		if (f.open(QIODevice::ReadOnly)) {

@@ -252,16 +252,14 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 void AbstractBox::paintTitle(Painter &p, const QString &title, const QString &additional) {
 	p.setFont(st::boxTitleFont);
 	p.setPen(st::boxTitleFg);
-	if (_layerType) {
-		auto titleWidth = st::boxTitleFont->width(title);
-		p.drawTextLeft(st::boxLayerTitlePosition.x(), st::boxLayerTitlePosition.y(), width(), title, titleWidth);
-		if (!additional.isEmpty()) {
-			p.setFont(st::boxLayerTitleAdditionalFont);
-			p.setPen(st::boxTitleAdditionalFg);
-			p.drawTextLeft(st::boxLayerTitlePosition.x() + titleWidth + st::boxLayerTitleAdditionalSkip, st::boxLayerTitlePosition.y() + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), additional);
-		}
-	} else {
-		p.drawTextLeft(st::boxTitlePosition.x(), st::boxTitlePosition.y(), width(), title);
+	auto titleWidth = st::boxTitleFont->width(title);
+	auto titleLeft = _layerType ? st::boxLayerTitlePosition.x() : st::boxTitlePosition.x();
+	auto titleTop = _layerType ? st::boxLayerTitlePosition.y() : st::boxTitlePosition.y();
+	p.drawTextLeft(titleLeft, titleTop, width(), title, titleWidth);
+	if (!additional.isEmpty()) {
+		p.setFont(st::boxLayerTitleAdditionalFont);
+		p.setPen(st::boxTitleAdditionalFg);
+		p.drawTextLeft(titleLeft + titleWidth + st::boxLayerTitleAdditionalSkip, titleTop + st::boxTitleFont->ascent - st::boxLayerTitleAdditionalFont->ascent, width(), additional);
 	}
 }
 

@@ -120,3 +120,6 @@ repl "\(PRODUCTVERSION\) \([ ]*\)[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*,[0-9][0-9]*
 repl "\(\"FileVersion\",\) \([ ]*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
 repl "\(\"ProductVersion\",\) \([ ]*\)\"[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\"" "\1\2 \"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
 
+echo "Patching appxmanifest.xml..."
+ResourcePath="$FullScriptPath/../Resources/uwp/AppX/AppxManifest.xml"
+repl " \(Version=\)\"[0-9][0-9]*.[0-9][0-9]*.[0-9][0-9]*.[0-9][0-9]*\"" " \1\"$VersionMajor.$VersionMinor.$VersionPatch.$VersionBeta\"" "$ResourcePath"
