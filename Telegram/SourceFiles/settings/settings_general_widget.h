@@ -100,6 +100,8 @@ private slots:
 	void onAddInSendTo();
 #endif // Q_OS_WIN && !OS_WIN_STORE
 
+	void onUseExternalVideoPlayer();
+
 	void onRestart();
 
 private:
@@ -118,6 +120,7 @@ private:
 	object_ptr<Ui::Checkbox> _autoStart = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
 	object_ptr<Ui::Checkbox> _addInSendTo = { nullptr };
+	object_ptr<Ui::Checkbox> _useExternalVideoPlayer = { nullptr };
 
 	FileDialog::QueryId _chooseLangFileQueryId = 0;
 	QString _testLanguage;

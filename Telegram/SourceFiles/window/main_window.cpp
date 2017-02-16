@@ -99,10 +99,15 @@ void MainWindow::showPhoto(PhotoData *photo, PeerData *peer) {
 }
 
 void MainWindow::showDocument(DocumentData *doc, HistoryItem *item) {
-	if (_mediaView->isHidden()) Ui::hideLayer(true);
-	_mediaView->showDocument(doc, item);
-	_mediaView->activateWindow();
-	_mediaView->setFocus();
+	if(cUseExternalVideoPlayer() && doc->isVideo())
+		QDesktopServices::openUrl(QUrl("file:///"+ doc->location(false).fname));
+	else
+	{
+		if (_mediaView->isHidden()) Ui::hideLayer(true);
+		_mediaView->showDocument(doc, item);
+		_mediaView->activateWindow();
+		_mediaView->setFocus();
+	}
 }
 
 bool MainWindow::ui_isMediaViewShown() {

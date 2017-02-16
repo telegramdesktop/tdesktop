@@ -204,6 +204,7 @@ void GeneralWidget::refreshControls() {
 		addChildRow(_addInSendTo, marginSmall, lang(lng_settings_add_sendto), SLOT(onAddInSendTo()), cSendToMenu());
 #endif // OS_WIN_STORE
 #endif // Q_OS_WIN
+		addChildRow(_useExternalVideoPlayer, marginSmall, lang(lng_settings_use_external_videoplayer), SLOT(onUseExternalVideoPlayer()), cUseExternalVideoPlayer());
 	}
 }
 
@@ -336,5 +337,10 @@ void GeneralWidget::onAddInSendTo() {
 	Local::writeSettings();
 }
 #endif // Q_OS_WIN && !OS_WIN_STORE
+
+void GeneralWidget::onUseExternalVideoPlayer() {
+	cSetUseExternalVideoPlayer(_useExternalVideoPlayer->checked());
+	Local::writeSettings();
+}
 
 } // namespace Settings

@@ -281,6 +281,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_auto_start" = "Launch Telegram when system starts";
 "lng_settings_start_min" = "Launch minimized";
 "lng_settings_add_sendto" = "Place Telegram in «Send to» menu";
+"lng_settings_use_external_videoplayer" = "Use external video player";
 "lng_settings_section_scale" = "Interface Scale";
 "lng_settings_scale_auto" = "Auto ({cur})";
 
