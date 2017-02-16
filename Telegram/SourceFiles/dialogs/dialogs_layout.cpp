@@ -109,15 +109,27 @@ void paintRow(Painter &p, const RippleRow *row, History *history, HistoryItem *i
 			p.restoreTextPalette();
 		}
 	} else if (!item) {
+		auto availableWidth = namewidth;
+		if (history->isPinnedDialog()) {
+			auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+			icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+			availableWidth -= icon.width() + st::dialogsUnreadPadding;
+		}
+
 		auto &color = active ? st::dialogsTextFgServiceActive : (selected ? st::dialogsTextFgServiceOver : st::dialogsTextFgService);
 		p.setFont(st::dialogsTextFont);
-		if (!history->paintSendAction(p, nameleft, texttop, namewidth, fullWidth, color, ms)) {
+		if (!history->paintSendAction(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
 		paintRowDate(p, date, rectForName, active, selected);
 
 		paintItemCallback(nameleft, namewidth, item);
+	} else if (history->isPinnedDialog()) {
+		auto availableWidth = namewidth;
+		auto &icon = (active ? st::dialogsPinnedIconActive : (selected ? st::dialogsPinnedIconOver : st::dialogsPinnedIcon));
+		icon.paint(p, fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 	}
 	auto sendStateIcon = ([draft, item, active, selected]() -> const style::icon* {
 		if (draft) {

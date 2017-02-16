@@ -719,6 +719,17 @@ QList<History*> Histories::getPinnedOrder() const {
 	return result;
 }
 
+void Histories::savePinnedToServer() const {
+	auto order = getPinnedOrder();
+	auto peers = QVector<MTPInputPeer>();
+	peers.reserve(order.size());
+	for_const (auto history, order) {
+		peers.push_back(history->peer->input);
+	}
+	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
+	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(qFlags(flags)), MTP_vector(peers)));
+}
+
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {
 	auto msgId = MsgId(0);
 	switch (msg.type()) {

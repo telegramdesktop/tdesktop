@@ -1976,7 +1976,25 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 			auto history = App::history(peer);
 			auto isPinned = !history->isPinnedDialog();
 			if (isPinned && App::histories().pinnedCount() >= Global::PinnedDialogsCountMax()) {
-				Ui::show(Box<InformBox>(lng_error_pinned_max(lt_count, Global::PinnedDialogsCountMax())));
+				// Some old chat, that was converted to supergroup, maybe is still pinned.
+				auto findWastedPin = []() -> History* {
+					auto order = App::histories().getPinnedOrder();
+					for_const (auto pinned, order) {
+						if (pinned->peer->isChat()
+							&& pinned->peer->asChat()->isDeactivated()
+							&& !pinned->inChatList(Dialogs::Mode::All)) {
+							return pinned;
+						}
+					}
+					return nullptr;
+				};
+				if (auto wasted = findWastedPin()) {
+					wasted->setPinnedDialog(false);
+					history->setPinnedDialog(isPinned);
+					App::histories().savePinnedToServer();
+				} else {
+					Ui::show(Box<InformBox>(lng_error_pinned_max(lt_count, Global::PinnedDialogsCountMax())));
+				}
 				return;
 			}
 

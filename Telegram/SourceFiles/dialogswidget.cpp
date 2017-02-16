@@ -643,17 +643,12 @@ void DialogsInner::savePinnedOrder() {
 	if (newOrder.size() != _pinnedOrder.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
-
-	auto peers = QVector<MTPInputPeer>();
-	peers.reserve(newOrder.size());
 	for_const (auto history, newOrder) {
 		if (_pinnedOrder.indexOf(history) < 0) {
 			return; // Something has changed in the set of pinned chats.
 		}
-		peers.push_back(history->peer->input);
 	}
-	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
-	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(qFlags(flags)), MTP_vector(peers)));
+	App::histories().savePinnedToServer();
 }
 
 void DialogsInner::finishReorderPinned() {

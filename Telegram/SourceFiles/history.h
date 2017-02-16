@@ -83,6 +83,7 @@ public:
 	void clearPinned();
 	int pinnedCount() const;
 	QList<History*> getPinnedOrder() const;
+	void savePinnedToServer() const;
 
 	struct SendActionAnimationUpdate {
 		History *history;

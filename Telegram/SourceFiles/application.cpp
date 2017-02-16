@@ -1069,8 +1069,8 @@ void AppClass::checkMapVersion() {
     if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000008) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Click and drag on waveform to play audio from a chosen moment.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000010) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 More different emoticons supported.\n\xe2\x80\x94 Bug fixes and other minor improvements.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000005) {
 				versionFeatures = langNewVersionText();
 			} else {
