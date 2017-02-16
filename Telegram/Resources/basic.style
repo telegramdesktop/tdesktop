@@ -55,7 +55,7 @@ defaultTextPalette: TextPalette {
 	linkFg: windowActiveTextFg;
 	monoFg: windowSubTextFg;
 	selectBg: msgInBgSelected;
-	selectFg: historyTextInFgSelected;
+	selectFg: transparent; // use painter current pen instead
 	selectLinkFg: historyLinkInFgSelected;
 	selectMonoFg: msgInMonoFgSelected;
 	selectOverlay: msgSelectOverlay;

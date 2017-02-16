@@ -41,15 +41,7 @@ enum TextBlockFlags {
 
 class ITextBlock {
 public:
-	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)), _lpadding(0) {
-		if (length) {
-			if (str.at(_from + length - 1).unicode() == QChar::Space) {
-				_rpadding = font->spacew;
-			}
-			if (length > 1 && str.at(0).unicode() == QChar::Space) {
-				_lpadding = font->spacew;
-			}
-		}
+	ITextBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex) : _from(from), _flags((flags & 0xFF) | ((lnkIndex & 0xFFFF) << 12)) {
 	}
 
 	uint16 from() const {
@@ -97,11 +89,13 @@ public:
 
 protected:
 
-	uint16 _from;
+	uint16 _from = 0;
 
-	uint32 _flags; // 4 bits empty, 16 bits lnkIndex, 4 bits type, 8 bits flags
+	uint32 _flags = 0; // 4 bits empty, 16 bits lnkIndex, 4 bits type, 8 bits flags
 
-	QFixed _width, _lpadding, _rpadding;
+	QFixed _width = 0;
+	QFixed _lpadding = 0;
+	QFixed _rpadding = 0;
 
 };
 
@@ -163,13 +157,11 @@ private:
 
 class TextBlock : public ITextBlock {
 public:
-
 	ITextBlock *clone() const {
 		return new TextBlock(*this);
 	}
 
 private:
-
 	TextBlock(const style::font &font, const QString &str, QFixed minResizeWidth, uint16 from, uint16 length, uchar flags, uint16 lnkIndex);
 
 	friend class ITextBlock;
@@ -185,17 +177,16 @@ private:
 
 	friend class BlockParser;
 	friend class TextPainter;
+
 };
 
 class EmojiBlock : public ITextBlock {
 public:
-
 	ITextBlock *clone() const {
 		return new EmojiBlock(*this);
 	}
 
 private:
-
 	EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji);
 
 	EmojiPtr emoji = nullptr;
@@ -204,11 +195,11 @@ private:
 	friend class TextParser;
 
 	friend class TextPainter;
+
 };
 
 class SkipBlock : public ITextBlock {
 public:
-
 	int32 height() const {
 		return _height;
 	}
@@ -218,7 +209,6 @@ public:
 	}
 
 private:
-
 	SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex);
 
 	int32 _height;
@@ -227,4 +217,5 @@ private:
 	friend class TextParser;
 
 	friend class TextPainter;
+
 };

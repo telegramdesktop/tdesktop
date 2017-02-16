@@ -83,7 +83,6 @@ typedef QMap<QChar, TextCustomTag> TextCustomTagsMap;
 class ITextBlock;
 class Text {
 public:
-
 	Text(int32 minResizeWidth = QFIXED_MAX);
 	Text(const style::TextStyle &st, const QString &text, const TextParseOptions &options = _defaultOptions, int32 minResizeWidth = QFIXED_MAX, bool richText = false);
 	Text(const Text &other);
@@ -135,8 +134,7 @@ public:
 		};
 		Q_DECLARE_FLAGS(Flags, Flag);
 
-		StateRequest() {
-		}
+		StateRequest() = default;
 
 		style::align align = style::al_left;
 		Flags flags = Flag::LookupLink;
@@ -152,8 +150,7 @@ public:
 		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
 	}
 	struct StateRequestElided : public StateRequest {
-		StateRequestElided() {
-		}
+		StateRequestElided() = default;
 		StateRequestElided(const StateRequest &other) : StateRequest(other) {
 		}
 		int lines = 1;
@@ -205,6 +202,11 @@ public:
 	}
 
 private:
+	using TextBlocks = QVector<ITextBlock*>;
+	using TextLinks = QVector<ClickHandlerPtr>;
+
+	uint16 countBlockEnd(const TextBlocks::const_iterator &i, const TextBlocks::const_iterator &e) const;
+	uint16 countBlockLength(const Text::TextBlocks::const_iterator &i, const Text::TextBlocks::const_iterator &e) const;
 
 	// Template method for originalText(), originalTextWithEntities().
 	template <typename AppendPartCallback, typename ClickHandlerStartCallback, typename ClickHandlerFinishCallback, typename FlagsChangeCallback>
@@ -229,10 +231,7 @@ private:
 	QString _text;
 	const style::TextStyle *_st = nullptr;
 
-	typedef QVector<ITextBlock*> TextBlocks;
 	TextBlocks _blocks;
-
-	typedef QVector<ClickHandlerPtr> TextLinks;
 	TextLinks _links;
 
 	Qt::LayoutDirection _startDir = Qt::LayoutDirectionAuto;

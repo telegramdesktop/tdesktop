@@ -350,6 +350,18 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji) : ITextBlock(font, str, from, length, flags, lnkIndex), emoji(emoji) {
 	_flags |= ((TextBlockTEmoji & 0x0F) << 8);
 	_width = int(st::emojiSize + 2 * st::emojiPadding);
+
+	auto padding = 0;
+	for (auto i = length; i != 0;) {
+		auto ch = str[_from + (--i)];
+		if (ch.unicode() == QChar::Space) {
+			padding += font->spacew;
+		} else {
+			_rpadding = padding;
+			return;
+		}
+	}
+	_lpadding = padding;
 }
 
 SkipBlock::SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex) : ITextBlock(font, str, from, 1, 0, lnkIndex), _height(h) {

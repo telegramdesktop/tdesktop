@@ -1184,7 +1184,7 @@ void executeParsedCommand(const QString &command) {
 
 void MainWidget::sendMessage(const MessageToSend &message) {
 	auto history = message.history;
-	const auto &textWithTags = message.textWithTags;
+	auto &textWithTags = message.textWithTags;
 
 	readServerHistory(history);
 	_history->fastShowAtEnd(history);
@@ -5209,7 +5209,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
 							emoji = emoji->original();
 							auto &stickers = pack.vdocuments.c_vector().v;
-							
+
 							StickerPack p;
 							p.reserve(stickers.size());
 							for (auto j = 0, c = stickers.size(); j != c; ++j) {
