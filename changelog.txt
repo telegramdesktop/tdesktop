@@ -1,3 +1,7 @@
+1.0.11 alpha (17.02.17)
+
+- Bug fixes and other minor improvements.
+
 1.0.10 alpha (17.02.17)
 
 - Support for more emoji.

@@ -108,12 +108,12 @@ private:
 		t_assert(!_colorizable || !colored());
 	}
 
-	const QString _id;
-	const uint16 _x = 0;
-	const uint16 _y = 0;
-	const bool _hasPostfix = false;
-	const bool _colorizable = false;
-	const EmojiPtr _original = nullptr;
+	QString _id;
+	uint16 _x = 0;
+	uint16 _y = 0;
+	bool _hasPostfix = false;
+	bool _colorizable = false;
+	EmojiPtr _original = nullptr;
 
 	friend void Init();
 	friend class QVector<One>;
