@@ -88,6 +88,14 @@ void fillCodes() {
 			main->getDifference();
 		}
 	});
+	Codes.insert(qsl("videoplayer"), []() {
+		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
+		Ui::show(Box<ConfirmBox>(text, [] {
+			cSetUseExternalVideoPlayer(!cUseExternalVideoPlayer());
+			Local::writeUserSettings();
+			Ui::hideLayer();
+		}));
+	});
 }
 
 void codesFeedString(const QString &text) {
