@@ -252,6 +252,7 @@ run `git reset --hard HEAD` and execute `gclient` again
     ..\depot_tools\fetch breakpad
     ..\depot_tools\gclient sync
     xcopy src\src\* src /s /i
+    rmdir src\src /s /q
 
 #### Build
 
