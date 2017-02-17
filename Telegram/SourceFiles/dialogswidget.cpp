@@ -78,6 +78,12 @@ DialogsInner::DialogsInner(QWidget *parent, QWidget *main) : SplittedWidget(pare
 , _a_pinnedShifting(animation(this, &DialogsInner::step_pinnedShifting))
 , _addContactLnk(this, lang(lng_add_contact_button))
 , _cancelSearchInPeer(this, st::dialogsCancelSearchInPeer) {
+
+#ifdef OS_MAC_OLD
+	// Qt 5.3.2 build is working with glitches otherwise.
+	setAttribute(Qt::WA_OpaquePaintEvent, false);
+#endif // OS_MAC_OLD
+
 	if (Global::DialogsModeEnabled()) {
 		_dialogsImportant = std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Date);
 		_importantSwitch = std_::make_unique<ImportantSwitch>();

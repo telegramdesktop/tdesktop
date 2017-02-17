@@ -134,7 +134,8 @@ public:
 		};
 		Q_DECLARE_FLAGS(Flags, Flag);
 
-		StateRequest() = default;
+		StateRequest() {
+		}
 
 		style::align align = style::al_left;
 		Flags flags = Flag::LookupLink;
@@ -150,7 +151,8 @@ public:
 		return getState(rtl() ? (outerw - x - width) : x, y, width, request);
 	}
 	struct StateRequestElided : public StateRequest {
-		StateRequestElided() = default;
+		StateRequestElided() {
+		}
 		StateRequestElided(const StateRequest &other) : StateRequest(other) {
 		}
 		int lines = 1;
