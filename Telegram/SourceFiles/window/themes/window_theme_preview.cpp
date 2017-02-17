@@ -875,6 +875,9 @@ void Generator::setTextPalette(const style::TextPalette &st) {
 	_textPalette.linkFg = st.linkFg[_palette].clone();
 	_textPalette.monoFg = st.monoFg[_palette].clone();
 	_textPalette.selectBg = st.selectBg[_palette].clone();
+	_textPalette.selectFg = st.selectFg[_palette].clone();
+	_textPalette.selectLinkFg = st.selectLinkFg[_palette].clone();
+	_textPalette.selectMonoFg = st.selectMonoFg[_palette].clone();
 	_textPalette.selectOverlay = st.selectOverlay[_palette].clone();
 	_p->setTextPalette(_textPalette);
 }
