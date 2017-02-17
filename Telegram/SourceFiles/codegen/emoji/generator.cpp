@@ -520,6 +520,7 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 	auto checkTypes = QVector<UsedCheckType>();
 	auto chars = QString();
 	auto tabsUsed = 1;
+	auto lengthsCounted = std::map<QString, bool>();
 
 	auto writeSkipPostfix = [this, &tabs, skipPostfixes](int tabsCount) {
 		if (skipPostfixes) {
@@ -573,6 +574,14 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 		auto weContinueOldSwitch = finishChecksTillKey(key);
 		while (chars.size() != key.size()) {
 			auto checking = chars.size();
+			auto partialKey = key.mid(0, checking);
+			if (dictionary.find(partialKey) != dictionary.cend()) {
+				if (lengthsCounted.find(partialKey) == lengthsCounted.cend()) {
+					lengthsCounted.insert(std::make_pair(partialKey, true));
+					source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
+				}
+			}
+
 			auto keyChar = key[checking];
 			auto keyCharString = "0x" + QString::number(keyChar.unicode(), 16);
 			auto usedIfForCheck = !weContinueOldSwitch && canUseIfForCheck(i, e, checking);
@@ -591,7 +600,10 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 			writeSkipPostfix(++tabsUsed);
 			chars.push_back(keyChar);
 		}
-		source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
+		if (lengthsCounted.find(key) == lengthsCounted.cend()) {
+			lengthsCounted.insert(std::make_pair(key, true));
+			source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
+		}
 
 		// While IsReplaceEdge() currently is always true we just return the value.
 		//source_->stream() << tabs(1 + chars.size()) << "if (ch + " << chars.size() << " == end || IsReplaceEdge(*(ch + " << chars.size() << ")) || (ch + " << chars.size() << ")->unicode() == ' ') {\n";

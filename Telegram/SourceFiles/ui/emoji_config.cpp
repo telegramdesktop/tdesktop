@@ -107,12 +107,12 @@ EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {
 		++ch;
 		if (ch != end && ch->unicode() == 0x28) {
 			++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0x28) {
 				++ch;
 				if (outLength) *outLength = (ch - start);
 				return &Items[44];
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[43];
 		}
 	break;
@@ -178,6 +178,7 @@ EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0x6f:
 			++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0x6b) {
 				++ch;
 				if (ch != end && ch->unicode() == 0x3a) {
@@ -186,7 +187,6 @@ EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {
 					return &Items[175];
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[56];
 		break;
 		case 0x6c:
@@ -1224,6 +1224,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdd36:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1254,11 +1255,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[612];
 		break;
 		case 0xdd35:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1289,11 +1290,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[642];
 		break;
 		case 0xdd34:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1324,11 +1325,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[630];
 		break;
 		case 0xdd33:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1359,11 +1360,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[265];
 		break;
 		case 0xdd30:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1394,7 +1395,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[654];
 		break;
 		case 0xdd27:
@@ -1549,6 +1549,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdd1e:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1579,7 +1580,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[157];
 		break;
 		case 0xdd1d:
@@ -1589,6 +1589,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdd1c:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1619,11 +1620,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[151];
 		break;
 		case 0xdd1b:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1654,11 +1655,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[145];
 		break;
 		case 0xdd1a:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1689,11 +1690,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[217];
 		break;
 		case 0xdd19:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1724,11 +1725,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[241];
 		break;
 		case 0xdd18:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1759,7 +1760,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[169];
 		break;
 		case 0xdd17:
@@ -1944,6 +1944,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdec0:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -1974,7 +1975,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1551];
 		break;
 		case 0xdebf:
@@ -2024,12 +2024,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdeb6:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2038,11 +2040,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[817];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[823];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2051,11 +2053,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[816];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[822];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2064,11 +2066,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[815];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[821];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2077,11 +2079,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[814];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[820];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2090,7 +2092,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[813];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[819];
 				break;
 				}
@@ -2104,17 +2105,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[818];
 		break;
 		case 0xdeb5:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2123,11 +2125,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1298];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1304];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2136,11 +2138,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1297];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1303];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2149,11 +2151,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1296];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1302];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2162,11 +2164,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1295];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1301];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2175,7 +2177,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1294];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1300];
 				break;
 				}
@@ -2189,17 +2190,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1299];
 		break;
 		case 0xdeb4:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2208,11 +2210,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1286];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1292];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2221,11 +2223,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1285];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1291];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2234,11 +2236,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1284];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1290];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2247,11 +2249,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1283];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1289];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2260,7 +2262,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1282];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1288];
 				break;
 				}
@@ -2274,7 +2275,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1287];
 		break;
 		case 0xdeb3:
@@ -2359,12 +2359,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdea3:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2373,11 +2375,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1268];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1274];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2386,11 +2388,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1267];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1273];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2399,11 +2401,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1266];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1272];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2412,11 +2414,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1265];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1271];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2425,7 +2427,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1264];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1270];
 				break;
 				}
@@ -2439,7 +2440,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1269];
 		break;
 		case 0xdea2:
@@ -2619,6 +2619,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xde4f:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -2649,17 +2650,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[114];
 		break;
 		case 0xde4e:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2668,11 +2670,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[755];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[749];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2681,11 +2683,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[754];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[748];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2694,11 +2696,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[753];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[747];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2707,11 +2709,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[752];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[746];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2720,7 +2722,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[751];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[745];
 				break;
 				}
@@ -2734,17 +2735,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[744];
 		break;
 		case 0xde4d:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2753,11 +2755,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[767];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[761];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2766,11 +2768,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[766];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[760];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2779,11 +2781,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[765];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[759];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2792,11 +2794,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[764];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[758];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2805,7 +2807,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[763];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[757];
 				break;
 				}
@@ -2819,11 +2820,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[756];
 		break;
 		case 0xde4c:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -2854,17 +2855,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[102];
 		break;
 		case 0xde4b:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2873,11 +2875,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[719];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[713];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2886,11 +2888,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[718];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[712];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2899,11 +2901,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[717];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[711];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2912,11 +2914,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[716];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[710];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -2925,7 +2927,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[715];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[709];
 				break;
 				}
@@ -2939,7 +2940,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[708];
 		break;
 		case 0xde4a:
@@ -2959,12 +2959,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xde47:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2973,11 +2975,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[665];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[671];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2986,11 +2988,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[664];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[670];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -2999,11 +3001,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[663];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[669];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3012,11 +3014,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[662];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[668];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3025,7 +3027,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[661];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[667];
 				break;
 				}
@@ -3039,17 +3040,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[666];
 		break;
 		case 0xde46:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3058,11 +3060,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[707];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[701];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3071,11 +3073,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[706];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[700];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3084,11 +3086,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[705];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[699];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3097,11 +3099,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[704];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[698];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3110,7 +3112,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[703];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[697];
 				break;
 				}
@@ -3124,17 +3125,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[696];
 		break;
 		case 0xde45:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3143,11 +3145,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[695];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[689];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3156,11 +3158,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[694];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[688];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3169,11 +3171,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[693];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[687];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3182,11 +3184,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[692];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[686];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -3195,7 +3197,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[691];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[685];
 				break;
 				}
@@ -3209,7 +3210,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[684];
 		break;
 		case 0xde44:
@@ -3684,6 +3684,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdd96:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -3714,11 +3715,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[229];
 		break;
 		case 0xdd95:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -3749,11 +3750,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[253];
 		break;
 		case 0xdd90:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -3784,7 +3785,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[223];
 		break;
 		case 0xdd8d:
@@ -3814,6 +3814,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdd7a:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -3844,7 +3845,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[804];
 		break;
 		case 0xdd79:
@@ -3869,12 +3869,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdd75:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3883,11 +3885,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[413];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[419];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3896,11 +3898,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[412];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[418];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3909,11 +3911,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[411];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[417];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3922,11 +3924,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[410];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[416];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -3935,7 +3937,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[409];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[415];
 				break;
 				}
@@ -3949,11 +3950,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[414];
 		break;
 		case 0xdd74:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -3984,7 +3985,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[792];
 		break;
 		case 0xdd73:
@@ -4884,6 +4884,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdcaa:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -4914,7 +4915,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[247];
 		break;
 		case 0xdca9:
@@ -5089,12 +5089,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc87:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5103,11 +5105,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[779];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[773];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5116,11 +5118,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[778];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[772];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5129,11 +5131,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[777];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[771];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5142,11 +5144,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[776];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[770];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5155,7 +5157,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[775];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[769];
 				break;
 				}
@@ -5169,17 +5170,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[768];
 		break;
 		case 0xdc86:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5188,11 +5190,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[791];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[785];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5201,11 +5203,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[790];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[784];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5214,11 +5216,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[789];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[783];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5227,11 +5229,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[788];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[782];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5240,7 +5242,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[787];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[781];
 				break;
 				}
@@ -5254,11 +5255,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[780];
 		break;
 		case 0xdc85:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5289,7 +5290,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[271];
 		break;
 		case 0xdc84:
@@ -5299,6 +5299,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc83:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5329,17 +5330,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[798];
 		break;
 		case 0xdc82:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5348,11 +5350,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[401];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[407];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5361,11 +5363,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[400];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[406];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5374,11 +5376,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[399];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[405];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5387,11 +5389,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[398];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[404];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5400,7 +5402,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[397];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[403];
 				break;
 				}
@@ -5414,17 +5415,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[402];
 		break;
 		case 0xdc81:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5433,11 +5435,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[683];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[677];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5446,11 +5448,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[682];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[676];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5459,11 +5461,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[681];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[675];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5472,11 +5474,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[680];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[674];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2642) {
@@ -5485,7 +5487,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[679];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[673];
 				break;
 				}
@@ -5499,7 +5500,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[672];
 		break;
 		case 0xdc80:
@@ -5524,6 +5524,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc7c:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5554,7 +5555,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[648];
 		break;
 		case 0xdc7b:
@@ -5574,6 +5574,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc78:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5604,17 +5605,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[624];
 		break;
 		case 0xdc77:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5623,11 +5625,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[389];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[395];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5636,11 +5638,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[388];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[394];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5649,11 +5651,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[387];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[393];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5662,11 +5664,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[386];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[392];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5675,7 +5677,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[385];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[391];
 				break;
 				}
@@ -5689,11 +5690,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[390];
 		break;
 		case 0xdc76:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5724,11 +5725,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[300];
 		break;
 		case 0xdc75:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5759,11 +5760,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[348];
 		break;
 		case 0xdc74:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5794,17 +5795,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[342];
 		break;
 		case 0xdc73:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5813,11 +5815,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[365];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[371];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5826,11 +5828,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[364];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[370];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5839,11 +5841,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[363];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[369];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5852,11 +5854,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[362];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[368];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5865,7 +5867,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[361];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[367];
 				break;
 				}
@@ -5879,11 +5880,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[366];
 		break;
 		case 0xdc72:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -5914,17 +5915,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[354];
 		break;
 		case 0xdc71:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5933,11 +5935,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[335];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[341];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5946,11 +5948,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[334];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[340];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5959,11 +5961,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[333];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[339];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5972,11 +5974,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[332];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[338];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -5985,7 +5987,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[331];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[337];
 				break;
 				}
@@ -5999,11 +6000,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[336];
 		break;
 		case 0xdc70:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -6034,11 +6035,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[636];
 		break;
 		case 0xdc6f:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0x200d) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end && ch->unicode() == 0x2642) {
@@ -6047,17 +6048,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 					return &Items[811];
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[810];
 		break;
 		case 0xdc6e:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -6066,11 +6068,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[377];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[383];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -6079,11 +6081,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[376];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[382];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -6092,11 +6094,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[375];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[381];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -6105,11 +6107,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[374];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[380];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -6118,7 +6120,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[373];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[379];
 				break;
 				}
@@ -6132,7 +6133,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[378];
 		break;
 		case 0xdc6d:
@@ -6157,12 +6157,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc69:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -6258,11 +6260,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[329];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -6358,11 +6360,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[328];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -6458,11 +6460,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[327];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -6558,11 +6560,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[326];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -6658,7 +6660,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[325];
 				break;
 				}
@@ -6708,6 +6709,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								if (ch != end) switch (ch->unicode()) {
 								case 0xdc67:
 									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
 									if (ch != end && ch->unicode() == 0x200d) {
 										if (++ch != end && ch->unicode() == kPostfix) ++ch;
 										if (ch != end && ch->unicode() == 0xd83d) {
@@ -6726,11 +6728,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 											}
 										}
 									}
-									if (outLength) *outLength = (ch - start);
 									return &Items[851];
 								break;
 								case 0xdc66:
 									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
 									if (ch != end && ch->unicode() == 0x200d) {
 										if (++ch != end && ch->unicode() == kPostfix) ++ch;
 										if (ch != end && ch->unicode() == 0xd83d) {
@@ -6742,7 +6744,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 											}
 										}
 									}
-									if (outLength) *outLength = (ch - start);
 									return &Items[850];
 								break;
 								}
@@ -6751,6 +6752,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 					break;
 					case 0xdc67:
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						if (ch != end && ch->unicode() == 0x200d) {
 							if (++ch != end && ch->unicode() == kPostfix) ++ch;
 							if (ch != end && ch->unicode() == 0xd83d) {
@@ -6769,11 +6771,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								}
 							}
 						}
-						if (outLength) *outLength = (ch - start);
 						return &Items[861];
 					break;
 					case 0xdc66:
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						if (ch != end && ch->unicode() == 0x200d) {
 							if (++ch != end && ch->unicode() == kPostfix) ++ch;
 							if (ch != end && ch->unicode() == 0xd83d) {
@@ -6785,7 +6787,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								}
 							}
 						}
-						if (outLength) *outLength = (ch - start);
 						return &Items[860];
 					break;
 					}
@@ -6878,17 +6879,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[324];
 		break;
 		case 0xdc68:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -6984,11 +6986,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[323];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -7084,11 +7086,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[322];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -7184,11 +7186,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[321];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -7284,11 +7286,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[320];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end) switch (ch->unicode()) {
@@ -7384,7 +7386,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						break;
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[319];
 				break;
 				}
@@ -7434,6 +7435,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								if (ch != end) switch (ch->unicode()) {
 								case 0xdc67:
 									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
 									if (ch != end && ch->unicode() == 0x200d) {
 										if (++ch != end && ch->unicode() == kPostfix) ++ch;
 										if (ch != end && ch->unicode() == 0xd83d) {
@@ -7452,7 +7454,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 											}
 										}
 									}
-									if (outLength) *outLength = (ch - start);
 									return &Items[846];
 								break;
 								case 0xdc66:
@@ -7482,6 +7483,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								if (ch != end) switch (ch->unicode()) {
 								case 0xdc67:
 									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
 									if (ch != end && ch->unicode() == 0x200d) {
 										if (++ch != end && ch->unicode() == kPostfix) ++ch;
 										if (ch != end && ch->unicode() == 0xd83d) {
@@ -7500,11 +7502,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 											}
 										}
 									}
-									if (outLength) *outLength = (ch - start);
 									return &Items[856];
 								break;
 								case 0xdc66:
 									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
 									if (ch != end && ch->unicode() == 0x200d) {
 										if (++ch != end && ch->unicode() == kPostfix) ++ch;
 										if (ch != end && ch->unicode() == 0xd83d) {
@@ -7516,7 +7518,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 											}
 										}
 									}
-									if (outLength) *outLength = (ch - start);
 									return &Items[855];
 								break;
 								}
@@ -7525,6 +7526,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 					break;
 					case 0xdc67:
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						if (ch != end && ch->unicode() == 0x200d) {
 							if (++ch != end && ch->unicode() == kPostfix) ++ch;
 							if (ch != end && ch->unicode() == 0xd83d) {
@@ -7543,11 +7545,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								}
 							}
 						}
-						if (outLength) *outLength = (ch - start);
 						return &Items[866];
 					break;
 					case 0xdc66:
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						if (ch != end && ch->unicode() == 0x200d) {
 							if (++ch != end && ch->unicode() == kPostfix) ++ch;
 							if (ch != end && ch->unicode() == 0xd83d) {
@@ -7559,7 +7561,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 								}
 							}
 						}
-						if (outLength) *outLength = (ch - start);
 						return &Items[865];
 					break;
 					}
@@ -7652,11 +7653,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[318];
 		break;
 		case 0xdc67:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -7687,11 +7688,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[312];
 		break;
 		case 0xdc66:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -7722,7 +7723,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[306];
 		break;
 		case 0xdc65:
@@ -7832,6 +7832,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc50:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -7862,11 +7863,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[96];
 		break;
 		case 0xdc4f:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -7897,11 +7898,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[108];
 		break;
 		case 0xdc4e:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -7932,11 +7933,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[127];
 		break;
 		case 0xdc4d:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -7967,11 +7968,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[121];
 		break;
 		case 0xdc4c:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8002,11 +8003,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[175];
 		break;
 		case 0xdc4b:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8037,11 +8038,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[235];
 		break;
 		case 0xdc4a:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8072,11 +8073,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[133];
 		break;
 		case 0xdc49:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8107,11 +8108,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[187];
 		break;
 		case 0xdc48:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8142,11 +8143,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[181];
 		break;
 		case 0xdc47:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8177,11 +8178,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[199];
 		break;
 		case 0xdc46:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8212,7 +8213,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[193];
 		break;
 		case 0xdc45:
@@ -8227,6 +8227,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdc43:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8257,11 +8258,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[288];
 		break;
 		case 0xdc42:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -8292,11 +8293,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[282];
 		break;
 		case 0xdc41:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0x200d) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end && ch->unicode() == 0xd83d) {
@@ -8308,7 +8309,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 					}
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[295];
 		break;
 		case 0xdc40:
@@ -8673,6 +8673,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdff3:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0x200d) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end && ch->unicode() == 0xd83c) {
@@ -8684,7 +8685,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 					}
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1914];
 		break;
 		case 0xdff0:
@@ -8869,12 +8869,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdfcc:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8883,11 +8885,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1220];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1226];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8896,11 +8898,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1219];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1225];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8909,11 +8911,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1218];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1224];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8922,11 +8924,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1217];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1223];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8935,7 +8937,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1216];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1222];
 				break;
 				}
@@ -8949,17 +8950,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1221];
 		break;
 		case 0xdfcb:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8968,11 +8970,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1169];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1175];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8981,11 +8983,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1168];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1174];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -8994,11 +8996,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1167];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1173];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9007,11 +9009,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1166];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1172];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9020,7 +9022,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1165];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1171];
 				break;
 				}
@@ -9034,17 +9035,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1170];
 		break;
 		case 0xdfca:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9053,11 +9055,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1244];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1250];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9066,11 +9068,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1243];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1249];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9079,11 +9081,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1242];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1248];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9092,11 +9094,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1241];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1247];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9105,7 +9107,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1240];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1246];
 				break;
 				}
@@ -9119,7 +9120,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1245];
 		break;
 		case 0xdfc9:
@@ -9134,6 +9134,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdfc7:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -9164,7 +9165,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1275];
 		break;
 		case 0xdfc6:
@@ -9179,12 +9179,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdfc4:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9193,11 +9195,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1232];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1238];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9206,11 +9208,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1231];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1237];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9219,11 +9221,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1230];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1236];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9232,11 +9234,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1229];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1235];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9245,7 +9247,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[1228];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[1234];
 				break;
 				}
@@ -9259,17 +9260,18 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[1233];
 		break;
 		case 0xdfc3:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9278,11 +9280,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[829];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[835];
 				break;
 				case 0xdffe:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9291,11 +9293,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[828];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[834];
 				break;
 				case 0xdffd:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9304,11 +9306,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[827];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[833];
 				break;
 				case 0xdffc:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9317,11 +9319,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[826];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[832];
 				break;
 				case 0xdffb:
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					if (ch != end && ch->unicode() == 0x200d) {
 						if (++ch != end && ch->unicode() == kPostfix) ++ch;
 						if (ch != end && ch->unicode() == 0x2640) {
@@ -9330,7 +9332,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 							return &Items[825];
 						}
 					}
-					if (outLength) *outLength = (ch - start);
 					return &Items[831];
 				break;
 				}
@@ -9344,7 +9345,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				}
 			break;
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[830];
 		break;
 		case 0xdfc2:
@@ -9629,6 +9629,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 		break;
 		case 0xdf85:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			if (ch != end && ch->unicode() == 0xd83c) {
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
 				if (ch != end) switch (ch->unicode()) {
@@ -9659,7 +9660,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 				break;
 				}
 			}
-			if (outLength) *outLength = (ch - start);
 			return &Items[618];
 		break;
 		case 0xdf84:
@@ -12108,6 +12108,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 	break;
 	case 0x270d:
 		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		if (ch != end && ch->unicode() == 0xd83c) {
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
 			if (ch != end) switch (ch->unicode()) {
@@ -12138,11 +12139,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 			break;
 			}
 		}
-		if (outLength) *outLength = (ch - start);
 		return &Items[259];
 	break;
 	case 0x270c:
 		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		if (ch != end && ch->unicode() == 0xd83c) {
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
 			if (ch != end) switch (ch->unicode()) {
@@ -12173,11 +12174,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 			break;
 			}
 		}
-		if (outLength) *outLength = (ch - start);
 		return &Items[163];
 	break;
 	case 0x270b:
 		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		if (ch != end && ch->unicode() == 0xd83c) {
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
 			if (ch != end) switch (ch->unicode()) {
@@ -12208,11 +12209,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 			break;
 			}
 		}
-		if (outLength) *outLength = (ch - start);
 		return &Items[211];
 	break;
 	case 0x270a:
 		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		if (ch != end && ch->unicode() == 0xd83c) {
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
 			if (ch != end) switch (ch->unicode()) {
@@ -12243,7 +12244,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 			break;
 			}
 		}
-		if (outLength) *outLength = (ch - start);
 		return &Items[139];
 	break;
 	case 0x2709:
@@ -12278,12 +12278,14 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 	break;
 	case 0x26f9:
 		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		if (ch != end) switch (ch->unicode()) {
 		case 0xd83c:
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
 			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				if (ch != end && ch->unicode() == 0x200d) {
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
 					if (ch != end && ch->unicode() == 0x2640) {
@@ -12292,11 +12294,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						return &Items[1196];
 					}
 				}
-				if (outLength) *outLength = (ch - start);
 				return &Items[1202];
 			break;
 			case 0xdffe:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				if (ch != end && ch->unicode() == 0x200d) {
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
 					if (ch != end && ch->unicode() == 0x2640) {
@@ -12305,11 +12307,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						return &Items[1195];
 					}
 				}
-				if (outLength) *outLength = (ch - start);
 				return &Items[1201];
 			break;
 			case 0xdffd:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				if (ch != end && ch->unicode() == 0x200d) {
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
 					if (ch != end && ch->unicode() == 0x2640) {
@@ -12318,11 +12320,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						return &Items[1194];
 					}
 				}
-				if (outLength) *outLength = (ch - start);
 				return &Items[1200];
 			break;
 			case 0xdffc:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				if (ch != end && ch->unicode() == 0x200d) {
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
 					if (ch != end && ch->unicode() == 0x2640) {
@@ -12331,11 +12333,11 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						return &Items[1193];
 					}
 				}
-				if (outLength) *outLength = (ch - start);
 				return &Items[1199];
 			break;
 			case 0xdffb:
 				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				if (ch != end && ch->unicode() == 0x200d) {
 					if (++ch != end && ch->unicode() == kPostfix) ++ch;
 					if (ch != end && ch->unicode() == 0x2640) {
@@ -12344,7 +12346,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 						return &Items[1192];
 					}
 				}
-				if (outLength) *outLength = (ch - start);
 				return &Items[1198];
 			break;
 			}
@@ -12358,7 +12359,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 			}
 		break;
 		}
-		if (outLength) *outLength = (ch - start);
 		return &Items[1197];
 	break;
 	case 0x26f8:
@@ -12678,6 +12678,7 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 	break;
 	case 0x261d:
 		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		if (ch != end && ch->unicode() == 0xd83c) {
 			if (++ch != end && ch->unicode() == kPostfix) ++ch;
 			if (ch != end) switch (ch->unicode()) {
@@ -12708,7 +12709,6 @@ EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
 			break;
 			}
 		}
-		if (outLength) *outLength = (ch - start);
 		return &Items[205];
 	break;
 	case 0x2618:
