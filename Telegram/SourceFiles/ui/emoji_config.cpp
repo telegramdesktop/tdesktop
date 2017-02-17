@@ -58,60 +58,91 @@ inline QString ComputeId(Args... args) {
 	return result;
 }
 
-EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength) {
-	if (ch + 1 < end) switch (ch->unicode()) {
+EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {
+	auto ch = start;
+
+	if (ch != end) switch (ch->unicode()) {
 	case 0x7d:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0x3a && (ch + 2)->unicode() == 0x29) {
-			if (outLength) *outLength = 3;
-			return &Items[75];
+		++ch;
+		if (ch != end && ch->unicode() == 0x3a) {
+			++ch;
+			if (ch != end && ch->unicode() == 0x29) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
+				return &Items[75];
+			}
 		}
 	break;
 	case 0x78:
-		if ((ch + 1)->unicode() == 0x44) {
-			if (outLength) *outLength = 2;
+		++ch;
+		if (ch != end && ch->unicode() == 0x44) {
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[4];
 		}
 	break;
 	case 0x4f:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0x3a && (ch + 2)->unicode() == 0x29) {
-			if (outLength) *outLength = 3;
-			return &Items[10];
+		++ch;
+		if (ch != end && ch->unicode() == 0x3a) {
+			++ch;
+			if (ch != end && ch->unicode() == 0x29) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
+				return &Items[10];
+			}
 		}
 	break;
 	case 0x42:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0x2d && (ch + 2)->unicode() == 0x29) {
-			if (outLength) *outLength = 3;
-			return &Items[27];
+		++ch;
+		if (ch != end && ch->unicode() == 0x2d) {
+			++ch;
+			if (ch != end && ch->unicode() == 0x29) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
+				return &Items[27];
+			}
 		}
 	break;
 	case 0x3e:
-		if ((ch + 1)->unicode() == 0x28 && (ch + 2)->unicode() == 0x28) {
-			if (outLength) *outLength = 3;
-			return &Items[44];
+		++ch;
+		if (ch != end && ch->unicode() == 0x28) {
+			++ch;
+			if (ch != end && ch->unicode() == 0x28) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
+				return &Items[44];
+			}
+			if (outLength) *outLength = (ch - start);
+			return &Items[43];
 		}
-		if (outLength) *outLength = 2;
-		return &Items[43];
 	break;
 	case 0x3c:
-		if ((ch + 1)->unicode() == 0x33) {
-			if (outLength) *outLength = 2;
+		++ch;
+		if (ch != end && ch->unicode() == 0x33) {
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1643];
 		}
 	break;
 	case 0x3b:
-		switch ((ch + 1)->unicode()) {
+		++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0x6f:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[57];
 		break;
 		case 0x2d:
-			if (ch + 2 != end) switch ((ch + 2)->unicode()) {
+			++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0x50:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[21];
 			break;
 			case 0x29:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[13];
 			break;
 			}
@@ -119,141 +150,239 @@ EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength) {
 		}
 	break;
 	case 0x3a:
-		switch ((ch + 1)->unicode()) {
+		++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0x7c:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[46];
 		break;
 		case 0x76:
-			if (ch + 2 != end && (ch + 2)->unicode() == 0x3a) {
-				if (outLength) *outLength = 3;
+			++ch;
+			if (ch != end && ch->unicode() == 0x3a) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[163];
 			}
 		break;
 		case 0x75:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0x70 && (ch + 3)->unicode() == 0x3a) {
-				if (outLength) *outLength = 4;
-				return &Items[205];
+			++ch;
+			if (ch != end && ch->unicode() == 0x70) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x3a) {
+					++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[205];
+				}
 			}
 		break;
 		case 0x6f:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0x6b && (ch + 3)->unicode() == 0x3a) {
-				if (outLength) *outLength = 4;
-				return &Items[175];
+			++ch;
+			if (ch != end && ch->unicode() == 0x6b) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x3a) {
+					++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[175];
+				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[56];
 		break;
 		case 0x6c:
-			if (ch + 5 < end && (ch + 2)->unicode() == 0x69 && (ch + 3)->unicode() == 0x6b && (ch + 4)->unicode() == 0x65 && (ch + 5)->unicode() == 0x3a) {
-				if (outLength) *outLength = 6;
-				return &Items[121];
+			++ch;
+			if (ch != end && ch->unicode() == 0x69) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x6b) {
+					++ch;
+					if (ch != end && ch->unicode() == 0x65) {
+						++ch;
+						if (ch != end && ch->unicode() == 0x3a) {
+							++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[121];
+						}
+					}
+				}
 			}
 		break;
 		case 0x6b:
-			if (ch + 5 < end && (ch + 2)->unicode() == 0x69 && (ch + 3)->unicode() == 0x73 && (ch + 4)->unicode() == 0x73 && (ch + 5)->unicode() == 0x3a) {
-				if (outLength) *outLength = 6;
-				return &Items[279];
+			++ch;
+			if (ch != end && ch->unicode() == 0x69) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x73) {
+					++ch;
+					if (ch != end && ch->unicode() == 0x73) {
+						++ch;
+						if (ch != end && ch->unicode() == 0x3a) {
+							++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[279];
+						}
+					}
+				}
 			}
 		break;
 		case 0x6a:
-			if (ch + 4 < end && (ch + 2)->unicode() == 0x6f && (ch + 3)->unicode() == 0x79 && (ch + 4)->unicode() == 0x3a) {
-				if (outLength) *outLength = 5;
-				return &Items[6];
+			++ch;
+			if (ch != end && ch->unicode() == 0x6f) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x79) {
+					++ch;
+					if (ch != end && ch->unicode() == 0x3a) {
+						++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[6];
+					}
+				}
 			}
 		break;
 		case 0x67:
-			if (ch + 5 < end && (ch + 2)->unicode() == 0x72 && (ch + 3)->unicode() == 0x69 && (ch + 4)->unicode() == 0x6e && (ch + 5)->unicode() == 0x3a) {
-				if (outLength) *outLength = 6;
-				return &Items[3];
+			++ch;
+			if (ch != end && ch->unicode() == 0x72) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x69) {
+					++ch;
+					if (ch != end && ch->unicode() == 0x6e) {
+						++ch;
+						if (ch != end && ch->unicode() == 0x3a) {
+							++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[3];
+						}
+					}
+				}
 			}
 		break;
 		case 0x64:
-			if (ch + 8 < end && (ch + 2)->unicode() == 0x69 && (ch + 3)->unicode() == 0x73 && (ch + 4)->unicode() == 0x6c && (ch + 5)->unicode() == 0x69 && (ch + 6)->unicode() == 0x6b && (ch + 7)->unicode() == 0x65 && (ch + 8)->unicode() == 0x3a) {
-				if (outLength) *outLength = 9;
-				return &Items[127];
+			++ch;
+			if (ch != end && ch->unicode() == 0x69) {
+				++ch;
+				if (ch != end && ch->unicode() == 0x73) {
+					++ch;
+					if (ch != end && ch->unicode() == 0x6c) {
+						++ch;
+						if (ch != end && ch->unicode() == 0x69) {
+							++ch;
+							if (ch != end && ch->unicode() == 0x6b) {
+								++ch;
+								if (ch != end && ch->unicode() == 0x65) {
+									++ch;
+									if (ch != end && ch->unicode() == 0x3a) {
+										++ch;
+										if (outLength) *outLength = (ch - start);
+										return &Items[127];
+									}
+								}
+							}
+						}
+					}
+				}
 			}
 		break;
 		case 0x5f:
-			if (ch + 2 != end && (ch + 2)->unicode() == 0x28) {
-				if (outLength) *outLength = 3;
+			++ch;
+			if (ch != end && ch->unicode() == 0x28) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[61];
 			}
 		break;
 		case 0x5d:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[30];
 		break;
 		case 0x58:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[72];
 		break;
 		case 0x2d:
-			if (ch + 2 != end) switch ((ch + 2)->unicode()) {
+			++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0x70:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[20];
 			break;
 			case 0x44:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[1];
 			break;
 			case 0x2a:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[19];
 			break;
 			case 0x29:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[9];
 			break;
 			case 0x28:
-				if (outLength) *outLength = 3;
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[32];
 			break;
 			}
 		break;
 		case 0x28:
-			if (ch + 2 != end && (ch + 2)->unicode() == 0x28) {
-				if (outLength) *outLength = 3;
+			++ch;
+			if (ch != end && ch->unicode() == 0x28) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[41];
 			}
 		break;
 		case 0x27:
-			if (ch + 2 != end && (ch + 2)->unicode() == 0x28) {
-				if (outLength) *outLength = 3;
+			++ch;
+			if (ch != end && ch->unicode() == 0x28) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[58];
 			}
 		break;
 		}
 	break;
 	case 0x38:
-		switch ((ch + 1)->unicode()) {
+		++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0x7c:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[54];
 		break;
 		case 0x6f:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[52];
 		break;
 		case 0x2d:
-			if (ch + 2 != end && (ch + 2)->unicode() == 0x29) {
-				if (outLength) *outLength = 3;
+			++ch;
+			if (ch != end && ch->unicode() == 0x29) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[15];
 			}
 		break;
 		}
 	break;
 	case 0x33:
-		switch ((ch + 1)->unicode()) {
+		++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0x2d:
-			if (ch + 2 != end && (ch + 2)->unicode() == 0x29) {
-				if (outLength) *outLength = 3;
+			++ch;
+			if (ch != end && ch->unicode() == 0x29) {
+				++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[14];
 			}
 		break;
 		case 0x28:
-			if (outLength) *outLength = 2;
+			++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[33];
 		break;
 		}
@@ -263,280 +392,330 @@ EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength) {
 	return nullptr;
 }
 
-EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
-	switch (ch->unicode()) {
+EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {
+	auto ch = start;
+
+	if (ch != end) switch (ch->unicode()) {
 	case 0xd83e:
-		if (ch + 1 != end) switch ((ch + 1)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0xddc0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1084];
 		break;
 		case 0xdd91:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[944];
 		break;
 		case 0xdd90:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[946];
 		break;
 		case 0xdd8f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[964];
 		break;
 		case 0xdd8e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[941];
 		break;
 		case 0xdd8d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[965];
 		break;
 		case 0xdd8c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[960];
 		break;
 		case 0xdd8b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[932];
 		break;
 		case 0xdd8a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[901];
 		break;
 		case 0xdd89:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[924];
 		break;
 		case 0xdd88:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[951];
 		break;
 		case 0xdd87:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[925];
 		break;
 		case 0xdd86:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[922];
 		break;
 		case 0xdd85:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[923];
 		break;
 		case 0xdd84:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[929];
 		break;
 		case 0xdd83:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[975];
 		break;
 		case 0xdd82:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[942];
 		break;
 		case 0xdd81:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[906];
 		break;
 		case 0xdd80:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[943];
 		break;
 		case 0xdd5e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1088];
 		break;
 		case 0xdd5d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1068];
 		break;
 		case 0xdd5c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1079];
 		break;
 		case 0xdd5b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1125];
 		break;
 		case 0xdd5a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1085];
 		break;
 		case 0xdd59:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1096];
 		break;
 		case 0xdd58:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1100];
 		break;
 		case 0xdd57:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1099];
 		break;
 		case 0xdd56:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1083];
 		break;
 		case 0xdd55:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1073];
 		break;
 		case 0xdd54:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1076];
 		break;
 		case 0xdd53:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1087];
 		break;
 		case 0xdd52:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1072];
 		break;
 		case 0xdd51:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1069];
 		break;
 		case 0xdd50:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1081];
 		break;
 		case 0xdd4b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1159];
 		break;
 		case 0xdd4a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1158];
 		break;
 		case 0xdd49:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1310];
 		break;
 		case 0xdd48:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1309];
 		break;
 		case 0xdd47:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1308];
 		break;
 		case 0xdd45:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1151];
 		break;
 		case 0xdd44:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1138];
 		break;
 		case 0xdd43:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1134];
 		break;
 		case 0xdd42:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1132];
 		break;
 		case 0xdd41:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1336];
 		break;
 		case 0xdd40:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1003];
 		break;
 		case 0xdd3e:
-			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1214];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1214];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1208];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1208];
 						break;
 						}
 					}
 				break;
 				case 0xdffe:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1213];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1213];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1207];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1207];
 						break;
 						}
 					}
 				break;
 				case 0xdffd:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1212];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1212];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1206];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1206];
 						break;
 						}
 					}
 				break;
 				case 0xdffc:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1211];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1211];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1205];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1205];
 						break;
 						}
 					}
 				break;
 				case 0xdffb:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1210];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1210];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1204];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1204];
 						break;
 						}
 					}
@@ -544,113 +723,114 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
 				}
 			break;
 			case 0x200d:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1209];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1209];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1203];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1203];
 				break;
 				}
 			break;
 			}
 		break;
 		case 0xdd3d:
-			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1262];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1262];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1256];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1256];
 						break;
 						}
 					}
 				break;
 				case 0xdffe:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1261];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1261];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1255];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1255];
 						break;
 						}
 					}
 				break;
 				case 0xdffd:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1260];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1260];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1254];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1254];
 						break;
 						}
 					}
 				break;
 				case 0xdffc:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1259];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1259];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1253];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1253];
 						break;
 						}
 					}
 				break;
 				case 0xdffb:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1258];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1258];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1252];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1252];
 						break;
 						}
 					}
@@ -658,135 +838,137 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
 				}
 			break;
 			case 0x200d:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1257];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1257];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1251];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1251];
 				break;
 				}
 			break;
 			}
 		break;
 		case 0xdd3c:
-			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0x200d) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1178];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1178];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1177];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1177];
 				break;
 				}
 			}
 		break;
 		case 0xdd3a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1176];
 		break;
 		case 0xdd39:
-			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1328];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1328];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1322];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1322];
 						break;
 						}
 					}
 				break;
 				case 0xdffe:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1327];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1327];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1321];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1321];
 						break;
 						}
 					}
 				break;
 				case 0xdffd:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1326];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1326];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1320];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1320];
 						break;
 						}
 					}
 				break;
 				case 0xdffc:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1325];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1325];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1319];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1319];
 						break;
 						}
 					}
 				break;
 				case 0xdffb:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1324];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1324];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1318];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1318];
 						break;
 						}
 					}
@@ -794,113 +976,114 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
 				}
 			break;
 			case 0x200d:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1323];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1323];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1317];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1317];
 				break;
 				}
 			break;
 			}
 		break;
 		case 0xdd38:
-			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1190];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1190];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1184];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1184];
 						break;
 						}
 					}
 				break;
 				case 0xdffe:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1189];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1189];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1183];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1183];
 						break;
 						}
 					}
 				break;
 				case 0xdffd:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1188];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1188];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1182];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1182];
 						break;
 						}
 					}
 				break;
 				case 0xdffc:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1187];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1187];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1181];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1181];
 						break;
 						}
 					}
 				break;
 				case 0xdffb:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1186];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1186];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[1180];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1180];
 						break;
 						}
 					}
@@ -908,113 +1091,114 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
 				}
 			break;
 			case 0x200d:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1185];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1185];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[1179];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1179];
 				break;
 				}
 			break;
 			}
 		break;
 		case 0xdd37:
-			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[743];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[743];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[737];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[737];
 						break;
 						}
 					}
 				break;
 				case 0xdffe:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[742];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[742];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[736];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[736];
 						break;
 						}
 					}
 				break;
 				case 0xdffd:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[741];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[741];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[735];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[735];
 						break;
 						}
 					}
 				break;
 				case 0xdffc:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[740];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[740];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[734];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[734];
 						break;
 						}
 					}
 				break;
 				case 0xdffb:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[739];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[739];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[733];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[733];
 						break;
 						}
 					}
@@ -1022,257 +1206,294 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
 				}
 			break;
 			case 0x200d:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[738];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[738];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[732];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[732];
 				break;
 				}
 			break;
 			}
 		break;
 		case 0xdd36:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[617];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[616];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[615];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[614];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[613];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[612];
 		break;
 		case 0xdd35:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[647];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[646];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[645];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[644];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[643];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[642];
 		break;
 		case 0xdd34:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[635];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[634];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[633];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[632];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[631];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[630];
 		break;
 		case 0xdd33:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[270];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[269];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[268];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[267];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[266];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[265];
 		break;
 		case 0xdd30:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[659];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[658];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[657];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[656];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[655];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[654];
 		break;
 		case 0xdd27:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[71];
 		break;
 		case 0xdd26:
-			if (ch + 4 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				if (ch + 6 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[731];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[731];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[725];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[725];
 						break;
 						}
 					}
 				break;
 				case 0xdffe:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[730];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[730];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[724];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[724];
 						break;
 						}
 					}
 				break;
 				case 0xdffd:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[729];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[729];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[723];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[723];
 						break;
 						}
 					}
 				break;
 				case 0xdffc:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[728];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[728];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[722];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[722];
 						break;
 						}
 					}
 				break;
 				case 0xdffb:
-					if ((ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0x2642:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[727];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[727];
 						break;
 						case 0x2640:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[721];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[721];
 						break;
 						}
 					}
@@ -1280,8930 +1501,11559 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {
 				}
 			break;
 			case 0x200d:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0x2642:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[726];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[726];
 				break;
 				case 0x2640:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[720];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[720];
 				break;
 				}
 			break;
 			}
 		break;
 		case 0xdd25:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[67];
 		break;
 		case 0xdd24:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[60];
 		break;
 		case 0xdd23:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[7];
 		break;
 		case 0xdd22:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[70];
 		break;
 		case 0xdd21:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[28];
 		break;
 		case 0xdd20:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[29];
 		break;
 		case 0xdd1e:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[162];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[161];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[160];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[159];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[158];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[157];
 		break;
 		case 0xdd1d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[120];
 		break;
 		case 0xdd1c:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[156];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[155];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[154];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[153];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[152];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[151];
 		break;
 		case 0xdd1b:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[150];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[149];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[148];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[147];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[146];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[145];
 		break;
 		case 0xdd1a:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[222];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[221];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[220];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[219];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[218];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[217];
 		break;
 		case 0xdd19:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[246];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[245];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[244];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[243];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[242];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[241];
 		break;
 		case 0xdd18:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[174];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[173];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[172];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[171];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[170];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[169];
 		break;
 		case 0xdd17:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[25];
 		break;
 		case 0xdd16:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[85];
 		break;
 		case 0xdd15:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[74];
 		break;
 		case 0xdd14:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[66];
 		break;
 		case 0xdd13:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[26];
 		break;
 		case 0xdd12:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[73];
 		break;
 		case 0xdd11:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[24];
 		break;
 		case 0xdd10:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[69];
 		break;
 		}
 	break;
 	case 0xd83d:
-		if (ch + 1 != end) switch ((ch + 1)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0xdef6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1391];
 		break;
 		case 0xdef5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1361];
 		break;
 		case 0xdef4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1359];
 		break;
 		case 0xdef3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1395];
 		break;
 		case 0xdef0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1389];
 		break;
 		case 0xdeec:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1387];
 		break;
 		case 0xdeeb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1386];
 		break;
 		case 0xdee9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1384];
 		break;
 		case 0xdee5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1393];
 		break;
 		case 0xdee4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1425];
 		break;
 		case 0xdee3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1426];
 		break;
 		case 0xdee2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1509];
 		break;
 		case 0xdee1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1532];
 		break;
 		case 0xdee0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1522];
 		break;
 		case 0xded2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1566];
 		break;
 		case 0xded1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1713];
 		break;
 		case 0xded0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1669];
 		break;
 		case 0xdecf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1562];
 		break;
 		case 0xdece:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1557];
 		break;
 		case 0xdecd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1565];
 		break;
 		case 0xdecc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1563];
 		break;
 		case 0xdecb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1561];
 		break;
 		case 0xdec5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1762];
 		break;
 		case 0xdec4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1761];
 		break;
 		case 0xdec3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1760];
 		break;
 		case 0xdec2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1759];
 		break;
 		case 0xdec1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1550];
 		break;
 		case 0xdec0:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1556];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1555];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1554];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1553];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1552];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1551];
 		break;
 		case 0xdebf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1549];
 		break;
 		case 0xdebe:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1754];
 		break;
 		case 0xdebd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1547];
 		break;
 		case 0xdebc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1765];
 		break;
 		case 0xdebb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1766];
 		break;
 		case 0xdeba:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1764];
 		break;
 		case 0xdeb9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1763];
 		break;
 		case 0xdeb8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1737];
 		break;
 		case 0xdeb7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1720];
 		break;
 		case 0xdeb6:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[817];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[817];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[823];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[816];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[816];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[822];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[815];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[815];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[821];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[814];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[814];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[820];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[813];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[813];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[819];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[812];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[818];
 		break;
 		case 0xdeb5:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1298];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1298];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1304];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1297];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1297];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1303];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1296];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1296];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1302];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1295];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1295];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1301];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1294];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1294];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1300];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1293];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1299];
 		break;
 		case 0xdeb4:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1286];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1286];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1292];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1285];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1285];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1291];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1284];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1284];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1290];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1283];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1283];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1289];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1282];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1282];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1288];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1281];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1287];
 		break;
 		case 0xdeb3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1722];
 		break;
 		case 0xdeb2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1360];
 		break;
 		case 0xdeb1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1723];
 		break;
 		case 0xdeb0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1548];
 		break;
 		case 0xdeaf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1721];
 		break;
 		case 0xdeae:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1767];
 		break;
 		case 0xdead:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1726];
 		break;
 		case 0xdeac:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1533];
 		break;
 		case 0xdeab:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1716];
 		break;
 		case 0xdeaa:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1560];
 		break;
 		case 0xdea9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1917];
 		break;
 		case 0xdea8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1363];
 		break;
 		case 0xdea7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1399];
 		break;
 		case 0xdea6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1402];
 		break;
 		case 0xdea5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1403];
 		break;
 		case 0xdea4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1394];
 		break;
 		case 0xdea3:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1268];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1268];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1274];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1267];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1267];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1273];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1266];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1266];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1272];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1265];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1265];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1271];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1264];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1264];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1270];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1263];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1269];
 		break;
 		case 0xdea2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1397];
 		break;
 		case 0xdea1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1368];
 		break;
 		case 0xdea0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1369];
 		break;
 		case 0xde9f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1370];
 		break;
 		case 0xde9e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1373];
 		break;
 		case 0xde9d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1374];
 		break;
 		case 0xde9c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1358];
 		break;
 		case 0xde9b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1357];
 		break;
 		case 0xde9a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1356];
 		break;
 		case 0xde99:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1348];
 		break;
 		case 0xde98:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1366];
 		break;
 		case 0xde97:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1346];
 		break;
 		case 0xde96:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1367];
 		break;
 		case 0xde95:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1347];
 		break;
 		case 0xde94:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1364];
 		break;
 		case 0xde93:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1352];
 		break;
 		case 0xde92:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1354];
 		break;
 		case 0xde91:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1353];
 		break;
 		case 0xde90:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1355];
 		break;
 		case 0xde8f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1401];
 		break;
 		case 0xde8e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1350];
 		break;
 		case 0xde8d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1365];
 		break;
 		case 0xde8c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1349];
 		break;
 		case 0xde8b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1372];
 		break;
 		case 0xde8a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1381];
 		break;
 		case 0xde89:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1382];
 		break;
 		case 0xde88:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1377];
 		break;
 		case 0xde87:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1380];
 		break;
 		case 0xde86:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1379];
 		break;
 		case 0xde85:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1376];
 		break;
 		case 0xde84:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1375];
 		break;
 		case 0xde83:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1371];
 		break;
 		case 0xde82:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1378];
 		break;
 		case 0xde81:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1383];
 		break;
 		case 0xde80:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1388];
 		break;
 		case 0xde4f:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[119];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[118];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[117];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[116];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[115];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[114];
 		break;
 		case 0xde4e:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[755];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[755];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[749];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[754];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[754];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[748];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[753];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[753];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[747];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[752];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[752];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[746];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[751];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[751];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[745];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[750];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[744];
 		break;
 		case 0xde4d:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[767];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[767];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[761];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[766];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[766];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[760];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[765];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[765];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[759];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[764];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[764];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[758];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[763];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[763];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[757];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[762];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[756];
 		break;
 		case 0xde4c:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[107];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[106];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[105];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[104];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[103];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[102];
 		break;
 		case 0xde4b:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[719];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[719];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[713];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[718];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[718];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[712];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[717];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[717];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[711];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[716];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[716];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[710];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[715];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[715];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[709];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[714];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[708];
 		break;
 		case 0xde4a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[914];
 		break;
 		case 0xde49:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[913];
 		break;
 		case 0xde48:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[912];
 		break;
 		case 0xde47:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[665];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[665];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[671];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[664];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[664];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[670];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[663];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[663];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[669];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[662];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[662];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[668];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[661];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[661];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[667];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[660];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[666];
 		break;
 		case 0xde46:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[707];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[707];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[701];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[706];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[706];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[700];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[705];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[705];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[699];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[704];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[704];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[698];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[703];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[703];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[697];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[702];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[696];
 		break;
 		case 0xde45:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[695];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[695];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[689];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[694];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[694];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[688];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[693];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[693];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[687];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[692];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[692];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[686];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[691];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[691];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[685];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[690];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[684];
 		break;
 		case 0xde44:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[65];
 		break;
 		case 0xde43:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[12];
 		break;
 		case 0xde42:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[11];
 		break;
 		case 0xde41:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[36];
 		break;
 		case 0xde40:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[93];
 		break;
 		case 0xde3f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[94];
 		break;
 		case 0xde3e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[95];
 		break;
 		case 0xde3d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[92];
 		break;
 		case 0xde3c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[91];
 		break;
 		case 0xde3b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[90];
 		break;
 		case 0xde3a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[87];
 		break;
 		case 0xde39:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[89];
 		break;
 		case 0xde38:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[88];
 		break;
 		case 0xde37:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[72];
 		break;
 		case 0xde36:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[45];
 		break;
 		case 0xde35:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[53];
 		break;
 		case 0xde34:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[64];
 		break;
 		case 0xde33:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[54];
 		break;
 		case 0xde32:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[52];
 		break;
 		case 0xde31:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[55];
 		break;
 		case 0xde30:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[57];
 		break;
 		case 0xde2f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[48];
 		break;
 		case 0xde2e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[51];
 		break;
 		case 0xde2d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[61];
 		break;
 		case 0xde2c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[68];
 		break;
 		case 0xde2b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[40];
 		break;
 		case 0xde2a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[63];
 		break;
 		case 0xde29:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[41];
 		break;
 		case 0xde28:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[56];
 		break;
 		case 0xde27:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[50];
 		break;
 		case 0xde26:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[49];
 		break;
 		case 0xde25:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[59];
 		break;
 		case 0xde24:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[42];
 		break;
 		case 0xde23:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[38];
 		break;
 		case 0xde22:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[58];
 		break;
 		case 0xde21:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[44];
 		break;
 		case 0xde20:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[43];
 		break;
 		case 0xde1f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[34];
 		break;
 		case 0xde1e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[32];
 		break;
 		case 0xde1d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[22];
 		break;
 		case 0xde1c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[21];
 		break;
 		case 0xde1b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[23];
 		break;
 		case 0xde1a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[19];
 		break;
 		case 0xde19:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[18];
 		break;
 		case 0xde18:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[16];
 		break;
 		case 0xde17:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[17];
 		break;
 		case 0xde16:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[39];
 		break;
 		case 0xde15:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[35];
 		break;
 		case 0xde14:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[33];
 		break;
 		case 0xde13:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[62];
 		break;
 		case 0xde12:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[31];
 		break;
 		case 0xde11:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[47];
 		break;
 		case 0xde10:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[46];
 		break;
 		case 0xde0f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[30];
 		break;
 		case 0xde0e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[27];
 		break;
 		case 0xde0d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[15];
 		break;
 		case 0xde0c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[14];
 		break;
 		case 0xde0b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[20];
 		break;
 		case 0xde0a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[9];
 		break;
 		case 0xde09:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[13];
 		break;
 		case 0xde08:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[75];
 		break;
 		case 0xde07:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[10];
 		break;
 		case 0xde06:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[4];
 		break;
 		case 0xde05:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[5];
 		break;
 		case 0xde04:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[2];
 		break;
 		case 0xde03:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1];
 		break;
 		case 0xde02:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[6];
 		break;
 		case 0xde01:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[3];
 		break;
 		case 0xde00:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[0];
 		break;
 		case 0xddff:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1405];
 		break;
 		case 0xddfe:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1450];
 		break;
 		case 0xddfd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1406];
 		break;
 		case 0xddfc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1408];
 		break;
 		case 0xddfb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1420];
 		break;
 		case 0xddfa:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1404];
 		break;
 		case 0xddf3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1604];
 		break;
 		case 0xddef:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1882];
 		break;
 		case 0xdde3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[297];
 		break;
 		case 0xdde1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1530];
 		break;
 		case 0xddde:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1610];
 		break;
 		case 0xdddd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1559];
 		break;
 		case 0xdddc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1475];
 		break;
 		case 0xddd3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1599];
 		break;
 		case 0xddd2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1598];
 		break;
 		case 0xddd1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1508];
 		break;
 		case 0xddc4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1605];
 		break;
 		case 0xddc3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1603];
 		break;
 		case 0xddc2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1609];
 		break;
 		case 0xddbc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1564];
 		break;
 		case 0xddb2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1473];
 		break;
 		case 0xddb1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1472];
 		break;
 		case 0xdda8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1471];
 		break;
 		case 0xdda5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1470];
 		break;
 		case 0xdda4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1648];
 		break;
 		case 0xdd96:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[234];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[233];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[232];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[231];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[230];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[229];
 		break;
 		case 0xdd95:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[258];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[257];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[256];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[255];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[254];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[253];
 		break;
 		case 0xdd90:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[228];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[227];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[226];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[225];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[224];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[223];
 		break;
 		case 0xdd8d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1634];
 		break;
 		case 0xdd8c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1633];
 		break;
 		case 0xdd8b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1631];
 		break;
 		case 0xdd8a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1630];
 		break;
 		case 0xdd87:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1624];
 		break;
 		case 0xdd7a:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[809];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[808];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[807];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[806];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[805];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[804];
 		break;
 		case 0xdd79:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1474];
 		break;
 		case 0xdd78:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[938];
 		break;
 		case 0xdd77:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[937];
 		break;
 		case 0xdd76:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[893];
 		break;
 		case 0xdd75:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
-			case 0xfe0f:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[408];
-				}
-			break;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[413];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[413];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[419];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[412];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[412];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[418];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[411];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[411];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[417];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[410];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[410];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[416];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[409];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[409];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[415];
 				break;
 				}
 			break;
+			case 0x200d:
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[408];
+				}
+			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[414];
 		break;
 		case 0xdd74:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[797];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[796];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[795];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[794];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[793];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[792];
 		break;
 		case 0xdd73:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1543];
 		break;
 		case 0xdd70:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1499];
 		break;
 		case 0xdd6f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1507];
 		break;
 		case 0xdd67:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1913];
 		break;
 		case 0xdd66:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1912];
 		break;
 		case 0xdd65:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1911];
 		break;
 		case 0xdd64:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1910];
 		break;
 		case 0xdd63:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1909];
 		break;
 		case 0xdd62:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1908];
 		break;
 		case 0xdd61:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1907];
 		break;
 		case 0xdd60:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1906];
 		break;
 		case 0xdd5f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1905];
 		break;
 		case 0xdd5e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1904];
 		break;
 		case 0xdd5d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1903];
 		break;
 		case 0xdd5c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1902];
 		break;
 		case 0xdd5b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1901];
 		break;
 		case 0xdd5a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1900];
 		break;
 		case 0xdd59:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1899];
 		break;
 		case 0xdd58:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1898];
 		break;
 		case 0xdd57:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1897];
 		break;
 		case 0xdd56:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1896];
 		break;
 		case 0xdd55:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1895];
 		break;
 		case 0xdd54:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1894];
 		break;
 		case 0xdd53:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1893];
 		break;
 		case 0xdd52:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1892];
 		break;
 		case 0xdd51:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1891];
 		break;
 		case 0xdd50:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1890];
 		break;
 		case 0xdd4e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1666];
 		break;
 		case 0xdd4d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1447];
 		break;
 		case 0xdd4c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1446];
 		break;
 		case 0xdd4b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1448];
 		break;
 		case 0xdd4a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[976];
 		break;
 		case 0xdd49:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1662];
 		break;
 		case 0xdd3d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1809];
 		break;
 		case 0xdd3c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1808];
 		break;
 		case 0xdd3b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1856];
 		break;
 		case 0xdd3a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1855];
 		break;
 		case 0xdd39:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1858];
 		break;
 		case 0xdd38:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1857];
 		break;
 		case 0xdd37:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1860];
 		break;
 		case 0xdd36:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1859];
 		break;
 		case 0xdd35:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1854];
 		break;
 		case 0xdd34:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1853];
 		break;
 		case 0xdd33:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1861];
 		break;
 		case 0xdd32:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1862];
 		break;
 		case 0xdd31:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1738];
 		break;
 		case 0xdd30:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1740];
 		break;
 		case 0xdd2f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1665];
 		break;
 		case 0xdd2e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1537];
 		break;
 		case 0xdd2d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1541];
 		break;
 		case 0xdd2c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1542];
 		break;
 		case 0xdd2b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1527];
 		break;
 		case 0xdd2a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1529];
 		break;
 		case 0xdd29:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1524];
 		break;
 		case 0xdd28:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1520];
 		break;
 		case 0xdd27:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1519];
 		break;
 		case 0xdd26:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1506];
 		break;
 		case 0xdd25:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1030];
 		break;
 		case 0xdd24:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1773];
 		break;
 		case 0xdd23:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1771];
 		break;
 		case 0xdd22:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1793];
 		break;
 		case 0xdd21:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1774];
 		break;
 		case 0xdd20:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1775];
 		break;
 		case 0xdd1f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1792];
 		break;
 		case 0xdd1e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1724];
 		break;
 		case 0xdd1d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1846];
 		break;
 		case 0xdd1c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1847];
 		break;
 		case 0xdd1b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1845];
 		break;
 		case 0xdd1a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1843];
 		break;
 		case 0xdd19:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1844];
 		break;
 		case 0xdd18:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1850];
 		break;
 		case 0xdd17:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1622];
 		break;
 		case 0xdd16:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1621];
 		break;
 		case 0xdd15:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1876];
 		break;
 		case 0xdd14:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1875];
 		break;
 		case 0xdd13:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1642];
 		break;
 		case 0xdd12:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1641];
 		break;
 		case 0xdd11:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1558];
 		break;
 		case 0xdd10:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1640];
 		break;
 		case 0xdd0f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1639];
 		break;
 		case 0xdd0e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1638];
 		break;
 		case 0xdd0d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1637];
 		break;
 		case 0xdd0c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1504];
 		break;
 		case 0xdd0b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1503];
 		break;
 		case 0xdd0a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1874];
 		break;
 		case 0xdd09:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1873];
 		break;
 		case 0xdd08:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1871];
 		break;
 		case 0xdd07:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1872];
 		break;
 		case 0xdd06:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1734];
 		break;
 		case 0xdd05:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1733];
 		break;
 		case 0xdd04:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1827];
 		break;
 		case 0xdd03:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1828];
 		break;
 		case 0xdd02:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1826];
 		break;
 		case 0xdd01:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1825];
 		break;
 		case 0xdd00:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1824];
 		break;
 		case 0xdcff:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1538];
 		break;
 		case 0xdcfd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1485];
 		break;
 		case 0xdcfc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1480];
 		break;
 		case 0xdcfb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1492];
 		break;
 		case 0xdcfa:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1491];
 		break;
 		case 0xdcf9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1483];
 		break;
 		case 0xdcf8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1482];
 		break;
 		case 0xdcf7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1481];
 		break;
 		case 0xdcf6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1769];
 		break;
 		case 0xdcf5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1725];
 		break;
 		case 0xdcf4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1688];
 		break;
 		case 0xdcf3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1689];
 		break;
 		case 0xdcf2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1467];
 		break;
 		case 0xdcf1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1466];
 		break;
 		case 0xdcf0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1611];
 		break;
 		case 0xdcef:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1590];
 		break;
 		case 0xdcee:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1589];
 		break;
 		case 0xdced:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1588];
 		break;
 		case 0xdcec:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1587];
 		break;
 		case 0xdceb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1586];
 		break;
 		case 0xdcea:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1585];
 		break;
 		case 0xdce9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1577];
 		break;
 		case 0xdce8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1578];
 		break;
 		case 0xdce7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1579];
 		break;
 		case 0xdce6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1583];
 		break;
 		case 0xdce5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1581];
 		break;
 		case 0xdce4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1582];
 		break;
 		case 0xdce3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1877];
 		break;
 		case 0xdce2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1878];
 		break;
 		case 0xdce1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1502];
 		break;
 		case 0xdce0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1490];
 		break;
 		case 0xdcdf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1489];
 		break;
 		case 0xdcde:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1487];
 		break;
 		case 0xdcdd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1635];
 		break;
 		case 0xdcdc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1591];
 		break;
 		case 0xdcdb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1715];
 		break;
 		case 0xdcda:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1619];
 		break;
 		case 0xdcd9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1618];
 		break;
 		case 0xdcd8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1617];
 		break;
 		case 0xdcd7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1616];
 		break;
 		case 0xdcd6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1620];
 		break;
 		case 0xdcd5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1615];
 		break;
 		case 0xdcd4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1613];
 		break;
 		case 0xdcd3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1612];
 		break;
 		case 0xdcd2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1614];
 		break;
 		case 0xdcd1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1594];
 		break;
 		case 0xdcd0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1625];
 		break;
 		case 0xdccf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1626];
 		break;
 		case 0xdcce:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1623];
 		break;
 		case 0xdccd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1628];
 		break;
 		case 0xdccc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1627];
 		break;
 		case 0xdccb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1606];
 		break;
 		case 0xdcca:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1595];
 		break;
 		case 0xdcc9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1597];
 		break;
 		case 0xdcc8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1596];
 		break;
 		case 0xdcc7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1602];
 		break;
 		case 0xdcc6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1600];
 		break;
 		case 0xdcc5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1601];
 		break;
 		case 0xdcc4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1593];
 		break;
 		case 0xdcc3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1592];
 		break;
 		case 0xdcc2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1608];
 		break;
 		case 0xdcc1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1607];
 		break;
 		case 0xdcc0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1479];
 		break;
 		case 0xdcbf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1478];
 		break;
 		case 0xdcbe:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1477];
 		break;
 		case 0xdcbd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1476];
 		break;
 		case 0xdcbc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[891];
 		break;
 		case 0xdcbb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1468];
 		break;
 		case 0xdcba:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1390];
 		break;
 		case 0xdcb9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1744];
 		break;
 		case 0xdcb8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1510];
 		break;
 		case 0xdcb7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1514];
 		break;
 		case 0xdcb6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1513];
 		break;
 		case 0xdcb5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1511];
 		break;
 		case 0xdcb4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1512];
 		break;
 		case 0xdcb3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1516];
 		break;
 		case 0xdcb2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1835];
 		break;
 		case 0xdcb1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1836];
 		break;
 		case 0xdcb0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1515];
 		break;
 		case 0xdcaf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1717];
 		break;
 		case 0xdcae:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1697];
 		break;
 		case 0xdcad:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1881];
 		break;
 		case 0xdcac:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1880];
 		break;
 		case 0xdcab:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1025];
 		break;
 		case 0xdcaa:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[252];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[251];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[250];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[249];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[248];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[247];
 		break;
 		case 0xdca9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[79];
 		break;
 		case 0xdca8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1048];
 		break;
 		case 0xdca7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1052];
 		break;
 		case 0xdca6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1053];
 		break;
 		case 0xdca5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1031];
 		break;
 		case 0xdca4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1752];
 		break;
 		case 0xdca3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1528];
 		break;
 		case 0xdca2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1718];
 		break;
 		case 0xdca1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1505];
 		break;
 		case 0xdca0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1749];
 		break;
 		case 0xdc9f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1658];
 		break;
 		case 0xdc9e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1652];
 		break;
 		case 0xdc9d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1657];
 		break;
 		case 0xdc9c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1647];
 		break;
 		case 0xdc9b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1644];
 		break;
 		case 0xdc9a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1645];
 		break;
 		case 0xdc99:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1646];
 		break;
 		case 0xdc98:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1656];
 		break;
 		case 0xdc97:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1654];
 		break;
 		case 0xdc96:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1655];
 		break;
 		case 0xdc95:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1651];
 		break;
 		case 0xdc94:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1649];
 		break;
 		case 0xdc93:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1653];
 		break;
 		case 0xdc92:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1443];
 		break;
 		case 0xdc91:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[839];
 		break;
 		case 0xdc90:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1000];
 		break;
 		case 0xdc8f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[842];
 		break;
 		case 0xdc8e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1517];
 		break;
 		case 0xdc8d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[277];
 		break;
 		case 0xdc8c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1580];
 		break;
 		case 0xdc8b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[279];
 		break;
 		case 0xdc8a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1544];
 		break;
 		case 0xdc89:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1545];
 		break;
 		case 0xdc88:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1539];
 		break;
 		case 0xdc87:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[779];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[779];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[773];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[778];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[778];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[772];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[777];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[777];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[771];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[776];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[776];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[770];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[775];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[775];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[769];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[774];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[768];
 		break;
 		case 0xdc86:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[791];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[791];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[785];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[790];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[790];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[784];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[789];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[789];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[783];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[788];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[788];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[782];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[787];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[787];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[781];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[786];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[780];
 		break;
 		case 0xdc85:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[276];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[275];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[274];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[273];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[272];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[271];
 		break;
 		case 0xdc84:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[278];
 		break;
 		case 0xdc83:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[803];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[802];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[801];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[800];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[799];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[798];
 		break;
 		case 0xdc82:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[401];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[401];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[407];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[400];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[400];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[406];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[399];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[399];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[405];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[398];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[398];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[404];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[397];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[397];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[403];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[396];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[402];
 		break;
 		case 0xdc81:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[683];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[683];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[677];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[682];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[682];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[676];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[681];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[681];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[675];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[680];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[680];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[674];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2642 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[679];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2642) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[679];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[673];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[678];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[672];
 		break;
 		case 0xdc80:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[81];
 		break;
 		case 0xdc7f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[76];
 		break;
 		case 0xdc7e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[84];
 		break;
 		case 0xdc7d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[83];
 		break;
 		case 0xdc7c:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[653];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[652];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[651];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[650];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[649];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[648];
 		break;
 		case 0xdc7b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[80];
 		break;
 		case 0xdc7a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[78];
 		break;
 		case 0xdc79:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[77];
 		break;
 		case 0xdc78:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[629];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[628];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[627];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[626];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[625];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[624];
 		break;
 		case 0xdc77:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[389];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[389];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[395];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[388];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[388];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[394];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[387];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[387];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[393];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[386];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[386];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[392];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[385];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[385];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[391];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[384];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[390];
 		break;
 		case 0xdc76:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[305];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[304];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[303];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[302];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[301];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[300];
 		break;
 		case 0xdc75:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[353];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[352];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[351];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[350];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[349];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[348];
 		break;
 		case 0xdc74:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[347];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[346];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[345];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[344];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[343];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[342];
 		break;
 		case 0xdc73:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[365];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[365];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[371];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[364];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[364];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[370];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[363];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[363];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[369];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[362];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[362];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[368];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[361];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[361];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[367];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[360];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[366];
 		break;
 		case 0xdc72:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[359];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[358];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[357];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[356];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[355];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[354];
 		break;
 		case 0xdc71:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[335];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[335];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[341];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[334];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[334];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[340];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[333];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[333];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[339];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[332];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[332];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[338];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[331];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[331];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[337];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[330];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[336];
 		break;
 		case 0xdc70:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[641];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[640];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[639];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[638];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[637];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[636];
 		break;
 		case 0xdc6f:
-			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d && (ch + 3)->unicode() == 0x2642 && (ch + 4)->unicode() == 0xfe0f) {
-				if (outLength) *outLength = 5;
-				return &Items[811];
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0x200d) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2642) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[811];
+				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[810];
 		break;
 		case 0xdc6e:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[377];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[377];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[383];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[376];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[376];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[382];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[375];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[375];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[381];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[374];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[374];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[380];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[373];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[373];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[379];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[372];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[378];
 		break;
 		case 0xdc6d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[837];
 		break;
 		case 0xdc6c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[838];
 		break;
 		case 0xdc6b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[836];
 		break;
 		case 0xdc6a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[845];
 		break;
 		case 0xdc69:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[569];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[593];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[545];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[533];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[521];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[509];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[497];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[485];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[557];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[473];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[461];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[449];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[437];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[581];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[581];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[605];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[605];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[425];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[425];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[329];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[568];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[592];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[544];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[532];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[520];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[508];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[496];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[484];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[556];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[472];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[460];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[448];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[436];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[580];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[580];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[604];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[604];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[424];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[424];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[328];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[567];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[591];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[543];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[531];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[519];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[507];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[495];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[483];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[555];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[471];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[459];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[447];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[435];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[579];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[579];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[603];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[603];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[423];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[423];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[327];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[566];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[590];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[542];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[530];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[518];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[506];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[494];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[482];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[554];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[470];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[458];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[446];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[434];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[578];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[578];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[602];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[602];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[422];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[422];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[326];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[565];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[589];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[541];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[529];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[517];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[505];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[493];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[481];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[553];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[469];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[457];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[445];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[433];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[577];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[577];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[601];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[601];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[421];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[421];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[325];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xd83d:
-					switch ((ch + 4)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end) switch (ch->unicode()) {
 					case 0xde92:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[564];
 					break;
 					case 0xde80:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[588];
 					break;
 					case 0xdd2c:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[540];
 					break;
 					case 0xdd27:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[528];
 					break;
 					case 0xdcbc:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[516];
 					break;
 					case 0xdcbb:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[504];
 					break;
 					case 0xdc69:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-							switch ((ch + 7)->unicode()) {
-							case 0xdc67:
-								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d) {
-									switch ((ch + 10)->unicode()) {
-									case 0xdc67:
-										if (outLength) *outLength = 11;
-										return &Items[854];
-									break;
-									case 0xdc66:
-										if (outLength) *outLength = 11;
-										return &Items[852];
-									break;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end) switch (ch->unicode()) {
+								case 0xdc67:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0x200d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xd83d) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (ch != end) switch (ch->unicode()) {
+											case 0xdc67:
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[854];
+											break;
+											case 0xdc66:
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[852];
+											break;
+											}
+										}
 									}
+									if (outLength) *outLength = (ch - start);
+									return &Items[851];
+								break;
+								case 0xdc66:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0x200d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xd83d) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (ch != end && ch->unicode() == 0xdc66) {
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[853];
+											}
+										}
+									}
+									if (outLength) *outLength = (ch - start);
+									return &Items[850];
+								break;
 								}
-								if (outLength) *outLength = 8;
-								return &Items[851];
-							break;
-							case 0xdc66:
-								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc66) {
-									if (outLength) *outLength = 11;
-									return &Items[853];
-								}
-								if (outLength) *outLength = 8;
-								return &Items[850];
-							break;
 							}
 						}
 					break;
 					case 0xdc67:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-							switch ((ch + 7)->unicode()) {
-							case 0xdc67:
-								if (outLength) *outLength = 8;
-								return &Items[864];
-							break;
-							case 0xdc66:
-								if (outLength) *outLength = 8;
-								return &Items[862];
-							break;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end) switch (ch->unicode()) {
+								case 0xdc67:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
+									return &Items[864];
+								break;
+								case 0xdc66:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
+									return &Items[862];
+								break;
+								}
 							}
 						}
-						if (outLength) *outLength = 5;
+						if (outLength) *outLength = (ch - start);
 						return &Items[861];
 					break;
 					case 0xdc66:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d && (ch + 7)->unicode() == 0xdc66) {
-							if (outLength) *outLength = 8;
-							return &Items[863];
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end && ch->unicode() == 0xdc66) {
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
+									return &Items[863];
+								}
+							}
 						}
-						if (outLength) *outLength = 5;
+						if (outLength) *outLength = (ch - start);
 						return &Items[860];
 					break;
 					}
 				break;
 				case 0xd83c:
-					switch ((ch + 4)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end) switch (ch->unicode()) {
 					case 0xdfed:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[492];
 					break;
 					case 0xdfeb:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[480];
 					break;
 					case 0xdfa8:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[552];
 					break;
 					case 0xdfa4:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[468];
 					break;
 					case 0xdf93:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[456];
 					break;
 					case 0xdf73:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[444];
 					break;
 					case 0xdf3e:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[432];
 					break;
 					}
 				break;
 				case 0x2764:
-					if (ch + 7 < end && (ch + 4)->unicode() == 0xfe0f && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-						switch ((ch + 7)->unicode()) {
-						case 0xdc8b:
-							if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc69) {
-								if (outLength) *outLength = 11;
-								return &Items[843];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0xd83d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
+							case 0xdc8b:
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end && ch->unicode() == 0x200d) {
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0xd83d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xdc69) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (outLength) *outLength = (ch - start);
+											return &Items[843];
+										}
+									}
+								}
+							break;
+							case 0xdc69:
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
+								return &Items[840];
+							break;
 							}
-						break;
-						case 0xdc69:
-							if (outLength) *outLength = 8;
-							return &Items[840];
-						break;
 						}
 					}
 				break;
 				case 0x2708:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[576];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[576];
 				break;
 				case 0x2696:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[600];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[600];
 				break;
 				case 0x2695:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[420];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[420];
 				break;
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[324];
 		break;
 		case 0xdc68:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[575];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[599];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[551];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[539];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[527];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[515];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[503];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[491];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[563];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[479];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[467];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[455];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[443];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[587];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[587];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[611];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[611];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[431];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[431];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[323];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[574];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[598];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[550];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[538];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[526];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[514];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[502];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[490];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[562];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[478];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[466];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[454];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[442];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[586];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[586];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[610];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[610];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[430];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[430];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[322];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[573];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[597];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[549];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[537];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[525];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[513];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[501];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[489];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[561];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[477];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[465];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[453];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[441];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[585];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[585];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[609];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[609];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[429];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[429];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[321];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[572];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[596];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[548];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[536];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[524];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[512];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[500];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[488];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[560];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[476];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[464];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[452];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[440];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[584];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[584];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[608];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[608];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[428];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[428];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[320];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d) {
-						switch ((ch + 5)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end) switch (ch->unicode()) {
 						case 0xd83d:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xde92:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[571];
 							break;
 							case 0xde80:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[595];
 							break;
 							case 0xdd2c:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[547];
 							break;
 							case 0xdd27:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[535];
 							break;
 							case 0xdcbc:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[523];
 							break;
 							case 0xdcbb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[511];
 							break;
 							}
 						break;
 						case 0xd83c:
-							switch ((ch + 6)->unicode()) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
 							case 0xdfed:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[499];
 							break;
 							case 0xdfeb:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[487];
 							break;
 							case 0xdfa8:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[559];
 							break;
 							case 0xdfa4:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[475];
 							break;
 							case 0xdf93:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[463];
 							break;
 							case 0xdf73:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[451];
 							break;
 							case 0xdf3e:
-								if (outLength) *outLength = 7;
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
 								return &Items[439];
 							break;
 							}
 						break;
 						case 0x2708:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[583];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[583];
 						break;
 						case 0x2696:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[607];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[607];
 						break;
 						case 0x2695:
-							if ((ch + 6)->unicode() == 0xfe0f) {
-								if (outLength) *outLength = 7;
-								return &Items[427];
-							}
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[427];
 						break;
 						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[319];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end) switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xd83d:
-					switch ((ch + 4)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end) switch (ch->unicode()) {
 					case 0xde92:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[570];
 					break;
 					case 0xde80:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[594];
 					break;
 					case 0xdd2c:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[546];
 					break;
 					case 0xdd27:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[534];
 					break;
 					case 0xdcbc:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[522];
 					break;
 					case 0xdcbb:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[510];
 					break;
 					case 0xdc69:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-							switch ((ch + 7)->unicode()) {
-							case 0xdc67:
-								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d) {
-									switch ((ch + 10)->unicode()) {
-									case 0xdc67:
-										if (outLength) *outLength = 11;
-										return &Items[849];
-									break;
-									case 0xdc66:
-										if (outLength) *outLength = 11;
-										return &Items[847];
-									break;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end) switch (ch->unicode()) {
+								case 0xdc67:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0x200d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xd83d) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (ch != end) switch (ch->unicode()) {
+											case 0xdc67:
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[849];
+											break;
+											case 0xdc66:
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[847];
+											break;
+											}
+										}
 									}
+									if (outLength) *outLength = (ch - start);
+									return &Items[846];
+								break;
+								case 0xdc66:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0x200d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xd83d) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (ch != end && ch->unicode() == 0xdc66) {
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[848];
+											}
+										}
+									}
+								break;
 								}
-								if (outLength) *outLength = 8;
-								return &Items[846];
-							break;
-							case 0xdc66:
-								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc66) {
-									if (outLength) *outLength = 11;
-									return &Items[848];
-								}
-							break;
 							}
 						}
 					break;
 					case 0xdc68:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-							switch ((ch + 7)->unicode()) {
-							case 0xdc67:
-								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d) {
-									switch ((ch + 10)->unicode()) {
-									case 0xdc67:
-										if (outLength) *outLength = 11;
-										return &Items[859];
-									break;
-									case 0xdc66:
-										if (outLength) *outLength = 11;
-										return &Items[857];
-									break;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end) switch (ch->unicode()) {
+								case 0xdc67:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0x200d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xd83d) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (ch != end) switch (ch->unicode()) {
+											case 0xdc67:
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[859];
+											break;
+											case 0xdc66:
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[857];
+											break;
+											}
+										}
 									}
+									if (outLength) *outLength = (ch - start);
+									return &Items[856];
+								break;
+								case 0xdc66:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0x200d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xd83d) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (ch != end && ch->unicode() == 0xdc66) {
+												if (++ch != end && ch->unicode() == kPostfix) ++ch;
+												if (outLength) *outLength = (ch - start);
+												return &Items[858];
+											}
+										}
+									}
+									if (outLength) *outLength = (ch - start);
+									return &Items[855];
+								break;
 								}
-								if (outLength) *outLength = 8;
-								return &Items[856];
-							break;
-							case 0xdc66:
-								if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc66) {
-									if (outLength) *outLength = 11;
-									return &Items[858];
-								}
-								if (outLength) *outLength = 8;
-								return &Items[855];
-							break;
 							}
 						}
 					break;
 					case 0xdc67:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-							switch ((ch + 7)->unicode()) {
-							case 0xdc67:
-								if (outLength) *outLength = 8;
-								return &Items[869];
-							break;
-							case 0xdc66:
-								if (outLength) *outLength = 8;
-								return &Items[867];
-							break;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end) switch (ch->unicode()) {
+								case 0xdc67:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
+									return &Items[869];
+								break;
+								case 0xdc66:
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
+									return &Items[867];
+								break;
+								}
 							}
 						}
-						if (outLength) *outLength = 5;
+						if (outLength) *outLength = (ch - start);
 						return &Items[866];
 					break;
 					case 0xdc66:
-						if (ch + 7 < end && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d && (ch + 7)->unicode() == 0xdc66) {
-							if (outLength) *outLength = 8;
-							return &Items[868];
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x200d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end && ch->unicode() == 0xd83d) {
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end && ch->unicode() == 0xdc66) {
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (outLength) *outLength = (ch - start);
+									return &Items[868];
+								}
+							}
 						}
-						if (outLength) *outLength = 5;
+						if (outLength) *outLength = (ch - start);
 						return &Items[865];
 					break;
 					}
 				break;
 				case 0xd83c:
-					switch ((ch + 4)->unicode()) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end) switch (ch->unicode()) {
 					case 0xdfed:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[498];
 					break;
 					case 0xdfeb:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[486];
 					break;
 					case 0xdfa8:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[558];
 					break;
 					case 0xdfa4:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[474];
 					break;
 					case 0xdf93:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[462];
 					break;
 					case 0xdf73:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[450];
 					break;
 					case 0xdf3e:
-						if (outLength) *outLength = 5;
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
 						return &Items[438];
 					break;
 					}
 				break;
 				case 0x2764:
-					if (ch + 7 < end && (ch + 4)->unicode() == 0xfe0f && (ch + 5)->unicode() == 0x200d && (ch + 6)->unicode() == 0xd83d) {
-						switch ((ch + 7)->unicode()) {
-						case 0xdc8b:
-							if (ch + 10 < end && (ch + 8)->unicode() == 0x200d && (ch + 9)->unicode() == 0xd83d && (ch + 10)->unicode() == 0xdc68) {
-								if (outLength) *outLength = 11;
-								return &Items[844];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0xd83d) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (ch != end) switch (ch->unicode()) {
+							case 0xdc8b:
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (ch != end && ch->unicode() == 0x200d) {
+									if (++ch != end && ch->unicode() == kPostfix) ++ch;
+									if (ch != end && ch->unicode() == 0xd83d) {
+										if (++ch != end && ch->unicode() == kPostfix) ++ch;
+										if (ch != end && ch->unicode() == 0xdc68) {
+											if (++ch != end && ch->unicode() == kPostfix) ++ch;
+											if (outLength) *outLength = (ch - start);
+											return &Items[844];
+										}
+									}
+								}
+							break;
+							case 0xdc68:
+								if (++ch != end && ch->unicode() == kPostfix) ++ch;
+								if (outLength) *outLength = (ch - start);
+								return &Items[841];
+							break;
 							}
-						break;
-						case 0xdc68:
-							if (outLength) *outLength = 8;
-							return &Items[841];
-						break;
 						}
 					}
 				break;
 				case 0x2708:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[582];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[582];
 				break;
 				case 0x2696:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[606];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[606];
 				break;
 				case 0x2695:
-					if ((ch + 4)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 5;
-						return &Items[426];
-					}
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[426];
 				break;
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[318];
 		break;
 		case 0xdc67:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[317];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[316];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[315];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[314];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[313];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[312];
 		break;
 		case 0xdc66:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[311];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[310];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[309];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[308];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[307];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[306];
 		break;
 		case 0xdc65:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[299];
 		break;
 		case 0xdc64:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[298];
 		break;
 		case 0xdc63:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[294];
 		break;
 		case 0xdc62:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[879];
 		break;
 		case 0xdc61:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[878];
 		break;
 		case 0xdc60:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[877];
 		break;
 		case 0xdc5f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[881];
 		break;
 		case 0xdc5e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[880];
 		break;
 		case 0xdc5d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[888];
 		break;
 		case 0xdc5c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[890];
 		break;
 		case 0xdc5b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[889];
 		break;
 		case 0xdc5a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[870];
 		break;
 		case 0xdc59:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[875];
 		break;
 		case 0xdc58:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[876];
 		break;
 		case 0xdc57:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[874];
 		break;
 		case 0xdc56:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[872];
 		break;
 		case 0xdc55:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[871];
 		break;
 		case 0xdc54:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[873];
 		break;
 		case 0xdc53:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[892];
 		break;
 		case 0xdc52:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[882];
 		break;
 		case 0xdc51:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[885];
 		break;
 		case 0xdc50:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[101];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[100];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[99];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[98];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[97];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[96];
 		break;
 		case 0xdc4f:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[113];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[112];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[111];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[110];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[109];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[108];
 		break;
 		case 0xdc4e:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[132];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[131];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[130];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[129];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[128];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[127];
 		break;
 		case 0xdc4d:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[126];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[125];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[124];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[123];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[122];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[121];
 		break;
 		case 0xdc4c:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[180];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[179];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[178];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[177];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[176];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[175];
 		break;
 		case 0xdc4b:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[240];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[239];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[238];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[237];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[236];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[235];
 		break;
 		case 0xdc4a:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[138];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[137];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[136];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[135];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[134];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[133];
 		break;
 		case 0xdc49:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[192];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[191];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[190];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[189];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[188];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[187];
 		break;
 		case 0xdc48:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[186];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[185];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[184];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[183];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[182];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[181];
 		break;
 		case 0xdc47:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[204];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[203];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[202];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[201];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[200];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[199];
 		break;
 		case 0xdc46:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[198];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[197];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[196];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[195];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[194];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[193];
 		break;
 		case 0xdc45:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[281];
 		break;
 		case 0xdc44:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[280];
 		break;
 		case 0xdc43:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[293];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[292];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[291];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[290];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[289];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[288];
 		break;
 		case 0xdc42:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[287];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[286];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[285];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[284];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[283];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[282];
 		break;
 		case 0xdc41:
-			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d && (ch + 3)->unicode() == 0xd83d && (ch + 4)->unicode() == 0xdde8) {
-				if (outLength) *outLength = 5;
-				return &Items[1879];
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0x200d) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0xd83d) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0xdde8) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1879];
+					}
+				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[295];
 		break;
 		case 0xdc40:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[296];
 		break;
 		case 0xdc3f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[980];
 		break;
 		case 0xdc3e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[981];
 		break;
 		case 0xdc3d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[909];
 		break;
 		case 0xdc3c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[903];
 		break;
 		case 0xdc3b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[902];
 		break;
 		case 0xdc3a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[926];
 		break;
 		case 0xdc39:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[899];
 		break;
 		case 0xdc38:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[910];
 		break;
 		case 0xdc37:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[908];
 		break;
 		case 0xdc36:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[896];
 		break;
 		case 0xdc35:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[911];
 		break;
 		case 0xdc34:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[928];
 		break;
 		case 0xdc33:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[952];
 		break;
 		case 0xdc32:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[983];
 		break;
 		case 0xdc31:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[897];
 		break;
 		case 0xdc30:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[900];
 		break;
 		case 0xdc2f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[905];
 		break;
 		case 0xdc2e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[907];
 		break;
 		case 0xdc2d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[898];
 		break;
 		case 0xdc2c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[950];
 		break;
 		case 0xdc2b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[962];
 		break;
 		case 0xdc2a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[961];
 		break;
 		case 0xdc29:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[972];
 		break;
 		case 0xdc28:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[904];
 		break;
 		case 0xdc27:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[917];
 		break;
 		case 0xdc26:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[918];
 		break;
 		case 0xdc25:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[921];
 		break;
 		case 0xdc24:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[919];
 		break;
 		case 0xdc23:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[920];
 		break;
 		case 0xdc22:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[939];
 		break;
 		case 0xdc21:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[949];
 		break;
 		case 0xdc20:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[947];
 		break;
 		case 0xdc1f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[948];
 		break;
 		case 0xdc1e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[935];
 		break;
 		case 0xdc1d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[930];
 		break;
 		case 0xdc1c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[936];
 		break;
 		case 0xdc1b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[931];
 		break;
 		case 0xdc1a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[934];
 		break;
 		case 0xdc19:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[945];
 		break;
 		case 0xdc18:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[963];
 		break;
 		case 0xdc17:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[927];
 		break;
 		case 0xdc16:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[967];
 		break;
 		case 0xdc15:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[971];
 		break;
 		case 0xdc14:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[916];
 		break;
 		case 0xdc13:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[974];
 		break;
 		case 0xdc12:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[915];
 		break;
 		case 0xdc11:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[970];
 		break;
 		case 0xdc10:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[968];
 		break;
 		case 0xdc0f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[969];
 		break;
 		case 0xdc0e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[966];
 		break;
 		case 0xdc0d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[940];
 		break;
 		case 0xdc0c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[933];
 		break;
 		case 0xdc0b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[953];
 		break;
 		case 0xdc0a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[954];
 		break;
 		case 0xdc09:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[982];
 		break;
 		case 0xdc08:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[973];
 		break;
 		case 0xdc07:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[977];
 		break;
 		case 0xdc06:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[955];
 		break;
 		case 0xdc05:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[956];
 		break;
 		case 0xdc04:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[959];
 		break;
 		case 0xdc03:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[957];
 		break;
 		case 0xdc02:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[958];
 		break;
 		case 0xdc01:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[978];
 		break;
 		case 0xdc00:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[979];
 		break;
 		}
 	break;
 	case 0xd83c:
-		if (ch + 1 != end) switch ((ch + 1)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0xdffa:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1536];
 		break;
 		case 0xdff9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1156];
 		break;
 		case 0xdff8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1150];
 		break;
 		case 0xdff7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1584];
 		break;
 		case 0xdff5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1312];
 		break;
 		case 0xdff4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1915];
 		break;
 		case 0xdff3:
-			if (ch + 5 < end && (ch + 2)->unicode() == 0xfe0f && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0xd83c && (ch + 5)->unicode() == 0xdf08) {
-				if (outLength) *outLength = 6;
-				return &Items[1918];
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0x200d) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0xd83c) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0xdf08) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1918];
+					}
+				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1914];
 		break;
 		case 0xdff0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1409];
 		break;
 		case 0xdfef:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1410];
 		break;
 		case 0xdfee:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1574];
 		break;
 		case 0xdfed:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1428];
 		break;
 		case 0xdfec:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1434];
 		break;
 		case 0xdfeb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1441];
 		break;
 		case 0xdfea:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1440];
 		break;
 		case 0xdfe9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1442];
 		break;
 		case 0xdfe8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1439];
 		break;
 		case 0xdfe7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1753];
 		break;
 		case 0xdfe6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1438];
 		break;
 		case 0xdfe5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1437];
 		break;
 		case 0xdfe4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1436];
 		break;
 		case 0xdfe3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1435];
 		break;
 		case 0xdfe2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1433];
 		break;
 		case 0xdfe1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1430];
 		break;
 		case 0xdfe0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1429];
 		break;
 		case 0xdfdf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1411];
 		break;
 		case 0xdfde:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1452];
 		break;
 		case 0xdfdd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1417];
 		break;
 		case 0xdfdc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1422];
 		break;
 		case 0xdfdb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1444];
 		break;
 		case 0xdfda:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1432];
 		break;
 		case 0xdfd9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1460];
 		break;
 		case 0xdfd8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1431];
 		break;
 		case 0xdfd7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1427];
 		break;
 		case 0xdfd6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1416];
 		break;
 		case 0xdfd5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1423];
 		break;
 		case 0xdfd4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1419];
 		break;
 		case 0xdfd3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1149];
 		break;
 		case 0xdfd2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1152];
 		break;
 		case 0xdfd1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1153];
 		break;
 		case 0xdfd0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1146];
 		break;
 		case 0xdfcf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1154];
 		break;
 		case 0xdfce:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1351];
 		break;
 		case 0xdfcd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1362];
 		break;
 		case 0xdfcc:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
-			case 0xfe0f:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1215];
-				}
-			break;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1220];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1220];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1226];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1219];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1219];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1225];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1218];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1218];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1224];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1217];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1217];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1223];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1216];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1216];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1222];
 				break;
 				}
 			break;
+			case 0x200d:
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1215];
+				}
+			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1221];
 		break;
 		case 0xdfcb:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
-			case 0xfe0f:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1164];
-				}
-			break;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1169];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1169];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1175];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1168];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1168];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1174];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1167];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1167];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1173];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1166];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1166];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1172];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1165];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1165];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1171];
 				break;
 				}
 			break;
+			case 0x200d:
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[1164];
+				}
+			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1170];
 		break;
 		case 0xdfca:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1244];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1244];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1250];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1243];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1243];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1249];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1242];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1242];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1248];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1241];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1241];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1247];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1240];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1240];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1246];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1239];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1245];
 		break;
 		case 0xdfc9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1147];
 		break;
 		case 0xdfc8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1143];
 		break;
 		case 0xdfc7:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1280];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1279];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1278];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1277];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1276];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1275];
 		break;
 		case 0xdfc6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1311];
 		break;
 		case 0xdfc5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1306];
 		break;
 		case 0xdfc4:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1232];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1232];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1238];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1231];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1231];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1237];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1230];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1230];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1236];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1229];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1229];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1235];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[1228];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[1228];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1234];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1227];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1233];
 		break;
 		case 0xdfc3:
-			if (ch + 3 < end) switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xd83c:
-				switch ((ch + 3)->unicode()) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[829];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[829];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[835];
 				break;
 				case 0xdffe:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[828];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[828];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[834];
 				break;
 				case 0xdffd:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[827];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[827];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[833];
 				break;
 				case 0xdffc:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[826];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[826];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[832];
 				break;
 				case 0xdffb:
-					if (ch + 6 < end && (ch + 4)->unicode() == 0x200d && (ch + 5)->unicode() == 0x2640 && (ch + 6)->unicode() == 0xfe0f) {
-						if (outLength) *outLength = 7;
-						return &Items[825];
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x200d) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (ch != end && ch->unicode() == 0x2640) {
+							if (++ch != end && ch->unicode() == kPostfix) ++ch;
+							if (outLength) *outLength = (ch - start);
+							return &Items[825];
+						}
 					}
-					if (outLength) *outLength = 4;
+					if (outLength) *outLength = (ch - start);
 					return &Items[831];
 				break;
 				}
 			break;
 			case 0x200d:
-				if (ch + 4 < end && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 5;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x2640) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[824];
 				}
 			break;
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[830];
 		break;
 		case 0xdfc2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1163];
 		break;
 		case 0xdfc1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1916];
 		break;
 		case 0xdfc0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1142];
 		break;
 		case 0xdfbf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1161];
 		break;
 		case 0xdfbe:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1145];
 		break;
 		case 0xdfbd:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1305];
 		break;
 		case 0xdfbc:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1334];
 		break;
 		case 0xdfbb:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1340];
 		break;
 		case 0xdfba:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1338];
 		break;
 		case 0xdfb9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1335];
 		break;
 		case 0xdfb8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1339];
 		break;
 		case 0xdfb7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1337];
 		break;
 		case 0xdfb6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1830];
 		break;
 		case 0xdfb5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1829];
 		break;
 		case 0xdfb4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1888];
 		break;
 		case 0xdfb3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1343];
 		break;
 		case 0xdfb2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1341];
 		break;
 		case 0xdfb1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1148];
 		break;
 		case 0xdfb0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1345];
 		break;
 		case 0xdfaf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1342];
 		break;
 		case 0xdfae:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1344];
 		break;
 		case 0xdfad:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1329];
 		break;
 		case 0xdfac:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1331];
 		break;
 		case 0xdfab:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1314];
 		break;
 		case 0xdfaa:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1316];
 		break;
 		case 0xdfa9:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[883];
 		break;
 		case 0xdfa8:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1330];
 		break;
 		case 0xdfa7:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1333];
 		break;
 		case 0xdfa6:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1768];
 		break;
 		case 0xdfa5:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1484];
 		break;
 		case 0xdfa4:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1332];
 		break;
 		case 0xdfa3:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1157];
 		break;
 		case 0xdfa2:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1413];
 		break;
 		case 0xdfa1:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1412];
 		break;
 		case 0xdfa0:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1414];
 		break;
 		case 0xdf9f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1315];
 		break;
 		case 0xdf9e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1486];
 		break;
 		case 0xdf9b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1495];
 		break;
 		case 0xdf9a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1494];
 		break;
 		case 0xdf99:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1493];
 		break;
 		case 0xdf97:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1313];
 		break;
 		case 0xdf96:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1307];
 		break;
 		case 0xdf93:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[884];
 		break;
 		case 0xdf92:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[887];
 		break;
 		case 0xdf91:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1451];
 		break;
 		case 0xdf90:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1575];
 		break;
 		case 0xdf8f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1569];
 		break;
 		case 0xdf8e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1573];
 		break;
 		case 0xdf8d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[993];
 		break;
 		case 0xdf8c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[2031];
 		break;
 		case 0xdf8b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[994];
 		break;
 		case 0xdf8a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1571];
 		break;
 		case 0xdf89:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1572];
 		break;
 		case 0xdf88:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1568];
 		break;
 		case 0xdf87:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1456];
 		break;
 		case 0xdf86:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1457];
 		break;
 		case 0xdf85:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xdfff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[623];
 				break;
 				case 0xdffe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[622];
 				break;
 				case 0xdffd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[621];
 				break;
 				case 0xdffc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[620];
 				break;
 				case 0xdffb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[619];
 				break;
 				}
 			}
-			if (outLength) *outLength = 2;
+			if (outLength) *outLength = (ch - start);
 			return &Items[618];
 		break;
 		case 0xdf84:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[985];
 		break;
 		case 0xdf83:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[86];
 		break;
 		case 0xdf82:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1117];
 		break;
 		case 0xdf81:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1567];
 		break;
 		case 0xdf80:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1570];
 		break;
 		case 0xdf7f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1122];
 		break;
 		case 0xdf7e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1137];
 		break;
 		case 0xdf7d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1140];
 		break;
 		case 0xdf7c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1126];
 		break;
 		case 0xdf7b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1131];
 		break;
 		case 0xdf7a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1130];
 		break;
 		case 0xdf79:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1136];
 		break;
 		case 0xdf78:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1135];
 		break;
 		case 0xdf77:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1133];
 		break;
 		case 0xdf76:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1129];
 		break;
 		case 0xdf75:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1128];
 		break;
 		case 0xdf74:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1139];
 		break;
 		case 0xdf73:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1086];
 		break;
 		case 0xdf72:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1103];
 		break;
 		case 0xdf71:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1106];
 		break;
 		case 0xdf70:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1116];
 		break;
 		case 0xdf6f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1080];
 		break;
 		case 0xdf6e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1118];
 		break;
 		case 0xdf6d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1119];
 		break;
 		case 0xdf6c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1120];
 		break;
 		case 0xdf6b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1121];
 		break;
 		case 0xdf6a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1124];
 		break;
 		case 0xdf69:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1123];
 		break;
 		case 0xdf68:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1114];
 		break;
 		case 0xdf67:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1113];
 		break;
 		case 0xdf66:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1115];
 		break;
 		case 0xdf65:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1104];
 		break;
 		case 0xdf64:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1089];
 		break;
 		case 0xdf63:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1105];
 		break;
 		case 0xdf62:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1111];
 		break;
 		case 0xdf61:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1112];
 		break;
 		case 0xdf60:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1077];
 		break;
 		case 0xdf5f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1095];
 		break;
 		case 0xdf5e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1082];
 		break;
 		case 0xdf5d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1101];
 		break;
 		case 0xdf5c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1102];
 		break;
 		case 0xdf5b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1107];
 		break;
 		case 0xdf5a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1109];
 		break;
 		case 0xdf59:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1108];
 		break;
 		case 0xdf58:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1110];
 		break;
 		case 0xdf57:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1090];
 		break;
 		case 0xdf56:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1091];
 		break;
 		case 0xdf55:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1092];
 		break;
 		case 0xdf54:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1094];
 		break;
 		case 0xdf53:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1063];
 		break;
 		case 0xdf52:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1065];
 		break;
 		case 0xdf51:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1066];
 		break;
 		case 0xdf50:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1057];
 		break;
 		case 0xdf4f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1055];
 		break;
 		case 0xdf4e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1056];
 		break;
 		case 0xdf4d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1067];
 		break;
 		case 0xdf4c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1060];
 		break;
 		case 0xdf4b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1059];
 		break;
 		case 0xdf4a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1058];
 		break;
 		case 0xdf49:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1061];
 		break;
 		case 0xdf48:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1064];
 		break;
 		case 0xdf47:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1062];
 		break;
 		case 0xdf46:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1071];
 		break;
 		case 0xdf45:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1070];
 		break;
 		case 0xdf44:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[998];
 		break;
 		case 0xdf43:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[995];
 		break;
 		case 0xdf42:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[996];
 		break;
 		case 0xdf41:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[997];
 		break;
 		case 0xdf40:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[992];
 		break;
 		case 0xdf3f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[990];
 		break;
 		case 0xdf3e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[999];
 		break;
 		case 0xdf3d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1074];
 		break;
 		case 0xdf3c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1005];
 		break;
 		case 0xdf3b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1004];
 		break;
 		case 0xdf3a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1007];
 		break;
 		case 0xdf39:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1002];
 		break;
 		case 0xdf38:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1006];
 		break;
 		case 0xdf37:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1001];
 		break;
 		case 0xdf36:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1075];
 		break;
 		case 0xdf35:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[984];
 		break;
 		case 0xdf34:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[988];
 		break;
 		case 0xdf33:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[987];
 		break;
 		case 0xdf32:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[986];
 		break;
 		case 0xdf31:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[989];
 		break;
 		case 0xdf30:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1078];
 		break;
 		case 0xdf2f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1098];
 		break;
 		case 0xdf2e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1097];
 		break;
 		case 0xdf2d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1093];
 		break;
 		case 0xdf2c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1047];
 		break;
 		case 0xdf2b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1050];
 		break;
 		case 0xdf2a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1049];
 		break;
 		case 0xdf29:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1042];
 		break;
 		case 0xdf28:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1043];
 		break;
 		case 0xdf27:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1040];
 		break;
 		case 0xdf26:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1037];
 		break;
 		case 0xdf25:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1036];
 		break;
 		case 0xdf24:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1034];
 		break;
 		case 0xdf21:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1546];
 		break;
 		case 0xdf20:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1455];
 		break;
 		case 0xdf1f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1027];
 		break;
 		case 0xdf1e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1021];
 		break;
 		case 0xdf1d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1020];
 		break;
 		case 0xdf1c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1023];
 		break;
 		case 0xdf1b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1022];
 		break;
 		case 0xdf1a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1019];
 		break;
 		case 0xdf19:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1024];
 		break;
 		case 0xdf18:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1014];
 		break;
 		case 0xdf17:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1013];
 		break;
 		case 0xdf16:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1012];
 		break;
 		case 0xdf15:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1011];
 		break;
 		case 0xdf14:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1018];
 		break;
 		case 0xdf13:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1017];
 		break;
 		case 0xdf12:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1016];
 		break;
 		case 0xdf11:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1015];
 		break;
 		case 0xdf10:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1748];
 		break;
 		case 0xdf0f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1010];
 		break;
 		case 0xdf0e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1008];
 		break;
 		case 0xdf0d:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1009];
 		break;
 		case 0xdf0c:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1462];
 		break;
 		case 0xdf0b:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1421];
 		break;
 		case 0xdf0a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1051];
 		break;
 		case 0xdf09:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1463];
 		break;
 		case 0xdf08:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1038];
 		break;
 		case 0xdf07:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1458];
 		break;
 		case 0xdf06:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1459];
 		break;
 		case 0xdf05:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1453];
 		break;
 		case 0xdf04:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1454];
 		break;
 		case 0xdf03:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1461];
 		break;
 		case 0xdf02:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[894];
 		break;
 		case 0xdf01:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1464];
 		break;
 		case 0xdf00:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1751];
 		break;
 		case 0xde51:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1685];
 		break;
 		case 0xde50:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1698];
 		break;
 		case 0xde3a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1693];
 		break;
 		case 0xde39:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1703];
 		break;
 		case 0xde38:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1692];
 		break;
 		case 0xde37:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1694];
 		break;
 		case 0xde36:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1690];
 		break;
 		case 0xde35:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1702];
 		break;
 		case 0xde34:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1701];
 		break;
 		case 0xde33:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1757];
 		break;
 		case 0xde32:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1704];
 		break;
 		case 0xde2f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1743];
 		break;
 		case 0xde1a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1691];
 		break;
 		case 0xde02:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1758];
 		break;
 		case 0xde01:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1770];
 		break;
 		case 0xddff:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2166];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2165];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2119];
 				break;
 				}
 			}
 		break;
 		case 0xddfe:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2061];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2164];
 				break;
 				}
 			}
 		break;
 		case 0xddfd:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c && (ch + 3)->unicode() == 0xddf0) {
-				if (outLength) *outLength = 4;
-				return &Items[2037];
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0xddf0) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[2037];
+				}
 			}
 		break;
 		case 0xddfc:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2104];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2162];
 				break;
 				}
 			}
 		break;
 		case 0xddfb:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2158];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2161];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2150];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1950];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2160];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2129];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2159];
 				break;
 				}
 			}
 		break;
 		case 0xddfa:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2157];
 				break;
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2156];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2155];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2151];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2152];
 				break;
 				}
 			}
 		break;
 		case 0xddf9:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2138];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2136];
 				break;
 				case 0xddfb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2149];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2144];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2146];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2143];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2145];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2147];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2140];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2142];
 				break;
 				case 0xddef:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2137];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2139];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2141];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1999];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1963];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2148];
 				break;
 				}
 			}
 		break;
 		case 0xddf8:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2132];
 				break;
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2135];
 				break;
 				case 0xddfd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2113];
 				break;
 				case 0xddfb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1986];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2106];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2121];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2131];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2118];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2108];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2105];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2111];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2114];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2115];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2125];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2112];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2133];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2130];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2110];
 				break;
 				case 0xdde7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2117];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2107];
 				break;
 				}
 			}
 		break;
 		case 0xddf7:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2103];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2102];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2109];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2101];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2100];
 				break;
 				}
 			}
 		break;
 		case 0xddf6:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c && (ch + 3)->unicode() == 0xdde6) {
-				if (outLength) *outLength = 4;
-				return &Items[2099];
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0xdde6) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[2099];
+				}
 			}
 		break;
 		case 0xddf5:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2092];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2088];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2097];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2089];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2098];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2095];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2128];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2096];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2087];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2094];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2091];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1998];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2093];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2090];
 				break;
 				}
 			}
 		break;
 		case 0xddf4:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c && (ch + 3)->unicode() == 0xddf2) {
-				if (outLength) *outLength = 4;
-				return &Items[2086];
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0xddf2) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
+					return &Items[2086];
+				}
 			}
 		break;
 		case 0xddf3:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2077];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2081];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2073];
 				break;
 				case 0xddf5:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2074];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2085];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2075];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2078];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2080];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2082];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2079];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2076];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2072];
 				break;
 				}
 			}
 		break;
 		case 0xddf2:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2070];
 				break;
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2053];
 				break;
 				case 0xddfd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2062];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2052];
 				break;
 				case 0xddfb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2054];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2060];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2056];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2068];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2059];
 				break;
 				case 0xddf6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2058];
 				break;
 				case 0xddf5:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2084];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2049];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2066];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2071];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2055];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2050];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2057];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2051];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2067];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2064];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2065];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2069];
 				break;
 				}
 			}
 		break;
 		case 0xddf1:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2045];
 				break;
 				case 0xddfb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2041];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2048];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2047];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2043];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2044];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2123];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2046];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2127];
 				break;
 				case 0xdde7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2042];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2040];
 				break;
 				}
 			}
 		break;
 		case 0xddf0:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2034];
 				break;
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1961];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2038];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2120];
 				break;
 				case 0xddf5:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2083];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2126];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1969];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2036];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1955];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2039];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2035];
 				break;
 				}
 			}
 		break;
 		case 0xddef:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddf5:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2030];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2033];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2029];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2032];
 				break;
 				}
 			}
 		break;
 		case 0xddee:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2028];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2020];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2023];
 				break;
 				case 0xddf6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2024];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1949];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2021];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2026];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2027];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2025];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2022];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1958];
 				break;
 				}
 			}
 		break;
 		case 0xdded:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2019];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2016];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1975];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2017];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2018];
 				break;
 				}
 			}
 		break;
 		case 0xddec:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2015];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2014];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2010];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2011];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2116];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2006];
 				break;
 				case 0xddf6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1987];
 				break;
 				case 0xddf5:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2009];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2013];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2001];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2007];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2005];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2004];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2012];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1997];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2002];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2008];
 				break;
 				case 0xdde7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2154];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2000];
 				break;
 				}
 			}
 		break;
 		case 0xddeb:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1996];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1993];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2063];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1992];
 				break;
 				case 0xddef:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1994];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1995];
 				break;
 				}
 			}
 		break;
 		case 0xddea:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1991];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1990];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2122];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1988];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2163];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1985];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1989];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1984];
 				break;
 				}
 			}
 		break;
 		case 0xdde9:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1922];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1983];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1982];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1980];
 				break;
 				case 0xddef:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1981];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2003];
 				break;
 				}
 			}
 		break;
 		case 0xdde8:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1979];
 				break;
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1978];
 				break;
 				case 0xddfd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1966];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1977];
 				break;
 				case 0xddfb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1959];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1976];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1973];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1968];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1965];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1956];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1964];
 				break;
 				case 0xddf0:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1972];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1974];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2134];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1970];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1962];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1971];
 				break;
 				case 0xdde8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1967];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1957];
 				break;
 				}
 			}
 		break;
 		case 0xdde7:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1941];
 				break;
 				case 0xddfe:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1939];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1947];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1944];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1935];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1948];
 				break;
 				case 0xddf6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1960];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1945];
 				break;
 				case 0xddf3:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1951];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1943];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2124];
 				break;
 				case 0xddef:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1942];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1954];
 				break;
 				case 0xdded:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1936];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1952];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1953];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1940];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1937];
 				break;
 				case 0xdde7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1938];
 				break;
 				case 0xdde6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1946];
 				break;
 				}
 			}
 		break;
 		case 0xdde6:
-			if (ch + 3 < end && (ch + 2)->unicode() == 0xd83c) {
-				switch ((ch + 3)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0xd83c) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end) switch (ch->unicode()) {
 				case 0xddff:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1934];
 				break;
 				case 0xddfd:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1920];
 				break;
 				case 0xddfc:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1931];
 				break;
 				case 0xddfa:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1932];
 				break;
 				case 0xddf9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1933];
 				break;
 				case 0xddf8:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1923];
 				break;
 				case 0xddf7:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1929];
 				break;
 				case 0xddf6:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1927];
 				break;
 				case 0xddf4:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1925];
 				break;
 				case 0xddf2:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1930];
 				break;
 				case 0xddf1:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1921];
 				break;
 				case 0xddee:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1926];
 				break;
 				case 0xddec:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1928];
 				break;
 				case 0xddeb:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1919];
 				break;
 				case 0xddea:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[2153];
 				break;
 				case 0xdde9:
-					if (outLength) *outLength = 4;
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (outLength) *outLength = (ch - start);
 					return &Items[1924];
 				break;
 				}
 			}
 		break;
 		case 0xdd9a:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1696];
 		break;
 		case 0xdd99:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1778];
 		break;
 		case 0xdd98:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1710];
 		break;
 		case 0xdd97:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1777];
 		break;
 		case 0xdd96:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1776];
 		break;
 		case 0xdd95:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1780];
 		break;
 		case 0xdd94:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1683];
 		break;
 		case 0xdd93:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1781];
 		break;
 		case 0xdd92:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1779];
 		break;
 		case 0xdd91:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1708];
 		break;
 		case 0xdd8e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1707];
 		break;
 		case 0xdd7f:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1756];
 		break;
 		case 0xdd7e:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1709];
 		break;
 		case 0xdd71:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1706];
 		break;
 		case 0xdd70:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1705];
 		break;
 		case 0xdccf:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1887];
 		break;
 		case 0xdc04:
-			if (outLength) *outLength = 2;
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1889];
 		break;
 		}
 	break;
 	case 0x3299:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1699];
 	break;
 	case 0x3297:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1700];
 	break;
 	case 0x303d:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1735];
 	break;
 	case 0x3030:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1840];
 	break;
 	case 0x2b55:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1712];
 	break;
 	case 0x2b50:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1026];
 	break;
 	case 0x2b1c:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1870];
 	break;
 	case 0x2b1b:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1869];
 	break;
 	case 0x2b07:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1813];
 	break;
 	case 0x2b06:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1812];
 	break;
 	case 0x2b05:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1811];
 	break;
 	case 0x2935:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1823];
 	break;
 	case 0x2934:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1822];
 	break;
 	case 0x27bf:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1842];
 	break;
 	case 0x27b0:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1841];
 	break;
 	case 0x27a1:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1810];
 	break;
 	case 0x2797:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1833];
 	break;
 	case 0x2796:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1832];
 	break;
 	case 0x2795:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1831];
 	break;
 	case 0x2764:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1643];
 	break;
 	case 0x2763:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1650];
 	break;
 	case 0x2757:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1727];
 	break;
 	case 0x2755:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1728];
 	break;
 	case 0x2754:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1730];
 	break;
 	case 0x2753:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1729];
 	break;
 	case 0x274e:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1747];
 	break;
 	case 0x274c:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1711];
 	break;
 	case 0x2747:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1745];
 	break;
 	case 0x2744:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1046];
 	break;
 	case 0x2734:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1695];
 	break;
 	case 0x2733:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1746];
 	break;
 	case 0x2728:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1028];
 	break;
 	case 0x2721:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1664];
 	break;
 	case 0x271d:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1660];
 	break;
 	case 0x2716:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1834];
 	break;
 	case 0x2714:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1848];
 	break;
 	case 0x2712:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1632];
 	break;
 	case 0x270f:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1636];
 	break;
 	case 0x270d:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
-			switch ((ch + 2)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0xd83c) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[264];
 			break;
 			case 0xdffe:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[263];
 			break;
 			case 0xdffd:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[262];
 			break;
 			case 0xdffc:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[261];
 			break;
 			case 0xdffb:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[260];
 			break;
 			}
 		}
-		if (outLength) *outLength = 1;
+		if (outLength) *outLength = (ch - start);
 		return &Items[259];
 	break;
 	case 0x270c:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
-			switch ((ch + 2)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0xd83c) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[168];
 			break;
 			case 0xdffe:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[167];
 			break;
 			case 0xdffd:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[166];
 			break;
 			case 0xdffc:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[165];
 			break;
 			case 0xdffb:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[164];
 			break;
 			}
 		}
-		if (outLength) *outLength = 1;
+		if (outLength) *outLength = (ch - start);
 		return &Items[163];
 	break;
 	case 0x270b:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
-			switch ((ch + 2)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0xd83c) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[216];
 			break;
 			case 0xdffe:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[215];
 			break;
 			case 0xdffd:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[214];
 			break;
 			case 0xdffc:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[213];
 			break;
 			case 0xdffb:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[212];
 			break;
 			}
 		}
-		if (outLength) *outLength = 1;
+		if (outLength) *outLength = (ch - start);
 		return &Items[211];
 	break;
 	case 0x270a:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
-			switch ((ch + 2)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0xd83c) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[144];
 			break;
 			case 0xdffe:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[143];
 			break;
 			case 0xdffd:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[142];
 			break;
 			case 0xdffc:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[141];
 			break;
 			case 0xdffb:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[140];
 			break;
 			}
 		}
-		if (outLength) *outLength = 1;
+		if (outLength) *outLength = (ch - start);
 		return &Items[139];
 	break;
 	case 0x2709:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1576];
 	break;
 	case 0x2708:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1385];
 	break;
 	case 0x2705:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1742];
 	break;
 	case 0x2702:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1629];
 	break;
 	case 0x26fd:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1400];
 	break;
 	case 0x26fa:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1424];
 	break;
 	case 0x26f9:
-		if (ch + 2 < end) switch ((ch + 1)->unicode()) {
-		case 0xfe0f:
-			if (ch + 4 < end && (ch + 2)->unicode() == 0x200d && (ch + 3)->unicode() == 0x2640 && (ch + 4)->unicode() == 0xfe0f) {
-				if (outLength) *outLength = 5;
-				return &Items[1191];
-			}
-		break;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end) switch (ch->unicode()) {
 		case 0xd83c:
-			switch ((ch + 2)->unicode()) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1196];
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x200d) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x2640) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1196];
+					}
 				}
-				if (outLength) *outLength = 3;
+				if (outLength) *outLength = (ch - start);
 				return &Items[1202];
 			break;
 			case 0xdffe:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1195];
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x200d) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x2640) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1195];
+					}
 				}
-				if (outLength) *outLength = 3;
+				if (outLength) *outLength = (ch - start);
 				return &Items[1201];
 			break;
 			case 0xdffd:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1194];
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x200d) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x2640) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1194];
+					}
 				}
-				if (outLength) *outLength = 3;
+				if (outLength) *outLength = (ch - start);
 				return &Items[1200];
 			break;
 			case 0xdffc:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1193];
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x200d) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x2640) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1193];
+					}
 				}
-				if (outLength) *outLength = 3;
+				if (outLength) *outLength = (ch - start);
 				return &Items[1199];
 			break;
 			case 0xdffb:
-				if (ch + 5 < end && (ch + 3)->unicode() == 0x200d && (ch + 4)->unicode() == 0x2640 && (ch + 5)->unicode() == 0xfe0f) {
-					if (outLength) *outLength = 6;
-					return &Items[1192];
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (ch != end && ch->unicode() == 0x200d) {
+					if (++ch != end && ch->unicode() == kPostfix) ++ch;
+					if (ch != end && ch->unicode() == 0x2640) {
+						if (++ch != end && ch->unicode() == kPostfix) ++ch;
+						if (outLength) *outLength = (ch - start);
+						return &Items[1192];
+					}
 				}
-				if (outLength) *outLength = 3;
+				if (outLength) *outLength = (ch - start);
 				return &Items[1198];
 			break;
 			}
 		break;
+		case 0x200d:
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end && ch->unicode() == 0x2640) {
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
+				return &Items[1191];
+			}
+		break;
 		}
-		if (outLength) *outLength = 1;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1197];
 	break;
 	case 0x26f8:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1160];
 	break;
 	case 0x26f7:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1162];
 	break;
 	case 0x26f5:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1392];
 	break;
 	case 0x26f4:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1396];
 	break;
 	case 0x26f3:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1155];
 	break;
 	case 0x26f2:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1407];
 	break;
 	case 0x26f1:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1415];
 	break;
 	case 0x26f0:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1418];
 	break;
 	case 0x26ea:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1445];
 	break;
 	case 0x26e9:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1449];
 	break;
 	case 0x26d4:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1714];
 	break;
 	case 0x26d3:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1526];
 	break;
 	case 0x26d1:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[886];
 	break;
 	case 0x26cf:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1523];
 	break;
 	case 0x26ce:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1670];
 	break;
 	case 0x26c8:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1041];
 	break;
 	case 0x26c5:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1035];
 	break;
 	case 0x26c4:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1045];
 	break;
 	case 0x26be:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1144];
 	break;
 	case 0x26bd:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1141];
 	break;
 	case 0x26b1:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1535];
 	break;
 	case 0x26b0:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1534];
 	break;
 	case 0x26ab:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1852];
 	break;
 	case 0x26aa:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1851];
 	break;
 	case 0x26a1:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1029];
 	break;
 	case 0x26a0:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1736];
 	break;
 	case 0x269c:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1739];
 	break;
 	case 0x269b:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1684];
 	break;
 	case 0x2699:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1525];
 	break;
 	case 0x2697:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1540];
 	break;
 	case 0x2696:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1518];
 	break;
 	case 0x2694:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1531];
 	break;
 	case 0x2693:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1398];
 	break;
 	case 0x2692:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1521];
 	break;
 	case 0x267f:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1755];
 	break;
 	case 0x267b:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1741];
 	break;
 	case 0x2668:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1719];
 	break;
 	case 0x2666:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1886];
 	break;
 	case 0x2665:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1885];
 	break;
 	case 0x2663:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1884];
 	break;
 	case 0x2660:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1883];
 	break;
 	case 0x2653:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1682];
 	break;
 	case 0x2652:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1681];
 	break;
 	case 0x2651:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1680];
 	break;
 	case 0x2650:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1679];
 	break;
 	case 0x264f:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1678];
 	break;
 	case 0x264e:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1677];
 	break;
 	case 0x264d:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1676];
 	break;
 	case 0x264c:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1675];
 	break;
 	case 0x264b:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1674];
 	break;
 	case 0x264a:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1673];
 	break;
 	case 0x2649:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1672];
 	break;
 	case 0x2648:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1671];
 	break;
 	case 0x263a:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[8];
 	break;
 	case 0x2639:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[37];
 	break;
 	case 0x2638:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1663];
 	break;
 	case 0x262f:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1667];
 	break;
 	case 0x262e:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1659];
 	break;
 	case 0x262a:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1661];
 	break;
 	case 0x2626:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1668];
 	break;
 	case 0x2623:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1687];
 	break;
 	case 0x2622:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1686];
 	break;
 	case 0x2620:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[82];
 	break;
 	case 0x261d:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xd83c) {
-			switch ((ch + 2)->unicode()) {
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0xd83c) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (ch != end) switch (ch->unicode()) {
 			case 0xdfff:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[210];
 			break;
 			case 0xdffe:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[209];
 			break;
 			case 0xdffd:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[208];
 			break;
 			case 0xdffc:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[207];
 			break;
 			case 0xdffb:
-				if (outLength) *outLength = 3;
+				if (++ch != end && ch->unicode() == kPostfix) ++ch;
+				if (outLength) *outLength = (ch - start);
 				return &Items[206];
 			break;
 			}
 		}
-		if (outLength) *outLength = 1;
+		if (outLength) *outLength = (ch - start);
 		return &Items[205];
 	break;
 	case 0x2618:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[991];
 	break;
 	case 0x2615:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1127];
 	break;
 	case 0x2614:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1054];
 	break;
 	case 0x2611:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1849];
 	break;
 	case 0x260e:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1488];
 	break;
 	case 0x2604:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1032];
 	break;
 	case 0x2603:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1044];
 	break;
 	case 0x2602:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[895];
 	break;
 	case 0x2601:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1039];
 	break;
 	case 0x2600:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1033];
 	break;
 	case 0x25fe:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1865];
 	break;
 	case 0x25fd:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1866];
 	break;
 	case 0x25fc:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1867];
 	break;
 	case 0x25fb:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1868];
 	break;
 	case 0x25c0:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1807];
 	break;
 	case 0x25b6:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1796];
 	break;
 	case 0x25ab:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1864];
 	break;
 	case 0x25aa:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1863];
 	break;
 	case 0x24c2:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1750];
 	break;
 	case 0x23fa:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1800];
 	break;
 	case 0x23f9:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1799];
 	break;
 	case 0x23f8:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1797];
 	break;
 	case 0x23f3:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1501];
 	break;
 	case 0x23f2:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1497];
 	break;
 	case 0x23f1:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1496];
 	break;
 	case 0x23f0:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1498];
 	break;
 	case 0x23ef:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1798];
 	break;
 	case 0x23ee:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1802];
 	break;
 	case 0x23ed:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1801];
 	break;
 	case 0x23ec:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1806];
 	break;
 	case 0x23eb:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1805];
 	break;
 	case 0x23ea:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1804];
 	break;
 	case 0x23e9:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1803];
 	break;
 	case 0x2328:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1469];
 	break;
 	case 0x231b:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1500];
 	break;
 	case 0x231a:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1465];
 	break;
 	case 0x21aa:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1820];
 	break;
 	case 0x21a9:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1821];
 	break;
 	case 0x2199:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1816];
 	break;
 	case 0x2198:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1815];
 	break;
 	case 0x2197:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1814];
 	break;
 	case 0x2196:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1817];
 	break;
 	case 0x2195:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1818];
 	break;
 	case 0x2194:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1819];
 	break;
 	case 0x2139:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1772];
 	break;
 	case 0x2122:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1837];
 	break;
 	case 0x2049:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1732];
 	break;
 	case 0x203c:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1731];
 	break;
 	case 0xae:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1839];
 	break;
 	case 0xa9:
-		if (outLength) *outLength = 1;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (outLength) *outLength = (ch - start);
 		return &Items[1838];
 	break;
 	case 0x39:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1791];
 		}
 	break;
 	case 0x38:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1790];
 		}
 	break;
 	case 0x37:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1789];
 		}
 	break;
 	case 0x36:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1788];
 		}
 	break;
 	case 0x35:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1787];
 		}
 	break;
 	case 0x34:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1786];
 		}
 	break;
 	case 0x33:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1785];
 		}
 	break;
 	case 0x32:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1784];
 		}
 	break;
 	case 0x31:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1783];
 		}
 	break;
 	case 0x30:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1782];
 		}
 	break;
 	case 0x2a:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1795];
 		}
 	break;
 	case 0x23:
-		if (ch + 2 < end && (ch + 1)->unicode() == 0xfe0f && (ch + 2)->unicode() == 0x20e3) {
-			if (outLength) *outLength = 3;
+		if (++ch != end && ch->unicode() == kPostfix) ++ch;
+		if (ch != end && ch->unicode() == 0x20e3) {
+			if (++ch != end && ch->unicode() == kPostfix) ++ch;
+			if (outLength) *outLength = (ch - start);
 			return &Items[1794];
 		}
 	break;
@@ -10635,11 +13485,11 @@ void Init() {
 	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdffe), 6, 10, false, false, &Items[402] });
 	Items.push_back({ internal::ComputeId(0xd83d, 0xdc82, 0xd83c, 0xdfff), 7, 10, false, false, &Items[402] });
 	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 8, 10, false, true, nullptr });
-	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 9, 10, false, false, &Items[408] });
-	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 10, 10, false, false, &Items[408] });
-	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 11, 10, false, false, &Items[408] });
-	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 12, 10, false, false, &Items[408] });
-	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 13, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffb, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 9, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffc, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 10, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffd, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 11, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffe, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 12, 10, false, false, &Items[408] });
+	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdfff, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 13, 10, false, false, &Items[408] });
 	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75), 14, 10, true, true, nullptr });
 	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffb), 15, 10, false, false, &Items[414] });
 	Items.push_back({ internal::ComputeId(0xd83d, 0xdd75, 0xd83c, 0xdffc), 16, 10, false, false, &Items[414] });
@@ -11391,11 +14241,11 @@ void Init() {
 	Items.push_back({ internal::ComputeId(0x26f7), 2, 29, false, false, nullptr });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfc2), 3, 29, false, false, nullptr });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 4, 29, false, true, nullptr });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 5, 29, false, false, &Items[1164] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 6, 29, false, false, &Items[1164] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 7, 29, false, false, &Items[1164] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 8, 29, false, false, &Items[1164] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 9, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffb, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 5, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffc, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 6, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffd, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 7, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffe, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 8, 29, false, false, &Items[1164] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdfff, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 9, 29, false, false, &Items[1164] });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb), 10, 29, true, true, nullptr });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffb), 11, 29, false, false, &Items[1170] });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcb, 0xd83c, 0xdffc), 12, 29, false, false, &Items[1170] });
@@ -11418,11 +14268,11 @@ void Init() {
 	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 29, 29, false, false, &Items[1185] });
 	Items.push_back({ internal::ComputeId(0xd83e, 0xdd38, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 30, 29, false, false, &Items[1185] });
 	Items.push_back({ internal::ComputeId(0x26f9, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 31, 29, false, true, nullptr });
-	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 32, 29, false, false, &Items[1191] });
-	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 33, 29, false, false, &Items[1191] });
-	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 34, 29, false, false, &Items[1191] });
-	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 35, 29, false, false, &Items[1191] });
-	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 36, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffb, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 32, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffc, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 33, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffd, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 34, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffe, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 35, 29, false, false, &Items[1191] });
+	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdfff, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 36, 29, false, false, &Items[1191] });
 	Items.push_back({ internal::ComputeId(0x26f9), 37, 29, true, true, nullptr });
 	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffb), 38, 29, false, false, &Items[1197] });
 	Items.push_back({ internal::ComputeId(0x26f9, 0xd83c, 0xdffc), 39, 29, false, false, &Items[1197] });
@@ -11442,11 +14292,11 @@ void Init() {
 	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdffe, 0x200d, 0x2642, 0xfe0f), 13, 30, false, false, &Items[1209] });
 	Items.push_back({ internal::ComputeId(0xd83e, 0xdd3e, 0xd83c, 0xdfff, 0x200d, 0x2642, 0xfe0f), 14, 30, false, false, &Items[1209] });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 15, 30, false, true, nullptr });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffb, 0x200d, 0x2640, 0xfe0f), 16, 30, false, false, &Items[1215] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffc, 0x200d, 0x2640, 0xfe0f), 17, 30, false, false, &Items[1215] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffd, 0x200d, 0x2640, 0xfe0f), 18, 30, false, false, &Items[1215] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffe, 0x200d, 0x2640, 0xfe0f), 19, 30, false, false, &Items[1215] });
-	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdfff, 0x200d, 0x2640, 0xfe0f), 20, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffb, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 16, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffc, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 17, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffd, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 18, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffe, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 19, 30, false, false, &Items[1215] });
+	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdfff, 0xfe0f, 0x200d, 0x2640, 0xfe0f), 20, 30, false, false, &Items[1215] });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc), 21, 30, true, true, nullptr });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffb), 22, 30, false, false, &Items[1221] });
 	Items.push_back({ internal::ComputeId(0xd83c, 0xdfcc, 0xd83c, 0xdffc), 23, 30, false, false, &Items[1221] });

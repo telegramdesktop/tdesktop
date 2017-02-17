@@ -1760,17 +1760,21 @@ void appendCategory(Data &result, const InputCategory &category, const VariatedI
 				append(bareId, code);
 			}
 		}
-		if (emoji.id.isEmpty()) {
+		if (bareId.isEmpty()) {
 			logDataError() << "empty emoji id found.";
 			result = Data();
 			return;
 		}
-		auto it = result.map.find(emoji.id);
+		auto it = result.map.find(bareId);
 		if (it == result.map.cend()) {
-			it = result.map.insert(make_pair(emoji.id, result.list.size())).first;
+			it = result.map.insert(make_pair(bareId, result.list.size())).first;
 			result.list.push_back(move(emoji));
 		} else if (result.list[it->second].postfixed != emoji.postfixed) {
 			logDataError() << "same emoji found with different postfixed property.";
+			result = Data();
+			return;
+		} else if (result.list[it->second].id != emoji.id) {
+			logDataError() << "same emoji found with different id.";
 			result = Data();
 			return;
 		}
@@ -1778,20 +1782,37 @@ void appendCategory(Data &result, const InputCategory &category, const VariatedI
 			result.list[it->second].variated = true;
 
 			auto baseId = Id();
-			append(baseId, *from++);
-			if (from != to && *from == kPostfix) {
-				++from;
+			if (*from == kPostfix) {
+				logDataError() << "bad first symbol in emoji.";
+				result = Data();
+				return;
 			}
+			append(baseId, *from++);
 			for (auto color : Colors) {
 				auto colored = Emoji();
 				colored.id = baseId;
 				colored.colored = true;
 				append(colored.id, color);
+				auto bareColoredId = colored.id;
 				for (auto i = from; i != to; ++i) {
 					append(colored.id, *i);
+					if (*i != kPostfix) {
+						append(bareColoredId, *i);
+					}
 				}
-				result.map.insert(make_pair(colored.id, result.list.size()));
-				result.list.push_back(move(colored));
+				auto it = result.map.find(bareColoredId);
+				if (it == result.map.cend()) {
+					it = result.map.insert(make_pair(bareColoredId, result.list.size())).first;
+					result.list.push_back(move(colored));
+				} else if (result.list[it->second].postfixed != colored.postfixed) {
+					logDataError() << "same emoji found with different postfixed property.";
+					result = Data();
+					return;
+				} else if (result.list[it->second].id != colored.id) {
+					logDataError() << "same emoji found with different id.";
+					result = Data();
+					return;
+				}
 			}
 		}
 		result.categories.back().push_back(it->second);

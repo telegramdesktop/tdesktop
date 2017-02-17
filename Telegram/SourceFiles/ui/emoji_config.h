@@ -128,21 +128,8 @@ inline EmojiPtr FromUrl(const QString &url) {
 	return nullptr;
 }
 
-inline EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr) {
-	if (ch != end) {
-		if (auto result = internal::Find(ch, end, outLength)) {
-			if (outLength && result->hasPostfix()) {
-				// Try to consume a pending 0xFE0F postfix.
-				// Comment out hasPostfix() check if you want to consume it anyway.
-				auto resultEnd = ch + *outLength;
-				if (resultEnd != end && resultEnd->unicode() == kPostfix) {
-					++*outLength;
-				}
-			}
-			return result;
-		}
-	}
-	return nullptr;
+inline EmojiPtr Find(const QChar *start, const QChar *end, int *outLength = nullptr) {
+	return internal::Find(start, end, outLength);
 }
 
 inline EmojiPtr Find(const QString &text, int *outLength = nullptr) {

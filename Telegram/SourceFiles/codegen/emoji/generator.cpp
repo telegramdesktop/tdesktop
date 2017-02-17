@@ -467,7 +467,9 @@ EmojiPack GetPack(DBIEmojiTab tab) {\n\
 bool Generator::writeFindReplace() {
 	source_->stream() << "\
 \n\
-EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength) {\n";
+EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {\n\
+	auto ch = start;\n\
+\n";
 
 	if (!writeFindFromDictionary(data_.replaces)) {
 		return false;
@@ -482,9 +484,11 @@ EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength) {\n";
 bool Generator::writeFind() {
 	source_->stream() << "\
 \n\
-EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {\n";
+EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {\n\
+	auto ch = start;\n\
+\n";
 
-	if (!writeFindFromDictionary(data_.map)) {
+	if (!writeFindFromDictionary(data_.map, true)) {
 		return false;
 	}
 
@@ -495,70 +499,7 @@ EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength) {\n";
 	return true;
 }
 
-bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary) {
-	// That one was slower..
-	//
-	//using Map = std::map<QString, int, std::greater<QString>>;
-	//Map small; // 0-127
-	//Map medium; // 128-255
-	//Map large; // 256-65535
-	//Map other;  // surrogates
-	//for (auto &item : dictionary) {
-	//	auto key = item.first;
-	//	auto first = key.isEmpty() ? QChar(0) : QChar(key[0]);
-	//	if (!first.unicode() || first.isLowSurrogate() || (first.isHighSurrogate() && (key.size() < 2 || !QChar(key[1]).isLowSurrogate()))) {
-	//		logDataError() << "bad key.";
-	//		return false;
-	//	}
-	//	if (first.isHighSurrogate()) {
-	//		other.insert(item);
-	//	} else if (first.unicode() >= 256) {
-	//		if (first.unicode() >= 0xE000) {
-	//			// Currently if we'll have codes from both below and above the surrogates
-	//			// we'll return nullptr without checking the surrogates, because we first
-	//			// check those codes, applying the min-max range of codes from "large".
-	//			logDataError() << "codes after the surrogates are not supported.";
-	//			return false;
-	//		}
-	//		large.insert(item);
-	//	} else if (first.unicode() >= 128) {
-	//		medium.insert(item);
-	//	} else {
-	//		small.insert(item);
-	//	}
-	//}
-	//auto smallMinCheck = (medium.empty() && large.empty() && other.empty()) ? -1 : 0;
-	//auto smallMaxCheck = (medium.empty() && large.empty() && other.empty()) ? -1 : 128;
-	//if (!writeFindFromOneDictionary(small, smallMinCheck, smallMaxCheck)) {
-	//	return false;
-	//}
-	//auto mediumMinCheck = (large.empty() && other.empty()) ? -1 : 128;
-	//auto mediumMaxCheck = (large.empty() && other.empty()) ? -1 : 256;
-	//if (!writeFindFromOneDictionary(medium, mediumMinCheck, mediumMaxCheck)) {
-	//	return false;
-	//}
-	//if (!writeFindFromOneDictionary(large, other.empty() ? -1 : 0)) {
-	//	return false;
-	//}
-	//if (!writeFindFromOneDictionary(other)) {
-	//	return false;
-	//}
-
-	if (!writeFindFromOneDictionary(dictionary)) {
-		return false;
-	}
-	source_->stream() << "\
-	return nullptr;\n";
-	return true;
-}
-
-// min < 0 - no outer min-max check
-// max < 0 - this is last checked dictionary
-bool Generator::writeFindFromOneDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, int min, int max) {
-	if (dictionary.empty()) {
-		return true;
-	}
-
+bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes) {
 	auto tabs = [](int size) {
 		return QString(size, '\t');
 	};
@@ -572,35 +513,24 @@ bool Generator::writeFindFromOneDictionary(const std::map<QString, int, std::gre
 		uniqueFirstChars[ch] = 0;
 	}
 
-	auto writeBoundsCondition = false;//(uniqueFirstChars.size() > 4);
-	auto haveOuterCondition = false;
-	if (min >= 0 && max > min) {
-		haveOuterCondition = true;
-		source_->stream() << "\
-	if (ch->unicode() >= " << min << " && ch->unicode() < " << max << ") {\n";
-		if (writeBoundsCondition) {
-			source_->stream() << "\
-		if (ch->unicode() < " << foundMin << " || ch->unicode() > " << foundMax << ") {\n\
-			return nullptr;\n\
-		}\n\n";
-		}
-	} else if (writeBoundsCondition) {
-		haveOuterCondition = true;
-		source_->stream() << "\
-	if (ch->unicode() >= " << foundMin << " && ch->unicode() <= " << foundMax << ") {\n";
-	}
 	enum class UsedCheckType {
 		Switch,
 		If,
-		UpcomingIf,
 	};
 	auto checkTypes = QVector<UsedCheckType>();
-	auto existsTill = QVector<int>(1, 1);
 	auto chars = QString();
-	auto tabsUsed = haveOuterCondition ? 2 : 1;
+	auto tabsUsed = 1;
+
+	auto writeSkipPostfix = [this, &tabs, skipPostfixes](int tabsCount) {
+		if (skipPostfixes) {
+			source_->stream() << tabs(tabsCount) << "if (++ch != end && ch->unicode() == kPostfix) ++ch;\n";
+		} else {
+			source_->stream() << tabs(tabsCount) << "++ch;\n";
+		}
+	};
 
 	// Returns true if at least one check was finished.
-	auto finishChecksTillKey = [this, &chars, &checkTypes, &existsTill, &tabsUsed, tabs](const QString &key) {
+	auto finishChecksTillKey = [this, &chars, &checkTypes, &tabsUsed, tabs](const QString &key) {
 		auto result = false;
 		while (!chars.isEmpty() && key.midRef(0, chars.size()) != chars) {
 			result = true;
@@ -615,7 +545,6 @@ bool Generator::writeFindFromOneDictionary(const std::map<QString, int, std::gre
 				}
 				if ((!chars.isEmpty() && key.midRef(0, chars.size()) != chars) || key == chars) {
 					source_->stream() << tabs(tabsUsed) << "}\n";
-					existsTill.pop_back();
 				}
 			}
 		}
@@ -638,32 +567,6 @@ bool Generator::writeFindFromOneDictionary(const std::map<QString, int, std::gre
 		return true;
 	};
 
-	// Get minimal length of key that has first "charIndex" chars same as it
-	// and has at least one more char after them.
-	auto getMinimalLength = [](auto it, auto end, int charIndex) {
-		auto key = it->first;
-		auto result = key.size();
-		auto i = it;
-		auto keyStart = key.mid(0, charIndex);
-		for (++i; i != end; ++i) {
-			auto nextKey = i->first;
-			if (nextKey.mid(0, charIndex) != keyStart || nextKey.size() <= charIndex) {
-				break;
-			}
-			if (result > nextKey.size()) {
-				result = nextKey.size();
-			}
-		}
-		return result;
-	};
-
-	auto getUnicodePointer = [](int index) {
-		if (index > 0) {
-			return "(ch + " + QString::number(index) + ')';
-		}
-		return QString("ch");
-	};
-
 	for (auto i = dictionary.cbegin(), e = dictionary.cend(); i != e; ++i) {
 		auto &item = *i;
 		auto key = item.first;
@@ -671,55 +574,24 @@ bool Generator::writeFindFromOneDictionary(const std::map<QString, int, std::gre
 		while (chars.size() != key.size()) {
 			auto checking = chars.size();
 			auto keyChar = key[checking];
-			auto checkedAlready = (checkTypes.size() > checking);
-			if (!checkedAlready) {
-				auto keyCharString = "0x" + QString::number(keyChar.unicode(), 16);
-				auto usedIfForCheck = false;
-				if (weContinueOldSwitch) {
-					weContinueOldSwitch = false;
-					source_->stream() << tabs(tabsUsed) << "case " << keyCharString << ":\n";
-				} else {
-					auto canCheckByIfCount = 0;
-					for (; checking + canCheckByIfCount != key.size(); ++canCheckByIfCount) {
-						if (!canUseIfForCheck(i, e, checking + canCheckByIfCount)) {
-							break;
-						}
-					}
-
-					auto canCheckTill = getMinimalLength(i, e, checking);
-					auto checkedAlready = !existsTill.isEmpty() && (existsTill.back() == canCheckTill);
-					if (checking + canCheckByIfCount - 1 > canCheckTill
-						|| checking > canCheckTill
-						|| (!existsTill.isEmpty() && existsTill.back() > canCheckTill)) {
-						logDataError() << "something wrong with the algo.";
-						return false;
-					}
-					auto condition = checkedAlready ? QString() : ("ch + " + QString::number(canCheckTill - 1) + " " + (canCheckTill == checking + 1 ? "!=" : "<") + " end");
-					existsTill.push_back(canCheckTill);
-					if (canCheckByIfCount > 0) {
-						auto checkStrings = QStringList();
-						for (auto checkByIf = 0; checkByIf != canCheckByIfCount; ++checkByIf) {
-							checkStrings.push_back(getUnicodePointer(checking + checkByIf) + "->unicode() == 0x" + QString::number(key[checking + checkByIf].unicode(), 16));
-						}
-						if (!condition.isEmpty()) {
-							checkStrings.push_front(condition);
-						}
-						for (auto upcomingChecked = 1; upcomingChecked != canCheckByIfCount; ++upcomingChecked) {
-							checkTypes.push_back(UsedCheckType::UpcomingIf);
-						}
-						source_->stream() << tabs(tabsUsed) << "if (" << checkStrings.join(" && ") << ") {\n";
-						usedIfForCheck = true;
-					} else {
-						source_->stream() << tabs(tabsUsed) << (condition.isEmpty() ? "" : "if (" + condition + ") ") << "switch (" << getUnicodePointer(checking) << "->unicode()) {\n";
-						source_->stream() << tabs(tabsUsed) << "case " << keyCharString << ":\n";
-					}
-				}
-				checkTypes.push_back(usedIfForCheck ? UsedCheckType::If : UsedCheckType::Switch);
-				++tabsUsed;
+			auto keyCharString = "0x" + QString::number(keyChar.unicode(), 16);
+			auto usedIfForCheck = !weContinueOldSwitch && canUseIfForCheck(i, e, checking);
+			if (weContinueOldSwitch) {
+				weContinueOldSwitch = false;
+			} else if (!usedIfForCheck) {
+				source_->stream() << tabs(tabsUsed) << "if (ch != end) switch (ch->unicode()) {\n";
 			}
+			if (usedIfForCheck) {
+				source_->stream() << tabs(tabsUsed) << "if (ch != end && ch->unicode() == " << keyCharString << ") {\n";
+				checkTypes.push_back(UsedCheckType::If);
+			} else {
+				source_->stream() << tabs(tabsUsed) << "case " << keyCharString << ":\n";
+				checkTypes.push_back(UsedCheckType::Switch);
+			}
+			writeSkipPostfix(++tabsUsed);
 			chars.push_back(keyChar);
 		}
-		source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = " << chars.size() << ";\n";
+		source_->stream() << tabs(tabsUsed) << "if (outLength) *outLength = (ch - start);\n";
 
 		// While IsReplaceEdge() currently is always true we just return the value.
 		//source_->stream() << tabs(1 + chars.size()) << "if (ch + " << chars.size() << " == end || IsReplaceEdge(*(ch + " << chars.size() << ")) || (ch + " << chars.size() << ")->unicode() == ' ') {\n";
@@ -729,15 +601,9 @@ bool Generator::writeFindFromOneDictionary(const std::map<QString, int, std::gre
 	}
 	finishChecksTillKey(QString());
 
-	if (min >= 0) { // not the last dictionary
-		source_->stream() << tabs(tabsUsed) << "return nullptr;\n";
-	}
-	if (haveOuterCondition) {
-		source_->stream() << "\
-	}\n";
-	}
-	source_->stream() << "\n";
-
+	source_->stream() << "\
+\n\
+	return nullptr;\n";
 	return true;
 }
 

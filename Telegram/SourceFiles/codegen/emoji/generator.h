@@ -47,11 +47,7 @@ private:
 	bool writePacks();
 	bool writeFindReplace();
 	bool writeFind();
-	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary);
-
-	// min < 0 - this is last checked dictionary
-	// max < 0 - no outer min-max check
-	bool writeFindFromOneDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, int min = -1, int max = -1);
+	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes = false);
 
 	const common::ProjectInfo &project_;
 	int colorsCount_ = 0;
