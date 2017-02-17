@@ -13,16 +13,21 @@ index cb8d78f..cadb3f0 100755
          echo "   Xcode not set up properly. You may need to confirm the license" >&2
          echo "   agreement by running /usr/bin/xcodebuild without arguments." >&2
 diff --git a/mkspecs/common/g++-macx.conf b/mkspecs/common/g++-macx.conf
-index 086510d..ae4f81a 100644
+index 086510d..c485967 100644
 --- a/mkspecs/common/g++-macx.conf
 +++ b/mkspecs/common/g++-macx.conf
-@@ -14,7 +14,8 @@ QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
+@@ -14,7 +14,13 @@ QMAKE_CFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
  QMAKE_CXXFLAGS_RELEASE_WITH_DEBUGINFO += -gdwarf-2
  QMAKE_LFLAGS_RELEASE_WITH_DEBUGINFO += -g -gdwarf-2
  
 -QMAKE_LFLAGS_STATIC_LIB += -all_load
 +# Patch: Don't remember :(
 +#QMAKE_LFLAGS_STATIC_LIB += -all_load
++
++# Patch: Use C++14 with custom libc++ build.
++QMAKE_CXXFLAGS_CXX11 = -std=c++1y
++QMAKE_CXXFLAGS += -nostdinc++ -I/usr/local/macold/include/c++/v1
++QMAKE_LFLAGS += /usr/local/macold/lib/libc++.a /usr/local/macold/lib/libc++abi.a
  
  QMAKE_XCODE_GCC_VERSION = com.apple.compilers.llvmgcc42
  
@@ -238,6 +243,19 @@ index 92358ec..694fee7 100644
  }
  
  - (void)appleEventQuit:(NSAppleEventDescriptor *)event withReplyEvent:(NSAppleEventDescriptor *)replyEvent
+diff --git a/src/plugins/platforms/cocoa/qcocoacursor.mm b/src/plugins/platforms/cocoa/qcocoacursor.mm
+index b81b9a0..4e59e83 100644
+--- a/src/plugins/platforms/cocoa/qcocoacursor.mm
++++ b/src/plugins/platforms/cocoa/qcocoacursor.mm
+@@ -81,7 +81,7 @@ void QCocoaCursor::setPos(const QPoint &position)
+     pos.x = position.x();
+     pos.y = position.y();
+ 
+-    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, 0);
++    CGEventRef e = CGEventCreateMouseEvent(0, kCGEventMouseMoved, pos, kCGMouseButtonLeft);
+     CGEventPost(kCGHIDEventTap, e);
+     CFRelease(e);
+ }
 diff --git a/src/plugins/platforms/cocoa/qcocoaintegration.mm b/src/plugins/platforms/cocoa/qcocoaintegration.mm
 index 9fd05a6..dea6072 100644
 --- a/src/plugins/platforms/cocoa/qcocoaintegration.mm

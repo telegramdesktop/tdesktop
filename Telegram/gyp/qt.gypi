@@ -41,7 +41,13 @@
             'qtharfbuzzng',
           ],
           'qt_version%': '<(qt_version)',
-          'linux_path_qt%': '/usr/local/tdesktop/Qt-<(qt_version)',
+          'conditions': [
+            [ 'build_macold', {
+              'linux_path_qt%': '/usr/local/macold/Qt-<(qt_version)',
+            }, {
+              'linux_path_qt%': '/usr/local/tdesktop/Qt-<(qt_version)',
+            }]
+          ]
         },
         'qt_version%': '<(qt_version)',
         'qt_loc_unix': '<(linux_path_qt)',
