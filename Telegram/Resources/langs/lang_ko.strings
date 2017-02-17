@@ -746,7 +746,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker_emoji" = "{emoji} 스티커";
 
 "lng_ban_user" = "차단하기";
-"lng_delete_all_from" = "모두에게 메시지 삭제";
+"lng_delete_all_from" = "이 사용자의 모든 메시지 삭제";
 "lng_report_spam" = "스팸 신고";
 "lng_report_spam_hide" = "숨기기";
 "lng_report_spam_thanks" = "신고해주셔서 감사합니다!";
