@@ -21,7 +21,8 @@
   'variables': {
     'qrc_files': [
       '<(res_loc)/telegram.qrc',
-      '<(res_loc)/telegram_emojis.qrc',
+      '<(res_loc)/telegram_emoji.qrc',
+      '<(res_loc)/telegram_emoji_large.qrc',
     ],
   },
   'conditions': [
