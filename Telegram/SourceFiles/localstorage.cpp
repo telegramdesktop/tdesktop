@@ -561,6 +561,7 @@ enum {
 	dbiNotificationsCorner = 0x46,
 	dbiTheme = 0x47,
 	dbiDialogsWidthRatio = 0x48,
+	dbiUseExternalVideoPlayer = 0x49,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -929,6 +930,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		if (!_checkStreamStatus(stream)) return false;
 
 		cSetSendToMenu(v == 1);
+	} break;
+
+	case dbiUseExternalVideoPlayer: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		cSetUseExternalVideoPlayer(v == 1);
 	} break;
 
 	case dbiSoundNotify: {
@@ -1710,6 +1719,7 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(Global::DialogsWidthRatio() * 1000000), 0, 1000000));
+	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 
 	{
 		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;

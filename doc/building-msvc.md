@@ -1,30 +1,35 @@
 # Build instructions for Visual Studio 2015
 
-  * [Prepare folder](#prepare-folder)
-  * [Clone source code](#clone-source-code)
-  * [Prepare libraries](#prepare-libraries)
-    + [OpenSSL](#openssl)
-    + [LZMA SDK 9.20](#lzma-sdk-920)
-      - [Building library](#building-library)
-    + [zlib 1.2.8](#zlib-128)
-      - [Building library](#building-library-1)
-    + [libexif 0.6.20](#libexif-0620)
-      - [Building library](#building-library-2)
-    + [OpenAL Soft, slightly patched](#openal-soft-slightly-patched)
-      - [Building library](#building-library-3)
-    + [Opus codec](#opus-codec)
-      - [Building libraries](#building-libraries)
-    + [FFmpeg](#ffmpeg)
-      - [Building libraries](#building-libraries-1)
-    + [Qt 5.6.2, slightly patched](#qt-560-slightly-patched)
-      - [Apply the patch](#apply-the-patch)
-      - [Install Windows SDKs](#install-windows-sdks)
-      - [Building library](#building-library-4)
-    + [Qt5Package](#qt5package)
-    + [Google Breakpad](#google-breakpad)
-      - [Install](#install)
-      - [Build](#build)
-  * [Building Telegram Desktop](#building-telegram-desktop)
+- [Prepare folder](#prepare-folder)
+- [Clone source code](#clone-source-code)
+- [Prepare libraries](#prepare-libraries)
+  * [OpenSSL](#openssl)
+  * [LZMA SDK 9.20](#lzma-sdk-920)
+    + [Building library](#building-library)
+  * [zlib 1.2.8](#zlib-128)
+    + [Building library](#building-library-1)
+  * [libexif 0.6.20](#libexif-0620)
+    + [Building library](#building-library-2)
+  * [OpenAL Soft, slightly patched](#openal-soft-slightly-patched)
+    + [Building library](#building-library-3)
+  * [Opus codec](#opus-codec)
+    + [Building libraries](#building-libraries)
+  * [FFmpeg](#ffmpeg)
+    + [Building libraries](#building-libraries-1)
+  * [Qt 5.6.2, slightly patched](#qt-562-slightly-patched)
+    + [Apply the patch](#apply-the-patch)
+    + [Install Windows SDKs](#install-windows-sdks)
+    + [Building library](#building-library-4)
+  * [Qt5Package](#qt5package)
+  * [Google Breakpad](#google-breakpad)
+    + [Installation](#installation)
+      - [depot_tools](#depot_tools)
+      - [Breakpad](#breakpad)
+    + [Build](#build)
+- [Building Telegram Desktop](#building-telegram-desktop)
+    + [Setup GYP/Ninja and generate VS solution](#setup-gypninja-and-generate-vs-solution)
+    + [Configure VS](#configure-vs)
+    + [Build the project](#build-the-project)
 
 ## Prepare folder
 
@@ -86,7 +91,7 @@ Extract to **D:\\TBuild\\Libraries**
 
 ### zlib 1.2.8
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
+http://www.zlib.net/fossils/ > Download [zlib-1.2.8.tar.gz](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)
 
 Extract to **D:\\TBuild\\Libraries**
 
@@ -222,28 +227,38 @@ Download, close all VS2015 instances and install for VS2015
 
 Breakpad is a set of client and server components which implement a crash-reporting system.
 
-#### Install
+#### Installation
 
-* Install Python 2.7.12 from https://www.python.org/downloads/release/python-2712/ > [**Windows x86 MSI installer**](https://www.python.org/ftp/python/2.7.12/python-2.7.12.msi). Make sure that python is added to your `PATH` (there is an option for this in the python installer).
-* Go to **D:\\TBuild\\Libraries** and run
+##### depot_tools
 
-<!-- -->
+Go to `D:\TBuild\Libraries` and run
 
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
     cd depot_tools
-    gclient config "https://chromium.googlesource.com/breakpad/breakpad.git"
-    gclient sync
+    gclient
+
+If you get errors like
+
+    Cannot rebase: You have unstaged changes.
+    Please commit or stash them.
+    Failed to update depot_tools.
+
+run `git reset --hard HEAD` and execute `gclient` again
+
+##### Breakpad
+
     cd ..
-    md breakpad && cd breakpad
+    mkdir breakpad && cd breakpad
     ..\depot_tools\fetch breakpad
     ..\depot_tools\gclient sync
     xcopy src\src\* src /s /i
+    rmdir src\src /s /q
 
 #### Build
 
-* Open in VS2015 **D:\\TBuild\\Libraries\\breakpad\\src\\client\\windows\\breakpad_client.sln**
-* Change "Treat WChar_t As Built in Type" to "No" in all projects & configurations (should be in project>>properties>>C/C++>>Language)
-* Change "Treat Warnings As Errors" to "No" in all projects & configurations (should be in project>>properties>>C/C++>>General)
+* Open `D:\TBuild\Libraries\breakpad\src\client\windows\breakpad_client.sln` in VS2015
+* Change `Treat WChar_t As Built in Type` to `No` in all projects & configurations (should be in Project -> Properties -> C/C++ -> Language)
+* Change `Treat Warnings As Errors` to `No` in all projects & configurations (should be in Project -> Properties -> C/C++ -> General)
 * Build Debug configuration
 * Build Release configuration
 
