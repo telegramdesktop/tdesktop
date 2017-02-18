@@ -121,11 +121,15 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
-	if (App::app()) App::app()->checkLocalTime();
+	if (App::app()) {
+		App::app()->handleAppActivated();
+	}
 }
 
 - (void)receiveWakeNote:(NSNotification*)aNotification {
-	if (App::app()) App::app()->checkLocalTime();
+	if (App::app()) {
+		App::app()->checkLocalTime();
+	}
 
 	LOG(("Audio Info: -receiveWakeNote: received, scheduling detach from audio device"));
 	Media::Player::DetachFromDeviceByTimer();

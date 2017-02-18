@@ -147,7 +147,6 @@ class AppClass : public QObject, public RPCSender {
 	Q_OBJECT
 
 public:
-
 	AppClass();
 	~AppClass();
 
@@ -175,6 +174,9 @@ public:
 
 	void checkLocalTime();
 	void checkMapVersion();
+
+	void handleAppActivated();
+	void handleAppDeactivated();
 
 signals:
 

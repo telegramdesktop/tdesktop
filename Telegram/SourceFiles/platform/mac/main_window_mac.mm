@@ -214,12 +214,13 @@ MainWindow::MainWindow()
 
 void MainWindow::closeWithoutDestroy() {
 	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
-	bool isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
+
+	auto isFullScreen = (([nsWindow styleMask] & NSFullScreenWindowMask) == NSFullScreenWindowMask);
 	if (isFullScreen) {
 		_hideAfterFullScreenTimer.start(3000);
 		[nsWindow toggleFullScreen:nsWindow];
 	} else {
-		hide();
+		[[NSApplication sharedApplication] hide: nsWindow];
 	}
 }
 
@@ -247,7 +248,8 @@ void MainWindow::titleVisibilityChangedHook() {
 }
 
 void MainWindow::onHideAfterFullScreen() {
-	hide();
+	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
+	[[NSApplication sharedApplication] hide: nsWindow];
 }
 
 QImage MainWindow::psTrayIcon(bool selected) const {

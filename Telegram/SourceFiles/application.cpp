@@ -912,13 +912,28 @@ void AppClass::checkLocalTime() {
 }
 
 void AppClass::onAppStateChanged(Qt::ApplicationState state) {
+	if (state == Qt::ApplicationActive) {
+		handleAppActivated();
+	} else {
+		handleAppDeactivated();
+	}
+}
+
+void AppClass::handleAppActivated() {
 	checkLocalTime();
 	if (_window) {
-		_window->updateIsActive((state == Qt::ApplicationActive) ? Global::OnlineFocusTimeout() : Global::OfflineBlurTimeout());
+		if (_window->isHidden()) {
+			_window->showFromTray();
+		}
+		_window->updateIsActive(Global::OnlineFocusTimeout());
 	}
-	if (state != Qt::ApplicationActive) {
-		Ui::Tooltip::Hide();
+}
+
+void AppClass::handleAppDeactivated() {
+	if (_window) {
+		_window->updateIsActive(Global::OfflineBlurTimeout());
 	}
+	Ui::Tooltip::Hide();
 }
 
 void AppClass::call_handleHistoryUpdate() {
