@@ -1289,12 +1289,16 @@ void HistoryMessage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();
 		} else {
-			int skiph = marginTop() - marginBottom();
+			auto top = marginTop();
+			auto bottom = marginBottom();
+			auto fill = qMin(top, bottom);
+			auto skiptop = top - fill;
+			auto fillheight = fill + (height - top - bottom) + fill;
 
-			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			float64 o = p.opacity();
+			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
+			auto o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, _history->width, height - skiph, st::defaultTextPalette.selectOverlay);
+			p.fillRect(0, skiptop, _history->width, fillheight, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}
