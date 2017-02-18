@@ -92,7 +92,7 @@ public:
 		Forward,
 		Replace,
 	};
-	class Step : public TWidget, public RPCSender {
+	class Step : public TWidget, public RPCSender, protected base::Subscriber {
 	public:
 		Step(QWidget *parent, Data *data, bool hasCover = false);
 

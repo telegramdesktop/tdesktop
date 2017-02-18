@@ -31,7 +31,7 @@ class NewAvatarButton;
 
 namespace Intro {
 
-class SignupWidget : public Widget::Step, private base::Subscriber {
+class SignupWidget : public Widget::Step {
 	Q_OBJECT
 
 public:

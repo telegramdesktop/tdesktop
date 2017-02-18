@@ -43,6 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
+#include "window/themes/window_theme.h"
 
 namespace Intro {
 
@@ -663,6 +664,14 @@ Widget::Step::Step(QWidget *parent, Data *data, bool hasCover) : TWidget(parent)
 , _title(this, _hasCover ? st::introCoverTitle : st::introTitle)
 , _description(this, object_ptr<Ui::FlatLabel>(this, _hasCover ? st::introCoverDescription : st::introDescription), st::introErrorDuration) {
 	hide();
+	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
+		if (update.paletteChanged()) {
+			if (!_coverMask.isNull()) {
+				_coverMask = QPixmap();
+				prepareCoverMask();
+			}
+		}
+	});
 }
 
 void Widget::Step::prepareShowAnimated(Step *after) {

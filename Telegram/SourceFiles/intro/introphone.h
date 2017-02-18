@@ -32,7 +32,7 @@ class FlatLabel;
 
 namespace Intro {
 
-class PhoneWidget : public Widget::Step, private base::Subscriber {
+class PhoneWidget : public Widget::Step {
 	Q_OBJECT
 
 public:
