@@ -517,7 +517,7 @@ QRect EmojiPanInner::emojiRect(int tab, int sel) {
 }
 
 void EmojiPanInner::onColorSelected(EmojiPtr emoji) {
-	if (emoji->colored()) {
+	if (emoji->hasVariants()) {
 		cRefEmojiVariants().insert(emoji->nonColoredId(), emoji->variantIndex(emoji));
 	}
 	if (_pickerSel >= 0) {
