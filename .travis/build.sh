@@ -593,7 +593,7 @@ buildTelegram() {
 
   cd "$UPSTREAM/Telegram/gyp"
   "$GYP_PATH/gyp" \
-      -Dtravis_defines=${GYP_DEFINES:1} \
+      -Dbuild_defines=${GYP_DEFINES:1} \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
       -Dlinux_path_vdpau=$VDPAU_PATH \
