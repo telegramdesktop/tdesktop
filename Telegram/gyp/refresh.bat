@@ -13,10 +13,16 @@ if exist "%FullScriptPath%..\..\..\Libraries\openssl\tmp32\lib.pdb" (
   )
 )
 
+if "%TELEGRAM_BUILD_DEFINES%" == "" (
+  set "TELEGRAM_BUILD_DEFINES= "
+)
+
+set "BUILD_DEFINES=-Dbuild_defines=%TELEGRAM_BUILD_DEFINES%"
+
 cd "%FullScriptPath%"
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=ninja
+call gyp --depth=. --generator-output=../.. -Goutput_dir=out %BUILD_DEFINES% Telegram.gyp --format=ninja
 if %errorlevel% neq 0 goto error
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=msvs-ninja
+call gyp --depth=. --generator-output=../.. -Goutput_dir=out %BUILD_DEFINES% Telegram.gyp --format=msvs-ninja
 if %errorlevel% neq 0 goto error
 cd ../..
 

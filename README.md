@@ -4,6 +4,7 @@ This is the complete source code and the build instructions for the alpha versio
 
 [![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
 [![Build Status](https://travis-ci.org/telegramdesktop/tdesktop.svg?branch=master)](https://travis-ci.org/telegramdesktop/tdesktop)
+[![Build status](https://ci.appveyor.com/api/projects/status/uiw2y768iy4i5bu8/branch/master?svg=true)](https://ci.appveyor.com/project/telegramdesktop/tdesktop)
 
 The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
 

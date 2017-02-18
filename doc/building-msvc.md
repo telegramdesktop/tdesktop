@@ -274,7 +274,10 @@ run `git reset --hard HEAD` and execute `gclient` again
     git clone https://chromium.googlesource.com/external/gyp
     SET PATH=%PATH%;D:\TBuild\Libraries\gyp;D:\TBuild\Libraries\ninja;
     cd ..\tdesktop\Telegram
-    gyp\refresh.bat
+
+If you want to pass a build define (like `TDESKTOP_DISABLE_AUTOUPDATE` or `TDESKTOP_DISABLE_NETWORK_PROXY`), call `set TELEGRAM_BUILD_DEFINES=TDESKTOP_DISABLE_AUTOUPDATE,TDESKTOP_DISABLE_NETWORK_PROXY,...` (comma seperated string)
+
+After, call `gyp\refresh.bat`
 
 #### Configure VS
 
