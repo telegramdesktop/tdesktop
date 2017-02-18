@@ -51,7 +51,7 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "Telegram Messenger LLP"
-            VALUE "FileDescription", "Telegram Desktop official messenger"
+            VALUE "FileDescription", "Telegram Desktop"
             VALUE "FileVersion", "1.0.11.0"
             VALUE "LegalCopyright", "Copyright (C) 2014-2017"
             VALUE "ProductName", "Telegram Desktop"
