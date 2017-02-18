@@ -546,6 +546,11 @@ bool QuietHoursEnabled = false;
 DWORD QuietHoursValue = 0;
 
 void queryQuietHours() {
+	if (QSysInfo::windowsVersion() < QSysInfo::WV_WINDOWS8_1) {
+		// No system quiet hours in Windows prior to Windows 8.1
+		return;
+	}
+
 	LPTSTR lpKeyName = L"Software\\Microsoft\\Windows\\CurrentVersion\\Notifications\\Settings";
 	LPTSTR lpValueName = L"NOC_GLOBAL_SETTING_TOASTS_ENABLED";
 	HKEY key;
@@ -558,7 +563,7 @@ void queryQuietHours() {
 	result = RegQueryValueEx(key, lpValueName, 0, &type, (LPBYTE)&value, &size);
 	RegCloseKey(key);
 
-	auto quietHoursEnabled = (result == ERROR_SUCCESS);
+	auto quietHoursEnabled = (result == ERROR_SUCCESS) && (value == 0);
 	if (QuietHoursEnabled != quietHoursEnabled) {
 		QuietHoursEnabled = quietHoursEnabled;
 		QuietHoursValue = value;
