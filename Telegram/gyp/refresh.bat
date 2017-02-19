@@ -1,5 +1,5 @@
 @echo OFF
-setlocal enabledelayedexpansion
+setlocal EnableDelayedExpansion
 set "FullScriptPath=%~dp0"
 set "FullExecPath=%cd%"
 
@@ -13,16 +13,16 @@ if exist "%FullScriptPath%..\..\..\Libraries\openssl\tmp32\lib.pdb" (
   )
 )
 
-if "%TDESKTOP_BUILD_DEFINES%" == "" (
-  set "TDESKTOP_BUILD_DEFINES= "
+set BUILD_DEFINES=
+if not "%TDESKTOP_BUILD_DEFINES%" == "" (
+  set "BUILD_DEFINES=-Dbuild_defines=%TDESKTOP_BUILD_DEFINES%"
+  echo [INFO] Set build defines to !BUILD_DEFINES!
 )
 
-set "BUILD_DEFINES=-Dbuild_defines=%TDESKTOP_BUILD_DEFINES%"
-
 cd "%FullScriptPath%"
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out %BUILD_DEFINES% Telegram.gyp --format=ninja
+call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! Telegram.gyp --format=ninja
 if %errorlevel% neq 0 goto error
-call gyp --depth=. --generator-output=../.. -Goutput_dir=out %BUILD_DEFINES% Telegram.gyp --format=msvs-ninja
+call gyp --depth=. --generator-output=../.. -Goutput_dir=out !BUILD_DEFINES! Telegram.gyp --format=msvs-ninja
 if %errorlevel% neq 0 goto error
 cd ../..
 
