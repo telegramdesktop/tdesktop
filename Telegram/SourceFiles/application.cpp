@@ -1086,7 +1086,7 @@ void AppClass::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000010) {
 				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Support for more emoji.\n\xe2\x80\x94 Bug fixes and other minor improvements.");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000005) {
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000012) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

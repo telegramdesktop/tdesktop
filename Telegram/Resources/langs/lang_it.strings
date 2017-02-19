@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 "lng_language_name" = "Italiano";
-"lng_switch_to_this" = "Passa all'italiano";
+"lng_switch_to_this" = "Passa all'Italiano";
 
 "lng_menu_contacts" = "Contatti";
 "lng_menu_settings" = "Impostazioni";
@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Seleziona un riquadro per la tua foto profilo";
 "lng_settings_uploading_photo" = "Carico foto...";
 "lng_settings_edit" = "Modifica";
-
 "lng_settings_drop_area_subtitle" = "per impostarla come foto profilo";
 
 "lng_username_title" = "Username";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Usa tema predefinito";
 "lng_settings_bg_from_gallery" = "Scegli dalla galleria";
 "lng_settings_bg_from_file" = "Scegli da file";
+"lng_settings_bg_edit_theme" = "Modifica tema";
 "lng_settings_bg_tile" = "Affianca sfondo";
 "lng_settings_adaptive_wide" = "Layout adattivo per grandi schermi";
 
@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Premi e trascina per riordinare le chat fissate.\n— Risoluzione di problemi e altri miglioramenti minori.";
+"lng_new_version_text" = "— Supporto per più emoji.\n— Clicca e trascina sui messaggi vocali per riprodurli da dove vuoi.\n— Aggiunto l'editor temi nelle Impostazioni.\n— Risoluzione di problemi e altri miglioramenti minori.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
@@ -1022,6 +1022,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "Fatto!\n\nIl processo di eliminazione per il tuo account {phone} è stato annullato. Puoi chiudere questa finestra ora.";
 "lng_confirm_phone_send" = "Invia";
 "lng_confirm_phone_enter_code" = "Per favore inserisci il codice.";
+
+"lng_theme_editor_no_keys" = "Ancora nessun valore nella tavolozza";
+"lng_theme_editor_cant_change_theme" = "Non puoi applicare nuovi temi mentre modifichi la tavolozza dei colori. Per favore chiudi prima l'editor dei temi.";
+"lng_theme_editor_new_keys" = "Non ancora nella tavolozza";
+"lng_theme_editor_background_image" = "Immagine di sfondo";
+"lng_theme_editor_saved_to_jpg" = "Salvato in JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "Immagine JPEG, {size}";
+"lng_theme_editor_read_from_png" = "Immagine PNG, {size}";
+"lng_theme_editor_export" = "Esporta";
+"lng_theme_editor_choose_image" = "Scegli immagine di sfondo";
+"lng_theme_editor_save_palette" = "Salva file tavolozza";
+"lng_theme_editor_choose_name" = "Salva file tema";
+"lng_theme_editor_error" = "L'editor ha rilevato un errore :( Controlla 'log.txt' per i dettagli.";
+"lng_theme_editor_done" = "Tema esportato con successo!";
+"lng_theme_editor_title" = "Modifica tavolozza dei colori";
+"lng_theme_editor_export_button" = "Esporta tema";
 
 // Not used
 

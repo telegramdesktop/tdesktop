@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Selecciona el área para tu foto de perfil";
 "lng_settings_uploading_photo" = "Subiendo foto...";
 "lng_settings_edit" = "Editar";
-
 "lng_settings_drop_area_subtitle" = "para ponerla como tu foto";
 
 "lng_username_title" = "Alias";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Usar el tema por defecto";
 "lng_settings_bg_from_gallery" = "Elegir desde la galería";
 "lng_settings_bg_from_file" = "Elegir desde archivos";
+"lng_settings_bg_edit_theme" = "Editar tema";
 "lng_settings_bg_tile" = "Fondo con mosaico";
 "lng_settings_adaptive_wide" = "Diseño adaptable para pantallas anchas";
 
@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Arrastra un chat anclado para cambiar su posición.\n— Corrección de errores y otras mejoras menores.";
+"lng_new_version_text" = "— Soporte de más emojis.\n— Haz clic y arrastra sobre la onda de audio para reproducir el momento que quieras.\n— Editor de temas añadido a Ajustes.\n— Corrección de errores y otras mejoras menores.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
@@ -1022,6 +1022,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "¡Listo!\n\nEl proceso de eliminación de la cuenta {phone} fue cancelado. Puedes cerrar esta ventana ahora.";
 "lng_confirm_phone_send" = "Enviar";
 "lng_confirm_phone_enter_code" = "Por favor, pon el código.";
+
+"lng_theme_editor_no_keys" = "Aún no hay valores en la paleta";
+"lng_theme_editor_cant_change_theme" = "No puedes aplicar nuevos temas mientras editas la paleta de colores. Por favor, cierra el editor de temas primero.";
+"lng_theme_editor_new_keys" = "Aún no está en la paleta";
+"lng_theme_editor_background_image" = "Imagen de fondo";
+"lng_theme_editor_saved_to_jpg" = "Guardado como JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "Imagen JPEG, {size}";
+"lng_theme_editor_read_from_png" = "Imagen PNG, {size}";
+"lng_theme_editor_export" = "Exportar";
+"lng_theme_editor_choose_image" = "Elige la imagen de fondo";
+"lng_theme_editor_save_palette" = "Guardar archivo de la paleta de colores";
+"lng_theme_editor_choose_name" = "Guardar archivo del tema";
+"lng_theme_editor_error" = "El editor encontró un error :( Ve “log.txt” para los detalles.";
+"lng_theme_editor_done" = "¡Tema exportado con éxito!";
+"lng_theme_editor_title" = "Editar la paleta de colores";
+"lng_theme_editor_export_button" = "Exportar tema";
 
 // Not used
 

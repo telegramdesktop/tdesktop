@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Kies een vierkant voor je profielfoto";
 "lng_settings_uploading_photo" = "Foto uploaden...";
 "lng_settings_edit" = "Wijzig";
-
 "lng_settings_drop_area_subtitle" = "om als foto in te stellen";
 
 "lng_username_title" = "Gebruikersnaam";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Standaardthema gebruiken";
 "lng_settings_bg_from_gallery" = "Uit galerij kiezen";
 "lng_settings_bg_from_file" = "Bestand kiezen";
+"lng_settings_bg_edit_theme" = "Thema wijzigen";
 "lng_settings_bg_tile" = "Naast elkaar";
 "lng_settings_adaptive_wide" = "Adaptieve layout voor brede schermen";
 
@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Klik en sleep om de volgorde van vastgezette chats aan te passen.\n— Probleemoplossing en andere kleine verbeteringen.";
+"lng_new_version_text" = "— Ondersteuning voor meer Emoji\n— Klik en sleep om naar de gewenste tijd te springen in spraakberichten.\n— Thema-editor toegevoegd aan instellingen.\n— Probleemoplossing en andere kleine verbeteringen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
@@ -1022,6 +1022,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "De verwijdering van account: {phone} is geannuleerd.\nJe kunt dit venster nu sluiten.";
 "lng_confirm_phone_send" = "Stuur";
 "lng_confirm_phone_enter_code" = "Geef de code in.";
+
+"lng_theme_editor_no_keys" = "Palet bevat nog geen waarden";
+"lng_theme_editor_cant_change_theme" = "Je kunt geen nieuw thema toepassen terwijl je het kleurenpalet bewerkt. Sluit eerst de editor.";
+"lng_theme_editor_new_keys" = "Nog niet in het kleurenpalet";
+"lng_theme_editor_background_image" = "Achtergrondafbeelding";
+"lng_theme_editor_saved_to_jpg" = "Opgeslagen als JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "JPEG-afbeelding, {size}";
+"lng_theme_editor_read_from_png" = "PNG-afbeelding, {size}";
+"lng_theme_editor_export" = "Exporteren";
+"lng_theme_editor_choose_image" = "Achtergrondafbeelding kiezen";
+"lng_theme_editor_save_palette" = "Kleurenpalet opslaan";
+"lng_theme_editor_choose_name" = "Thema opslaan";
+"lng_theme_editor_error" = "Er is iets misgegaan in de editor :( Bekijk 'log.txt' voor meer info.";
+"lng_theme_editor_done" = "Exporteren van thema gelukt!";
+"lng_theme_editor_title" = "Kleurenpalet bewerken";
+"lng_theme_editor_export_button" = "Thema exporteren";
 
 // Not used
 

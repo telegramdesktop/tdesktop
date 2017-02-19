@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Sichtbaren Bereich für Bild wählen";
 "lng_settings_uploading_photo" = "Bild wird geladen...";
 "lng_settings_edit" = "Bearbeiten";
-
 "lng_settings_drop_area_subtitle" = "um es als dein Bild auszuwählen";
 
 "lng_username_title" = "Benutzername";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Benutze Standardthema";
 "lng_settings_bg_from_gallery" = "Aus der Galerie";
 "lng_settings_bg_from_file" = "Durchsuchen";
+"lng_settings_bg_edit_theme" = "Thema bearbeiten";
 "lng_settings_bg_tile" = "Nebeneinander";
 "lng_settings_adaptive_wide" = "Flexibles Layout für breite Bildschirme";
 
@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Angeheftete Chats lassen sich verschieben (gedrückt halten und nach oben oder unter ziehen).\n— Fehlerbehebungen und sonstige Softwareoptimierungen.";
+"lng_new_version_text" = "— Weitere Emoji wurden hinzugefügt.\n— Springe an jede gewünschte Stelle einer Sprachnachricht (klicken und ziehen).\n— Themen-Editor wurde Einstellungen hinzugefügt.\n— Fehlerbehebungen und sonstige Verbesserungen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
@@ -1022,6 +1022,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "Geschafft!\n\nDer Löschvorgang für dein Konto {phone} wurde abgebrochen. Du kannst dieses Fenster jetzt schließen.";
 "lng_confirm_phone_send" = "Senden";
 "lng_confirm_phone_enter_code" = "Bitte den Code eingeben.";
+
+"lng_theme_editor_no_keys" = "Noch keine Werte in der Palette";
+"lng_theme_editor_cant_change_theme" = "Neue Themen kannst du während der Bearbeitung nicht anwenden. Bitte schliesse zuerst den Editor.";
+"lng_theme_editor_new_keys" = "Noch nicht in der Palette";
+"lng_theme_editor_background_image" = "Hintergrundbild";
+"lng_theme_editor_saved_to_jpg" = "Als JPEG gespeichert, {size}";
+"lng_theme_editor_read_from_jpg" = "JPEG Bild, {size}";
+"lng_theme_editor_read_from_png" = "PNG Bild, {size}";
+"lng_theme_editor_export" = "Exportieren";
+"lng_theme_editor_choose_image" = "Hintergrundbild wählen";
+"lng_theme_editor_save_palette" = "Palettendatei speichern";
+"lng_theme_editor_choose_name" = "Themen-Datei speichern";
+"lng_theme_editor_error" = "Ein Fehler ist im Editor aufgetreten. Mehr Infos gibt es in der Datei 'log.txt'.";
+"lng_theme_editor_done" = "Thema erfolgreich exportiert!";
+"lng_theme_editor_title" = "Farbpalette bearbeiten";
+"lng_theme_editor_export_button" = "Thema exportieren";
 
 // Not used
 

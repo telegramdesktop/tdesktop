@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "Selecione uma área para a foto do perfil";
 "lng_settings_uploading_photo" = "Carregando foto...";
 "lng_settings_edit" = "Editar";
-
 "lng_settings_drop_area_subtitle" = "para defini-la como sua foto";
 
 "lng_username_title" = "Nome de usuário";
@@ -296,12 +295,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "Usar o tema padrão de cores";
 "lng_settings_bg_from_gallery" = "Escolher da galeria";
 "lng_settings_bg_from_file" = "Escolher dos arquivos";
+"lng_settings_bg_edit_theme" = "Editar tema";
 "lng_settings_bg_tile" = "Lado-a-lado";
-"lng_settings_adaptive_wide" = "Layout adaptativo para wide screens";
+"lng_settings_adaptive_wide" = "Layout adaptativo para telas wide";
 
 "lng_backgrounds_header" = "Escolha o seu novo papel de parede";
 "lng_theme_sure_keep" = "Manter esse tema de cores?";
-"lng_theme_reverting" = "Revertendo ao antigo tema de cores em {count:_not_used_|# segundo|# segundos}.";
+"lng_theme_reverting" = "Revertendo ao antigo tema em {count:_not_used_|# segundo|# segundos}.";
 "lng_theme_keep_changes" = "Manter alterações";
 "lng_theme_revert" = "Reverter";
 
@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Clique e arraste para reordenar os chats fixados.\n— Resolução de bugs e outras melhorias.";
+"lng_new_version_text" = "— Suporte para mais emojis.\n— Pule para qualquer posição ao ouvir uma mensagem de voz.\n— Adicionado um editor de Temas nas Configurações.\n— Resolução de bugs e outras melhorias.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 
@@ -1022,6 +1022,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "Sucesso!\n\nO processo de exclusão foi cancelado em sua conta {phone}. Você pode fechar essa janela agora.";
 "lng_confirm_phone_send" = "Enviar";
 "lng_confirm_phone_enter_code" = "Por favor, insira o código.";
+
+"lng_theme_editor_no_keys" = "Ainda não há chaves na paleta";
+"lng_theme_editor_cant_change_theme" = "Você não pode aplicar novos temas enquanto está editando a paleta de cores. Feche o editor de temas primeiro.";
+"lng_theme_editor_new_keys" = "Ainda não está na paleta";
+"lng_theme_editor_background_image" = "Imagem de fundo";
+"lng_theme_editor_saved_to_jpg" = "Salvar como JPEG, {size}";
+"lng_theme_editor_read_from_jpg" = "Imagem JPEG, {size}";
+"lng_theme_editor_read_from_png" = "Imagem PNG, {size}";
+"lng_theme_editor_export" = "Exportar";
+"lng_theme_editor_choose_image" = "Escolher imagem de fundo";
+"lng_theme_editor_save_palette" = "Salvar arquivo de paleta";
+"lng_theme_editor_choose_name" = "Salvar arquivo de tema";
+"lng_theme_editor_error" = "O editor encontrou um erro :( Veja o 'log.txt' para detalhes.";
+"lng_theme_editor_done" = "Tema exportado com sucesso!";
+"lng_theme_editor_title" = "Editar paleta de cores";
+"lng_theme_editor_export_button" = "Exportar tema";
 
 // Not used
 

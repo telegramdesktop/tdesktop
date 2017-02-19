@@ -224,7 +224,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_crop_profile" = "프로필 사진으로 사용할 사각영역을 선택하세요";
 "lng_settings_uploading_photo" = "사진 업로드 중...";
 "lng_settings_edit" = "수정";
-
 "lng_settings_drop_area_subtitle" = "프로필 사진으로 설정";
 
 "lng_username_title" = "아이디";
@@ -296,6 +295,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_bg_use_default" = "기존 테마 색상 사용";
 "lng_settings_bg_from_gallery" = "이미지 선택";
 "lng_settings_bg_from_file" = "파일 선택";
+"lng_settings_bg_edit_theme" = "테마 수정";
 "lng_settings_bg_tile" = "타일형 배경화면";
 "lng_settings_adaptive_wide" = "와이드 스크린 레이아웃 적용";
 
@@ -746,7 +746,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_in_dlg_sticker_emoji" = "{emoji} 스티커";
 
 "lng_ban_user" = "차단하기";
-"lng_delete_all_from" = "모두에게 메시지 삭제";
+"lng_delete_all_from" = "사용자의 모든 메시지 삭제";
 "lng_report_spam" = "스팸 신고";
 "lng_report_spam_hide" = "숨기기";
 "lng_report_spam_thanks" = "신고해주셔서 감사합니다!";
@@ -1010,7 +1010,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 클릭 후 드래그로 고정된 대화 순서 변경\n— 버그 수정 및 일부기능 향상";
+"lng_new_version_text" = "— 더많은 이모티콘 지원\n— 오디오 구간을 선택하여 원하는 시간대 재생\n— 설정에 테마 에디터 추가\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
@@ -1022,6 +1022,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_confirm_phone_success" = "성공!\n\n{phone} 계정에 대한 삭제 프로세스가 취소 되었습니다. 이창을 당으셔도 됩니다.";
 "lng_confirm_phone_send" = "보내기";
 "lng_confirm_phone_enter_code" = "코드를 입력해주세요";
+
+"lng_theme_editor_no_keys" = "팔레트에 아직 키가 없습니다";
+"lng_theme_editor_cant_change_theme" = "색상 팔레트를 수정하는 동시에 새로운 테마를 적용할 수 없습니다. 테마 에디터를 먼저 닫아주세요.";
+"lng_theme_editor_new_keys" = "팔레트에 아직 없습니다.";
+"lng_theme_editor_background_image" = "배경 이미지";
+"lng_theme_editor_saved_to_jpg" = "JPEG로 저장, {size}";
+"lng_theme_editor_read_from_jpg" = "JPEG 이미지, {size}";
+"lng_theme_editor_read_from_png" = "PNG 이미지, {size}";
+"lng_theme_editor_export" = "내보내기";
+"lng_theme_editor_choose_image" = "배경 이미지 선택";
+"lng_theme_editor_save_palette" = "팔레트 파일 저장";
+"lng_theme_editor_choose_name" = "테마 파일 저장";
+"lng_theme_editor_error" = "에디터 오류가 발생하였습니다 :( 'log.txt' 에서 자세한 내역 확인하세요.";
+"lng_theme_editor_done" = "성공적으로 테마 내보내기가 완료되었습니다!";
+"lng_theme_editor_title" = "색상 팔레트 수정";
+"lng_theme_editor_export_button" = "테마 내보내기";
 
 // Not used
 
