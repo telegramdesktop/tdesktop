@@ -58,7 +58,7 @@
         'ko',
         'pt-BR',
       ],
-      'travis_defines%': '',
+      'build_defines%': '',
     },
     'includes': [
       'common_executable.gypi',
