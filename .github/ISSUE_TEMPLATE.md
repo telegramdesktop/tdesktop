@@ -19,8 +19,10 @@ Tell us what happens instead
 
 **Version of Telegram Desktop:**
 
+**Used theme**:
+
 ### Logs
 Insert logs here (if necessary)
 
-You can type `debugmode` in settings and then see ~/.TelegramDesktop/DebugLogs/log_...txt for log files.
-Type `debugmode` in settings again to disable logs.
+<!-- You can type `debugmode` in settings and then see ~/.TelegramDesktop/DebugLogs/log_...txt for log files.
+Type `debugmode` in settings again to disable logs. -->
