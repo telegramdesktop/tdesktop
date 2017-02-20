@@ -250,11 +250,44 @@ void HistoryInner::enumerateItemsInHistory(History *history, int historytop, Met
 					debugValue("itembottom", itembottom);
 					debugValue("_visibleAreaTop", _visibleAreaTop);
 					debugValue("_visibleAreaBottom", _visibleAreaBottom);
-					for (int i = 0; i != qMin(history->blocks.size(), 10); ++i) {
-						for (int j = 0; j != qMin(history->blocks[i]->items.size(), 10); ++j) {
+					for (int i = 0; i != qMin(history->blocks.size(), 5); ++i) {
+						debugValue("y[" + QString::number(i) + "]", history->blocks[i]->y);
+						debugValue("h[" + QString::number(i) + "]", history->blocks[i]->height);
+						for (int j = 0; j != qMin(history->blocks[i]->items.size(), 5); ++j) {
 							debugValue("y[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->y);
 							debugValue("h[" + QString::number(i) + "][" + QString::number(j) + "]", history->blocks[i]->items[j]->height());
 						}
+					}
+					auto valid = [history, &debugInfo] {
+						auto y = 0;
+						for (int i = 0; i != history->blocks.size(); ++i) {
+							auto innery = 0;
+							if (history->blocks[i]->y != y) {
+								debugInfo.append("bad_block_y" + QString::number(i) + ":" + QString::number(history->blocks[i]->y) + "!=" + QString::number(y));
+								return false;
+							}
+							for (int j = 0; j != history->blocks[i]->items.size(); ++j) {
+								if (history->blocks[i]->items[j]->pendingInitDimensions()) {
+									debugInfo.append("pending_item_init" + QString::number(i) + "," + QString::number(j));
+								} else if (history->blocks[i]->items[j]->pendingResize()) {
+									debugInfo.append("pending_resize" + QString::number(i) + "," + QString::number(j));
+								}
+								if (history->blocks[i]->items[j]->y != innery) {
+									debugInfo.append("bad_item_y" + QString::number(i) + "," + QString::number(j) + ":" + QString::number(history->blocks[i]->items[j]->y) + "!=" + QString::number(innery));
+									return false;
+								}
+								innery += history->blocks[i]->items[j]->height();
+							}
+							if (history->blocks[i]->height != innery) {
+								debugInfo.append("bad_block_height" + QString::number(i) + ":" + QString::number(history->blocks[i]->height) + "!=" + QString::number(innery));
+								return false;
+							}
+							y += innery;
+						}
+						return true;
+					};
+					if (!valid()) {
+						debugValue("pending_init", history->hasPendingResizedItems() ? 1 : 0);
 					}
 					SignalHandlers::setCrashAnnotation("DebugInfo", debugInfo.join(','));
 				}
