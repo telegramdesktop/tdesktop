@@ -869,14 +869,13 @@ public:
 
 			if (_btype == TextBlockTNewline) {
 				if (!_lineHeight) _lineHeight = blockHeight;
-				ushort nextStart = _t->countBlockEnd(i, e);
-				if (!drawLine(nextStart, i + 1, e)) {
+				if (!drawLine((*i)->from(), i, e)) {
 					return;
 				}
 
 				_y += _lineHeight;
 				_lineHeight = 0;
-				_lineStart = nextStart;
+				_lineStart = _t->countBlockEnd(i, e);
 				_lineStartBlock = blockIndex + 1;
 
 				last_rBearing = b->f_rbearing();
