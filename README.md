@@ -39,41 +39,6 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * [Xcode 8][xcode]
 * [GYP/CMake on GNU/Linux][cmake]
 
-## Projects in Telegram solution
-
-* ### Telegram
-
-  [Telegram Desktop][telegram_desktop] messenger
-
-* ### Updater
-
-  A little app, that is launched by Telegram when update is ready, replaces all files and launches it back.
-
-* ### Packer
-
-  Compiles given files to single update file, compresses it with lzma and signs with a private key. It is not built in **Debug** and **Release** configurations of Telegram solution, because private key is inaccessible.
-
-* ### MetaEmoji
-
-  Creates four sprites and text2emoji replace code
-  * SourceFiles/art/emoji.png
-  * SourceFiles/art/emoji_125x.png
-  * SourceFiles/art/emoji_150x.png
-  * SourceFiles/art/emoji_200x.png
-  * SourceFiles/art/emoji_250x.png
-  * SourceFiles/ui/emoji_config.cpp
-
-* ### codegen_style
-* ### codegen_numbers
-
-  Helper code generating console utilities.
-
-* ### MetaLang
-
-  Creates from languagepack file `Resources/lang.strings` language constants code and language file parse code:
-  * GeneratedFiles/lang.h
-  * GeneratedFiles/lang.cpp
-
 [//]: # (LINKS)
 [telegram]: https://telegram.org
 [telegram_desktop]: https://desktop.telegram.org
