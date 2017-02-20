@@ -104,6 +104,7 @@ protected:
 	void closeWithoutDestroy() override;
 
 private:
+	void hideAndDeactivate();
 	void createGlobalMenu();
 	void updateTitleCounter();
 	void updateIconCounters();

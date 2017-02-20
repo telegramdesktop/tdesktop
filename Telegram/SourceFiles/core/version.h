@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #define BETA_VERSION_MACRO (0ULL)
 
-constexpr int AppVersion = 1000012;
-constexpr str_const AppVersionStr = "1.0.12";
+constexpr int AppVersion = 1000013;
+constexpr str_const AppVersionStr = "1.0.13";
 constexpr bool AppAlphaVersion = false;
 constexpr uint64 AppBetaVersion = BETA_VERSION_MACRO;

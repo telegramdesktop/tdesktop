@@ -922,9 +922,6 @@ void AppClass::onAppStateChanged(Qt::ApplicationState state) {
 void AppClass::handleAppActivated() {
 	checkLocalTime();
 	if (_window) {
-		if (_window->isHidden()) {
-			_window->showFromTray();
-		}
 		_window->updateIsActive(Global::OnlineFocusTimeout());
 	}
 }

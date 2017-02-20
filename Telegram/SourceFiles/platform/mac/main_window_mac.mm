@@ -220,7 +220,7 @@ void MainWindow::closeWithoutDestroy() {
 		_hideAfterFullScreenTimer.start(3000);
 		[nsWindow toggleFullScreen:nsWindow];
 	} else {
-		[[NSApplication sharedApplication] hide: nsWindow];
+		hideAndDeactivate();
 	}
 }
 
@@ -248,6 +248,11 @@ void MainWindow::titleVisibilityChangedHook() {
 }
 
 void MainWindow::onHideAfterFullScreen() {
+	hideAndDeactivate();
+}
+
+void MainWindow::hideAndDeactivate() {
+	hide();
 	NSWindow *nsWindow = [reinterpret_cast<NSView*>(winId()) window];
 	[[NSApplication sharedApplication] hide: nsWindow];
 }

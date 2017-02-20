@@ -1,3 +1,14 @@
+1.0.13 (20.02.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.12 (19.02.17)
+
+- Support for more emoji.
+- Click and drag on waveform to play audio from a chosen moment.
+- Added Theme editor to Settings.
+- Bug fixes and other minor improvements.
+
 1.0.11 alpha (17.02.17)
 
 - Bug fixes and other minor improvements.

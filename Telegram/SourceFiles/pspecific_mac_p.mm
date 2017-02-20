@@ -123,6 +123,11 @@ ApplicationDelegate *_sharedDelegate = nil;
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
 	if (App::app()) {
 		App::app()->handleAppActivated();
+		if (auto window = App::wnd()) {
+			if (window->isHidden()) {
+				window->showFromTray();
+			}
+		}
 	}
 }
 
