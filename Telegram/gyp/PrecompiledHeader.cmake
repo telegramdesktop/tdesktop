@@ -123,7 +123,7 @@ function(add_precompiled_header _target _input)
       set(_compiler_FLAGS "@${_pch_cpp_flags_file}")
       add_custom_command(
         OUTPUT "${_output_cxx}"
-        COMMAND "${CMAKE_CXX_COMPILER}" ${_compiler_FLAGS} -x c++-header -o "${_output_cxx}" -c "${_pchfile}"
+        COMMAND "${CMAKE_CXX_COMPILER}" ${_compiler_FLAGS} -std=gnu++1y -x c++-header -o "${_output_cxx}" -c "${_pchfile}"
         DEPENDS "${_pchfile}" "${_pch_cpp_flags_file}"
         IMPLICIT_DEPENDS CXX "${_pch_header}"
         COMMENT "Precompiling ${_name} for ${_target} (C++)")
