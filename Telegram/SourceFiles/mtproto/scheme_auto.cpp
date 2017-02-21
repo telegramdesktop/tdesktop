@@ -169,6 +169,18 @@ void _serialize_dh_gen_fail(MTPStringLogger &to, int32 stage, int32 lev, Types &
 	}
 }
 
+void _serialize_destroy_auth_key_ok(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ destroy_auth_key_ok }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_destroy_auth_key_none(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ destroy_auth_key_none }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
+void _serialize_destroy_auth_key_fail(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ destroy_auth_key_fail }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
 void _serialize_msgs_ack(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -6932,6 +6944,10 @@ void _serialize_set_client_DH_params(MTPStringLogger &to, int32 stage, int32 lev
 	}
 }
 
+void _serialize_destroy_auth_key(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
+	to.add("{ destroy_auth_key }"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();
+}
+
 void _serialize_rpc_drop_answer(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {
 	if (stage) {
 		to.add(",\n").addSpaces(lev);
@@ -9795,6 +9811,9 @@ namespace {
 		_serializers.insert(mtpc_dh_gen_ok, _serialize_dh_gen_ok);
 		_serializers.insert(mtpc_dh_gen_retry, _serialize_dh_gen_retry);
 		_serializers.insert(mtpc_dh_gen_fail, _serialize_dh_gen_fail);
+		_serializers.insert(mtpc_destroy_auth_key_ok, _serialize_destroy_auth_key_ok);
+		_serializers.insert(mtpc_destroy_auth_key_none, _serialize_destroy_auth_key_none);
+		_serializers.insert(mtpc_destroy_auth_key_fail, _serialize_destroy_auth_key_fail);
 		_serializers.insert(mtpc_msgs_ack, _serialize_msgs_ack);
 		_serializers.insert(mtpc_bad_msg_notification, _serialize_bad_msg_notification);
 		_serializers.insert(mtpc_bad_server_salt, _serialize_bad_server_salt);
@@ -10328,6 +10347,7 @@ namespace {
 		_serializers.insert(mtpc_req_pq, _serialize_req_pq);
 		_serializers.insert(mtpc_req_DH_params, _serialize_req_DH_params);
 		_serializers.insert(mtpc_set_client_DH_params, _serialize_set_client_DH_params);
+		_serializers.insert(mtpc_destroy_auth_key, _serialize_destroy_auth_key);
 		_serializers.insert(mtpc_rpc_drop_answer, _serialize_rpc_drop_answer);
 		_serializers.insert(mtpc_get_future_salts, _serialize_get_future_salts);
 		_serializers.insert(mtpc_ping, _serialize_ping);

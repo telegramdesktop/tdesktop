@@ -48,9 +48,13 @@ enum {
 	mtpc_dh_gen_ok = 0x3bcbf734,
 	mtpc_dh_gen_retry = 0x46dc1fb9,
 	mtpc_dh_gen_fail = 0xa69dae02,
+	mtpc_destroy_auth_key_ok = 0xf660e1d4,
+	mtpc_destroy_auth_key_none = 0xa9f2259,
+	mtpc_destroy_auth_key_fail = 0xea109b13,
 	mtpc_req_pq = 0x60469778,
 	mtpc_req_DH_params = 0xd712e4be,
 	mtpc_set_client_DH_params = 0xf5045f1f,
+	mtpc_destroy_auth_key = 0xd1435160,
 	mtpc_msgs_ack = 0x62d6b459,
 	mtpc_bad_msg_notification = 0xa7eff811,
 	mtpc_bad_server_salt = 0xedab447b,
@@ -806,6 +810,8 @@ class MTPset_client_DH_params_answer;
 class MTPDdh_gen_ok;
 class MTPDdh_gen_retry;
 class MTPDdh_gen_fail;
+
+class MTPdestroyAuthKeyRes;
 
 class MTPmsgsAck;
 class MTPDmsgs_ack;
@@ -1577,6 +1583,7 @@ typedef MTPBoxed<MTPserver_DH_Params> MTPServer_DH_Params;
 typedef MTPBoxed<MTPserver_DH_inner_data> MTPServer_DH_inner_data;
 typedef MTPBoxed<MTPclient_DH_Inner_Data> MTPClient_DH_Inner_Data;
 typedef MTPBoxed<MTPset_client_DH_params_answer> MTPSet_client_DH_params_answer;
+typedef MTPBoxed<MTPdestroyAuthKeyRes> MTPDestroyAuthKeyRes;
 typedef MTPBoxed<MTPmsgsAck> MTPMsgsAck;
 typedef MTPBoxed<MTPbadMsgNotification> MTPBadMsgNotification;
 typedef MTPBoxed<MTPmsgsStateReq> MTPMsgsStateReq;
@@ -1991,6 +1998,30 @@ private:
 	mtpTypeId _type;
 };
 typedef MTPBoxed<MTPset_client_DH_params_answer> MTPSet_client_DH_params_answer;
+
+class MTPdestroyAuthKeyRes {
+public:
+	MTPdestroyAuthKeyRes() : _type(0) {
+	}
+	MTPdestroyAuthKeyRes(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) : _type(0) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const;
+	mtpTypeId type() const;
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons);
+	void write(mtpBuffer &to) const;
+
+	typedef void ResponseType;
+
+private:
+	explicit MTPdestroyAuthKeyRes(mtpTypeId type);
+
+	friend class MTP::internal::TypeCreator;
+
+	mtpTypeId _type;
+};
+typedef MTPBoxed<MTPdestroyAuthKeyRes> MTPDestroyAuthKeyRes;
 
 class MTPmsgsAck : private mtpDataOwner {
 public:
@@ -16496,6 +16527,37 @@ public:
 	}
 };
 
+class MTPdestroy_auth_key { // RPC method 'destroy_auth_key'
+public:
+	MTPdestroy_auth_key() {
+	}
+	MTPdestroy_auth_key(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_destroy_auth_key) {
+		read(from, end, cons);
+	}
+
+	uint32 innerLength() const {
+		return 0;
+	}
+	mtpTypeId type() const {
+		return mtpc_destroy_auth_key;
+	}
+	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_destroy_auth_key) {
+	}
+	void write(mtpBuffer &to) const {
+	}
+
+	typedef MTPDestroyAuthKeyRes ResponseType;
+};
+class MTPDestroy_auth_key : public MTPBoxed<MTPdestroy_auth_key> {
+public:
+	MTPDestroy_auth_key() {
+	}
+	MTPDestroy_auth_key(const MTPdestroy_auth_key &v) : MTPBoxed<MTPdestroy_auth_key>(v) {
+	}
+	MTPDestroy_auth_key(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTPdestroy_auth_key>(from, end, cons) {
+	}
+};
+
 class MTPrpc_drop_answer { // RPC method 'rpc_drop_answer'
 public:
 	MTPlong vreq_msg_id;
@@ -25468,6 +25530,15 @@ public:
 	inline static MTPset_client_DH_params_answer new_dh_gen_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash3) {
 		return MTPset_client_DH_params_answer(new MTPDdh_gen_fail(_nonce, _server_nonce, _new_nonce_hash3));
 	}
+	inline static MTPdestroyAuthKeyRes new_destroy_auth_key_ok() {
+		return MTPdestroyAuthKeyRes(mtpc_destroy_auth_key_ok);
+	}
+	inline static MTPdestroyAuthKeyRes new_destroy_auth_key_none() {
+		return MTPdestroyAuthKeyRes(mtpc_destroy_auth_key_none);
+	}
+	inline static MTPdestroyAuthKeyRes new_destroy_auth_key_fail() {
+		return MTPdestroyAuthKeyRes(mtpc_destroy_auth_key_fail);
+	}
 	inline static MTPmsgsAck new_msgs_ack(const MTPVector<MTPlong> &_msg_ids) {
 		return MTPmsgsAck(new MTPDmsgs_ack(_msg_ids));
 	}
@@ -27365,6 +27436,41 @@ inline MTPset_client_DH_params_answer MTP_dh_gen_retry(const MTPint128 &_nonce, 
 }
 inline MTPset_client_DH_params_answer MTP_dh_gen_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash3) {
 	return MTP::internal::TypeCreator::new_dh_gen_fail(_nonce, _server_nonce, _new_nonce_hash3);
+}
+
+inline uint32 MTPdestroyAuthKeyRes::innerLength() const {
+	return 0;
+}
+inline mtpTypeId MTPdestroyAuthKeyRes::type() const {
+	t_assert(_type != 0);
+	return _type;
+}
+inline void MTPdestroyAuthKeyRes::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
+	switch (cons) {
+		case mtpc_destroy_auth_key_ok: _type = cons; break;
+		case mtpc_destroy_auth_key_none: _type = cons; break;
+		case mtpc_destroy_auth_key_fail: _type = cons; break;
+		default: throw mtpErrorUnexpected(cons, "MTPdestroyAuthKeyRes");
+	}
+}
+inline void MTPdestroyAuthKeyRes::write(mtpBuffer &to) const {
+}
+inline MTPdestroyAuthKeyRes::MTPdestroyAuthKeyRes(mtpTypeId type) : _type(type) {
+	switch (type) {
+		case mtpc_destroy_auth_key_ok: break;
+		case mtpc_destroy_auth_key_none: break;
+		case mtpc_destroy_auth_key_fail: break;
+		default: throw mtpErrorBadTypeId(type, "MTPdestroyAuthKeyRes");
+	}
+}
+inline MTPdestroyAuthKeyRes MTP_destroy_auth_key_ok() {
+	return MTP::internal::TypeCreator::new_destroy_auth_key_ok();
+}
+inline MTPdestroyAuthKeyRes MTP_destroy_auth_key_none() {
+	return MTP::internal::TypeCreator::new_destroy_auth_key_none();
+}
+inline MTPdestroyAuthKeyRes MTP_destroy_auth_key_fail() {
+	return MTP::internal::TypeCreator::new_destroy_auth_key_fail();
 }
 
 inline MTPmsgsAck::MTPmsgsAck() : mtpDataOwner(new MTPDmsgs_ack()) {

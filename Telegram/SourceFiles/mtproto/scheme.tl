@@ -47,6 +47,10 @@ dh_gen_ok#3bcbf734 nonce:int128 server_nonce:int128 new_nonce_hash1:int128 = Set
 dh_gen_retry#46dc1fb9 nonce:int128 server_nonce:int128 new_nonce_hash2:int128 = Set_client_DH_params_answer;
 dh_gen_fail#a69dae02 nonce:int128 server_nonce:int128 new_nonce_hash3:int128 = Set_client_DH_params_answer;
 
+destroy_auth_key_ok#f660e1d4 = DestroyAuthKeyRes;
+destroy_auth_key_none#0a9f2259 = DestroyAuthKeyRes;
+destroy_auth_key_fail#ea109b13 = DestroyAuthKeyRes;
+
 ---functions---
 
 req_pq#60469778 nonce:int128 = ResPQ;
@@ -54,6 +58,8 @@ req_pq#60469778 nonce:int128 = ResPQ;
 req_DH_params#d712e4be nonce:int128 server_nonce:int128 p:string q:string public_key_fingerprint:long encrypted_data:string = Server_DH_Params;
 
 set_client_DH_params#f5045f1f nonce:int128 server_nonce:int128 encrypted_data:string = Set_client_DH_params_answer;
+
+destroy_auth_key#d1435160 = DestroyAuthKeyRes;
 
 ///////////////////////////////
 ////////////// System messages
