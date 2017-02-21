@@ -5,13 +5,13 @@
 * Install git by command **sudo apt-get install git** in Terminal
 * Install g++ by command **sudo apt-get install g++** in Terminal
 
-You need to install g++ version 4.9 manually by such commands
+You need to install g++ version 6 manually by such commands
 
 * sudo add-apt-repository ppa:ubuntu-toolchain-r/test
 * sudo apt-get update
-* sudo apt-get install gcc-4.9 g++-4.9
-* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 21
-* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 21
+* sudo apt-get install gcc-6 g++-6
+* sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60
+* sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 60
 
 ###Prepare folder
 

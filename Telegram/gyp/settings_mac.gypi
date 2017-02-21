@@ -89,9 +89,6 @@
     }],
     [ 'build_macold', {
       'xcode_settings': {
-        'OTHER_CFLAGS': [
-          '-Wno-inconsistent-missing-override',
-        ],
         'OTHER_CPLUSPLUSFLAGS': [
           '-Wno-inconsistent-missing-override',
         ],

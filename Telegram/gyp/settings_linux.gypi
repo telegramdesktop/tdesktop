@@ -35,6 +35,7 @@
           '-Wno-comment',
           '-Wno-unused-but-set-variable',
           '-Wno-missing-field-initializers',
+          '-Wno-sign-compare',
         ],
       },
       'conditions': [
