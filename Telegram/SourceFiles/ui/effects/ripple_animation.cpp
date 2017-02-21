@@ -207,7 +207,7 @@ QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(
 		p.setBrush(QColor(255, 255, 255));
 		drawer(p);
 	}
-	return std::move(result);
+	return result;
 }
 
 QImage RippleAnimation::rectMask(QSize size) {

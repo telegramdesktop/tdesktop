@@ -694,7 +694,7 @@ Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
 	result.description = Ui::FlatLabel::CrossFade(after->_description->entity(), _description->entity(), st::introBg, after->_description->pos(), _description->pos());
 	result.contentSnapshotWas = after->prepareContentSnapshot();
 	result.contentSnapshotNow = prepareContentSnapshot();
-	return std::move(result);
+	return result;
 }
 
 QPixmap Widget::Step::prepareContentSnapshot() {

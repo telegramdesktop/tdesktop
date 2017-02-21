@@ -609,7 +609,7 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLa
 			result.lineAddTop = addedHeight / 2;
 			result.lineHeight += addedHeight;
 		}
-		return std::move(result);
+		return result;
 	};
 	auto was = prepareData(from);
 	auto now = prepareData(to);
@@ -643,13 +643,13 @@ std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLa
 		}
 		auto positionBase = position + label->pos();
 		result.position = positionBase + QPoint(label->_st.margin.left() + left, label->_st.margin.top() + top);
-		return std::move(result);
+		return result;
 	};
 	for (int i = 0; i != maxLines; ++i) {
 		result->addLine(preparePart(from, fromPosition, was, i, now), preparePart(to, toPosition, now, i, was));
 	}
 
-	return std::move(result);
+	return result;
 }
 
 Text::StateResult FlatLabel::dragActionUpdate() {

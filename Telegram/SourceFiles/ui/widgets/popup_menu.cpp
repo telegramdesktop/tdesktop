@@ -408,7 +408,7 @@ QImage PopupMenu::grabForPanelAnimation() {
 			}
 		}
 	}
-	return std::move(result);
+	return result;
 }
 
 void PopupMenu::deleteOnHide(bool del) {

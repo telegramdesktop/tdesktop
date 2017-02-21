@@ -274,7 +274,7 @@ QImage InnerDropdown::grabForPanelAnimation() {
 			}
 		}
 	}
-	return std::move(result);
+	return result;
 }
 
 void InnerDropdown::opacityAnimationCallback() {

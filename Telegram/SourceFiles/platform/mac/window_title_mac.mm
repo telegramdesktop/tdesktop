@@ -115,7 +115,7 @@ QImage PreviewWindowSystemButton(QColor inner, QColor border) {
 		p.drawEllipse(QRectF(0.5, 0.5, fullSize - 1., fullSize - 1.));
 	}
 	result.setDevicePixelRatio(cRetinaFactor());
-	return std::move(result);
+	return result;
 }
 
 void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int titleHeight, int outerWidth) {

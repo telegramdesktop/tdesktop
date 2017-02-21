@@ -99,7 +99,7 @@ QImage RoundShadowAnimation::cloneImage(const style::icon &source) {
 		Painter p(&result);
 		source.paint(p, 0, 0, source.width());
 	}
-	return std::move(result);
+	return result;
 }
 
 void RoundShadowAnimation::paintCorner(Corner &corner, int left, int top) {

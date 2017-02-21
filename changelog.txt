@@ -1,3 +1,7 @@
+1.0.14 (20.02.17)
+
+- Bug fixes and other minor improvements.
+
 1.0.13 (20.02.17)
 
 - Bug fixes and other minor improvements.

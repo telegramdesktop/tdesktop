@@ -425,7 +425,7 @@ QPixmap StickersBox::grabContentCache() {
 	_tabs->hide();
 	auto result = grabInnerCache();
 	_tabs->show();
-	return std::move(result);
+	return result;
 }
 
 void StickersBox::installSet(uint64 setId) {

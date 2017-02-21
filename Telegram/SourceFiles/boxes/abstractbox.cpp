@@ -155,7 +155,7 @@ QPixmap BoxContent::grabInnerCache() {
 	auto result = myGrab(this, _scroll->geometry());
 	if (isTopShadowVisible) _topShadow->show();
 	if (isBottomShadowVisible) _bottomShadow->show();
-	return std::move(result);
+	return result;
 }
 
 void BoxContent::resizeEvent(QResizeEvent *e) {

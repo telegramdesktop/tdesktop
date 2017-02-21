@@ -54,6 +54,7 @@
           '-Wno-switch',
           '-Wno-comment',
           '-Wno-missing-field-initializers',
+          '-Wno-sign-compare',
         ],
       },
       'xcode_settings': {

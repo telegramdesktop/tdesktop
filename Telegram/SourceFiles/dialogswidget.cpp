@@ -215,8 +215,8 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
 		if (!_hashtagResults.empty()) {
-			int32 from = floorclamp(r.y(), st::mentionHeight, 0, _hashtagResults.size());
-			int32 to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());
+			auto from = floorclamp(r.y(), st::mentionHeight, 0, _hashtagResults.size());
+			auto to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());
 			p.translate(0, from * st::mentionHeight);
 			if (from < _hashtagResults.size()) {
 				auto htagwidth = fullWidth - st::dialogsPadding.x() * 2;

@@ -3317,7 +3317,7 @@ QImage EmojiPan::grabForPanelAnimation() {
 	_inPanelGrab = true;
 	render(&result);
 	_inPanelGrab = false;
-	return std::move(result);
+	return result;
 }
 
 void EmojiPan::hideAnimated() {

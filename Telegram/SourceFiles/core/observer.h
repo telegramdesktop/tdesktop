@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include <vector>
+#include <deque>
 #include "core/type_traits.h"
 
 namespace base {
@@ -285,7 +286,7 @@ private:
 		UnregisterActiveObservable(&this->_callHandlers);
 	}
 
-	std::vector<EventType> _events;
+	std::deque<EventType> _events;
 	bool _handling = false;
 
 };
@@ -425,9 +426,10 @@ protected:
 
 	void unsubscribe(int index) {
 		if (!index) return;
-		t_assert(index > 0 && index <= _subscriptions.size());
+		auto count = static_cast<int>(_subscriptions.size());
+		t_assert(index > 0 && index <= count);
 		_subscriptions[index - 1].destroy();
-		if (index == _subscriptions.size()) {
+		if (index == count) {
 			while (index > 0 && !_subscriptions[--index]) {
 				_subscriptions.pop_back();
 			}

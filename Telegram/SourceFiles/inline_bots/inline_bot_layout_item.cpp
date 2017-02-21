@@ -150,7 +150,7 @@ QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 		if (result.height() != height * cIntRetinaFactor()) {
 			result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 		}
-		return std::move(result);
+		return result;
 	}
 	return QPixmap();
 }

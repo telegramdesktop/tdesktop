@@ -2217,10 +2217,10 @@ void MainWidget::ui_showPeerHistory(quint64 peerId, qint32 showAtMsgId, Ui::Show
 		}
 		_stack.clear();
 	} else {
-		for (int i = 0, s = _stack.size(); i < s; ++i) {
+		for (auto i = 0, s = int(_stack.size()); i < s; ++i) {
 			if (_stack.at(i)->type() == HistoryStackItem && _stack.at(i)->peer->id == peerId) {
 				foundInStack = true;
-				while (_stack.size() > i + 1) {
+				while (int(_stack.size()) > i + 1) {
 					clearBotStartToken(_stack.back()->peer);
 					_stack.pop_back();
 				}

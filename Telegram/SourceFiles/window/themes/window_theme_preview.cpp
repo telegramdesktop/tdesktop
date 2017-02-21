@@ -895,7 +895,7 @@ std::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentD
 		return std::unique_ptr<Preview>();
 	}
 	result->preview = Generator(result->instance, data).generate();
-	return std::move(result);
+	return result;
 }
 
 int DefaultPreviewTitleHeight() {

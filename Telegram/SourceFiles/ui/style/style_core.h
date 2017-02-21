@@ -71,7 +71,7 @@ inline QImage colorizeImage(const QImage &src, QColor c, QRect srcRect = QRect()
 	if (srcRect.isNull()) srcRect = src.rect();
 	auto result = QImage(srcRect.size(), QImage::Format_ARGB32_Premultiplied);
 	colorizeImage(src, c, &result, srcRect);
-	return std::move(result);
+	return result;
 }
 
 inline QImage colorizeImage(const QImage &src, const color &c, QRect srcRect = QRect()) {

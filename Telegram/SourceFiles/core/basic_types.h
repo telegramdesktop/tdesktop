@@ -26,6 +26,21 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <ctime>
 
 #include "core/build_config.h"
+
+#if defined COMPILER_CLANG || defined COMPILER_GCC
+namespace std {
+
+template <typename T>
+constexpr std::add_const_t<T>& as_const(T& t) noexcept {
+    return t;
+}
+
+template <typename T>
+void as_const(const T&&) = delete;
+
+} // namespace std
+#endif // COMPILER_CLANG || COMPILER_GCC
+
 #include "core/ordered_set.h"
 
 //using uchar = unsigned char; // Qt has uchar

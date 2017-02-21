@@ -223,20 +223,20 @@ QImage MonoIcon::instance(QColor colorOverride, DBIScale scale) const {
 		} else {
 			colorizeImage(_maskImage, colorOverride, &result);
 		}
-		return std::move(result);
+		return result;
 	}
 	auto size = readGeneratedSize(_mask, scale);
 	if (!size.isEmpty()) {
 		auto result = QImage(size * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 		result.setDevicePixelRatio(cRetinaFactor());
 		result.fill(colorOverride);
-		return std::move(result);
+		return result;
 	}
 	auto mask = createIconMask(_mask, scale);
 	auto result = QImage(mask.size(), QImage::Format_ARGB32_Premultiplied);
 	result.setDevicePixelRatio(cRetinaFactor());
 	colorizeImage(mask, colorOverride, &result);
-	return std::move(result);
+	return result;
 }
 
 void MonoIcon::ensureLoaded() const {

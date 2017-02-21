@@ -266,7 +266,7 @@ QImage prepareColored(style::color add, QImage image) {
 			pix[i + 3] = uchar(a + ((aca * (0xFF - a)) >> 16));
 		}
 	}
-	return std::move(image);
+	return image;
 }
 
 QImage prepareOpaque(QImage image) {
@@ -285,7 +285,7 @@ QImage prepareOpaque(QImage image) {
 			ints += addPerLine;
 		}
 	}
-	return std::move(image);
+	return image;
 }
 
 QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh) {
@@ -337,7 +337,7 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		t_assert(!img.isNull());
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
-	return std::move(img);
+	return img;
 }
 
 } // namespace Images

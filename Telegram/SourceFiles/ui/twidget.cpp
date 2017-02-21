@@ -77,7 +77,7 @@ QPixmap myGrab(TWidget *target, QRect rect, QColor bg) {
 	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();
 
-	return std::move(result);
+	return result;
 }
 
 QImage myGrabImage(TWidget *target, QRect rect, QColor bg) {
@@ -94,7 +94,7 @@ QImage myGrabImage(TWidget *target, QRect rect, QColor bg) {
 	target->render(&result, QPoint(0, 0), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 	target->grabFinish();
 
-	return std::move(result);
+	return result;
 }
 
 void sendSynteticMouseEvent(QWidget *widget, QEvent::Type type, Qt::MouseButton button, const QPoint &globalPoint) {
