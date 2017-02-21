@@ -106,14 +106,14 @@ void History::setHasPendingResizedItems() {
 	Global::RefHandleHistoryUpdate().call();
 }
 
-void History::setLocalDraft(std_::unique_ptr<Data::Draft> &&draft) {
-	_localDraft = std_::move(draft);
+void History::setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
+	_localDraft = std::move(draft);
 }
 
 void History::takeLocalDraft(History *from) {
 	if (auto &draft = from->_localDraft) {
 		if (!draft->textWithTags.text.isEmpty() && !_localDraft) {
-			_localDraft = std_::move(draft);
+			_localDraft = std::move(draft);
 
 			// Edit and reply to drafts can't migrate.
 			// Cloud drafts do not migrate automatically.
@@ -131,7 +131,7 @@ void History::createLocalDraftFromCloud() {
 	auto existing = localDraft();
 	if (Data::draftIsNull(existing) || !existing->date.isValid() || draft->date >= existing->date) {
 		if (!existing) {
-			setLocalDraft(std_::make_unique<Data::Draft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
+			setLocalDraft(std::make_unique<Data::Draft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
 			existing = localDraft();
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
@@ -143,19 +143,19 @@ void History::createLocalDraftFromCloud() {
 	}
 }
 
-void History::setCloudDraft(std_::unique_ptr<Data::Draft> &&draft) {
-	_cloudDraft = std_::move(draft);
+void History::setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
+	_cloudDraft = std::move(draft);
 	cloudDraftTextCache.clear();
 }
 
 Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 	if (Data::draftIsNull(fromDraft)) {
-		setCloudDraft(std_::make_unique<Data::Draft>(TextWithTags(), 0, MessageCursor(), false));
+		setCloudDraft(std::make_unique<Data::Draft>(TextWithTags(), 0, MessageCursor(), false));
 		cloudDraft()->date = QDateTime();
 	} else {
 		auto existing = cloudDraft();
 		if (!existing) {
-			setCloudDraft(std_::make_unique<Data::Draft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
+			setCloudDraft(std::make_unique<Data::Draft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
 			existing = cloudDraft();
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
@@ -172,8 +172,8 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 	return cloudDraft();
 }
 
-void History::setEditDraft(std_::unique_ptr<Data::Draft> &&draft) {
-	_editDraft = std_::move(draft);
+void History::setEditDraft(std::unique_ptr<Data::Draft> &&draft) {
+	_editDraft = std::move(draft);
 }
 
 void History::clearLocalDraft() {

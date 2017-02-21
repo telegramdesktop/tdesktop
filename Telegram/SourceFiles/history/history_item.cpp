@@ -99,7 +99,7 @@ QString ReplyMarkupClickHandler::buttonText() const {
 ReplyKeyboard::ReplyKeyboard(const HistoryItem *item, StylePtr &&s)
 	: _item(item)
 	, _a_selected(animation(this, &ReplyKeyboard::step_selected))
-	, _st(std_::move(s)) {
+	, _st(std::move(s)) {
 	if (auto markup = item->Get<HistoryMessageReplyMarkup>()) {
 		_rows.reserve(markup->rows.size());
 		for (int i = 0, l = markup->rows.size(); i != l; ++i) {
@@ -197,7 +197,7 @@ bool ReplyKeyboard::isEnoughSpace(int width, const style::BotKeyboardButton &st)
 }
 
 void ReplyKeyboard::setStyle(StylePtr &&st) {
-	_st = std_::move(st);
+	_st = std::move(st);
 }
 
 int ReplyKeyboard::naturalWidth() const {
@@ -292,7 +292,7 @@ void ReplyKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pr
 		if (pressed) {
 			if (!button.ripple) {
 				auto mask = Ui::RippleAnimation::roundRectMask(button.rect.size(), _st->buttonRadius());
-				button.ripple = MakeShared<Ui::RippleAnimation>(_st->_st->ripple, std_::move(mask), [this] { _st->repaint(_item); });
+				button.ripple = MakeShared<Ui::RippleAnimation>(_st->_st->ripple, std::move(mask), [this] { _st->repaint(_item); });
 			}
 			button.ripple->add(_savedCoords - button.rect.topLeft());
 		} else {

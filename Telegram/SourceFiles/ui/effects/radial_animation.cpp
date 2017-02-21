@@ -25,7 +25,7 @@ namespace Ui {
 
 RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
 	: a_arcStart(0, FullArcLength)
-	, _animation(std_::move(callbacks)) {
+	, _animation(std::move(callbacks)) {
 }
 
 void RadialAnimation::start(float64 prg) {

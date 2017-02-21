@@ -205,7 +205,7 @@ Manager::Impl::~Impl() {
 	[_delegate release];
 }
 
-Manager::Manager() : _impl(std_::make_unique<Impl>()) {
+Manager::Manager() : _impl(std::make_unique<Impl>()) {
 }
 
 void Manager::updateDelegate() {

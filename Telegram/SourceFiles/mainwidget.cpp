@@ -61,8 +61,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/player_wrap_widget.h"
 #include "styles/style_boxes.h"
 
-StackItemSection::StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
-, _memento(std_::move(memento)) {
+StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
+, _memento(std::move(memento)) {
 }
 
 StackItemSection::~StackItemSection() {
@@ -229,7 +229,7 @@ bool MainWidget::onShareUrl(const PeerId &peer, const QString &url, const QStrin
 	History *h = App::history(peer);
 	TextWithTags textWithTags = { url + '\n' + text, TextWithTags::Tags() };
 	MessageCursor cursor = { url.size() + 1, url.size() + 1 + text.size(), QFIXED_MAX };
-	h->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -249,7 +249,7 @@ bool MainWidget::onInlineSwitchChosen(const PeerId &peer, const QString &botAndQ
 	History *h = App::history(peer);
 	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
 	MessageCursor cursor = { botAndQuery.size(), botAndQuery.size(), QFIXED_MAX };
-	h->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+	h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 	h->clearEditDraft();
 	bool opened = _history->peer() && (_history->peer()->id == peer);
 	if (opened) {
@@ -638,7 +638,7 @@ void MainWidget::hiderLayer(object_ptr<HistoryHider> h) {
 		return;
 	}
 
-	_hider = std_::move(h);
+	_hider = std::move(h);
 	connect(_hider, SIGNAL(forwarded()), _dialogs, SLOT(onCancelSearch()));
 	if (Adaptive::OneColumn()) {
 		dialogsToUp();
@@ -1104,7 +1104,7 @@ void MainWidget::onCacheBackground() {
 		}
 		_cachedX = 0;
 		_cachedY = 0;
-		_cachedBackground = App::pixmapFromImageInPlace(std_::move(result));
+		_cachedBackground = App::pixmapFromImageInPlace(std::move(result));
 	} else {
 		auto &bg = Window::Theme::Background()->pixmap();
 
@@ -1874,7 +1874,7 @@ void MainWidget::updateScrollColors() {
 }
 
 void MainWidget::setChatBackground(const App::WallPaper &wp) {
-	_background = std_::make_unique<App::WallPaper>(wp);
+	_background = std::make_unique<App::WallPaper>(wp);
 	_background->full->loadEvenCancelled();
 	checkChatBackground();
 }
@@ -2014,7 +2014,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 			if (update.peer != peer) return;
 			pinAction->setText(lang(App::history(peer)->isPinnedDialog() ? lng_context_unpin_from_top : lng_context_pin_to_top));
 		});
-		*pinSubscription = Notify::PeerUpdated().add_subscription(std_::move(pinChangedHandler));
+		*pinSubscription = Notify::PeerUpdated().add_subscription(std::move(pinChangedHandler));
 	}
 	callback(lang((peer->isChat() || peer->isMegagroup()) ? lng_context_view_group : (peer->isUser() ? lng_context_view_profile : lng_context_view_channel)), [peer] {
 		Ui::showPeerProfile(peer);
@@ -2027,7 +2027,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 		if (update.peer != peer) return;
 		muteAction->setText(lang(peer->isMuted() ? lng_enable_notifications_from_tray : lng_disable_notifications_from_tray));
 	});
-	*muteSubscription = Notify::PeerUpdated().add_subscription(std_::move(muteChangedHandler));
+	*muteSubscription = Notify::PeerUpdated().add_subscription(std::move(muteChangedHandler));
 
 	callback(lang(lng_profile_search_messages), [peer] {
 		App::main()->searchInPeer(peer);
@@ -2066,8 +2066,8 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 		}));
 	};
 	if (auto user = peer->asUser()) {
-		callback(lang(lng_profile_delete_conversation), std_::move(deleteAndLeaveHandler));
-		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
+		callback(lang(lng_profile_delete_conversation), std::move(deleteAndLeaveHandler));
+		callback(lang(lng_profile_clear_history), std::move(clearHistoryHandler));
 		if (!user->isInaccessible() && user != App::self()) {
 			auto blockSubscription = MakeShared<base::Subscription>();
 			auto blockAction = callback(lang(user->isBlocked() ? (user->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (user->botInfo ? lng_profile_block_bot : lng_profile_block_user)), [user, blockSubscription] {
@@ -2077,26 +2077,26 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 					emit App::main()->peerUpdated(user);
 				});
 				if (willBeBlocked) {
-					MTP::send(MTPcontacts_Block(user->inputUser), std_::move(handler));
+					MTP::send(MTPcontacts_Block(user->inputUser), std::move(handler));
 				} else {
-					MTP::send(MTPcontacts_Unblock(user->inputUser), std_::move(handler));
+					MTP::send(MTPcontacts_Unblock(user->inputUser), std::move(handler));
 				}
 			});
 			auto blockChangedHandler = Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [blockAction, peer](const Notify::PeerUpdate &update) {
 				if (update.peer != peer) return;
 				blockAction->setText(lang(peer->asUser()->isBlocked() ? (peer->asUser()->botInfo ? lng_profile_unblock_bot : lng_profile_unblock_user) : (peer->asUser()->botInfo ? lng_profile_block_bot : lng_profile_block_user)));
 			});
-			*blockSubscription = Notify::PeerUpdated().add_subscription(std_::move(blockChangedHandler));
+			*blockSubscription = Notify::PeerUpdated().add_subscription(std::move(blockChangedHandler));
 
 			if (user->blockStatus() == UserData::BlockStatus::Unknown) {
 				App::api()->requestFullPeer(user);
 			}
 		}
 	} else if (peer->isChat()) {
-		callback(lang(lng_profile_clear_and_exit), std_::move(deleteAndLeaveHandler));
-		callback(lang(lng_profile_clear_history), std_::move(clearHistoryHandler));
+		callback(lang(lng_profile_clear_and_exit), std::move(deleteAndLeaveHandler));
+		callback(lang(lng_profile_clear_history), std::move(clearHistoryHandler));
 	} else if (peer->isChannel() && peer->asChannel()->amIn() && !peer->asChannel()->amCreator()) {
-		callback(lang(peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel), std_::move(deleteAndLeaveHandler));
+		callback(lang(peer->isMegagroup() ? lng_profile_leave_group : lng_profile_leave_channel), std::move(deleteAndLeaveHandler));
 	}
 }
 
@@ -2398,13 +2398,13 @@ bool MainWidget::mediaTypeSwitch() {
 
 void MainWidget::saveSectionInStack() {
 	if (_overview) {
-		_stack.push_back(std_::make_unique<StackItemOverview>(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
+		_stack.push_back(std::make_unique<StackItemOverview>(_overview->peer(), _overview->type(), _overview->lastWidth(), _overview->lastScrollTop()));
 	} else if (_wideSection) {
-		_stack.push_back(std_::make_unique<StackItemSection>(_wideSection->createMemento()));
+		_stack.push_back(std::make_unique<StackItemSection>(_wideSection->createMemento()));
 	} else if (_history->peer()) {
 		_peerInStack = _history->peer();
 		_msgIdInStack = _history->msgId();
-		_stack.push_back(std_::make_unique<StackItemHistory>(_peerInStack, _msgIdInStack, _history->replyReturns()));
+		_stack.push_back(std::make_unique<StackItemHistory>(_peerInStack, _msgIdInStack, _history->replyReturns()));
 	}
 }
 
@@ -2608,7 +2608,7 @@ void MainWidget::showNewWideSection(const Window::SectionMemento *memento, bool 
 		_wideSection->deleteLater();
 		_wideSection = nullptr;
 	}
-	_wideSection = std_::move(newWideSection);
+	_wideSection = std::move(newWideSection);
 	_topBar->hide();
 	updateControlsGeometry();
 	_history->finishAnimation();
@@ -2631,17 +2631,17 @@ bool MainWidget::isSectionShown() const {
 }
 
 bool MainWidget::stackIsEmpty() const {
-	return _stack.isEmpty();
+	return _stack.empty();
 }
 
 void MainWidget::showBackFromStack() {
 	if (selectingPeer()) return;
-	if (_stack.isEmpty()) {
+	if (_stack.empty()) {
 		Ui::showChatsList();
 		if (App::wnd()) QTimer::singleShot(0, App::wnd(), SLOT(setInnerFocus()));
 		return;
 	}
-	auto item = std_::move(_stack.back());
+	auto item = std::move(_stack.back());
 	_stack.pop_back();
 	if (auto currentHistoryPeer = _history->peer()) {
 		clearBotStartToken(currentHistoryPeer);

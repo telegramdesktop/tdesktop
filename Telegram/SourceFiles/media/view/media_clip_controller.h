@@ -86,13 +86,13 @@ private:
 	TimeMs _lastDurationMs = 0;
 
 	object_ptr<Ui::IconButton> _playPauseResume;
-	std_::unique_ptr<Playback> _playback;
+	std::unique_ptr<Playback> _playback;
 	object_ptr<VolumeController> _volumeController;
 	object_ptr<Ui::IconButton> _fullScreenToggle;
 	object_ptr<Ui::LabelSimple> _playedAlready;
 	object_ptr<Ui::LabelSimple> _toPlayLeft;
 
-	std_::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
+	std::unique_ptr<Ui::FadeAnimation> _fadeAnimation;
 
 };
 

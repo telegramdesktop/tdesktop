@@ -57,7 +57,7 @@ private:
 	base::lambda_copy<void()> _updateCallback;
 
 	bool _checked = false;
-	std_::vector_of_moveable<Icon> _icons;
+	std::vector<Icon> _icons;
 
 	bool _displayInactive = false;
 	QPixmap _inactiveCacheBg, _inactiveCacheFg;

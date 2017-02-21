@@ -391,7 +391,7 @@ void MainWindow::showSpecialLayer(object_ptr<LayerWidget> layer) {
 	if (!_layerBg) {
 		_layerBg.create(bodyWidget());
 	}
-	_layerBg->showSpecialLayer(std_::move(layer));
+	_layerBg->showSpecialLayer(std::move(layer));
 }
 
 void MainWindow::showMainMenu() {
@@ -450,12 +450,12 @@ void MainWindow::ui_showBox(object_ptr<BoxContent> box, ShowLayerOptions options
 		}
 		if (options.testFlag(KeepOtherLayers)) {
 			if (options.testFlag(ShowAfterOtherLayers)) {
-				_layerBg->prependBox(std_::move(box));
+				_layerBg->prependBox(std::move(box));
 			} else {
-				_layerBg->appendBox(std_::move(box));
+				_layerBg->appendBox(std::move(box));
 			}
 		} else {
-			_layerBg->showBox(std_::move(box));
+			_layerBg->showBox(std::move(box));
 		}
 		if (options.testFlag(ForceFastShowLayer)) {
 			_layerBg->finishAnimation();

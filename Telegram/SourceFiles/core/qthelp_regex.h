@@ -24,16 +24,16 @@ namespace qthelp {
 
 class RegularExpressionMatch {
 public:
-	RegularExpressionMatch(QRegularExpressionMatch &&match) : data_(std_::move(match)) {
+	RegularExpressionMatch(QRegularExpressionMatch &&match) : data_(std::move(match)) {
 	}
-	RegularExpressionMatch(RegularExpressionMatch &&other) : data_(std_::move(other.data_)) {
+	RegularExpressionMatch(RegularExpressionMatch &&other) : data_(std::move(other.data_)) {
 	}
 	RegularExpressionMatch &operator=(QRegularExpressionMatch &&match) {
-		data_ = std_::move(match);
+		data_ = std::move(match);
 		return *this;
 	}
 	RegularExpressionMatch &operator=(RegularExpressionMatch &&other) {
-		data_ = std_::move(other.data_);
+		data_ = std::move(other.data_);
 		return *this;
 	}
 	QRegularExpressionMatch *operator->() {

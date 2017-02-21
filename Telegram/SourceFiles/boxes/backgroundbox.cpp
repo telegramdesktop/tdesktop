@@ -55,7 +55,7 @@ void BackgroundBox::backgroundChosen(int index) {
 }
 
 BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
-, _check(std_::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
+, _check(std::make_unique<Ui::RoundCheckbox>(st::overviewCheck, [this] { update(); })) {
 	_check->setChecked(true, Ui::RoundCheckbox::SetStyle::Fast);
 	if (App::cServerBackgrounds().isEmpty()) {
 		resize(BackgroundsInRow * (st::backgroundSize.width() + st::backgroundPadding) + st::backgroundPadding, 2 * (st::backgroundSize.height() + st::backgroundPadding) + st::backgroundPadding);

@@ -101,7 +101,7 @@ inline void mediaOverviewUpdated(PeerData *peer, MediaOverviewType type) {
 class PeerUpdatedHandler {
 public:
 	template <typename Lambda>
-	PeerUpdatedHandler(PeerUpdate::Flags events, Lambda &&handler) : _events(events), _handler(std_::move(handler)) {
+	PeerUpdatedHandler(PeerUpdate::Flags events, Lambda &&handler) : _events(events), _handler(std::move(handler)) {
 	}
 	void operator()(const PeerUpdate &update) const {
 		if (update.flags & _events) {

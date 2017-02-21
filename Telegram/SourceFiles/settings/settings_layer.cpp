@@ -55,7 +55,7 @@ Layer::Layer()
 }
 
 void Layer::setCloseClickHandler(base::lambda<void()> &&callback) {
-	_fixedBarClose->setClickedCallback(std_::move(callback));
+	_fixedBarClose->setClickedCallback(std::move(callback));
 }
 
 void Layer::onScroll() {
@@ -79,7 +79,7 @@ void Layer::onInnerHeightUpdated() {
 }
 
 void Layer::doSetInnerWidget(object_ptr<LayerInner> widget) {
-	_inner = _scroll->setOwnedWidget(std_::move(widget));
+	_inner = _scroll->setOwnedWidget(std::move(widget));
 	connect(_inner, SIGNAL(heightUpdated()), this, SLOT(onInnerHeightUpdated()));
 }
 

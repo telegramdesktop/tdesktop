@@ -37,7 +37,7 @@ void SingleTimer::setTimeoutHandler(base::lambda<void()> &&handler) {
 	} else if (handler && !_handler) {
 		connect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
 	}
-	_handler = std_::move(handler);
+	_handler = std::move(handler);
 }
 
 void SingleTimer::adjust() {

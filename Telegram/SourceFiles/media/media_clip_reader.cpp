@@ -86,7 +86,7 @@ QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool 
 } // namespace
 
 Reader::Reader(const FileLocation &location, const QByteArray &data, Callback &&callback, Mode mode, int64 seekMs)
-: _callback(std_::move(callback))
+: _callback(std::move(callback))
 , _mode(mode)
 , _playId(rand_value<uint64>())
 , _seekPositionMs(seekMs) {
@@ -336,7 +336,7 @@ public:
 	, _seekPositionMs(reader->seekPositionMs())
 	, _data(data) {
 		if (_data.isEmpty()) {
-			_location = std_::make_unique<FileLocation>(location);
+			_location = std::make_unique<FileLocation>(location);
 			if (!_location->accessEnable()) {
 				error();
 				return;
@@ -357,7 +357,7 @@ public:
 
 				auto firstFramePlayId = 0LL;
 				auto firstFramePositionMs = 0LL;
-				auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, firstFramePlayId);
+				auto reader = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, firstFramePlayId);
 				if (reader->start(internal::ReaderImplementation::Mode::Normal, firstFramePositionMs)) {
 					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
 					if (firstFrameReadResult == internal::ReaderImplementation::ReadResult::Success) {
@@ -464,7 +464,7 @@ public:
 			}
 		}
 
-		_implementation = std_::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _playId);
+		_implementation = std::make_unique<internal::FFMpegReaderImplementation>(_location.get(), &_data, _playId);
 //		_implementation = new QtGifReaderImplementation(_location, &_data);
 
 		auto implementationMode = [this]() {
@@ -530,11 +530,11 @@ private:
 	TimeMs _seekPositionMs = 0;
 
 	QByteArray _data;
-	std_::unique_ptr<FileLocation> _location;
+	std::unique_ptr<FileLocation> _location;
 	bool _accessed = false;
 
 	QBuffer _buffer;
-	std_::unique_ptr<internal::ReaderImplementation> _implementation;
+	std::unique_ptr<internal::ReaderImplementation> _implementation;
 
 	FrameRequest _request;
 	struct Frame {
@@ -839,7 +839,7 @@ MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data
 
 	auto playId = 0ULL;
 	auto seekPositionMs = 0LL;
-	auto reader = std_::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
+	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
 	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv, seekPositionMs)) {
 		bool hasAlpha = false;
 		auto readResult = reader->readFramesTill(-1, getms());

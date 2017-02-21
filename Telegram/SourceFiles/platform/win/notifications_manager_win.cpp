@@ -511,7 +511,7 @@ bool Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	return true;
 }
 
-Manager::Manager() : _impl(std_::make_unique<Impl>(Impl::Type::Rounded)) {
+Manager::Manager() : _impl(std::make_unique<Impl>(Impl::Type::Rounded)) {
 }
 
 void Manager::clearNotification(PeerId peerId, MsgId msgId) {

@@ -53,7 +53,7 @@ const QPixmap &circleMask(int width, int height) {
 			p.drawEllipse(0, 0, width, height);
 		}
 		mask.setDevicePixelRatio(cRetinaFactor());
-		i = masks.insert(key, App::pixmapFromImageInPlace(std_::move(mask)));
+		i = masks.insert(key, App::pixmapFromImageInPlace(std::move(mask)));
 	}
 	return i.value();
 }
@@ -196,7 +196,7 @@ void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corn
 	t_assert(!image.isNull());
 
 	image.setDevicePixelRatio(cRetinaFactor());
-	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	t_assert(!image.isNull());
 
 	QImage **masks = App::cornersMask(radius);
@@ -252,7 +252,7 @@ void prepareRound(QImage &image, QImage **cornerMasks, ImageRoundCorners corners
 QImage prepareColored(style::color add, QImage image) {
 	auto format = image.format();
 	if (format != QImage::Format_RGB32 && format != QImage::Format_ARGB32_Premultiplied) {
-		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	}
 
 	if (auto pix = image.bits()) {
@@ -266,12 +266,12 @@ QImage prepareColored(style::color add, QImage image) {
 			pix[i + 3] = uchar(a + ((aca * (0xFF - a)) >> 16));
 		}
 	}
-	return std_::move(image);
+	return std::move(image);
 }
 
 QImage prepareOpaque(QImage image) {
 	if (image.hasAlphaChannel()) {
-		image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+		image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		auto ints = reinterpret_cast<uint32*>(image.bits());
 		auto bg = anim::shifted(st::imageBgTransparent->c);
 		auto width = image.width();
@@ -285,7 +285,7 @@ QImage prepareOpaque(QImage image) {
 			ints += addPerLine;
 		}
 	}
-	return std_::move(image);
+	return std::move(image);
 }
 
 QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, int outerh) {
@@ -337,7 +337,7 @@ QImage prepare(QImage img, int w, int h, Images::Options options, int outerw, in
 		t_assert(!img.isNull());
 	}
 	img.setDevicePixelRatio(cRetinaFactor());
-	return std_::move(img);
+	return std::move(img);
 }
 
 } // namespace Images
@@ -354,7 +354,7 @@ Image *generateBlankImage() {
 	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	data.fill(Qt::transparent);
 	data.setDevicePixelRatio(cRetinaFactor());
-	return internal::getImage(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
+	return internal::getImage(App::pixmapFromImageInPlace(std::move(data)), "GIF");
 }
 
 Image *blank() {
@@ -716,7 +716,7 @@ QPixmap Image::pixNoCache(int w, int h, Images::Options options, int outerw, int
 		} else if (options.testFlag(Images::Option::RoundedSmall)) {
 			Images::prepareRound(result, ImageRoundRadius::Small, corners(options));
 		}
-		return App::pixmapFromImageInPlace(std_::move(result));
+		return App::pixmapFromImageInPlace(std::move(result));
 	}
 
 	return Images::pixmap(_data.toImage(), w, h, options, outerw, outerh);

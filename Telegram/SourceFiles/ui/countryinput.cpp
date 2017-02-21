@@ -393,12 +393,12 @@ void CountrySelectBox::Inner::mousePressEvent(QMouseEvent *e) {
 		if (_ripples.size() <= _pressed) {
 			_ripples.reserve(_pressed + 1);
 			while (_ripples.size() <= _pressed) {
-				_ripples.push_back(std_::unique_ptr<Ui::RippleAnimation>());
+				_ripples.push_back(std::unique_ptr<Ui::RippleAnimation>());
 			}
 		}
 		if (!_ripples[_pressed]) {
 			auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
-			_ripples[_pressed] = std_::make_unique<Ui::RippleAnimation>(st::countryRipple, std_::move(mask), [this, index = _pressed] {
+			_ripples[_pressed] = std::make_unique<Ui::RippleAnimation>(st::countryRipple, std::move(mask), [this, index = _pressed] {
 				updateRow(index);
 			});
 			_ripples[_pressed]->add(e->pos() - QPoint(0, st::countriesSkip + _pressed * _rowHeight));

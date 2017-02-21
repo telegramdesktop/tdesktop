@@ -70,7 +70,7 @@ public:
 	virtual bool showInternal(const SectionMemento *memento) = 0;
 
 	// Create a memento of that section to store it in the history stack.
-	virtual std_::unique_ptr<SectionMemento> createMemento() const = 0;
+	virtual std::unique_ptr<SectionMemento> createMemento() const = 0;
 
 	void setInnerFocus() {
 		doSetInnerFocus();
@@ -100,7 +100,7 @@ protected:
 private:
 	void showFinished();
 
-	std_::unique_ptr<SlideAnimation> _showAnimation;
+	std::unique_ptr<SlideAnimation> _showAnimation;
 
 	// Saving here topDelta in resizeWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;

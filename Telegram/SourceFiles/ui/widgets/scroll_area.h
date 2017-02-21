@@ -186,7 +186,7 @@ public:
 	template <typename Widget>
 	QPointer<Widget> setOwnedWidget(object_ptr<Widget> widget) {
 		auto result = QPointer<Widget>(widget);
-		doSetOwnedWidget(std_::move(widget));
+		doSetOwnedWidget(std::move(widget));
 		return result;
 	}
 	template <typename Widget>

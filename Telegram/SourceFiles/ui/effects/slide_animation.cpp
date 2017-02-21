@@ -24,8 +24,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 
 void SlideAnimation::setSnapshots(QPixmap leftSnapshot, QPixmap rightSnapshot) {
-	_leftSnapshot = std_::move(leftSnapshot);
-	_rightSnapshot = std_::move(rightSnapshot);
+	_leftSnapshot = std::move(leftSnapshot);
+	_rightSnapshot = std::move(rightSnapshot);
 	t_assert(!_leftSnapshot.isNull());
 	t_assert(!_rightSnapshot.isNull());
 	_leftSnapshot.setDevicePixelRatio(cRetinaFactor());

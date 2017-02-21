@@ -39,8 +39,8 @@ public:
 	}
 
 	static const MetaData kMeta;
-	static std_::unique_ptr<Impl> create() {
-		return std_::make_unique<TypingAnimation>();
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<TypingAnimation>();
 	}
 	const MetaData *metaData() const override {
 		return &kMeta;
@@ -84,8 +84,8 @@ public:
 	}
 
 	static const MetaData kMeta;
-	static std_::unique_ptr<Impl> create() {
-		return std_::make_unique<RecordAnimation>();
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<RecordAnimation>();
 	}
 	const MetaData *metaData() const override {
 		return &kMeta;
@@ -128,8 +128,8 @@ public:
 	}
 
 	static const MetaData kMeta;
-	static std_::unique_ptr<Impl> create() {
-		return std_::make_unique<UploadAnimation>();
+	static std::unique_ptr<Impl> create() {
+		return std::make_unique<UploadAnimation>();
 	}
 	const MetaData *metaData() const override {
 		return &kMeta;
@@ -212,7 +212,7 @@ void SendActionAnimation::stop() {
 	_impl.reset();
 }
 
-std_::unique_ptr<SendActionAnimation::Impl> SendActionAnimation::createByType(Type type) {
+std::unique_ptr<SendActionAnimation::Impl> SendActionAnimation::createByType(Type type) {
 	CreateImplementationsMap();
 	return Implementations->value(type, &TypingAnimation::kMeta)->creator();
 }

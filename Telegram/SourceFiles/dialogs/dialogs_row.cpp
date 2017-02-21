@@ -33,7 +33,7 @@ RippleRow::~RippleRow() = default;
 void RippleRow::addRipple(QPoint origin, QSize size, base::lambda_copy<void()> &&updateCallback) {
 	if (!_ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(size);
-		_ripple = std_::make_unique<Ui::RippleAnimation>(st::dialogsRipple, std_::move(mask), std_::move(updateCallback));
+		_ripple = std::make_unique<Ui::RippleAnimation>(st::dialogsRipple, std::move(mask), std::move(updateCallback));
 	}
 	_ripple->add(origin);
 }

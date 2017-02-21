@@ -35,7 +35,7 @@ public:
 	void clearActions();
 
 	void setHiddenCallback(base::lambda<void()> &&callback) {
-		_hiddenCallback = std_::move(callback);
+		_hiddenCallback = std::move(callback);
 	}
 
 	using Actions = Ui::Menu::Actions;

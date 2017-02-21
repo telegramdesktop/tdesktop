@@ -93,7 +93,7 @@ public:
 
 class StackItemSection : public StackItem {
 public:
-	StackItemSection(std_::unique_ptr<Window::SectionMemento> &&memento);
+	StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento);
 	~StackItemSection();
 
 	StackItemType type() const {
@@ -104,7 +104,7 @@ public:
 	}
 
 private:
-	std_::unique_ptr<Window::SectionMemento> _memento;
+	std::unique_ptr<Window::SectionMemento> _memento;
 
 };
 
@@ -608,7 +608,7 @@ private:
 
 	QPointer<ConfirmBox> _forwardConfirm; // for single column layout
 	object_ptr<HistoryHider> _hider = { nullptr };
-	std_::vector_of_moveable<std_::unique_ptr<StackItem>> _stack;
+	std::vector<std::unique_ptr<StackItem>> _stack;
 	PeerData *_peerInStack = nullptr;
 	MsgId _msgIdInStack = 0;
 
@@ -693,9 +693,9 @@ private:
 	void viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req);
 	bool viewsIncrementFail(const RPCError &error, mtpRequestId req);
 
-	std_::unique_ptr<App::WallPaper> _background;
+	std::unique_ptr<App::WallPaper> _background;
 
-	std_::unique_ptr<ApiWrap> _api;
+	std::unique_ptr<ApiWrap> _api;
 
 	bool _resizingSide = false;
 	int _resizingSideShift = 0;

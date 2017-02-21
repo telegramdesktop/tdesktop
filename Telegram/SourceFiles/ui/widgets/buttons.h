@@ -82,7 +82,7 @@ private:
 	void handleRipples(bool wasDown, bool wasPress);
 
 	const style::RippleAnimation &_st;
-	std_::unique_ptr<RippleAnimation> _ripple;
+	std::unique_ptr<RippleAnimation> _ripple;
 	bool _forceRippled = false;
 
 };
@@ -153,7 +153,7 @@ private:
 	int _textWidth;
 
 	class Numbers;
-	std_::unique_ptr<Numbers> _numbers;
+	std::unique_ptr<Numbers> _numbers;
 
 	int _fullWidthOverride = 0;
 

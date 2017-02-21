@@ -41,9 +41,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 
 ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
-: _copyCallback(std_::move(copyCallback))
-, _submitCallback(std_::move(submitCallback))
-, _filterCallback(std_::move(filterCallback))
+: _copyCallback(std::move(copyCallback))
+, _submitCallback(std::move(submitCallback))
+, _filterCallback(std::move(filterCallback))
 , _select(this, st::contactsMultiSelect, lang(lng_participant_filter))
 , _searchTimer(this) {
 }
@@ -54,7 +54,7 @@ void ShareBox::prepare() {
 
 	setTitle(lang(lng_share_title));
 
-	_inner = setInnerWidget(object_ptr<Inner>(this, std_::move(_filterCallback)), getTopScrollSkip());
+	_inner = setInnerWidget(object_ptr<Inner>(this, std::move(_filterCallback)), getTopScrollSkip());
 	connect(_inner, SIGNAL(mustScrollTo(int,int)), this, SLOT(onMustScrollTo(int,int)));
 
 	createButtons();
@@ -272,8 +272,8 @@ void ShareBox::scrollAnimationCallback() {
 }
 
 ShareBox::Inner::Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback) : TWidget(parent)
-, _filterCallback(std_::move(filterCallback))
-, _chatsIndexed(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
+, _filterCallback(std::move(filterCallback))
+, _chatsIndexed(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add)) {
 	_rowsTop = st::shareRowsTop;
 	_rowHeight = st::shareRowHeight;
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -649,7 +649,7 @@ void ShareBox::Inner::peerUnselected(PeerData *peer) {
 }
 
 void ShareBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
-	_peerSelectedChangedCallback = std_::move(callback);
+	_peerSelectedChangedCallback = std::move(callback);
 }
 
 void ShareBox::Inner::changePeerCheckState(Chat *chat, bool checked, ChangeStateWay useCallback) {
@@ -903,7 +903,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 					MTPVector<MTPlong> random = MTP_vector<MTPlong>(1, rand_value<MTPlong>());
 					auto request = MTPmessages_ForwardMessages(MTP_flags(sendFlags), item->history()->peer->input, msgIds, random, peer->input);
 					auto callback = doneCallback;
-					auto requestId = MTP::send(request, rpcDone(std_::move(callback)));
+					auto requestId = MTP::send(request, rpcDone(std::move(callback)));
 					data->requests.insert(requestId);
 				}
 			}
@@ -918,7 +918,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 		}
 		return false;
 	};
-	Ui::show(Box<ShareBox>(std_::move(copyCallback), std_::move(submitCallback), std_::move(filterCallback)));
+	Ui::show(Box<ShareBox>(std::move(copyCallback), std::move(submitCallback), std::move(filterCallback)));
 }
 
 } // namespace

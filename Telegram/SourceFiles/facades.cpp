@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 
 #include "profile/profile_section_memento.h"
-#include "core/vector_of_moveable.h"
 #include "core/click_handler_types.h"
 #include "observer_peer.h"
 #include "mainwindow.h"
@@ -40,7 +39,7 @@ namespace App {
 namespace internal {
 
 void CallDelayed(int duration, base::lambda<void()> &&lambda) {
-	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std_::move(lambda)), SLOT(action()));
+	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std::move(lambda)), SLOT(action()));
 }
 
 } // namespace internal
@@ -204,7 +203,7 @@ namespace internal {
 
 void showBox(object_ptr<BoxContent> content, ShowLayerOptions options) {
 	if (auto w = App::wnd()) {
-		w->ui_showBox(std_::move(content), options);
+		w->ui_showBox(std::move(content), options);
 	}
 }
 

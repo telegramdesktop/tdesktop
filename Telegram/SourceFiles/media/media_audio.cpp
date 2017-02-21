@@ -777,7 +777,7 @@ void Mixer::play(const AudioMsgId &audio, int64 position) {
 	}
 }
 
-void Mixer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
+void Mixer::initFromVideo(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data, int64 position) {
 	AudioMsgId stopped;
 	{
 		QMutexLocker lock(&AudioMutex);
@@ -811,7 +811,7 @@ void Mixer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &
 		current->clear();
 		current->state.id = AudioMsgId(AudioMsgId::Type::Video);
 		current->videoPlayId = videoPlayId;
-		current->videoData = std_::move(data);
+		current->videoData = std::move(data);
 		{
 			QMutexLocker videoLock(&_lastVideoMutex);
 			_lastVideoPlayId = current->videoPlayId;
@@ -947,7 +947,7 @@ void Mixer::resumeFromVideo(uint64 videoPlayId) {
 }
 
 void Mixer::feedFromVideo(VideoSoundPart &&part) {
-	_loader->feedFromVideo(std_::move(part));
+	_loader->feedFromVideo(std::move(part));
 }
 
 TimeMs Mixer::getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs) {

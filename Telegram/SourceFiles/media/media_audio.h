@@ -101,7 +101,7 @@ public:
 	void stop(AudioMsgId::Type type);
 
 	// Video player audio stream interface.
-	void initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
+	void initFromVideo(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs);
 	TrackState currentVideoState(uint64 videoPlayId);
@@ -183,7 +183,7 @@ private:
 		Stream stream;
 
 		uint64 videoPlayId = 0;
-		std_::unique_ptr<VideoSoundData> videoData;
+		std::unique_ptr<VideoSoundData> videoData;
 
 	private:
 		void createStream();

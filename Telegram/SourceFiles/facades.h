@@ -41,19 +41,19 @@ void CallDelayed(int duration, base::lambda<void()> &&lambda);
 
 template <int N, typename Lambda>
 inline void CallDelayed(int duration, base::internal::lambda_guard<N, Lambda> &&guarded) {
-	return internal::CallDelayed(duration, [guarded = std_::move(guarded)] { guarded(); });
+	return internal::CallDelayed(duration, [guarded = std::move(guarded)] { guarded(); });
 }
 
 template <typename Pointer, typename ...PointersAndLambda>
 inline void CallDelayed(int duration, Pointer &&qobject, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std_::forward<Pointer>(qobject), std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return CallDelayed(duration, std_::move(guarded));
+	auto guarded = base::lambda_guarded(std::forward<Pointer>(qobject), std::forward<PointersAndLambda>(qobjectsAndLambda)...);
+	return CallDelayed(duration, std::move(guarded));
 }
 
 template <typename ...PointersAndLambda>
 inline base::lambda<void()> LambdaDelayed(int duration, PointersAndLambda&&... qobjectsAndLambda) {
-	auto guarded = base::lambda_guarded(std_::forward<PointersAndLambda>(qobjectsAndLambda)...);
-	return [guarded = std_::move(guarded), duration] {
+	auto guarded = base::lambda_guarded(std::forward<PointersAndLambda>(qobjectsAndLambda)...);
+	return [guarded = std::move(guarded), duration] {
 		CallDelayed(duration, guarded.clone());
 	};
 }
@@ -90,7 +90,7 @@ void hideMediaPreview();
 template <typename BoxType>
 QPointer<BoxType> show(object_ptr<BoxType> content, ShowLayerOptions options = CloseOtherLayers) {
 	auto result = QPointer<BoxType>(content.data());
-	internal::showBox(std_::move(content), options);
+	internal::showBox(std::move(content), options);
 	return result;
 }
 
@@ -209,7 +209,7 @@ inline bool IsTopCorner(ScreenCorner corner) {
 namespace base {
 
 template <>
-struct custom_is_fast_copy_type<Notify::ChangeType> : public std_::true_type {
+struct custom_is_fast_copy_type<Notify::ChangeType> : public std::true_type {
 };
 
 } // namespace base

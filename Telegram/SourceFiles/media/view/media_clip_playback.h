@@ -40,10 +40,10 @@ public:
 		_slider->setFadeOpacity(opacity);
 	}
 	void setChangeProgressCallback(Ui::ContinuousSlider::Callback &&callback) {
-		_slider->setChangeProgressCallback(std_::move(callback));
+		_slider->setChangeProgressCallback(std::move(callback));
 	}
 	void setChangeFinishedCallback(Ui::ContinuousSlider::Callback &&callback) {
-		_slider->setChangeFinishedCallback(std_::move(callback));
+		_slider->setChangeFinishedCallback(std::move(callback));
 	}
 	void setGeometry(int x, int y, int w, int h) {
 		_slider->setGeometry(x, y, w, h);

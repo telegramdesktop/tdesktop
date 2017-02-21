@@ -484,7 +484,7 @@ void Manager::Impl::clearNotification(PeerId peerId, MsgId msgId) {
 	showNextNotification();
 }
 
-Manager::Manager() : _impl(std_::make_unique<Impl>(Impl::Type::Rounded)) {
+Manager::Manager() : _impl(std::make_unique<Impl>(Impl::Type::Rounded)) {
 }
 
 bool Manager::init() {

@@ -100,27 +100,27 @@ void ItemBase::update() {
 	}
 }
 
-std_::unique_ptr<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) {
+std::unique_ptr<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) {
 	using Type = Result::Type;
 
 	switch (result->_type) {
-	case Type::Photo: return std_::make_unique<internal::Photo>(result); break;
+	case Type::Photo: return std::make_unique<internal::Photo>(result); break;
 	case Type::Audio:
-	case Type::File: return std_::make_unique<internal::File>(result); break;
-	case Type::Video: return std_::make_unique<internal::Video>(result); break;
-	case Type::Sticker: return std_::make_unique<internal::Sticker>(result); break;
-	case Type::Gif: return std_::make_unique<internal::Gif>(result); break;
+	case Type::File: return std::make_unique<internal::File>(result); break;
+	case Type::Video: return std::make_unique<internal::Video>(result); break;
+	case Type::Sticker: return std::make_unique<internal::Sticker>(result); break;
+	case Type::Gif: return std::make_unique<internal::Gif>(result); break;
 	case Type::Article:
 	case Type::Geo:
-	case Type::Venue: return std_::make_unique<internal::Article>(result, forceThumb); break;
-	case Type::Game: return std_::make_unique<internal::Game>(result); break;
-	case Type::Contact: return std_::make_unique<internal::Contact>(result); break;
+	case Type::Venue: return std::make_unique<internal::Article>(result, forceThumb); break;
+	case Type::Game: return std::make_unique<internal::Game>(result); break;
+	case Type::Contact: return std::make_unique<internal::Contact>(result); break;
 	}
-	return std_::unique_ptr<ItemBase>();
+	return std::unique_ptr<ItemBase>();
 }
 
-std_::unique_ptr<ItemBase> ItemBase::createLayoutGif(DocumentData *document) {
-	return std_::make_unique<internal::Gif>(document, true);
+std::unique_ptr<ItemBase> ItemBase::createLayoutGif(DocumentData *document) {
+	return std::make_unique<internal::Gif>(document, true);
 }
 
 DocumentData *ItemBase::getResultDocument() const {
@@ -150,7 +150,7 @@ QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 		if (result.height() != height * cIntRetinaFactor()) {
 			result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
 		}
-		return std_::move(result);
+		return std::move(result);
 	}
 	return QPixmap();
 }

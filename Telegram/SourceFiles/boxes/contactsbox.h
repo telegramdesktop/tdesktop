@@ -165,7 +165,7 @@ public:
 	QVector<MTPInputUser> selectedInputs();
 	bool allAdmins() const;
 	void setAllAdminsChangedCallback(base::lambda<void()> &&allAdminsChangedCallback) {
-		_allAdminsChangedCallback = std_::move(allAdminsChangedCallback);
+		_allAdminsChangedCallback = std::move(allAdminsChangedCallback);
 	}
 
 	void chooseParticipant();
@@ -221,8 +221,8 @@ private:
 		ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
 		~ContactData();
 
-		std_::unique_ptr<Ui::RoundImageCheckbox> checkbox;
-		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::RoundImageCheckbox> checkbox;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 		int rippleRowTop = 0;
 		Text name;
 		QString statusText;
@@ -297,7 +297,7 @@ private:
 
 	int32 _time;
 
-	std_::unique_ptr<Dialogs::IndexedList> _customList;
+	std::unique_ptr<Dialogs::IndexedList> _customList;
 	Dialogs::IndexedList *_contacts = nullptr;
 	Dialogs::Row *_selected = nullptr;
 	Dialogs::Row *_pressed = nullptr;

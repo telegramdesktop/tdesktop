@@ -48,7 +48,7 @@ CrossFadeAnimation::CrossFadeAnimation(style::color bg) : _bg(bg) {
 }
 
 void CrossFadeAnimation::addLine(Part was, Part now) {
-	_lines.push_back(Line(std_::move(was), std_::move(now)));
+	_lines.push_back(Line(std::move(was), std::move(now)));
 }
 
 void CrossFadeAnimation::paintFrame(Painter &p, float64 positionReady, float64 alphaWas, float64 alphaNow) {
@@ -234,7 +234,7 @@ void FlatLabel::setLink(uint16 lnkIndex, const ClickHandlerPtr &lnk) {
 }
 
 void FlatLabel::setClickHandlerHook(ClickHandlerHook &&hook) {
-	_clickHandlerHook = std_::move(hook);
+	_clickHandlerHook = std::move(hook);
 }
 
 void FlatLabel::mouseMoveEvent(QMouseEvent *e) {
@@ -589,8 +589,8 @@ void FlatLabel::clickHandlerPressedChanged(const ClickHandlerPtr &action, bool a
 	update();
 }
 
-std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition, QPoint toPosition) {
-	auto result = std_::make_unique<CrossFadeAnimation>(bg);
+std::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatLabel *to, style::color bg, QPoint fromPosition, QPoint toPosition) {
+	auto result = std::make_unique<CrossFadeAnimation>(bg);
 
 	struct Data {
 		QImage full;
@@ -609,7 +609,7 @@ std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatL
 			result.lineAddTop = addedHeight / 2;
 			result.lineHeight += addedHeight;
 		}
-		return std_::move(result);
+		return std::move(result);
 	};
 	auto was = prepareData(from);
 	auto now = prepareData(to);
@@ -643,13 +643,13 @@ std_::unique_ptr<CrossFadeAnimation> FlatLabel::CrossFade(FlatLabel *from, FlatL
 		}
 		auto positionBase = position + label->pos();
 		result.position = positionBase + QPoint(label->_st.margin.left() + left, label->_st.margin.top() + top);
-		return std_::move(result);
+		return std::move(result);
 	};
 	for (int i = 0; i != maxLines; ++i) {
 		result->addLine(preparePart(from, fromPosition, was, i, now), preparePart(to, toPosition, now, i, was));
 	}
 
-	return std_::move(result);
+	return std::move(result);
 }
 
 Text::StateResult FlatLabel::dragActionUpdate() {

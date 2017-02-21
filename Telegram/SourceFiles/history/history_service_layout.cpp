@@ -104,7 +104,7 @@ QPixmap circleCorner(int corner) {
 		auto part = QRect(xoffset, yoffset, size, size);
 		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], st::msgServiceBg, part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std_::move(result));
+		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std::move(result));
 	}
 	return serviceMessageStyle->corners[corner];
 }

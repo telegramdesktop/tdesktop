@@ -235,7 +235,7 @@ void FileLoadTask::process() {
 			auto mimeType = mimeTypeForData(_content);
 			filemime = mimeType.name();
 			if (filemime != stickerMime) {
-				fullimage = Images::prepareOpaque(std_::move(fullimage));
+				fullimage = Images::prepareOpaque(std::move(fullimage));
 			}
 			if (filemime == "image/jpeg") {
 				filename = filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), true);
@@ -270,7 +270,7 @@ void FileLoadTask::process() {
 			}
 			filesize = _content.size();
 		}
-		fullimage = Images::prepareOpaque(std_::move(fullimage));
+		fullimage = Images::prepareOpaque(std::move(fullimage));
 	}
 	_result->filesize = (int32)qMin(filesize, qint64(INT_MAX));
 
@@ -302,7 +302,7 @@ void FileLoadTask::process() {
 				if (!cover.isNull()) { // cover to thumb
 					int32 cw = cover.width(), ch = cover.height();
 					if (cw < 20 * ch && ch < 20 * cw) {
-						QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std_::move(cover));
+						QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(cover));
 						{
 							QByteArray thumbFormat = "JPG";
 							int32 thumbQuality = 87;
@@ -329,7 +329,7 @@ void FileLoadTask::process() {
 					attributes.push_back(animatedAttribute);
 					gif = true;
 
-					QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std_::move(cover));
+					QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(cover));
 					{
 						QByteArray thumbFormat = "JPG";
 						int32 thumbQuality = 87;

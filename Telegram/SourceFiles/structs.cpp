@@ -55,7 +55,7 @@ ImagePtr generateUserpicImage(const style::icon &icon) {
 		Painter p(&data);
 		icon.paint(p, 0, 0, icon.width());
 	}
-	return ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "PNG");
+	return ImagePtr(App::pixmapFromImageInPlace(std::move(data)), "PNG");
 }
 
 } // namespace
@@ -190,11 +190,11 @@ void EmptyUserpic::Impl::fillString(const QString &name) {
 
 EmptyUserpic::EmptyUserpic() = default;
 
-EmptyUserpic::EmptyUserpic(int index, const QString &name) : _impl(std_::make_unique<Impl>(index, name)) {
+EmptyUserpic::EmptyUserpic(int index, const QString &name) : _impl(std::make_unique<Impl>(index, name)) {
 }
 
 void EmptyUserpic::set(int index, const QString &name) {
-	_impl = std_::make_unique<Impl>(index, name);
+	_impl = std::make_unique<Impl>(index, name);
 }
 
 void EmptyUserpic::clear() {
@@ -224,7 +224,7 @@ QPixmap EmptyUserpic::generate(int size) {
 		Painter p(&result);
 		paint(p, 0, 0, size, size);
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 EmptyUserpic::~EmptyUserpic() = default;
@@ -352,7 +352,7 @@ QPixmap PeerData::genUserpic(int size) const {
 		Painter p(&result);
 		paintUserpic(p, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 QPixmap PeerData::genUserpicRounded(int size) const {
@@ -366,7 +366,7 @@ QPixmap PeerData::genUserpicRounded(int size) const {
 		Painter p(&result);
 		paintUserpicRounded(p, 0, 0, size);
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 const Text &BotCommand::descriptionText() const {
@@ -486,7 +486,7 @@ void UserData::setBotInfoVersion(int version) {
 			Notify::userIsBotChanged(this);
 		}
 	} else if (!botInfo) {
-		botInfo = std_::make_unique<BotInfo>();
+		botInfo = std::make_unique<BotInfo>();
 		botInfo->version = version;
 		Notify::userIsBotChanged(this);
 	} else if (botInfo->version < version) {
@@ -1343,7 +1343,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			auto &d = attributes[i].c_documentAttributeSticker();
 			if (type == FileDocument) {
 				type = StickerDocument;
-				_additional = std_::make_unique<StickerData>();
+				_additional = std::make_unique<StickerData>();
 			}
 			if (sticker()) {
 				sticker()->alt = qs(d.valt);
@@ -1365,10 +1365,10 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 			if (type == FileDocument) {
 				if (d.is_voice()) {
 					type = VoiceDocument;
-					_additional = std_::make_unique<VoiceData>();
+					_additional = std::make_unique<VoiceData>();
 				} else {
 					type = SongDocument;
-					_additional = std_::make_unique<SongData>();
+					_additional = std::make_unique<SongData>();
 				}
 			}
 			if (voice()) {

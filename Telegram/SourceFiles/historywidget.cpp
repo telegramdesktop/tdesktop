@@ -1038,7 +1038,7 @@ void HistoryInner::onDragExec() {
 		updateDragSelection(0, 0, false);
 		_widget->noSelectingScroll();
 
-		auto drag = std_::make_unique<QDrag>(App::wnd());
+		auto drag = std::make_unique<QDrag>(App::wnd());
 		if (!urls.isEmpty()) mimeData->setUrls(urls);
 		if (uponSelected && !_selected.isEmpty() && _selected.cbegin().value() == FullSelection && !Adaptive::OneColumn()) {
 			mimeData->setData(qsl("application/x-td-forward-selected"), "1");
@@ -1067,8 +1067,8 @@ void HistoryInner::onDragExec() {
 			}
 		}
 		if (!forwardMimeType.isEmpty()) {
-			auto drag = std_::make_unique<QDrag>(App::wnd());
-			auto mimeData = std_::make_unique<QMimeData>();
+			auto drag = std::make_unique<QDrag>(App::wnd());
+			auto mimeData = std::make_unique<QMimeData>();
 
 			mimeData->setData(forwardMimeType, "1");
 			if (auto document = (pressedMedia ? pressedMedia->getDocument() : nullptr)) {
@@ -1597,7 +1597,7 @@ TextWithEntities HistoryInner::getSelectedText() const {
 		int y = itemTop(item);
 		if (y >= 0) {
 			part.text.append(item->author()->name).append(time);
-			appendTextWithEntities(part, std_::move(unwrapped));
+			appendTextWithEntities(part, std::move(unwrapped));
 			texts.insert(y, part);
 			fullSize += size;
 		}
@@ -1607,7 +1607,7 @@ TextWithEntities HistoryInner::getSelectedText() const {
 	auto sep = qsl("\n\n");
 	result.text.reserve(fullSize + (texts.size() - 1) * sep.size());
 	for (auto i = texts.begin(), e = texts.end(); i != e; ++i) {
-		appendTextWithEntities(result, std_::move(i.value()));
+		appendTextWithEntities(result, std::move(i.value()));
 		if (i + 1 != e) {
 			result.text.append(sep);
 		}
@@ -2672,7 +2672,7 @@ bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {
 	_impl = nullptr;
 	if (auto markup = to->Get<HistoryMessageReplyMarkup>()) {
 		if (!markup->rows.isEmpty()) {
-			_impl.reset(new ReplyKeyboard(to, std_::make_unique<Style>(this, *_st)));
+			_impl.reset(new ReplyKeyboard(to, std::make_unique<Style>(this, *_st)));
 		}
 	}
 
@@ -2717,7 +2717,7 @@ void BotKeyboard::updateStyle(int newWidth) {
 	int implWidth = newWidth - st::botKbButton.margin - st::botKbScroll.width;
 	_st = _impl->isEnoughSpace(implWidth, st::botKbButton) ? &st::botKbButton : &st::botKbTinyButton;
 
-	_impl->setStyle(std_::make_unique<Style>(this, *_st));
+	_impl->setStyle(std::make_unique<Style>(this, *_st));
 }
 
 void BotKeyboard::clearSelection() {
@@ -3211,7 +3211,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	connect(_fieldAutocomplete, SIGNAL(stickerChosen(DocumentData*,FieldAutocomplete::ChooseMethod)), this, SLOT(onStickerSend(DocumentData*)));
 	connect(_fieldAutocomplete, SIGNAL(moderateKeyActivate(int,bool*)), this, SLOT(onModerateKeyActivate(int,bool*)));
 	_field->installEventFilter(_fieldAutocomplete);
-	_field->setTagMimeProcessor(std_::make_unique<FieldTagMimeProcessor>());
+	_field->setTagMimeProcessor(std::make_unique<FieldTagMimeProcessor>());
 	updateFieldSubmitSettings();
 
 	_field->hide();
@@ -3415,10 +3415,10 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 	if (!_history) return;
 
 	if (_editMsgId) {
-		_history->setEditDraft(std_::make_unique<Data::Draft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
+		_history->setEditDraft(std::make_unique<Data::Draft>(_field, _editMsgId, _previewCancelled, _saveEditMsgRequestId));
 	} else {
 		if (_replyToId || !_field->isEmpty()) {
-			_history->setLocalDraft(std_::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
 		} else {
 			_history->clearLocalDraft();
 		}
@@ -3658,7 +3658,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			TextWithTags textWithTags = { '@' + samePeerBot->username + ' ' + query, TextWithTags::Tags() };
 			MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
 			auto replyTo = _history->peer->isUser() ? 0 : samePeerReplyTo;
-			_history->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, replyTo, cursor, false));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, replyTo, cursor, false));
 			applyDraft();
 			return true;
 		}
@@ -3671,7 +3671,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		History *h = App::history(toPeerId);
 		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
 		MessageCursor cursor = { textWithTags.text.size(), textWithTags.text.size(), QFIXED_MAX };
-		h->setLocalDraft(std_::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
+		h->setLocalDraft(std::make_unique<Data::Draft>(textWithTags, 0, cursor, false));
 		if (h == _history) {
 			applyDraft();
 		} else {
@@ -6530,7 +6530,7 @@ bool HistoryWidget::showSendFilesBox(object_ptr<SendFilesBox> box, const QString
 	App::wnd()->activateWindow();
 
 	auto withComment = (addedComment != nullptr);
-	box->setConfirmedCallback(base::lambda_guarded(this, [this, withComment, sendCallback = std_::move(callback)](const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter) {
+	box->setConfirmedCallback(base::lambda_guarded(this, [this, withComment, sendCallback = std::move(callback)](const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter) {
 		if (!canWriteMessage()) return;
 
 		auto replyTo = replyToId();
@@ -6552,7 +6552,7 @@ bool HistoryWidget::showSendFilesBox(object_ptr<SendFilesBox> box, const QString
 		}));
 	}
 
-	Ui::show(std_::move(box));
+	Ui::show(std::move(box));
 	return true;
 }
 
@@ -6598,7 +6598,7 @@ bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, Compress
 			auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
 			uploadFilesAfterConfirmation(files, image, QByteArray(), type, caption);
 		};
-		return showSendFilesBox(std_::move(box), insertTextOnCancel, addedComment, std_::move(sendCallback));
+		return showSendFilesBox(std::move(box), insertTextOnCancel, addedComment, std::move(sendCallback));
 	});
 }
 
@@ -6612,7 +6612,7 @@ bool HistoryWidget::confirmSendingFiles(const QImage &image, const QByteArray &c
 		uploadFilesAfterConfirmation(files, image, content, type, caption);
 	};
 	auto box = Box<SendFilesBox>(QString(), image, imageCompressConfirm(image, compressed), animated);
-	return showSendFilesBox(std_::move(box), insertTextOnCancel, nullptr, std_::move(sendCallback));
+	return showSendFilesBox(std::move(box), insertTextOnCancel, nullptr, std::move(sendCallback));
 }
 
 bool HistoryWidget::confirmSendingFiles(const QMimeData *data, CompressConfirm compressed, const QString &insertTextOnCancel) {
@@ -6647,7 +6647,7 @@ bool HistoryWidget::confirmShareContact(const QString &phone, const QString &fna
 		shareContact(_peer->id, phone, fname, lname, replyTo);
 	};
 	auto insertTextOnCancel = QString();
-	return showSendFilesBox(std_::move(box), insertTextOnCancel, addedComment, std_::move(sendCallback));
+	return showSendFilesBox(std::move(box), insertTextOnCancel, addedComment, std::move(sendCallback));
 }
 
 HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QList<QUrl> &files) {
@@ -7726,7 +7726,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 	}
 	if (pinnedMsgId) {
 		if (!_pinnedBar) {
-			_pinnedBar = std_::make_unique<PinnedBar>(pinnedMsgId, this);
+			_pinnedBar = std::make_unique<PinnedBar>(pinnedMsgId, this);
 			if (_a_show.animating()) {
 				_pinnedBar->cancel->hide();
 				_pinnedBar->shadow->hide();
@@ -7926,7 +7926,7 @@ void HistoryWidget::onReplyToMessage() {
 		if (auto localDraft = _history->localDraft()) {
 			localDraft->msgId = to->id;
 		} else {
-			_history->setLocalDraft(std_::make_unique<Data::Draft>(TextWithTags(), to->id, MessageCursor(), false));
+			_history->setLocalDraft(std::make_unique<Data::Draft>(TextWithTags(), to->id, MessageCursor(), false));
 		}
 	} else {
 		_replyEditMsg = to;
@@ -7962,7 +7962,7 @@ void HistoryWidget::onEditMessage() {
 		}
 		if (!_editMsgId) {
 			if (_replyToId || !_field->isEmpty()) {
-				_history->setLocalDraft(std_::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
+				_history->setLocalDraft(std::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
 			} else {
 				_history->clearLocalDraft();
 			}
@@ -7973,7 +7973,7 @@ void HistoryWidget::onEditMessage() {
 		auto editTags = textTagsFromEntities(original.entities);
 		TextWithTags editData = { editText, editTags };
 		MessageCursor cursor = { editText.size(), editText.size(), QFIXED_MAX };
-		_history->setEditDraft(std_::make_unique<Data::Draft>(editData, to->id, cursor, false));
+		_history->setEditDraft(std::make_unique<Data::Draft>(editData, to->id, cursor, false));
 		applyDraft(false);
 
 		_previewData = nullptr;

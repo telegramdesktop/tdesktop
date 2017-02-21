@@ -109,9 +109,9 @@ void MembersBox::onAdd() {
 	}
 	auto box = Box<ContactsBox>(_inner->channel(), _inner->filter(), _inner->already());
 	if (_inner->filter() == MembersFilter::Recent) {
-		Ui::show(std_::move(box));
+		Ui::show(std::move(box));
 	} else {
-		_addBox = Ui::show(std_::move(box), KeepOtherLayers);
+		_addBox = Ui::show(std::move(box), KeepOtherLayers);
 		if (_addBox) {
 			connect(_addBox, SIGNAL(adminAdded()), this, SLOT(onAdminAdded()));
 		}
@@ -240,7 +240,7 @@ void MembersBox::Inner::addRipple(MemberData *data) {
 	auto rowTop = getSelectedRowTop();
 	if (!data->ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
-		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+		data->ripple = std::make_unique<Ui::RippleAnimation>(st::contactsRipple, std::move(mask), [this, data] {
 			updateRowWithTop(data->rippleRowTop);
 		});
 	}

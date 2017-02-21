@@ -389,7 +389,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 		return false;
 	}
 
-	std_::unique_ptr<VideoSoundData> soundData;
+	std::unique_ptr<VideoSoundData> soundData;
 	if (_audioStreamId >= 0) {
 		AVCodecContext *audioContext = avcodec_alloc_context3(nullptr);
 		if (!audioContext) {
@@ -409,7 +409,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			_audioStreamId = -1;
 		} else {
-			soundData = std_::make_unique<VideoSoundData>();
+			soundData = std::make_unique<VideoSoundData>();
 			soundData->context = audioContext;
 			soundData->frequency = _fmtContext->streams[_audioStreamId]->codecpar->sample_rate;
 			if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
@@ -437,7 +437,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 
 	if (_audioStreamId >= 0) {
 		auto position = (positionMs * soundData->frequency) / 1000LL;
-		Player::mixer()->initFromVideo(_playId, std_::move(soundData), position);
+		Player::mixer()->initFromVideo(_playId, std::move(soundData), position);
 	}
 
 	if (readResult == PacketResult::Ok) {
@@ -490,7 +490,7 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 				VideoSoundPart part;
 				part.packet = &_packetNull;
 				part.videoPlayId = _playId;
-				Player::mixer()->feedFromVideo(std_::move(part));
+				Player::mixer()->feedFromVideo(std::move(part));
 			}
 			return PacketResult::EndOfFile;
 		}
@@ -516,7 +516,7 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 			VideoSoundPart part;
 			part.packet = packet;
 			part.videoPlayId = _playId;
-			Player::mixer()->feedFromVideo(std_::move(part));
+			Player::mixer()->feedFromVideo(std::move(part));
 		}
 	} else {
 		av_packet_unref(packet);

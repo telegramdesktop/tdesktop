@@ -121,7 +121,7 @@ private:
 		return row->_prev;
 	}
 
-	std_::unique_ptr<Row> _last;
+	std::unique_ptr<Row> _last;
 	Row *_begin;
 	Row *_end;
 	SortMode _sortMode;

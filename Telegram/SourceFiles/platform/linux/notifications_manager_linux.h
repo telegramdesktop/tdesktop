@@ -56,7 +56,7 @@ protected:
 private:
 	class Impl;
 	friend class Impl;
-	std_::unique_ptr<Impl> _impl;
+	std::unique_ptr<Impl> _impl;
 
 };
 

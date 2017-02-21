@@ -98,7 +98,7 @@ void FileLoader::readImage(const QSize &shrinkBox) const {
 		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
 			_imagePixmap = App::pixmapFromImageInPlace(image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation));
 		} else {
-			_imagePixmap = App::pixmapFromImageInPlace(std_::move(image));
+			_imagePixmap = App::pixmapFromImageInPlace(std::move(image));
 		}
 		_imageFormat = format;
 	}

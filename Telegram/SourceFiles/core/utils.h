@@ -31,40 +31,35 @@ inline constexpr size_t array_size(const T(&)[N]) {
 
 template <typename T>
 inline T take(T &source, T &&new_value = T()) {
-	std_::swap_moveable(new_value, source);
-	return std_::move(new_value);
+	std::swap(new_value, source);
+	return std::move(new_value);
 }
 
 namespace internal {
 
 template <typename D, typename T>
-inline constexpr D up_cast_helper(std_::true_type, T object) {
+inline constexpr D up_cast_helper(std::true_type, T object) {
 	return object;
 }
 
 template <typename D, typename T>
-inline constexpr D up_cast_helper(std_::false_type, T object) {
+inline constexpr D up_cast_helper(std::false_type, T object) {
 	return nullptr;
-}
-
-template <typename T>
-constexpr std_::add_const_t<T> &any_as_const(T &&value) noexcept {
-	return value;
 }
 
 } // namespace internal
 
 template <typename D, typename T>
 inline constexpr D up_cast(T object) {
-	using DV = std_::decay_simple_t<decltype(*D())>;
-	using TV = std_::decay_simple_t<decltype(*T())>;
-	return internal::up_cast_helper<D>(std_::integral_constant<bool, std_::is_base_of<DV, TV>::value || std_::is_same<DV, TV>::value>(), object);
+	using DV = std::decay_t<decltype(*D())>;
+	using TV = std::decay_t<decltype(*T())>;
+	return internal::up_cast_helper<D>(std::integral_constant<bool, std::is_base_of<DV, TV>::value || std::is_same<DV, TV>::value>(), object);
 }
 
 template <typename Lambda>
 class scope_guard_helper {
 public:
-	scope_guard_helper(Lambda on_scope_exit) : _handler(std_::move(on_scope_exit)) {
+	scope_guard_helper(Lambda on_scope_exit) : _handler(std::move(on_scope_exit)) {
 	}
 	void dismiss() {
 		_dismissed = true;
@@ -83,7 +78,7 @@ private:
 
 template <typename Lambda>
 scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
-	return scope_guard_helper<Lambda>(std_::move(on_scope_exit));
+	return scope_guard_helper<Lambda>(std::move(on_scope_exit));
 }
 
 } // namespace base
@@ -92,7 +87,7 @@ scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
 // it is important for the copy-on-write Qt containers
 // if you have "QVector<T*> v" then "for (T * const p : v)" will still call QVector::detach(),
 // while "for_const (T *p, v)" won't and "for_const (T *&p, v)" won't compile
-#define for_const(range_declaration, range_expression) for (range_declaration : base::internal::any_as_const(range_expression))
+#define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
 
 template <typename Enum>
 inline QFlags<Enum> qFlags(Enum v) {
@@ -497,7 +492,7 @@ static int32 AlmostFullArcLength = (FullArcLength - MinArcLength);
 
 template <typename T, typename... Args>
 inline QSharedPointer<T> MakeShared(Args&&... args) {
-	return QSharedPointer<T>(new T(std_::forward<Args>(args)...));
+	return QSharedPointer<T>(new T(std::forward<Args>(args)...));
 }
 
 // This pointer is used for global non-POD variables that are allocated
@@ -512,7 +507,7 @@ public:
 	template <typename... Args>
 	void createIfNull(Args&&... args) {
 		if (isNull()) {
-			reset(new T(std_::forward<Args>(args)...));
+			reset(new T(std::forward<Args>(args)...));
 		}
 	};
 

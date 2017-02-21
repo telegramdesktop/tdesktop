@@ -267,7 +267,7 @@ QPixmap SendButton::grabContent() {
 		Painter p(&result);
 		p.drawPixmap((kWideScale - 1) / 2 * width(), (kWideScale - 1) / 2 * height(), myGrab(this));
 	}
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 QImage SendButton::prepareRippleMask() const {

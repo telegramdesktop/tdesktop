@@ -209,7 +209,7 @@ void Widget::appendStep(Step *step) {
 void Widget::showResetButton() {
 	if (!_resetAccount) {
 		auto entity = object_ptr<Ui::RoundButton>(this, lang(lng_signin_reset_account), st::introResetButton);
-		_resetAccount.create(this, std_::move(entity), st::introErrorDuration);
+		_resetAccount.create(this, std::move(entity), st::introErrorDuration);
 		_resetAccount->hideFast();
 		_resetAccount->entity()->setClickedCallback([this] { resetAccount(); });
 		updateControlsGeometry();
@@ -579,7 +579,7 @@ void Widget::Step::prepareCoverMask() {
 		}
 		maskInts += maskIntsPerLineAdded;
 	}
-	_coverMask = App::pixmapFromImageInPlace(std_::move(mask));
+	_coverMask = App::pixmapFromImageInPlace(std::move(mask));
 }
 
 void Widget::Step::paintCover(Painter &p, int top) {
@@ -682,8 +682,8 @@ void Widget::Step::prepareShowAnimated(Step *after) {
 	} else {
 		auto leftSnapshot = after->prepareSlideAnimation();
 		auto rightSnapshot = prepareSlideAnimation();
-		_slideAnimation = std_::make_unique<Ui::SlideAnimation>();
-		_slideAnimation->setSnapshots(std_::move(leftSnapshot), std_::move(rightSnapshot));
+		_slideAnimation = std::make_unique<Ui::SlideAnimation>();
+		_slideAnimation->setSnapshots(std::move(leftSnapshot), std::move(rightSnapshot));
 		_slideAnimation->setOverflowHidden(false);
 	}
 }
@@ -694,7 +694,7 @@ Widget::Step::CoverAnimation Widget::Step::prepareCoverAnimation(Step *after) {
 	result.description = Ui::FlatLabel::CrossFade(after->_description->entity(), _description->entity(), st::introBg, after->_description->pos(), _description->pos());
 	result.contentSnapshotWas = after->prepareContentSnapshot();
 	result.contentSnapshotNow = prepareContentSnapshot();
-	return std_::move(result);
+	return std::move(result);
 }
 
 QPixmap Widget::Step::prepareContentSnapshot() {
@@ -721,11 +721,11 @@ void Widget::Step::showAnimated(Direction direction) {
 }
 
 void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback) {
-	_goCallback = std_::move(callback);
+	_goCallback = std::move(callback);
 }
 
 void Widget::Step::setShowResetCallback(base::lambda<void()> &&callback) {
-	_showResetCallback = std_::move(callback);
+	_showResetCallback = std::move(callback);
 }
 
 void Widget::Step::showFast() {

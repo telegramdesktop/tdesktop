@@ -98,7 +98,7 @@ QPixmap Shadow::grab(TWidget *target, const style::Shadow &shadow, Sides sides) 
 		target->render(&p, QPoint(extend.left(), extend.top()), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 		target->grabFinish();
 	}
-	return std_::move(result);
+	return std::move(result);
 }
 
 } // namespace Ui

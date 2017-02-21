@@ -73,7 +73,7 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 , _nameLabel(this, st::mediaPlayerName)
 , _timeLabel(this, st::mediaPlayerTime)
 , _close(this, st::mediaPlayerPanelClose)
-, _playback(std_::make_unique<Clip::Playback>(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback)))
+, _playback(std::make_unique<Clip::Playback>(new Ui::MediaSlider(this, st::mediaPlayerPanelPlayback)))
 , _playPause(this)
 , _volumeToggle(this, st::mediaPlayerVolumeToggle)
 , _volumeController(this)
@@ -127,11 +127,11 @@ CoverWidget::CoverWidget(QWidget *parent) : TWidget(parent)
 }
 
 void CoverWidget::setPinCallback(ButtonCallback &&callback) {
-	_pinPlayer->setClickedCallback(std_::move(callback));
+	_pinPlayer->setClickedCallback(std::move(callback));
 }
 
 void CoverWidget::setCloseCallback(ButtonCallback &&callback) {
-	_close->setClickedCallback(std_::move(callback));
+	_close->setClickedCallback(std::move(callback));
 }
 
 void CoverWidget::handleSeekProgress(float64 progress) {

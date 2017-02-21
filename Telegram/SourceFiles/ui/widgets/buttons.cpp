@@ -119,7 +119,7 @@ void RippleButton::onStateChanged(State was, StateChangeSource source) {
 
 void RippleButton::ensureRipple() {
 	if (!_ripple) {
-		_ripple = std_::make_unique<RippleAnimation>(_st, prepareRippleMask(), [this] { update(); });
+		_ripple = std::make_unique<RippleAnimation>(_st, prepareRippleMask(), [this] { update(); });
 	}
 }
 
@@ -195,7 +195,7 @@ public:
 	Numbers(const style::RoundButton &st, base::lambda<void()> &&animationCallback);
 
 	void setWidthChangedCallback(base::lambda<void()> &&callback) {
-		_widthChangedCallback = std_::move(callback);
+		_widthChangedCallback = std::move(callback);
 	}
 	void setText(const QString &text, int value);
 	void stepAnimation(TimeMs ms);
@@ -237,7 +237,7 @@ private:
 
 RoundButton::Numbers::Numbers(const style::RoundButton &st, base::lambda<void()> &&animationCallback)
 : _st(st)
-, _animationCallback(std_::move(animationCallback)) {
+, _animationCallback(std::move(animationCallback)) {
 	for (auto ch = '0'; ch != '9'; ++ch) {
 		accumulate_max(_digitWidth, _st.font->m.width(ch));
 	}
@@ -373,7 +373,7 @@ void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
 		_numbers.reset();
 	} else {
 		if (!_numbers) {
-			_numbers = std_::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
+			_numbers = std::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
 		}
 		_numbers->setText(numbersText, numbers);
 	}
@@ -382,9 +382,9 @@ void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
 
 void RoundButton::setWidthChangedCallback(base::lambda<void()> &&callback) {
 	if (!_numbers) {
-		_numbers = std_::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
+		_numbers = std::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
 	}
-	_numbers->setWidthChangedCallback(std_::move(callback));
+	_numbers->setWidthChangedCallback(std::move(callback));
 }
 
 void RoundButton::stepNumbersAnimation(TimeMs ms) {
@@ -431,7 +431,7 @@ void RoundButton::resizeToText() {
 		if (_st.width < innerWidth + (_st.height - _st.font->height)) {
 			auto fullText = _fullText;
 			if (_transform == TextTransform::ToUpper) {
-				fullText = std_::move(fullText).toUpper();
+				fullText = std::move(fullText).toUpper();
 			}
 			_text = _st.font->elided(fullText, qMax(_st.width - (_st.height - _st.font->height), 1));
 			_textWidth = _st.font->width(_text);

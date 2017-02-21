@@ -104,13 +104,13 @@ private:
 	struct AnimationData {
 		AnimationData(AnimationCallbacks &&callbacks)
 			: over(false)
-			, radial(std_::move(callbacks)) {
+			, radial(std::move(callbacks)) {
 		}
 		bool over;
 		Animation _a_over;
 		Ui::RadialAnimation radial;
 	};
-	mutable std_::unique_ptr<AnimationData> _animation;
+	mutable std::unique_ptr<AnimationData> _animation;
 	mutable Animation _a_deleteOver;
 
 };
@@ -266,12 +266,12 @@ private:
 	}
 
 	struct AnimationData {
-		AnimationData(AnimationCallbacks &&radialCallbacks) : radial(std_::move(radialCallbacks)) {
+		AnimationData(AnimationCallbacks &&radialCallbacks) : radial(std::move(radialCallbacks)) {
 		}
 		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
-	mutable std_::unique_ptr<AnimationData> _animation;
+	mutable std::unique_ptr<AnimationData> _animation;
 
 	Text _title, _description;
 	ClickHandlerPtr _open, _cancel;
@@ -354,7 +354,7 @@ private:
 
 	Media::Clip::ReaderPointer _gif;
 	mutable QPixmap _thumb;
-	mutable std_::unique_ptr<Ui::RadialAnimation> _radial;
+	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
 	Text _title, _description;
 
 	QSize _frameSize;

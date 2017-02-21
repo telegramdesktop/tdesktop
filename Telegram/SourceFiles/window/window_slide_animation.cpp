@@ -62,11 +62,11 @@ void SlideAnimation::setTopBarShadow(bool enabled) {
 }
 
 void SlideAnimation::setRepaintCallback(RepaintCallback &&callback) {
-	_repaintCallback = std_::move(callback);
+	_repaintCallback = std::move(callback);
 }
 
 void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
-	_finishedCallback = std_::move(callback);
+	_finishedCallback = std::move(callback);
 }
 
 void SlideAnimation::start() {

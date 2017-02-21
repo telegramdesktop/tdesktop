@@ -22,7 +22,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/abstractbox.h"
 #include "core/observer.h"
-#include "core/vector_of_moveable.h"
 #include "ui/effects/round_checkbox.h"
 
 namespace Dialogs {
@@ -194,7 +193,7 @@ private:
 	int _upon = -1;
 
 	ShareBox::FilterCallback _filterCallback;
-	std_::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
+	std::unique_ptr<Dialogs::IndexedList> _chatsIndexed;
 	QString _filter;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
 	FilteredDialogs _filtered;

@@ -329,7 +329,7 @@ bool MainWindow::minimizeToTray() {
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	auto wasWidth = width();
 	auto wasRightWidth = _rightColumn ? _rightColumn->width() : 0;
-	_rightColumn = std_::move(widget);
+	_rightColumn = std::move(widget);
 	if (_rightColumn) {
 		_rightColumn->setParent(this);
 		_rightColumn->show();

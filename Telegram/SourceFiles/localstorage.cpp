@@ -2550,13 +2550,13 @@ void readDraftsWithCursors(History *h) {
 		if (msgData.text.isEmpty() && !msgReplyTo) {
 			h->clearLocalDraft();
 		} else {
-			h->setLocalDraft(std_::make_unique<Data::Draft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
+			h->setLocalDraft(std::make_unique<Data::Draft>(msgData, msgReplyTo, msgCursor, msgPreviewCancelled));
 		}
 	}
 	if (!editMsgId) {
 		h->clearEditDraft();
 	} else {
-		h->setEditDraft(std_::make_unique<Data::Draft>(editData, editMsgId, editCursor, editPreviewCancelled));
+		h->setEditDraft(std::make_unique<Data::Draft>(editData, editMsgId, editCursor, editPreviewCancelled));
 	}
 }
 
@@ -3754,7 +3754,7 @@ bool readBackground() {
 #endif // OS_MAC_OLD
 	if (reader.read(&image)) {
 		_backgroundCanWrite = false;
-		Window::Theme::Background()->setImage(id, std_::move(image));
+		Window::Theme::Background()->setImage(id, std::move(image));
 		_backgroundCanWrite = true;
 		return true;
 	}

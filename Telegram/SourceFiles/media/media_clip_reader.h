@@ -175,7 +175,7 @@ private:
 
 template <typename ...Args>
 inline ReaderPointer MakeReader(Args&&... args) {
-	return ReaderPointer(new Reader(std_::forward<Args>(args)...));
+	return ReaderPointer(new Reader(std::forward<Args>(args)...));
 }
 
 enum class ProcessResult {

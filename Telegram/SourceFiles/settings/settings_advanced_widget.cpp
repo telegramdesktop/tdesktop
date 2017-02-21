@@ -136,7 +136,7 @@ void AdvancedWidget::onAskQuestion() {
 		onTelegramFAQ();
 	}));
 	box->setStrictCancel(true);
-	Ui::show(std_::move(box));
+	Ui::show(std::move(box));
 }
 
 void AdvancedWidget::onAskQuestionSure() {

@@ -45,7 +45,7 @@ public:
 	void paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms, const QColor *colorOverride = nullptr) const;
 
 private:
-	mutable std_::unique_ptr<Ui::RippleAnimation> _ripple;
+	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
 

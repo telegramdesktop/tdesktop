@@ -129,7 +129,7 @@ private:
 		MemberData();
 		~MemberData();
 
-		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 		int rippleRowTop = 0;
 		Text name;
 		QString online;

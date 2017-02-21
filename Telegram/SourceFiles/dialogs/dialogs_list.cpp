@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Dialogs {
 
 List::List(SortMode sortMode)
-: _last(std_::make_unique<Row>(nullptr, nullptr, nullptr, 0))
+: _last(std::make_unique<Row>(nullptr, nullptr, nullptr, 0))
 , _begin(_last.get())
 , _end(_last.get())
 , _sortMode(sortMode)

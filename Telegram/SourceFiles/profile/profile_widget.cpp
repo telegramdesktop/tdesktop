@@ -93,10 +93,10 @@ void Widget::setInternalState(const QRect &geometry, const SectionMemento *memen
 	restoreState(memento);
 }
 
-std_::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
-	auto result = std_::make_unique<SectionMemento>(peer());
+std::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
+	auto result = std::make_unique<SectionMemento>(peer());
 	saveState(result.get());
-	return std_::move(result);
+	return std::move(result);
 }
 
 void Widget::saveState(SectionMemento *memento) const {

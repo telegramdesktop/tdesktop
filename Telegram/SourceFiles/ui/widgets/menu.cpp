@@ -59,7 +59,7 @@ QAction *Menu::addAction(const QString &text, const QObject *receiver, const cha
 
 QAction *Menu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
 	auto action = addAction(new QAction(text, this), icon, iconOver);
-	connect(action, SIGNAL(triggered(bool)), base::lambda_slot(action, std_::move(callback)), SLOT(action()), Qt::QueuedConnection);
+	connect(action, SIGNAL(triggered(bool)), base::lambda_slot(action, std::move(callback)), SLOT(action()), Qt::QueuedConnection);
 	return action;
 }
 
@@ -221,7 +221,7 @@ void Menu::itemPressed(TriggeredSource source) {
 		if (source == TriggeredSource::Mouse) {
 			if (!_actionsData[_pressed].ripple) {
 				auto mask = RippleAnimation::rectMask(QSize(width(), _itemHeight));
-				_actionsData[_pressed].ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this, selected = _pressed] {
+				_actionsData[_pressed].ripple = MakeShared<RippleAnimation>(_st.ripple, std::move(mask), [this, selected = _pressed] {
 					updateItem(selected);
 				});
 			}

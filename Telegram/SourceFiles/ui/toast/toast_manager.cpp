@@ -52,7 +52,7 @@ Manager *Manager::instance(QWidget *parent) {
 	return i.value();
 }
 
-void Manager::addToast(std_::unique_ptr<Instance> &&toast) {
+void Manager::addToast(std::unique_ptr<Instance> &&toast) {
 	_toasts.push_back(toast.release());
 	Instance *t = _toasts.back();
 	Widget *widget = t->_widget.get();

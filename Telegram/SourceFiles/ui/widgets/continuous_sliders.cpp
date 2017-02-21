@@ -48,7 +48,7 @@ void ContinuousSlider::setDisabled(bool disabled) {
 void ContinuousSlider::setMoveByWheel(bool move) {
 	if (move != moveByWheel()) {
 		if (move) {
-			_byWheelFinished = std_::make_unique<SingleTimer>();
+			_byWheelFinished = std::make_unique<SingleTimer>();
 			_byWheelFinished->setTimeoutHandler([this] {
 				if (_changeFinishedCallback) {
 					_changeFinishedCallback(getCurrentValue(getms()));

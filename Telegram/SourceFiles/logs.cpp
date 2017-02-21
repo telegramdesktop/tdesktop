@@ -746,7 +746,7 @@ namespace internal {
 	struct SomeAllocatedMemoryChunk {
 		char data[1024 * 1024];
 	};
-	std_::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
+	std::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
 
 	void OperatorNewHandler() {
 		std::set_new_handler(nullptr);
@@ -755,7 +755,7 @@ namespace internal {
 	}
 
 	void InstallOperatorNewHandler() {
-		SomeAllocatedMemory = std_::make_unique<SomeAllocatedMemoryChunk>();
+		SomeAllocatedMemory = std::make_unique<SomeAllocatedMemoryChunk>();
 		std::set_new_handler(OperatorNewHandler);
 	}
 

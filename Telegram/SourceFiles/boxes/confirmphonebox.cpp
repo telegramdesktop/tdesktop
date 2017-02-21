@@ -106,7 +106,7 @@ void ConfirmPhoneBox::setCallStatus(const CallStatus &status) {
 
 void ConfirmPhoneBox::launch() {
 	if (!CurrentConfirmPhoneBox) return;
-	Ui::show(std_::move(CurrentConfirmPhoneBox));
+	Ui::show(std::move(CurrentConfirmPhoneBox));
 }
 
 void ConfirmPhoneBox::prepare() {

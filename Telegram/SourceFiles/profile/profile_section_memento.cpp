@@ -28,7 +28,7 @@ namespace Profile {
 object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
 	auto result = object_ptr<Widget>(parent, _peer);
 	result->setInternalState(geometry, this);
-	return std_::move(result);
+	return std::move(result);
 }
 
 } // namespace Profile

@@ -117,7 +117,7 @@ QPixmap UserpicButton::prepareUserpicPixmap() const {
 		Painter p(&image);
 		_peer->paintUserpic(p, 0, 0, width());
 	}
-	return App::pixmapFromImageInPlace(std_::move(image));
+	return App::pixmapFromImageInPlace(std::move(image));
 }
 
 } // namespace Profile

@@ -250,7 +250,7 @@ void NotificationsBox::prepareNotificationSampleSmall() {
 		auto closeLeft = width - 2 * padding;
 		p.fillRect(rtlrect(closeLeft, padding, padding, padding, width), st::notificationSampleCloseFg);
 	}
-	_notificationSampleSmall = App::pixmapFromImageInPlace(std_::move(sampleImage));
+	_notificationSampleSmall = App::pixmapFromImageInPlace(std::move(sampleImage));
 	_notificationSampleSmall.setDevicePixelRatio(cRetinaFactor());
 }
 
@@ -294,7 +294,7 @@ void NotificationsBox::prepareNotificationSampleLarge() {
 		st::notifyClose.icon.paint(p, w - st::notifyClosePos.x() - st::notifyClose.width + st::notifyClose.iconPosition.x(), st::notifyClosePos.y() + st::notifyClose.iconPosition.y(), w);
 	}
 
-	_notificationSampleLarge = App::pixmapFromImageInPlace(std_::move(sampleImage));
+	_notificationSampleLarge = App::pixmapFromImageInPlace(std::move(sampleImage));
 }
 
 void NotificationsBox::removeSample(SampleWidget *widget) {
@@ -366,7 +366,7 @@ void NotificationsBox::setOverCorner(Notify::ScreenCorner corner) {
 		auto sampleLeft = (isLeft == rtl()) ? (r.x() + r.width() - st::notifyWidth - st::notifyDeltaX) : (r.x() + st::notifyDeltaX);
 		auto sampleTop = isTop ? (r.y() + st::notifyDeltaY) : (r.y() + r.height() - st::notifyDeltaY - st::notifyMinHeight);
 		for (int i = samplesLeave; i != samplesNeeded; ++i) {
-			auto widget = std_::make_unique<SampleWidget>(this, _notificationSampleLarge);
+			auto widget = std::make_unique<SampleWidget>(this, _notificationSampleLarge);
 			widget->move(sampleLeft, sampleTop + (isTop ? 1 : -1) * i * (st::notifyMinHeight + st::notifyDeltaY));
 			widget->showFast();
 			samples.push_back(widget.release());

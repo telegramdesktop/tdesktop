@@ -186,7 +186,7 @@ void BackgroundRow::updateImage() {
 		p.drawPixmap(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize, pix, sx, sy, s, s);
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_background = App::pixmapFromImageInPlace(std_::move(back));
+	_background = App::pixmapFromImageInPlace(std::move(back));
 	_background.setDevicePixelRatio(cRetinaFactor());
 
 	rtlupdate(radialRect());
@@ -293,7 +293,7 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 		img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
 	}
 
-	Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std_::move(img));
+	Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std::move(img));
 	_tile->setChecked(false);
 	_background->updateImage();
 }

@@ -57,7 +57,7 @@ protected:
 		} else {
 			save.reset(new DocumentSaveClickHandler(document));
 		}
-		setLinks(std_::move(open), std_::move(save), MakeShared<DocumentCancelClickHandler>(document));
+		setLinks(std::move(open), std::move(save), MakeShared<DocumentCancelClickHandler>(document));
 	}
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
@@ -99,12 +99,12 @@ protected:
 
 	struct AnimationData {
 		AnimationData(AnimationCallbacks &&radialCallbacks)
-			: radial(std_::move(radialCallbacks)) {
+			: radial(std::move(radialCallbacks)) {
 		}
 		Animation a_thumbOver;
 		Ui::RadialAnimation radial;
 	};
-	mutable std_::unique_ptr<AnimationData> _animation;
+	mutable std::unique_ptr<AnimationData> _animation;
 
 };
 
@@ -319,7 +319,7 @@ public:
 	void ensurePlayback(const HistoryDocument *interfaces) const;
 	void checkPlaybackFinished() const;
 
-	mutable std_::unique_ptr<HistoryDocumentVoicePlayback> _playback;
+	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
 	QSharedPointer<VoiceSeekClickHandler> _seekl;
 	mutable int _lastDurationMs = 0;
 
@@ -757,7 +757,7 @@ private:
 
 	WebPageData *_data;
 	ClickHandlerPtr _openl;
-	std_::unique_ptr<HistoryMedia> _attach;
+	std::unique_ptr<HistoryMedia> _attach;
 
 	bool _asArticle = false;
 	int32 _titleLines, _descriptionLines;
@@ -862,7 +862,7 @@ private:
 
 	GameData *_data;
 	ClickHandlerPtr _openl;
-	std_::unique_ptr<HistoryMedia> _attach;
+	std::unique_ptr<HistoryMedia> _attach;
 
 	int32 _titleLines, _descriptionLines;
 

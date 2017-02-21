@@ -251,7 +251,7 @@ QKeySequence setShortcut(const QString &keys, const QString &command) {
 		if (it == DataPtr->commands.cend()) {
 			LOG(("Warning: could not find shortcut command handler '%1'").arg(command));
 		} else {
-			auto shortcut = std_::make_unique<QShortcut>(seq, App::wnd(), nullptr, nullptr, Qt::ApplicationShortcut);
+			auto shortcut = std::make_unique<QShortcut>(seq, App::wnd(), nullptr, nullptr, Qt::ApplicationShortcut);
 			if (!DataPtr->autoRepeatCommands.contains(command)) {
 				shortcut->setAutoRepeat(false);
 			}

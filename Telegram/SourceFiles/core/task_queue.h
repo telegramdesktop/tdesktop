@@ -69,7 +69,7 @@ private:
 	const Type type_;
 	const Priority priority_;
 
-	QList<Task*> tasks_; // TODO: std_::deque_of_moveable<Task>
+	QList<Task*> tasks_; // TODO: std::deque<Task>
 	QMutex tasks_mutex_; // Only for the main queue.
 
 	// Only for the other queues, not main.

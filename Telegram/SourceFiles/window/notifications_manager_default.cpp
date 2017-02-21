@@ -190,7 +190,7 @@ void Manager::showNextFromQueue() {
 				auto queued = _queuedNotifications.front();
 				_queuedNotifications.pop_front();
 
-				auto notification = std_::make_unique<Notification>(
+				auto notification = std::make_unique<Notification>(
 					queued.history,
 					queued.peer,
 					queued.author,
@@ -537,7 +537,7 @@ void Notification::prepareActionsCache() {
 		p.fillRect(rtlrect(fadeWidth, 0, actionsCacheWidth - fadeWidth, actionsCacheHeight, actionsCacheWidth), st::notificationBg);
 		p.drawPixmapRight(_replyPadding, _reply->y() - actionsTop, actionsCacheWidth, replyCache);
 	}
-	_buttonsCache = App::pixmapFromImageInPlace(std_::move(actionsCacheImg));
+	_buttonsCache = App::pixmapFromImageInPlace(std::move(actionsCacheImg));
 }
 
 bool Notification::checkLastInput(bool hasReplyingNotifications) {
@@ -678,7 +678,7 @@ void Notification::updateNotifyDisplay() {
 		}
 	}
 
-	_cache = App::pixmapFromImageInPlace(std_::move(img));
+	_cache = App::pixmapFromImageInPlace(std::move(img));
 	if (!canReply()) {
 		toggleActionButtons(false);
 	}
@@ -696,7 +696,7 @@ void Notification::updatePeerPhoto() {
 		Painter p(&img);
 		_peer->paintUserpicLeft(p, st::notifyPhotoPos.x(), st::notifyPhotoPos.y(), width(), st::notifyPhotoSize);
 	}
-	_cache = App::pixmapFromImageInPlace(std_::move(img));
+	_cache = App::pixmapFromImageInPlace(std::move(img));
 	update();
 }
 

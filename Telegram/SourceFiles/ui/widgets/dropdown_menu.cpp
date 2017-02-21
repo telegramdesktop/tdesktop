@@ -70,7 +70,7 @@ QAction *DropdownMenu::addAction(const QString &text, const QObject *receiver, c
 }
 
 QAction *DropdownMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
-	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
 QAction *DropdownMenu::addSeparator() {

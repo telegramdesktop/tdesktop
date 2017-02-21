@@ -63,7 +63,7 @@ private:
 	QPixmap _notificationSampleSmall;
 	QPixmap _notificationSampleLarge;
 	ScreenCorner _chosenCorner;
-	std_::vector_of_moveable<Animation> _sampleOpacities;
+	std::vector<Animation> _sampleOpacities;
 
 	bool _isOverCorner = false;
 	ScreenCorner _overCorner = ScreenCorner::TopLeft;

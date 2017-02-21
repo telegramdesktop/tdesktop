@@ -826,7 +826,7 @@ void HistoryMessage::initDimensions() {
 	}
 	if (auto markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
-			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std_::make_unique<KeyboardStyle>(st::msgBotKbButton)));
+			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std::make_unique<KeyboardStyle>(st::msgBotKbButton)));
 		}
 
 		// if we have a text bubble we can resize it to fit the keyboard
@@ -989,7 +989,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 	} else {
 		result.text = textResult.text + qstr("\n\n");
 		result.entities = textResult.entities;
-		appendTextWithEntities(result, std_::move(mediaResult));
+		appendTextWithEntities(result, std::move(mediaResult));
 	}
 	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
@@ -998,9 +998,9 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
 			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
 			wrapped.text.append('[');
-			appendTextWithEntities(wrapped, std_::move(fwdinfo));
+			appendTextWithEntities(wrapped, std::move(fwdinfo));
 			wrapped.text.append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std_::move(result));
+			appendTextWithEntities(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}
@@ -1009,7 +1009,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			TextWithEntities wrapped;
 			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
 			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std_::move(result));
+			appendTextWithEntities(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}

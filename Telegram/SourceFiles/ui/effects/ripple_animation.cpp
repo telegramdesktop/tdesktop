@@ -111,7 +111,7 @@ void RippleAnimation::Ripple::paint(QPainter &p, const QPixmap &mask, TimeMs ms,
 			p.drawPixmap(0, 0, mask);
 		}
 		if (radius == _radiusTo && colorOverride == nullptr) {
-			_cache = App::pixmapFromImageInPlace(std_::move(_frame));
+			_cache = App::pixmapFromImageInPlace(std::move(_frame));
 		}
 	}
 	auto saved = p.opacity();
@@ -148,7 +148,7 @@ void RippleAnimation::Ripple::finish() {
 
 RippleAnimation::RippleAnimation(const style::RippleAnimation &st, QImage mask, const UpdateCallback &callback)
 : _st(st)
-, _mask(App::pixmapFromImageInPlace(std_::move(mask)))
+, _mask(App::pixmapFromImageInPlace(std::move(mask)))
 , _update(callback) {
 }
 
@@ -207,7 +207,7 @@ QImage RippleAnimation::maskByDrawer(QSize size, bool filled, base::lambda<void(
 		p.setBrush(QColor(255, 255, 255));
 		drawer(p);
 	}
-	return std_::move(result);
+	return std::move(result);
 }
 
 QImage RippleAnimation::rectMask(QSize size) {

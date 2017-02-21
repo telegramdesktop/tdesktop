@@ -43,11 +43,11 @@ void FadeAnimation::refreshCache() {
 }
 
 void FadeAnimation::setFinishedCallback(FinishedCallback &&callback) {
-	_finishedCallback = std_::move(callback);
+	_finishedCallback = std::move(callback);
 }
 
 void FadeAnimation::setUpdatedCallback(UpdatedCallback &&callback) {
-	_updatedCallback = std_::move(callback);
+	_updatedCallback = std::move(callback);
 }
 
 void FadeAnimation::show() {
@@ -121,9 +121,9 @@ WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
 , object_ptr<TWidget> entity
 , int duration
 , base::lambda<void()> &&updateCallback) : TWidget(parent)
-, _entity(std_::move(entity))
+, _entity(std::move(entity))
 , _duration(duration)
-, _updateCallback(std_::move(updateCallback))
+, _updateCallback(std::move(updateCallback))
 , _animation(this) {
 	_animation.show();
 	if (_updateCallback) {

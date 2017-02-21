@@ -1115,7 +1115,7 @@ RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> &&revoke
 : _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
-, _revokeCallback(std_::move(revokeCallback)) {
+, _revokeCallback(std::move(revokeCallback)) {
 }
 
 void RevokePublicLinkBox::prepare() {
@@ -1231,7 +1231,7 @@ void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 				row.peer = peer;
 				row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 				row.status.setText(st::defaultTextStyle, CreateInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
-				_rows.push_back(std_::move(row));
+				_rows.push_back(std::move(row));
 			}
 		}
 	}

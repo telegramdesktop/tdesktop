@@ -203,7 +203,7 @@ private:
 		HistoryInner *_parent;
 
 	};
-	std_::unique_ptr<BotAbout> _botAbout;
+	std::unique_ptr<BotAbout> _botAbout;
 
 	HistoryWidget *_widget = nullptr;
 	Ui::ScrollArea *_scroll = nullptr;
@@ -430,7 +430,7 @@ private:
 	bool _forceReply = false;
 
 	QPoint _lastMousePos;
-	std_::unique_ptr<ReplyKeyboard> _impl;
+	std::unique_ptr<ReplyKeyboard> _impl;
 
 	class Style : public ReplyKeyboard::Style {
 	public:
@@ -920,7 +920,7 @@ private:
 		object_ptr<Ui::IconButton> cancel;
 		object_ptr<Ui::PlainShadow> shadow;
 	};
-	std_::unique_ptr<PinnedBar> _pinnedBar;
+	std::unique_ptr<PinnedBar> _pinnedBar;
 	void updatePinnedBar(bool force = false);
 	bool pinnedMsgVisibilityUpdated();
 	void destroyPinnedBar();

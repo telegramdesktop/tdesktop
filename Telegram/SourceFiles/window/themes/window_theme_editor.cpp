@@ -209,13 +209,13 @@ public:
 	Inner(QWidget *parent, const QString &path);
 
 	void setErrorCallback(base::lambda<void()> &&callback) {
-		_errorCallback = std_::move(callback);
+		_errorCallback = std::move(callback);
 	}
 	void setFocusCallback(base::lambda<void()> &&callback) {
-		_focusCallback = std_::move(callback);
+		_focusCallback = std::move(callback);
 	}
 	void setScrollCallback(base::lambda<void(int top, int bottom)> &&callback) {
-		_scrollCallback = std_::move(callback);
+		_scrollCallback = std::move(callback);
 	}
 
 	void prepare();
@@ -629,7 +629,7 @@ void ThemeExportBox::updateThumbnail() {
 		p.drawImage(QRect(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize), pix, QRect(sx, sy, s, s));
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_thumbnail = App::pixmapFromImageInPlace(std_::move(back));
+	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	update();
 }

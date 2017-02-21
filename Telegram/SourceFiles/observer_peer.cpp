@@ -101,10 +101,10 @@ void peerUpdatedSendDelayed() {
 	auto smallList = base::take(*SmallUpdates);
 	auto allList = base::take(*AllUpdates);
 	for (auto &update : smallList) {
-		PeerUpdated().notify(std_::move(update), true);
+		PeerUpdated().notify(std::move(update), true);
 	}
 	for (auto &update : allList) {
-		PeerUpdated().notify(std_::move(update), true);
+		PeerUpdated().notify(std::move(update), true);
 	}
 
 	if (SmallUpdates->isEmpty()) {

@@ -46,8 +46,8 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, base::lambda<void()> &&con
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
@@ -56,8 +56,8 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
@@ -66,8 +66,8 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 , _cancelText(lang(lng_cancel))
 , _confirmStyle(confirmStyle)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
@@ -76,8 +76,8 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
@@ -86,8 +86,8 @@ ConfirmBox::ConfirmBox(QWidget*, const QString &text, const QString &confirmText
 , _cancelText(cancelText)
 , _confirmStyle(st::defaultBoxButton)
 , _text(st::boxWidth - st::boxPadding.left() - st::boxButtonPadding.right())
-, _confirmedCallback(std_::move(confirmedCallback))
-, _cancelledCallback(std_::move(cancelledCallback)) {
+, _confirmedCallback(std::move(confirmedCallback))
+, _cancelledCallback(std::move(cancelledCallback)) {
 	init(text);
 }
 
@@ -212,10 +212,10 @@ void ConfirmBox::paintEvent(QPaintEvent *e) {
 	_text.drawLeftElided(p, st::boxPadding.left(), st::boxPadding.top(), _textWidth, width(), 16, style::al_left);
 }
 
-InformBox::InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std_::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, lang(lng_box_ok), std::move(closedCallback)) {
 }
 
-InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std_::move(closedCallback)) {
+InformBox::InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback) : ConfirmBox(ConfirmBox::InformBoxTag(), text, doneText, std::move(closedCallback)) {
 }
 
 MaxInviteBox::MaxInviteBox(QWidget*, const QString &link)

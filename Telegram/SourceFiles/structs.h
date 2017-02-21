@@ -224,7 +224,7 @@ public:
 
 private:
 	class Impl;
-	std_::unique_ptr<Impl> _impl;
+	std::unique_ptr<Impl> _impl;
 	friend class Impl;
 
 };
@@ -489,7 +489,7 @@ public:
 		return _about;
 	}
 
-	std_::unique_ptr<BotInfo> botInfo;
+	std::unique_ptr<BotInfo> botInfo;
 
 	QString restrictionReason() const override {
 		return _restrictionReason;
@@ -1248,7 +1248,7 @@ private:
 
 	FileLocation _location;
 	QByteArray _data;
-	std_::unique_ptr<DocumentAdditionalData> _additional;
+	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;

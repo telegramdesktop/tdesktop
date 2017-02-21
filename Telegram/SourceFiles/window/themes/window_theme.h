@@ -61,7 +61,7 @@ struct Preview {
 };
 
 bool Apply(const QString &filepath);
-bool Apply(std_::unique_ptr<Preview> preview);
+bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefault();
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();

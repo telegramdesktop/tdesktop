@@ -2383,8 +2383,8 @@ void ConnectionPrivate::updateAuthKey() 	{
 		return authKeyCreated();
 	}
 
-	_authKeyData = std_::make_unique<ConnectionPrivate::AuthKeyCreateData>();
-	_authKeyStrings = std_::make_unique<ConnectionPrivate::AuthKeyCreateStrings>();
+	_authKeyData = std::make_unique<ConnectionPrivate::AuthKeyCreateData>();
+	_authKeyStrings = std::make_unique<ConnectionPrivate::AuthKeyCreateStrings>();
 	_authKeyData->req_num = 0;
 	_authKeyData->nonce = rand_value<MTPint128>();
 

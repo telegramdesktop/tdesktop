@@ -1405,7 +1405,7 @@ void MediaView::createClipReader() {
 		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), Images::Option::Smooth | Images::Option::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
-	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, mode);
 
@@ -1425,19 +1425,19 @@ void MediaView::initThemePreview() {
 		_themePreviewShown = true;
 		auto path = _doc->location().name();
 		auto id = _themePreviewId = rand_value<uint64>();
-		auto ready = base::lambda_guarded(this, [this, id](std_::unique_ptr<Window::Theme::Preview> result) {
+		auto ready = base::lambda_guarded(this, [this, id](std::unique_ptr<Window::Theme::Preview> result) {
 			if (id != _themePreviewId) {
 				return;
 			}
 			_themePreviewId = 0;
-			_themePreview = std_::move(result);
+			_themePreview = std::move(result);
 			if (_themePreview) {
 				_themeApply.create(this, lang(lng_theme_preview_apply), st::themePreviewApplyButton);
 				_themeApply->show();
 				_themeApply->setClickedCallback([this] {
-					auto preview = std_::move(_themePreview);
+					auto preview = std::move(_themePreview);
 					close();
-					Window::Theme::Apply(std_::move(preview));
+					Window::Theme::Apply(std::move(preview));
 				});
 				_themeCancel.create(this, lang(lng_cancel), st::themePreviewCancelButton);
 				_themeCancel->show();
@@ -1447,23 +1447,23 @@ void MediaView::initThemePreview() {
 			update();
 		});
 		struct mutable_ready {
-			mutable_ready(decltype(ready) value) : value(std_::move(value)) {
+			mutable_ready(decltype(ready) value) : value(std::move(value)) {
 			}
 			mutable decltype(ready) value;
 		};
 		struct mutable_result {
-			mutable_result(std_::unique_ptr<Window::Theme::Preview> value) : value(std_::move(value)) {
+			mutable_result(std::unique_ptr<Window::Theme::Preview> value) : value(std::move(value)) {
 			}
-			mutable std_::unique_ptr<Window::Theme::Preview> value;
+			mutable std::unique_ptr<Window::Theme::Preview> value;
 		};
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
 		current.backgroundImage = Window::Theme::Background()->pixmap();
 		current.backgroundTiled = Window::Theme::Background()->tile();
-		base::TaskQueue::Normal().Put([path, current, callback = mutable_ready(std_::move(ready))]() {
+		base::TaskQueue::Normal().Put([path, current, callback = mutable_ready(std::move(ready))]() {
 			auto preview = Window::Theme::GeneratePreview(path, current);
-			base::TaskQueue::Main().Put([result = mutable_result(std_::move(preview)), callback = std_::move(callback.value)]() {
-				callback(std_::move(result.value));
+			base::TaskQueue::Main().Put([result = mutable_result(std::move(preview)), callback = std::move(callback.value)]() {
+				callback(std::move(result.value));
 			});
 		});
 		location.accessDisable();
@@ -1528,7 +1528,7 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	if (_current.isNull()) {
 		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), ImageRoundRadius::None, ImageRoundCorner::None, getms());
 	}
-	_gif = std_::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
+	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, Media::Clip::Reader::Mode::Video, positionMs);
 

@@ -61,7 +61,7 @@ protected:
 	template <typename Widget>
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> widget) {
 		auto result = QPointer<Widget>(widget);
-		doSetInnerWidget(std_::move(widget));
+		doSetInnerWidget(std::move(widget));
 		return result;
 	}
 

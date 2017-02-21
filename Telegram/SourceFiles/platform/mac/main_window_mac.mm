@@ -204,7 +204,7 @@ MainWindow::MainWindow()
 : icon256(qsl(":/gui/art/icon256.png"))
 , iconbig256(qsl(":/gui/art/iconbig256.png"))
 , wndIcon(QPixmap::fromImage(iconbig256, Qt::ColorOnly))
-, _private(std_::make_unique<Private>(this)) {
+, _private(std::make_unique<Private>(this)) {
 	trayImg = st::macTrayIcon.instance(QColor(0, 0, 0, 180), dbisOne);
 	trayImgSel = st::macTrayIcon.instance(QColor(255, 255, 255), dbisOne);
 
@@ -366,8 +366,8 @@ void MainWindow::updateIconCounters() {
 		int32 size = cRetina() ? 44 : 22;
 		_placeCounter(img, size, counter, bg, (dm && muted) ? st::trayCounterFgMacInvert : st::trayCounterFg);
 		_placeCounter(imgsel, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(img)));
-		icon.addPixmap(App::pixmapFromImageInPlace(std_::move(imgsel)), QIcon::Selected);
+		icon.addPixmap(App::pixmapFromImageInPlace(std::move(img)));
+		icon.addPixmap(App::pixmapFromImageInPlace(std::move(imgsel)), QIcon::Selected);
 		trayIcon->setIcon(icon);
 	}
 }

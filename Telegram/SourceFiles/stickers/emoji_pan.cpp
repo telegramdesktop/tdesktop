@@ -1121,7 +1121,7 @@ void StickerPanInner::setPressedFeaturedSetAdd(int newPressedFeaturedSetAdd) {
 		if (!set.ripple) {
 			auto maskSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
 			auto mask = Ui::RippleAnimation::roundRectMask(maskSize, st::buttonRadius);
-			set.ripple = MakeShared<Ui::RippleAnimation>(st::stickersTrendingAdd.ripple, std_::move(mask), [this, index = _pressedFeaturedSetAdd] {
+			set.ripple = MakeShared<Ui::RippleAnimation>(st::stickersTrendingAdd.ripple, std::move(mask), [this, index = _pressedFeaturedSetAdd] {
 				update(myrtlrect(featuredAddRect(index)));
 			});
 		}
@@ -2467,8 +2467,8 @@ private:
 void EmojiPan::SlideAnimation::setFinalImages(Direction direction, QImage &&left, QImage &&right, QRect inner) {
 	t_assert(!started());
 	_direction = direction;
-	_leftImage = QPixmap::fromImage(std_::move(left).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
-	_rightImage = QPixmap::fromImage(std_::move(right).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
+	_leftImage = QPixmap::fromImage(std::move(left).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
+	_rightImage = QPixmap::fromImage(std::move(right).convertToFormat(QImage::Format_ARGB32_Premultiplied), Qt::ColorOnly);
 
 	t_assert(!_leftImage.isNull());
 	t_assert(!_rightImage.isNull());
@@ -3298,9 +3298,9 @@ void EmojiPan::startShowAnimation() {
 		_a_opacity = base::take(opacityAnimation);
 		_cache = base::take(_cache);
 
-		_showAnimation = std_::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, _origin);
+		_showAnimation = std::make_unique<Ui::PanelAnimation>(st::emojiPanAnimation, _origin);
 		auto inner = rect().marginsRemoved(st::emojiPanMargins);
-		_showAnimation->setFinalImage(std_::move(image), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
+		_showAnimation->setFinalImage(std::move(image), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
 		auto corners = App::cornersMask(ImageRoundRadius::Small);
 		_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
 		_showAnimation->start();
@@ -3317,7 +3317,7 @@ QImage EmojiPan::grabForPanelAnimation() {
 	_inPanelGrab = true;
 	render(&result);
 	_inPanelGrab = false;
-	return std_::move(result);
+	return std::move(result);
 }
 
 void EmojiPan::hideAnimated() {
@@ -3612,7 +3612,7 @@ void EmojiPan::onSwitch() {
 	showAll();
 	auto rightImage = grabForPanelAnimation();
 	if (_emojiShown) {
-		std_::swap_moveable(leftImage, rightImage);
+		std::swap(leftImage, rightImage);
 	}
 
 	_a_show = base::take(showAnimation);
@@ -3621,9 +3621,9 @@ void EmojiPan::onSwitch() {
 	_cache = base::take(_cache);
 
 	auto direction = _emojiShown ? SlideAnimation::Direction::LeftToRight : SlideAnimation::Direction::RightToLeft;
-	_slideAnimation = std_::make_unique<SlideAnimation>();
+	_slideAnimation = std::make_unique<SlideAnimation>();
 	auto inner = rect().marginsRemoved(st::emojiPanMargins);
-	_slideAnimation->setFinalImages(direction, std_::move(leftImage), std_::move(rightImage), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
+	_slideAnimation->setFinalImages(direction, std::move(leftImage), std::move(rightImage), QRect(inner.topLeft() * cIntRetinaFactor(), inner.size() * cIntRetinaFactor()));
 	auto corners = App::cornersMask(ImageRoundRadius::Small);
 	_slideAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
 	_slideAnimation->start();

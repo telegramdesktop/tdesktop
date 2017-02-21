@@ -153,7 +153,7 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 		if (!item->ripple) {
 			auto memberRowWidth = rowWidth();
 			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth - _st.button.outlineWidth, st::profileMemberHeight));
-			item->ripple = std_::make_unique<Ui::RippleAnimation>(_st.button.ripple, std_::move(mask), [this, index = _pressed] {
+			item->ripple = std::make_unique<Ui::RippleAnimation>(_st.button.ripple, std::move(mask), [this, index = _pressed] {
 				repaintRow(index);
 			});
 		}

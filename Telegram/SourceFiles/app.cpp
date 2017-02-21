@@ -2186,7 +2186,7 @@ namespace {
 		cors[3] = rect.copy(r * 2, r * 2, r, r + (shadow ? s : 0));
 		if (index != SmallMaskCorners && index != LargeMaskCorners) {
 			for (int i = 0; i < 4; ++i) {
-				::corners[index].p[i] = new QPixmap(pixmapFromImageInPlace(std_::move(cors[i])));
+				::corners[index].p[i] = new QPixmap(pixmapFromImageInPlace(std::move(cors[i])));
 				::corners[index].p[i]->setDevicePixelRatio(cRetinaFactor());
 			}
 		}
@@ -2424,7 +2424,7 @@ namespace {
 				QPainter p(&image);
 				emojiDraw(p, emoji, st::emojiPadding * cIntRetinaFactor(), (fontHeight * cIntRetinaFactor() - Ui::Emoji::Size()) / 2);
 			}
-			i = map.insert(emoji->index(), App::pixmapFromImageInPlace(std_::move(image)));
+			i = map.insert(emoji->index(), App::pixmapFromImageInPlace(std::move(image)));
 		}
 		return i.value();
 	}
@@ -2550,7 +2550,7 @@ namespace {
 			}
 #endif // OS_MAC_OLD
 		} else if (opaque) {
-			result = Images::prepareOpaque(std_::move(result));
+			result = Images::prepareOpaque(std::move(result));
 		}
 		return result;
 	}
@@ -2570,7 +2570,7 @@ namespace {
 	}
 
 	QPixmap pixmapFromImageInPlace(QImage &&image) {
-		return QPixmap::fromImage(std_::move(image), Qt::ColorOnly);
+		return QPixmap::fromImage(std::move(image), Qt::ColorOnly);
 	}
 
 	void regPhotoItem(PhotoData *data, HistoryItem *item) {
@@ -2860,7 +2860,7 @@ namespace {
 
 			CornersPixmaps pixmaps;
 			for (int j = 0; j < 4; ++j) {
-				pixmaps.p[j] = new QPixmap(pixmapFromImageInPlace(std_::move(images[j])));
+				pixmaps.p[j] = new QPixmap(pixmapFromImageInPlace(std::move(images[j])));
 				pixmaps.p[j]->setDevicePixelRatio(cRetinaFactor());
 			}
 			i = cornersMap.insert(colorKey, pixmaps);

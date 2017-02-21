@@ -80,7 +80,7 @@ private:
 	object_ptr<Ui::FlatLabel> _nameLabel;
 	object_ptr<Ui::LabelSimple> _timeLabel;
 	object_ptr<Ui::IconButton> _close;
-	std_::unique_ptr<Clip::Playback> _playback;
+	std::unique_ptr<Clip::Playback> _playback;
 	object_ptr<Ui::IconButton> _previousTrack = { nullptr };
 	object_ptr<PlayButton> _playPause;
 	object_ptr<Ui::IconButton> _nextTrack = { nullptr };

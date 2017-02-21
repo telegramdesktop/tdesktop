@@ -30,7 +30,7 @@ const auto MaxThreadsCount = qMax(QThread::idealThreadCount(), 2);
 template <typename Lambda>
 class Thread : public QThread {
 public:
-	Thread(Lambda code) : _code(std_::move(code)) {
+	Thread(Lambda code) : _code(std::move(code)) {
 	}
 	void run() override {
 		_code();
@@ -43,7 +43,7 @@ private:
 
 template <typename Lambda>
 object_ptr<Thread<Lambda>> MakeThread(Lambda code) {
-	return object_ptr<Thread<Lambda>>(std_::move(code));
+	return object_ptr<Thread<Lambda>>(std::move(code));
 }
 
 } // namespace
@@ -88,7 +88,7 @@ private:
 
 	void ThreadFunction();
 
-	std_::vector_of_moveable<object_ptr<QThread>> threads_;
+	std::vector<object_ptr<QThread>> threads_;
 	QMutex queues_mutex_;
 
 	// queues_mutex_ must be locked when working with the list.
@@ -195,7 +195,7 @@ TaskQueue *TaskQueue::TaskQueueList::TakeFirst(int list_index_) {
 void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
 	QMutexLocker lock(&queues_mutex_);
 
-	queue->tasks_.push_back(new Task(std_::move(task)));
+	queue->tasks_.push_back(new Task(std::move(task)));
 	auto list_was_empty = queue_list_.Empty(kAllQueuesList);
 	auto threads_count = threads_.size();
 	auto all_threads_processing = (threads_count == tasks_in_process_);
@@ -258,7 +258,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 	bool serial_queue_destroyed = false;
 	bool task_was_processed = false;
 	while (true) {
-		std_::unique_ptr<Task> task;
+		std::unique_ptr<Task> task;
 		{
 			QMutexLocker lock(&queues_mutex_);
 
@@ -344,12 +344,12 @@ TaskQueue::~TaskQueue() {
 void TaskQueue::Put(Task &&task) {
 	if (type_ == Type::Main) {
 		QMutexLocker lock(&tasks_mutex_);
-		tasks_.push_back(new Task(std_::move(task)));
+		tasks_.push_back(new Task(std::move(task)));
 
 		Sandbox::MainThreadTaskAdded();
 	} else {
 		t_assert(type_ != Type::Special);
-		TaskThreadPool::Instance()->AddQueueTask(this, std_::move(task));
+		TaskThreadPool::Instance()->AddQueueTask(this, std::move(task));
 	}
 }
 
@@ -372,7 +372,7 @@ void TaskQueue::ProcessMainTasks(TimeMs max_time_spent) { // static
 }
 
 bool TaskQueue::ProcessOneMainTask() { // static
-	std_::unique_ptr<Task> task;
+	std::unique_ptr<Task> task;
 	{
 		QMutexLocker lock(&Main().tasks_mutex_);
 		auto &tasks = Main().tasks_;

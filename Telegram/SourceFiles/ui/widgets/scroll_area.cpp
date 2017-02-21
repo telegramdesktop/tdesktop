@@ -726,7 +726,7 @@ void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
 		_horizontalBar->raise();
 		_verticalBar->raise();
 	}
-	_widget = std_::move(w);
+	_widget = std::move(w);
 	QScrollArea::setWidget(_widget);
 	if (_widget) {
 		_widget->setAutoFillBackground(false);
@@ -753,7 +753,7 @@ object_ptr<TWidget> ScrollArea::doTakeWidget() {
 		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 	}
 	QScrollArea::takeWidget();
-	return std_::move(_widget);
+	return std::move(_widget);
 }
 
 void ScrollArea::onResizeOther() {

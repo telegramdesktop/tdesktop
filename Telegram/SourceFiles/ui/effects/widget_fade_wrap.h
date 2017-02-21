@@ -141,9 +141,9 @@ public:
 		, object_ptr<Widget> entity
 		, int duration = st::widgetFadeDuration
 		, base::lambda<void()> &&updateCallback = base::lambda<void()>()) : WidgetFadeWrap<TWidget>(parent
-			, std_::move(entity)
+			, std::move(entity)
 			, duration
-			, std_::move(updateCallback)) {
+			, std::move(updateCallback)) {
 	}
 	Widget *entity() {
 		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());

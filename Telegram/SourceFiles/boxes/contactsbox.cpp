@@ -293,7 +293,7 @@ object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> ContactsBox::createMultiSelect(
 	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, lang(lng_participant_filter));
 	auto margins = style::margins(0, 0, 0, 0);
 	auto callback = [this] { updateScrollSkips(); };
-	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std_::move(entity), margins, std_::move(callback));
+	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std::move(entity), margins, std::move(callback));
 }
 
 int ContactsBox::getTopScrollSkip() const {
@@ -528,7 +528,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 ContactsBox::Inner::ContactData::ContactData() = default;
 
 ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
-: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
+: checkbox(std::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
 }
 
 ContactsBox::Inner::ContactData::~ContactData() = default;
@@ -568,7 +568,7 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _aboutAllAdmins(st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
 , _aboutAdmins(st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
-, _customList((membersFilter == MembersFilter::Recent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _customList((membersFilter == MembersFilter::Recent) ? std::unique_ptr<Dialogs::IndexedList>() : std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts((membersFilter == MembersFilter::Recent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();
@@ -596,7 +596,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
-, _customList(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _customList(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts(_customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	if (sharingBotGame()) {
@@ -1297,7 +1297,7 @@ void ContactsBox::Inner::addRipple(PeerData *peer, ContactData *data) {
 	auto rowTop = getSelectedRowTop();
 	if (!data->ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
-		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+		data->ripple = std::make_unique<Ui::RippleAnimation>(st::contactsRipple, std::move(mask), [this, data] {
 			updateRowWithTop(data->rippleRowTop);
 		});
 	}
@@ -1471,7 +1471,7 @@ void ContactsBox::Inner::peerUnselected(PeerData *peer) {
 }
 
 void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
-	_peerSelectedChangedCallback = std_::move(callback);
+	_peerSelectedChangedCallback = std::move(callback);
 }
 
 void ContactsBox::Inner::changePeerCheckState(ContactData *data, PeerData *peer, bool checked, ChangeStateWay useCallback) {

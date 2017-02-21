@@ -101,7 +101,7 @@ protected:
 	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback);
 	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback);
 	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
-		return getDelegate()->addButton(text, std_::move(clickCallback), st);
+		return getDelegate()->addButton(text, std::move(clickCallback), st);
 	}
 	void updateButtonsGeometry() {
 		getDelegate()->updateButtonsPositions();
@@ -123,7 +123,7 @@ protected:
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, const style::ScrollArea &st, int topSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
-		setInner(std_::move(inner), st);
+		setInner(std::move(inner), st);
 		return result;
 	}
 
@@ -131,7 +131,7 @@ protected:
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, int topSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
-		setInner(std_::move(inner));
+		setInner(std::move(inner));
 		return result;
 	}
 
@@ -241,7 +241,7 @@ private:
 	QString _additionalTitle;
 	bool _layerType = false;
 
-	std_::vector_of_moveable<object_ptr<Ui::RoundButton>> _buttons;
+	std::vector<object_ptr<Ui::RoundButton>> _buttons;
 	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
 
 };

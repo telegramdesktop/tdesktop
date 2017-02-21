@@ -46,7 +46,7 @@ constexpr int kCommonGroupsPerPage = 40;
 object_ptr<Window::SectionWidget> SectionMemento::createWidget(QWidget *parent, const QRect &geometry) const {
 	auto result = object_ptr<Widget>(parent, _peer);
 	result->setInternalState(geometry, this);
-	return std_::move(result);
+	return std::move(result);
 }
 
 FixedBar::FixedBar(QWidget *parent) : TWidget(parent)
@@ -290,7 +290,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		auto item = _items[_pressed];
 		if (!item->ripple) {
 			auto mask = Ui::RippleAnimation::rectMask(QSize(_contentWidth, _rowHeight));
-			item->ripple = std_::make_unique<Ui::RippleAnimation>(st::profileCommonGroupsRipple, std_::move(mask), [this, index = _pressed] {
+			item->ripple = std::make_unique<Ui::RippleAnimation>(st::profileCommonGroupsRipple, std::move(mask), [this, index = _pressed] {
 				updateRow(index);
 			});
 		}
@@ -393,10 +393,10 @@ void Widget::setInternalState(const QRect &geometry, const SectionMemento *memen
 	restoreState(memento);
 }
 
-std_::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
-	auto result = std_::make_unique<SectionMemento>(peer());
+std::unique_ptr<Window::SectionMemento> Widget::createMemento() const {
+	auto result = std::make_unique<SectionMemento>(peer());
 	saveState(result.get());
-	return std_::move(result);
+	return std::move(result);
 }
 
 void Widget::saveState(SectionMemento *memento) const {

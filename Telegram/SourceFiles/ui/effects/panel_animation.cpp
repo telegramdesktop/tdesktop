@@ -67,15 +67,15 @@ void RoundShadowAnimation::setShadow(const style::Shadow &st) {
 }
 
 void RoundShadowAnimation::setCornerMasks(QImage &&topLeft, QImage &&topRight, QImage &&bottomLeft, QImage &&bottomRight) {
-	setCornerMask(_topLeft, std_::move(topLeft));
-	setCornerMask(_topRight, std_::move(topRight));
-	setCornerMask(_bottomLeft, std_::move(bottomLeft));
-	setCornerMask(_bottomRight, std_::move(bottomRight));
+	setCornerMask(_topLeft, std::move(topLeft));
+	setCornerMask(_topRight, std::move(topRight));
+	setCornerMask(_bottomLeft, std::move(bottomLeft));
+	setCornerMask(_bottomRight, std::move(bottomRight));
 }
 
 void RoundShadowAnimation::setCornerMask(Corner &corner, QImage &&image) {
 	t_assert(!started());
-	corner.image = std_::move(image);
+	corner.image = std::move(image);
 	if (corner.valid()) {
 		corner.width = corner.image.width();
 		corner.height = corner.image.height();
@@ -99,7 +99,7 @@ QImage RoundShadowAnimation::cloneImage(const style::icon &source) {
 		Painter p(&result);
 		source.paint(p, 0, 0, source.width());
 	}
-	return std_::move(result);
+	return std::move(result);
 }
 
 void RoundShadowAnimation::paintCorner(Corner &corner, int left, int top) {
@@ -229,7 +229,7 @@ void RoundShadowAnimation::paintShadowHorizontal(int left, int right, int top, c
 
 void PanelAnimation::setFinalImage(QImage &&finalImage, QRect inner) {
 	t_assert(!started());
-	_finalImage = App::pixmapFromImageInPlace(std_::move(finalImage).convertToFormat(QImage::Format_ARGB32_Premultiplied));
+	_finalImage = App::pixmapFromImageInPlace(std::move(finalImage).convertToFormat(QImage::Format_ARGB32_Premultiplied));
 
 	t_assert(!_finalImage.isNull());
 	_finalWidth = _finalImage.width();

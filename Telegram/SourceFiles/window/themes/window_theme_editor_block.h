@@ -149,7 +149,7 @@ private:
 	Type _type = Type::Existing;
 	Context *_context = nullptr;
 
-	std_::vector_of_moveable<Row> _data;
+	std::vector<Row> _data;
 	QMap<QString, int> _indices;
 
 	QString _searchQuery;

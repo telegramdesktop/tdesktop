@@ -47,7 +47,7 @@ public:
 	Inner(QWidget *parent);
 
 	void setBackgroundChosenCallback(base::lambda<void(int index)> &&callback) {
-		_backgroundChosenCallback = std_::move(callback);
+		_backgroundChosenCallback = std::move(callback);
 	}
 
 	~Inner();
@@ -68,6 +68,6 @@ private:
 	int _rows = 0;
 	int _over = -1;
 	int _overDown = -1;
-	std_::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
+	std::unique_ptr<Ui::RoundCheckbox> _check; // this is not a widget
 
 };

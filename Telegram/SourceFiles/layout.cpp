@@ -256,7 +256,7 @@ RoundCorners documentCorners(int32 colorIndex) {
 
 bool documentIsValidMediaFile(const QString &filepath) {
 	static StaticNeverFreedPointer<QList<QString>> validMediaTypes(([] {
-		std_::unique_ptr<QList<QString>> result = std_::make_unique<QList<QString>>();
+		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
 		*result = qsl("\
 webm mkv flv vob ogv ogg drc gif gifv mng avi mov qt wmv yuv rm rmvb asf amv mp4 m4p \
 m4v mpg mp2 mpeg mpe mpv m2v svi 3gp 3g2 mxf roq nsv f4v f4p f4a f4b wma divx evo mk3d \
@@ -276,7 +276,7 @@ dwd smp aup cust mid mus sib sid ly gym vgm psf nsf mod ptb s3m xm it mt2 minips
 
 bool documentIsExecutableName(const QString &filename) {
 	static StaticNeverFreedPointer<QList<QString>> executableTypes(([] {
-		std_::unique_ptr<QList<QString>> result = std_::make_unique<QList<QString>>();
+		std::unique_ptr<QList<QString>> result = std::make_unique<QList<QString>>();
 #ifdef Q_OS_MAC
 		*result = qsl("\
 action app bin command csh osx workflow\

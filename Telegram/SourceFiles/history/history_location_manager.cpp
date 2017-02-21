@@ -89,7 +89,7 @@ void LocationManager::init() {
 	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	data.fill(st::imageBgTransparent->c);
 	data.setDevicePixelRatio(cRetinaFactor());
-	notLoadedPlaceholder = new ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
+	notLoadedPlaceholder = new ImagePtr(App::pixmapFromImageInPlace(std::move(data)), "GIF");
 }
 
 void LocationManager::reinit() {

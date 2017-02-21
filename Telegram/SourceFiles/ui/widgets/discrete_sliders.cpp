@@ -31,7 +31,7 @@ DiscreteSlider::DiscreteSlider(QWidget *parent) : TWidget(parent) {
 }
 
 void DiscreteSlider::setSectionActivatedCallback(SectionActivatedCallback &&callback) {
-	_callback = std_::move(callback);
+	_callback = std::move(callback);
 }
 
 void DiscreteSlider::setActiveSection(int index) {
@@ -207,7 +207,7 @@ void SettingsSlider::startRipple(int sectionIndex) {
 		if (index++ == sectionIndex) {
 			if (!section.ripple) {
 				auto mask = prepareRippleMask(sectionIndex, section);
-				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this] { update(); });
+				section.ripple = MakeShared<RippleAnimation>(_st.ripple, std::move(mask), [this] { update(); });
 			}
 			section.ripple->add(mapFromGlobal(QCursor::pos()) - QPoint(section.left, 0));
 			return false;

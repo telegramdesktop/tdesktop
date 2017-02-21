@@ -86,7 +86,7 @@ public:
 	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> &&callback);
 
 	class Item;
-	void addItem(std_::unique_ptr<Item> item, AddItemWay way);
+	void addItem(std::unique_ptr<Item> item, AddItemWay way);
 	void setItemText(uint64 itemId, const QString &text);
 
 	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> &&callback);

@@ -48,7 +48,7 @@ void SectionWidget::showAnimated(SlideDirection direction, const SectionSlidePar
 	hideChildren();
 	showAnimatedHook();
 
-	_showAnimation = std_::make_unique<SlideAnimation>();
+	_showAnimation = std::make_unique<SlideAnimation>();
 	_showAnimation->setDirection(direction);
 	_showAnimation->setRepaintCallback([this] { update(); });
 	_showAnimation->setFinishedCallback([this] { showFinished(); });

@@ -86,7 +86,7 @@ QAction *PopupMenu::addAction(const QString &text, const QObject *receiver, cons
 }
 
 QAction *PopupMenu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
-	return _menu->addAction(text, std_::move(callback), icon, iconOver);
+	return _menu->addAction(text, std::move(callback), icon, iconOver);
 }
 
 QAction *PopupMenu::addSeparator() {
@@ -360,8 +360,8 @@ void PopupMenu::startShowAnimation() {
 		auto cache = grabForPanelAnimation();
 		_a_opacity = base::take(opacityAnimation);
 
-		_showAnimation = std_::make_unique<PanelAnimation>(_st.animation, _origin);
-		_showAnimation->setFinalImage(std_::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
+		_showAnimation = std::make_unique<PanelAnimation>(_st.animation, _origin);
+		_showAnimation->setFinalImage(std::move(cache), QRect(_inner.topLeft() * cIntRetinaFactor(), _inner.size() * cIntRetinaFactor()));
 		if (_useTransparency) {
 			auto corners = App::cornersMask(ImageRoundRadius::Small);
 			_showAnimation->setCornerMasks(QImage(*corners[0]), QImage(*corners[1]), QImage(*corners[2]), QImage(*corners[3]));
@@ -408,7 +408,7 @@ QImage PopupMenu::grabForPanelAnimation() {
 			}
 		}
 	}
-	return std_::move(result);
+	return std::move(result);
 }
 
 void PopupMenu::deleteOnHide(bool del) {

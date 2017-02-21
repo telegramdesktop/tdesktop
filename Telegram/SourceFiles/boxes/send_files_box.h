@@ -38,10 +38,10 @@ public:
 	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
 
 	void setConfirmedCallback(base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> &&callback) {
-		_confirmedCallback = std_::move(callback);
+		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(base::lambda<void()> &&callback) {
-		_cancelledCallback = std_::move(callback);
+		_cancelledCallback = std::move(callback);
 	}
 
 	void closeHook() override;

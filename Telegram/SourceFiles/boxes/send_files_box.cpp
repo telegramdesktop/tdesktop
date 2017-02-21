@@ -93,9 +93,9 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &filepath, QImage image, Comp
 			}
 			_previewLeft = (st::boxWideWidth - _previewWidth) / 2;
 
-			image = std_::move(image).scaled(_previewWidth * cIntRetinaFactor(), _previewHeight * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
-			image = Images::prepareOpaque(std_::move(image));
-			_preview = App::pixmapFromImageInPlace(std_::move(image));
+			image = std::move(image).scaled(_previewWidth * cIntRetinaFactor(), _previewHeight * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			image = Images::prepareOpaque(std::move(image));
+			_preview = App::pixmapFromImageInPlace(std::move(image));
 			_preview.setDevicePixelRatio(cRetinaFactor());
 		}
 	}

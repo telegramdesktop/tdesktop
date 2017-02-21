@@ -70,9 +70,9 @@ void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action
 }
 
 void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
-	_openl = std_::move(openl);
-	_savel = std_::move(savel);
-	_cancell = std_::move(cancell);
+	_openl = std::move(openl);
+	_savel = std::move(savel);
+	_cancell = std::move(cancell);
 }
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
@@ -88,7 +88,7 @@ void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
 
 void RadialProgressItem::ensureRadial() {
 	if (!_radial) {
-		_radial = std_::make_unique<Ui::RadialAnimation>(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
+		_radial = std::make_unique<Ui::RadialAnimation>(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
 	}
 }
 
@@ -241,7 +241,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
 
-			_pix = App::pixmapFromImageInPlace(std_::move(img));
+			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
 			_pix = QPixmap();
 		}
@@ -262,7 +262,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Photo::ensureCheckboxCreated() {
-	if (!_check) _check = std_::make_unique<PhotoVideoCheckbox>([this] {
+	if (!_check) _check = std::make_unique<PhotoVideoCheckbox>([this] {
 		Ui::repaintHistoryItem(_parent);
 	});
 }
@@ -343,7 +343,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
 
-			_pix = App::pixmapFromImageInPlace(std_::move(img));
+			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
 			_pix = QPixmap();
 		}
@@ -422,7 +422,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Video::ensureCheckboxCreated() {
-	if (!_check) _check = std_::make_unique<PhotoVideoCheckbox>([this] {
+	if (!_check) _check = std::make_unique<PhotoVideoCheckbox>([this] {
 		Ui::repaintHistoryItem(_parent);
 	});
 }

@@ -80,9 +80,9 @@ public:
 		, style::margins entityPadding
 		, base::lambda<void()> &&updateCallback
 		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent
-			, std_::move(entity)
+			, std::move(entity)
 			, entityPadding
-			, std_::move(updateCallback)
+			, std::move(updateCallback)
 			, duration) {
 	}
 	Widget *entity() {

@@ -35,12 +35,12 @@ namespace Clip {
 
 Controller::Controller(QWidget *parent) : TWidget(parent)
 , _playPauseResume(this, st::mediaviewPlayButton)
-, _playback(std_::make_unique<Playback>(new Ui::MediaSlider(this, st::mediaviewPlayback)))
+, _playback(std::make_unique<Playback>(new Ui::MediaSlider(this, st::mediaviewPlayback)))
 , _volumeController(this)
 , _fullScreenToggle(this, st::mediaviewFullScreenButton)
 , _playedAlready(this, st::mediaviewPlayProgressLabel)
 , _toPlayLeft(this, st::mediaviewPlayProgressLabel)
-, _fadeAnimation(std_::make_unique<Ui::FadeAnimation>(this)) {
+, _fadeAnimation(std::make_unique<Ui::FadeAnimation>(this)) {
 	_fadeAnimation->show();
 	_fadeAnimation->setFinishedCallback([this] { fadeFinished(); });
 	_fadeAnimation->setUpdatedCallback([this](float64 opacity) { fadeUpdated(opacity); });

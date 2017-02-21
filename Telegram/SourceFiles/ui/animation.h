@@ -30,7 +30,7 @@ namespace Clip {
 class Reader;
 class ReaderPointer {
 public:
-	ReaderPointer(std_::nullptr_t = nullptr) {
+	ReaderPointer(std::nullptr_t = nullptr) {
 	}
 	explicit ReaderPointer(Reader *pointer) : _pointer(pointer) {
 	}
@@ -418,7 +418,7 @@ private:
 class BasicAnimation {
 public:
 	BasicAnimation(AnimationCallbacks &&callbacks)
-		: _callbacks(std_::move(callbacks))
+		: _callbacks(std::move(callbacks))
 		, _animating(false) {
 	}
 
@@ -597,7 +597,7 @@ public:
 				_data->pause.restart();
 			}
 		} else {
-			_data = std_::make_unique<Data>(from, std_::forward<Lambda>(updateCallback));
+			_data = std::make_unique<Data>(from, std::forward<Lambda>(updateCallback));
 		}
 		if (isLong) {
 			_data->pause.release();
@@ -618,11 +618,11 @@ public:
 
 private:
 	struct Data {
-		template <typename Lambda, typename = std_::enable_if_t<std_::is_rvalue_reference<Lambda&&>::value>>
+		template <typename Lambda, typename = std::enable_if_t<std::is_rvalue_reference<Lambda&&>::value>>
 		Data(float64 from, Lambda &&updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
-			, updateCallback(std_::move(updateCallback)) {
+			, updateCallback(std::move(updateCallback)) {
 		}
 		Data(float64 from, const base::lambda_copy<void()> &updateCallback)
 			: value(from, from)
@@ -648,7 +648,7 @@ private:
 		anim::transition transition = anim::linear;
 		MTP::PauseHolder pause;
 	};
-	mutable std_::unique_ptr<Data> _data;
+	mutable std::unique_ptr<Data> _data;
 
 };
 

@@ -28,10 +28,10 @@ WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 , style::margins entityPadding
 , base::lambda<void()> &&updateCallback
 , int duration) : TWidget(parent)
-, _entity(std_::move(entity))
+, _entity(std::move(entity))
 , _padding(entityPadding)
 , _duration(duration)
-, _updateCallback(std_::move(updateCallback)) {
+, _updateCallback(std::move(updateCallback)) {
 	_entity->setParent(this);
 	auto margins = getMargins();
 	_entity->moveToLeft(margins.left() + _padding.left(), margins.top() + _padding.top());

@@ -124,7 +124,7 @@ TextWithEntities captionedSelectedText(const QString &attachType, const Text &ca
 	result.text.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
 	if (!caption.isEmpty()) {
 		result.text.append(qstr("\n"));
-		appendTextWithEntities(result, std_::move(original));
+		appendTextWithEntities(result, std::move(original));
 	}
 	return result;
 }
@@ -171,9 +171,9 @@ void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool
 }
 
 void HistoryFileMedia::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
-	_openl = std_::move(openl);
-	_savel = std_::move(savel);
-	_cancell = std_::move(cancell);
+	_openl = std::move(openl);
+	_savel = std::move(savel);
+	_cancell = std::move(cancell);
 }
 
 void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
@@ -204,7 +204,7 @@ void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 
 void HistoryFileMedia::ensureAnimation() const {
 	if (!_animation) {
-		_animation = std_::make_unique<AnimationData>(animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
+		_animation = std::make_unique<AnimationData>(animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
 	}
 }
 
@@ -910,7 +910,7 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(const HistoryDocument
 
 void HistoryDocumentVoice::ensurePlayback(const HistoryDocument *that) const {
 	if (!_playback) {
-		_playback = std_::make_unique<HistoryDocumentVoicePlayback>(that);
+		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}
 }
 
@@ -2573,16 +2573,16 @@ void HistoryWebPage::initDimensions() {
 	if (!_asArticle && !_attach) {
 		if (_data->document) {
 			if (_data->document->sticker()) {
-				_attach = std_::make_unique<HistorySticker>(_parent, _data->document);
+				_attach = std::make_unique<HistorySticker>(_parent, _data->document);
 			} else if (_data->document->isAnimation()) {
-				_attach = std_::make_unique<HistoryGif>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryGif>(_parent, _data->document, QString());
 			} else if (_data->document->isVideo()) {
-				_attach = std_::make_unique<HistoryVideo>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryVideo>(_parent, _data->document, QString());
 			} else {
-				_attach = std_::make_unique<HistoryDocument>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryDocument>(_parent, _data->document, QString());
 			}
 		} else if (_data->photo) {
-			_attach = std_::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
+			_attach = std::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
 		}
 	}
 
@@ -2992,7 +2992,7 @@ TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std_::move(descriptionResult));
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -3046,16 +3046,16 @@ void HistoryGame::initDimensions() {
 	if (!_attach) {
 		if (_data->document) {
 			if (_data->document->sticker()) {
-				_attach = std_::make_unique<HistorySticker>(_parent, _data->document);
+				_attach = std::make_unique<HistorySticker>(_parent, _data->document);
 			} else if (_data->document->isAnimation()) {
-				_attach = std_::make_unique<HistoryGif>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryGif>(_parent, _data->document, QString());
 			} else if (_data->document->isVideo()) {
-				_attach = std_::make_unique<HistoryVideo>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryVideo>(_parent, _data->document, QString());
 			} else {
-				_attach = std_::make_unique<HistoryDocument>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryDocument>(_parent, _data->document, QString());
 			}
 		} else if (_data->photo) {
-			_attach = std_::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
+			_attach = std::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
 		}
 	}
 
@@ -3363,7 +3363,7 @@ TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std_::move(descriptionResult));
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -3636,7 +3636,7 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 		TextWithEntities result = { qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n"), EntitiesInText() };
 		auto info = selectedText(AllTextSelection);
 		if (!info.text.isEmpty()) {
-			appendTextWithEntities(result, std_::move(info));
+			appendTextWithEntities(result, std::move(info));
 			result.text.append('\n');
 		}
 		result.text += _link->dragText();
@@ -3651,7 +3651,7 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 		return titleResult;
 	}
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std_::move(descriptionResult));
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 

@@ -28,7 +28,7 @@ namespace Window {
 PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> &&updateCallback) : Parent(parent
 	, object_ptr<Media::Player::Widget>(parent)
 	, style::margins(0, 0, 0, 0)
-	, std_::move(updateCallback)) {
+	, std::move(updateCallback)) {
 }
 
 void PlayerWrapWidget::resizeEvent(QResizeEvent *e) {

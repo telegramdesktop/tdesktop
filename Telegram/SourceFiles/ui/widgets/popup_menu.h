@@ -41,7 +41,7 @@ public:
 	void hideMenu(bool fast = false);
 
 	void setDestroyedCallback(base::lambda<void()> &&callback) {
-		_destroyedCallback = std_::move(callback);
+		_destroyedCallback = std::move(callback);
 	}
 
 	~PopupMenu();
@@ -122,7 +122,7 @@ private:
 	SubmenuPointer _activeSubmenu;
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
-	std_::unique_ptr<PanelAnimation> _showAnimation;
+	std::unique_ptr<PanelAnimation> _showAnimation;
 	Animation _a_show;
 
 	bool _useTransparency = true;

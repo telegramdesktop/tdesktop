@@ -33,9 +33,9 @@ VideoSoundData::~VideoSoundData() {
 	}
 }
 
-ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
+ChildFFMpegLoader::ChildFFMpegLoader(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data) : AudioPlayerLoader(FileLocation(), QByteArray())
 , _videoPlayId(videoPlayId)
-, _parentData(std_::move(data)) {
+, _parentData(std::move(data)) {
 	_frame = av_frame_alloc();
 }
 
@@ -190,7 +190,7 @@ AudioPlayerLoader::ReadResult ChildFFMpegLoader::readFromReadyFrame(QByteArray &
 }
 
 void ChildFFMpegLoader::enqueuePackets(QQueue<FFMpeg::AVPacketDataWrap> &packets) {
-	_queue += std_::move(packets);
+	_queue += std::move(packets);
 	packets.clear();
 }
 

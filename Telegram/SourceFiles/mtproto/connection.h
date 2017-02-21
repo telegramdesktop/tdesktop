@@ -262,8 +262,8 @@ private:
 		QByteArray dh_prime;
 		QByteArray g_a;
 	};
-	std_::unique_ptr<AuthKeyCreateData> _authKeyData;
-	std_::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
+	std::unique_ptr<AuthKeyCreateData> _authKeyData;
+	std::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
 
 	void dhClientParamsSend();
 	void authKeyCreated();

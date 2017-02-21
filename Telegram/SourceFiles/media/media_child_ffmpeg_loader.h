@@ -82,7 +82,7 @@ inline void freePacket(AVPacket *packet) {
 
 class ChildFFMpegLoader : public AudioPlayerLoader {
 public:
-	ChildFFMpegLoader(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data);
+	ChildFFMpegLoader(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data);
 
 	bool open(qint64 &position) override;
 
@@ -127,7 +127,7 @@ private:
 	uint8_t **_dstSamplesData = nullptr;
 
 	uint64 _videoPlayId = 0;
-	std_::unique_ptr<VideoSoundData> _parentData;
+	std::unique_ptr<VideoSoundData> _parentData;
 	AVSampleFormat _inputFormat;
 	AVFrame *_frame = nullptr;
 

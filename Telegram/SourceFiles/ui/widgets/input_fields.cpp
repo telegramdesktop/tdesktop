@@ -583,8 +583,8 @@ void FlatTextarea::insertTag(const QString &text, QString tagId) {
 	}
 }
 
-void FlatTextarea::setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor) {
-	_tagMimeProcessor = std_::move(processor);
+void FlatTextarea::setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor) {
+	_tagMimeProcessor = std::move(processor);
 }
 
 void FlatTextarea::getSingleEmojiFragment(QString &text, QTextFragment &fragment) const {

@@ -22,12 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include <string>
 #include <exception>
+#include <memory>
 #include <ctime>
 
-#include <QtCore/QReadWriteLock>
-
 #include "core/build_config.h"
-#include "core/stl_subset.h"
 #include "core/ordered_set.h"
 
 //using uchar = unsigned char; // Qt has uchar

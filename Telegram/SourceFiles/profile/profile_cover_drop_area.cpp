@@ -39,7 +39,7 @@ void CoverDropArea::showAnimated() {
 }
 
 void CoverDropArea::hideAnimated(HideFinishCallback &&callback) {
-	_hideFinishCallback = std_::move(callback);
+	_hideFinishCallback = std::move(callback);
 	_hiding = true;
 	setupAnimation();
 }

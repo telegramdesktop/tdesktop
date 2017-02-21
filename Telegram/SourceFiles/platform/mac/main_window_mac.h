@@ -110,7 +110,7 @@ private:
 	void updateIconCounters();
 
 	friend class Private;
-	std_::unique_ptr<Private> _private;
+	std::unique_ptr<Private> _private;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;

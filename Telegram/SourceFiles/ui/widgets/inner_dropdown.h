@@ -49,13 +49,13 @@ public:
 	void hideFast();
 
 	void setShowStartCallback(base::lambda<void()> &&callback) {
-		_showStartCallback = std_::move(callback);
+		_showStartCallback = std::move(callback);
 	}
 	void setHideStartCallback(base::lambda<void()> &&callback) {
-		_hideStartCallback = std_::move(callback);
+		_hideStartCallback = std::move(callback);
 	}
 	void setHiddenCallback(base::lambda<void()> &&callback) {
-		_hiddenCallback = std_::move(callback);
+		_hiddenCallback = std::move(callback);
 	}
 
 	bool isHiding() const {
@@ -107,7 +107,7 @@ private:
 	const style::InnerDropdown &_st;
 
 	PanelAnimation::Origin _origin = PanelAnimation::Origin::TopLeft;
-	std_::unique_ptr<PanelAnimation> _showAnimation;
+	std::unique_ptr<PanelAnimation> _showAnimation;
 	Animation _a_show;
 
 	bool _hiding = false;
