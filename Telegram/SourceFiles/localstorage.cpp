@@ -135,9 +135,10 @@ bool _checkStreamStatus(QDataStream &stream) {
 
 QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
 
+constexpr auto kLocalKeySize = MTP::AuthKey::kSize;
 MTP::AuthKey _oldKey, _settingsKey, _passKey, _localKey;
 void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKey *result) {
-	uchar key[LocalEncryptKeySize] = { 0 };
+	MTP::AuthKey::Data key = { 0 };
 	int32 iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
 	QByteArray newSalt;
 	if (!salt) {
@@ -148,7 +149,7 @@ void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKey *resu
 		cSetLocalSalt(newSalt);
 	}
 
-	PKCS5_PBKDF2_HMAC_SHA1(pass.constData(), pass.size(), (uchar*)salt->data(), salt->size(), iterCount, LocalEncryptKeySize, key);
+	PKCS5_PBKDF2_HMAC_SHA1(pass.constData(), pass.size(), (uchar*)salt->data(), salt->size(), iterCount, key.size(), (uchar*)key.data());
 
 	result->setKey(key);
 }
@@ -894,18 +895,12 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 
 	case dbiKey: {
 		qint32 dcId;
-		quint32 key[64];
+		MTP::AuthKey::Data key = { 0 };
 		stream >> dcId;
-		stream.readRawData((char*)key, 256);
+		stream.readRawData(key.data(), key.size());
 		if (!_checkStreamStatus(stream)) return false;
 
-		DEBUG_LOG(("MTP Info: key found, dc %1, key: %2").arg(dcId).arg(Logs::mb(key, 256).str()));
-		dcId = MTP::bareDcId(dcId);
-		MTP::AuthKeyPtr keyPtr(new MTP::AuthKey());
-		keyPtr->setKey(key);
-		keyPtr->setDC(dcId);
-
-		MTP::setKey(dcId, keyPtr);
+		MTP::setKey(dcId, key);
 	} break;
 
 	case dbiAutoStart: {
@@ -1777,14 +1772,14 @@ void _writeMtpData() {
 		return;
 	}
 
-	MTP::AuthKeysMap keys = MTP::getKeys();
+	auto keys = MTP::getKeys();
 
 	quint32 size = sizeof(quint32) + sizeof(qint32) + sizeof(quint32);
-	size += keys.size() * (sizeof(quint32) + sizeof(quint32) + 256);
+	size += keys.size() * (sizeof(quint32) + sizeof(quint32) + MTP::AuthKey::kSize);
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
-	for_const (const MTP::AuthKeyPtr &key, keys) {
+	for_const (auto &key, keys) {
 		data.stream << quint32(dbiKey) << quint32(key->getDC());
 		key->write(data.stream);
 	}
@@ -1847,8 +1842,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 		LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
 		return ReadMapPassNeeded;
 	}
-	uchar key[LocalEncryptKeySize] = { 0 };
-	if (keyData.stream.readRawData((char*)key, LocalEncryptKeySize) != LocalEncryptKeySize || !keyData.stream.atEnd()) {
+	auto key = MTP::AuthKey::Data { 0 };
+	if (keyData.stream.readRawData(key.data(), key.size()) != key.size() || !keyData.stream.atEnd()) {
 		LOG(("App Error: could not read pass-protected key from map file"));
 		return ReadMapFailed;
 	}
@@ -2044,8 +2039,7 @@ void _writeMap(WriteMapWhen when) {
 
 	FileWriteDescriptor map(qsl("map"));
 	if (_passKeySalt.isEmpty() || _passKeyEncrypted.isEmpty()) {
-		uchar local5Key[LocalEncryptKeySize] = { 0 };
-		QByteArray pass(LocalEncryptKeySize, Qt::Uninitialized), salt(LocalEncryptSaltSize, Qt::Uninitialized);
+		QByteArray pass(kLocalKeySize, Qt::Uninitialized), salt(LocalEncryptSaltSize, Qt::Uninitialized);
 		memset_rand(pass.data(), pass.size());
 		memset_rand(salt.data(), salt.size());
 		createLocalKey(pass, &salt, &_localKey);
@@ -2054,7 +2048,7 @@ void _writeMap(WriteMapWhen when) {
 		memset_rand(_passKeySalt.data(), _passKeySalt.size());
 		createLocalKey(QByteArray(), &_passKeySalt, &_passKey);
 
-		EncryptedDescriptor passKeyData(LocalEncryptKeySize);
+		EncryptedDescriptor passKeyData(kLocalKeySize);
 		_localKey.write(passKeyData.stream);
 		_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, _passKey);
 	}
@@ -2376,15 +2370,15 @@ void reset() {
 }
 
 bool checkPasscode(const QByteArray &passcode) {
-	MTP::AuthKey tmp;
-	createLocalKey(passcode, &_passKeySalt, &tmp);
-	return (tmp == _passKey);
+	auto checkKey = MTP::AuthKey();
+	createLocalKey(passcode, &_passKeySalt, &checkKey);
+	return (checkKey == _passKey);
 }
 
 void setPasscode(const QByteArray &passcode) {
 	createLocalKey(passcode, &_passKeySalt, &_passKey);
 
-	EncryptedDescriptor passKeyData(LocalEncryptKeySize);
+	EncryptedDescriptor passKeyData(kLocalKeySize);
 	_localKey.write(passKeyData.stream);
 	_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, _passKey);
 

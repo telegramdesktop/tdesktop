@@ -220,7 +220,7 @@ void clearGlobalHandlers();
 void updateDcOptions(const QVector<MTPDcOption> &options);
 
 AuthKeysMap getKeys();
-void setKey(int32 dc, AuthKeyPtr key);
+void setKey(int dc, const AuthKey::Data &key);
 
 QReadWriteLock *dcOptionsMutex();
 

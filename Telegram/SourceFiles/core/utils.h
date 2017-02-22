@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/basic_types.h"
+#include <array>
 
 namespace base {
 
@@ -242,12 +243,36 @@ private:
 };
 
 int32 hashCrc32(const void *data, uint32 len);
+
 int32 *hashSha1(const void *data, uint32 len, void *dest); // dest - ptr to 20 bytes, returns (int32*)dest
+inline std::array<char, 20> hashSha1(const void *data, int len) {
+	auto result = std::array<char, 20>();
+	hashSha1(data, len, result.data());
+	return result;
+}
+
 int32 *hashSha256(const void *data, uint32 len, void *dest); // dest - ptr to 32 bytes, returns (int32*)dest
+inline std::array<char, 32> hashSha256(const void *data, int size) {
+	auto result = std::array<char, 32>();
+	hashSha1(data, size, result.data());
+	return result;
+}
+
 int32 *hashMd5(const void *data, uint32 len, void *dest); // dest = ptr to 16 bytes, returns (int32*)dest
+inline std::array<char, 16> hashMd5(const void *data, int size) {
+	auto result = std::array<char, 16>();
+	hashMd5(data, size, result.data());
+	return result;
+}
+
 char *hashMd5Hex(const int32 *hashmd5, void *dest); // dest = ptr to 32 bytes, returns (char*)dest
 inline char *hashMd5Hex(const void *data, uint32 len, void *dest) { // dest = ptr to 32 bytes, returns (char*)dest
 	return hashMd5Hex(HashMd5(data, len).result(), dest);
+}
+inline std::array<char, 32> hashMd5Hex(const void *data, int size) {
+	auto result = std::array<char, 32>();
+	hashMd5Hex(data, size, result.data());
+	return result;
 }
 
 // good random (using openssl implementation)

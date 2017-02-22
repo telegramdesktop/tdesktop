@@ -895,8 +895,12 @@ AuthKeysMap getKeys() {
 	return internal::getAuthKeys();
 }
 
-void setKey(int32 dc, AuthKeyPtr key) {
-	return internal::setAuthKey(dc, key);
+void setKey(int dc, const AuthKey::Data &key) {
+	auto dcId = MTP::bareDcId(dc);
+	auto keyPtr = std::make_shared<MTP::AuthKey>();
+	keyPtr->setDC(dcId);
+	keyPtr->setKey(key);
+	return internal::setAuthKey(dc, std::move(keyPtr));
 }
 
 QReadWriteLock *dcOptionsMutex() {

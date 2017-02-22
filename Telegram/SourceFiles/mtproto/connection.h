@@ -77,7 +77,6 @@ class ConnectionPrivate : public QObject {
 	Q_OBJECT
 
 public:
-
 	ConnectionPrivate(QThread *thread, Connection *owner, SessionData *data, uint32 dc);
 	~ConnectionPrivate();
 
@@ -89,7 +88,6 @@ public:
 	QString transport() const;
 
 signals:
-
 	void needToReceive();
 	void needToRestart();
 	void stateChanged(qint32 newState);
@@ -252,7 +250,6 @@ private:
 
 		uchar aesKey[32] = { 0 };
 		uchar aesIV[32] = { 0 };
-		uint32 auth_key[64] = { 0 };
 		MTPlong auth_key_hash;
 
 		uint32 req_num = 0; // sent not encrypted request number
@@ -261,6 +258,7 @@ private:
 	struct AuthKeyCreateStrings {
 		QByteArray dh_prime;
 		QByteArray g_a;
+		AuthKey::Data auth_key = { 0 };
 	};
 	std::unique_ptr<AuthKeyCreateData> _authKeyData;
 	std::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;

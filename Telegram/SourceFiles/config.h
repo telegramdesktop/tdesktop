@@ -76,7 +76,6 @@ enum {
 	LocalEncryptIterCount = 4000, // key derivation iteration count
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit
-	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
 	ClipThreadsCount = 8,

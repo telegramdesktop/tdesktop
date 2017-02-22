@@ -443,7 +443,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 , _owner(owner)
 , _waitForReceived(MTPMinReceiveDelay)
 , _waitForConnected(MTPMinConnectDelay)
-//	, sessionDataMutex(QReadWriteLock::Recursive)
+//, sessionDataMutex(QReadWriteLock::Recursive)
 , sessionData(data) {
 	oldConnectionTimer.moveToThread(thread);
 	_waitForConnectedTimer.moveToThread(thread);
@@ -1197,7 +1197,7 @@ void ConnectionPrivate::restart(bool mayBeBadKey) {
 	_waitForReceivedTimer.stop();
 	_waitForConnectedTimer.stop();
 
-	AuthKeyPtr key(sessionData->getKey());
+	auto key = sessionData->getKey();
 	if (key) {
 		if (!sessionData->isCheckedKey()) {
 			if (mayBeBadKey) {
@@ -1368,7 +1368,7 @@ void ConnectionPrivate::handleReceived() {
 		return restart();
 	}
 
-	AuthKeyPtr key(sessionData->getKey());
+	auto key = sessionData->getKey();
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
 
@@ -2360,7 +2360,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 			keyId = newKeyId;
 			return; // some other connection is getting key
 		}
-		const AuthKeyPtr &key(sessionData->getKey());
+		auto key = sessionData->getKey();
 		newKeyId = key ? key->keyId() : 0;
 	}
 	if (keyId != newKeyId) {
@@ -2642,15 +2642,14 @@ void ConnectionPrivate::dhClientParamsSend() {
 
 	// count g_b and auth_key using openssl BIGNUM methods
 	MTP::internal::BigNumCounter bnCounter;
-	if (!bnCounter.count(b, _authKeyStrings->dh_prime.constData(), _authKeyData->g, g_b, _authKeyStrings->g_a.constData(), _authKeyData->auth_key)) {
+	if (!bnCounter.count(b, _authKeyStrings->dh_prime.constData(), _authKeyData->g, g_b, _authKeyStrings->g_a.constData(), _authKeyStrings->auth_key.data())) {
 		return dhClientParamsSend();
 	}
 
 	// count auth_key hashes - parts of sha1(auth_key)
-	uchar sha1Buffer[20];
-	int32 *auth_key_sha = hashSha1(_authKeyData->auth_key, 256, sha1Buffer);
-	memcpy(&_authKeyData->auth_key_aux_hash, auth_key_sha, 8);
-	memcpy(&_authKeyData->auth_key_hash, auth_key_sha + 3, 8);
+	auto auth_key_sha = hashSha1(_authKeyStrings->auth_key.data(), _authKeyStrings->auth_key.size());
+	memcpy(&_authKeyData->auth_key_aux_hash, auth_key_sha.data(), 8);
+	memcpy(&_authKeyData->auth_key_hash, auth_key_sha.data() + 12, 8);
 
 	MTPSet_client_DH_params req_client_DH_params;
 	req_client_DH_params.vnonce = _authKeyData->nonce;
@@ -2727,11 +2726,11 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 		uint64 salt1 = _authKeyData->new_nonce.l.l, salt2 = _authKeyData->server_nonce.l, serverSalt = salt1 ^ salt2;
 		sessionData->setSalt(serverSalt);
 
-		AuthKeyPtr authKey(new AuthKey());
-		authKey->setKey(_authKeyData->auth_key);
+		auto authKey = std::make_shared<AuthKey>();
+		authKey->setKey(_authKeyStrings->auth_key);
 		authKey->setDC(bareDcId(dc));
 
-		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2, auth key: %3").arg(authKey->keyId()).arg(serverSalt).arg(Logs::mb(_authKeyData->auth_key, 256).str()));
+		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(serverSalt));
 
 		sessionData->owner()->notifyKeyCreated(authKey); // slot will call authKeyCreated()
 		sessionData->clear();
@@ -2823,17 +2822,28 @@ void ConnectionPrivate::authKeyCreated() {
 }
 
 void ConnectionPrivate::clearAuthKeyData() {
-	if (_authKeyData) {
+	auto zeroMemory = [](void *data, int size) {
 #ifdef Q_OS_WIN
-		SecureZeroMemory(_authKeyData.get(), sizeof(AuthKeyCreateData));
-		if (!_authKeyStrings->dh_prime.isEmpty()) SecureZeroMemory(_authKeyStrings->dh_prime.data(), _authKeyStrings->dh_prime.size());
-		if (!_authKeyStrings->g_a.isEmpty()) SecureZeroMemory(_authKeyStrings->g_a.data(), _authKeyStrings->g_a.size());
-#else
-		memset(_authKeyData.get(), 0, sizeof(AuthKeyCreateData));
-		if (!_authKeyStrings->dh_prime.isEmpty()) memset(_authKeyStrings->dh_prime.data(), 0, _authKeyStrings->dh_prime.size());
-		if (!_authKeyStrings->g_a.isEmpty()) memset(_authKeyStrings->g_a.data(), 0, _authKeyStrings->g_a.size());
-#endif
+		SecureZeroMemory(data, size);
+#else // Q_OS_WIN
+		auto end = static_cast<char*>(data) + size;
+		for (volatile auto p = static_cast<volatile char*>(data); p != end; ++p) {
+			*p = 0;
+		}
+#endif // Q_OS_WIN
+	};
+	if (_authKeyData) {
+		zeroMemory(_authKeyData.get(), sizeof(AuthKeyCreateData));
 		_authKeyData.reset();
+	}
+	if (_authKeyStrings) {
+		if (!_authKeyStrings->dh_prime.isEmpty()) {
+			zeroMemory(_authKeyStrings->dh_prime.data(), _authKeyStrings->dh_prime.size());
+		}
+		if (!_authKeyStrings->g_a.isEmpty()) {
+			zeroMemory(_authKeyStrings->g_a.data(), _authKeyStrings->g_a.size());
+		}
+		zeroMemory(_authKeyStrings->auth_key.data(), _authKeyStrings->auth_key.size());
 		_authKeyStrings.reset();
 	}
 }
@@ -3031,6 +3041,7 @@ void ConnectionPrivate::unlockKey() {
 }
 
 ConnectionPrivate::~ConnectionPrivate() {
+	clearAuthKeyData();
 	t_assert(_finished && _conn == nullptr && _conn4 == nullptr && _conn6 == nullptr);
 }
 
