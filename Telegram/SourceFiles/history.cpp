@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "window/top_bar_widget.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -406,7 +407,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	if (!inviter) return nullptr;
 
 	MTPDmessage::Flags flags = 0;
-	if (peerToUser(inviter->id) == MTP::authedId()) {
+	if (inviter->id == AuthSession::CurrentUserPeerId()) {
 		unread = false;
 	//} else if (unread) {
 	//	flags |= MTPDmessage::Flag::f_unread;

@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "auth_session.h"
 #include "lang.h"
 
 namespace Profile {
@@ -158,7 +159,7 @@ void ActionsWidget::refreshVisibility() {
 
 QString ActionsWidget::getBlockButtonText() const {
 	auto user = peer()->asUser();
-	if (!user || (user->id == peerFromUser(MTP::authedId()))) return QString();
+	if (!user || (user->id == AuthSession::CurrentUserPeerId())) return QString();
 	if (user->blockStatus() == UserData::BlockStatus::Unknown) return QString();
 
 	if (user->isBlocked()) {

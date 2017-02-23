@@ -107,6 +107,8 @@
       '<(src_loc)/app.h',
       '<(src_loc)/application.cpp',
       '<(src_loc)/application.h',
+      '<(src_loc)/auth_session.cpp',
+      '<(src_loc)/auth_session.h',
       '<(src_loc)/autoupdater.cpp',
       '<(src_loc)/autoupdater.h',
       '<(src_loc)/config.h',

@@ -19,10 +19,10 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "mtproto/facade.h"
 
 #include "localstorage.h"
+#include "auth_session.h"
 
 namespace MTP {
 
@@ -76,6 +76,10 @@ namespace {
 	MTPSessionResetHandler sessionResetHandler = 0;
 	internal::GlobalSlotCarrier *_globalSlotCarrier = 0;
 
+	bool hasAuthorization() {
+		return (AuthSession::Current() != nullptr);
+	}
+
 	void importDone(const MTPauth_Authorization &result, mtpRequestId req) {
 		QMutexLocker locker1(&requestByDCLock);
 
@@ -83,7 +87,7 @@ namespace {
 		if (i == requestsByDC.end()) {
 			LOG(("MTP Error: auth import request not found in requestsByDC, requestId: %1").arg(req));
 			RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find import request in requestsByDC, request %1").arg(req)));
-			if (globalHandler.onFail && authedId()) (*globalHandler.onFail)(req, error); // auth failed in main dc
+			if (globalHandler.onFail && hasAuthorization()) (*globalHandler.onFail)(req, error); // auth failed in main dc
 			return;
 		}
 		DcId newdc = bareDcId(i.value());
@@ -127,7 +131,7 @@ namespace {
 	bool importFail(const RPCError &error, mtpRequestId req) {
 		if (isDefaultHandledError(error)) return false;
 
-		if (globalHandler.onFail && authedId()) (*globalHandler.onFail)(req, error); // auth import failed
+		if (globalHandler.onFail && hasAuthorization()) (*globalHandler.onFail)(req, error); // auth import failed
 		return true;
 	}
 
@@ -136,7 +140,7 @@ namespace {
 		if (i == authExportRequests.cend()) {
 			LOG(("MTP Error: auth export request target dcWithShift not found, requestId: %1").arg(req));
 			RPCError error(internal::rpcClientError("AUTH_IMPORT_FAIL", QString("did not find target dcWithShift, request %1").arg(req)));
-			if (globalHandler.onFail && authedId()) (*globalHandler.onFail)(req, error); // auth failed in main dc
+			if (globalHandler.onFail && hasAuthorization()) (*globalHandler.onFail)(req, error); // auth failed in main dc
 			return;
 		}
 
@@ -152,7 +156,7 @@ namespace {
 		if (i != authExportRequests.cend()) {
 			authWaiters[bareDcId(i.value())].clear();
 		}
-		if (globalHandler.onFail && authedId()) (*globalHandler.onFail)(req, error); // auth failed in main dc
+		if (globalHandler.onFail && hasAuthorization()) (*globalHandler.onFail)(req, error); // auth failed in main dc
 		return true;
 	}
 
@@ -181,7 +185,7 @@ namespace {
 
 			DEBUG_LOG(("MTP Info: changing request %1 from dcWithShift%2 to dc%3").arg(requestId).arg(dcWithShift).arg(newdcWithShift));
 			if (dcWithShift < 0) { // newdc shift = 0
-				if (false && authedId() && !authExportRequests.contains(requestId)) { // migrate not supported at this moment
+				if (false && hasAuthorization() && !authExportRequests.contains(requestId)) { // migrate not supported at this moment
 					DEBUG_LOG(("MTP Info: importing auth to dc %1").arg(newdcWithShift));
 					DCAuthWaiters &waiters(authWaiters[newdcWithShift]);
 					if (!waiters.size()) {
@@ -249,7 +253,7 @@ namespace {
 				}
 			}
 			int32 newdc = bareDcId(qAbs(dcWithShift));
-			if (!newdc || newdc == internal::mainDC() || !authedId()) {
+			if (!newdc || newdc == internal::mainDC() || !hasAuthorization()) {
 				if (!badGuestDC && globalHandler.onFail) (*globalHandler.onFail)(requestId, error); // auth failed in main dc
 				return false;
 			}
@@ -698,10 +702,9 @@ void restart(int32 dcMask) {
 	}
 }
 
-void configure(int32 dc, int32 user) {
+void configure(int32 dc) {
 	if (_started) return;
 	internal::setDC(dc);
-	internal::authed(user);
 }
 
 void setdc(int32 dc, bool fromZeroOnly) {
@@ -847,14 +850,6 @@ void finish() {
 	internal::destroyConfigLoader();
 
 	_started = false;
-}
-
-void setAuthedId(int32 uid) {
-	internal::authed(uid);
-}
-
-int32 authedId() {
-	return internal::authed();
 }
 
 void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {

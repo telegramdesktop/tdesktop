@@ -164,7 +164,7 @@ private:
 
 };
 
-void configure(int32 dc, int32 user);
+void configure(int32 dc);
 
 void setdc(int32 dc, bool fromZeroOnly = false);
 int32 maindc();
@@ -207,8 +207,6 @@ int32 state(mtpRequestId req); // < 0 means waiting for such count of ms
 
 void finish();
 
-void setAuthedId(int32 uid);
-int32 authedId();
 void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
 void setGlobalDoneHandler(RPCDoneHandlerPtr handler);

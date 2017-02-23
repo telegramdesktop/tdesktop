@@ -196,14 +196,14 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 	auto readonly = serialized;
 	QBuffer buffer(&readonly);
 	if (!buffer.open(QIODevice::ReadOnly)) {
-		LOG(("MTP Error: Can't open data for DcOptions::setFromSerialized()"));
+		LOG(("MTP Error: Can't open data for DcOptions::constructFromSerialized()"));
 		return;
 	}
 	QDataStream stream(&buffer);
 	qint32 count = 0;
 	stream >> count;
 	if (stream.status() != QDataStream::Ok) {
-		LOG(("MTP Error: Bad data for DcOptions::setFromSerialized()"));
+		LOG(("MTP Error: Bad data for DcOptions::constructFromSerialized()"));
 		return;
 	}
 
@@ -216,7 +216,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 		stream.readRawData(&ip[0], ipSize);
 
 		if (stream.status() != QDataStream::Ok) {
-			LOG(("MTP Error: Bad data inside DcOptions::setFromSerialized()"));
+			LOG(("MTP Error: Bad data inside DcOptions::constructFromSerialized()"));
 			return;
 		}
 

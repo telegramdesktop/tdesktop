@@ -44,6 +44,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "numbers.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 #include "window/themes/window_theme.h"
 #include "window/notifications_manager.h"
 #include "platform/platform_notifications_manager.h"
@@ -201,7 +202,7 @@ namespace {
 			w->notifyClearFast();
 			w->setupIntro();
 		}
-		MTP::setAuthedId(0);
+		AppClass::Instance().authSessionDestroy();
 		Local::reset();
 		Window::Theme::Background()->reset();
 
@@ -470,7 +471,7 @@ namespace {
 				bool showPhoneChanged = !isServiceUser(data->id) && !d.is_self() && ((showPhone && data->contact) || (!showPhone && !data->contact));
 				if (minimal) {
 					showPhoneChanged = false;
-					showPhone = !isServiceUser(data->id) && (data->id != peerFromUser(MTP::authedId())) && !data->contact;
+					showPhone = !isServiceUser(data->id) && (data->id != AuthSession::CurrentUserPeerId()) && !data->contact;
 				}
 
 				// see also Local::readPeer
@@ -546,7 +547,7 @@ namespace {
 			update.flags |= UpdateFlag::UserOnlineChanged;
 		}
 
-		if (data->contact < 0 && !data->phone().isEmpty() && peerToUser(data->id) != MTP::authedId()) {
+		if (data->contact < 0 && !data->phone().isEmpty() && data->id != AuthSession::CurrentUserPeerId()) {
 			data->contact = 0;
 		}
 		if (App::main()) {
@@ -841,7 +842,7 @@ namespace {
 					UserData *user = App::userLoaded(uid);
 					if (user) {
 						chat->participants[user] = pversion;
-						if (inviter == MTP::authedId()) {
+						if (inviter == AuthSession::CurrentUserId()) {
 							chat->invitedByMe.insert(user);
 						}
 						if (i->type() == mtpc_chatParticipantAdmin) {
@@ -916,7 +917,7 @@ namespace {
 					chat->botStatus = 0;
 				} else if (chat->participants.find(user) == chat->participants.end()) {
 					chat->participants[user] = (chat->participants.isEmpty() ? 1 : chat->participants.begin().value());
-					if (d.vinviter_id.v == MTP::authedId()) {
+					if (d.vinviter_id.v == AuthSession::CurrentUserId()) {
 						chat->invitedByMe.insert(user);
 					} else {
 						chat->invitedByMe.remove(user);
@@ -1090,7 +1091,7 @@ namespace {
 
 	bool checkEntitiesAndViewsUpdate(const MTPDmessage &m) {
 		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
+		if (m.has_from_id() && peerId == AuthSession::CurrentUserPeerId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
@@ -1115,7 +1116,7 @@ namespace {
 	template <typename TMTPDclass>
 	void updateEditedMessage(const TMTPDclass &m) {
 		auto peerId = peerFromMTP(m.vto_id);
-		if (m.has_from_id() && peerToUser(peerId) == MTP::authedId()) {
+		if (m.has_from_id() && peerId == AuthSession::CurrentUserPeerId()) {
 			peerId = peerFromUser(m.vfrom_id);
 		}
 		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
@@ -1318,7 +1319,7 @@ namespace {
 			break;
 			}
 			if (user->contact < 1) {
-				if (user->contact < 0 && !user->phone().isEmpty() && peerToUser(user->id) != MTP::authedId()) {
+				if (user->contact < 0 && !user->phone().isEmpty() && user->id != AuthSession::CurrentUserPeerId()) {
 					user->contact = 0;
 				}
 			}
@@ -1519,10 +1520,6 @@ namespace {
 
 	GameData *feedGame(const MTPDgame &game, GameData *convert) {
 		return App::gameSet(game.vid.v, convert, game.vaccess_hash.v, qs(game.vshort_name), qs(game.vtitle), qs(game.vdescription), App::feedPhoto(game.vphoto), game.has_document() ? App::feedDocument(game.vdocument) : nullptr);
-	}
-
-	UserData *curUser() {
-		return user(MTP::authedId());
 	}
 
 	PeerData *peer(const PeerId &id, PeerData::LoadedStatus restriction) {

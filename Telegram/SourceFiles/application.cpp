@@ -40,6 +40,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "core/task_queue.h"
 #include "mtproto/dc_options.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -764,7 +765,7 @@ AppClass::AppClass() : QObject() {
 	if (state == Local::ReadMapPassNeeded) {
 		_window->setupPasscode();
 	} else {
-		if (MTP::authedId()) {
+		if (AuthSession::Current()) {
 			_window->setupMain();
 		} else {
 			_window->setupIntro();
@@ -897,12 +898,14 @@ bool AppClass::peerPhotoFail(PeerId peer, const RPCError &error) {
 }
 
 void AppClass::peerClearPhoto(PeerId id) {
-	if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
+	if (!AuthSession::Current()) return;
+
+	if (id == AuthSession::CurrentUserPeerId()) {
 		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty()), rpcDone(&AppClass::selfPhotoCleared), rpcFail(&AppClass::peerPhotoFail, id));
 	} else if (peerIsChat(id)) {
 		MTP::send(MTPmessages_EditChatPhoto(peerToBareMTPInt(id), MTP_inputChatPhotoEmpty()), rpcDone(&AppClass::chatPhotoCleared, id), rpcFail(&AppClass::peerPhotoFail, id));
 	} else if (peerIsChannel(id)) {
-		if (ChannelData *channel = App::channelLoaded(id)) {
+		if (auto channel = App::channelLoaded(id)) {
 			MTP::send(MTPchannels_EditPhoto(channel->inputChannel, MTP_inputChatPhotoEmpty()), rpcDone(&AppClass::chatPhotoCleared, id), rpcFail(&AppClass::peerPhotoFail, id));
 		}
 	}
@@ -995,12 +998,12 @@ void AppClass::killDownloadSessions() {
 }
 
 void AppClass::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
-	if (!App::self()) return;
+	if (!AuthSession::Current()) return;
 
 	auto i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
 		auto id = i.value();
-		if (MTP::authedId() && peerToUser(id) == MTP::authedId()) {
+		if (id == AuthSession::CurrentUserPeerId()) {
 			MTP::send(MTPphotos_UploadProfilePhoto(file), rpcDone(&AppClass::selfPhotoDone), rpcFail(&AppClass::peerPhotoFail, id));
 		} else if (peerIsChat(id)) {
 			auto history = App::history(id);
@@ -1049,6 +1052,14 @@ void AppClass::onSwitchTestMode() {
 		cSetTestMode(true);
 	}
 	App::restart();
+}
+
+void AppClass::authSessionCreate(UserId userId) {
+	_authSession = std::make_unique<AuthSession>(userId);
+}
+
+void AppClass::authSessionDestroy() {
+	_authSession.reset();
 }
 
 FileUploader *AppClass::uploader() {

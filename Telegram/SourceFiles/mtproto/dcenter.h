@@ -95,9 +95,6 @@ int32 mainDC();
 void logoutOtherDCs();
 void setDC(int32 dc, bool firstOnly = false);
 
-int32 authed();
-void authed(int32 uid);
-
 AuthKeysMap getAuthKeys();
 void setAuthKey(int32 dc, AuthKeyPtr key);
 

@@ -61,6 +61,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/player_wrap_widget.h"
 #include "styles/style_boxes.h"
 #include "mtproto/dc_options.h"
+#include "auth_session.h"
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std::move(memento)) {
@@ -375,8 +376,9 @@ void MainWidget::finishForwarding(History *history, bool silent) {
 			uint64 randomId = rand_value<uint64>();
 			if (genClientSideMessage) {
 				FullMsgId newId(peerToChannel(history->peer->id), clientMsgId());
-				HistoryMessage *msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
-				history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), showFromName ? MTP::authedId() : 0, msg);
+				auto msg = static_cast<HistoryMessage*>(_toForward.cbegin().value());
+				auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
+				history->addNewForwarded(newId.msg, flags, date(MTP_int(unixtime())), messageFromId, msg);
 				App::historyRegRandom(randomId, newId);
 			}
 			if (forwardFrom != i.value()->history()->peer) {
@@ -807,7 +809,7 @@ void MainWidget::deleteHistoryPart(DeleteHistoryRequest request, const MTPmessag
 	}
 
 	int32 offset = d.voffset.v;
-	if (!MTP::authedId()) return;
+	if (!AuthSession::Current()) return;
 	if (offset <= 0) {
 		cRefReportSpamStatuses().remove(peer->id);
 		Local::writeReportSpamStatuses();
@@ -906,7 +908,7 @@ void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTP
 	}
 
 	int32 offset = d.voffset.v;
-	if (!MTP::authedId()) return;
+	if (!AuthSession::Current()) return;
 	if (offset > 0) {
 		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
 	} else if (History *h = App::historyLoaded(params.channel)) {
@@ -1249,7 +1251,8 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
 			history->clearCloudDraft();
 		}
-		lastMessage = history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(showFromName ? MTP::authedId() : 0), peerToMTP(history->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
+		auto messageFromId = showFromName ? AuthSession::CurrentUserId() : 0;
+		lastMessage = history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(newId.msg), MTP_int(messageFromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTPint(), MTP_int(replyTo), MTP_int(unixtime()), msgText, media, MTPnullMarkup, localEntities, MTP_int(1), MTPint()), NewMessageUnread);
 		history->sendRequestId = MTP::send(MTPmessages_SendMessage(MTP_flags(sendFlags), history->peer->input, MTP_int(replyTo), msgText, MTP_long(randomId), MTPnullMarkup, sentEntities), rpcDone(&MainWidget::sentUpdatesReceived, randomId), rpcFail(&MainWidget::sendMessageFail), 0, 0, history->sendRequestId);
 	}
 
@@ -1500,7 +1503,7 @@ void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &re
 }
 
 void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
-	if (!MTP::authedId()) return;
+	if (!AuthSession::Current()) return;
 	if (peer->isChannel()) {
 		_readRequests.insert(peer, qMakePair(MTP::send(MTPchannels_ReadHistory(peer->asChannel()->inputChannel, MTP_int(upTo)), rpcDone(&MainWidget::channelReadDone, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
 	} else {
@@ -1805,7 +1808,7 @@ void MainWidget::serviceNotification(const TextWithEntities &message, const MTPM
 	HistoryItem *item = nullptr;
 	while (textSplit(sendingText, sendingEntities, leftText, leftEntities, MaxMessageSize)) {
 		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities);
-		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(MTP::authedId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
+		item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), MTP_int(clientMsgId()), MTP_int(ServiceUserId), MTP_peerUser(MTP_int(AuthSession::CurrentUserId())), MTPnullFwdHeader, MTPint(), MTPint(), MTP_int(date), MTP_string(sendingText), media, MTPnullMarkup, localEntities, MTPint(), MTPint()), NewMessageUnread);
 	}
 	if (item) {
 		_history->peerMessagesUpdated(item->history()->peer->id);
@@ -2102,7 +2105,7 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 }
 
 void MainWidget::onViewsIncrement() {
-	if (!App::main() || !MTP::authedId()) return;
+	if (!App::main() || !AuthSession::Current()) return;
 
 	for (ViewsIncrement::iterator i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i.key())) {
@@ -3624,7 +3627,7 @@ bool MainWidget::failDifference(const RPCError &error) {
 }
 
 void MainWidget::onGetDifferenceTimeByPts() {
-	if (!MTP::authedId()) return;
+	if (!AuthSession::Current()) return;
 
 	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeByPts) {
@@ -3651,7 +3654,7 @@ void MainWidget::onGetDifferenceTimeByPts() {
 }
 
 void MainWidget::onGetDifferenceTimeAfterFail() {
-	if (!MTP::authedId()) return;
+	if (!AuthSession::Current()) return;
 
 	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeAfterFail) {
@@ -3729,8 +3732,13 @@ void MainWidget::mtpPing() {
 
 void MainWidget::start(const MTPUser &user) {
 	int32 uid = user.c_user().vid.v;
-	if (MTP::authedId() != uid) {
-		MTP::setAuthedId(uid);
+	if (!uid) {
+		LOG(("MTP Error: incorrect user received"));
+		App::logOut();
+		return;
+	}
+	if (AuthSession::CurrentUserId() != uid) {
+		AppClass::Instance().authSessionCreate(uid);
 		Local::writeMtpData();
 	}
 
@@ -4370,7 +4378,7 @@ void MainWidget::checkIdleFinish() {
 }
 
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
-	if (end <= from || !MTP::authedId()) return;
+	if (end <= from || !AuthSession::Current()) return;
 
 	App::wnd()->checkAutoLock();
 
@@ -4553,7 +4561,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 
 		// update before applying skipped
 		MTPDmessage::Flags flags = mtpCastFlags(d.vflags.v) | MTPDmessage::Flag::f_from_id;
-		auto item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.is_out() ? MTP_int(MTP::authedId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(MTP::authedId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
+		auto item = App::histories().addNewMessage(MTP_message(MTP_flags(flags), d.vid, d.is_out() ? MTP_int(AuthSession::CurrentUserId()) : d.vuser_id, MTP_peerUser(d.is_out() ? d.vuser_id : MTP_int(AuthSession::CurrentUserId())), d.vfwd_from, d.vvia_bot_id, d.vreply_to_msg_id, d.vdate, d.vmessage, MTP_messageMediaEmpty(), MTPnullMarkup, d.has_entities() ? d.ventities : MTPnullEntities, MTPint(), MTPint()), NewMessageUnread);
 		if (item) {
 			_history->peerMessagesUpdated(item->history()->peer->id);
 		}
@@ -4629,7 +4637,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 }
 
 void MainWidget::feedUpdate(const MTPUpdate &update) {
-	if (!MTP::authedId()) return;
+	if (!AuthSession::Current()) return;
 
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
@@ -4796,7 +4804,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		} else if (auto channel = App::channelLoaded(d.vchat_id.v)) {
 			history = App::historyLoaded(channel->id);
 		}
-		auto user = (d.vuser_id.v == MTP::authedId()) ? nullptr : App::userLoaded(d.vuser_id.v);
+		auto user = (d.vuser_id.v == AuthSession::CurrentUserId()) ? nullptr : App::userLoaded(d.vuser_id.v);
 		if (history && user) {
 			auto when = requestingDifference() ? 0 : unixtime();
 			App::histories().regSendAction(history, user, d.vaction, when);
@@ -4841,7 +4849,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 			App::markPeerUpdated(user);
 			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
 		}
-		if (d.vuser_id.v == MTP::authedId()) {
+		if (d.vuser_id.v == AuthSession::CurrentUserId()) {
 			if (d.vstatus.type() == mtpc_userStatusOffline || d.vstatus.type() == mtpc_userStatusEmpty) {
 				updateOnline(true);
 				if (d.vstatus.type() == mtpc_userStatusOffline) {

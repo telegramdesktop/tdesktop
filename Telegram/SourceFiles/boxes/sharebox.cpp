@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "window/themes/window_theme.h"
 #include "boxes/contactsbox.h"
+#include "auth_session.h"
 
 ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
 : _copyCallback(std::move(copyCallback))
@@ -814,7 +815,7 @@ QString appendShareGameScoreUrl(const QString &url, const FullMsgId &fullId) {
 	auto channel = fullId.channel ? App::channelLoaded(fullId.channel) : static_cast<ChannelData*>(nullptr);
 	auto channelAccessHash = channel ? channel->access : 0ULL;
 	auto channelAccessHashInts = reinterpret_cast<int32*>(&channelAccessHash);
-	shareHashDataInts[0] = MTP::authedId();
+	shareHashDataInts[0] = AuthSession::CurrentUserId();
 	shareHashDataInts[1] = fullId.channel;
 	shareHashDataInts[2] = fullId.msg;
 	shareHashDataInts[3] = channelAccessHashInts[0];
@@ -953,7 +954,7 @@ void shareGameScoreByHash(const QString &hash) {
 	}
 
 	auto hashDataInts = reinterpret_cast<int32*>(hashData.data());
-	if (hashDataInts[0] != MTP::authedId()) {
+	if (hashDataInts[0] != AuthSession::CurrentUserId()) {
 		Ui::show(Box<InformBox>(lang(lng_share_wrong_user)));
 		return;
 	}

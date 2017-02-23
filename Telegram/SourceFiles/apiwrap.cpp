@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "historywidget.h"
 #include "localstorage.h"
+#include "auth_session.h"
 #include "boxes/confirmbox.h"
 #include "window/themes/window_theme.h"
 
@@ -591,27 +592,27 @@ void ApiWrap::gotSelfParticipant(ChannelData *channel, const MTPchannels_Channel
 		return;
 	}
 
-	const auto &p(result.c_channels_channelParticipant());
+	auto &p = result.c_channels_channelParticipant();
 	App::feedUsers(p.vusers);
 
 	switch (p.vparticipant.type()) {
 	case mtpc_channelParticipantSelf: {
-		const auto &d(p.vparticipant.c_channelParticipantSelf());
+		auto &d = p.vparticipant.c_channelParticipantSelf();
 		channel->inviter = d.vinviter_id.v;
 		channel->inviteDate = date(d.vdate);
 	} break;
 	case mtpc_channelParticipantCreator: {
-		const auto &d(p.vparticipant.c_channelParticipantCreator());
-		channel->inviter = MTP::authedId();
+		auto &d = p.vparticipant.c_channelParticipantCreator();
+		channel->inviter = AuthSession::CurrentUserId();
 		channel->inviteDate = date(MTP_int(channel->date));
 	} break;
 	case mtpc_channelParticipantModerator: {
-		const auto &d(p.vparticipant.c_channelParticipantModerator());
+		auto &d = p.vparticipant.c_channelParticipantModerator();
 		channel->inviter = d.vinviter_id.v;
 		channel->inviteDate = date(d.vdate);
 	} break;
 	case mtpc_channelParticipantEditor: {
-		const auto &d(p.vparticipant.c_channelParticipantEditor());
+		auto &d = p.vparticipant.c_channelParticipantEditor();
 		channel->inviter = d.vinviter_id.v;
 		channel->inviteDate = date(d.vdate);
 	} break;
@@ -1097,7 +1098,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
 				emoji = emoji->original();
 				auto &stickers = pack.vdocuments.c_vector().v;
-				
+
 				StickerPack p;
 				p.reserve(stickers.size());
 				for (auto j = 0, c = stickers.size(); j != c; ++j) {

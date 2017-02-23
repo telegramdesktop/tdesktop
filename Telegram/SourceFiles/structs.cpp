@@ -36,11 +36,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "styles/style_history.h"
 #include "window/themes/window_theme.h"
+#include "auth_session.h"
 
 namespace {
 
 int peerColorIndex(const PeerId &peer) {
-	auto myId = MTP::authedId();
+	auto myId = AuthSession::CurrentUserId();
 	auto peerId = peerToBareInt(peer);
 	auto both = (QByteArray::number(peerId) + QByteArray::number(myId)).mid(0, 15);
 	uchar md5[16];

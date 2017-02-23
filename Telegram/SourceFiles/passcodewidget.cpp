@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
 #include "window/window_slide_animation.h"
+#include "auth_session.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _passcode(this, st::passcodeInput, lang(lng_passcode_ph))
@@ -72,7 +73,7 @@ void PasscodeWidget::onSubmit() {
 			cSetPasscodeBadTries(0);
 
 			MTP::start();
-			if (MTP::authedId()) {
+			if (AuthSession::Current()) {
 				App::wnd()->setupMain();
 			} else {
 				App::wnd()->setupIntro();

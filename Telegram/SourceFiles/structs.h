@@ -101,18 +101,17 @@ inline MTPpeer peerToMTP(const PeerId &id) {
 	return MTP_peerUser(MTP_int(0));
 }
 inline PeerId peerFromMessage(const MTPmessage &msg) {
-	PeerId from_id = 0, to_id = 0;
+	auto compute = [](auto &message) {
+		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;
+		auto to_id = peerFromMTP(message.vto_id);
+		auto out = message.is_out();
+		return (out || !peerIsUser(to_id)) ? to_id : from_id;
+	};
 	switch (msg.type()) {
-	case mtpc_message:
-		from_id = msg.c_message().has_from_id() ? peerFromUser(msg.c_message().vfrom_id) : 0;
-		to_id = peerFromMTP(msg.c_message().vto_id);
-		break;
-	case mtpc_messageService:
-		from_id = msg.c_messageService().has_from_id() ? peerFromUser(msg.c_messageService().vfrom_id) : 0;
-		to_id = peerFromMTP(msg.c_messageService().vto_id);
-		break;
+	case mtpc_message: return compute(msg.c_message());
+	case mtpc_messageService: return compute(msg.c_messageService());
 	}
-	return (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
+	return 0;
 }
 inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {

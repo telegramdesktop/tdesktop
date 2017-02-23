@@ -51,6 +51,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme_warning.h"
 #include "window/window_main_menu.h"
 #include "core/task_queue.h"
+#include "auth_session.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _reconnect(this, QString()) {
@@ -572,7 +573,7 @@ bool MainWindow::doWeReadServerHistory() {
 }
 
 void MainWindow::checkHistoryActivation() {
-	if (_main && MTP::authedId() && doWeReadServerHistory()) {
+	if (_main && AuthSession::Current() && doWeReadServerHistory()) {
 		_main->markActiveHistoryAsRead();
 	}
 }
@@ -853,7 +854,7 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 		App::quit();
 	} else {
 		e->ignore();
-		if (!MTP::authedId() || !Ui::hideWindowNoQuit()) {
+		if (!AuthSession::Current() || !Ui::hideWindowNoQuit()) {
 			App::quit();
 		}
 	}

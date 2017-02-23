@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "auth_session.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
@@ -1852,7 +1853,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		auto &v = d.vusers.c_vector().v;
 		bool foundSelf = false;
 		for (int i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).v == MTP::authedId()) {
+			if (v.at(i).v == AuthSession::CurrentUserId()) {
 				foundSelf = true;
 				break;
 			}
@@ -2445,7 +2446,7 @@ HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, User
 	: HistoryService(history, clientMsgId(), inviteDate, QString(), flags) {
 	Links links;
 	auto text = ([history, inviter, &links]() {
-		if (peerToUser(inviter->id) == MTP::authedId()) {
+		if (inviter->id == AuthSession::CurrentUserPeerId()) {
 			return lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined);
 		}
 		links.push_back(peerOpenClickHandler(inviter));

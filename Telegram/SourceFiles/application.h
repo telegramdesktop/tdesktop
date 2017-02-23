@@ -29,6 +29,8 @@ namespace MTP {
 class DcOptions;
 } // namespace MTP
 
+class AuthSession;
+
 class UpdateChecker;
 class Application : public QApplication {
 	Q_OBJECT
@@ -153,6 +155,8 @@ class AppClass : public QObject, public RPCSender, private base::Subscriber {
 
 public:
 	AppClass();
+	AppClass(const AppClass &other) = delete;
+	AppClass &operator=(const AppClass &other) = delete;
 
 	void joinThreads();
 	~AppClass();
@@ -166,9 +170,15 @@ public:
 		t_assert(result != nullptr);
 		return *result;
 	}
+
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
+	AuthSession *authSession() {
+		return _authSession.get();
+	}
+	void authSessionCreate(UserId userId);
+	void authSessionDestroy();
 
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
@@ -232,5 +242,6 @@ private:
 	Translator *_translator = nullptr;
 
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
+	std::unique_ptr<AuthSession> _authSession;
 
 };

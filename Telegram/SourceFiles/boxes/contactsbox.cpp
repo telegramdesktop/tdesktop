@@ -43,6 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "auth_session.h"
 
 QString PeerFloodErrorText(PeerFloodType type) {
 	auto link = textcmdLink(CreateInternalLinkHttps(qsl("spambot")), lang(lng_cant_more_info));
@@ -891,9 +892,9 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 						data->disabledChecked = _chat->participants.contains(peer->asUser());
 					}
 				} else if (_creating == CreatingGroupGroup) {
-					data->disabledChecked = (peerToUser(peer->id) == MTP::authedId());
+					data->disabledChecked = (peer->id == AuthSession::CurrentUserPeerId());
 				} else if (_channel) {
-					data->disabledChecked = (peerToUser(peer->id) == MTP::authedId()) || _already.contains(peer->asUser());
+					data->disabledChecked = (peer->id == AuthSession::CurrentUserPeerId()) || _already.contains(peer->asUser());
 				}
 			}
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {

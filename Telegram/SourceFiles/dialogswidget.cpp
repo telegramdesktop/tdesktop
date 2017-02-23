@@ -45,6 +45,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "autoupdater.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -1563,7 +1564,7 @@ void DialogsInner::contactsReceived(const QVector<MTPContact> &result) {
 		if (contact.type() != mtpc_contact) continue;
 
 		auto userId = contact.c_contact().vuser_id.v;
-		if (userId == MTP::authedId() && App::self()) {
+		if (userId == AuthSession::CurrentUserId() && App::self()) {
 			if (App::self()->contact < 1) {
 				App::self()->contact = 1;
 				Notify::userIsContactChanged(App::self());

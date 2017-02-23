@@ -34,7 +34,6 @@ DcenterMap gDCs;
 bool configLoadedOnce = false;
 bool mainDCChanged = false;
 int32 _mainDC = 2;
-int32 userId = 0;
 
 typedef QMap<int32, AuthKeyPtr> _KeysMapForWrite;
 _KeysMapForWrite _keysMapForWrite;
@@ -43,16 +42,6 @@ QMutex _keysMapForWriteMutex;
 constexpr auto kEnumerateDcTimeout = 8000; // 8 seconds timeout for help_getConfig to work (then move to other dc)
 
 } // namespace
-
-int32 authed() {
-	return userId;
-}
-
-void authed(int32 uid) {
-	if (userId != uid) {
-		userId = uid;
-	}
-}
 
 DcenterMap &DCMap() {
 	return gDCs;

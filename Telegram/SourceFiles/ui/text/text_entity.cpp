@@ -21,6 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/text/text_entity.h"
 
+#include "auth_session.h"
+
 namespace {
 
 const QRegularExpression _reDomain(QString::fromUtf8("(?<![\\w\\$\\-\\_%=\\.])(?:([a-zA-Z]+)://)?((?:[A-Za-z" "\xd0\x90-\xd0\xaf" "\xd0\xb0-\xd1\x8f" "\xd1\x91\xd0\x81" "0-9\\-\\_]+\\.){1,10}([A-Za-z" "\xd1\x80\xd1\x84" "\\-\\d]{2,22})(\\:\\d+)?)"), QRegularExpression::UseUnicodePropertiesOption);
@@ -1376,7 +1378,7 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 				const auto &d(entity.c_inputMessageEntityMentionName());
 				auto data = ([&d]() -> QString {
 					if (d.vuser_id.type() == mtpc_inputUserSelf) {
-						return QString::number(MTP::authedId());
+						return QString::number(AuthSession::CurrentUserId());
 					} else if (d.vuser_id.type() == mtpc_inputUser) {
 						const auto &user(d.vuser_id.c_inputUser());
 						return QString::number(user.vuser_id.v) + '.' + QString::number(user.vaccess_hash.v);
@@ -1422,7 +1424,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 				UserId userId = 0;
 				uint64 accessHash = 0;
 				if (mentionNameToFields(data, &userId, &accessHash)) {
-					if (userId == MTP::authedId()) {
+					if (userId == AuthSession::CurrentUserId()) {
 						return MTP_inputUserSelf();
 					}
 					return MTP_inputUser(MTP_int(userId), MTP_long(accessHash));

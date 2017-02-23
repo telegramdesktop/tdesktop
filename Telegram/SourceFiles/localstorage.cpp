@@ -36,6 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/dc_options.h"
 #include "application.h"
 #include "apiwrap.h"
+#include "auth_session.h"
 
 namespace Local {
 namespace {
@@ -902,12 +903,16 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 	case dbiUser: {
 		quint32 dcId;
-		qint32 uid;
-		stream >> uid >> dcId;
+		qint32 userId;
+		stream >> userId >> dcId;
 		if (!_checkStreamStatus(stream)) return false;
 
-		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(uid));
-		MTP::configure(dcId, uid);
+		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
+		MTP::configure(dcId);
+
+		if (userId) {
+			AppClass::Instance().authSessionCreate(UserId(userId));
+		}
 	} break;
 
 	case dbiKey: {
@@ -1777,7 +1782,7 @@ void _writeMtpData() {
 	size += keys.size() * (sizeof(quint32) + sizeof(quint32) + MTP::AuthKey::kSize);
 
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiUser) << qint32(MTP::authedId()) << quint32(MTP::maindc());
+	data.stream << quint32(dbiUser) << qint32(AuthSession::CurrentUserId()) << quint32(MTP::maindc());
 	for_const (auto &key, keys) {
 		data.stream << quint32(dbiKey) << quint32(key->getDC());
 		key->write(data.stream);
@@ -3904,7 +3909,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 		}
 		from.stream >> onlineTill >> contact >> botInfoVersion;
 
-		bool showPhone = !isServiceUser(user->id) && (peerToUser(user->id) != MTP::authedId()) && (contact <= 0);
+		bool showPhone = !isServiceUser(user->id) && (user->id != AuthSession::CurrentUserPeerId()) && (contact <= 0);
 		QString pname = (showPhone && !phone.isEmpty()) ? App::formatPhone(phone) : QString();
 
 		if (!wasLoaded) {
@@ -3920,7 +3925,7 @@ PeerData *_readPeer(FileReadDescriptor &from, int32 fileVersion = 0) {
 				user->botInfo->inlinePlaceholder = inlinePlaceholder;
 			}
 
-			if (peerToUser(user->id) == MTP::authedId()) {
+			if (user->id == AuthSession::CurrentUserPeerId()) {
 				user->input = MTP_inputPeerSelf();
 				user->inputUser = MTP_inputUserSelf();
 			} else {

@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "ui/effects/ripple_animation.h"
 #include "fileuploader.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -743,7 +744,7 @@ void HistoryItem::setId(MsgId newId) {
 }
 
 bool HistoryItem::canEdit(const QDateTime &cur) const {
-	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageTooOld) return false;
 
@@ -772,7 +773,7 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 }
 
 bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
-	auto messageToMyself = (peerToUser(_history->peer->id) == MTP::authedId());
+	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
 	if (id < 0 || messageToMyself || messageTooOld) return false;
 	if (history()->peer->isChannel()) return false;

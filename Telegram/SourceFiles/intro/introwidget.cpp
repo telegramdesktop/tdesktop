@@ -44,6 +44,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_intro.h"
 #include "styles/style_window.h"
 #include "window/themes/window_theme.h"
+#include "auth_session.h"
 
 namespace Intro {
 
@@ -428,7 +429,7 @@ void Widget::Step::finish(const MTPUser &user, QImage photo) {
 
 	// "this" is already deleted here by creating the main widget.
 	if (!photo.isNull()) {
-		App::app()->uploadProfilePhoto(photo, MTP::authedId());
+		App::app()->uploadProfilePhoto(photo, AuthSession::CurrentUserId());
 	}
 }
 
