@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
 #include "ui/filedialog.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"

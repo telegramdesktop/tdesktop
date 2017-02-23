@@ -25,7 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "observer_peer.h"
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
+#include "mainwindow.h"
 #include "apiwrap.h"
 #include "profile/profile_userpic_button.h"
 #include "profile/profile_cover_drop_area.h"
@@ -91,10 +92,8 @@ void CoverWidget::onPhotoShow() {
 }
 
 void CoverWidget::onCancelPhotoUpload() {
-	if (auto app = App::app()) {
-		app->cancelPhotoUpdate(_self->id);
-		refreshStatusText();
-	}
+	Messenger::Instance().cancelPhotoUpdate(_self->id);
+	refreshStatusText();
 }
 
 int CoverWidget::resizeGetHeight(int newWidth) {
@@ -277,19 +276,17 @@ void CoverWidget::refreshNameText() {
 }
 
 void CoverWidget::refreshStatusText() {
-	if (auto app = App::app()) {
-		if (app->isPhotoUpdating(_self->id)) {
-			_statusText = lang(lng_settings_uploading_photo);
-			_statusTextIsOnline = false;
-			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
-				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
-				_cancelPhotoUpload->show();
-				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
-			}
-			update();
-			return;
+	if (Messenger::Instance().isPhotoUpdating(_self->id)) {
+		_statusText = lang(lng_settings_uploading_photo);
+		_statusTextIsOnline = false;
+		if (!_cancelPhotoUpload) {
+			_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
+			connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
+			_cancelPhotoUpload->show();
+			_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::settingsStatusFont->width(_statusText) + st::settingsStatusFont->spacew, _statusPosition.y());
 		}
+		update();
+		return;
 	}
 
 	_cancelPhotoUpload.destroy();

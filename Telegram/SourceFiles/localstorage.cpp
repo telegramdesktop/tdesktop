@@ -34,6 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/media_audio.h"
 #include "ui/widgets/input_fields.h"
 #include "mtproto/dc_options.h"
+#include "messenger.h"
 #include "application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
@@ -837,7 +838,7 @@ struct ReadSettingsContext {
 };
 
 void applyReadContext(const ReadSettingsContext &context) {
-	AppClass::Instance().dcOptions()->addFromOther(context.dcOptions);
+	Messenger::Instance().dcOptions()->addFromOther(context.dcOptions);
 }
 
 bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSettingsContext &context) {
@@ -911,7 +912,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		MTP::configure(dcId);
 
 		if (userId) {
-			AppClass::Instance().authSessionCreate(UserId(userId));
+			Messenger::Instance().authSessionCreate(UserId(userId));
 		}
 	} break;
 
@@ -2238,7 +2239,7 @@ void writeSettings() {
 	}
 	settings.writeData(_settingsSalt);
 
-	auto dcOptionsSerialized = AppClass::Instance().dcOptions()->serialize();
+	auto dcOptionsSerialized = Messenger::Instance().dcOptions()->serialize();
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);

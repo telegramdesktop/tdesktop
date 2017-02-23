@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "intro/intropwdcheck.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
+#include "messenger.h"
 #include "application.h"
 #include "boxes/confirmbox.h"
 #include "ui/text/text.h"

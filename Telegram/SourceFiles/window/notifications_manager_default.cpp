@@ -748,7 +748,7 @@ void Notification::showReplyField() {
 	_replyArea->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 
 	// Catch mouse press event to activate the window.
-	Sandbox::installEventFilter(this);
+	QCoreApplication::instance()->installEventFilter(this);
 	connect(_replyArea, SIGNAL(resized()), this, SLOT(onReplyResize()));
 	connect(_replyArea, SIGNAL(submitted(bool)), this, SLOT(onReplySubmit(bool)));
 	connect(_replyArea, SIGNAL(cancelled()), this, SLOT(onReplyCancel()));

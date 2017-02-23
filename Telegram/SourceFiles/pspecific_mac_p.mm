@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "application.h"
+#include "messenger.h"
 #include "localstorage.h"
 #include "media/player/media_player_instance.h"
 #include "media/media_audio.h"
@@ -121,8 +121,8 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void)applicationDidBecomeActive:(NSNotification *)aNotification {
-	if (App::app()) {
-		App::app()->handleAppActivated();
+	if (auto messenger = Messenger::InstancePointer()) {
+		messenger->handleAppActivated();
 		if (auto window = App::wnd()) {
 			if (window->isHidden()) {
 				window->showFromTray();
@@ -132,8 +132,8 @@ ApplicationDelegate *_sharedDelegate = nil;
 }
 
 - (void)receiveWakeNote:(NSNotification*)aNotification {
-	if (App::app()) {
-		App::app()->checkLocalTime();
+	if (auto messenger = Messenger::InstancePointer()) {
+		messenger->checkLocalTime();
 	}
 
 	LOG(("Audio Info: -receiveWakeNote: received, scheduling detach from audio device"));

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mtproto/facade.h"
 #include "mtproto/dc_options.h"
-#include "application.h"
+#include "messenger.h"
 #include "localstorage.h"
 
 namespace MTP {
@@ -152,7 +152,7 @@ void configLoaded(const MTPConfig &result) {
 	if (data.vdc_options.c_vector().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));
 	} else {
-		AppClass::Instance().dcOptions()->setFromList(data.vdc_options);
+		Messenger::Instance().dcOptions()->setFromList(data.vdc_options);
 	}
 
 	Global::SetChatSizeMax(data.vchat_size_max.v);
@@ -224,7 +224,7 @@ void ConfigLoader::enumDC() {
 	} else {
 		MTP::killSession(MTP::cfgDcId(_enumCurrent));
 	}
-	auto ids = AppClass::Instance().dcOptions()->sortedDcIds();
+	auto ids = Messenger::Instance().dcOptions()->sortedDcIds();
 	t_assert(!ids.empty());
 
 	auto i = std::find(ids.cbegin(), ids.cend(), _enumCurrent);

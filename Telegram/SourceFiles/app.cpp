@@ -37,8 +37,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_media_types.h"
 #include "media/media_audio.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "messenger.h"
 #include "application.h"
 #include "fileuploader.h"
+#include "mainwindow.h"
 #include "mainwidget.h"
 #include "localstorage.h"
 #include "apiwrap.h"
@@ -160,24 +162,27 @@ namespace App {
 		return result;
 	}
 
-	AppClass *app() {
-		return AppClass::app();
+	Messenger *app() {
+		return Messenger::InstancePointer();
 	}
 
 	MainWindow *wnd() {
-		return AppClass::wnd();
+		if (auto instance = app()) {
+			return instance->mainWindow();
+		}
+		return nullptr;
 	}
 
 	MainWidget *main() {
-		if (auto w = wnd()) {
-			return w->mainWidget();
+		if (auto window = wnd()) {
+			return window->mainWidget();
 		}
 		return nullptr;
 	}
 
 	bool passcoded() {
-		if (auto w = wnd()) {
-			return w->passcodeWidget();
+		if (auto window = wnd()) {
+			return window->passcodeWidget();
 		}
 		return false;
 	}
@@ -202,7 +207,7 @@ namespace {
 			w->notifyClearFast();
 			w->setupIntro();
 		}
-		AppClass::Instance().authSessionDestroy();
+		Messenger::Instance().authSessionDestroy();
 		Local::reset();
 		Window::Theme::Background()->reset();
 
@@ -2460,11 +2465,11 @@ namespace {
 		if (auto apiwrap = api()) {
 			if (apiwrap->hasUnsavedDrafts()) {
 				apiwrap->saveDraftsToCloud();
-				QTimer::singleShot(SaveDraftBeforeQuitTimeout, Application::instance(), SLOT(quit()));
+				QTimer::singleShot(SaveDraftBeforeQuitTimeout, QCoreApplication::instance(), SLOT(quit()));
 				return;
 			}
 		}
-		Application::quit();
+		QCoreApplication::quit();
 	}
 
 	bool quitting() {
@@ -2473,7 +2478,7 @@ namespace {
 
 	void allDraftsSaved() {
 		if (quitting()) {
-			Application::quit();
+			QCoreApplication::quit();
 		}
 	}
 

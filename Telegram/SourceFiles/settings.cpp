@@ -181,10 +181,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
-	if (argc == 2 && fromUtf8Safe(argv[1]).endsWith(qstr(".telegramcrash")) && QFile(fromUtf8Safe(argv[1])).exists()) {
-		gLaunchMode = LaunchModeShowCrash;
-		gStartUrl = fromUtf8Safe(argv[1]);
-	}
     for (int32 i = 0; i < argc; ++i) {
 		if (qstr("-testmode") == argv[i]) {
 			gTestMode = true;
@@ -200,9 +196,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gLaunchMode = LaunchModeFixPrevious;
 		} else if (qstr("-cleanup") == argv[i]) {
 			gLaunchMode = LaunchModeCleanup;
-		} else if (qstr("-crash") == argv[i] && i + 1 < argc) {
-			gLaunchMode = LaunchModeShowCrash;
-			gStartUrl = fromUtf8Safe(argv[++i]);
 		} else if (qstr("-noupdate") == argv[i]) {
 			gNoStartUpdate = true;
 		} else if (qstr("-tosettings") == argv[i]) {

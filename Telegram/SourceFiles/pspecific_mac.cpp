@@ -30,21 +30,23 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <execinfo.h>
 
 namespace {
-    QStringList _initLogs;
 
-    class _PsEventFilter : public QAbstractNativeEventFilter {
-	public:
-		_PsEventFilter() {
-		}
+QStringList _initLogs;
 
-		bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
-			auto wnd = AppClass::wnd();
-			if (!wnd) return false;
+class _PsEventFilter : public QAbstractNativeEventFilter {
+public:
+	_PsEventFilter() {
+	}
 
-			return wnd->psFilterNativeEvent(message);
-		}
-	};
-    _PsEventFilter *_psEventFilter = 0;
+	bool nativeEventFilter(const QByteArray &eventType, void *message, long *result) {
+		auto wnd = App::wnd();
+		if (!wnd) return false;
+
+		return wnd->psFilterNativeEvent(message);
+	}
+};
+
+_PsEventFilter *_psEventFilter = nullptr;
 
 };
 

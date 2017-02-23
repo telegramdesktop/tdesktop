@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "boxes/addcontactbox.h"
 #include "fileuploader.h"
+#include "messenger.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -115,7 +116,7 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 		updateDialogsWidthAnimated();
 	});
 
-	Sandbox::installEventFilter(this);
+	QCoreApplication::instance()->installEventFilter(this);
 
 	connect(&_updateMutedTimer, SIGNAL(timeout()), this, SLOT(onUpdateMuted()));
 	connect(&_viewsIncrementTimer, SIGNAL(timeout()), this, SLOT(onViewsIncrement()));
@@ -3738,7 +3739,7 @@ void MainWidget::start(const MTPUser &user) {
 		return;
 	}
 	if (AuthSession::CurrentUserId() != uid) {
-		AppClass::Instance().authSessionCreate(uid);
+		Messenger::Instance().authSessionCreate(uid);
 		Local::writeMtpData();
 	}
 
@@ -4916,7 +4917,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDcOptions: {
 		auto &d = update.c_updateDcOptions();
-		AppClass::Instance().dcOptions()->addFromList(d.vdc_options);
+		Messenger::Instance().dcOptions()->addFromList(d.vdc_options);
 	} break;
 
 	case mtpc_updateUserPhone: {

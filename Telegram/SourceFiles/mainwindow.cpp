@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/zlib_help.h"
 #include "lang.h"
 #include "shortcuts.h"
+#include "messenger.h"
 #include "application.h"
 #include "pspecific.h"
 #include "passcodewidget.h"
@@ -165,7 +166,7 @@ void MainWindow::onStateChanged(Qt::WindowState state) {
 void MainWindow::initHook() {
 	Platform::MainWindow::initHook();
 
-	Application::instance()->installEventFilter(this);
+	QCoreApplication::instance()->installEventFilter(this);
 	connect(windowHandle(), SIGNAL(windowStateChanged(Qt::WindowState)), this, SLOT(onStateChanged(Qt::WindowState)));
 	connect(windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWindowActiveChanged()), Qt::QueuedConnection);
 }
@@ -636,14 +637,14 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *e) {
 		break;
 
 	case QEvent::ApplicationActivate:
-		if (obj == Application::instance()) {
+		if (obj == QCoreApplication::instance()) {
 			psUserActionDone();
 			QTimer::singleShot(1, this, SLOT(onWindowActiveChanged()));
 		}
 		break;
 
 	case QEvent::FileOpen:
-		if (obj == Application::instance()) {
+		if (obj == QCoreApplication::instance()) {
 			QString url = static_cast<QFileOpenEvent*>(e)->url().toEncoded().trimmed();
 			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
@@ -2409,47 +2410,3 @@ void NetworkSettingsWindow::updateControls() {
 		setGeometry(_parent->x() + (_parent->width() - w) / 2, _parent->y() + (_parent->height() - h) / 2, w, h);
 	}
 }
-
-ShowCrashReportWindow::ShowCrashReportWindow(const QString &text)
-: _log(this) {
-	_log.setPlainText(text);
-
-	QRect scr(QApplication::primaryScreen()->availableGeometry());
-	setGeometry(scr.x() + (scr.width() / 6), scr.y() + (scr.height() / 6), scr.width() / 2, scr.height() / 2);
-	show();
-}
-
-void ShowCrashReportWindow::resizeEvent(QResizeEvent *e) {
-	_log.setGeometry(rect().marginsRemoved(QMargins(basicSize(), basicSize(), basicSize(), basicSize())));
-}
-
-void ShowCrashReportWindow::closeEvent(QCloseEvent *e) {
-    deleteLater();
-}
-
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-int showCrashReportWindow(const QString &crashdump) {
-	QString text;
-
-	QFile dump(crashdump);
-	if (dump.open(QIODevice::ReadOnly)) {
-		text = qsl("Crash dump file '%1':\n\n").arg(QFileInfo(crashdump).absoluteFilePath());
-		text += psPrepareCrashDump(dump.readAll(), crashdump);
-	} else {
-		text = qsl("ERROR: could not read crash dump file '%1'").arg(QFileInfo(crashdump).absoluteFilePath());
-	}
-
-	if (Global::started()) {
-		ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
-		return 0;
-	}
-
-	QByteArray args[] = { QFile::encodeName(QDir::toNativeSeparators(cExeDir() + cExeName())) };
-	int a_argc = 1;
-	char *a_argv[1] = { args[0].data() };
-	QApplication app(a_argc, a_argv);
-
-	ShowCrashReportWindow *wnd = new ShowCrashReportWindow(text);
-	return app.exec();
-}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

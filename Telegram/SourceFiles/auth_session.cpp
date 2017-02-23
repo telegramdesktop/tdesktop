@@ -21,14 +21,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "auth_session.h"
 
-#include "application.h"
+#include "messenger.h"
 
 AuthSession::AuthSession(UserId userId) : _userId(userId) {
 	t_assert(_userId != 0);
 }
 
 AuthSession *AuthSession::Current() {
-	return AppClass::Instance().authSession();
+	return Messenger::Instance().authSession();
 }
 
 UserData *AuthSession::CurrentUser() {

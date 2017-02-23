@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "stdafx.h"
 #include "ui/filedialog.h"
 
-#include "application.h"
+#include "mainwindow.h"
 #include "localstorage.h"
 #include "platform/platform_file_dialog.h"
 

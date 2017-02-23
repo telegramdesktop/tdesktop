@@ -2651,9 +2651,9 @@ void MediaView::setVisible(bool visible) {
 	}
 	TWidget::setVisible(visible);
 	if (visible) {
-		Sandbox::installEventFilter(this);
+		QCoreApplication::instance()->installEventFilter(this);
 	} else {
-		Sandbox::removeEventFilter(this);
+		QCoreApplication::instance()->removeEventFilter(this);
 
 		stopGif();
 		destroyThemePreview();

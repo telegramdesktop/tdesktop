@@ -32,7 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "mtproto/rsa_public_key.h"
-#include "application.h"
+#include "messenger.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
 
@@ -457,7 +457,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 	moveToThread(thread);
 
 	if (!dc) {
-		dc = AppClass::Instance().dcOptions()->getDefaultDcId();
+		dc = Messenger::Instance().dcOptions()->getDefaultDcId();
 		DEBUG_LOG(("MTP Info: searching for any DC, %1 selected...").arg(dc));
 	}
 
@@ -1093,7 +1093,7 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 	auto kIPv6 = Variants::IPv6;
 	auto kTcp = Variants::Tcp;
 	auto kHttp = Variants::Http;
-	auto variants = AppClass::Instance().dcOptions()->lookup(bareDcId(dc), dcType);
+	auto variants = Messenger::Instance().dcOptions()->lookup(bareDcId(dc), dcType);
 	auto noIPv4 = (variants.data[kIPv4][kHttp].port == 0);
 	auto noIPv6 = (!Global::TryIPv6() || (variants.data[kIPv6][kHttp].port == 0));
 	if (noIPv4 && noIPv6) {

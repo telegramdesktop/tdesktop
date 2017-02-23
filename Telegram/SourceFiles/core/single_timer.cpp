@@ -25,10 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 SingleTimer::SingleTimer(QObject *parent) : QTimer(parent) {
 	QTimer::setSingleShot(true);
-	if (App::app()) {
-		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
-		_inited = true;
-	}
+	Sandbox::connect(SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
 }
 
 void SingleTimer::setTimeoutHandler(base::lambda<void()> &&handler) {
@@ -59,10 +56,6 @@ void SingleTimer::onTimeout() {
 
 void SingleTimer::start(int msec) {
 	_finishing = getms(true) + (msec < 0 ? 0 : msec);
-	if (!_inited && App::app()) {
-		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
-		_inited = true;
-	}
 	QTimer::start(msec);
 }
 

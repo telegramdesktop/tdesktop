@@ -35,6 +35,7 @@ extern "C" {
 }
 
 #include "application.h"
+#include "pspecific.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
@@ -320,7 +321,6 @@ namespace ThirdParty {
 
 		Platform::ThirdParty::finish();
 	}
-
 }
 
 bool checkms() {
@@ -330,7 +330,7 @@ bool checkms() {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
 	} else if (unixms > ms + 1000LL) {
 		_msAddToMsStart += ((unixms - ms) / 1000LL) * 1000LL;
-		if (App::app()) emit App::app()->adjustSingleTimers();
+		Sandbox::adjustSingleTimers();
 		return true;
 	}
 	return false;

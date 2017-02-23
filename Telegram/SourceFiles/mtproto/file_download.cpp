@@ -19,13 +19,11 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "mtproto/file_download.h"
 
 #include "mainwidget.h"
 #include "mainwindow.h"
-
-#include "application.h"
+#include "messenger.h"
 #include "localstorage.h"
 
 namespace {
@@ -559,8 +557,8 @@ void mtpFileLoader::cancelRequests() {
 	_queue->queries -= _requests.size();
 	_requests.clear();
 
-	if (!_queue->queries && App::app()) {
-		App::app()->killDownloadSessionsStart(_dc);
+	if (!_queue->queries) {
+		Messenger::Instance().killDownloadSessionsStart(_dc);
 	}
 }
 

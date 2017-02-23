@@ -18,7 +18,7 @@
 #include "stdafx.h"
 #include "ui/widgets/tooltip.h"
 
-#include "application.h"
+#include "mainwindow.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -99,7 +99,7 @@ void Tooltip::popup(const QPoint &m, const QString &text, const style::Tooltip *
 		_hideByLeaveTimer.setSingleShot(true);
 		connect(&_hideByLeaveTimer, SIGNAL(timeout()), this, SLOT(onHideByLeave()));
 
-		Sandbox::installEventFilter(this);
+		QCoreApplication::instance()->installEventFilter(this);
 	}
 
 	_point = m;

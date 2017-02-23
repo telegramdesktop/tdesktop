@@ -145,6 +145,8 @@
       '<(src_loc)/localstorage.h',
       '<(src_loc)/logs.cpp',
       '<(src_loc)/logs.h',
+      '<(src_loc)/messenger.cpp',
+      '<(src_loc)/messenger.h',
       '<(src_loc)/mainwidget.cpp',
       '<(src_loc)/mainwidget.h',
       '<(src_loc)/settings.cpp',

@@ -36,7 +36,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "application.h"
+#include "messenger.h"
 #include "platform/platform_file_dialog.h"
 
 namespace Profile {
@@ -107,10 +107,8 @@ void CoverWidget::onPhotoShow() {
 }
 
 void CoverWidget::onCancelPhotoUpload() {
-	if (auto app = App::app()) {
-		app->cancelPhotoUpdate(_peer->id);
-		refreshStatusText();
-	}
+	Messenger::Instance().cancelPhotoUpdate(_peer->id);
+	refreshStatusText();
 }
 
 int CoverWidget::countPhotoLeft(int newWidth) const {
@@ -359,19 +357,17 @@ void CoverWidget::refreshNameText() {
 }
 
 void CoverWidget::refreshStatusText() {
-	if (auto app = App::app()) {
-		if (app->isPhotoUpdating(_peer->id)) {
-			_statusText = lang(lng_settings_uploading_photo);
-			_statusTextIsOnline = false;
-			if (!_cancelPhotoUpload) {
-				_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
-				connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
-				_cancelPhotoUpload->show();
-				_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::profileStatusFont->width(_statusText) + st::profileStatusFont->spacew, _statusPosition.y());
-			}
-			update();
-			return;
+	if (Messenger::Instance().isPhotoUpdating(_peer->id)) {
+		_statusText = lang(lng_settings_uploading_photo);
+		_statusTextIsOnline = false;
+		if (!_cancelPhotoUpload) {
+			_cancelPhotoUpload.create(this, lang(lng_cancel), st::defaultLinkButton);
+			connect(_cancelPhotoUpload, SIGNAL(clicked()), this, SLOT(onCancelPhotoUpload()));
+			_cancelPhotoUpload->show();
+			_cancelPhotoUpload->moveToLeft(_statusPosition.x() + st::profileStatusFont->width(_statusText) + st::profileStatusFont->spacew, _statusPosition.y());
 		}
+		update();
+		return;
 	}
 
 	_cancelPhotoUpload.destroy();

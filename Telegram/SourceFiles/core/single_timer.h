@@ -43,7 +43,6 @@ private slots:
 
 private:
 	TimeMs _finishing = 0;
-	bool _inited = false;
 	base::lambda<void()> _handler;
 
 };

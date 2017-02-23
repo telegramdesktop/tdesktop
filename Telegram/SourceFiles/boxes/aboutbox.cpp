@@ -88,34 +88,6 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-QString _getCrashReportFile(const QMimeData *m) {
-	if (!m || m->urls().size() != 1 || !m->urls().at(0).isLocalFile()) return QString();
-
-	auto file = Platform::FileDialog::UrlToLocal(m->urls().at(0));
-
-	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
-}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
-
-void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
-		e->setDropAction(Qt::CopyAction);
-		e->accept();
-	}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
-}
-
-void AboutBox::dropEvent(QDropEvent *e) {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
-		e->acceptProposedAction();
-		showCrashReportWindow(_getCrashReportFile(e->mimeData()));
-	}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
-}
-
 QString telegramFaqLink() {
 	QString result = qsl("https://telegram.org/faq");
 	if (cLang() > languageDefault && cLang() < languageCount) {

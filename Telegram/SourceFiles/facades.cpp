@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "application.h"
+#include "messenger.h"
 #include "boxes/confirmbox.h"
 #include "layerwidget.h"
 #include "lang.h"

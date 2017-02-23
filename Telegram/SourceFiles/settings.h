@@ -75,7 +75,6 @@ enum LaunchMode {
 	LaunchModeAutoStart,
 	LaunchModeFixPrevious,
 	LaunchModeCleanup,
-	LaunchModeShowCrash,
 };
 DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);

@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/photocropbox.h"
 
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
 #include "mainwidget.h"
 #include "photocropbox.h"
 #include "fileuploader.h"

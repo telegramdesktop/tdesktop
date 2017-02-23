@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
@@ -541,7 +541,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
-		Application::clipboard()->setText(_channel->inviteLink());
+		QGuiApplication::clipboard()->setText(_channel->inviteLink());
 		Ui::Toast::Show(lang(lng_create_channel_link_copied));
 	}
 }

@@ -479,7 +479,3 @@ private:
 	PreLaunchLog _log;
 
 };
-
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-int showCrashReportWindow(const QString &crashdump);
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
