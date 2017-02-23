@@ -671,8 +671,6 @@ struct Data {
 	TimeMs LastFeaturedStickersUpdate = 0;
 	Stickers::Order ArchivedStickerSetsOrder;
 
-	MTP::DcOptions DcOptions;
-
 	CircleMasksMap CircleMasks;
 
 	base::Observable<void> SelfChanged;
@@ -794,8 +792,6 @@ DefineVar(Global, int, FeaturedStickerSetsUnreadCount);
 DefineRefVar(Global, base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
 DefineVar(Global, TimeMs, LastFeaturedStickersUpdate);
 DefineVar(Global, Stickers::Order, ArchivedStickerSetsOrder);
-
-DefineVar(Global, MTP::DcOptions, DcOptions);
 
 DefineRefVar(Global, CircleMasksMap, CircleMasks);
 

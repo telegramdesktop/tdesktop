@@ -60,6 +60,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "window/player_wrap_widget.h"
 #include "styles/style_boxes.h"
+#include "mtproto/dc_options.h"
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std::move(memento)) {
@@ -4907,7 +4908,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateDcOptions: {
 		auto &d = update.c_updateDcOptions();
-		MTP::updateDcOptions(d.vdc_options.c_vector().v);
+		AppClass::Instance().dcOptions()->addFromList(d.vdc_options);
 	} break;
 
 	case mtpc_updateUserPhone: {

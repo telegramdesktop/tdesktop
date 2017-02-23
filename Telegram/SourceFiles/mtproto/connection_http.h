@@ -34,9 +34,9 @@ public:
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
-	void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override { // not supported
+	void connectTcp(const DcOptions::Endpoint &endpoint) override { // not supported
 	}
-	void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
+	void connectHttp(const DcOptions::Endpoint &endpoint) override;
 	bool isConnected() const override;
 	bool usingHttpWait() override;
 	bool needHttpWait() override;

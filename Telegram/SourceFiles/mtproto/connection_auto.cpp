@@ -162,23 +162,24 @@ void AutoConnection::disconnectFromServer() {
 	httpStartTimer.stop();
 }
 
-void AutoConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
-	_addrTcp = addr;
-	_portTcp = port;
-	_flagsTcp = flags;
+void AutoConnection::connectTcp(const DcOptions::Endpoint &endpoint) {
+	_addrTcp = QString::fromStdString(endpoint.ip);
+	_portTcp = endpoint.port;
+	_flagsTcp = endpoint.flags;
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 	sock.connectToHost(QHostAddress(_addrTcp), _portTcp);
 }
 
-void AutoConnection::connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
-	address = QUrl(((flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
+void AutoConnection::connectHttp(const DcOptions::Endpoint &endpoint) {
+	_addrHttp = QString::fromStdString(endpoint.ip);
+	_portHttp = endpoint.port;
+	_flagsHttp = endpoint.flags;
+
+	// not endpoint.port - always 80 port for http transport
+	address = QUrl(((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(_addrHttp).arg(80));
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
-
-	_addrHttp = addr;
-	_portHttp = port;
-	_flagsHttp = flags;
 
 	mtpBuffer buffer(preparePQFake(httpNonce));
 

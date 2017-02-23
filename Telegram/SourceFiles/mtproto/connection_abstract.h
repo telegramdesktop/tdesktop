@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "mtproto/core_types.h"
+#include "mtproto/dc_options.h"
 
 namespace MTP {
 namespace internal {
@@ -29,7 +30,6 @@ class AbstractConnection : public QObject {
 	Q_OBJECT
 
 public:
-
 	AbstractConnection(QThread *thread) : _sentEncrypted(false) {
 		moveToThread(thread);
 	}
@@ -46,8 +46,8 @@ public:
 
 	virtual void sendData(mtpBuffer &buffer) = 0; // has size + 3, buffer[0] = len, buffer[1] = packetnum, buffer[last] = crc32
 	virtual void disconnectFromServer() = 0;
-	virtual void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) = 0;
-	virtual void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) = 0;
+	virtual void connectTcp(const DcOptions::Endpoint &endpoint) = 0;
+	virtual void connectHttp(const DcOptions::Endpoint &endpoint) = 0;
 	virtual bool isConnected() const = 0;
 	virtual bool usingHttpWait() {
 		return false;

@@ -337,6 +337,8 @@
       '<(src_loc)/mtproto/core_types.h',
       '<(src_loc)/mtproto/dcenter.cpp',
       '<(src_loc)/mtproto/dcenter.h',
+      '<(src_loc)/mtproto/dc_options.cpp',
+      '<(src_loc)/mtproto/dc_options.h',
       '<(src_loc)/mtproto/file_download.cpp',
       '<(src_loc)/mtproto/file_download.h',
       '<(src_loc)/mtproto/rsa_public_key.cpp',

@@ -217,23 +217,8 @@ void setStateChangedHandler(MTPStateChangedHandler handler);
 void setSessionResetHandler(MTPSessionResetHandler handler);
 void clearGlobalHandlers();
 
-void updateDcOptions(const QVector<MTPDcOption> &options);
-
 AuthKeysMap getKeys();
 void setKey(int dc, const AuthKey::Data &key);
-
-QReadWriteLock *dcOptionsMutex();
-
-struct DcOption {
-	DcOption(int id, MTPDdcOption::Flags flags, const std::string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
-	}
-
-	int id;
-	MTPDdcOption::Flags flags;
-	std::string ip;
-	int port;
-};
-typedef QMap<int, DcOption> DcOptions;
 
 namespace internal {
 

@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/basic_types.h"
 #include <array>
+#include <algorithm>
 
 namespace base {
 
@@ -80,6 +81,12 @@ private:
 template <typename Lambda>
 scope_guard_helper<Lambda> scope_guard(Lambda on_scope_exit) {
 	return scope_guard_helper<Lambda>(std::move(on_scope_exit));
+}
+
+template <typename Container, typename T>
+inline bool contains(const Container &container, const T &value) {
+	auto end = std::end(container);
+	return std::find(std::begin(container), end, value) != end;
 }
 
 } // namespace base

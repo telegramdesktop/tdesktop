@@ -81,8 +81,8 @@ signals:
 
 private:
 	SingleTimer _enumDCTimer;
-	int32 _enumCurrent;
-	mtpRequestId _enumRequest;
+	DcId _enumCurrent = 0;
+	mtpRequestId _enumRequest = 0;
 
 };
 
@@ -100,9 +100,6 @@ void authed(int32 uid);
 
 AuthKeysMap getAuthKeys();
 void setAuthKey(int32 dc, AuthKeyPtr key);
-
-void updateDcOptions(const QVector<MTPDcOption> &options);
-QReadWriteLock *dcOptionsMutex();
 
 } // namespace internal
 } // namespace MTP

@@ -23,6 +23,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "pspecific.h"
 #include "core/single_timer.h"
+#include "core/observer.h"
+
+namespace MTP {
+class DcOptions;
+} // namespace MTP
 
 class UpdateChecker;
 class Application : public QApplication {
@@ -143,16 +148,27 @@ class MainWidget;
 class FileUploader;
 class Translator;
 
-class AppClass : public QObject, public RPCSender {
+class AppClass : public QObject, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
 	AppClass();
+
+	void joinThreads();
 	~AppClass();
 
 	static AppClass *app();
 	static MainWindow *wnd();
 	static MainWidget *main();
+
+	static AppClass &Instance() {
+		auto result = app();
+		t_assert(result != nullptr);
+		return *result;
+	}
+	MTP::DcOptions *dcOptions() {
+		return _dcOptions.get();
+	}
 
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
@@ -179,7 +195,6 @@ public:
 	void handleAppDeactivated();
 
 signals:
-
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
 
@@ -202,6 +217,7 @@ public slots:
 	void call_handleObservables();
 
 private:
+	void startLocalStorage();
 	void loadLanguage();
 
 	QMap<FullMsgId, PeerId> photoUpdates;
@@ -214,5 +230,7 @@ private:
 	MainWindow *_window = nullptr;
 	FileUploader *_uploader = nullptr;
 	Translator *_translator = nullptr;
+
+	std::unique_ptr<MTP::DcOptions> _dcOptions;
 
 };

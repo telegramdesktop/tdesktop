@@ -829,14 +829,13 @@ int32 state(mtpRequestId requestId) {
 }
 
 void finish() {
-	for (Sessions::iterator i = sessions.begin(), e = sessions.end(); i != e; ++i) {
-		i.value()->kill();
-		delete i.value();
-	}
-	sessions.clear();
 	mainSession = nullptr;
+	for (auto session : base::take(sessions)) {
+		session->kill();
+		delete session;
+	}
 
-	for_const (internal::Connection *connection, quittingConnections) {
+	for_const (auto connection, quittingConnections) {
 		connection->waitTillFinish();
 		delete connection;
 	}
@@ -886,11 +885,6 @@ void clearGlobalHandlers() {
 	setSessionResetHandler(0);
 }
 
-void updateDcOptions(const QVector<MTPDcOption> &options) {
-	internal::updateDcOptions(options);
-	Local::writeSettings();
-}
-
 AuthKeysMap getKeys() {
 	return internal::getAuthKeys();
 }
@@ -901,10 +895,6 @@ void setKey(int dc, const AuthKey::Data &key) {
 	keyPtr->setDC(dcId);
 	keyPtr->setKey(key);
 	return internal::setAuthKey(dc, std::move(keyPtr));
-}
-
-QReadWriteLock *dcOptionsMutex() {
-	return internal::dcOptionsMutex();
 }
 
 } // namespace MTP

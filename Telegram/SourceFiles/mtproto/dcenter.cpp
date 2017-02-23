@@ -19,25 +19,29 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-
 #include "mtproto/dcenter.h"
 
 #include "mtproto/facade.h"
+#include "mtproto/dc_options.h"
+#include "application.h"
 #include "localstorage.h"
 
 namespace MTP {
 namespace internal {
-
 namespace {
-	DcenterMap gDCs;
-	bool configLoadedOnce = false;
-	bool mainDCChanged = false;
-	int32 _mainDC = 2;
-	int32 userId = 0;
 
-	typedef QMap<int32, AuthKeyPtr> _KeysMapForWrite;
-	_KeysMapForWrite _keysMapForWrite;
-	QMutex _keysMapForWriteMutex;
+DcenterMap gDCs;
+bool configLoadedOnce = false;
+bool mainDCChanged = false;
+int32 _mainDC = 2;
+int32 userId = 0;
+
+typedef QMap<int32, AuthKeyPtr> _KeysMapForWrite;
+_KeysMapForWrite _keysMapForWrite;
+QMutex _keysMapForWriteMutex;
+
+constexpr auto kEnumerateDcTimeout = 8000; // 8 seconds timeout for help_getConfig to work (then move to other dc)
+
 } // namespace
 
 int32 authed() {
@@ -156,7 +160,11 @@ void configLoaded(const MTPConfig &result) {
 
 	DEBUG_LOG(("MTP Info: got config, chat_size_max: %1, date: %2, test_mode: %3, this_dc: %4, dc_options.length: %5").arg(data.vchat_size_max.v).arg(data.vdate.v).arg(mtpIsTrue(data.vtest_mode)).arg(data.vthis_dc.v).arg(data.vdc_options.c_vector().v.size()));
 
-	updateDcOptions(data.vdc_options.c_vector().v);
+	if (data.vdc_options.c_vector().v.empty()) {
+		LOG(("MTP Error: config with empty dc_options received!"));
+	} else {
+		AppClass::Instance().dcOptions()->setFromList(data.vdc_options);
+	}
 
 	Global::SetChatSizeMax(data.vchat_size_max.v);
 	Global::SetMegagroupSizeMax(data.vmegagroup_size_max.v);
@@ -191,47 +199,7 @@ bool configFailed(const RPCError &error) {
 
 };
 
-void updateDcOptions(const QVector<MTPDcOption> &options) {
-	QSet<int32> already, restart;
-	{
-		MTP::DcOptions opts;
-		{
-			QReadLocker lock(dcOptionsMutex());
-			opts = Global::DcOptions();
-		}
-		for (QVector<MTPDcOption>::const_iterator i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			const auto &optData(i->c_dcOption());
-			int32 id = optData.vid.v, idWithShift = MTP::shiftDcId(id, optData.vflags.v);
-			if (already.constFind(idWithShift) == already.cend()) {
-				already.insert(idWithShift);
-				auto a = opts.constFind(idWithShift);
-				if (a != opts.cend()) {
-					if (a.value().ip != optData.vip_address.c_string().v || a.value().port != optData.vport.v) {
-						restart.insert(id);
-					}
-				}
-				opts.insert(idWithShift, MTP::DcOption(id, optData.vflags.v, optData.vip_address.c_string().v, optData.vport.v));
-			}
-		}
-		{
-			QWriteLocker lock(dcOptionsMutex());
-			Global::SetDcOptions(opts);
-		}
-	}
-	for (QSet<int32>::const_iterator i = restart.cbegin(), e = restart.cend(); i != e; ++i) {
-		MTP::restart(*i);
-	}
-}
-
-namespace {
-	QReadWriteLock _dcOptionsMutex;
-}
-
-QReadWriteLock *dcOptionsMutex() {
-	return &_dcOptionsMutex;
-}
-
-ConfigLoader::ConfigLoader() : _enumCurrent(0), _enumRequest(0) {
+ConfigLoader::ConfigLoader() {
 	connect(&_enumDCTimer, SIGNAL(timeout()), this, SLOT(enumDC()));
 }
 
@@ -241,7 +209,7 @@ void ConfigLoader::load() {
 
 	MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed));
 
-	_enumDCTimer.start(MTPEnumDCTimeout);
+	_enumDCTimer.start(kEnumerateDcTimeout);
 }
 
 void ConfigLoader::done() {
@@ -267,23 +235,18 @@ void ConfigLoader::enumDC() {
 	} else {
 		MTP::killSession(MTP::cfgDcId(_enumCurrent));
 	}
-	OrderedSet<int32> dcs;
-	{
-		QReadLocker lock(dcOptionsMutex());
-		const auto &options(Global::DcOptions());
-		for (auto i = options.cbegin(), e = options.cend(); i != e; ++i) {
-			dcs.insert(MTP::bareDcId(i.key()));
-		}
-	}
-	auto i = dcs.constFind(_enumCurrent);
-	if (i == dcs.cend() || (++i) == dcs.cend()) {
-		_enumCurrent = *dcs.cbegin();
+	auto ids = AppClass::Instance().dcOptions()->sortedDcIds();
+	t_assert(!ids.empty());
+
+	auto i = std::find(ids.cbegin(), ids.cend(), _enumCurrent);
+	if (i == ids.cend() || (++i) == ids.cend()) {
+		_enumCurrent = ids.front();
 	} else {
 		_enumCurrent = *i;
 	}
 	_enumRequest = MTP::send(MTPhelp_GetConfig(), rpcDone(configLoaded), rpcFail(configFailed), MTP::cfgDcId(_enumCurrent));
 
-	_enumDCTimer.start(MTPEnumDCTimeout);
+	_enumDCTimer.start(kEnumerateDcTimeout);
 }
 
 ConfigLoader *configLoader() {

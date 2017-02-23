@@ -136,16 +136,18 @@ void HTTPConnection::disconnectFromServer() {
 	address = QUrl();
 }
 
-void HTTPConnection::connectHttp(const QString &addr, int32 p, MTPDdcOption::Flags flags) {
-	address = QUrl(((flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
+void HTTPConnection::connectHttp(const DcOptions::Endpoint &endpoint) {
+	_flags = endpoint.flags;
+	auto addr = QString::fromStdString(endpoint.ip);
+
+	// not endpoint.port - always 80 port for http transport
+	address = QUrl(((_flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
 
-	_flags = flags;
-
 	mtpBuffer buffer(preparePQFake(httpNonce));
 
-	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((flags & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
+	DEBUG_LOG(("Connection Info: sending fake req_pq through HTTP/%1 transport").arg((_flags & MTPDdcOption::Flag::f_ipv6) ? "IPv6" : "IPv4"));
 
 	sendData(buffer);
 }

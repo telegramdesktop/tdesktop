@@ -369,8 +369,6 @@ DeclareRefVar(base::Observable<void>, FeaturedStickerSetsUnreadCountChanged);
 DeclareVar(TimeMs, LastFeaturedStickersUpdate);
 DeclareVar(Stickers::Order, ArchivedStickerSetsOrder);
 
-DeclareVar(MTP::DcOptions, DcOptions);
-
 typedef QMap<uint64, QPixmap> CircleMasksMap;
 DeclareRefVar(CircleMasksMap, CircleMasks);
 

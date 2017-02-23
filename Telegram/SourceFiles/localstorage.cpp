@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "media/media_audio.h"
 #include "ui/widgets/input_fields.h"
+#include "mtproto/dc_options.h"
 #include "application.h"
 #include "apiwrap.h"
 
@@ -563,6 +564,7 @@ enum {
 	dbiTheme = 0x47,
 	dbiDialogsWidthRatio = 0x48,
 	dbiUseExternalVideoPlayer = 0x49,
+	dbiDcOptions = 0x4a,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -829,8 +831,15 @@ void _readReportSpamStatuses() {
 	}
 }
 
-MTP::DcOptions *_dcOpts = 0;
-bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
+struct ReadSettingsContext {
+	MTP::DcOptions dcOptions;
+};
+
+void applyReadContext(const ReadSettingsContext &context) {
+	AppClass::Instance().dcOptions()->addFromOther(context.dcOptions);
+}
+
+bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSettingsContext &context) {
 	switch (blockId) {
 	case dbiDcOptionOld: {
 		quint32 dcId, port;
@@ -838,7 +847,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		stream >> dcId >> host >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		if (_dcOpts) _dcOpts->insert(dcId, MTP::DcOption(dcId, 0, ip.toUtf8().constData(), port));
+		context.dcOptions.constructAddOne(dcId, 0, ip.toStdString(), port);
 	} break;
 
 	case dbiDcOption: {
@@ -848,7 +857,15 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 		stream >> dcIdWithShift >> flags >> ip >> port;
 		if (!_checkStreamStatus(stream)) return false;
 
-		if (_dcOpts) _dcOpts->insert(dcIdWithShift, MTP::DcOption(MTP::bareDcId(dcIdWithShift), MTPDdcOption::Flags(flags), ip.toUtf8().constData(), port));
+		context.dcOptions.constructAddOne(dcIdWithShift, MTPDdcOption::Flags(flags), ip.toStdString(), port);
+	} break;
+
+	case dbiDcOptions: {
+		QByteArray serialized;
+		stream >> serialized;
+		if (!_checkStreamStatus(stream)) return false;
+
+		context.dcOptions.constructFromSerialized(serialized);
 	} break;
 
 	case dbiChatSizeMax: {
@@ -1445,7 +1462,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version) {
 	return true;
 }
 
-bool _readOldSettings(bool remove = true) {
+bool _readOldSettings(bool remove, ReadSettingsContext &context) {
 	bool result = false;
 	QFile file(cWorkingDir() + qsl("tdata/config"));
 	if (file.open(QIODevice::ReadOnly)) {
@@ -1464,7 +1481,7 @@ bool _readOldSettings(bool remove = true) {
 				if (!_checkStreamStatus(stream)) break;
 
 				if (version > AppVersion) break;
-			} else if (!_readSetting(blockId, stream, version)) {
+			} else if (!_readSetting(blockId, stream, version, context)) {
 				break;
 			}
 		}
@@ -1475,7 +1492,7 @@ bool _readOldSettings(bool remove = true) {
 	return result;
 }
 
-void _readOldUserSettingsFields(QIODevice *device, qint32 &version) {
+void _readOldUserSettingsFields(QIODevice *device, qint32 &version, ReadSettingsContext &context) {
 	QDataStream stream(device);
 	stream.setVersion(QDataStream::Qt_5_1);
 
@@ -1531,32 +1548,20 @@ void _readOldUserSettingsFields(QIODevice *device, qint32 &version) {
 			decryptedStream.seek(4); // skip size
 			LOG(("App Info: reading encrypted old user config..."));
 
-			_readOldUserSettingsFields(&decryptedStream, version);
-		} else if (!_readSetting(blockId, stream, version)) {
+			_readOldUserSettingsFields(&decryptedStream, version, context);
+		} else if (!_readSetting(blockId, stream, version, context)) {
 			return;
 		}
 	}
 }
 
-bool _readOldUserSettings(bool remove = true) {
+bool _readOldUserSettings(bool remove, ReadSettingsContext &context) {
 	bool result = false;
 	QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()) + qsl("_config"));
 	if (file.open(QIODevice::ReadOnly)) {
 		LOG(("App Info: reading old user config..."));
 		qint32 version = 0;
-
-		MTP::DcOptions dcOpts;
-		{
-			QReadLocker lock(MTP::dcOptionsMutex());
-			dcOpts = Global::DcOptions();
-		}
-		_dcOpts = &dcOpts;
-		_readOldUserSettingsFields(&file, version);
-		{
-			QWriteLocker lock(MTP::dcOptionsMutex());
-			Global::SetDcOptions(dcOpts);
-		}
-
+		_readOldUserSettingsFields(&file, version, context);
 		file.close();
 		result = true;
 	}
@@ -1564,7 +1569,7 @@ bool _readOldUserSettings(bool remove = true) {
 	return result;
 }
 
-void _readOldMtpDataFields(QIODevice *device, qint32 &version) {
+void _readOldMtpDataFields(QIODevice *device, qint32 &version, ReadSettingsContext &context) {
 	QDataStream stream(device);
 	stream.setVersion(QDataStream::Qt_5_1);
 
@@ -1618,32 +1623,20 @@ void _readOldMtpDataFields(QIODevice *device, qint32 &version) {
 			decryptedStream.seek(4); // skip size
 			LOG(("App Info: reading encrypted old keys..."));
 
-			_readOldMtpDataFields(&decryptedStream, version);
-		} else if (!_readSetting(blockId, stream, version)) {
+			_readOldMtpDataFields(&decryptedStream, version, context);
+		} else if (!_readSetting(blockId, stream, version, context)) {
 			return;
 		}
 	}
 }
 
-bool _readOldMtpData(bool remove = true) {
+bool _readOldMtpData(bool remove, ReadSettingsContext &context) {
 	bool result = false;
 	QFile file(cWorkingDir() + cDataFile() + (cTestMode() ? qsl("_test") : QString()));
 	if (file.open(QIODevice::ReadOnly)) {
 		LOG(("App Info: reading old keys..."));
 		qint32 version = 0;
-
-		MTP::DcOptions dcOpts;
-		{
-			QReadLocker lock(MTP::dcOptionsMutex());
-			dcOpts = Global::DcOptions();
-		}
-		_dcOpts = &dcOpts;
-		_readOldMtpDataFields(&file, version);
-		{
-			QWriteLocker lock(MTP::dcOptionsMutex());
-			Global::SetDcOptions(dcOpts);
-		}
-
+		_readOldMtpDataFields(&file, version, context);
 		file.close();
 		result = true;
 	}
@@ -1739,10 +1732,14 @@ void _writeUserSettings() {
 }
 
 void _readUserSettings() {
+	ReadSettingsContext context;
 	FileReadDescriptor userSettings;
 	if (!readEncryptedFile(userSettings, _userSettingsKey)) {
 		LOG(("App Info: could not read encrypted user settings..."));
-		_readOldUserSettings();
+
+		_readOldUserSettings(true, context);
+		applyReadContext(context);
+
 		return _writeUserSettings();
 	}
 
@@ -1756,13 +1753,15 @@ void _readUserSettings() {
 			return _writeUserSettings();
 		}
 
-		if (!_readSetting(blockId, userSettings.stream, userSettings.version)) {
+		if (!_readSetting(blockId, userSettings.stream, userSettings.version, context)) {
 			_readingUserSettings = false;
 			return _writeUserSettings();
 		}
 	}
 	_readingUserSettings = false;
 	LOG(("App Info: encrypted user settings read."));
+
+	applyReadContext(context);
 }
 
 void _writeMtpData() {
@@ -1788,10 +1787,13 @@ void _writeMtpData() {
 }
 
 void _readMtpData() {
+	ReadSettingsContext context;
 	FileReadDescriptor mtp;
 	if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), FileOption::Safe)) {
 		if (_localKey.created()) {
-			_readOldMtpData();
+			_readOldMtpData(true, context);
+			applyReadContext(context);
+
 			_writeMtpData();
 		}
 		return;
@@ -1805,10 +1807,11 @@ void _readMtpData() {
 			return _writeMtpData();
 		}
 
-		if (!_readSetting(blockId, mtp.stream, mtp.version)) {
+		if (!_readSetting(blockId, mtp.stream, mtp.version, context)) {
 			return _writeMtpData();
 		}
 	}
+	applyReadContext(context);
 }
 
 ReadMapState _readMap(const QByteArray &pass) {
@@ -2163,11 +2166,14 @@ void start() {
 	_basePath = cWorkingDir() + qsl("tdata/");
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
+	ReadSettingsContext context;
 	FileReadDescriptor settingsData;
 	if (!readFile(settingsData, cTestMode() ? qsl("settings_test") : qsl("settings"), FileOption::Safe)) {
-		_readOldSettings();
-		_readOldUserSettings(false); // needed further in _readUserSettings
-		_readOldMtpData(false); // needed further in _readMtpData
+		_readOldSettings(true, context);
+		_readOldUserSettings(false, context); // needed further in _readUserSettings
+		_readOldMtpData(false, context); // needed further in _readMtpData
+		applyReadContext(context);
+
 		return writeSettings();
 	}
 	LOG(("App Info: reading settings..."));
@@ -2189,12 +2195,7 @@ void start() {
 		LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode..."));
 		return writeSettings();
 	}
-	MTP::DcOptions dcOpts;
-	{
-		QReadLocker lock(MTP::dcOptionsMutex());
-		dcOpts = Global::DcOptions();
-	}
-	_dcOpts = &dcOpts;
+
 	LOG(("App Info: reading encrypted settings..."));
 	while (!settings.stream.atEnd()) {
 		quint32 blockId;
@@ -2203,36 +2204,17 @@ void start() {
 			return writeSettings();
 		}
 
-		if (!_readSetting(blockId, settings.stream, settingsData.version)) {
+		if (!_readSetting(blockId, settings.stream, settingsData.version, context)) {
 			return writeSettings();
 		}
-	}
-	if (dcOpts.isEmpty()) {
-		const BuiltInDc *bdcs = builtInDcs();
-		for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-			MTPDdcOption::Flags flags = 0;
-			MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
-			dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
-			DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
-		}
-
-		const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
-		for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-			MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
-			MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
-			dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
-			DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
-		}
-	}
-	{
-		QWriteLocker lock(MTP::dcOptionsMutex());
-		Global::SetDcOptions(dcOpts);
 	}
 
 	_oldSettingsVersion = settingsData.version;
 	_settingsSalt = salt;
 
 	readTheme();
+
+	applyReadContext(context);
 }
 
 void writeSettings() {
@@ -2251,37 +2233,10 @@ void writeSettings() {
 	}
 	settings.writeData(_settingsSalt);
 
-	MTP::DcOptions dcOpts;
-	{
-		QReadLocker lock(MTP::dcOptionsMutex());
-		dcOpts = Global::DcOptions();
-	}
-	if (dcOpts.isEmpty()) {
-		const BuiltInDc *bdcs = builtInDcs();
-		for (int i = 0, l = builtInDcsCount(); i < l; ++i) {
-			MTPDdcOption::Flags flags = 0;
-			MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
-			dcOpts.insert(idWithShift, MTP::DcOption(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
-			DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
-		}
-
-		const BuiltInDc *bdcsipv6 = builtInDcsIPv6();
-		for (int i = 0, l = builtInDcsCountIPv6(); i < l; ++i) {
-			MTPDdcOption::Flags flags = MTPDdcOption::Flag::f_ipv6;
-			MTP::ShiftedDcId idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
-			dcOpts.insert(idWithShift, MTP::DcOption(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
-			DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
-		}
-
-		QWriteLocker lock(MTP::dcOptionsMutex());
-		Global::SetDcOptions(dcOpts);
-	}
+	auto dcOptionsSerialized = AppClass::Instance().dcOptions()->serialize();
 
 	quint32 size = 12 * (sizeof(quint32) + sizeof(qint32));
-	for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
-		size += sizeof(quint32) + sizeof(quint32) + sizeof(quint32);
-		size += sizeof(quint32) + Serialize::stringSize(QString::fromUtf8(i->ip.data(), i->ip.size()));
-	}
+	size += sizeof(quint32) + Serialize::bytearraySize(dcOptionsSerialized);
 	size += sizeof(quint32) + Serialize::stringSize(cLangFile());
 
 	size += sizeof(quint32) + sizeof(qint32);
@@ -2308,11 +2263,7 @@ void writeSettings() {
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
 	data.stream << quint32(dbiScale) << qint32(cConfigScale());
 	data.stream << quint32(dbiLang) << qint32(cLang());
-	for (auto i = dcOpts.cbegin(), e = dcOpts.cend(); i != e; ++i) {
-		data.stream << quint32(dbiDcOption) << quint32(i.key());
-		data.stream << qint32(i->flags) << QString::fromUtf8(i->ip.data(), i->ip.size());
-		data.stream << quint32(i->port);
-	}
+	data.stream << quint32(dbiDcOptions) << dcOptionsSerialized;
 	data.stream << quint32(dbiLangFile) << cLangFile();
 
 	data.stream << quint32(dbiConnectionType) << qint32(Global::ConnectionType());

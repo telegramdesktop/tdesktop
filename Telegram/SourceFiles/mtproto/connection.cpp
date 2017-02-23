@@ -32,6 +32,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 
 #include "mtproto/rsa_public_key.h"
+#include "application.h"
+#include "mtproto/dc_options.h"
+#include "mtproto/connection_abstract.h"
 
 using std::string;
 
@@ -454,14 +457,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 	moveToThread(thread);
 
 	if (!dc) {
-		QReadLocker lock(dcOptionsMutex());
-		const auto &options(Global::DcOptions());
-		if (options.isEmpty()) {
-			LOG(("MTP Error: connect failed, no DCs"));
-			dc = 0;
-			return;
-		}
-		dc = options.cbegin().value().id;
+		dc = AppClass::Instance().dcOptions()->getDefaultDcId();
 		DEBUG_LOG(("MTP Info: searching for any DC, %1 selected...").arg(dc));
 	}
 
@@ -1082,71 +1078,24 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 		DEBUG_LOG(("MTP Error: socketStart() called for finished connection!"));
 		return;
 	}
+	auto dcType = DcOptions::DcType::Regular;
 	bool isDldDc = isDldDcId(dc);
-	if (isDldDc) { // using media_only addresses only if key for this dc is already created
+	if (isDldDcId(dc)) { // using media_only addresses only if key for this dc is already created
 		QReadLocker lockFinished(&sessionDataMutex);
-		if (sessionData) {
-			if (!sessionData->getKey()) {
-				isDldDc = false;
-			}
-		}
-
-	}
-	int32 bareDc = bareDcId(dc);
-
-	static const int IPv4address = 0, IPv6address = 1;
-	static const int TcpProtocol = 0, HttpProtocol = 1;
-	MTPDdcOption::Flags flags[2][2] = { { 0 } };
-	string ip[2][2];
-	uint32 port[2][2] = { { 0 } };
-	{
-		QReadLocker lock(dcOptionsMutex());
-		const auto &options(Global::DcOptions());
-		int32 shifts[2][2][4] = {
-			{ // IPv4
-				{ // TCP IPv4
-					isDldDc ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only) : -1,
-					qFlags(MTPDdcOption::Flag::f_tcpo_only),
-					isDldDc ? qFlags(MTPDdcOption::Flag::f_media_only) : -1,
-					0
-				}, { // HTTP IPv4
-					-1,
-					-1,
-					isDldDc ? qFlags(MTPDdcOption::Flag::f_media_only) : -1,
-					0
-				},
-			}, { // IPv6
-				{ // TCP IPv6
-					isDldDc ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6) : -1,
-					MTPDdcOption::Flag::f_tcpo_only | MTPDdcOption::Flag::f_ipv6,
-					isDldDc ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6) : -1,
-					qFlags(MTPDdcOption::Flag::f_ipv6)
-				}, { // HTTP IPv6
-					-1,
-					-1,
-					isDldDc ? (MTPDdcOption::Flag::f_media_only | MTPDdcOption::Flag::f_ipv6) : -1,
-					qFlags(MTPDdcOption::Flag::f_ipv6)
-				},
-			},
-		};
-		for (int32 address = 0, acount = sizeof(shifts) / sizeof(shifts[0]); address < acount; ++address) {
-			for (int32 protocol = 0, pcount = sizeof(shifts[0]) / sizeof(shifts[0][0]); protocol < pcount; ++protocol) {
-				for (int32 shift = 0, scount = sizeof(shifts[0][0]) / sizeof(shifts[0][0][0]); shift < scount; ++shift) {
-					int32 mask = shifts[address][protocol][shift];
-					if (mask < 0) continue;
-
-					auto index = options.constFind(shiftDcId(bareDc, mask));
-					if (index != options.cend()) {
-						ip[address][protocol] = index->ip;
-						flags[address][protocol] = index->flags;
-						port[address][protocol] = index->port;
-						break;
-					}
-				}
-			}
+		if (!sessionData || sessionData->getKey()) {
+			dcType = DcOptions::DcType::MediaDownload;
 		}
 	}
-	bool noIPv4 = !port[IPv4address][HttpProtocol], noIPv6 = (!Global::TryIPv6() || !port[IPv6address][HttpProtocol]);
+	auto bareDc = bareDcId(dc);
+
+	using Variants = DcOptions::Variants;
+	auto kIPv4 = Variants::IPv4;
+	auto kIPv6 = Variants::IPv6;
+	auto kTcp = Variants::Tcp;
+	auto kHttp = Variants::Http;
+	auto variants = AppClass::Instance().dcOptions()->lookup(bareDcId(dc), dcType);
+	auto noIPv4 = (variants.data[kIPv4][kHttp].port == 0);
+	auto noIPv6 = (!Global::TryIPv6() || (variants.data[kIPv6][kHttp].port == 0));
 	if (noIPv4 && noIPv6) {
 		if (afterConfig) {
 			if (noIPv4) LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found right after config load!").arg(dc));
@@ -1170,21 +1119,21 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 	_pingId = _pingMsgId = _pingIdToSend = _pingSendAt = 0;
 	_pingSender.stop();
 
-	if (!noIPv4) DEBUG_LOG(("MTP Info: creating IPv4 connection to %1:%2 (tcp) and %3:%4 (http)...").arg(ip[IPv4address][TcpProtocol].c_str()).arg(port[IPv4address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
-	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv6 connection to [%1]:%2 (tcp) and [%3]:%4 (http)...").arg(ip[IPv6address][TcpProtocol].c_str()).arg(port[IPv6address][TcpProtocol]).arg(ip[IPv4address][HttpProtocol].c_str()).arg(port[IPv4address][HttpProtocol]));
+	if (!noIPv4) DEBUG_LOG(("MTP Info: creating IPv4 connection to %1:%2 (tcp) and %3:%4 (http)...").arg(variants.data[kIPv4][kTcp].ip.c_str()).arg(variants.data[kIPv4][kTcp].port).arg(variants.data[kIPv4][kHttp].ip.c_str()).arg(variants.data[kIPv4][kHttp].port));
+	if (!noIPv6) DEBUG_LOG(("MTP Info: creating IPv6 connection to [%1]:%2 (tcp) and [%3]:%4 (http)...").arg(variants.data[kIPv6][kTcp].ip.c_str()).arg(variants.data[kIPv6][kTcp].port).arg(variants.data[kIPv4][kHttp].ip.c_str()).arg(variants.data[kIPv4][kHttp].port));
 
 	_waitForConnectedTimer.start(_waitForConnected);
 	if (auto conn = _conn4) {
 		connect(conn, SIGNAL(connected()), this, SLOT(onConnected4()));
 		connect(conn, SIGNAL(disconnected()), this, SLOT(onDisconnected4()));
-		conn->connectTcp(ip[IPv4address][TcpProtocol].c_str(), port[IPv4address][TcpProtocol], flags[IPv4address][TcpProtocol]);
-		conn->connectHttp(ip[IPv4address][HttpProtocol].c_str(), port[IPv4address][HttpProtocol], flags[IPv4address][HttpProtocol]);
+		conn->connectTcp(variants.data[kIPv4][kTcp]);
+		conn->connectHttp(variants.data[kIPv4][kHttp]);
 	}
 	if (auto conn = _conn6) {
 		connect(conn, SIGNAL(connected()), this, SLOT(onConnected6()));
 		connect(conn, SIGNAL(disconnected()), this, SLOT(onDisconnected6()));
-		conn->connectTcp(ip[IPv6address][TcpProtocol].c_str(), port[IPv6address][TcpProtocol], flags[IPv6address][TcpProtocol]);
-		conn->connectHttp(ip[IPv6address][HttpProtocol].c_str(), port[IPv6address][HttpProtocol], flags[IPv6address][HttpProtocol]);
+		conn->connectTcp(variants.data[kIPv6][kTcp]);
+		conn->connectHttp(variants.data[kIPv6][kHttp]);
 	}
 }
 

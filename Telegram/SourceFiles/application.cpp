@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager.h"
 #include "history/history_location_manager.h"
 #include "core/task_queue.h"
+#include "mtproto/dc_options.h"
 
 namespace {
 
@@ -340,7 +341,10 @@ void Application::closeApplication() {
 		manager->clearAllFast();
 	}
 
-	delete base::take(AppObject);
+	if (AppObject) {
+		AppClass::Instance().joinThreads();
+		delete base::take(AppObject);
+	}
 
 	Sandbox::finish();
 
@@ -682,7 +686,6 @@ namespace Sandbox {
 
 		new AppClass();
 	}
-
 }
 
 AppClass::AppClass() : QObject() {
@@ -692,7 +695,9 @@ AppClass::AppClass() : QObject() {
 
 	ThirdParty::start();
 	Global::start();
-	Local::start();
+
+	startLocalStorage();
+
 	if (Local::oldSettingsVersion() < AppVersion) {
 		psNewVersion();
 	}
@@ -814,6 +819,18 @@ void AppClass::loadLanguage() {
 		}
 	}
 	application()->installTranslator(_translator = new Translator());
+}
+
+void AppClass::startLocalStorage() {
+	_dcOptions = std::make_unique<MTP::DcOptions>();
+	_dcOptions->constructFromBuiltIn();
+	Local::start();
+	subscribe(_dcOptions->changed(), [](const MTP::DcOptions::Ids &ids) {
+		Local::writeSettings();
+		for (auto id : ids) {
+			MTP::restart(id);
+		}
+	});
 }
 
 void AppClass::regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId) {
@@ -1096,6 +1113,10 @@ void AppClass::checkMapVersion() {
 	}
 }
 
+void AppClass::joinThreads() {
+	MTP::finish();
+}
+
 AppClass::~AppClass() {
 	Shortcuts::finish();
 
@@ -1109,8 +1130,6 @@ AppClass::~AppClass() {
 	stopWebLoadManager();
 	App::deinitMedia();
 	deinitLocationManager();
-
-	MTP::finish();
 
 	AppObject = nullptr;
 	delete base::take(_uploader);

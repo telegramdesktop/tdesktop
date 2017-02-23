@@ -339,10 +339,10 @@ void TCPConnection::disconnectFromServer() {
 	sock.close();
 }
 
-void TCPConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
-	_addr = addr;
-	_port = port;
-	_flags = flags;
+void TCPConnection::connectTcp(const DcOptions::Endpoint &endpoint) {
+	_addr = QString::fromStdString(endpoint.ip);
+	_port = endpoint.port;
+	_flags = endpoint.flags;
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 	sock.connectToHost(QHostAddress(_addr), _port);
