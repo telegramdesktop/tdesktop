@@ -21,19 +21,24 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/single_timer.h"
+#include "mtproto/rpc_sender.h"
+#include "mtproto/auth_key.h"
 
 namespace MTP {
+
+class Instance;
+
 namespace internal {
 
 class Dcenter : public QObject {
 	Q_OBJECT
 
 public:
-	Dcenter(int32 id, const AuthKeyPtr &key);
+	Dcenter(Instance *instance, DcId dcId, AuthKeyPtr &&key);
 
 	QReadWriteLock *keyMutex() const;
 	const AuthKeyPtr &getKey() const;
-	void setKey(const AuthKeyPtr &key);
+	void setKey(AuthKeyPtr &&key);
 	void destroyKey();
 
 	bool connectionInited() const {
@@ -56,47 +61,40 @@ private slots:
 private:
 	mutable QReadWriteLock keyLock;
 	mutable QMutex initLock;
-	int32 _id;
+	Instance *_instance = nullptr;
+	DcId _id = 0;
 	AuthKeyPtr _key;
-	bool _connectionInited;
+	bool _connectionInited = false;
 
 };
 
-typedef QSharedPointer<Dcenter> DcenterPtr;
-typedef QMap<uint32, DcenterPtr> DcenterMap;
+using DcenterPtr = std::shared_ptr<Dcenter>;
+using DcenterMap = std::map<DcId, DcenterPtr>;
 
 class ConfigLoader : public QObject {
 	Q_OBJECT
 
 public:
-	ConfigLoader();
+	ConfigLoader(Instance *instance, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
+	~ConfigLoader();
+
 	void load();
-	void done();
 
 public slots:
 	void enumDC();
 
-signals:
-	void loaded();
-
 private:
+	mtpRequestId sendRequest(ShiftedDcId shiftedDcId);
+
+	Instance *_instance = nullptr;
 	SingleTimer _enumDCTimer;
 	DcId _enumCurrent = 0;
 	mtpRequestId _enumRequest = 0;
 
+	RPCDoneHandlerPtr _doneHandler;
+	RPCFailHandlerPtr _failHandler;
+
 };
-
-ConfigLoader *configLoader();
-void destroyConfigLoader();
-
-DcenterMap &DCMap();
-bool configNeeded();
-int32 mainDC();
-void logoutOtherDCs();
-void setDC(int32 dc, bool firstOnly = false);
-
-AuthKeysMap getAuthKeys();
-void setAuthKey(int32 dc, AuthKeyPtr key);
 
 } // namespace internal
 } // namespace MTP

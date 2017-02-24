@@ -72,7 +72,7 @@ void PasscodeWidget::onSubmit() {
 		if (Local::readMap(_passcode->text().toUtf8()) != Local::ReadMapPassNeeded) {
 			cSetPasscodeBadTries(0);
 
-			MTP::start();
+			Messenger::Instance().startMtp();
 			if (AuthSession::Current()) {
 				App::wnd()->setupMain();
 			} else {

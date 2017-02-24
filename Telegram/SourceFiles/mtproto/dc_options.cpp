@@ -200,6 +200,7 @@ void DcOptions::constructFromSerialized(const QByteArray &serialized) {
 		return;
 	}
 	QDataStream stream(&buffer);
+	stream.setVersion(QDataStream::Qt_5_1);
 	qint32 count = 0;
 	stream >> count;
 	if (stream.status() != QDataStream::Ok) {
@@ -243,10 +244,6 @@ DcId DcOptions::getDefaultDcId() const {
 	auto result = sortedDcIds();
 	t_assert(!result.empty());
 
-	auto main = internal::mainDC();
-	if (base::contains(result, main)) {
-		return main;
-	}
 	return result[0];
 }
 

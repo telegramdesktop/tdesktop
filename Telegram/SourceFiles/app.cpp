@@ -226,11 +226,11 @@ namespace {
 } // namespace
 
 	void logOut() {
-		if (MTP::started()) {
-			MTP::logoutKeys(rpcDone(&loggedOut), rpcFail(&loggedOut));
+		if (auto mtproto = Messenger::Instance().mtp()) {
+			mtproto->logout(rpcDone(&loggedOut), rpcFail(&loggedOut));
 		} else {
 			loggedOut();
-			MTP::start();
+			Messenger::Instance().startMtp();
 		}
 	}
 

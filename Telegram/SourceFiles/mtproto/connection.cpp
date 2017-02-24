@@ -40,8 +40,30 @@ using std::string;
 
 namespace MTP {
 namespace internal {
-
 namespace {
+
+void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent, int32 skipBeforeRequest = 0) {
+	mtpMsgId afterId(*(mtpMsgId*)(from->after->data() + 4));
+	mtpRequestMap::const_iterator i = afterId ? haveSent.constFind(afterId) : haveSent.cend();
+	int32 size = to->size(), lenInInts = (from.innerLength() >> 2), headlen = 4, fulllen = headlen + lenInInts;
+	if (i == haveSent.constEnd()) { // no invoke after or such msg was not sent or was completed recently
+		to->resize(size + fulllen + skipBeforeRequest);
+		if (skipBeforeRequest) {
+			memcpy(to->data() + size, from->constData() + 4, headlen * sizeof(mtpPrime));
+			memcpy(to->data() + size + headlen + skipBeforeRequest, from->constData() + 4 + headlen, lenInInts * sizeof(mtpPrime));
+		} else {
+			memcpy(to->data() + size, from->constData() + 4, fulllen * sizeof(mtpPrime));
+		}
+	} else {
+		to->resize(size + fulllen + skipBeforeRequest + 3);
+		memcpy(to->data() + size, from->constData() + 4, headlen * sizeof(mtpPrime));
+		(*to)[size + 3] += 3 * sizeof(mtpPrime);
+		*((mtpTypeId*)&((*to)[size + headlen + skipBeforeRequest])) = mtpc_invokeAfterMsg;
+		memcpy(to->data() + size + headlen + skipBeforeRequest + 1, &afterId, 2 * sizeof(mtpPrime));
+		memcpy(to->data() + size + headlen + skipBeforeRequest + 3, from->constData() + 4 + headlen, lenInInts * sizeof(mtpPrime));
+		if (size + 3 != 7) (*to)[7] += 3 * sizeof(mtpPrime);
+	}
+}
 
 bool parsePQ(const string &pqStr, string &pStr, string &qStr) {
 	if (pqStr.length() > 8) return false; // more than 64 bit pq
@@ -321,35 +343,20 @@ RSAPublicKeys InitRSAPublicKeys() {
 
 } // namespace
 
-uint32 ThreadIdIncrement = 0;
-
-Thread::Thread() : QThread(nullptr)
-, _threadId(++ThreadIdIncrement) {
-}
-
-uint32 Thread::getThreadId() const {
-	return _threadId;
-}
-
-Thread::~Thread() {
-}
-
-Connection::Connection() : thread(nullptr), data(nullptr) {
+Connection::Connection(Instance *instance) : _instance(instance) {
 }
 
 int32 Connection::prepare(SessionData *sessionData, int32 dc) {
 	t_assert(thread == nullptr && data == nullptr);
 
-	thread = new Thread();
-	data = new ConnectionPrivate(thread, this, sessionData, dc);
-
-	dc = data->getDC();
-	if (!dc) {
-		delete data;
-		data = nullptr;
-		delete thread;
-		thread = nullptr;
-		return 0;
+	thread = std::make_unique<Thread>();
+	auto newData = std::make_unique<ConnectionPrivate>(_instance, thread.get(), this, sessionData, dc);
+	dc = newData->getDC();
+	if (dc) {
+		// will be deleted in the thread::finished signal
+		data = newData.release();
+	} else {
+		thread.reset();
 	}
 	return dc;
 }
@@ -361,9 +368,8 @@ void Connection::start() {
 void Connection::kill() {
 	t_assert(data != nullptr && thread != nullptr);
 	data->stop();
-	data = nullptr; // will be deleted in thread::finished signal
+	data = nullptr;
 	thread->quit();
-	queueQuittingConnection(this);
 }
 
 void Connection::waitTillFinish() {
@@ -371,8 +377,7 @@ void Connection::waitTillFinish() {
 
 	DEBUG_LOG(("Waiting for connectionThread to finish"));
 	thread->wait();
-	delete thread;
-	thread = nullptr;
+	thread.reset();
 }
 
 int32 Connection::state() const {
@@ -388,7 +393,10 @@ QString Connection::transport() const {
 }
 
 Connection::~Connection() {
-	t_assert(data == nullptr && thread == nullptr);
+	t_assert(data == nullptr);
+	if (thread) {
+		waitTillFinish();
+	}
 }
 
 void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
@@ -440,7 +448,8 @@ void ConnectionPrivate::destroyConn(AbstractConnection **conn) {
 	}
 }
 
-ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, SessionData *data, uint32 _dc) : QObject(nullptr)
+ConnectionPrivate::ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, uint32 _dc) : QObject()
+, _instance(instance)
 , _state(DisconnectedState)
 , dc(_dc)
 , _owner(owner)
@@ -463,7 +472,7 @@ ConnectionPrivate::ConnectionPrivate(QThread *thread, Connection *owner, Session
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
 	connect(thread, SIGNAL(finished()), this, SLOT(doFinish()));
-	connect(this, SIGNAL(finished(Connection*)), globalSlotCarrier(), SLOT(connectionFinished(Connection*)), Qt::QueuedConnection);
+	connect(this, SIGNAL(finished(internal::Connection*)), _instance, SLOT(connectionFinished(internal::Connection*)), Qt::QueuedConnection);
 
 	connect(&retryTimer, SIGNAL(timeout()), this, SLOT(retryByTimer()));
 	connect(&_waitForConnectedTimer, SIGNAL(timeout()), this, SLOT(onWaitConnectedFailed()));
@@ -1104,8 +1113,8 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 		}
 		if (noIPv4) DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(dc));
 		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(dc));
-		connect(configLoader(), SIGNAL(loaded()), this, SLOT(onConfigLoaded()));
-		configLoader()->load();
+		connect(_instance, SIGNAL(configLoaded()), this, SLOT(onConfigLoaded()), Qt::UniqueConnection);
+		QMetaObject::invokeMethod(_instance, "configLoadRequest", Qt::QueuedConnection);
 		return;
 	}
 
@@ -1635,7 +1644,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			mtpRequestId requestId = wasSent(resendId);
 			if (requestId) {
 				LOG(("Message Error: bad message notification received, msgId %1, error_code %2, fatal: clearing callbacks").arg(data.vbad_msg_id.v).arg(errorCode));
-				clearCallbacksDelayed(RPCCallbackClears(1, RPCCallbackClear(requestId, -errorCode)));
+				_instance->clearCallbacksDelayed(RPCCallbackClears(1, RPCCallbackClear(requestId, -errorCode)));
 			} else {
 				DEBUG_LOG(("Message Error: such message was not sent recently %1").arg(resendId));
 			}
@@ -2101,7 +2110,7 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 						mtpRequestId reqId = req.value()->requestId;
 						bool moveToAcked = byResponse;
 						if (!moveToAcked) { // ignore ACK, if we need a response (if we have a handler)
-							moveToAcked = !hasCallbacks(reqId);
+							moveToAcked = !_instance->hasCallbacks(reqId);
 						}
 						if (moveToAcked) {
 							wereAcked.insert(msgId, reqId);
@@ -2119,7 +2128,7 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 						mtpRequestId reqId = reqIt.value();
 						bool moveToAcked = byResponse;
 						if (!moveToAcked) { // ignore ACK, if we need a response (if we have a handler)
-							moveToAcked = !hasCallbacks(reqId);
+							moveToAcked = !_instance->hasCallbacks(reqId);
 						}
 						if (moveToAcked) {
 							QWriteLocker locker4(sessionData->toSendMutex());
@@ -2160,7 +2169,7 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 	}
 
 	if (clearedAcked.size()) {
-		clearCallbacksDelayed(clearedAcked);
+		_instance->clearCallbacksDelayed(clearedAcked);
 	}
 
 	if (toAckMore.size()) {
@@ -2681,8 +2690,8 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 
 		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(serverSalt));
 
-		sessionData->owner()->notifyKeyCreated(authKey); // slot will call authKeyCreated()
-		sessionData->clear();
+		sessionData->owner()->notifyKeyCreated(std::move(authKey)); // slot will call authKeyCreated()
+		sessionData->clear(_instance);
 		unlockKey();
 	} return;
 

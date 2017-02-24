@@ -23,57 +23,40 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/core_types.h"
 #include "mtproto/session.h"
 #include "core/single_timer.h"
+#include "mtproto/mtp_instance.h"
 
 namespace MTP {
 namespace internal {
-
-Session *getSession(ShiftedDcId shiftedDcId); // 0 - current set dc
 
 bool paused();
 void pause();
 void unpause();
 
-void registerRequest(mtpRequestId requestId, int32 dc);
-void unregisterRequest(mtpRequestId requestId);
+} // namespace internal
 
-mtpRequestId storeRequest(mtpRequest &request, const RPCResponseHandler &parser);
-mtpRequest getRequest(mtpRequestId req);
-void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent, int32 skipBeforeRequest = 0);
-void clearCallbacks(mtpRequestId requestId, int32 errorCode = RPCError::NoError); // 0 - do not toggle onError callback
-void clearCallbacksDelayed(const RPCCallbackClears &requestIds);
-void performDelayedClear();
-void execCallback(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end);
-bool hasCallbacks(mtpRequestId requestId);
-void globalCallback(const mtpPrime *from, const mtpPrime *end);
-void onStateChange(int32 dcWithShift, int32 state);
-void onSessionReset(int32 dcWithShift);
-bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err); // return true if need to clean request data
-inline bool rpcErrorOccured(mtpRequestId requestId, const RPCResponseHandler &handler, const RPCError &err) {
-	return rpcErrorOccured(requestId, handler.onFail, err);
-}
-
-// used for:
-// - resending requests by timer which were postponed by flood delay
-// - destroying MTProtoConnections whose thread has finished
-class GlobalSlotCarrier : public QObject {
-	Q_OBJECT
-
+class PauseHolder {
 public:
-	GlobalSlotCarrier();
-
-public slots:
-	void checkDelayed();
-	void connectionFinished(Connection *connection);
+	PauseHolder() {
+		restart();
+	}
+	void restart() {
+		if (!base::take(_paused, true)) {
+			internal::pause();
+		}
+	}
+	void release() {
+		if (base::take(_paused)) {
+			internal::unpause();
+		}
+	}
+	~PauseHolder() {
+		release();
+	}
 
 private:
-	SingleTimer _timer;
+	bool _paused = false;
 
 };
-
-GlobalSlotCarrier *globalSlotCarrier();
-void queueQuittingConnection(Connection *connection);
-
-} // namespace internal
 
 constexpr ShiftedDcId DCShift = 10000;
 constexpr DcId bareDcId(ShiftedDcId shiftedDcId) {
@@ -135,115 +118,105 @@ constexpr bool isUplDcId(ShiftedDcId shiftedDcId) {
 	return (shiftedDcId >= internal::uploadDcId(0, 0)) && (shiftedDcId < internal::uploadDcId(0, MTPUploadSessionsCount - 1) + DCShift);
 }
 
-void start();
-bool started();
-void restart();
-void restart(int32 dcMask);
-
-class PauseHolder {
-public:
-	PauseHolder() {
-		restart();
-	}
-	void restart() {
-		if (!base::take(_paused, true)) {
-			internal::pause();
-		}
-	}
-	void release() {
-		if (base::take(_paused)) {
-			internal::unpause();
-		}
-	}
-	~PauseHolder() {
-		release();
-	}
-
-private:
-	bool _paused = false;
-
-};
-
-void configure(int32 dc);
-
-void setdc(int32 dc, bool fromZeroOnly = false);
-int32 maindc();
-
 enum {
 	DisconnectedState = 0,
 	ConnectingState = 1,
 	ConnectedState = 2,
 };
-int32 dcstate(int32 dc = 0);
-QString dctransport(int32 dc = 0);
-
-template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
-	if (internal::Session *session = internal::getSession(dc)) {
-		return session->send(request, callbacks, msCanWait, true, !dc, after);
-	}
-	return 0;
-}
-template <typename TRequest>
-inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), int32 dc = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
-	return send(request, RPCResponseHandler(onDone, onFail), dc, msCanWait, after);
-}
-inline void sendAnything(int32 dc = 0, TimeMs msCanWait = 0) {
-	if (auto session = internal::getSession(dc)) {
-		return session->sendAnything(msCanWait);
-	}
-}
-void ping();
-void cancel(mtpRequestId req);
-void killSession(int32 dc);
-void stopSession(int32 dc);
 
 enum {
 	RequestSent = 0,
 	RequestConnecting = 1,
 	RequestSending = 2
 };
-int32 state(mtpRequestId req); // < 0 means waiting for such count of ms
 
-void finish();
+Instance *MainInstance();
 
-void logoutKeys(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
+inline void restart() {
+	return MainInstance()->restart();
+}
 
-void setGlobalDoneHandler(RPCDoneHandlerPtr handler);
-void setGlobalFailHandler(RPCFailHandlerPtr handler);
-void setStateChangedHandler(MTPStateChangedHandler handler);
-void setSessionResetHandler(MTPSessionResetHandler handler);
-void clearGlobalHandlers();
+inline void restart(ShiftedDcId shiftedDcId) {
+	return MainInstance()->restart(shiftedDcId);
+}
 
-AuthKeysMap getKeys();
-void setKey(int dc, const AuthKey::Data &key);
+inline DcId maindc() {
+	return MainInstance()->mainDcId();
+}
+
+inline int32 dcstate(ShiftedDcId shiftedDcId = 0) {
+	if (auto instance = MainInstance()) {
+		return instance->dcstate(shiftedDcId);
+	}
+	return DisconnectedState;
+}
+
+inline QString dctransport(ShiftedDcId shiftedDcId = 0) {
+	if (auto instance = MainInstance()) {
+		return instance->dctransport(shiftedDcId);
+	}
+	return QString();
+}
+
+template <typename TRequest>
+inline mtpRequestId send(const TRequest &request, RPCResponseHandler callbacks = RPCResponseHandler(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
+	return MainInstance()->send(request, std::move(callbacks), dcId, msCanWait, after);
+}
+
+template <typename TRequest>
+inline mtpRequestId send(const TRequest &request, RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail = RPCFailHandlerPtr(), ShiftedDcId dcId = 0, TimeMs msCanWait = 0, mtpRequestId after = 0) {
+	return MainInstance()->send(request, std::move(onDone), std::move(onFail), dcId, msCanWait, after);
+}
+
+inline void sendAnything(ShiftedDcId shiftedDcId = 0, TimeMs msCanWait = 0) {
+	return MainInstance()->sendAnything(shiftedDcId, msCanWait);
+}
+
+inline void cancel(mtpRequestId requestId) {
+	return MainInstance()->cancel(requestId);
+}
+
+inline void ping() {
+	return MainInstance()->ping();
+}
+
+inline void killSession(ShiftedDcId shiftedDcId) {
+	return MainInstance()->killSession(shiftedDcId);
+}
+
+inline void stopSession(ShiftedDcId shiftedDcId) {
+	return MainInstance()->stopSession(shiftedDcId);
+}
+
+inline int32 state(mtpRequestId requestId) { // < 0 means waiting for such count of ms
+	return MainInstance()->state(requestId);
+}
 
 namespace internal {
 
-	template <typename TRequest>
-	mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, TimeMs msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
-		mtpRequestId requestId = 0;
-		try {
-			uint32 requestSize = request.innerLength() >> 2;
-			mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
-			request.write(*reqSerialized);
+template <typename TRequest>
+mtpRequestId Session::send(const TRequest &request, RPCResponseHandler callbacks, TimeMs msCanWait, bool needsLayer, bool toMainDC, mtpRequestId after) {
+	mtpRequestId requestId = 0;
+	try {
+		uint32 requestSize = request.innerLength() >> 2;
+		mtpRequest reqSerialized(mtpRequestData::prepare(requestSize));
+		request.write(*reqSerialized);
 
-			DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
+		DEBUG_LOG(("MTP Info: adding request to toSendMap, msCanWait %1").arg(msCanWait));
 
-			reqSerialized->msDate = getms(true); // > 0 - can send without container
-			reqSerialized->needsLayer = needsLayer;
-			if (after) reqSerialized->after = MTP::internal::getRequest(after);
-			requestId = MTP::internal::storeRequest(reqSerialized, callbacks);
+		reqSerialized->msDate = getms(true); // > 0 - can send without container
+		reqSerialized->needsLayer = needsLayer;
+		if (after) reqSerialized->after = getRequest(after);
+		requestId = storeRequest(reqSerialized, callbacks);
 
-			sendPrepared(reqSerialized, msCanWait);
-		} catch (Exception &e) {
-			requestId = 0;
-			MTP::internal::rpcErrorOccured(requestId, callbacks, rpcClientError("NO_REQUEST_ID", QString("send() failed to queue request, exception: %1").arg(e.what())));
-		}
-		if (requestId) MTP::internal::registerRequest(requestId, toMainDC ? -getDcWithShift() : getDcWithShift());
-		return requestId;
+		sendPrepared(reqSerialized, msCanWait);
+	} catch (Exception &e) {
+		requestId = 0;
+		rpcErrorOccured(requestId, callbacks.onFail, rpcClientError("NO_REQUEST_ID", QString("send() failed to queue request, exception: %1").arg(e.what())));
 	}
+	if (requestId) registerRequest(requestId, toMainDC ? -getDcWithShift() : getDcWithShift());
+	return requestId;
+}
 
 } // namespace internal
-
 } // namespace MTP

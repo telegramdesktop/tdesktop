@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace MTP {
 class DcOptions;
+class Instance;
 } // namespace MTP
 
 class AuthSession;
@@ -55,6 +56,16 @@ public:
 	MTP::DcOptions *dcOptions() {
 		return _dcOptions.get();
 	}
+
+	void setMtpMainDcId(MTP::DcId mainDcId);
+	void setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData);
+	QByteArray serializeMtpAuthorization() const;
+	void setMtpAuthorization(const QByteArray &serialized);
+	void startMtp();
+	MTP::Instance *mtp() {
+		return _mtproto.get();
+	}
+
 	AuthSession *authSession() {
 		return _authSession.get();
 	}
@@ -114,13 +125,16 @@ private:
 	QMap<int32, TimeMs> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
 
-	TimeMs _lastActionTime = 0;
+	// Some fields are just moved from the declaration.
+	struct Private;
+	const std::unique_ptr<Private> _private;
 
 	std::unique_ptr<MainWindow> _window;
 	FileUploader *_uploader = nullptr;
 	Translator *_translator = nullptr;
 
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
+	std::unique_ptr<MTP::Instance> _mtproto;
 	std::unique_ptr<AuthSession> _authSession;
 
 };

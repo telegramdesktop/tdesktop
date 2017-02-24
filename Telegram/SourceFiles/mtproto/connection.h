@@ -25,6 +25,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/single_timer.h"
 
 namespace MTP {
+
+class Instance;
+
 namespace internal {
 
 class AbstractConnection;
@@ -35,24 +38,27 @@ class Thread : public QThread {
 	Q_OBJECT
 
 public:
-	Thread();
-	uint32 getThreadId() const;
-	~Thread();
+	Thread() {
+		static int ThreadCounter = 0;
+		_threadIndex = ++ThreadCounter;
+	}
+	int getThreadIndex() const {
+		return _threadIndex;
+	}
 
 private:
-	uint32 _threadId;
+	int _threadIndex = 0;
 
 };
 
 class Connection {
 public:
-
 	enum ConnectionType {
 		TcpConnection,
 		HttpConnection
 	};
 
-	Connection();
+	Connection(Instance *instance);
 
 	int32 prepare(SessionData *data, int32 dc = 0); // return dc
 	void start();
@@ -67,9 +73,9 @@ public:
 	QString transport() const;
 
 private:
-
-	QThread *thread;
-	ConnectionPrivate *data;
+	Instance *_instance = nullptr;
+	std::unique_ptr<QThread> thread;
+	ConnectionPrivate *data = nullptr;
 
 };
 
@@ -77,7 +83,7 @@ class ConnectionPrivate : public QObject {
 	Q_OBJECT
 
 public:
-	ConnectionPrivate(QThread *thread, Connection *owner, SessionData *data, uint32 dc);
+	ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, uint32 dc);
 	~ConnectionPrivate();
 
 	void stop();
@@ -102,10 +108,9 @@ signals:
 	void resendManyAsync(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
-	void finished(Connection *connection);
+	void finished(internal::Connection *connection);
 
 public slots:
-
 	void retryByTimer();
 	void restartNow();
 	void restart(bool mayBeBadKey = false);
@@ -149,7 +154,6 @@ public slots:
 	void onConfigLoaded();
 
 private:
-
 	void doDisconnect();
 
 	void createConn(bool createIPv4, bool createIPv6);
@@ -175,8 +179,11 @@ private:
 	void clearMessages();
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
+
+	Instance *_instance = nullptr;
+
 	mutable QReadWriteLock stateConnMutex;
-	int32 _state;
+	int32 _state = DisconnectedState;
 
 	bool _needSessionReset = false;
 	void resetSession();

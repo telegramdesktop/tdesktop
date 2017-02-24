@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "fileuploader.h"
 #include "mainwidget.h"
 #include "mtproto/dc_options.h"
+#include "mtproto/mtp_instance.h"
 #include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
@@ -43,25 +44,18 @@ namespace {
 
 Messenger *SingleInstance = nullptr;
 
-void mtpStateChanged(int32 dc, int32 state) {
-	if (App::wnd()) {
-		App::wnd()->mtpStateChanged(dc, state);
-	}
-}
-
-void mtpSessionReset(int32 dc) {
-	if (App::main() && dc == MTP::maindc()) {
-		App::main()->getDifference();
-	}
-}
-
 } // namespace
 
 Messenger *Messenger::InstancePointer() {
 	return SingleInstance;
 }
 
-Messenger::Messenger() : QObject() {
+struct Messenger::Private {
+	MTP::Instance::Config mtpConfig;
+};
+
+Messenger::Messenger() : QObject()
+, _private(std::make_unique<Private>()) {
 	t_assert(SingleInstance == nullptr);
 	SingleInstance = this;
 
@@ -126,11 +120,8 @@ Messenger::Messenger() : QObject() {
 		DEBUG_LOG(("Application Info: passcode needed..."));
 	} else {
 		DEBUG_LOG(("Application Info: local map read..."));
-		MTP::start();
+		startMtp();
 	}
-
-	MTP::setStateChangedHandler(mtpStateChanged);
-	MTP::setSessionResetHandler(mtpSessionReset);
 
 	DEBUG_LOG(("Application Info: MTP started..."));
 
@@ -168,6 +159,107 @@ Messenger::Messenger() : QObject() {
 	}
 }
 
+void Messenger::setMtpMainDcId(MTP::DcId mainDcId) {
+	t_assert(!_mtproto);
+	_private->mtpConfig.mainDcId = mainDcId;
+}
+
+void Messenger::setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData) {
+	t_assert(!_mtproto);
+	_private->mtpConfig.keys.insert(std::make_pair(dcId, keyData));
+}
+
+QByteArray Messenger::serializeMtpAuthorization() const {
+	auto serialize = [this](auto keysCount, auto mainDcId, auto writeKeys) {
+		auto result = QByteArray();
+		auto size = sizeof(qint32) + sizeof(qint32) + sizeof(qint32); // userId + mainDcId + keys count
+		size += keysCount * (sizeof(qint32) + MTP::AuthKey::Data().size());
+		result.reserve(size);
+		{
+			QBuffer buffer(&result);
+			if (!buffer.open(QIODevice::WriteOnly)) {
+				LOG(("MTP Error: could not open buffer to serialize mtp authorization."));
+				return result;
+			}
+			QDataStream stream(&buffer);
+			stream.setVersion(QDataStream::Qt_5_1);
+
+			stream << qint32(AuthSession::CurrentUserId()) << qint32(mainDcId) << qint32(keysCount);
+			writeKeys(stream);
+		}
+		return result;
+	};
+	if (_mtproto) {
+		auto keys = _mtproto->getKeysForWrite();
+		return serialize(keys.size(), _mtproto->mainDcId(), [&keys](QDataStream &stream) {
+			for (auto &key : keys) {
+				stream << qint32(key->getDC());
+				key->write(stream);
+			}
+		});
+	}
+	auto &keys = _private->mtpConfig.keys;
+	return serialize(keys.size(), _private->mtpConfig.mainDcId, [&keys](QDataStream &stream) {
+		for (auto &key : keys) {
+			stream << qint32(key.first);
+			stream.writeRawData(key.second.data(), key.second.size());
+		}
+	});
+}
+
+void Messenger::setMtpAuthorization(const QByteArray &serialized) {
+	t_assert(!_mtproto);
+	t_assert(!authSession());
+
+	auto readonly = serialized;
+	QBuffer buffer(&readonly);
+	if (!buffer.open(QIODevice::ReadOnly)) {
+		LOG(("MTP Error: could not open serialized mtp authorization for reading."));
+		return;
+	}
+	QDataStream stream(&buffer);
+	stream.setVersion(QDataStream::Qt_5_1);
+
+	qint32 userId = 0, mainDcId = 0, count = 0;
+	stream >> userId >> mainDcId >> count;
+	if (stream.status() != QDataStream::Ok) {
+		LOG(("MTP Error: could not read main fields from serialized mtp authorization."));
+		return;
+	}
+
+	if (userId) {
+		authSessionCreate(userId);
+	}
+	_private->mtpConfig.mainDcId = mainDcId;
+	for (auto i = 0; i != count; ++i) {
+		qint32 dcId = 0;
+		MTP::AuthKey::Data keyData;
+		stream >> dcId;
+		stream.readRawData(keyData.data(), keyData.size());
+		if (stream.status() != QDataStream::Ok) {
+			LOG(("MTP Error: could not read key from serialized mtp authorization."));
+			return;
+		}
+		_private->mtpConfig.keys.insert(std::make_pair(dcId, keyData));
+	}
+}
+
+void Messenger::startMtp() {
+	t_assert(!_mtproto);
+	_mtproto = std::make_unique<MTP::Instance>(_dcOptions.get(), std::move(_private->mtpConfig));
+
+	_mtproto->setStateChangedHandler([](MTP::ShiftedDcId shiftedDcId, int32 state) {
+		if (App::wnd()) {
+			App::wnd()->mtpStateChanged(shiftedDcId, state);
+		}
+	});
+	_mtproto->setSessionResetHandler([](MTP::ShiftedDcId shiftedDcId) {
+		if (App::main() && shiftedDcId == MTP::maindc()) {
+			App::main()->getDifference();
+		}
+	});
+}
+
 void Messenger::loadLanguage() {
 	if (cLang() < languageTest) {
 		cSetLang(Sandbox::LangSystem());
@@ -199,10 +291,12 @@ void Messenger::startLocalStorage() {
 	_dcOptions = std::make_unique<MTP::DcOptions>();
 	_dcOptions->constructFromBuiltIn();
 	Local::start();
-	subscribe(_dcOptions->changed(), [](const MTP::DcOptions::Ids &ids) {
+	subscribe(_dcOptions->changed(), [this](const MTP::DcOptions::Ids &ids) {
 		Local::writeSettings();
-		for (auto id : ids) {
-			MTP::restart(id);
+		if (auto instance = mtp()) {
+			for (auto id : ids) {
+				instance->restart(id);
+			}
 		}
 	});
 }
@@ -499,7 +593,7 @@ void Messenger::checkMapVersion() {
 
 void Messenger::prepareToDestroy() {
 	_window.reset();
-	MTP::finish();
+	_mtproto.reset();
 }
 
 Messenger::~Messenger() {

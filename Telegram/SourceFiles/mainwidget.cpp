@@ -82,7 +82,9 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 , _playerPanel(this, Media::Player::Panel::Layout::Full)
 , _mediaType(this, st::defaultDropdownMenu)
 , _api(new ApiWrap(this)) {
-	MTP::setGlobalDoneHandler(rpcDone(&MainWidget::updateReceived));
+	Messenger::Instance().mtp()->setUpdatesHandler(rpcDone(&MainWidget::updateReceived));
+	Messenger::Instance().mtp()->setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
+
 	_ptsWaiter.setRequesting(true);
 	updateScrollColors();
 
@@ -173,8 +175,6 @@ MainWidget::MainWidget(QWidget *parent) : TWidget(parent)
 	_topBar->hide();
 
 	orderWidgets();
-
-	MTP::setGlobalFailHandler(rpcFail(&MainWidget::updateFail));
 
 	_mediaType->hide();
 	_mediaType->setOrigin(Ui::PanelAnimation::Origin::TopRight);
@@ -4279,7 +4279,7 @@ MainWidget::~MainWidget() {
 		_hider = nullptr;
 		delete hider;
 	}
-	MTP::clearGlobalHandlers();
+	Messenger::Instance().mtp()->clearGlobalHandlers();
 
 	if (App::wnd()) App::wnd()->noMain(this);
 }

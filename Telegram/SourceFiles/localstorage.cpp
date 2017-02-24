@@ -504,7 +504,7 @@ enum { // Local Storage Keys
 enum {
 	dbiKey = 0x00,
 	dbiUser = 0x01,
-	dbiDcOptionOld = 0x02,
+	dbiDcOptionOldOld = 0x02,
 	dbiChatSizeMax = 0x03,
 	dbiMutePeer = 0x04,
 	dbiSendKey = 0x05,
@@ -541,7 +541,7 @@ enum {
 	dbiRecentEmojiOld = 0x24,
 	dbiEmojiVariantsOld = 0x25,
 	dbiRecentStickers = 0x26,
-	dbiDcOption = 0x27,
+	dbiDcOptionOld = 0x27,
 	dbiTryIPv6 = 0x28,
 	dbiSongVolume = 0x29,
 	dbiWindowsNotificationsOld = 0x30,
@@ -567,6 +567,7 @@ enum {
 	dbiDialogsWidthRatio = 0x48,
 	dbiUseExternalVideoPlayer = 0x49,
 	dbiDcOptions = 0x4a,
+	dbiMtpAuthorization = 0x4b,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -843,7 +844,7 @@ void applyReadContext(const ReadSettingsContext &context) {
 
 bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSettingsContext &context) {
 	switch (blockId) {
-	case dbiDcOptionOld: {
+	case dbiDcOptionOldOld: {
 		quint32 dcId, port;
 		QString host, ip;
 		stream >> dcId >> host >> ip >> port;
@@ -852,7 +853,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		context.dcOptions.constructAddOne(dcId, 0, ip.toStdString(), port);
 	} break;
 
-	case dbiDcOption: {
+	case dbiDcOptionOld: {
 		quint32 dcIdWithShift, port;
 		qint32 flags;
 		QString ip;
@@ -863,7 +864,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 	} break;
 
 	case dbiDcOptions: {
-		QByteArray serialized;
+		auto serialized = QByteArray();
 		stream >> serialized;
 		if (!_checkStreamStatus(stream)) return false;
 
@@ -909,8 +910,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		DEBUG_LOG(("MTP Info: user found, dc %1, uid %2").arg(dcId).arg(userId));
-		MTP::configure(dcId);
-
+		Messenger::Instance().setMtpMainDcId(dcId);
 		if (userId) {
 			Messenger::Instance().authSessionCreate(UserId(userId));
 		}
@@ -923,7 +923,15 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream.readRawData(key.data(), key.size());
 		if (!_checkStreamStatus(stream)) return false;
 
-		MTP::setKey(dcId, key);
+		Messenger::Instance().setMtpKey(dcId, key);
+	} break;
+
+	case dbiMtpAuthorization: {
+		auto serialized = QByteArray();
+		stream >> serialized;
+		if (!_checkStreamStatus(stream)) return false;
+
+		Messenger::Instance().setMtpAuthorization(serialized);
 	} break;
 
 	case dbiAutoStart: {
@@ -1777,18 +1785,12 @@ void _writeMtpData() {
 		return;
 	}
 
-	auto keys = MTP::getKeys();
+	auto mtpAuthorizationSerialized = Messenger::Instance().serializeMtpAuthorization();
 
-	quint32 size = sizeof(quint32) + sizeof(qint32) + sizeof(quint32);
-	size += keys.size() * (sizeof(quint32) + sizeof(quint32) + MTP::AuthKey::kSize);
+	quint32 size = sizeof(quint32) + Serialize::bytearraySize(mtpAuthorizationSerialized);
 
 	EncryptedDescriptor data(size);
-	data.stream << quint32(dbiUser) << qint32(AuthSession::CurrentUserId()) << quint32(MTP::maindc());
-	for_const (auto &key, keys) {
-		data.stream << quint32(dbiKey) << quint32(key->getDC());
-		key->write(data.stream);
-	}
-
+	data.stream << quint32(dbiMtpAuthorization) << mtpAuthorizationSerialized;
 	mtp.writeEncrypted(data);
 }
 

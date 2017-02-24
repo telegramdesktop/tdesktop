@@ -186,9 +186,9 @@ static const NotifySettingsPtr EmptyNotifySettings = NotifySettingsPtr(1);
 extern NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 extern NotifySettingsPtr globalNotifyAllPtr, globalNotifyUsersPtr, globalNotifyChatsPtr;
 
-inline bool isNotifyMuted(NotifySettingsPtr settings, TimeId *changeIn = 0) {
+inline bool isNotifyMuted(NotifySettingsPtr settings, TimeId *changeIn = nullptr) {
 	if (settings != UnknownNotifySettings && settings != EmptyNotifySettings) {
-		TimeId t = unixtime();
+		auto t = unixtime();
 		if (settings->mute > t) {
 			if (changeIn) *changeIn = settings->mute - t + 1;
 			return true;

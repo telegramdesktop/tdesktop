@@ -124,7 +124,7 @@ void unixtimeSet(int32 serverTime, bool force) {
 }
 
 TimeId unixtime() {
-	TimeId result = myunixtime();
+	auto result = myunixtime();
 
 	QReadLocker locker(&unixtimeLock);
 	return result + unixtimeDelta;

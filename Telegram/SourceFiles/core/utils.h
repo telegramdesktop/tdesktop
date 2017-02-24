@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/basic_types.h"
 #include <array>
 #include <algorithm>
+#include <set>
 
 namespace base {
 
@@ -88,6 +89,50 @@ inline bool contains(const Container &container, const T &value) {
 	auto end = std::end(container);
 	return std::find(std::begin(container), end, value) != end;
 }
+
+// We need a custom comparator for std::set<std::unique_ptr<T>>::find to work with pointers.
+// thanks to http://stackoverflow.com/questions/18939882/raw-pointer-lookup-for-sets-of-unique-ptrs
+template <typename T>
+struct pointer_comparator {
+	using is_transparent = std::true_type;
+
+	// helper does some magic in order to reduce the number of
+	// pairs of types we need to know how to compare: it turns
+	// everything into a pointer, and then uses `std::less<T*>`
+	// to do the comparison:
+	struct helper {
+		T *ptr = nullptr;
+		helper() = default;
+		helper(const helper &other) = default;
+		helper(T *p) : ptr(p) {
+		}
+		template <typename ...Ts>
+		helper(const std::shared_ptr<Ts...> &other) : ptr(other.get()) {
+		}
+		template <typename ...Ts>
+		helper(const std::unique_ptr<Ts...> &other) : ptr(other.get()) {
+		}
+		bool operator<(helper other) const {
+			return std::less<T*>()(ptr, other.ptr);
+		}
+	};
+
+	// without helper, we'd need 2^n different overloads, where
+	// n is the number of types we want to support (so, 8 with
+	// raw pointers, unique pointers, and shared pointers).  That
+	// seems silly.
+	// && helps enforce rvalue use only
+	bool operator()(const helper &&lhs, const helper &&rhs) const {
+		return lhs < rhs;
+	}
+
+};
+
+template <typename T>
+using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<T>>;
+
+template <typename T>
+using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<T>>;
 
 } // namespace base
 
@@ -162,7 +207,6 @@ inline void t_assert_fail(const char *message, const char *file, int32 line) {
 
 class Exception : public std::exception {
 public:
-
 	Exception(const QString &msg, bool isFatal = true) : _fatal(isFatal), _msg(msg.toUtf8()) {
 		LOG(("Exception: %1").arg(msg));
 	}
@@ -179,6 +223,7 @@ public:
 private:
 	bool _fatal;
 	QByteArray _msg;
+
 };
 
 class MTPint;
