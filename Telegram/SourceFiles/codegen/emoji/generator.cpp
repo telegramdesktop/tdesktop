@@ -267,7 +267,7 @@ bool Generator::writeSource() {
 constexpr auto kCount = " << data_.list.size() << ";\n\
 auto WorkingIndex = -1;\n\
 \n\
-QVector<One> Items;\n\
+std::vector<One> Items;\n\
 \n";
 	source_->popNamespace().newline().pushNamespace("internal");
 	source_->stream() << "\

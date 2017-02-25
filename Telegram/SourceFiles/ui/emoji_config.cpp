@@ -31,7 +31,7 @@ namespace {
 constexpr auto kCount = 2167;
 auto WorkingIndex = -1;
 
-QVector<One> Items;
+std::vector<One> Items;
 
 } // namespace
 
