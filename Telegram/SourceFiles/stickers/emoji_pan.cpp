@@ -1133,8 +1133,8 @@ void StickerPanInner::setPressedFeaturedSetAdd(int newPressedFeaturedSetAdd) {
 void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 	_previewTimer.stop();
 
-	auto pressed = base::take(_pressed, -1);
-	auto pressedFeaturedSet = base::take(_pressedFeaturedSet, -1);
+	auto pressed = std::exchange(_pressed, -1);
+	auto pressedFeaturedSet = std::exchange(_pressedFeaturedSet, -1);
 	auto pressedFeaturedSetAdd = _pressedFeaturedSetAdd;
 	setPressedFeaturedSetAdd(-1);
 	if (pressedFeaturedSetAdd != _selectedFeaturedSetAdd) {

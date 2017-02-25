@@ -33,9 +33,8 @@ inline constexpr size_t array_size(const T(&)[N]) {
 }
 
 template <typename T>
-inline T take(T &source, T &&new_value = T()) {
-	std::swap(new_value, source);
-	return std::move(new_value);
+inline T take(T &source) {
+	return std::exchange(source, T());
 }
 
 namespace internal {

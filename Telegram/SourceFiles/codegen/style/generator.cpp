@@ -772,7 +772,7 @@ void palette::finalize() {\n\
 	auto result = module_.enumVariables([this, &indexInPalette, &checksumString, &dataRows, &names](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
-		paletteIndices_.insert(std::make_pair(name, index));
+		paletteIndices_.emplace(name, index);
 		if (variable.value.type().tag != structure::TypeTag::Color) {
 			return false;
 		}

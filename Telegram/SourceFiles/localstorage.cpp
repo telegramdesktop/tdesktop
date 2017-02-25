@@ -139,11 +139,16 @@ bool _checkStreamStatus(QDataStream &stream) {
 QByteArray _settingsSalt, _passKeySalt, _passKeyEncrypted;
 
 constexpr auto kLocalKeySize = MTP::AuthKey::kSize;
-MTP::AuthKey _oldKey, _settingsKey, _passKey, _localKey;
-void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKey *result) {
-	MTP::AuthKey::Data key = { 0 };
-	int32 iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
-	QByteArray newSalt;
+
+auto OldKey = MTP::AuthKeyPtr();
+auto SettingsKey = MTP::AuthKeyPtr();
+auto PassKey = MTP::AuthKeyPtr();
+auto LocalKey = MTP::AuthKeyPtr();
+
+void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKeyPtr *result) {
+	auto key = MTP::AuthKey::Data { 0 };
+	auto iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
+	auto newSalt = QByteArray();
 	if (!salt) {
 		newSalt.resize(LocalEncryptSaltSize);
 		memset_rand(newSalt.data(), newSalt.size());
@@ -154,7 +159,7 @@ void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKey *resu
 
 	PKCS5_PBKDF2_HMAC_SHA1(pass.constData(), pass.size(), (uchar*)salt->data(), salt->size(), iterCount, key.size(), (uchar*)key.data());
 
-	result->setKey(key);
+	*result = std::make_shared<MTP::AuthKey>(key);
 }
 
 struct FileReadDescriptor {
@@ -261,7 +266,7 @@ struct FileWriteDescriptor {
 
 		return true;
 	}
-	static QByteArray prepareEncrypted(EncryptedDescriptor &data, const MTP::AuthKey &key = _localKey) {
+	static QByteArray prepareEncrypted(EncryptedDescriptor &data, const MTP::AuthKeyPtr &key = LocalKey) {
 		data.finish();
 		QByteArray &toEncrypt(data.data);
 
@@ -275,11 +280,11 @@ struct FileWriteDescriptor {
 		*(uint32*)toEncrypt.data() = size;
 		QByteArray encrypted(0x10 + fullSize, Qt::Uninitialized); // 128bit of sha1 - key128, sizeof(data), data
 		hashSha1(toEncrypt.constData(), toEncrypt.size(), encrypted.data());
-		MTP::aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, &key, encrypted.constData());
+		MTP::aesEncryptLocal(toEncrypt.constData(), encrypted.data() + 0x10, fullSize, key, encrypted.constData());
 
 		return encrypted;
 	}
-	bool writeEncrypted(EncryptedDescriptor &data, const MTP::AuthKey &key = _localKey) {
+	bool writeEncrypted(EncryptedDescriptor &data, const MTP::AuthKeyPtr &key = LocalKey) {
 		return writeData(prepareEncrypted(data, key));
 	}
 	void finish() {
@@ -408,7 +413,7 @@ bool readFile(FileReadDescriptor &result, const QString &name, FileOptions optio
 	return false;
 }
 
-bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, const MTP::AuthKey &key = _localKey) {
+bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, const MTP::AuthKeyPtr &key = LocalKey) {
 	if (encrypted.size() <= 16 || (encrypted.size() & 0x0F)) {
 		LOG(("App Error: bad encrypted part size: %1").arg(encrypted.size()));
 		return false;
@@ -418,7 +423,7 @@ bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, cons
 	QByteArray decrypted;
 	decrypted.resize(fullLen);
 	const char *encryptedKey = encrypted.constData(), *encryptedData = encrypted.constData() + 16;
-	aesDecryptLocal(encryptedData, decrypted.data(), fullLen, &key, encryptedKey);
+	aesDecryptLocal(encryptedData, decrypted.data(), fullLen, key, encryptedKey);
 	uchar sha1Buffer[20];
 	if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), encryptedKey, 16)) {
 		LOG(("App Info: bad decrypt key, data not decrypted - incorrect password?"));
@@ -444,7 +449,7 @@ bool decryptLocal(EncryptedDescriptor &result, const QByteArray &encrypted, cons
 	return true;
 }
 
-bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKey &key = _localKey) {
+bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKeyPtr &key = LocalKey) {
 	if (!readFile(result, name, options)) {
 		return false;
 	}
@@ -474,7 +479,7 @@ bool readEncryptedFile(FileReadDescriptor &result, const QString &name, FileOpti
 	return true;
 }
 
-bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKey &key = _localKey) {
+bool readEncryptedFile(FileReadDescriptor &result, const FileKey &fkey, FileOptions options = FileOption::User | FileOption::Safe, const MTP::AuthKeyPtr &key = LocalKey) {
 	return readEncryptedFile(result, toFilePart(fkey), options, key);
 }
 
@@ -1536,7 +1541,7 @@ void _readOldUserSettingsFields(QIODevice *device, qint32 &version, ReadSettings
 				continue;
 			}
 
-			createLocalKey(QByteArray(), &salt, &_oldKey);
+			createLocalKey(QByteArray(), &salt, &OldKey);
 
 			if (data.size() <= 16 || (data.size() & 0x0F)) {
 				LOG(("App Error: bad encrypted part size in old user config: %1").arg(data.size()));
@@ -1545,7 +1550,7 @@ void _readOldUserSettingsFields(QIODevice *device, qint32 &version, ReadSettings
 			uint32 fullDataLen = data.size() - 16;
 			decrypted.resize(fullDataLen);
 			const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
-			aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &_oldKey, dataKey);
+			aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, OldKey, dataKey);
 			uchar sha1Buffer[20];
 			if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
 				LOG(("App Error: bad decrypt key, data from old user config not decrypted"));
@@ -1608,7 +1613,7 @@ void _readOldMtpDataFields(QIODevice *device, qint32 &version, ReadSettingsConte
 				break;
 			}
 
-			if (!_oldKey.created()) {
+			if (!OldKey) {
 				LOG(("MTP Error: reading old encrypted keys without old key!"));
 				continue;
 			}
@@ -1620,7 +1625,7 @@ void _readOldMtpDataFields(QIODevice *device, qint32 &version, ReadSettingsConte
 			uint32 fullDataLen = data.size() - 16;
 			decrypted.resize(fullDataLen);
 			const char *dataKey = data.constData(), *encrypted = data.constData() + 16;
-			aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, &_oldKey, dataKey);
+			aesDecryptLocal(encrypted, decrypted.data(), fullDataLen, OldKey, dataKey);
 			uchar sha1Buffer[20];
 			if (memcmp(hashSha1(decrypted.constData(), decrypted.size(), sha1Buffer), dataKey, 16)) {
 				LOG(("MTP Error: bad decrypt key, data from old keys not decrypted"));
@@ -1780,7 +1785,7 @@ void _readUserSettings() {
 
 void _writeMtpData() {
 	FileWriteDescriptor mtp(toFilePart(_dataNameKey), FileOption::Safe);
-	if (!_localKey.created()) {
+	if (!LocalKey) {
 		LOG(("App Error: localkey not created in _writeMtpData()"));
 		return;
 	}
@@ -1798,7 +1803,7 @@ void _readMtpData() {
 	ReadSettingsContext context;
 	FileReadDescriptor mtp;
 	if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), FileOption::Safe)) {
-		if (_localKey.created()) {
+		if (LocalKey) {
 			_readOldMtpData(true, context);
 			applyReadContext(context);
 
@@ -1846,10 +1851,10 @@ ReadMapState _readMap(const QByteArray &pass) {
 		LOG(("App Error: bad salt in map file, size: %1").arg(salt.size()));
 		return ReadMapFailed;
 	}
-	createLocalKey(pass, &salt, &_passKey);
+	createLocalKey(pass, &salt, &PassKey);
 
 	EncryptedDescriptor keyData, map;
-	if (!decryptLocal(keyData, keyEncrypted, _passKey)) {
+	if (!decryptLocal(keyData, keyEncrypted, PassKey)) {
 		LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
 		return ReadMapPassNeeded;
 	}
@@ -1858,7 +1863,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 		LOG(("App Error: could not read pass-protected key from map file"));
 		return ReadMapFailed;
 	}
-	_localKey.setKey(key);
+	LocalKey = std::make_shared<MTP::AuthKey>(key);
 
 	_passKeyEncrypted = keyEncrypted;
 	_passKeySalt = salt;
@@ -2053,15 +2058,15 @@ void _writeMap(WriteMapWhen when) {
 		QByteArray pass(kLocalKeySize, Qt::Uninitialized), salt(LocalEncryptSaltSize, Qt::Uninitialized);
 		memset_rand(pass.data(), pass.size());
 		memset_rand(salt.data(), salt.size());
-		createLocalKey(pass, &salt, &_localKey);
+		createLocalKey(pass, &salt, &LocalKey);
 
 		_passKeySalt.resize(LocalEncryptSaltSize);
 		memset_rand(_passKeySalt.data(), _passKeySalt.size());
-		createLocalKey(QByteArray(), &_passKeySalt, &_passKey);
+		createLocalKey(QByteArray(), &_passKeySalt, &PassKey);
 
 		EncryptedDescriptor passKeyData(kLocalKeySize);
-		_localKey.write(passKeyData.stream);
-		_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, _passKey);
+		LocalKey->write(passKeyData.stream);
+		_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, PassKey);
 	}
 	map.writeData(_passKeySalt);
 	map.writeData(_passKeyEncrypted);
@@ -2196,10 +2201,10 @@ void start() {
 		LOG(("App Error: bad salt in settings file, size: %1").arg(salt.size()));
 		return writeSettings();
 	}
-	createLocalKey(QByteArray(), &salt, &_settingsKey);
+	createLocalKey(QByteArray(), &salt, &SettingsKey);
 
 	EncryptedDescriptor settings;
-	if (!decryptLocal(settings, settingsEncrypted, _settingsKey)) {
+	if (!decryptLocal(settings, settingsEncrypted, SettingsKey)) {
 		LOG(("App Error: could not decrypt settings from settings file, maybe bad passcode..."));
 		return writeSettings();
 	}
@@ -2234,10 +2239,10 @@ void writeSettings() {
 	if (!QDir().exists(_basePath)) QDir().mkpath(_basePath);
 
 	FileWriteDescriptor settings(cTestMode() ? qsl("settings_test") : qsl("settings"), FileOption::Safe);
-	if (_settingsSalt.isEmpty() || !_settingsKey.created()) {
+	if (_settingsSalt.isEmpty() || !SettingsKey) {
 		_settingsSalt.resize(LocalEncryptSaltSize);
 		memset_rand(_settingsSalt.data(), _settingsSalt.size());
-		createLocalKey(QByteArray(), &_settingsSalt, &_settingsKey);
+		createLocalKey(QByteArray(), &_settingsSalt, &SettingsKey);
 	}
 	settings.writeData(_settingsSalt);
 
@@ -2287,7 +2292,7 @@ void writeSettings() {
 	TWindowPos pos(cWindowPos());
 	data.stream << quint32(dbiWindowPosition) << qint32(pos.x) << qint32(pos.y) << qint32(pos.w) << qint32(pos.h) << qint32(pos.moncrc) << qint32(pos.maximized);
 
-	settings.writeEncrypted(data, _settingsKey);
+	settings.writeEncrypted(data, SettingsKey);
 }
 
 void writeUserSettings() {
@@ -2329,17 +2334,17 @@ void reset() {
 }
 
 bool checkPasscode(const QByteArray &passcode) {
-	auto checkKey = MTP::AuthKey();
+	auto checkKey = MTP::AuthKeyPtr();
 	createLocalKey(passcode, &_passKeySalt, &checkKey);
-	return (checkKey == _passKey);
+	return checkKey->equals(PassKey);
 }
 
 void setPasscode(const QByteArray &passcode) {
-	createLocalKey(passcode, &_passKeySalt, &_passKey);
+	createLocalKey(passcode, &_passKeySalt, &PassKey);
 
 	EncryptedDescriptor passKeyData(kLocalKeySize);
-	_localKey.write(passKeyData.stream);
-	_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, _passKey);
+	LocalKey->write(passKeyData.stream);
+	_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, PassKey);
 
 	_mapChanged = true;
 	_writeMap(WriteMapNow);
@@ -3639,7 +3644,7 @@ void readSavedGifs() {
 void writeBackground(int32 id, const QImage &img) {
 	if (!_working() || !_backgroundCanWrite) return;
 
-	if (!_localKey.created()) {
+	if (!LocalKey) {
 		LOG(("App Error: localkey not created in writeBackground()"));
 		return;
 	}
@@ -3716,7 +3721,7 @@ bool readBackground() {
 
 bool readThemeUsingKey(FileKey key) {
 	FileReadDescriptor theme;
-	if (!readEncryptedFile(theme, key, FileOption::Safe, _settingsKey)) {
+	if (!readEncryptedFile(theme, key, FileOption::Safe, SettingsKey)) {
 		return false;
 	}
 
@@ -3787,7 +3792,7 @@ void writeTheme(const QString &pathRelative, const QString &pathAbsolute, const 
 	data.stream << cache.paletteChecksum << cache.contentChecksum << cache.colors << cache.background << backgroundTiled;
 
 	FileWriteDescriptor file(_themeKey, FileOption::Safe);
-	file.writeEncrypted(data, _settingsKey);
+	file.writeEncrypted(data, SettingsKey);
 }
 
 void clearTheme() {
@@ -3814,7 +3819,7 @@ bool copyThemeColorsToPalette(const QString &path) {
 	}
 
 	FileReadDescriptor theme;
-	if (!readEncryptedFile(theme, _themeKey, FileOption::Safe, _settingsKey)) {
+	if (!readEncryptedFile(theme, _themeKey, FileOption::Safe, SettingsKey)) {
 		return false;
 	}
 
@@ -4269,18 +4274,18 @@ bool isBotTrusted(UserData *bot) {
 }
 
 bool encrypt(const void *src, void *dst, uint32 len, const void *key128) {
-	if (!_localKey.created()) {
+	if (!LocalKey) {
 		return false;
 	}
-	MTP::aesEncryptLocal(src, dst, len, &_localKey, key128);
+	MTP::aesEncryptLocal(src, dst, len, LocalKey, key128);
 	return true;
 }
 
 bool decrypt(const void *src, void *dst, uint32 len, const void *key128) {
-	if (!_localKey.created()) {
+	if (!LocalKey) {
 		return false;
 	}
-	MTP::aesDecryptLocal(src, dst, len, &_localKey, key128);
+	MTP::aesDecryptLocal(src, dst, len, LocalKey, key128);
 	return true;
 }
 

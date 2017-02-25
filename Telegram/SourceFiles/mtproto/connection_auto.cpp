@@ -119,7 +119,7 @@ void AutoConnection::sendData(mtpBuffer &buffer) {
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
-		emit error();
+		emit error(kErrorCodeOther);
 		return;
 	}
 
@@ -204,7 +204,7 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 			if (status == WaitingBoth) {
 				status = WaitingTcp;
 			} else {
-				emit error();
+				emit error(data[0]);
 			}
 		} else if (!data.isEmpty()) {
 			if (status == UsingHttp) {
@@ -230,7 +230,7 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 					if (status == WaitingBoth) {
 						status = WaitingTcp;
 					} else {
-						emit error();
+						emit error(kErrorCodeOther);
 					}
 				}
 			} else if (status == UsingTcp) {
@@ -242,11 +242,10 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		bool mayBeBadKey = HTTPConnection::handleError(reply) && _sentEncrypted;
 		if (status == WaitingBoth) {
 			status = WaitingTcp;
 		} else if (status == WaitingHttp || status == UsingHttp) {
-			emit error(mayBeBadKey);
+			emit error(HTTPConnection::handleError(reply));
 		} else {
 			LOG(("Strange Http Error: status %1").arg(status));
 		}
@@ -267,8 +266,7 @@ void AutoConnection::socketPacket(const char *packet, uint32 length) {
 			sock.disconnectFromHost();
 			emit connected();
 		} else if (status == WaitingTcp || status == UsingTcp) {
-			bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
-			emit error(mayBeBadKey);
+			emit error(data[0]);
 		} else {
 			LOG(("Strange Tcp Error; status %1").arg(status));
 		}
@@ -296,7 +294,7 @@ void AutoConnection::socketPacket(const char *packet, uint32 length) {
 				sock.disconnectFromHost();
 				emit connected();
 			} else {
-				emit error();
+				emit error(kErrorCodeOther);
 			}
 		}
 	}
@@ -335,7 +333,7 @@ void AutoConnection::socketError(QAbstractSocket::SocketError e) {
 		status = UsingHttp;
 		emit connected();
 	} else if (status == WaitingTcp || status == UsingTcp) {
-		emit error();
+		emit error(kErrorCodeOther);
 	} else {
 		LOG(("Strange Tcp Error: status %1").arg(status));
 	}

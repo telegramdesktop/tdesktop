@@ -26,23 +26,22 @@ namespace MTP {
 
 // type DcId represents actual data center id, while in most cases
 // we use some shifted ids, like DcId() + X * DCShift
-typedef int32 DcId;
-typedef int32 ShiftedDcId;
+using DcId = int32;
+using ShiftedDcId = int32 ;
 
 }
 
-typedef int32 mtpPrime;
-typedef int32 mtpRequestId;
-typedef uint64 mtpMsgId;
-typedef uint64 mtpPingId;
+using mtpPrime = int32;
+using mtpRequestId = int32;
+using mtpMsgId = uint64;
+using mtpPingId = uint64;
 
-typedef QVector<mtpPrime> mtpBuffer;
-typedef uint32 mtpTypeId;
+using mtpBuffer = QVector<mtpPrime>;
+using mtpTypeId = uint32;
 
 class mtpRequestData;
 class mtpRequest : public QSharedPointer<mtpRequestData> {
 public:
-
 	mtpRequest() {
 	}
     explicit mtpRequest(mtpRequestData *ptr) : QSharedPointer<mtpRequestData>(ptr) {
@@ -51,7 +50,7 @@ public:
 	uint32 innerLength() const;
 	void write(mtpBuffer &to) const;
 
-	typedef void ResponseType; // don't know real response type =(
+	using ResponseType = void; // don't know real response type =(
 
 };
 
@@ -138,13 +137,13 @@ public:
 	}
 };
 
-typedef QMap<mtpRequestId, mtpRequest> mtpPreRequestMap;
-typedef QMap<mtpMsgId, mtpRequest> mtpRequestMap;
-typedef QMap<mtpMsgId, bool> mtpMsgIdsSet;
+using mtpPreRequestMap = QMap<mtpRequestId, mtpRequest>;
+using mtpRequestMap = QMap<mtpMsgId, mtpRequest>;
+using mtpMsgIdsSet = QMap<mtpMsgId, bool>;
 
 class mtpRequestIdsMap : public QMap<mtpMsgId, mtpRequestId> {
 public:
-	typedef QMap<mtpMsgId, mtpRequestId> ParentType;
+	using ParentType = QMap<mtpMsgId, mtpRequestId>;
 
 	mtpMsgId min() const {
 		return size() ? cbegin().key() : 0;
@@ -156,7 +155,7 @@ public:
 	}
 };
 
-typedef QMap<mtpRequestId, mtpResponse> mtpResponseMap;
+using mtpResponseMap = QMap<mtpRequestId, mtpResponse>;
 
 class mtpErrorUnexpected : public Exception {
 public:
@@ -200,6 +199,7 @@ public:
 
 private:
 	uint32 cnt;
+
 };
 
 template <typename T>
@@ -377,7 +377,7 @@ private:
 inline MTPint MTP_int(int32 v) {
 	return MTPint(v);
 }
-typedef MTPBoxed<MTPint> MTPInt;
+using MTPInt = MTPBoxed<MTPint>;
 
 template <typename Flags>
 class MTPflags {
@@ -465,7 +465,7 @@ private:
 inline MTPlong MTP_long(uint64 v) {
 	return MTPlong(v);
 }
-typedef MTPBoxed<MTPlong> MTPLong;
+using MTPLong = MTPBoxed<MTPlong>;
 
 inline bool operator==(const MTPlong &a, const MTPlong &b) {
 	return a.v == b.v;
@@ -514,7 +514,7 @@ private:
 inline MTPint128 MTP_int128(uint64 l, uint64 h) {
 	return MTPint128(l, h);
 }
-typedef MTPBoxed<MTPint128> MTPInt128;
+using MTPInt128 = MTPBoxed<MTPint128>;
 
 inline bool operator==(const MTPint128 &a, const MTPint128 &b) {
 	return a.l == b.l && a.h == b.h;
@@ -559,7 +559,7 @@ private:
 inline MTPint256 MTP_int256(const MTPint128 &l, const MTPint128 &h) {
 	return MTPint256(l, h);
 }
-typedef MTPBoxed<MTPint256> MTPInt256;
+using MTPInt256 = MTPBoxed<MTPint256>;
 
 inline bool operator==(const MTPint256 &a, const MTPint256 &b) {
 	return a.l == b.l && a.h == b.h;
@@ -605,7 +605,7 @@ private:
 inline MTPdouble MTP_double(float64 v) {
 	return MTPdouble(v);
 }
-typedef MTPBoxed<MTPdouble> MTPDouble;
+using MTPDouble = MTPBoxed<MTPdouble>;
 
 inline bool operator==(const MTPdouble &a, const MTPdouble &b) {
 	return a.v == b.v;
@@ -724,7 +724,7 @@ inline MTPstring MTP_string(const char *v) {
 	return MTPstring(new MTPDstring(v));
 }
 MTPstring MTP_string(const QByteArray &v) = delete;
-typedef MTPBoxed<MTPstring> MTPString;
+using MTPString = MTPBoxed<MTPstring>;
 
 using MTPbytes = MTPstring;
 using MTPBytes = MTPBoxed<MTPbytes>;
@@ -762,7 +762,7 @@ public:
 	MTPDvector(const QVector<T> &vec) : v(vec) {
 	}
 
-	typedef QVector<T> VType;
+	using VType = QVector<T>;
 	VType v;
 };
 
@@ -825,7 +825,7 @@ private:
 	friend MTPvector<U> MTP_vector(uint32 count, const U &value);
 	template <typename U>
 	friend MTPvector<U> MTP_vector(const QVector<U> &v);
-	typedef typename MTPDvector<T>::VType VType;
+	using VType = typename MTPDvector<T>::VType;
 };
 template <typename T>
 inline MTPvector<T> MTP_vector(uint32 count) {

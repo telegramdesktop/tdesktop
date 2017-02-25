@@ -528,7 +528,7 @@ void EditorBlock::saveEditing(QColor value) {
 	auto &row = _data[_editing];
 	auto name = row.name();
 	if (_type == Type::New) {
-		auto removing = base::take(_editing, -1);
+		auto removing = std::exchange(_editing, -1);
 		setSelected(-1);
 		setPressed(-1);
 

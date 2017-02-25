@@ -40,4 +40,18 @@ void writeStorageImageLocation(QDataStream &stream, const StorageImageLocation &
 StorageImageLocation readStorageImageLocation(QDataStream &stream);
 int storageImageLocationSize();
 
+template <typename T>
+inline T read(QDataStream &stream) {
+	auto result = T();
+	stream >> result;
+	return result;
+}
+
+template <>
+inline MTP::AuthKey::Data read<MTP::AuthKey::Data>(QDataStream &stream) {
+	auto result = MTP::AuthKey::Data();
+	stream.readRawData(result.data(), result.size());
+	return result;
+}
+
 } // namespace Serialize

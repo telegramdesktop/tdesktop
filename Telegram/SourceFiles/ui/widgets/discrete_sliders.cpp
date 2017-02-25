@@ -122,7 +122,7 @@ void DiscreteSlider::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void DiscreteSlider::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	if (pressed < 0) return;
 
 	auto index = getIndexFromPosition(e->pos());

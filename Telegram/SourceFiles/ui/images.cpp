@@ -23,8 +23,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mainwidget.h"
 #include "localstorage.h"
-
 #include "pspecific.h"
+#include "messenger.h"
 
 namespace Images {
 namespace {
@@ -828,9 +828,7 @@ void RemoteImage::doCheckload() const {
 
 	QPixmap data = _loader->imagePixmap(shrinkBox());
 	if (data.isNull()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = CancelledFileLoader;
+		destroyLoaderDelayed(CancelledFileLoader);
 		return;
 	}
 
@@ -846,11 +844,15 @@ void RemoteImage::doCheckload() const {
 
 	invalidateSizeCache();
 
-	_loader->deleteLater();
-	_loader->stop();
-	_loader = nullptr;
+	destroyLoaderDelayed();
 
 	_forgot = false;
+}
+
+void RemoteImage::destroyLoaderDelayed(FileLoader *newValue) const {
+	_loader->stop();
+	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
+	Messenger::Instance().delayedDestroyLoader(std::move(loader));
 }
 
 void RemoteImage::loadLocal() {
@@ -875,9 +877,7 @@ void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 
 	invalidateSizeCache();
 	if (amLoading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = nullptr;
+		destroyLoaderDelayed();
 	}
 	_saved = bytes;
 	_format = fmt;
@@ -930,9 +930,7 @@ RemoteImage::~RemoteImage() {
 		globalAcquiredSize -= int64(_data.width()) * _data.height() * 4;
 	}
 	if (amLoading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = 0;
+		destroyLoaderDelayed();
 	}
 }
 
@@ -948,13 +946,10 @@ bool RemoteImage::displayLoading() const {
 void RemoteImage::cancel() {
 	if (!amLoading()) return;
 
-	FileLoader *l = _loader;
-	_loader = CancelledFileLoader;
-	if (l) {
-		l->cancel();
-		l->deleteLater();
-		l->stop();
-	}
+	auto loader = std::exchange(_loader, CancelledFileLoader);
+	loader->cancel();
+	loader->stop();
+	Messenger::Instance().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
 }
 
 float64 RemoteImage::progress() const {

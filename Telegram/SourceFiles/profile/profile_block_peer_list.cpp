@@ -169,7 +169,7 @@ void PeerListWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 void PeerListWidget::mousePressReleased(Qt::MouseButton button) {
 	repaintRow(_pressed);
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	auto pressedRemove = base::take(_pressedRemove);
 	if (pressed >= 0 && pressed < _items.size()) {
 		if (auto &ripple = _items[pressed]->ripple) {

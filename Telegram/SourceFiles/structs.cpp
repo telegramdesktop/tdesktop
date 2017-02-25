@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "window/themes/window_theme.h"
 #include "auth_session.h"
+#include "messenger.h"
 
 namespace {
 
@@ -1530,24 +1531,25 @@ void DocumentData::performActionOnLoad() {
 bool DocumentData::loaded(FilePathResolveType type) const {
 	if (loading() && _loader->done()) {
 		if (_loader->fileType() == mtpc_storage_fileUnknown) {
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = CancelledMtpFileLoader;
+			destroyLoaderDelayed(CancelledMtpFileLoader);
 		} else {
-			DocumentData *that = const_cast<DocumentData*>(this);
+			auto that = const_cast<DocumentData*>(this);
 			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
 			that->_data = _loader->bytes();
 			if (that->sticker() && !_loader->imagePixmap().isNull()) {
 				that->sticker()->img = ImagePtr(_data, _loader->imageFormat(), _loader->imagePixmap());
 			}
-
-			_loader->deleteLater();
-			_loader->stop();
-			_loader = nullptr;
+			destroyLoaderDelayed();
 		}
 		notifyLayoutChanged();
 	}
 	return !data().isEmpty() || !filepath(type).isEmpty();
+}
+
+void DocumentData::destroyLoaderDelayed(mtpFileLoader *newValue) const {
+	_loader->stop();
+	auto loader = std::unique_ptr<FileLoader>(std::exchange(_loader, newValue));
+	Messenger::Instance().delayedDestroyLoader(std::move(loader));
 }
 
 bool DocumentData::loading() const {
@@ -1632,11 +1634,10 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 void DocumentData::cancel() {
 	if (!loading()) return;
 
-	auto loader = base::take(_loader);
-	_loader = CancelledMtpFileLoader;
+	auto loader = std::exchange(_loader, CancelledMtpFileLoader);
 	loader->cancel();
-	loader->deleteLater();
 	loader->stop();
+	Messenger::Instance().delayedDestroyLoader(std::unique_ptr<FileLoader>(loader));
 
 	notifyLayoutChanged();
 	if (auto main = App::main()) {
@@ -1803,9 +1804,7 @@ bool DocumentData::setRemoteVersion(int32 version) {
 	_data = QByteArray();
 	status = FileReady;
 	if (loading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = nullptr;
+		destroyLoaderDelayed();
 	}
 	return true;
 }
@@ -1849,9 +1848,7 @@ void DocumentData::collectLocalData(DocumentData *local) {
 
 DocumentData::~DocumentData() {
 	if (loading()) {
-		_loader->deleteLater();
-		_loader->stop();
-		_loader = nullptr;
+		destroyLoaderDelayed();
 	}
 }
 

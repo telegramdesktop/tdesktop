@@ -42,6 +42,8 @@ namespace MTP {
 namespace internal {
 namespace {
 
+constexpr auto kRecreateKeyId = AuthKey::KeyId(0xFFFFFFFFFFFFFFFFULL);
+
 void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent, int32 skipBeforeRequest = 0) {
 	mtpMsgId afterId(*(mtpMsgId*)(from->after->data() + 4));
 	mtpRequestMap::const_iterator i = afterId ? haveSent.constFind(afterId) : haveSent.cend();
@@ -346,22 +348,14 @@ RSAPublicKeys InitRSAPublicKeys() {
 Connection::Connection(Instance *instance) : _instance(instance) {
 }
 
-int32 Connection::prepare(SessionData *sessionData, int32 dc) {
+void Connection::start(SessionData *sessionData, ShiftedDcId shiftedDcId) {
 	t_assert(thread == nullptr && data == nullptr);
 
 	thread = std::make_unique<Thread>();
-	auto newData = std::make_unique<ConnectionPrivate>(_instance, thread.get(), this, sessionData, dc);
-	dc = newData->getDC();
-	if (dc) {
-		// will be deleted in the thread::finished signal
-		data = newData.release();
-	} else {
-		thread.reset();
-	}
-	return dc;
-}
+	auto newData = std::make_unique<ConnectionPrivate>(_instance, thread.get(), this, sessionData, shiftedDcId);
 
-void Connection::start() {
+	// will be deleted in the thread::finished signal
+	data = newData.release();
 	thread->start();
 }
 
@@ -404,13 +398,13 @@ void ConnectionPrivate::createConn(bool createIPv4, bool createIPv6) {
 	if (createIPv4) {
 		QWriteLocker lock(&stateConnMutex);
 		_conn4 = AbstractConnection::create(thread());
-		connect(_conn4, SIGNAL(error(bool)), this, SLOT(onError4(bool)));
+		connect(_conn4, SIGNAL(error(qint32)), this, SLOT(onError4(qint32)));
 		connect(_conn4, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
 	if (createIPv6) {
 		QWriteLocker lock(&stateConnMutex);
 		_conn6 = AbstractConnection::create(thread());
-		connect(_conn6, SIGNAL(error(bool)), this, SLOT(onError6(bool)));
+		connect(_conn6, SIGNAL(error(qint32)), this, SLOT(onError6(qint32)));
 		connect(_conn6, SIGNAL(receivedSome()), this, SLOT(onReceivedSome()));
 	}
 	firstSentAt = 0;
@@ -431,7 +425,7 @@ void ConnectionPrivate::destroyConn(AbstractConnection **conn) {
 				toDisconnect = *conn;
 				disconnect(*conn, SIGNAL(connected()), nullptr, nullptr);
 				disconnect(*conn, SIGNAL(disconnected()), nullptr, nullptr);
-				disconnect(*conn, SIGNAL(error(bool)), nullptr, nullptr);
+				disconnect(*conn, SIGNAL(error(qint32)), nullptr, nullptr);
 				disconnect(*conn, SIGNAL(receivedData()), nullptr, nullptr);
 				disconnect(*conn, SIGNAL(receivedSome()), nullptr, nullptr);
 				*conn = nullptr;
@@ -448,10 +442,10 @@ void ConnectionPrivate::destroyConn(AbstractConnection **conn) {
 	}
 }
 
-ConnectionPrivate::ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, uint32 _dc) : QObject()
+ConnectionPrivate::ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, ShiftedDcId shiftedDcId) : QObject()
 , _instance(instance)
 , _state(DisconnectedState)
-, dc(_dc)
+, _shiftedDcId(shiftedDcId)
 , _owner(owner)
 , _waitForReceived(MTPMinReceiveDelay)
 , _waitForConnected(MTPMinConnectDelay)
@@ -465,10 +459,7 @@ ConnectionPrivate::ConnectionPrivate(Instance *instance, QThread *thread, Connec
 	retryTimer.moveToThread(thread);
 	moveToThread(thread);
 
-	if (!dc) {
-		dc = Messenger::Instance().dcOptions()->getDefaultDcId();
-		DEBUG_LOG(("MTP Info: searching for any DC, %1 selected...").arg(dc));
-	}
+	t_assert(_shiftedDcId != 0);
 
 	connect(thread, SIGNAL(started()), this, SLOT(socketStart()));
 	connect(thread, SIGNAL(finished()), this, SLOT(doFinish()));
@@ -509,8 +500,8 @@ void ConnectionPrivate::onConfigLoaded() {
 	socketStart(true);
 }
 
-int32 ConnectionPrivate::getDC() const {
-	return dc;
+int32 ConnectionPrivate::getShiftedDcId() const {
+	return _shiftedDcId;
 }
 
 int32 ConnectionPrivate::getState() const {
@@ -586,7 +577,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					newId = m;
 				}
 
-				MTP_LOG(dc, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
 				replaces.insert(id, newId);
 				id = newId;
 				*(mtpMsgId*)(i.value()->data() + 4) = id;
@@ -613,7 +604,7 @@ void ConnectionPrivate::resetSession() { // recreate all msg_id and msg_seqno
 					newId = m;
 				}
 
-				MTP_LOG(dc, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
+				MTP_LOG(_shiftedDcId, ("Replacing msgId %1 to %2!").arg(id).arg(newId));
 				replaces.insert(id, newId);
 				id = newId;
 				*(mtpMsgId*)(j.value()->data() + 4) = id;
@@ -777,13 +768,13 @@ void ConnectionPrivate::tryToSend() {
 	int32 state = getState();
 	bool prependOnly = (state != ConnectedState);
 	mtpRequest pingRequest;
-	if (dc == bareDcId(dc)) { // main session
+	if (_shiftedDcId == bareDcId(_shiftedDcId)) { // main session
 		if (!prependOnly && !_pingIdToSend && !_pingId && _pingSendAt <= getms(true)) {
 			_pingIdToSend = rand_value<mtpPingId>();
 		}
 	}
 	if (_pingIdToSend) {
-		if (prependOnly || dc != bareDcId(dc)) {
+		if (prependOnly || _shiftedDcId != bareDcId(_shiftedDcId)) {
 			MTPPing ping(MTPping(MTP_long(_pingIdToSend)));
 			uint32 pingSize = ping.innerLength() >> 2; // copy from Session::send
 			pingRequest = mtpRequestData::prepare(pingSize);
@@ -801,7 +792,7 @@ void ConnectionPrivate::tryToSend() {
 		_pingSendAt = pingRequest->msDate + (MTPPingSendAfterAuto * 1000LL);
 		pingRequest->requestId = 0; // dont add to haveSent / wereAcked maps
 
-		if (dc == bareDcId(dc) && !prependOnly) { // main session
+		if (_shiftedDcId == bareDcId(_shiftedDcId) && !prependOnly) { // main session
 			_pingSender.start(MTPPingSendAfter * 1000);
 		}
 
@@ -809,10 +800,10 @@ void ConnectionPrivate::tryToSend() {
 		_pingIdToSend = 0;
 	} else {
 		if (prependOnly) {
-			DEBUG_LOG(("MTP Info: dc %1 not sending, waiting for Connected state, state: %2").arg(dc).arg(state));
+			DEBUG_LOG(("MTP Info: dc %1 not sending, waiting for Connected state, state: %2").arg(_shiftedDcId).arg(state));
 			return; // just do nothing, if is not connected yet
 		} else {
-			DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2").arg(dc).arg(state));
+			DEBUG_LOG(("MTP Info: dc %1 trying to send after ping, state: %2").arg(_shiftedDcId).arg(state));
 		}
 	}
 
@@ -1064,7 +1055,7 @@ void ConnectionPrivate::retryByTimer() {
 	} else if (retryTimeout < 64000) {
 		retryTimeout *= 2;
 	}
-	if (keyId == AuthKey::RecreateKeyId) {
+	if (keyId == kRecreateKeyId) {
 		if (sessionData->getKey()) {
 			unlockKey();
 
@@ -1088,31 +1079,36 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 		return;
 	}
 	auto dcType = DcOptions::DcType::Regular;
-	bool isDldDc = isDldDcId(dc);
-	if (isDldDcId(dc)) { // using media_only addresses only if key for this dc is already created
+	auto isDownloadDc = isDownloadDcId(_shiftedDcId);
+	if (isDownloadDc) { // using media_only addresses only if key for this dc is already created
 		QReadLocker lockFinished(&sessionDataMutex);
 		if (!sessionData || sessionData->getKey()) {
 			dcType = DcOptions::DcType::MediaDownload;
 		}
 	}
-	auto bareDc = bareDcId(dc);
+	auto bareDc = bareDcId(_shiftedDcId);
 
 	using Variants = DcOptions::Variants;
 	auto kIPv4 = Variants::IPv4;
 	auto kIPv6 = Variants::IPv6;
 	auto kTcp = Variants::Tcp;
 	auto kHttp = Variants::Http;
-	auto variants = Messenger::Instance().dcOptions()->lookup(bareDcId(dc), dcType);
+	auto variants = Messenger::Instance().dcOptions()->lookup(bareDc, dcType);
 	auto noIPv4 = (variants.data[kIPv4][kHttp].port == 0);
 	auto noIPv6 = (!Global::TryIPv6() || (variants.data[kIPv6][kHttp].port == 0));
 	if (noIPv4 && noIPv6) {
-		if (afterConfig) {
-			if (noIPv4) LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found right after config load!").arg(dc));
-			if (Global::TryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found right after config load!").arg(dc));
+		if (_instance->isKeysDestroyer()) {
+			LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found for auth key destruction!").arg(_shiftedDcId));
+			if (Global::TryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found for auth key destruction!").arg(_shiftedDcId));
+			emit _instance->keyDestroyed(_shiftedDcId);
+			return;
+		} else if (afterConfig) {
+			LOG(("MTP Error: DC %1 options for IPv4 over HTTP not found right after config load!").arg(_shiftedDcId));
+			if (Global::TryIPv6() && noIPv6) LOG(("MTP Error: DC %1 options for IPv6 over HTTP not found right after config load!").arg(_shiftedDcId));
 			return restart();
 		}
-		if (noIPv4) DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(dc));
-		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(dc));
+		DEBUG_LOG(("MTP Info: DC %1 options for IPv4 over HTTP not found, waiting for config").arg(_shiftedDcId));
+		if (Global::TryIPv6() && noIPv6) DEBUG_LOG(("MTP Info: DC %1 options for IPv6 over HTTP not found, waiting for config").arg(_shiftedDcId));
 		connect(_instance, SIGNAL(configLoaded()), this, SLOT(onConfigLoaded()), Qt::UniqueConnection);
 		QMetaObject::invokeMethod(_instance, "configLoadRequest", Qt::QueuedConnection);
 		return;
@@ -1146,11 +1142,11 @@ void ConnectionPrivate::socketStart(bool afterConfig) {
 	}
 }
 
-void ConnectionPrivate::restart(bool mayBeBadKey) {
+void ConnectionPrivate::restart() {
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData) return;
 
-	DEBUG_LOG(("MTP Info: restarting Connection, maybe bad key = %1").arg(Logs::b(mayBeBadKey)));
+	DEBUG_LOG(("MTP Info: restarting Connection"));
 
 	_waitForReceivedTimer.stop();
 	_waitForConnectedTimer.stop();
@@ -1158,12 +1154,14 @@ void ConnectionPrivate::restart(bool mayBeBadKey) {
 	auto key = sessionData->getKey();
 	if (key) {
 		if (!sessionData->isCheckedKey()) {
-			if (mayBeBadKey) {
-				clearMessages();
-				keyId = AuthKey::RecreateKeyId;
+			// No destroying in case of an error.
+			//
+			//if (mayBeBadKey) {
+			//	clearMessages();
+			//	keyId = kRecreateKeyId;
 //				retryTimeout = 1; // no ddos please
-				LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now..."));
-			}
+			//	LOG(("MTP Info: key may be bad and was not checked - but won't be destroyed, no log outs because of bad server right now..."));
+			//}
 		} else {
 			sessionData->setCheckedKey(false);
 		}
@@ -1193,9 +1191,9 @@ void ConnectionPrivate::onSentSome(uint64 size) {
 				DEBUG_LOG(("Checking connect for request with size %1 bytes, delay will be %2").arg(size).arg(remain));
 			}
 		}
-		if (isUplDcId(dc)) {
+		if (isUploadDcId(_shiftedDcId)) {
 			remain *= MTPUploadSessionsCount;
-		} else if (isDldDcId(dc)) {
+		} else if (isDownloadDcId(_shiftedDcId)) {
 			remain *= MTPDownloadSessionsCount;
 		}
 		_waitForReceivedTimer.start(remain);
@@ -1318,7 +1316,7 @@ void ConnectionPrivate::handleReceived() {
 
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
-		DEBUG_LOG(("MTP Error: auth_key for dc %1 busy, cant lock").arg(dc));
+		DEBUG_LOG(("MTP Error: auth_key for dc %1 busy, cant lock").arg(_shiftedDcId));
 		clearMessages();
 		keyId = 0;
 
@@ -1328,7 +1326,7 @@ void ConnectionPrivate::handleReceived() {
 
 	auto key = sessionData->getKey();
 	if (!key || key->keyId() != keyId) {
-		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
+		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
 
 		lockFinished.unlock();
 		return restart();
@@ -1434,7 +1432,7 @@ void ConnectionPrivate::handleReceived() {
 		auto res = HandleResult::Success; // if no need to handle, then succeed
 		end = data + 8 + (msgLen >> 2);
 		const mtpPrime *sfrom(data + 4);
-		MTP_LOG(dc, ("Recv: ") + mtpTextSerialize(sfrom, end));
+		MTP_LOG(_shiftedDcId, ("Recv: ") + mtpTextSerialize(sfrom, end));
 
 		bool needToHandle = false;
 		{
@@ -2308,7 +2306,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 	QReadLocker lockFinished(&sessionDataMutex);
 	if (!sessionData || !_conn) return;
 
-	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(dc));
+	DEBUG_LOG(("AuthKey Info: Connection updating key from Session, dc %1").arg(_shiftedDcId));
 	uint64 newKeyId = 0;
 	{
 		ReadLockerAttempt lock(sessionData->keyMutex());
@@ -2325,7 +2323,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 		clearMessages();
 		keyId = newKeyId;
 	}
-	DEBUG_LOG(("AuthKey Info: Connection update key from Session, dc %1 result: %2").arg(dc).arg(Logs::mb(&keyId, sizeof(keyId)).str()));
+	DEBUG_LOG(("AuthKey Info: Connection update key from Session, dc %1 result: %2").arg(_shiftedDcId).arg(Logs::mb(&keyId, sizeof(keyId)).str()));
 	if (keyId) {
 		return authKeyCreated();
 	}
@@ -2339,6 +2337,11 @@ void ConnectionPrivate::updateAuthKey() 	{
 		keyId = key->keyId();
 		unlockKey();
 		return authKeyCreated();
+	} else if (_instance->isKeysDestroyer()) {
+		// We are here to destroy an old key, so we're done.
+		LOG(("MTP Error: No key %1 in updateAuthKey() for destroying.").arg(_shiftedDcId));
+		emit _instance->keyDestroyed(_shiftedDcId);
+		return;
 	}
 
 	_authKeyData = std::make_unique<ConnectionPrivate::AuthKeyCreateData>();
@@ -2357,7 +2360,7 @@ void ConnectionPrivate::updateAuthKey() 	{
 }
 
 void ConnectionPrivate::clearMessages() {
-	if (keyId && keyId != AuthKey::RecreateKeyId && _conn) {
+	if (keyId && keyId != kRecreateKeyId && _conn) {
 		_conn->received().clear();
 	}
 }
@@ -2684,9 +2687,7 @@ void ConnectionPrivate::dhClientParamsAnswered() {
 		uint64 salt1 = _authKeyData->new_nonce.l.l, salt2 = _authKeyData->server_nonce.l, serverSalt = salt1 ^ salt2;
 		sessionData->setSalt(serverSalt);
 
-		auto authKey = std::make_shared<AuthKey>();
-		authKey->setKey(_authKeyStrings->auth_key);
-		authKey->setDC(bareDcId(dc));
+		auto authKey = std::make_shared<AuthKey>(AuthKey::Type::Generated, bareDcId(_shiftedDcId), _authKeyStrings->auth_key);
 
 		DEBUG_LOG(("AuthKey Info: auth key gen succeed, id: %1, server salt: %2").arg(authKey->keyId()).arg(serverSalt));
 
@@ -2806,29 +2807,47 @@ void ConnectionPrivate::clearAuthKeyData() {
 	}
 }
 
-void ConnectionPrivate::onError4(bool mayBeBadKey) {
+void ConnectionPrivate::onError4(qint32 errorCode) {
 	if (_conn && _conn == _conn6) return; // error in the unused
 
+	if (errorCode == -429) {
+		LOG(("Protocol Error: -429 flood code returned!"));
+	}
 	if (_conn || !_conn6) {
 		destroyConn();
 		_waitForConnectedTimer.stop();
 
-		MTP_LOG(dc, ("Restarting after error in IPv4 connection, maybe bad key: %1...").arg(Logs::b(mayBeBadKey)));
-		return restart(mayBeBadKey);
+		if (errorCode == -404 && _instance->isKeysDestroyer()) {
+			LOG(("MTP Info: -404 error received on destroying key %1, assuming it is destroyed.").arg(_shiftedDcId));
+			emit _instance->keyDestroyed(_shiftedDcId);
+			return;
+		} else {
+			MTP_LOG(_shiftedDcId, ("Restarting after error in IPv4 connection, error code: %1...").arg(errorCode));
+			return restart();
+		}
 	} else {
 		destroyConn(&_conn4);
 	}
 }
 
-void ConnectionPrivate::onError6(bool mayBeBadKey) {
+void ConnectionPrivate::onError6(qint32 errorCode) {
 	if (_conn && _conn == _conn4) return; // error in the unused
 
+	if (errorCode == -429) {
+		LOG(("Protocol Error: -429 flood code returned!"));
+	}
 	if (_conn || !_conn4) {
 		destroyConn();
 		_waitForConnectedTimer.stop();
 
-		MTP_LOG(dc, ("Restarting after error in IPv6 connection, maybe bad key: %1...").arg(Logs::b(mayBeBadKey)));
-		return restart(mayBeBadKey);
+		if (errorCode == -404 && _instance->isKeysDestroyer()) {
+			LOG(("MTP Info: -404 error received on destroying key %1, assuming it is destroyed.").arg(_shiftedDcId));
+			emit _instance->keyDestroyed(_shiftedDcId);
+			return;
+		} else {
+			MTP_LOG(_shiftedDcId, ("Restarting after error in IPv6 connection, error code: %1...").arg(errorCode));
+			return restart();
+		}
 	} else {
 		destroyConn(&_conn6);
 	}
@@ -2914,7 +2933,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
-		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting...").arg(dc));
+		DEBUG_LOG(("MTP Info: could not lock key for read in sendBuffer(), dc %1, restarting...").arg(_shiftedDcId));
 
 		lockFinished.unlock();
 		restart();
@@ -2923,7 +2942,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 
 	AuthKeyPtr key(sessionData->getKey());
 	if (!key || key->keyId() != keyId) {
-		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(dc));
+		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
 
 		lockFinished.unlock();
 		restart();
@@ -2937,7 +2956,7 @@ bool ConnectionPrivate::sendRequest(mtpRequest &request, bool needAnyResponse, Q
 	memcpy(request->data() + 2, &session, 2 * sizeof(mtpPrime));
 
 	const mtpPrime *from = request->constData() + 4;
-	MTP_LOG(dc, ("Send: ") + mtpTextSerialize(from, from + messageSize));
+	MTP_LOG(_shiftedDcId, ("Send: ") + mtpTextSerialize(from, from + messageSize));
 
 	uchar encryptedSHA[20];
 	MTPint128 &msgKey(*(MTPint128*)(encryptedSHA + 4));

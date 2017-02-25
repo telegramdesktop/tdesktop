@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/filedialog.h"
+#include "serialize/serialize_common.h"
 
 namespace {
 
@@ -52,10 +53,12 @@ Messenger *Messenger::InstancePointer() {
 
 struct Messenger::Private {
 	MTP::Instance::Config mtpConfig;
+	MTP::AuthKeysList mtpKeysToDestroy;
 };
 
 Messenger::Messenger() : QObject()
-, _private(std::make_unique<Private>()) {
+, _private(std::make_unique<Private>())
+, _delayedLoadersDestroyer(this, "onDelayedDestroyLoaders") {
 	t_assert(SingleInstance == nullptr);
 	SingleInstance = this;
 
@@ -166,14 +169,25 @@ void Messenger::setMtpMainDcId(MTP::DcId mainDcId) {
 
 void Messenger::setMtpKey(MTP::DcId dcId, const MTP::AuthKey::Data &keyData) {
 	t_assert(!_mtproto);
-	_private->mtpConfig.keys.insert(std::make_pair(dcId, keyData));
+	_private->mtpConfig.keys.push_back(std::make_shared<MTP::AuthKey>(MTP::AuthKey::Type::ReadFromFile, dcId, keyData));
 }
 
 QByteArray Messenger::serializeMtpAuthorization() const {
-	auto serialize = [this](auto keysCount, auto mainDcId, auto writeKeys) {
+	auto serialize = [this](auto mainDcId, auto &keys, auto &keysToDestroy) {
+		auto keysSize = [](auto &list) {
+			return sizeof(qint32) + list.size() * (sizeof(qint32) + MTP::AuthKey::Data().size());
+		};
+		auto writeKeys = [](QDataStream &stream, auto &keys) {
+			stream << qint32(keys.size());
+			for (auto &key : keys) {
+				stream << qint32(key->dcId());
+				key->write(stream);
+			}
+		};
+
 		auto result = QByteArray();
-		auto size = sizeof(qint32) + sizeof(qint32) + sizeof(qint32); // userId + mainDcId + keys count
-		size += keysCount * (sizeof(qint32) + MTP::AuthKey::Data().size());
+		auto size = sizeof(qint32) + sizeof(qint32); // userId + mainDcId
+		size += keysSize(keys) + keysSize(keysToDestroy);
 		result.reserve(size);
 		{
 			QBuffer buffer(&result);
@@ -184,27 +198,20 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 			QDataStream stream(&buffer);
 			stream.setVersion(QDataStream::Qt_5_1);
 
-			stream << qint32(AuthSession::CurrentUserId()) << qint32(mainDcId) << qint32(keysCount);
-			writeKeys(stream);
+			stream << qint32(AuthSession::CurrentUserId()) << qint32(mainDcId);
+			writeKeys(stream, keys);
+			writeKeys(stream, keysToDestroy);
 		}
 		return result;
 	};
 	if (_mtproto) {
 		auto keys = _mtproto->getKeysForWrite();
-		return serialize(keys.size(), _mtproto->mainDcId(), [&keys](QDataStream &stream) {
-			for (auto &key : keys) {
-				stream << qint32(key->getDC());
-				key->write(stream);
-			}
-		});
+		auto keysToDestroy = _mtprotoForKeysDestroy ? _mtprotoForKeysDestroy->getKeysForWrite() : MTP::AuthKeysList();
+		return serialize(_mtproto->mainDcId(), keys, keysToDestroy);
 	}
 	auto &keys = _private->mtpConfig.keys;
-	return serialize(keys.size(), _private->mtpConfig.mainDcId, [&keys](QDataStream &stream) {
-		for (auto &key : keys) {
-			stream << qint32(key.first);
-			stream.writeRawData(key.second.data(), key.second.size());
-		}
-	});
+	auto &keysToDestroy = _private->mtpKeysToDestroy;
+	return serialize(_private->mtpConfig.mainDcId, keys, keysToDestroy);
 }
 
 void Messenger::setMtpAuthorization(const QByteArray &serialized) {
@@ -220,8 +227,8 @@ void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 	QDataStream stream(&buffer);
 	stream.setVersion(QDataStream::Qt_5_1);
 
-	qint32 userId = 0, mainDcId = 0, count = 0;
-	stream >> userId >> mainDcId >> count;
+	auto userId = Serialize::read<qint32>(stream);
+	auto mainDcId = Serialize::read<qint32>(stream);
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("MTP Error: could not read main fields from serialized mtp authorization."));
 		return;
@@ -231,22 +238,33 @@ void Messenger::setMtpAuthorization(const QByteArray &serialized) {
 		authSessionCreate(userId);
 	}
 	_private->mtpConfig.mainDcId = mainDcId;
-	for (auto i = 0; i != count; ++i) {
-		qint32 dcId = 0;
-		MTP::AuthKey::Data keyData;
-		stream >> dcId;
-		stream.readRawData(keyData.data(), keyData.size());
+
+	auto readKeys = [&stream](auto &keys) {
+		auto count = Serialize::read<qint32>(stream);
 		if (stream.status() != QDataStream::Ok) {
-			LOG(("MTP Error: could not read key from serialized mtp authorization."));
+			LOG(("MTP Error: could not read keys count from serialized mtp authorization."));
 			return;
 		}
-		_private->mtpConfig.keys.insert(std::make_pair(dcId, keyData));
-	}
+		keys.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			auto dcId = Serialize::read<qint32>(stream);
+			auto keyData = Serialize::read<MTP::AuthKey::Data>(stream);
+			if (stream.status() != QDataStream::Ok) {
+				LOG(("MTP Error: could not read key from serialized mtp authorization."));
+				return;
+			}
+			keys.push_back(std::make_shared<MTP::AuthKey>(MTP::AuthKey::Type::ReadFromFile, dcId, keyData));
+		}
+	};
+	readKeys(_private->mtpConfig.keys);
+	readKeys(_private->mtpKeysToDestroy);
+	LOG(("MTP Info: read keys, current: %1, to destroy: %2").arg(_private->mtpConfig.keys.size()).arg(_private->mtpKeysToDestroy.size()));
 }
 
 void Messenger::startMtp() {
 	t_assert(!_mtproto);
-	_mtproto = std::make_unique<MTP::Instance>(_dcOptions.get(), std::move(_private->mtpConfig));
+	_mtproto = std::make_unique<MTP::Instance>(_dcOptions.get(), MTP::Instance::Mode::Normal, base::take(_private->mtpConfig));
+	_private->mtpConfig.mainDcId = _mtproto->mainDcId();
 
 	_mtproto->setStateChangedHandler([](MTP::ShiftedDcId shiftedDcId, int32 state) {
 		if (App::wnd()) {
@@ -258,6 +276,57 @@ void Messenger::startMtp() {
 			App::main()->getDifference();
 		}
 	});
+
+	if (!_private->mtpKeysToDestroy.empty()) {
+		destroyMtpKeys(base::take(_private->mtpKeysToDestroy));
+	}
+}
+
+void Messenger::destroyMtpKeys(MTP::AuthKeysList &&keys) {
+	if (keys.empty()) {
+		return;
+	}
+	if (_mtprotoForKeysDestroy) {
+		_mtprotoForKeysDestroy->addKeysForDestroy(std::move(keys));
+		Local::writeMtpData();
+		return;
+	}
+	auto destroyConfig = MTP::Instance::Config();
+	destroyConfig.mainDcId = MTP::Instance::Config::kNoneMainDc;
+	destroyConfig.keys = std::move(keys);
+	_mtprotoForKeysDestroy = std::make_unique<MTP::Instance>(_dcOptions.get(), MTP::Instance::Mode::KeysDestroyer, std::move(destroyConfig));
+	connect(_mtprotoForKeysDestroy.get(), SIGNAL(allKeysDestroyed()), this, SLOT(onAllKeysDestroyed()));
+}
+
+void Messenger::onAllKeysDestroyed() {
+	LOG(("MTP Info: all keys scheduled for destroy are destroyed."));
+	_mtprotoForKeysDestroy.reset();
+	Local::writeMtpData();
+}
+
+void Messenger::suggestMainDcId(MTP::DcId mainDcId) {
+	t_assert(_mtproto != nullptr);
+
+	_mtproto->suggestMainDcId(mainDcId);
+	if (_private->mtpConfig.mainDcId != MTP::Instance::Config::kNotSetMainDc) {
+		_private->mtpConfig.mainDcId = mainDcId;
+	}
+}
+
+void Messenger::destroyStaleAuthorizationKeys() {
+	t_assert(_mtproto != nullptr);
+
+	auto keys = _mtproto->getKeysForWrite();
+	for (auto &key : keys) {
+		if (key->type() == MTP::AuthKey::Type::ReadFromFile) {
+			_private->mtpKeysToDestroy = _mtproto->getKeysForWrite();
+			_mtproto.reset();
+			LOG(("MTP Info: destroying stale keys, count: %1").arg(_private->mtpKeysToDestroy.size()));
+			startMtp();
+			Local::writeMtpData();
+			return;
+		}
+	}
 }
 
 void Messenger::loadLanguage() {
@@ -449,7 +518,7 @@ void Messenger::killDownloadSessions() {
 	for (auto i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
 			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
-				MTP::stopSession(MTP::dldDcId(i.key(), j));
+				MTP::stopSession(MTP::downloadDcId(i.key(), j));
 			}
 			i = killDownloadSessionTimes.erase(i);
 		} else {
@@ -593,7 +662,13 @@ void Messenger::checkMapVersion() {
 
 void Messenger::prepareToDestroy() {
 	_window.reset();
+
+	// Some MTP requests can be cancelled from data clearing.
+	App::clearHistories();
+	_delayedDestroyedLoaders.clear();
+
 	_mtproto.reset();
+	_mtprotoForKeysDestroy.reset();
 }
 
 Messenger::~Messenger() {
@@ -601,8 +676,6 @@ Messenger::~Messenger() {
 	SingleInstance = nullptr;
 
 	Shortcuts::finish();
-
-	App::clearHistories();
 
 	Window::Notifications::finish();
 
@@ -627,4 +700,13 @@ Messenger::~Messenger() {
 
 MainWindow *Messenger::mainWindow() {
 	return _window.get();
+}
+
+void Messenger::delayedDestroyLoader(std::unique_ptr<FileLoader> loader) {
+	_delayedDestroyedLoaders.push_back(std::move(loader));
+	_delayedLoadersDestroyer.call();
+}
+
+void Messenger::onDelayedDestroyLoaders() {
+	_delayedDestroyedLoaders.clear();
 }

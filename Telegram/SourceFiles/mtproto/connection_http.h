@@ -45,11 +45,11 @@ public:
 
 	QString transport() const override;
 
+	static mtpBuffer handleResponse(QNetworkReply *reply);
+	static qint32 handleError(QNetworkReply *reply); // returnes error code
+
 public slots:
 	void requestFinished(QNetworkReply *reply);
-
-	static mtpBuffer handleResponse(QNetworkReply *reply);
-	static bool handleError(QNetworkReply *reply); // returnes "maybe bad key"
 
 private:
 	enum Status {

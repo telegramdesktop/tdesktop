@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/widget_fade_wrap.h"
 #include "core/click_handler_types.h"
 #include "boxes/confirmbox.h"
+#include "messenger.h"
 
 namespace Intro {
 
@@ -57,6 +58,8 @@ PhoneWidget::PhoneWidget(QWidget *parent, Widget::Data *data) : Step(parent, dat
 		_country->onChooseCountry(qsl("US"));
 	}
 	_changed = false;
+
+	Messenger::Instance().destroyStaleAuthorizationKeys();
 }
 
 void PhoneWidget::resizeEvent(QResizeEvent *e) {

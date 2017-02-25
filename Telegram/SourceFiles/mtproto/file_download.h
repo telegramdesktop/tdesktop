@@ -220,6 +220,9 @@ protected:
 	mutable QByteArray _imageFormat;
 	mutable QPixmap _imagePixmap;
 
+private:
+	void deleteLater();
+
 };
 
 class StorageImageLocation;

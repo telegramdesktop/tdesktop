@@ -42,16 +42,13 @@ mtpBuffer HTTPConnection::handleResponse(QNetworkReply *reply) {
 	return data;
 }
 
-bool HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad key"
-	bool mayBeBadKey = false;
+qint32 HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad key"
+	auto result = qint32(kErrorCodeOther);
 
 	QVariant statusCode = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute);
 	if (statusCode.isValid()) {
 		int status = statusCode.toInt();
-		mayBeBadKey = (status == 410);
-		if (status == 429) {
-			LOG(("Protocol Error: 429 flood code returned!"));
-		}
+		result = -status;
 	}
 
 	switch (reply->error()) {
@@ -66,7 +63,7 @@ bool HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad 
 	case QNetworkReply::BackgroundRequestNotAllowedError:
 	case QNetworkReply::UnknownNetworkError: LOG(("HTTP Error: network error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
 
-		// proxy errors (101-199):
+	// proxy errors (101-199):
 	case QNetworkReply::ProxyConnectionRefusedError:
 	case QNetworkReply::ProxyConnectionClosedError:
 	case QNetworkReply::ProxyNotFoundError:
@@ -74,7 +71,7 @@ bool HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad 
 	case QNetworkReply::ProxyAuthenticationRequiredError:
 	case QNetworkReply::UnknownProxyError:LOG(("HTTP Error: proxy error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
 
-		// content errors (201-299):
+	// content errors (201-299):
 	case QNetworkReply::ContentAccessDenied:
 	case QNetworkReply::ContentOperationNotPermittedError:
 	case QNetworkReply::ContentNotFoundError:
@@ -82,14 +79,14 @@ bool HTTPConnection::handleError(QNetworkReply *reply) { // returnes "maybe bad 
 	case QNetworkReply::ContentReSendError:
 	case QNetworkReply::UnknownContentError: LOG(("HTTP Error: content error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
 
-		// protocol errors
+	// protocol errors
 	case QNetworkReply::ProtocolUnknownError:
 	case QNetworkReply::ProtocolInvalidOperationError:
 	case QNetworkReply::ProtocolFailure: LOG(("HTTP Error: protocol error %1 - %2").arg(reply->error()).arg(reply->errorString())); break;
 	};
 	TCP_LOG(("HTTP Error %1, restarting! - %2").arg(reply->error()).arg(reply->errorString()));
 
-	return mayBeBadKey;
+	return result;
 }
 
 HTTPConnection::HTTPConnection(QThread *thread) : AbstractConnection(thread)
@@ -106,7 +103,7 @@ void HTTPConnection::sendData(mtpBuffer &buffer) {
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
-		emit error();
+		emit error(kErrorCodeOther);
 		return;
 	}
 
@@ -165,7 +162,7 @@ void HTTPConnection::requestFinished(QNetworkReply *reply) {
 
 		mtpBuffer data = handleResponse(reply);
 		if (data.size() == 1) {
-			emit error();
+			emit error(data[0]);
 		} else if (!data.isEmpty()) {
 			if (status == UsingHttp) {
 				receivedQueue.push_back(data);
@@ -181,7 +178,7 @@ void HTTPConnection::requestFinished(QNetworkReply *reply) {
 					}
 				} catch (Exception &e) {
 					DEBUG_LOG(("Connection Error: exception in parsing HTTP fake pq-responce, %1").arg(e.what()));
-					emit error();
+					emit error(kErrorCodeOther);
 				}
 			}
 		}
@@ -190,9 +187,7 @@ void HTTPConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		bool mayBeBadKey = handleError(reply) && _sentEncrypted;
-
-		emit error(mayBeBadKey);
+		emit error(handleError(reply));
 	}
 }
 

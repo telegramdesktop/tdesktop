@@ -282,10 +282,6 @@ inline StorageKey storageKey(const StorageImageLocation &location) {
 
 class RemoteImage : public Image {
 public:
-
-	RemoteImage() : _loader(0) {
-	}
-
 	void automaticLoad(const HistoryItem *item); // auto load photo
 	void automaticLoadSettingsChanged();
 
@@ -320,11 +316,13 @@ protected:
 	void loadLocal();
 
 private:
-	mutable FileLoader *_loader;
+	mutable FileLoader *_loader = nullptr;
 	bool amLoading() const {
 		return _loader && _loader != CancelledFileLoader;
 	}
 	void doCheckload() const;
+
+	void destroyLoaderDelayed(FileLoader *newValue = nullptr) const;
 
 };
 

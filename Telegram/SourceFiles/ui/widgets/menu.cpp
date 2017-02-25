@@ -233,7 +233,7 @@ void Menu::itemPressed(TriggeredSource source) {
 }
 
 void Menu::itemReleased(TriggeredSource source) {
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0 && pressed < _actions.size()) {
 		if (source == TriggeredSource::Mouse && _actionsData[pressed].ripple) {
 			_actionsData[pressed].ripple->lastStop();

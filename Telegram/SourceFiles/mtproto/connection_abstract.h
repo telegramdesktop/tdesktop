@@ -65,18 +65,19 @@ public:
 		return receivedQueue;
 	}
 
-signals:
+	// Used to emit error(...) with no real code from the server.
+	static constexpr auto kErrorCodeOther = -499;
 
+signals:
 	void receivedData();
 	void receivedSome(); // to stop restart timer
 
-	void error(bool mayBeBadKey = false);
+	void error(qint32 errorCodebool);
 
 	void connected();
 	void disconnected();
 
 protected:
-
 	BuffersQueue receivedQueue; // list of received packets, not processed yet
 	bool _sentEncrypted;
 

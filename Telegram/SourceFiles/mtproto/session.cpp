@@ -70,33 +70,30 @@ void SessionData::clear(Instance *instance) {
 	instance->clearCallbacksDelayed(clearCallbacks);
 }
 
-
-Session::Session(Instance *instance, ShiftedDcId requestedShiftedDcId) : QObject()
+Session::Session(Instance *instance, ShiftedDcId shiftedDcId) : QObject()
 , _instance(instance)
-, data(this) {
+, data(this)
+, dcWithShift(shiftedDcId) {
 	connect(&timeouter, SIGNAL(timeout()), this, SLOT(checkRequestsByTimer()));
 	timeouter.start(1000);
 
 	connect(&sender, SIGNAL(timeout()), this, SLOT(needToResumeAndSend()));
+}
 
-	_connection = std::make_unique<Connection>(_instance);
-	dcWithShift = _connection->prepare(&data, requestedShiftedDcId);
-	if (!dcWithShift) {
-		_connection.reset();
-		DEBUG_LOG(("Session Info: could not start connection to dc %1").arg(requestedShiftedDcId));
-		return;
-	}
+void Session::start() {
 	createDcData();
-	_connection->start();
+	_connection = std::make_unique<Connection>(_instance);
+	_connection->start(&data, dcWithShift);
+	if (_instance->isKeysDestroyer()) {
+		_instance->scheduleKeyDestroy(dcWithShift);
+	}
 }
 
 void Session::createDcData() {
 	if (dc) {
 		return;
 	}
-	auto dcId = bareDcId(dcWithShift);
-
-	dc = _instance->getDcById(dcId);
+	dc = _instance->getDcById(dcWithShift);
 
 	ReadLockerAttempt lock(keyMutex());
 	data.setKey(lock ? dc->getKey() : AuthKeyPtr());
@@ -193,15 +190,9 @@ void Session::needToResumeAndSend() {
 	}
 	if (!_connection) {
 		DEBUG_LOG(("Session Info: resuming session dcWithShift %1").arg(dcWithShift));
-		_connection = std::make_unique<Connection>(_instance);
-		if (!_connection->prepare(&data, dcWithShift)) {
-			_connection.reset();
-			DEBUG_LOG(("Session Info: could not start connection to dcWithShift %1").arg(dcWithShift));
-			dcWithShift = 0;
-			return;
-		}
 		createDcData();
-		_connection->start();
+		_connection = std::make_unique<Connection>(_instance);
+		_connection->start(&data, dcWithShift);
 	}
 	if (_ping) {
 		_ping = false;

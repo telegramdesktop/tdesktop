@@ -39,9 +39,13 @@ public:
 		static constexpr auto kDefaultMainDc = 2;
 
 		DcId mainDcId = kNotSetMainDc;
-		std::map<DcId, AuthKey::Data> keys;
+		AuthKeysList keys;
 	};
-	Instance(DcOptions *options, Config &&config);
+	enum class Mode {
+		Normal,
+		KeysDestroyer,
+	};
+	Instance(DcOptions *options, Mode mode, Config &&config);
 
 	Instance(const Instance &other) = delete;
 	Instance &operator=(const Instance &other) = delete;
@@ -50,8 +54,9 @@ public:
 	void setMainDcId(DcId mainDcId);
 	DcId mainDcId() const;
 
-	void Instance::setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
-	AuthKeysMap Instance::getKeysForWrite() const;
+	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
+	AuthKeysList getKeysForWrite() const;
+	void addKeysForDestroy(AuthKeysList &&keys);
 
 	DcOptions *dcOptions();
 
@@ -85,7 +90,7 @@ public:
 	void stopSession(ShiftedDcId shiftedDcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
-	internal::DcenterPtr getDcById(DcId dcId);
+	internal::DcenterPtr getDcById(ShiftedDcId shiftedDcId);
 	void unpaused();
 
 	void queueQuittingConnection(std::unique_ptr<internal::Connection> connection);
@@ -111,6 +116,9 @@ public:
 	// return true if need to clean request data
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
+	bool isKeysDestroyer() const;
+	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
+
 	~Instance();
 
 public slots:
@@ -119,6 +127,12 @@ public slots:
 
 signals:
 	void configLoaded();
+	void keyDestroyed(qint32 shiftedDcId);
+	void allKeysDestroyed();
+
+private slots:
+	void onKeyDestroyed(qint32 shiftedDcId);
+	void onClearKilledSessions();
 
 private:
 	internal::Session *getSession(ShiftedDcId shiftedDcId);

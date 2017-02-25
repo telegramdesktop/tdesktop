@@ -31,7 +31,7 @@ namespace MTP {
 
 class Instance::Private {
 public:
-	Private(Instance *instance, DcOptions *options);
+	Private(Instance *instance, DcOptions *options, Instance::Mode mode);
 
 	void start(Config &&config);
 
@@ -40,7 +40,8 @@ public:
 	DcId mainDcId() const;
 
 	void setKeyForWrite(DcId dcId, const AuthKeyPtr &key);
-	AuthKeysMap getKeysForWrite() const;
+	AuthKeysList getKeysForWrite() const;
+	void addKeysForDestroy(AuthKeysList &&keys);
 
 	DcOptions *dcOptions();
 
@@ -54,10 +55,11 @@ public:
 	void cancel(mtpRequestId requestId);
 	int32 state(mtpRequestId requestId); // < 0 means waiting for such count of ms
 	void killSession(ShiftedDcId shiftedDcId);
+	void killSession(std::unique_ptr<internal::Session> session);
 	void stopSession(ShiftedDcId shiftedDcId);
 	void logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail);
 
-	internal::DcenterPtr getDcById(DcId dcId);
+	internal::DcenterPtr getDcById(ShiftedDcId shiftedDcId);
 	void unpaused();
 
 	void queueQuittingConnection(std::unique_ptr<internal::Connection> connection);
@@ -91,6 +93,16 @@ public:
 
 	internal::Session *getSession(ShiftedDcId shiftedDcId);
 
+	bool isKeysDestroyer() const {
+		return (_mode == Instance::Mode::KeysDestroyer);
+	}
+
+	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
+	void performKeyDestroy(ShiftedDcId shiftedDcId);
+	void completedKeyDestroy(ShiftedDcId shiftedDcId);
+
+	void clearKilledSessions();
+
 	~Private();
 
 private:
@@ -109,8 +121,8 @@ private:
 	void checkDelayedRequests();
 
 	Instance *_instance = nullptr;
-
 	DcOptions *_dcOptions = nullptr;
+	Instance::Mode _mode = Instance::Mode::Normal;
 
 	DcId _mainDcId = Config::kDefaultMainDc;
 	bool _mainDcIdForced = false;
@@ -118,6 +130,7 @@ private:
 
 	internal::Session *_mainSession = nullptr;
 	std::map<ShiftedDcId, std::unique_ptr<internal::Session>> _sessions;
+	std::vector<std::unique_ptr<internal::Session>> _killedSessions; // delayed delete
 
 	base::set_of_unique_ptr<internal::Connection> _quittingConnections;
 
@@ -160,41 +173,64 @@ private:
 
 };
 
-Instance::Private::Private(Instance *instance, DcOptions *options) : _instance(instance)
-, _dcOptions(options) {
+Instance::Private::Private(Instance *instance, DcOptions *options, Instance::Mode mode) : _instance(instance)
+, _dcOptions(options)
+, _mode(mode) {
 }
 
 void Instance::Private::start(Config &&config) {
-	unixtimeInit();
+	if (isKeysDestroyer()) {
+		_instance->connect(_instance, SIGNAL(keyDestroyed(qint32)), _instance, SLOT(onKeyDestroyed(qint32)), Qt::QueuedConnection);
+	} else {
+		unixtimeInit();
+	}
 
-	for (auto &keyData : config.keys) {
-		auto dcId = keyData.first;
-		auto key = std::make_shared<AuthKey>();
-		key->setDC(dcId);
-		key->setKey(keyData.second);
+	for (auto &key : config.keys) {
+		auto dcId = key->dcId();
 
-		_keysForWrite[dcId] = key;
+		auto shiftedDcId = dcId;
+		if (isKeysDestroyer()) {
+			shiftedDcId = MTP::destroyKeyNextDcId(shiftedDcId);
+
+			// There could be several keys for one dc if we're destroying them.
+			// Place them all in separate shiftedDcId so that they won't conflict.
+			while (_keysForWrite.find(shiftedDcId) != _keysForWrite.cend()) {
+				shiftedDcId = MTP::destroyKeyNextDcId(shiftedDcId);
+			}
+		}
+		_keysForWrite[shiftedDcId] = key;
 
 		auto dc = std::make_shared<internal::Dcenter>(_instance, dcId, std::move(key));
-		_dcenters.emplace(dcId, std::move(dc));
+		_dcenters.emplace(shiftedDcId, std::move(dc));
 	}
 
 	if (config.mainDcId != Config::kNotSetMainDc) {
 		_mainDcId = config.mainDcId;
 		_mainDcIdForced = true;
 	}
-	if (_mainDcId != Config::kNoneMainDc) {
+
+	if (isKeysDestroyer()) {
+		for (auto &dc : _dcenters) {
+			auto shiftedDcId = dc.first;
+			auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
+			auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
+			it->second->start();
+		}
+	} else if (_mainDcId != Config::kNoneMainDc) {
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
-		auto newMainDcId = main->getDcWithShift();
-		_sessions.emplace(newMainDcId, std::move(main));
+		_sessions.emplace(_mainDcId, std::move(main));
+		_mainSession->start();
 	}
 
 	_checkDelayedTimer.setTimeoutHandler([this] {
 		checkDelayedRequests();
 	});
 
-	configLoadRequest();
+	t_assert((_mainDcId == Config::kNoneMainDc) == isKeysDestroyer());
+	if (!isKeysDestroyer()) {
+		configLoadRequest();
+	}
 }
 
 void Instance::Private::suggestMainDcId(DcId mainDcId) {
@@ -335,27 +371,29 @@ int32 Instance::Private::state(mtpRequestId requestId) { // < 0 means waiting fo
 }
 
 void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
-	auto it = _sessions.find(shiftedDcId);
-	if (it != _sessions.cend()) {
-		bool wasMain = (it->second.get() == _mainSession);
-
-		it->second->kill();
-		it->second.release()->deleteLater();
-		_sessions.erase(it);
-
-		if (wasMain) {
-			auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
-			_mainSession = main.get();
-			auto newMainDcId = main->getDcWithShift();
-			it = _sessions.find(newMainDcId);
-			if (it != _sessions.cend()) {
-				it->second->kill();
-				it->second.release()->deleteLater();
-				_sessions.erase(it);
-			}
-			_sessions.insert(std::make_pair(newMainDcId, std::move(main)));
+	auto checkIfMainAndKill = [this](ShiftedDcId shiftedDcId) {
+		auto it = _sessions.find(shiftedDcId);
+		if (it != _sessions.cend()) {
+			_killedSessions.push_back(std::move(it->second));
+			_sessions.erase(it);
+			_killedSessions.back()->kill();
+			return (_killedSessions.back().get() == _mainSession);
 		}
+		return false;
+	};
+	if (checkIfMainAndKill(shiftedDcId)) {
+		checkIfMainAndKill(_mainDcId);
+
+		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
+		_mainSession = main.get();
+		_sessions.emplace(_mainDcId, std::move(main));
+		_mainSession->start();
 	}
+	QMetaObject::invokeMethod(_instance, "onClearKilledSessions", Qt::QueuedConnection);
+}
+
+void Instance::Private::clearKilledSessions() {
+	_killedSessions.clear();
 }
 
 void Instance::Private::stopSession(ShiftedDcId shiftedDcId) {
@@ -380,13 +418,13 @@ void Instance::Private::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFai
 	}
 	for (auto dcId : dcIds) {
 		if (dcId != mainDcId()) {
-			auto shiftedDcId = MTP::lgtDcId(dcId);
+			auto shiftedDcId = MTP::logoutDcId(dcId);
 			auto requestId = _instance->send(MTPauth_LogOut(), rpcDone([this](mtpRequestId requestId) {
 				logoutGuestDone(requestId);
 			}), rpcFail([this](mtpRequestId requestId) {
 				return logoutGuestDone(requestId);
 			}), shiftedDcId);
-			_logoutGuestRequestIds.insert(std::make_pair(shiftedDcId, requestId));
+			_logoutGuestRequestIds.emplace(shiftedDcId, requestId);
 		}
 	}
 }
@@ -402,12 +440,15 @@ bool Instance::Private::logoutGuestDone(mtpRequestId requestId) {
 	return false;
 }
 
-internal::DcenterPtr Instance::Private::getDcById(DcId dcId) {
-	auto it = _dcenters.find(dcId);
+internal::DcenterPtr Instance::Private::getDcById(ShiftedDcId shiftedDcId) {
+	auto it = _dcenters.find(shiftedDcId);
 	if (it == _dcenters.cend()) {
-		auto result = std::make_shared<internal::Dcenter>(_instance, dcId, AuthKeyPtr());
-		auto insert = std::make_pair(dcId, std::move(result));
-		it = _dcenters.insert(std::move(insert)).first;
+		auto dcId = bareDcId(shiftedDcId);
+		it = _dcenters.find(dcId);
+		if (it == _dcenters.cend()) {
+			auto result = std::make_shared<internal::Dcenter>(_instance, dcId, AuthKeyPtr());
+			it = _dcenters.emplace(dcId, std::move(result)).first;
+		}
 	}
 	return it->second;
 }
@@ -421,13 +462,41 @@ void Instance::Private::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
 	}
 }
 
-AuthKeysMap Instance::Private::getKeysForWrite() const {
-	auto result = AuthKeysMap();
+AuthKeysList Instance::Private::getKeysForWrite() const {
+	auto result = AuthKeysList();
+
 	QReadLocker lock(&_keysForWriteLock);
+	result.reserve(_keysForWrite.size());
 	for (auto &key : _keysForWrite) {
 		result.push_back(key.second);
 	}
 	return result;
+}
+
+void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
+	t_assert(isKeysDestroyer());
+
+	for (auto &key : keys) {
+		auto dcId = key->dcId();
+		auto shiftedDcId = MTP::destroyKeyNextDcId(dcId);
+
+		{
+			QWriteLocker lock(&_keysForWriteLock);
+			// There could be several keys for one dc if we're destroying them.
+			// Place them all in separate shiftedDcId so that they won't conflict.
+			while (_keysForWrite.find(shiftedDcId) != _keysForWrite.cend()) {
+				shiftedDcId = MTP::destroyKeyNextDcId(shiftedDcId);
+			}
+			_keysForWrite[shiftedDcId] = key;
+		}
+
+		auto dc = std::make_shared<internal::Dcenter>(_instance, dcId, std::move(key));
+		_dcenters.emplace(shiftedDcId, std::move(dc));
+
+		auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
+		auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
+		it->second->start();
+	}
 }
 
 DcOptions *Instance::Private::dcOptions() {
@@ -1046,8 +1115,55 @@ internal::Session *Instance::Private::getSession(ShiftedDcId shiftedDcId) {
 	auto it = _sessions.find(shiftedDcId);
 	if (it == _sessions.cend()) {
 		it = _sessions.emplace(shiftedDcId, std::make_unique<internal::Session>(_instance, shiftedDcId)).first;
+		it->second->start();
 	}
 	return it->second.get();
+}
+
+void Instance::Private::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
+	t_assert(isKeysDestroyer());
+
+	_instance->send(MTPauth_LogOut(), rpcDone([this, shiftedDcId](const MTPBool &result) {
+		performKeyDestroy(shiftedDcId);
+	}), rpcFail([this, shiftedDcId](const RPCError &error) {
+		if (isDefaultHandledError(error)) return false;
+		performKeyDestroy(shiftedDcId);
+		return true;
+	}), shiftedDcId);
+}
+
+void Instance::Private::performKeyDestroy(ShiftedDcId shiftedDcId) {
+	t_assert(isKeysDestroyer());
+
+	_instance->send(MTPDestroy_auth_key(), rpcDone([this, shiftedDcId](const MTPDestroyAuthKeyRes &result) {
+		switch (result.type()) {
+		case mtpc_destroy_auth_key_ok: LOG(("MTP Info: key %1 destroyed.").arg(shiftedDcId)); break;
+		case mtpc_destroy_auth_key_fail: {
+			LOG(("MTP Error: key %1 destruction fail, leave it for now.").arg(shiftedDcId));
+			killSession(shiftedDcId);
+		} break;
+		case mtpc_destroy_auth_key_none: LOG(("MTP Info: key %1 already destroyed.").arg(shiftedDcId)); break;
+		}
+		emit _instance->keyDestroyed(shiftedDcId);
+	}), rpcFail([this, shiftedDcId](const RPCError &error) {
+		LOG(("MTP Error: key %1 destruction resulted in error: %2").arg(shiftedDcId).arg(error.type()));
+		emit _instance->keyDestroyed(shiftedDcId);
+		return true;
+	}), shiftedDcId);
+}
+
+void Instance::Private::completedKeyDestroy(ShiftedDcId shiftedDcId) {
+	t_assert(isKeysDestroyer());
+
+	_dcenters.erase(shiftedDcId);
+	{
+		QWriteLocker lock(&_keysForWriteLock);
+		_keysForWrite.erase(shiftedDcId);
+	}
+	killSession(shiftedDcId);
+	if (_dcenters.empty()) {
+		emit _instance->allKeysDestroyed();
+	}
 }
 
 void Instance::Private::setUpdatesHandler(RPCDoneHandlerPtr onDone) {
@@ -1077,10 +1193,13 @@ Instance::Private::~Private() {
 	for (auto &session : base::take(_sessions)) {
 		session.second->kill();
 	}
+
+	// It accesses Instance in destructor, so it should be destroyed first.
+	_configLoader.reset();
 }
 
-Instance::Instance(DcOptions *options, Config &&config) : QObject()
-, _private(std::make_unique<Private>(this, options)) {
+Instance::Instance(DcOptions *options, Mode mode, Config &&config) : QObject()
+, _private(std::make_unique<Private>(this, options, mode)) {
 	_private->start(std::move(config));
 }
 
@@ -1144,16 +1263,20 @@ void Instance::logout(RPCDoneHandlerPtr onDone, RPCFailHandlerPtr onFail) {
 	_private->logout(onDone, onFail);
 }
 
-internal::DcenterPtr Instance::getDcById(DcId dcId) {
-	return _private->getDcById(dcId);
+internal::DcenterPtr Instance::getDcById(ShiftedDcId shiftedDcId) {
+	return _private->getDcById(shiftedDcId);
 }
 
 void Instance::setKeyForWrite(DcId dcId, const AuthKeyPtr &key) {
 	_private->setKeyForWrite(dcId, key);
 }
 
-AuthKeysMap Instance::getKeysForWrite() const {
+AuthKeysList Instance::getKeysForWrite() const {
 	return _private->getKeysForWrite();
+}
+
+void Instance::addKeysForDestroy(AuthKeysList &&keys) {
+	_private->addKeysForDestroy(std::move(keys));
 }
 
 DcOptions *Instance::dcOptions() {
@@ -1230,6 +1353,22 @@ bool Instance::rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &
 
 internal::Session *Instance::getSession(ShiftedDcId shiftedDcId) {
 	return _private->getSession(shiftedDcId);
+}
+
+bool Instance::isKeysDestroyer() const {
+	return _private->isKeysDestroyer();
+}
+
+void Instance::scheduleKeyDestroy(ShiftedDcId shiftedDcId) {
+	_private->scheduleKeyDestroy(shiftedDcId);
+}
+
+void Instance::onKeyDestroyed(qint32 shiftedDcId) {
+	_private->completedKeyDestroy(shiftedDcId);
+}
+
+void Instance::onClearKilledSessions() {
+	_private->clearKilledSessions();
 }
 
 Instance::~Instance() = default;

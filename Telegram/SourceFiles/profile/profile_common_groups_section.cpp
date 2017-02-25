@@ -306,7 +306,7 @@ void InnerWidget::mouseMoveEvent(QMouseEvent *e) {
 
 void InnerWidget::mouseReleaseEvent(QMouseEvent *e) {
 	updateRow(_pressed);
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0 && pressed < _items.size()) {
 		if (auto &ripple = _items[pressed]->ripple) {
 			ripple->lastStop();

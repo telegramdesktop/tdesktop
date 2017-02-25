@@ -52,9 +52,8 @@ void Dcenter::setKey(AuthKeyPtr &&key) {
 	DEBUG_LOG(("AuthKey Info: MTProtoDC::setKey(%1), emitting authKeyCreated, dc %2").arg(key ? key->keyId() : 0).arg(_id));
 	_key = std::move(key);
 	_connectionInited = false;
-	emit authKeyCreated();
-
 	_instance->setKeyForWrite(_id, _key);
+	emit authKeyCreated();
 }
 
 QReadWriteLock *Dcenter::keyMutex() const {
@@ -76,9 +75,15 @@ ConfigLoader::ConfigLoader(Instance *instance, RPCDoneHandlerPtr onDone, RPCFail
 }
 
 void ConfigLoader::load() {
-	sendRequest(_instance->mainDcId());
-
-	_enumDCTimer.start(kEnumerateDcTimeout);
+	if (!_instance->isKeysDestroyer()) {
+		sendRequest(_instance->mainDcId());
+		_enumDCTimer.start(kEnumerateDcTimeout);
+	} else {
+		auto ids = _instance->dcOptions()->sortedDcIds();
+		t_assert(!ids.empty());
+		_enumCurrent = ids.front();
+		enumDC();
+	}
 }
 
 mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
@@ -86,12 +91,11 @@ mtpRequestId ConfigLoader::sendRequest(ShiftedDcId shiftedDcId) {
 }
 
 ConfigLoader::~ConfigLoader() {
-	_enumDCTimer.stop();
 	if (_enumRequest) {
 		_instance->cancel(_enumRequest);
 	}
 	if (_enumCurrent) {
-		_instance->killSession(MTP::cfgDcId(_enumCurrent));
+		_instance->killSession(MTP::configDcId(_enumCurrent));
 	}
 }
 
@@ -103,7 +107,7 @@ void ConfigLoader::enumDC() {
 	if (!_enumCurrent) {
 		_enumCurrent = _instance->mainDcId();
 	} else {
-		_instance->killSession(MTP::cfgDcId(_enumCurrent));
+		_instance->killSession(MTP::configDcId(_enumCurrent));
 	}
 	auto ids = _instance->dcOptions()->sortedDcIds();
 	t_assert(!ids.empty());
@@ -114,7 +118,7 @@ void ConfigLoader::enumDC() {
 	} else {
 		_enumCurrent = *i;
 	}
-	_enumRequest = sendRequest(MTP::cfgDcId(_enumCurrent));
+	_enumRequest = sendRequest(MTP::configDcId(_enumCurrent));
 
 	_enumDCTimer.start(kEnumerateDcTimeout);
 }

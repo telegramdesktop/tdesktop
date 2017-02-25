@@ -343,9 +343,10 @@ mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, L
 : FileLoader(QString(), size, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
 , _dc(location->dc())
 , _location(location) {
-	LoaderQueues::iterator i = queues.find(MTP::dldDcId(_dc, 0));
+	auto shiftedDcId = MTP::downloadDcId(_dc, 0);
+	auto i = queues.find(shiftedDcId);
 	if (i == queues.cend()) {
-		i = queues.insert(MTP::dldDcId(_dc, 0), FileLoaderQueue(MaxFileQueries));
+		i = queues.insert(shiftedDcId, FileLoaderQueue(MaxFileQueries));
 	}
 	_queue = &i.value();
 }
@@ -356,9 +357,10 @@ mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, i
 , _id(id)
 , _access(access)
 , _version(version) {
-	LoaderQueues::iterator i = queues.find(MTP::dldDcId(_dc, 0));
+	auto shiftedDcId = MTP::downloadDcId(_dc, 0);
+	auto i = queues.find(shiftedDcId);
 	if (i == queues.cend()) {
-		i = queues.insert(MTP::dldDcId(_dc, 0), FileLoaderQueue(MaxFileQueries));
+		i = queues.insert(shiftedDcId, FileLoaderQueue(MaxFileQueries));
 	}
 	_queue = &i.value();
 }
@@ -420,7 +422,7 @@ bool mtpFileLoader::loadPart() {
 
 	App::app()->killDownloadSessionsStop(_dc);
 
-	mtpRequestId reqId = MTP::send(MTPupload_GetFile(loc, MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::dldDcId(_dc, dcIndex), 50);
+	mtpRequestId reqId = MTP::send(MTPupload_GetFile(loc, MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::downloadDcId(_dc, dcIndex), 50);
 
 	++_queue->queries;
 	dr.v[dcIndex] += limit;

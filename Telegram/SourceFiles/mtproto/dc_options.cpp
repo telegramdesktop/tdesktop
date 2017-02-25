@@ -31,7 +31,7 @@ void DcOptions::constructFromBuiltIn() {
 	for (auto i = 0, l = builtInDcsCount(); i != l; ++i) {
 		auto flags = MTPDdcOption::Flags(0);
 		auto idWithShift = MTP::shiftDcId(bdcs[i].id, flags);
-		_data.insert(std::make_pair(idWithShift, Option(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port)));
+		_data.emplace(idWithShift, Option(bdcs[i].id, flags, bdcs[i].ip, bdcs[i].port));
 		DEBUG_LOG(("MTP Info: adding built in DC %1 connect option: %2:%3").arg(bdcs[i].id).arg(bdcs[i].ip).arg(bdcs[i].port));
 	}
 
@@ -39,7 +39,7 @@ void DcOptions::constructFromBuiltIn() {
 	for (auto i = 0, l = builtInDcsCountIPv6(); i != l; ++i) {
 		auto flags = MTPDdcOption::Flags(MTPDdcOption::Flag::f_ipv6);
 		auto idWithShift = MTP::shiftDcId(bdcsipv6[i].id, flags);
-		_data.insert(std::make_pair(idWithShift, Option(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port)));
+		_data.emplace(idWithShift, Option(bdcsipv6[i].id, flags, bdcsipv6[i].ip, bdcsipv6[i].port));
 		DEBUG_LOG(("MTP Info: adding built in DC %1 IPv6 connect option: %2:%3").arg(bdcsipv6[i].id).arg(bdcsipv6[i].ip).arg(bdcsipv6[i].port));
 	}
 }
@@ -157,7 +157,7 @@ bool DcOptions::applyOneGuarded(DcId dcId, MTPDdcOption::Flags flags, const std:
 		i->second.ip = ip;
 		i->second.port = port;
 	} else {
-		_data.insert(std::make_pair(dcIdWithShift, Option(dcId, flags, ip, port)));
+		_data.emplace(dcIdWithShift, Option(dcId, flags, ip, port));
 	}
 	return true;
 }

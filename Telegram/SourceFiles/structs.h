@@ -1256,6 +1256,8 @@ private:
 
 	void notifyLayoutChanged() const;
 
+	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
+
 };
 
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit);

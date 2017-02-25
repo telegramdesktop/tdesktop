@@ -278,8 +278,9 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
-	Session(Instance *instance, ShiftedDcId requestedShiftedDcId);
+	Session(Instance *instance, ShiftedDcId shiftedDcId);
 
+	void start();
 	void restart();
 	void stop();
 	void kill();

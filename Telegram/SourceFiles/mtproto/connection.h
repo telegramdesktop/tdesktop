@@ -60,8 +60,7 @@ public:
 
 	Connection(Instance *instance);
 
-	int32 prepare(SessionData *data, int32 dc = 0); // return dc
-	void start();
+	void start(SessionData *data, ShiftedDcId shiftedDcId);
 
 	void kill();
 	void waitTillFinish();
@@ -83,12 +82,12 @@ class ConnectionPrivate : public QObject {
 	Q_OBJECT
 
 public:
-	ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, uint32 dc);
+	ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, ShiftedDcId shiftedDcId);
 	~ConnectionPrivate();
 
 	void stop();
 
-	int32 getDC() const;
+	int32 getShiftedDcId() const;
 
 	int32 getState() const;
 	QString transport() const;
@@ -113,7 +112,6 @@ signals:
 public slots:
 	void retryByTimer();
 	void restartNow();
-	void restart(bool mayBeBadKey = false);
 
 	void onPingSender();
 	void onPingSendForce();
@@ -133,8 +131,8 @@ public slots:
 	void onConnected6();
 	void onDisconnected4();
 	void onDisconnected6();
-	void onError4(bool mayBeBadKey = false);
-	void onError6(bool mayBeBadKey = false);
+	void onError4(qint32 errorCode);
+	void onError6(qint32 errorCode);
 
 	void doFinish();
 
@@ -155,6 +153,7 @@ public slots:
 
 private:
 	void doDisconnect();
+	void restart();
 
 	void createConn(bool createIPv4, bool createIPv6);
 	void destroyConn(AbstractConnection **conn = 0); // 0 - destory all
@@ -188,7 +187,7 @@ private:
 	bool _needSessionReset = false;
 	void resetSession();
 
-	ShiftedDcId dc = 0;
+	ShiftedDcId _shiftedDcId = 0;
 	Connection *_owner = nullptr;
 	AbstractConnection *_conn = nullptr;
 	AbstractConnection *_conn4 = nullptr;

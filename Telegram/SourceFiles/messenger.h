@@ -65,6 +65,8 @@ public:
 	MTP::Instance *mtp() {
 		return _mtproto.get();
 	}
+	void suggestMainDcId(MTP::DcId mainDcId);
+	void destroyStaleAuthorizationKeys();
 
 	AuthSession *authSession() {
 		return _authSession.get();
@@ -96,11 +98,17 @@ public:
 	void handleAppActivated();
 	void handleAppDeactivated();
 
+	// Temporary here, when all Images and Documents are owned by AuthSession it'll have this.
+	void delayedDestroyLoader(std::unique_ptr<FileLoader> loader);
+
 signals:
 	void peerPhotoDone(PeerId peer);
 	void peerPhotoFail(PeerId peer);
 
 public slots:
+	void onAllKeysDestroyed();
+	void onDelayedDestroyLoaders();
+
 	void photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file);
 
 	void onSwitchDebugMode();
@@ -117,6 +125,7 @@ public slots:
 	void call_handleObservables();
 
 private:
+	void destroyMtpKeys(MTP::AuthKeysList &&keys);
 	void startLocalStorage();
 	void loadLanguage();
 
@@ -135,6 +144,10 @@ private:
 
 	std::unique_ptr<MTP::DcOptions> _dcOptions;
 	std::unique_ptr<MTP::Instance> _mtproto;
+	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;
 	std::unique_ptr<AuthSession> _authSession;
+
+	SingleDelayedCall _delayedLoadersDestroyer;
+	std::vector<std::unique_ptr<FileLoader>> _delayedDestroyedLoaders;
 
 };

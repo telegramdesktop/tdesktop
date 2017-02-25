@@ -922,7 +922,7 @@ float64 StickersBox::Inner::aboveShadowOpacity() const {
 }
 
 void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 
 	if (_section != Section::Installed && _selected < 0 && pressed >= 0) {
 		setCursor(style::cur_default);
