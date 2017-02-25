@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # set colors
 RCol='\e[0m'    # Text Reset
 
