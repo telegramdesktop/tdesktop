@@ -102,8 +102,7 @@ public:
 	void completedKeyDestroy(ShiftedDcId shiftedDcId);
 
 	void clearKilledSessions();
-
-	~Private();
+	void prepareToDestroy();
 
 private:
 	bool hasAuthorization();
@@ -1189,7 +1188,7 @@ void Instance::Private::clearGlobalHandlers() {
 	setSessionResetHandler(base::lambda<void(ShiftedDcId)>());
 }
 
-Instance::Private::~Private() {
+void Instance::Private::prepareToDestroy() {
 	for (auto &session : base::take(_sessions)) {
 		session.second->kill();
 	}
@@ -1371,6 +1370,8 @@ void Instance::onClearKilledSessions() {
 	_private->clearKilledSessions();
 }
 
-Instance::~Instance() = default;
+Instance::~Instance() {
+	_private->prepareToDestroy();
+}
 
 } // namespace MTP
