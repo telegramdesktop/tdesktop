@@ -111,7 +111,7 @@ private:
 
 	Type _type = Type::Generated;
 	DcId _dcId = 0;
-	Data _key = { 0 };
+	Data _key = { { 0 } };
 	KeyId _keyId = 0;
 
 };

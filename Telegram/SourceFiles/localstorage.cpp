@@ -146,7 +146,7 @@ auto PassKey = MTP::AuthKeyPtr();
 auto LocalKey = MTP::AuthKeyPtr();
 
 void createLocalKey(const QByteArray &pass, QByteArray *salt, MTP::AuthKeyPtr *result) {
-	auto key = MTP::AuthKey::Data { 0 };
+	auto key = MTP::AuthKey::Data { { 0 } };
 	auto iterCount = pass.size() ? LocalEncryptIterCount : LocalEncryptNoPwdIterCount; // dont slow down for no password
 	auto newSalt = QByteArray();
 	if (!salt) {
@@ -923,7 +923,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 
 	case dbiKey: {
 		qint32 dcId;
-		MTP::AuthKey::Data key = { 0 };
+		auto key = MTP::AuthKey::Data { { 0 } };
 		stream >> dcId;
 		stream.readRawData(key.data(), key.size());
 		if (!_checkStreamStatus(stream)) return false;
@@ -1858,7 +1858,7 @@ ReadMapState _readMap(const QByteArray &pass) {
 		LOG(("App Info: could not decrypt pass-protected key from map file, maybe bad password..."));
 		return ReadMapPassNeeded;
 	}
-	auto key = MTP::AuthKey::Data { 0 };
+	auto key = MTP::AuthKey::Data { { 0 } };
 	if (keyData.stream.readRawData(key.data(), key.size()) != key.size() || !keyData.stream.atEnd()) {
 		LOG(("App Error: could not read pass-protected key from map file"));
 		return ReadMapFailed;

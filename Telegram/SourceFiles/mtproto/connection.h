@@ -264,7 +264,7 @@ private:
 	struct AuthKeyCreateStrings {
 		QByteArray dh_prime;
 		QByteArray g_a;
-		AuthKey::Data auth_key = { 0 };
+		AuthKey::Data auth_key = { { 0 } };
 	};
 	std::unique_ptr<AuthKeyCreateData> _authKeyData;
 	std::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
