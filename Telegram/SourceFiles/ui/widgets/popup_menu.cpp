@@ -21,6 +21,7 @@
 #include "ui/widgets/shadow.h"
 #include "pspecific.h"
 #include "application.h"
+#include "mainwindow.h"
 #include "lang.h"
 
 namespace Ui {
