@@ -366,6 +366,8 @@
       '<(src_loc)/pspecific_mac_p.h',
       '<(src_loc)/pspecific_linux.cpp',
       '<(src_loc)/pspecific_linux.h',
+      '<(src_loc)/platform/linux/linux_desktop_environment.cpp',
+      '<(src_loc)/platform/linux/linux_desktop_environment.h',
       '<(src_loc)/platform/linux/linux_gdk_helper.cpp',
       '<(src_loc)/platform/linux/linux_gdk_helper.h',
       '<(src_loc)/platform/linux/linux_libnotify.cpp',
@@ -614,6 +616,8 @@
         'sources!': [
           '<(src_loc)/pspecific_linux.cpp',
           '<(src_loc)/pspecific_linux.h',
+          '<(src_loc)/platform/linux/linux_desktop_environment.cpp',
+          '<(src_loc)/platform/linux/linux_desktop_environment.h',
           '<(src_loc)/platform/linux/linux_gdk_helper.cpp',
           '<(src_loc)/platform/linux/linux_gdk_helper.h',
           '<(src_loc)/platform/linux/linux_libnotify.cpp',

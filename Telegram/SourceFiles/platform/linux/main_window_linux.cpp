@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_window.h"
 #include "platform/linux/linux_libs.h"
+#include "platform/linux/linux_desktop_environment.h"
 #include "platform/platform_notifications_manager.h"
 #include "mainwindow.h"
 #include "application.h"
@@ -377,9 +378,9 @@ bool MainWindow::psHasNativeNotifications() {
 }
 
 void MainWindow::LibsLoaded() {
-	QStringList cdesktop = QString(getenv("XDG_CURRENT_DESKTOP")).toLower().split(':');
-	noQtTrayIcon = (cdesktop.contains(qstr("pantheon"))) || (cdesktop.contains(qstr("gnome")));
-	tryAppIndicator = (cdesktop.contains(qstr("xfce")) || cdesktop.contains(qstr("unity")));
+	auto cdesktop = Libs::CurrentDesktopStrings();
+	noQtTrayIcon = !DesktopEnvironment::TryQtTrayIcon();
+	tryAppIndicator = !DesktopEnvironment::PreferAppIndicatorTrayIcon();
 
 	if (noQtTrayIcon) cSetSupportTray(false);
 

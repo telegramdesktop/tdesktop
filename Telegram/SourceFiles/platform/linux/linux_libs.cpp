@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "platform/linux/linux_gdk_helper.h"
 #include "platform/linux/linux_libnotify.h"
+#include "platform/linux/linux_desktop_environment.h"
 
 namespace Platform {
 namespace Libs {
@@ -271,12 +272,14 @@ void start() {
 	}
 
 #ifndef TDESKTOP_DISABLE_UNITY_INTEGRATION
-	QLibrary lib_unity(qstr("unity"), 9, 0);
-	loadLibrary(lib_unity, "unity", 9);
+	if (DesktopEnvironment::TryUnityCounter()) {
+		QLibrary lib_unity(qstr("unity"), 9, 0);
+		loadLibrary(lib_unity, "unity", 9);
 
-	load(lib_unity, "unity_launcher_entry_get_for_desktop_id", unity_launcher_entry_get_for_desktop_id);
-	load(lib_unity, "unity_launcher_entry_set_count", unity_launcher_entry_set_count);
-	load(lib_unity, "unity_launcher_entry_set_count_visible", unity_launcher_entry_set_count_visible);
+		load(lib_unity, "unity_launcher_entry_get_for_desktop_id", unity_launcher_entry_get_for_desktop_id);
+		load(lib_unity, "unity_launcher_entry_set_count", unity_launcher_entry_set_count);
+		load(lib_unity, "unity_launcher_entry_set_count_visible", unity_launcher_entry_set_count_visible);
+	}
 #endif // !TDESKTOP_DISABLE_UNITY_INTEGRATION
 
 	if (gtkLoaded) {
