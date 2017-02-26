@@ -48,42 +48,44 @@ namespace internal {
 // We need to be able to work with gtk2 and gtk3, because
 // we use gtk3 to work with appindicator3.
 class QGtkDialog : public QWindow {
-    Q_OBJECT
+	Q_OBJECT
 
 public:
-    QGtkDialog(GtkWidget *gtkWidget);
-    ~QGtkDialog();
+	QGtkDialog(GtkWidget *gtkWidget);
+	~QGtkDialog();
 
-    GtkDialog *gtkDialog() const;
+	GtkDialog *gtkDialog() const;
 
-    void exec();
-    void show(Qt::WindowFlags flags, Qt::WindowModality modality, QWindow *parent);
-    void hide();
+	void exec();
+	void show(Qt::WindowFlags flags, Qt::WindowModality modality, QWindow *parent);
+	void hide();
 
 signals:
-    void accept();
-    void reject();
+	void accept();
+	void reject();
 
 protected:
-    static void onResponse(QGtkDialog *dialog, int response);
+	static void onResponse(QGtkDialog *dialog, int response);
+	static void onUpdatePreview(QGtkDialog *dialog);
 
 private slots:
-    void onParentWindowDestroyed();
+	void onParentWindowDestroyed();
 
 private:
-    GtkWidget *gtkWidget;
+	GtkWidget *gtkWidget;
+	GtkWidget *_preview = nullptr;
 
 };
 
 class GtkFileDialog : public QDialog {
-    Q_OBJECT
+	Q_OBJECT
 
 public:
-    GtkFileDialog(QWidget *parent = Q_NULLPTR,
-				  const QString &caption = QString(),
-                  const QString &directory = QString(),
-                  const QString &filter = QString());
-    ~GtkFileDialog();
+	GtkFileDialog(QWidget *parent = Q_NULLPTR,
+		const QString &caption = QString(),
+		const QString &directory = QString(),
+		const QString &filter = QString());
+	~GtkFileDialog();
 
 	void setVisible(bool visible) override;
 
@@ -104,26 +106,26 @@ public:
 		}
 	}
 
-    int exec() override;
+	int exec() override;
 
-    bool defaultNameFilterDisables() const;
-    void setDirectory(const QString &directory);
-    QDir directory() const;
-    void selectFile(const QString &filename);
-    QStringList selectedFiles() const;
-    void setFilter();
-    void selectNameFilter(const QString &filter);
-    QString selectedNameFilter() const;
+	bool defaultNameFilterDisables() const;
+	void setDirectory(const QString &directory);
+	QDir directory() const;
+	void selectFile(const QString &filename);
+	QStringList selectedFiles() const;
+	void setFilter();
+	void selectNameFilter(const QString &filter);
+	QString selectedNameFilter() const;
 
 private slots:
-    void onAccepted();
+	void onAccepted();
 	void onRejected();
 
 private:
-    static void onSelectionChanged(GtkDialog *dialog, GtkFileDialog *helper);
-    static void onCurrentFolderChanged(GtkFileDialog *helper);
-    void applyOptions();
-    void setNameFilters(const QStringList &filters);
+	static void onSelectionChanged(GtkDialog *dialog, GtkFileDialog *helper);
+	static void onCurrentFolderChanged(GtkFileDialog *helper);
+	void applyOptions();
+	void setNameFilters(const QStringList &filters);
 
 	void showHelper(Qt::WindowFlags flags, Qt::WindowModality modality, QWindow *parent);
 	void hideHelper();
@@ -137,11 +139,11 @@ private:
 	QFileDialog::AcceptMode _acceptMode = QFileDialog::AcceptOpen;
 	QFileDialog::FileMode _fileMode = QFileDialog::ExistingFile;
 
-    QString _dir;
-    QStringList _selection;
-    QHash<QString, GtkFileFilter*> _filters;
-    QHash<GtkFileFilter*, QString> _filterNames;
-    QScopedPointer<QGtkDialog> d;
+	QString _dir;
+	QStringList _selection;
+	QHash<QString, GtkFileFilter*> _filters;
+	QHash<GtkFileFilter*, QString> _filterNames;
+	QScopedPointer<QGtkDialog> d;
 };
 
 } // namespace internal

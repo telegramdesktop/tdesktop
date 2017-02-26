@@ -501,9 +501,9 @@ class guard {
 public:
 	using return_type = typename lambda_type<Lambda>::return_type;
 
-	template <typename ...PointersAndLambda>
-	inline guard(PointersAndLambda&&... qobjectsAndLambda) : _data(std::make_unique<guard_data<N, Lambda>>(std::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
-		static_assert(sizeof...(PointersAndLambda) == N + 1, "Wrong argument count!");
+	template <typename Pointer, typename Other, typename ...PointersAndLambda>
+	inline guard(Pointer &&qobject, Other &&other, PointersAndLambda&&... qobjectsAndLambda) : _data(std::make_unique<guard_data<N, Lambda>>(std::forward<Pointer>(qobject), std::forward<Other>(other), std::forward<PointersAndLambda>(qobjectsAndLambda)...)) {
+		static_assert(1 + 1 + sizeof...(PointersAndLambda) == N + 1, "Wrong argument count!");
 	}
 
 	inline guard(const guard &other) : _data(std::make_unique<guard_data<N, Lambda>>(static_cast<const guard_data<N, Lambda> &>(*other._data))) {

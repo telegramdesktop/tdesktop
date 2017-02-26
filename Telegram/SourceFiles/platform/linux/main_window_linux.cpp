@@ -378,7 +378,6 @@ bool MainWindow::psHasNativeNotifications() {
 }
 
 void MainWindow::LibsLoaded() {
-	auto cdesktop = Libs::CurrentDesktopStrings();
 	noQtTrayIcon = !DesktopEnvironment::TryQtTrayIcon();
 	tryAppIndicator = !DesktopEnvironment::PreferAppIndicatorTrayIcon();
 

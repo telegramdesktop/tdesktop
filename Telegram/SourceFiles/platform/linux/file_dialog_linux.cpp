@@ -31,6 +31,19 @@ QStringList qt_make_filter_list(const QString &filter);
 
 namespace Platform {
 namespace FileDialog {
+namespace {
+
+// GTK file chooser image preview: thanks to Chromium
+
+// The size of the preview we display for selected image files. We set height
+// larger than width because generally there is more free space vertically
+// than horiztonally (setting the preview image will alway expand the width of
+// the dialog, but usually not the height). The image's aspect ratio will always
+// be preserved.
+constexpr auto kPreviewWidth = 256;
+constexpr auto kPreviewHeight = 512;
+
+} // namespace
 
 using Type = ::FileDialog::internal::Type;
 
@@ -68,6 +81,11 @@ bool Supported() {
 		&& (Libs::gtk_file_filter_add_pattern != nullptr)
 		&& (Libs::gtk_file_chooser_add_filter != nullptr)
 		&& (Libs::gtk_file_filter_new != nullptr);
+}
+
+bool PreviewSupported() {
+	return Supported()
+		&& (Libs::gdk_pixbuf_new_from_file_at_size != nullptr);
 }
 
 bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
@@ -117,7 +135,12 @@ namespace internal {
 
 QGtkDialog::QGtkDialog(GtkWidget *gtkWidget) : gtkWidget(gtkWidget) {
 	Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "response", GCallback(onResponse), this);
-	Libs::g_signal_connect_helper(Libs::g_object_cast(gtkWidget), "delete-event", GCallback(Libs::gtk_widget_hide_on_delete), NULL);
+	Libs::g_signal_connect_helper(Libs::g_object_cast(gtkWidget), "delete-event", GCallback(Libs::gtk_widget_hide_on_delete), nullptr);
+	if (PreviewSupported()) {
+		_preview = Libs::gtk_image_new();
+		Libs::g_signal_connect_swapped_helper(Libs::g_object_cast(gtkWidget), "update-preview", GCallback(onUpdatePreview), this);
+		Libs::gtk_file_chooser_set_preview_widget(Libs::gtk_file_chooser_cast(gtkWidget), _preview);
+	}
 }
 
 QGtkDialog::~QGtkDialog() {
@@ -177,6 +200,32 @@ void QGtkDialog::onResponse(QGtkDialog *dialog, int response) {
 		emit dialog->accept();
 	else
 		emit dialog->reject();
+}
+
+void QGtkDialog::onUpdatePreview(QGtkDialog* dialog) {
+	auto filename = Libs::gtk_file_chooser_get_preview_filename(Libs::gtk_file_chooser_cast(dialog->gtkWidget));
+	if (!filename) {
+		Libs::gtk_file_chooser_set_preview_widget_active(Libs::gtk_file_chooser_cast(dialog->gtkWidget), false);
+		return;
+	}
+
+	// Don't attempt to open anything which isn't a regular file. If a named pipe,
+	// this may hang. See https://crbug.com/534754.
+	struct stat stat_buf;
+	if (stat(filename, &stat_buf) != 0 || !S_ISREG(stat_buf.st_mode)) {
+		Libs::g_free(filename);
+		Libs::gtk_file_chooser_set_preview_widget_active(Libs::gtk_file_chooser_cast(dialog->gtkWidget), false);
+		return;
+	}
+
+	// This will preserve the image's aspect ratio.
+	auto pixbuf = Libs::gdk_pixbuf_new_from_file_at_size(filename, kPreviewWidth, kPreviewHeight, nullptr);
+	Libs::g_free(filename);
+	if (pixbuf) {
+		Libs::gtk_image_set_from_pixbuf(Libs::gtk_image_cast(dialog->_preview), pixbuf);
+		Libs::g_object_unref(pixbuf);
+	}
+	Libs::gtk_file_chooser_set_preview_widget_active(Libs::gtk_file_chooser_cast(dialog->gtkWidget), pixbuf ? true : false);
 }
 
 void QGtkDialog::onParentWindowDestroyed() {
