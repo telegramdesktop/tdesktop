@@ -38,7 +38,7 @@ Q_DECLARE_METATYPE(Ui::ShowWay);
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda<void()> &&lambda) {
+void CallDelayed(int duration, base::lambda_once<void()> &&lambda) {
 	QTimer::singleShot(duration, base::lambda_slot_once(App::app(), std::move(lambda)), SLOT(action()));
 }
 

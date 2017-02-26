@@ -1446,24 +1446,15 @@ void MediaView::initThemePreview() {
 			}
 			update();
 		});
-		struct mutable_ready {
-			mutable_ready(decltype(ready) value) : value(std::move(value)) {
-			}
-			mutable decltype(ready) value;
-		};
-		struct mutable_result {
-			mutable_result(std::unique_ptr<Window::Theme::Preview> value) : value(std::move(value)) {
-			}
-			mutable std::unique_ptr<Window::Theme::Preview> value;
-		};
+
 		Window::Theme::CurrentData current;
 		current.backgroundId = Window::Theme::Background()->id();
 		current.backgroundImage = Window::Theme::Background()->pixmap();
 		current.backgroundTiled = Window::Theme::Background()->tile();
-		base::TaskQueue::Normal().Put([path, current, callback = mutable_ready(std::move(ready))]() {
+		base::TaskQueue::Normal().Put([ready = std::move(ready), path, current]() mutable {
 			auto preview = Window::Theme::GeneratePreview(path, current);
-			base::TaskQueue::Main().Put([result = mutable_result(std::move(preview)), callback = std::move(callback.value)]() {
-				callback(std::move(result.value));
+			base::TaskQueue::Main().Put([ready = std::move(ready), result = std::move(preview)]() mutable {
+				ready(std::move(result));
 			});
 		});
 		location.accessDisable();

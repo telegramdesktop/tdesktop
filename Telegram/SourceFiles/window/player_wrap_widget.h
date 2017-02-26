@@ -13,7 +13,7 @@ class PlayerWrapWidget : public Ui::WidgetSlideWrap<Media::Player::Widget> {
 	using Parent = Ui::WidgetSlideWrap<Media::Player::Widget>;
 
 public:
-	PlayerWrapWidget(QWidget *parent, base::lambda<void()> &&updateCallback);
+	PlayerWrapWidget(QWidget *parent, base::lambda<void()> updateCallback);
 
 	void updateAdaptiveLayout() {
 		updateShadowGeometry();

@@ -48,7 +48,7 @@ public:
 	void showFromOther();
 	void hideFromOther();
 
-	using ButtonCallback = base::lambda_copy<void()>;
+	using ButtonCallback = base::lambda<void()>;
 	void setPinCallback(ButtonCallback &&callback);
 	void setCloseCallback(ButtonCallback &&callback);
 

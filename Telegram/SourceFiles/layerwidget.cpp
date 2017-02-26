@@ -45,7 +45,7 @@ public:
 	BackgroundWidget(QWidget *parent) : TWidget(parent) {
 	}
 
-	void setDoneCallback(base::lambda<void()> &&callback) {
+	void setDoneCallback(base::lambda<void()> callback) {
 		_doneCallback = std::move(callback);
 	}
 

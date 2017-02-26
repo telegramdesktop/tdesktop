@@ -51,7 +51,7 @@ class Layer : public LayerWidget {
 public:
 	Layer();
 
-	void setCloseClickHandler(base::lambda<void()> &&callback);
+	void setCloseClickHandler(base::lambda<void()> callback);
 	void resizeToWidth(int newWidth, int newContentLeft);
 
 protected:

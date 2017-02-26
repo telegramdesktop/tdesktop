@@ -37,7 +37,7 @@ public:
 
 	void hideFast();
 
-	void setDroppedCallback(base::lambda<void(const QMimeData *data)> &&callback) {
+	void setDroppedCallback(base::lambda<void(const QMimeData *data)> callback) {
 		_droppedCallback = std::move(callback);
 	}
 

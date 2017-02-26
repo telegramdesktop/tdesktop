@@ -54,7 +54,7 @@ Layer::Layer()
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 }
 
-void Layer::setCloseClickHandler(base::lambda<void()> &&callback) {
+void Layer::setCloseClickHandler(base::lambda<void()> callback) {
 	_fixedBarClose->setClickedCallback(std::move(callback));
 }
 

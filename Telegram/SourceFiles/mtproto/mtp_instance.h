@@ -97,8 +97,8 @@ public:
 
 	void setUpdatesHandler(RPCDoneHandlerPtr onDone);
 	void setGlobalFailHandler(RPCFailHandlerPtr onFail);
-	void setStateChangedHandler(base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> &&handler);
-	void setSessionResetHandler(base::lambda<void(ShiftedDcId shiftedDcId)> &&handler);
+	void setStateChangedHandler(base::lambda<void(ShiftedDcId shiftedDcId, int32 state)> handler);
+	void setSessionResetHandler(base::lambda<void(ShiftedDcId shiftedDcId)> handler);
 	void clearGlobalHandlers();
 
 	void onStateChange(ShiftedDcId dcWithShift, int32 state);

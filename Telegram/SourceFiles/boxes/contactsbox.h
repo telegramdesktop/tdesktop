@@ -152,7 +152,7 @@ public:
 	Inner(QWidget *parent, ChatData *chat, MembersFilter membersFilter);
 	Inner(QWidget *parent, UserData *bot);
 
-	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback);
 	void peerUnselected(PeerData *peer);
 
 	void updateFilter(QString filter = QString());
@@ -164,7 +164,7 @@ public:
 	QVector<UserData*> selected();
 	QVector<MTPInputUser> selectedInputs();
 	bool allAdmins() const;
-	void setAllAdminsChangedCallback(base::lambda<void()> &&allAdminsChangedCallback) {
+	void setAllAdminsChangedCallback(base::lambda<void()> allAdminsChangedCallback) {
 		_allAdminsChangedCallback = std::move(allAdminsChangedCallback);
 	}
 
@@ -218,7 +218,7 @@ protected:
 private:
 	struct ContactData {
 		ContactData();
-		ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
+		ContactData(PeerData *peer, base::lambda<void()> updateCallback);
 		~ContactData();
 
 		std::unique_ptr<Ui::RoundImageCheckbox> checkbox;

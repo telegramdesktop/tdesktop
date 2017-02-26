@@ -81,16 +81,16 @@ public:
 		qSort(_items.begin(), _items.end(), std::move(predicate));
 	}
 
-	void setPreloadMoreCallback(base::lambda<void()> &&callback) {
+	void setPreloadMoreCallback(base::lambda<void()> callback) {
 		_preloadMoreCallback = std::move(callback);
 	}
-	void setSelectedCallback(base::lambda<void(PeerData*)> &&callback) {
+	void setSelectedCallback(base::lambda<void(PeerData*)> callback) {
 		_selectedCallback = std::move(callback);
 	}
-	void setRemovedCallback(base::lambda<void(PeerData*)> &&callback) {
+	void setRemovedCallback(base::lambda<void(PeerData*)> callback) {
 		_removedCallback = std::move(callback);
 	}
-	void setUpdateItemCallback(base::lambda<void(Item*)> &&callback) {
+	void setUpdateItemCallback(base::lambda<void(Item*)> callback) {
 		_updateItemCallback = std::move(callback);
 	}
 

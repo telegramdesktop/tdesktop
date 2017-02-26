@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Window {
 
-PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> &&updateCallback) : Parent(parent
+PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> updateCallback) : Parent(parent
 	, object_ptr<Media::Player::Widget>(parent)
 	, style::margins(0, 0, 0, 0)
 	, std::move(updateCallback)) {

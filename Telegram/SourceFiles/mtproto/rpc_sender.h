@@ -834,7 +834,7 @@ protected:
 	using Parent = RPCHandlerImplementation<Base, FunctionType>;
 
 public:
-	RPCHandlerImplementation(Lambda &&handler) : _handler(std::move(handler)) {
+	RPCHandlerImplementation(Lambda handler) : _handler(std::move(handler)) {
 	}
 
 protected:
@@ -906,37 +906,37 @@ public:
 };
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const mtpPrime*, const mtpPrime*)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const mtpPrime*, const mtpPrime*)> lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationBare<R>(std::move(lambda)));
 }
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const mtpPrime*, const mtpPrime*, mtpRequestId)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const mtpPrime*, const mtpPrime*, mtpRequestId)> lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationBareReq<R>(std::move(lambda)));
 }
 
 template <typename R, typename T>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const T&)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const T&)> lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationPlain<R, T>(std::move(lambda)));
 }
 
 template <typename R, typename T>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const T&, mtpRequestId)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(const T&, mtpRequestId)> lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationReq<R, T>(std::move(lambda)));
 }
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R()> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R()> lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationNo<R>(std::move(lambda)));
 }
 
 template <typename R>
-inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(mtpRequestId)> &&lambda) {
+inline RPCDoneHandlerPtr rpcDone_lambda_wrap_helper(base::lambda<R(mtpRequestId)> lambda) {
 	return RPCDoneHandlerPtr(new RPCDoneHandlerImplementationNoReq<R>(std::move(lambda)));
 }
 
-template <typename Lambda, typename = std::enable_if_t<std::is_rvalue_reference<Lambda&&>::value>>
-RPCDoneHandlerPtr rpcDone(Lambda &&lambda) {
+template <typename Lambda>
+RPCDoneHandlerPtr rpcDone(Lambda lambda) {
 	return rpcDone_lambda_wrap_helper(base::lambda_type<Lambda>(std::move(lambda)));
 }
 
@@ -979,23 +979,23 @@ public:
 
 };
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(const RPCError&)> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(const RPCError&)> lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationPlain(std::move(lambda)));
 }
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(const RPCError&, mtpRequestId)> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(const RPCError&, mtpRequestId)> lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationReq(std::move(lambda)));
 }
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool()> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool()> lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationNo(std::move(lambda)));
 }
 
-inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(mtpRequestId)> &&lambda) {
+inline RPCFailHandlerPtr rpcFail_lambda_wrap_helper(base::lambda<bool(mtpRequestId)> lambda) {
 	return RPCFailHandlerPtr(new RPCFailHandlerImplementationNoReq(std::move(lambda)));
 }
 
-template <typename Lambda, typename = std::enable_if_t<std::is_rvalue_reference<Lambda&&>::value>>
-RPCFailHandlerPtr rpcFail(Lambda &&lambda) {
+template <typename Lambda>
+RPCFailHandlerPtr rpcFail(Lambda lambda) {
 	return rpcFail_lambda_wrap_helper(base::lambda_type<Lambda>(std::move(lambda)));
 }

@@ -394,7 +394,7 @@ base::Observable<QueryUpdate> &QueryDone() {
 	return QueryDoneObservable;
 }
 
-void askOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> &&callback, base::lambda<void()> &&failed) {
+void askOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed) {
 	base::TaskQueue::Main().Put([caption, filter, callback = std::move(callback), failed = std::move(failed)] {
 		auto file = QString();
 		auto remoteContent = QByteArray();
@@ -413,7 +413,7 @@ void askOpenPath(const QString &caption, const QString &filter, base::lambda<voi
 	});
 }
 
-void askOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> &&callback, base::lambda<void()> &&failed) {
+void askOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed) {
 	base::TaskQueue::Main().Put([caption, filter, callback = std::move(callback), failed = std::move(failed)] {
 		auto files = QStringList();
 		auto remoteContent = QByteArray();
@@ -431,7 +431,7 @@ void askOpenPaths(const QString &caption, const QString &filter, base::lambda<vo
 
 }
 
-void askWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> &&callback, base::lambda<void()> &&failed) {
+void askWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed) {
 	base::TaskQueue::Main().Put([caption, filter, initialPath, callback = std::move(callback), failed = std::move(failed)] {
 		auto file = QString();
 		if (filedialogGetSaveFile(file, caption, filter, initialPath)) {
@@ -444,7 +444,7 @@ void askWritePath(const QString &caption, const QString &filter, const QString &
 	});
 }
 
-void askFolder(const QString &caption, base::lambda<void(const QString &result)> &&callback, base::lambda<void()> &&failed) {
+void askFolder(const QString &caption, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed) {
 	base::TaskQueue::Main().Put([caption, callback = std::move(callback), failed = std::move(failed)] {
 		auto folder = QString();
 		if (filedialogGetDir(folder, caption) && !folder.isEmpty()) {

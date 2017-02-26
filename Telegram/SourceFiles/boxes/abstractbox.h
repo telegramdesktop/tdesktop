@@ -43,8 +43,8 @@ public:
 	virtual void setTitle(const QString &title, const QString &additional) = 0;
 
 	virtual void clearButtons() = 0;
-	virtual QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
 	virtual void updateButtonsPositions() = 0;
 
 	virtual void setDimensions(int newWidth, int maxHeight) = 0;
@@ -98,9 +98,9 @@ protected:
 	void clearButtons() {
 		getDelegate()->clearButtons();
 	}
-	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback);
-	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback);
-	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback);
+	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> clickCallback);
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
 		return getDelegate()->addButton(text, std::move(clickCallback), st);
 	}
 	void updateButtonsGeometry() {
@@ -187,8 +187,8 @@ public:
 	void setTitle(const QString &title, const QString &additional) override;
 
 	void clearButtons() override;
-	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
 	void updateButtonsPositions() override;
 
 	void setDimensions(int newWidth, int maxHeight) override;

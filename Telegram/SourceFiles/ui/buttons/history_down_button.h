@@ -92,16 +92,16 @@ public:
 	void setRecordActive(bool recordActive);
 	void finishAnimation();
 
-	void setRecordStartCallback(base::lambda<void()> &&callback) {
+	void setRecordStartCallback(base::lambda<void()> callback) {
 		_recordStartCallback = std::move(callback);
 	}
-	void setRecordUpdateCallback(base::lambda<void(QPoint globalPos)> &&callback) {
+	void setRecordUpdateCallback(base::lambda<void(QPoint globalPos)> callback) {
 		_recordUpdateCallback = std::move(callback);
 	}
-	void setRecordStopCallback(base::lambda<void(bool active)> &&callback) {
+	void setRecordStopCallback(base::lambda<void(bool active)> callback) {
 		_recordStopCallback = std::move(callback);
 	}
-	void setRecordAnimationCallback(base::lambda<void()> &&callback) {
+	void setRecordAnimationCallback(base::lambda<void()> callback) {
 		_recordAnimationCallback = std::move(callback);
 	}
 

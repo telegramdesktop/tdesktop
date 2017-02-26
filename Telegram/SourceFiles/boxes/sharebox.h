@@ -114,7 +114,7 @@ class ShareBox::Inner : public TWidget, public RPCSender, private base::Subscrib
 public:
 	Inner(QWidget *parent, ShareBox::FilterCallback &&filterCallback);
 
-	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback);
+	void setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback);
 	void peerUnselected(PeerData *peer);
 
 	QVector<PeerData*> selected() const;
@@ -153,7 +153,7 @@ private:
 	int displayedChatsCount() const;
 
 	struct Chat {
-		Chat(PeerData *peer, const base::lambda_copy<void()> &updateCallback);
+		Chat(PeerData *peer, base::lambda<void()> updateCallback);
 
 		PeerData *peer;
 		Ui::RoundImageCheckbox checkbox;

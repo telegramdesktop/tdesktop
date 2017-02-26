@@ -163,10 +163,10 @@ public:
 	void setFullOrder(const Stickers::Order &order);
 	void setRemovedSets(const Stickers::Order &removed);
 
-	void setInstallSetCallback(base::lambda<void(uint64 setId)> &&callback) {
+	void setInstallSetCallback(base::lambda<void(uint64 setId)> callback) {
 		_installSetCallback = std::move(callback);
 	}
-	void setLoadMoreCallback(base::lambda<void()> &&callback) {
+	void setLoadMoreCallback(base::lambda<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
 

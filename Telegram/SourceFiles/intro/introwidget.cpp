@@ -722,11 +722,11 @@ void Widget::Step::showAnimated(Direction direction) {
 	}
 }
 
-void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback) {
+void Widget::Step::setGoCallback(base::lambda<void(Step *step, Direction direction)> callback) {
 	_goCallback = std::move(callback);
 }
 
-void Widget::Step::setShowResetCallback(base::lambda<void()> &&callback) {
+void Widget::Step::setShowResetCallback(base::lambda<void()> callback) {
 	_showResetCallback = std::move(callback);
 }
 

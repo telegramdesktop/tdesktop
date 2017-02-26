@@ -195,7 +195,7 @@ TaskQueue *TaskQueue::TaskQueueList::TakeFirst(int list_index_) {
 void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
 	QMutexLocker lock(&queues_mutex_);
 
-	queue->tasks_.push_back(new Task(std::move(task)));
+	queue->tasks_.push_back(std::move(task));
 	auto list_was_empty = queue_list_.Empty(kAllQueuesList);
 	auto threads_count = threads_.size();
 	auto all_threads_processing = (threads_count == tasks_in_process_);
@@ -258,7 +258,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 	bool serial_queue_destroyed = false;
 	bool task_was_processed = false;
 	while (true) {
-		std::unique_ptr<Task> task;
+		Task task;
 		{
 			QMutexLocker lock(&queues_mutex_);
 
@@ -297,7 +297,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 
 			t_assert(!queue->tasks_.empty());
 
-			task.reset(queue->tasks_.front());
+			task = std::move(queue->tasks_.front());
 			queue->tasks_.pop_front();
 
 			if (queue->type_ == Type::Serial) {
@@ -318,7 +318,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 			}
 		}
 
-		(*task)();
+		task();
 	}
 }
 
@@ -336,15 +336,12 @@ TaskQueue::~TaskQueue() {
 			thread_pool->RemoveQueue(this);
 		}
 	}
-	for (auto task : take(tasks_)) {
-		delete task;
-	}
 }
 
 void TaskQueue::Put(Task &&task) {
 	if (type_ == Type::Main) {
 		QMutexLocker lock(&tasks_mutex_);
-		tasks_.push_back(new Task(std::move(task)));
+		tasks_.push_back(std::move(task));
 
 		Sandbox::MainThreadTaskAdded();
 	} else {
@@ -372,7 +369,7 @@ void TaskQueue::ProcessMainTasks(TimeMs max_time_spent) { // static
 }
 
 bool TaskQueue::ProcessOneMainTask() { // static
-	std::unique_ptr<Task> task;
+	Task task;
 	{
 		QMutexLocker lock(&Main().tasks_mutex_);
 		auto &tasks = Main().tasks_;
@@ -380,11 +377,11 @@ bool TaskQueue::ProcessOneMainTask() { // static
 			return false;
 		}
 
-		task.reset(tasks.front());
+		task = std::move(tasks.front());
 		tasks.pop_front();
 	}
 
-	(*task)();
+	task();
 	return true;
 }
 

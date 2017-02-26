@@ -35,12 +35,12 @@ class ItemBase;
 namespace App {
 namespace internal {
 
-void CallDelayed(int duration, base::lambda<void()> &&lambda);
+void CallDelayed(int duration, base::lambda_once<void()> &&lambda);
 
 } // namespace internal
 
 template <int N, typename Lambda>
-inline void CallDelayed(int duration, base::internal::lambda_guard<N, Lambda> &&guarded) {
+inline void CallDelayed(int duration, base::lambda_internal::guard<N, Lambda> &&guarded) {
 	return internal::CallDelayed(duration, [guarded = std::move(guarded)] { guarded(); });
 }
 
@@ -54,7 +54,15 @@ template <typename ...PointersAndLambda>
 inline base::lambda<void()> LambdaDelayed(int duration, PointersAndLambda&&... qobjectsAndLambda) {
 	auto guarded = base::lambda_guarded(std::forward<PointersAndLambda>(qobjectsAndLambda)...);
 	return [guarded = std::move(guarded), duration] {
-		CallDelayed(duration, guarded.clone());
+		internal::CallDelayed(duration, [guarded] { guarded(); });
+	};
+}
+
+template <typename ...PointersAndLambda>
+inline base::lambda_once<void()> LambdaDelayedOnce(int duration, PointersAndLambda&&... qobjectsAndLambda) {
+	auto guarded = base::lambda_guarded(std::forward<PointersAndLambda>(qobjectsAndLambda)...);
+	return [guarded = std::move(guarded), duration]() mutable {
+		internal::CallDelayed(duration, [guarded = std::move(guarded)] { guarded(); });
 	};
 }
 

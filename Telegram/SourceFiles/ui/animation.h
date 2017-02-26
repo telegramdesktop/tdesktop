@@ -88,7 +88,7 @@ enum Notification {
 
 namespace anim {
 
-using transition = base::lambda_copy<float64(float64 delta, float64 dt)>;
+using transition = base::lambda<float64(float64 delta, float64 dt)>;
 
 extern transition linear;
 extern transition sineInOut;
@@ -141,7 +141,7 @@ public:
 		_from += delta;
 		_cur += delta;
 	}
-	value &update(float64 dt, const transition &func) {
+	value &update(float64 dt, transition func) {
 		_cur = _from + func(_delta, dt);
 		return *this;
 	}
@@ -590,7 +590,7 @@ public:
 	static constexpr auto kLongAnimationDuration = 1000;
 
 	template <typename Lambda>
-	void start(Lambda &&updateCallback, float64 from, float64 to, float64 duration, const anim::transition &transition = anim::linear) {
+	void start(Lambda &&updateCallback, float64 from, float64 to, float64 duration, anim::transition transition = anim::linear) {
 		auto isLong = (duration >= kLongAnimationDuration);
 		if (_data) {
 			if (!isLong) {
@@ -618,16 +618,11 @@ public:
 
 private:
 	struct Data {
-		template <typename Lambda, typename = std::enable_if_t<std::is_rvalue_reference<Lambda&&>::value>>
-		Data(float64 from, Lambda &&updateCallback)
+		template <typename Lambda>
+		Data(float64 from, Lambda updateCallback)
 			: value(from, from)
 			, a_animation(animation(this, &Data::step))
 			, updateCallback(std::move(updateCallback)) {
-		}
-		Data(float64 from, const base::lambda_copy<void()> &updateCallback)
-			: value(from, from)
-			, a_animation(animation(this, &Data::step))
-			, updateCallback(base::lambda_copy<void()>(updateCallback)) {
 		}
 		void step(float64 ms, bool timer) {
 			auto dt = (ms >= duration) ? 1. : (ms / duration);

@@ -192,9 +192,9 @@ void FlatButton::paintEvent(QPaintEvent *e) {
 
 class RoundButton::Numbers {
 public:
-	Numbers(const style::RoundButton &st, base::lambda<void()> &&animationCallback);
+	Numbers(const style::RoundButton &st, base::lambda<void()> animationCallback);
 
-	void setWidthChangedCallback(base::lambda<void()> &&callback) {
+	void setWidthChangedCallback(base::lambda<void()> callback) {
 		_widthChangedCallback = std::move(callback);
 	}
 	void setText(const QString &text, int value);
@@ -235,7 +235,7 @@ private:
 
 };
 
-RoundButton::Numbers::Numbers(const style::RoundButton &st, base::lambda<void()> &&animationCallback)
+RoundButton::Numbers::Numbers(const style::RoundButton &st, base::lambda<void()> animationCallback)
 : _st(st)
 , _animationCallback(std::move(animationCallback)) {
 	for (auto ch = '0'; ch != '9'; ++ch) {
@@ -380,7 +380,7 @@ void RoundButton::setNumbersText(const QString &numbersText, int numbers) {
 	updateText();
 }
 
-void RoundButton::setWidthChangedCallback(base::lambda<void()> &&callback) {
+void RoundButton::setWidthChangedCallback(base::lambda<void()> callback) {
 	if (!_numbers) {
 		_numbers = std::make_unique<Numbers>(_st, [this] { numbersAnimationCallback(); });
 	}

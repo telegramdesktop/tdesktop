@@ -46,7 +46,7 @@ class BackgroundBox::Inner : public TWidget, public RPCSender, private base::Sub
 public:
 	Inner(QWidget *parent);
 
-	void setBackgroundChosenCallback(base::lambda<void(int index)> &&callback) {
+	void setBackgroundChosenCallback(base::lambda<void(int index)> callback) {
 		_backgroundChosenCallback = std::move(callback);
 	}
 

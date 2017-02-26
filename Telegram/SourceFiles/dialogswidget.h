@@ -112,7 +112,7 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	void setLoadMoreCallback(base::lambda<void()> &&callback) {
+	void setLoadMoreCallback(base::lambda<void()> callback) {
 		_loadMoreCallback = std::move(callback);
 	}
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;

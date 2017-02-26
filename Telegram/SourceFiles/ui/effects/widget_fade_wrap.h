@@ -78,7 +78,7 @@ public:
 	WidgetFadeWrap(QWidget *parent
 		, object_ptr<TWidget> entity
 		, int duration = st::widgetFadeDuration
-		, base::lambda<void()> &&updateCallback = base::lambda<void()>());
+		, base::lambda<void()> updateCallback = base::lambda<void()>());
 
 	void showAnimated() {
 		_animation.fadeIn(_duration);
@@ -140,7 +140,7 @@ public:
 	WidgetFadeWrap(QWidget *parent
 		, object_ptr<Widget> entity
 		, int duration = st::widgetFadeDuration
-		, base::lambda<void()> &&updateCallback = base::lambda<void()>()) : WidgetFadeWrap<TWidget>(parent
+		, base::lambda<void()> updateCallback = base::lambda<void()>()) : WidgetFadeWrap<TWidget>(parent
 			, std::move(entity)
 			, duration
 			, std::move(updateCallback)) {

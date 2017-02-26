@@ -528,7 +528,7 @@ bool ContactsBox::creationFail(const RPCError &error) {
 
 ContactsBox::Inner::ContactData::ContactData() = default;
 
-ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
+ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda<void()> updateCallback)
 : checkbox(std::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
 }
 
@@ -1471,7 +1471,7 @@ void ContactsBox::Inner::peerUnselected(PeerData *peer) {
 	changePeerCheckState(data, peer, false, ChangeStateWay::SkipCallback);
 }
 
-void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
+void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback) {
 	_peerSelectedChangedCallback = std::move(callback);
 }
 

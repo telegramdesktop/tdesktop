@@ -48,13 +48,13 @@ public:
 	void otherLeave();
 	void hideFast();
 
-	void setShowStartCallback(base::lambda<void()> &&callback) {
+	void setShowStartCallback(base::lambda<void()> callback) {
 		_showStartCallback = std::move(callback);
 	}
-	void setHideStartCallback(base::lambda<void()> &&callback) {
+	void setHideStartCallback(base::lambda<void()> callback) {
 		_hideStartCallback = std::move(callback);
 	}
-	void setHiddenCallback(base::lambda<void()> &&callback) {
+	void setHiddenCallback(base::lambda<void()> callback) {
 		_hiddenCallback = std::move(callback);
 	}
 

@@ -43,7 +43,7 @@ namespace Settings {
 namespace {
 
 QString SecretText;
-QMap<QString, base::lambda_copy<void()>> Codes;
+QMap<QString, base::lambda<void()>> Codes;
 
 void fillCodes() {
 	Codes.insert(qsl("debugmode"), []() {

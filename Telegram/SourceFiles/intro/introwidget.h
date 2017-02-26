@@ -100,8 +100,8 @@ public:
 			setFocus();
 		}
 
-		void setGoCallback(base::lambda<void(Step *step, Direction direction)> &&callback);
-		void setShowResetCallback(base::lambda<void()> &&callback);
+		void setGoCallback(base::lambda<void(Step *step, Direction direction)> callback);
+		void setShowResetCallback(base::lambda<void()> callback);
 
 		void prepareShowAnimated(Step *after);
 		void showAnimated(Direction direction);

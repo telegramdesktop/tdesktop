@@ -33,7 +33,7 @@ public:
 	WidgetSlideWrap(QWidget *parent
 		, object_ptr<TWidget> entity
 		, style::margins entityPadding
-		, base::lambda<void()> &&updateCallback
+		, base::lambda<void()> updateCallback
 		, int duration = st::widgetSlideDuration);
 
 	void slideUp();
@@ -78,7 +78,7 @@ public:
 	WidgetSlideWrap(QWidget *parent
 		, object_ptr<Widget> entity
 		, style::margins entityPadding
-		, base::lambda<void()> &&updateCallback
+		, base::lambda<void()> updateCallback
 		, int duration = st::widgetSlideDuration) : WidgetSlideWrap<TWidget>(parent
 			, std::move(entity)
 			, entityPadding

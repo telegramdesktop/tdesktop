@@ -120,7 +120,7 @@ void FadeAnimation::updateCallback() {
 WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
 , object_ptr<TWidget> entity
 , int duration
-, base::lambda<void()> &&updateCallback) : TWidget(parent)
+, base::lambda<void()> updateCallback) : TWidget(parent)
 , _entity(std::move(entity))
 , _duration(duration)
 , _updateCallback(std::move(updateCallback))

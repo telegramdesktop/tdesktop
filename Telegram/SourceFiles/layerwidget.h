@@ -45,10 +45,10 @@ public:
 
 	bool overlaps(const QRect &globalRect);
 
-	void setClosedCallback(base::lambda<void()> &&callback) {
+	void setClosedCallback(base::lambda<void()> callback) {
 		_closedCallback = std::move(callback);
 	}
-	void setResizedCallback(base::lambda<void()> &&callback) {
+	void setResizedCallback(base::lambda<void()> callback) {
 		_resizedCallback = std::move(callback);
 	}
 

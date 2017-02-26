@@ -121,7 +121,7 @@ public:
 	void setNumbersText(int numbers) {
 		setNumbersText(QString::number(numbers), numbers);
 	}
-	void setWidthChangedCallback(base::lambda<void()> &&callback);
+	void setWidthChangedCallback(base::lambda<void()> callback);
 	void stepNumbersAnimation(TimeMs ms);
 	void finishNumbersAnimation();
 

@@ -33,11 +33,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
 }
 
-QPointer<Ui::RoundButton> BoxContent::addButton(const QString &text, base::lambda<void()> &&clickCallback) {
+QPointer<Ui::RoundButton> BoxContent::addButton(const QString &text, base::lambda<void()> clickCallback) {
 	return addButton(text, std::move(clickCallback), st::defaultBoxButton);
 }
 
-QPointer<Ui::RoundButton> BoxContent::addLeftButton(const QString &text, base::lambda<void()> &&clickCallback) {
+QPointer<Ui::RoundButton> BoxContent::addLeftButton(const QString &text, base::lambda<void()> clickCallback) {
 	return getDelegate()->addLeftButton(text, std::move(clickCallback), st::defaultBoxButton);
 }
 
@@ -310,7 +310,7 @@ void AbstractBox::clearButtons() {
 	_leftButton.destroy();
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
 	_buttons.push_back(object_ptr<Ui::RoundButton>(this, text, st));
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
 	result->setClickedCallback(std::move(clickCallback));
@@ -319,7 +319,7 @@ QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lamb
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
 	_leftButton = object_ptr<Ui::RoundButton>(this, text, st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
 	result->setClickedCallback(std::move(clickCallback));

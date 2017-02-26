@@ -208,13 +208,13 @@ class Editor::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, const QString &path);
 
-	void setErrorCallback(base::lambda<void()> &&callback) {
+	void setErrorCallback(base::lambda<void()> callback) {
 		_errorCallback = std::move(callback);
 	}
-	void setFocusCallback(base::lambda<void()> &&callback) {
+	void setFocusCallback(base::lambda<void()> callback) {
 		_focusCallback = std::move(callback);
 	}
-	void setScrollCallback(base::lambda<void(int top, int bottom)> &&callback) {
+	void setScrollCallback(base::lambda<void(int top, int bottom)> callback) {
 		_scrollCallback = std::move(callback);
 	}
 

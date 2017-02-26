@@ -156,7 +156,7 @@ public:
 private:
 	void startAnimation();
 
-	base::lambda_copy<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 	Ui::RoundCheckbox _check;
 
 	Animation _pression;
