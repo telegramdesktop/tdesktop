@@ -274,7 +274,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				if (App::api()) App::api()->requestFullPeer(_chat);
 			} else if (!_chat->participants.isEmpty()) {
 				for (auto i = _chat->participants.cbegin(), e = _chat->participants.cend(); i != e; ++i) {
-					UserData *user = i.key();
+					auto user = i.key();
 					if (!user->botInfo) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
@@ -304,16 +304,20 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 			int32 botStatus = _chat ? _chat->botStatus : ((_channel && _channel->isMegagroup()) ? _channel->mgInfo->botStatus : -1);
 			if (_chat) {
 				for (auto i = _chat->lastAuthors.cbegin(), e = _chat->lastAuthors.cend(); i != e; ++i) {
-					UserData *user = *i;
+					auto user = *i;
 					if (!user->botInfo) continue;
 					if (!bots.contains(user)) continue;
 					if (!user->botInfo->inited && App::api()) App::api()->requestFullPeer(user);
 					if (user->botInfo->commands.isEmpty()) continue;
 					bots.remove(user);
-					for (int32 j = 0, l = user->botInfo->commands.size(); j < l; ++j) {
+					for (auto j = 0, l = user->botInfo->commands.size(); j != l; ++j) {
 						if (!listAllSuggestions) {
-							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? user->botInfo->commands.at(j).command + '@' + user->username : user->botInfo->commands.at(j).command;
-							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
+							auto toFilter = (hasUsername || botStatus == 0 || botStatus == 2)
+								? user->botInfo->commands.at(j).command + '@' + user->username
+								: user->botInfo->commands.at(j).command;
+							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) {
+								continue;
+							}
 						}
 						brows.push_back(qMakePair(user, &user->botInfo->commands.at(j)));
 					}

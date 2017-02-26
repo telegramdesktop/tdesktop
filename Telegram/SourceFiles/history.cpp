@@ -1286,7 +1286,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (!block) {
 		// If no items were added it means we've loaded everything old.
 		oldLoaded = true;
-	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
+	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 		bool channel = isChannel();
 		int32 mask = 0;
 		QList<UserData*> *lastAuthors = nullptr;
@@ -1295,7 +1295,12 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			lastAuthors = &peer->asChat()->lastAuthors;
 			markupSenders = &peer->asChat()->markupSenders;
 		} else if (peer->isMegagroup()) {
-			lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
+			// We don't add users to mgInfo->lastParticipants here.
+			// We're scrolling back and we see messages from users that
+			// could be gone from the megagroup already. It is fine for
+			// chat->lastAuthors, because they're used only for field
+			// autocomplete, but this is bad for megagroups, because its
+			// lastParticipants are displayed in Profile as members list.
 			markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 		}
 		for (int32 i = block->items.size(); i > 0; --i) {
@@ -1303,9 +1308,9 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			mask |= item->addToOverview(AddToOverviewFront);
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
-					if (item->from()->isUser()) {
-						if (!lastAuthors->contains(item->from()->asUser())) {
-							lastAuthors->push_back(item->from()->asUser());
+					if (auto user = item->from()->asUser()) {
+						if (!lastAuthors->contains(user)) {
+							lastAuthors->push_back(user);
 							if (peer->isMegagroup()) {
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
