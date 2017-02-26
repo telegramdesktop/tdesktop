@@ -177,7 +177,6 @@ public:
 		int end = 0;
 		lbh.logClusters = eng->layoutData->logClustersPtr;
 
-		block->_lpadding = 0;
 		block->_words.clear();
 
 		int wordStart = lbh.currentPosition;
@@ -213,11 +212,10 @@ public:
 						current, lbh.logClusters, lbh.glyphs);
 
 				if (block->_words.isEmpty()) {
-					block->_lpadding = lbh.spaceData.textWidth;
-				} else {
-					block->_words.back().add_rpadding(lbh.spaceData.textWidth);
-					block->_width += lbh.spaceData.textWidth;
+					block->_words.push_back(TextWord(wordStart + blockFrom, lbh.tmpData.textWidth, -lbh.negativeRightBearing()));
 				}
+				block->_words.back().add_rpadding(lbh.spaceData.textWidth);
+				block->_width += lbh.spaceData.textWidth;
 				lbh.spaceData.length = 0;
 				lbh.spaceData.textWidth = 0;
 
@@ -271,9 +269,7 @@ public:
 			if (lbh.currentPosition == end)
 				newItem = item + 1;
 		}
-		if (block->_words.isEmpty()) {
-			block->_rpadding = 0;
-		} else {
+		if (!block->_words.isEmpty()) {
 			block->_rpadding = block->_words.back().f_rpadding();
 			block->_width -= block->_rpadding;
 			block->_words.squeeze();
@@ -347,21 +343,20 @@ TextBlock::TextBlock(const style::font &font, const QString &str, QFixed minResi
 	}
 }
 
-EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji) : ITextBlock(font, str, from, length, flags, lnkIndex), emoji(emoji) {
+EmojiBlock::EmojiBlock(const style::font &font, const QString &str, uint16 from, uint16 length, uchar flags, uint16 lnkIndex, EmojiPtr emoji) : ITextBlock(font, str, from, length, flags, lnkIndex)
+, emoji(emoji) {
 	_flags |= ((TextBlockTEmoji & 0x0F) << 8);
 	_width = int(st::emojiSize + 2 * st::emojiPadding);
 
-	auto padding = 0;
+	_rpadding = 0;
 	for (auto i = length; i != 0;) {
 		auto ch = str[_from + (--i)];
 		if (ch.unicode() == QChar::Space) {
-			padding += font->spacew;
+			_rpadding += font->spacew;
 		} else {
-			_rpadding = padding;
-			return;
+			break;
 		}
 	}
-	_lpadding = padding;
 }
 
 SkipBlock::SkipBlock(const style::font &font, const QString &str, uint16 from, int32 w, int32 h, uint16 lnkIndex) : ITextBlock(font, str, from, 1, 0, lnkIndex), _height(h) {
