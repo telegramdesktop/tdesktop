@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Your message text is too long";
 "lng_edit_message" = "Edit message";
 "lng_edit_message_text" = "New message text...";
-"lng_deleted" = "Unknown";
+"lng_deleted" = "Deleted Account";
 "lng_deleted_message" = "Deleted message";
 "lng_pinned_message" = "Pinned message";
 "lng_pinned_unpin_sure" = "Would you like to unpin this message?";
