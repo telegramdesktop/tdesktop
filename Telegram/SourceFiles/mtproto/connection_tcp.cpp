@@ -351,7 +351,7 @@ void TCPConnection::socketPacket(const char *packet, uint32 length) {
 	if (data.size() == 1) {
 		emit error(data[0]);
 	} else if (status == UsingTcp) {
-		receivedQueue.push_back(data);
+		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (status == WaitingTcp) {
 		tcpTimeoutTimer.stop();

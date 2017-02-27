@@ -43,6 +43,7 @@ namespace internal {
 namespace {
 
 constexpr auto kRecreateKeyId = AuthKey::KeyId(0xFFFFFFFFFFFFFFFFULL);
+constexpr auto kIntSize = static_cast<int>(sizeof(mtpPrime));
 
 void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap &haveSent, int32 skipBeforeRequest = 0) {
 	mtpMsgId afterId(*(mtpMsgId*)(from->after->data() + 4));
@@ -1314,92 +1315,101 @@ void ConnectionPrivate::handleReceived() {
 
 	onReceivedSome();
 
+	auto restartOnError = [this, &lockFinished] {
+		lockFinished.unlock();
+		restart();
+	};
+
 	ReadLockerAttempt lock(sessionData->keyMutex());
 	if (!lock) {
 		DEBUG_LOG(("MTP Error: auth_key for dc %1 busy, cant lock").arg(_shiftedDcId));
 		clearMessages();
 		keyId = 0;
 
-		lockFinished.unlock();
-		return restart();
+		return restartOnError();
 	}
 
 	auto key = sessionData->getKey();
 	if (!key || key->keyId() != keyId) {
 		DEBUG_LOG(("MTP Error: auth_key id for dc %1 changed").arg(_shiftedDcId));
-
-		lockFinished.unlock();
-		return restart();
+		return restartOnError();
 	}
 
-	while (_conn->received().size()) {
-		const mtpBuffer &encryptedBuf(_conn->received().front());
-		uint32 len = encryptedBuf.size();
-		const mtpPrime *encrypted(encryptedBuf.data());
-		if (len < 18) { // 2 auth_key_id, 4 msg_key, 2 salt, 2 session, 2 msg_id, 1 seq_no, 1 length, (1 data + 3 padding) min
-			LOG(("TCP Error: bad message received, len %1").arg(len * sizeof(mtpPrime)));
-			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
+	while (!_conn->received().empty()) {
+		auto intsBuffer = std::move(_conn->received().front());
+		_conn->received().pop_front();
 
-			lockFinished.unlock();
-			return restart();
+		constexpr auto kExternalHeaderIntsCount = 6U; // 2 auth_key_id, 4 msg_key
+		constexpr auto kEncryptedHeaderIntsCount = 8U; // 2 salt, 2 session, 2 msg_id, 1 seq_no, 1 length
+		constexpr auto kMinimalEncryptedIntsCount = kEncryptedHeaderIntsCount + 4U; // + 1 data + 3 padding
+		constexpr auto kMinimalIntsCount = kExternalHeaderIntsCount + kMinimalEncryptedIntsCount;
+		auto intsCount = uint32(intsBuffer.size());
+		auto ints = intsBuffer.constData();
+		if (intsCount < kMinimalIntsCount) {
+			LOG(("TCP Error: bad message received, len %1").arg(intsCount * kIntSize));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
+
+			return restartOnError();
 		}
-		if (keyId != *(uint64*)encrypted) {
-			LOG(("TCP Error: bad auth_key_id %1 instead of %2 received").arg(keyId).arg(*(uint64*)encrypted));
-			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
+		if (keyId != *(uint64*)ints) {
+			LOG(("TCP Error: bad auth_key_id %1 instead of %2 received").arg(keyId).arg(*(uint64*)ints));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(ints, intsCount * kIntSize).str()));
 
-			lockFinished.unlock();
-			return restart();
+			return restartOnError();
 		}
 
-		QByteArray dataBuffer((len - 6) * sizeof(mtpPrime), Qt::Uninitialized);
-		mtpPrime *data((mtpPrime*)dataBuffer.data()), *msg = data + 8;
-		const mtpPrime *from(msg), *end;
-		MTPint128 msgKey(*(MTPint128*)(encrypted + 2));
+		auto encryptedInts = ints + kExternalHeaderIntsCount;
+		auto encryptedIntsCount = (intsCount - kExternalHeaderIntsCount);
+		auto encryptedBytesCount = encryptedIntsCount * kIntSize;
+		auto decryptedBuffer = QByteArray(encryptedBytesCount, Qt::Uninitialized);
+		auto msgKey = *(MTPint128*)(ints + 2);
 
-		aesIgeDecrypt(encrypted + 6, data, dataBuffer.size(), key, msgKey);
+		aesIgeDecrypt(encryptedInts, decryptedBuffer.data(), encryptedBytesCount, key, msgKey);
 
-		uint64 serverSalt = *(uint64*)&data[0], session = *(uint64*)&data[2], msgId = *(uint64*)&data[4];
-		uint32 seqNo = *(uint32*)&data[6], msgLen = *(uint32*)&data[7];
-		bool needAck = (seqNo & 0x01);
+		auto decryptedInts = reinterpret_cast<const mtpPrime*>(decryptedBuffer.constData());
+		auto serverSalt = *(uint64*)&decryptedInts[0];
+		auto session = *(uint64*)&decryptedInts[2];
+		auto msgId = *(uint64*)&decryptedInts[4];
+		auto seqNo = *(uint32*)&decryptedInts[6];
+		auto needAck = ((seqNo & 0x01) != 0);
 
-		if (uint32(dataBuffer.size()) < msgLen + 8 * sizeof(mtpPrime) || (msgLen & 0x03)) {
-			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(msgLen).arg(dataBuffer.size()));
-			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
-			_conn->received().pop_front();
+		auto messageLength = *(uint32*)&decryptedInts[7];
+		auto fullDataLength = kEncryptedHeaderIntsCount * kIntSize + messageLength; // Without padding.
 
-			lockFinished.unlock();
-			return restart();
+		constexpr auto kMaxPaddingSize = 15U;
+		auto paddingSize = encryptedBytesCount - fullDataLength; // Can underflow.
+		auto badMessageLength = (/*paddingSize < 0 || */paddingSize > kMaxPaddingSize);
+		auto hashedDataLength = badMessageLength ? encryptedBytesCount : fullDataLength;
+		auto sha1ForMsgKeyCheck = hashSha1(decryptedInts, hashedDataLength);
+		if (memcmp(&msgKey, sha1ForMsgKeyCheck.data() + sha1ForMsgKeyCheck.size() - sizeof(msgKey), sizeof(msgKey)) != 0) {
+			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message."));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
+
+			return restartOnError();
 		}
-		uchar sha1Buffer[20];
-		if (memcmp(&msgKey, hashSha1(data, msgLen + 8 * sizeof(mtpPrime), sha1Buffer) + 1, sizeof(msgKey))) {
-			LOG(("TCP Error: bad SHA1 hash after aesDecrypt in message"));
-			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encrypted, len * sizeof(mtpPrime)).str()));
-			_conn->received().pop_front();
+		if (badMessageLength || (messageLength & 0x03)) {
+			LOG(("TCP Error: bad msg_len received %1, data size: %2").arg(messageLength).arg(encryptedBytesCount));
+			TCP_LOG(("TCP Error: bad message %1").arg(Logs::mb(encryptedInts, encryptedBytesCount).str()));
 
-			lockFinished.unlock();
-			return restart();
+			return restartOnError();
 		}
-		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(Logs::b(needAck)).arg(msgLen + 8 * sizeof(mtpPrime)));
+
+		TCP_LOG(("TCP Info: decrypted message %1,%2,%3 is %4 len").arg(msgId).arg(seqNo).arg(Logs::b(needAck)).arg(fullDataLength));
 
 		uint64 serverSession = sessionData->getSession();
 		if (session != serverSession) {
 			LOG(("MTP Error: bad server session received"));
 			TCP_LOG(("MTP Error: bad server session %1 instead of %2 in message received").arg(session).arg(serverSession));
-			_conn->received().pop_front();
 
-			lockFinished.unlock();
-			return restart();
+			return restartOnError();
 		}
-
-		_conn->received().pop_front();
 
 		int32 serverTime((int32)(msgId >> 32)), clientTime(unixtime());
 		bool isReply = ((msgId & 0x03) == 1);
 		if (!isReply && ((msgId & 0x03) != 3)) {
 			LOG(("MTP Error: bad msg_id %1 in message received").arg(msgId));
 
-			lockFinished.unlock();
-			return restart();
+			return restartOnError();
 		}
 
 		bool badTime = false;
@@ -1430,8 +1440,9 @@ void ConnectionPrivate::handleReceived() {
 		if (needAck) ackRequestData.push_back(MTP_long(msgId));
 
 		auto res = HandleResult::Success; // if no need to handle, then succeed
-		end = data + 8 + (msgLen >> 2);
-		const mtpPrime *sfrom(data + 4);
+		auto from = decryptedInts + kEncryptedHeaderIntsCount;
+		auto end = from + (messageLength / kIntSize);
+		auto sfrom = decryptedInts + 4U; // msg_id + seq_no + length + message
 		MTP_LOG(_shiftedDcId, ("Recv: ") + mtpTextSerialize(sfrom, end));
 
 		bool needToHandle = false;
@@ -1470,8 +1481,7 @@ void ConnectionPrivate::handleReceived() {
 		if (res != HandleResult::Success && res != HandleResult::Ignored) {
 			_needSessionReset = (res == HandleResult::ResetSession);
 
-			lockFinished.unlock();
-			return restart();
+			return restartOnError();
 		}
 		retryTimeout = 1; // reset restart() timer
 
@@ -2891,15 +2901,16 @@ bool ConnectionPrivate::readResponseNotSecure(TResponse &response) {
 	onReceivedSome();
 
 	try {
-		if (_conn->received().isEmpty()) {
+		if (_conn->received().empty()) {
 			LOG(("AuthKey Error: trying to read response from empty received list"));
 			return false;
 		}
-		mtpBuffer buffer(_conn->received().front());
+
+		auto buffer = std::move(_conn->received().front());
 		_conn->received().pop_front();
 
-		const mtpPrime *answer(buffer.constData());
-		uint32 len = buffer.size();
+		auto answer = buffer.constData();
+		auto len = buffer.size();
 		if (len < 5) {
 			LOG(("AuthKey Error: bad request answer, len = %1").arg(len * sizeof(mtpPrime)));
 			DEBUG_LOG(("AuthKey Error: answer bytes %1").arg(Logs::mb(answer, len * sizeof(mtpPrime)).str()));

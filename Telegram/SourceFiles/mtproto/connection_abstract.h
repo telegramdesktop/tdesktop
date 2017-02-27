@@ -60,9 +60,9 @@ public:
 
 	virtual QString transport() const = 0;
 
-	typedef QList<mtpBuffer> BuffersQueue;
+	using BuffersQueue = std::deque<mtpBuffer>;
 	BuffersQueue &received() {
-		return receivedQueue;
+		return _receivedQueue;
 	}
 
 	// Used to emit error(...) with no real code from the server.
@@ -78,7 +78,7 @@ signals:
 	void disconnected();
 
 protected:
-	BuffersQueue receivedQueue; // list of received packets, not processed yet
+	BuffersQueue _receivedQueue; // list of received packets, not processed yet
 	bool _sentEncrypted;
 
 	// first we always send fake MTPReq_pq to see if connection works at all

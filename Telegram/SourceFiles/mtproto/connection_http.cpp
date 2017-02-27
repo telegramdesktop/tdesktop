@@ -165,7 +165,7 @@ void HTTPConnection::requestFinished(QNetworkReply *reply) {
 			emit error(data[0]);
 		} else if (!data.isEmpty()) {
 			if (status == UsingHttp) {
-				receivedQueue.push_back(data);
+				_receivedQueue.push_back(data);
 				emit receivedData();
 			} else {
 				try {

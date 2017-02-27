@@ -208,7 +208,7 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 			}
 		} else if (!data.isEmpty()) {
 			if (status == UsingHttp) {
-				receivedQueue.push_back(data);
+				_receivedQueue.push_back(data);
 				emit receivedData();
 			} else if (status == WaitingBoth || status == WaitingHttp) {
 				try {
@@ -271,7 +271,7 @@ void AutoConnection::socketPacket(const char *packet, uint32 length) {
 			LOG(("Strange Tcp Error; status %1").arg(status));
 		}
 	} else if (status == UsingTcp) {
-		receivedQueue.push_back(data);
+		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (status == WaitingBoth || status == WaitingTcp || status == HttpReady) {
 		tcpTimeoutTimer.stop();
