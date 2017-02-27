@@ -646,8 +646,8 @@ void Messenger::checkMapVersion() {
 	if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000010) {
-				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Support for more emoji.\n\xe2\x80\x94 Bug fixes and other minor improvements.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000015) {
+				versionFeatures = QString::fromUtf8("\xe2\x80\x94 Wrong supergroup members display fix.\n\xe2\x80\x94 RTL text layout fix.\n\xe2\x80\x94 Linux GTK file choose dialog should show image previews.\n\xe2\x80\x94 Bug fixes and other minor improvements.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000012) {
 				versionFeatures = langNewVersionText();
 			} else {
