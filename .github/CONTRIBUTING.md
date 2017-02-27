@@ -144,9 +144,13 @@ Before you submit a pull request, please test your changes. Verify that Telegram
 
 ### Write a good commit message
 
-Explain why you make the changes. [More infos about a good commit message.][commit_message]
-Maybe reference also the related issue in your commit message.
-Don't forget to [sign your patch](#sign-your-work) to put it in the public domain.
+* Explain why you make the changes. [More infos about a good commit message.][commit_message]
+
+* If you fix an issue with your commit, please close the issue by [adding one of the keywords and the issue number][closing-issues-via-commit-messages] to your commit message.
+
+  For example: `Fix #545`
+
+* Don't forget to [sign your patch](#sign-your-work) to put it in the public domain!
 
 [//]: # (LINKS)
 [telegram]: https://telegram.org/
@@ -155,3 +159,4 @@ Don't forget to [sign your patch](#sign-your-work) to put it in the public domai
 [commit_message]: http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html
 [pr]: https://github.com/telegramdesktop/tdesktop/compare
 [build_instructions]: https://github.com/telegramdesktop/tdesktop/blob/master/README.md#build-instructions
+[closing-issues-via-commit-messages]: https://help.github.com/articles/closing-issues-via-commit-messages/
