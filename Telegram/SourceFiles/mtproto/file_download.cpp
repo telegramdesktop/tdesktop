@@ -27,14 +27,19 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 
 namespace {
-	int32 GlobalPriority = 1;
-	struct DataRequested {
-		DataRequested() {
-			memset(v, 0, sizeof(v));
-		}
-		int64 v[MTPDownloadSessionsCount];
-	};
-	QMap<int32, DataRequested> DataRequestedMap;
+
+int32 GlobalPriority = 1;
+struct DataRequested {
+	DataRequested() {
+		memset(v, 0, sizeof(v));
+	}
+	int64 v[MTPDownloadSessionsCount];
+};
+QMap<int32, DataRequested> DataRequestedMap;
+
+// Debug flag to find out how we end up crashing.
+std::set<FileLoader*> MustNotDestroy;
+
 }
 
 struct FileLoaderQueue {
@@ -160,6 +165,8 @@ void FileLoader::pause() {
 }
 
 FileLoader::~FileLoader() {
+	t_assert(MustNotDestroy.find(this) == MustNotDestroy.cend());
+
 	if (_localTaskId) {
 		Local::cancelTask(_localTaskId);
 	}
@@ -198,8 +205,12 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 		_fileIsOpen = false;
 		psPostprocessFile(QFileInfo(_file).absoluteFilePath());
 	}
-	emit progress(this);
 	FileDownload::ImageLoaded().notify();
+
+	MustNotDestroy.insert(this);
+	emit progress(this);
+	MustNotDestroy.erase(this);
+
 	loadNext();
 }
 
@@ -324,13 +335,17 @@ void FileLoader::cancel(bool fail) {
 		_file.remove();
 	}
 	_data = QByteArray();
+	_fname = QString();
+	_file.setFileName(_fname);
+
+	MustNotDestroy.insert(this);
 	if (fail) {
 		emit failed(this, started);
 	} else {
 		emit progress(this);
 	}
-	_fname = QString();
-	_file.setFileName(_fname);
+	MustNotDestroy.erase(this);
+
 	loadNext();
 }
 
@@ -389,11 +404,15 @@ namespace {
 
 bool mtpFileLoader::loadPart() {
 	if (_complete || _lastComplete || (!_requests.isEmpty() && !_size)) {
-		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): loadPart() returned, _complete=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_complete)).arg(Logs::b(_lastComplete)).arg(_requests.size()).arg(_size));
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _complete=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_complete)).arg(Logs::b(_lastComplete)).arg(_requests.size()).arg(_size));
+		}
 		return false;
 	}
 	if (_size && _nextRequestOffset >= _size) {
-		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): loadPart() returned, _size=%2, _nextRequestOffset=%3, _requests=%4").arg(_id).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _size=%2, _nextRequestOffset=%3, _requests=%4").arg(_id).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		}
 		return false;
 	}
 
@@ -429,7 +448,9 @@ bool mtpFileLoader::loadPart() {
 	_requests.insert(reqId, dcIndex);
 	_nextRequestOffset += limit;
 
-	if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): requested part with offset=%2, _queue->queries=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(offset).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+	if (DebugLogging::FileLoader() && _id) {
+		DEBUG_LOG(("FileLoader(%1): requested part with offset=%2, _queue->queries=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(offset).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+	}
 
 	return true;
 }
@@ -437,11 +458,15 @@ bool mtpFileLoader::loadPart() {
 void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
 	Requests::iterator i = _requests.find(req);
 	if (i == _requests.cend()) {
-		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): request req=%2 for offset=%3 not found in _requests=%4").arg(_id).arg(req).arg(offset).arg(serializereqs(_requests)));
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): request req=%2 for offset=%3 not found in _requests=%4").arg(_id).arg(req).arg(offset).arg(serializereqs(_requests)));
+		}
 		return loadNext();
 	}
 	if (result.type() != mtpc_upload_file) {
-		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): bad cons received! %2").arg(_id).arg(result.type()));
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): bad cons received! %2").arg(_id).arg(result.type()));
+		}
 		return cancel(true);
 	}
 
@@ -455,7 +480,9 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 	auto &d = result.c_upload_file();
 	auto &bytes = d.vbytes.c_string().v;
 
-	if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+	if (DebugLogging::FileLoader() && _id) {
+		DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+	}
 
 	if (bytes.size()) {
 		if (_fileIsOpen) {
@@ -530,12 +557,18 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 			}
 		}
 	} else {
-		if (DebugLogging::FileLoader() && _id) DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		}
 	}
-	emit progress(this);
 	if (_complete) {
 		FileDownload::ImageLoaded().notify();
 	}
+
+	MustNotDestroy.insert(this);
+	emit progress(this);
+	MustNotDestroy.erase(this);
+
 	loadNext();
 }
 
@@ -584,7 +617,10 @@ bool mtpFileLoader::tryLoadLocal() {
 			}
 		}
 	}
+
+	MustNotDestroy.insert(this);
 	emit progress(this);
+	MustNotDestroy.erase(this);
 
 	if (_localStatus != LocalNotTried) {
 		return _complete;
@@ -631,6 +667,7 @@ int32 webFileLoader::currentOffset(bool includeSkipped) const {
 void webFileLoader::onProgress(qint64 already, qint64 size) {
 	_size = size;
 	_already = already;
+
 	emit progress(this);
 }
 
@@ -663,8 +700,12 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
 		Local::writeWebFile(_url, _data);
 	}
-	emit progress(this);
 	FileDownload::ImageLoaded().notify();
+
+	MustNotDestroy.insert(this);
+	emit progress(this);
+	MustNotDestroy.erase(this);
+
 	loadNext();
 }
 
