@@ -1,3 +1,10 @@
+1.0.15 alpha (27.02.17)
+
+- Wrong supergroup members display fix.
+- RTL text layout fix.
+- Linux GTK file choose dialog should show image previews.
+- Bug fixes and other minor improvements.
+
 1.0.14 (20.02.17)
 
 - Bug fixes and other minor improvements.
