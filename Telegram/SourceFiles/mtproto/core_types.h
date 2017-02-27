@@ -27,7 +27,7 @@ namespace MTP {
 // type DcId represents actual data center id, while in most cases
 // we use some shifted ids, like DcId() + X * DCShift
 using DcId = int32;
-using ShiftedDcId = int32 ;
+using ShiftedDcId = int32;
 
 }
 

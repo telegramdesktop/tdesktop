@@ -170,6 +170,9 @@ private:
 
 	SingleTimer _checkDelayedTimer;
 
+	// Debug flag to find out how we end up crashing.
+	bool MustNotCreateSessions = false;
+
 };
 
 Instance::Private::Private(Instance *instance, DcOptions *options, Instance::Mode mode) : _instance(instance)
@@ -210,12 +213,14 @@ void Instance::Private::start(Config &&config) {
 
 	if (isKeysDestroyer()) {
 		for (auto &dc : _dcenters) {
+			t_assert(!MustNotCreateSessions);
 			auto shiftedDcId = dc.first;
 			auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
 			auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
 			it->second->start();
 		}
 	} else if (_mainDcId != Config::kNoneMainDc) {
+		t_assert(!MustNotCreateSessions);
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
 		_sessions.emplace(_mainDcId, std::move(main));
@@ -296,7 +301,9 @@ int32 Instance::Private::dcstate(ShiftedDcId shiftedDcId) {
 	}
 
 	auto it = _sessions.find(shiftedDcId);
-	if (it != _sessions.cend()) return it->second->getState();
+	if (it != _sessions.cend()) {
+		return it->second->getState();
+	}
 
 	return DisconnectedState;
 }
@@ -383,6 +390,7 @@ void Instance::Private::killSession(ShiftedDcId shiftedDcId) {
 	if (checkIfMainAndKill(shiftedDcId)) {
 		checkIfMainAndKill(_mainDcId);
 
+		t_assert(!MustNotCreateSessions);
 		auto main = std::make_unique<internal::Session>(_instance, _mainDcId);
 		_mainSession = main.get();
 		_sessions.emplace(_mainDcId, std::move(main));
@@ -492,6 +500,7 @@ void Instance::Private::addKeysForDestroy(AuthKeysList &&keys) {
 		auto dc = std::make_shared<internal::Dcenter>(_instance, dcId, std::move(key));
 		_dcenters.emplace(shiftedDcId, std::move(dc));
 
+		t_assert(!MustNotCreateSessions);
 		auto session = std::make_unique<internal::Session>(_instance, shiftedDcId);
 		auto it = _sessions.emplace(shiftedDcId, std::move(session)).first;
 		it->second->start();
@@ -1113,6 +1122,7 @@ internal::Session *Instance::Private::getSession(ShiftedDcId shiftedDcId) {
 
 	auto it = _sessions.find(shiftedDcId);
 	if (it == _sessions.cend()) {
+		t_assert(!MustNotCreateSessions);
 		it = _sessions.emplace(shiftedDcId, std::make_unique<internal::Session>(_instance, shiftedDcId)).first;
 		it->second->start();
 	}
@@ -1189,12 +1199,15 @@ void Instance::Private::clearGlobalHandlers() {
 }
 
 void Instance::Private::prepareToDestroy() {
+	// It accesses Instance in destructor, so it should be destroyed first.
+	_configLoader.reset();
+
 	for (auto &session : base::take(_sessions)) {
 		session.second->kill();
 	}
+	_mainSession = nullptr;
 
-	// It accesses Instance in destructor, so it should be destroyed first.
-	_configLoader.reset();
+	MustNotCreateSessions = true;
 }
 
 Instance::Instance(DcOptions *options, Mode mode, Config &&config) : QObject()
