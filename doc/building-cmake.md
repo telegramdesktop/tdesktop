@@ -27,7 +27,7 @@ By git – in Terminal go to **/home/user/TBuild** and run
 
 Install dev libraries
 
-    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev
+    sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdee-dev
 
 ####zlib 1.2.8
 
