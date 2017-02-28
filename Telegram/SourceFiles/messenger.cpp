@@ -318,7 +318,7 @@ void Messenger::destroyStaleAuthorizationKeys() {
 	auto keys = _mtproto->getKeysForWrite();
 	for (auto &key : keys) {
 		// Disable this for now.
-		if (false && key->type() == MTP::AuthKey::Type::ReadFromFile) {
+		if (key->type() == MTP::AuthKey::Type::ReadFromFile) {
 			_private->mtpKeysToDestroy = _mtproto->getKeysForWrite();
 			_mtproto.reset();
 			LOG(("MTP Info: destroying stale keys, count: %1").arg(_private->mtpKeysToDestroy.size()));
