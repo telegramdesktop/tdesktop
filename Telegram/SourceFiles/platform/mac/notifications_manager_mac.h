@@ -20,17 +20,24 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
 
 namespace Platform {
 namespace Notifications {
 
-inline bool skipAudio() {
+class Manager;
+Manager *GetNativeManager();
+
+inline bool SkipAudio() {
 	return false;
 }
 
-inline bool skipToast() {
+inline bool SkipToast() {
 	return false;
+}
+
+inline Window::Notifications::Manager *GetManager() {
+	return GetNativeManager();
 }
 
 class Manager : public Window::Notifications::NativeManager {

@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "platform/mac/file_dialog_mac.h"
+#include "platform/mac/file_utilities_mac.h"
 
 #include "platform/mac/mac_utilities.h"
 
@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <CoreFoundation/CFURL.h>
 
 namespace Platform {
-namespace FileDialog {
+namespace File {
 
 QString UrlToLocal(const QUrl &url) {
 	auto result = url.toLocalFile();
@@ -40,5 +40,5 @@ QString UrlToLocal(const QUrl &url) {
 	return result;
 }
 
-} // namespace FileDialog
+} // namespace File
 } // namespace Platform

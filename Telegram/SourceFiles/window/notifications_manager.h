@@ -25,9 +25,9 @@ namespace Notifications {
 
 class Manager;
 
-void start();
-Manager *manager();
-void finish();
+void Start();
+Manager *GetManager();
+void Finish();
 
 class Manager {
 public:

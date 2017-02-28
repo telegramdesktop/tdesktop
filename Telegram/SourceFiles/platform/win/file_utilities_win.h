@@ -20,9 +20,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/filedialog.h"
+#include "platform/platform_file_utilities.h"
 
 namespace Platform {
+namespace File {
+
+inline QString UrlToLocal(const QUrl &url) {
+	return url.toLocalFile();
+}
+
+} // namespace File
+
 namespace FileDialog {
 
 inline bool Supported() {
@@ -32,8 +40,6 @@ inline bool Supported() {
 inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
 	return false;
 }
-
-QString UrlToLocal(const QUrl &url);
 
 } // namespace FileDialog
 } // namespace Platform

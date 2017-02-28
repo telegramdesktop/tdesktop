@@ -802,7 +802,7 @@ void MainWindow::initHook() {
 }
 
 bool MainWindow::psHasNativeNotifications() {
-	return Notifications::supported();
+	return Notifications::Supported();
 }
 
 Q_DECLARE_METATYPE(QMargins);

@@ -88,7 +88,7 @@ Messenger::Messenger() : QObject()
 	anim::startManager();
 	historyInit();
 	Media::Player::start();
-	Window::Notifications::start();
+	Window::Notifications::Start();
 
 	DEBUG_LOG(("Application Info: inited..."));
 
@@ -678,7 +678,7 @@ Messenger::~Messenger() {
 
 	Shortcuts::finish();
 
-	Window::Notifications::finish();
+	Window::Notifications::Finish();
 
 	anim::stopManager();
 

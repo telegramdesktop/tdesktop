@@ -315,24 +315,24 @@ private:
 
 } // namespace
 
-void start() {
+void Start() {
 	if (init()) {
 		ManagerInstance.createIfNull();
 	}
 }
 
-Manager *manager() {
+Window::Notifications::Manager *GetManager() {
 	if (Global::started() && Global::NativeNotifications()) {
 		return ManagerInstance.data();
 	}
 	return nullptr;
 }
 
-bool supported() {
+bool Supported() {
 	return ManagerInstance.data() != nullptr;
 }
 
-void finish() {
+void Finish() {
 	ManagerInstance.clear();
 }
 
@@ -600,7 +600,7 @@ void querySystemNotificationSettings() {
 
 } // namespace
 
-bool skipAudio() {
+bool SkipAudio() {
 	querySystemNotificationSettings();
 
 	if (UserNotificationState == QUNS_NOT_PRESENT || UserNotificationState == QUNS_PRESENTATION_MODE) {
@@ -615,7 +615,7 @@ bool skipAudio() {
 	return false;
 }
 
-bool skipToast() {
+bool SkipToast() {
 	querySystemNotificationSettings();
 
 	if (UserNotificationState == QUNS_PRESENTATION_MODE || UserNotificationState == QUNS_RUNNING_D3D_FULL_SCREEN/* || UserNotificationState == QUNS_BUSY*/) {

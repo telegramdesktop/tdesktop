@@ -232,7 +232,7 @@ using Notification = QSharedPointer<NotificationData>;
 
 } // namespace
 
-void start() {
+void Start() {
 	if (LibNotifyLoaded()) {
 		if (Libs::notify_is_initted() || Libs::notify_init("Telegram Desktop")) {
 			ManagerInstance.createIfNull();
@@ -246,19 +246,19 @@ void start() {
 	}
 }
 
-Manager *manager() {
+Window::Notifications::Manager *GetManager() {
 	if (Global::started() && Global::NativeNotifications()) {
 		return ManagerInstance.data();
 	}
 	return nullptr;
 }
 
-bool supported() {
+bool Supported() {
 	return ManagerInstance.data() != nullptr;
 }
 
-void finish() {
-	if (manager()) {
+void Finish() {
+	if (GetManager()) {
 		ManagerInstance.reset();
 		Libs::notify_uninit();
 	}

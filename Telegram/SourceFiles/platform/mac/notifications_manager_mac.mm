@@ -94,21 +94,21 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 namespace Platform {
 namespace Notifications {
 
-void start() {
+void Start() {
 	if (cPlatform() != dbipMacOld) {
 		ManagerInstance.createIfNull();
 	}
 }
 
-Manager *manager() {
+Manager *GetNativeManager() {
 	return ManagerInstance.data();
 }
 
-void finish() {
+void Finish() {
 	ManagerInstance.clear();
 }
 
-void defaultNotificationShown(QWidget *widget) {
+void CustomNotificationShownHook(QWidget *widget) {
 	widget->hide();
 	objc_holdOnTop(widget->winId());
 	widget->show();

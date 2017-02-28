@@ -19,7 +19,7 @@ Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stdafx.h"
-#include "platform/linux/file_dialog_linux.h"
+#include "platform/linux/file_utilities_linux.h"
 
 #include <private/qguiapplication_p.h>
 #include "platform/linux/linux_libs.h"

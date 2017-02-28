@@ -20,30 +20,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-// Platform module must define a Platform::Notifications::Manager class.
-// It should be Window::Notifications::Manager or its derivative.
+#include "window/notifications_manager.h"
+
+namespace Platform {
+namespace Notifications {
+
+void CustomNotificationShownHook(QWidget *widget);
+bool SkipAudio();
+bool SkipToast();
+
+void Start();
+Window::Notifications::Manager *GetManager();
+bool Supported();
+void Finish();
+
+} // namespace Notifications
+} // namespace Platform
+
+// Platform dependent implementations.
+
 #ifdef Q_OS_MAC
 #include "platform/mac/notifications_manager_mac.h"
 #elif defined Q_OS_LINUX // Q_OS_MAC
 #include "platform/linux/notifications_manager_linux.h"
-#elif defined Q_OS_WINRT // Q_OS_MAC || Q_OS_LINUX
-#include "platform/winrt/notifications_manager_winrt.h"
-#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT
+#elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
 #include "platform/win/notifications_manager_win.h"
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
-
-// Platform-independent API.
-namespace Platform {
-namespace Notifications {
-
-void defaultNotificationShown(QWidget *widget);
-bool skipAudio();
-bool skipToast();
-
-void start();
-Manager *manager();
-bool supported();
-void finish();
-
-} // namespace Notifications
-} // namespace Platform
+#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WIN

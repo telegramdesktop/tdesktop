@@ -335,7 +335,7 @@ void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
 
-	if (auto manager = Window::Notifications::manager()) {
+	if (auto manager = Window::Notifications::GetManager()) {
 		manager->clearAllFast();
 	}
 

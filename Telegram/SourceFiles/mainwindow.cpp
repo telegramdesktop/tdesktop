@@ -970,7 +970,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 
 	auto when = ms + delay;
 	_notifyWhenAlerts[history].insert(when, notifyByFrom);
-	if (Global::DesktopNotify() && !Platform::Notifications::skipToast()) {
+	if (Global::DesktopNotify() && !Platform::Notifications::SkipToast()) {
 		NotifyWhenMaps::iterator i = _notifyWhenMaps.find(history);
 		if (i == _notifyWhenMaps.end()) {
 			i = _notifyWhenMaps.insert(history, NotifyWhenMap());
@@ -993,7 +993,7 @@ void MainWindow::notifySchedule(History *history, HistoryItem *item) {
 
 void MainWindow::notifyClear(History *history) {
 	if (!history) {
-		Window::Notifications::manager()->clearAll();
+		Window::Notifications::GetManager()->clearAll();
 
 		for (auto i = _notifyWhenMaps.cbegin(), e = _notifyWhenMaps.cend(); i != e; ++i) {
 			i.key()->clearNotifications();
@@ -1005,7 +1005,7 @@ void MainWindow::notifyClear(History *history) {
 		return;
 	}
 
-	Window::Notifications::manager()->clearFromHistory(history);
+	Window::Notifications::GetManager()->clearFromHistory(history);
 
 	history->clearNotifications();
 	_notifyWhenMaps.remove(history);
@@ -1018,7 +1018,7 @@ void MainWindow::notifyClear(History *history) {
 }
 
 void MainWindow::notifyClearFast() {
-	Window::Notifications::manager()->clearAllFast();
+	Window::Notifications::GetManager()->clearAllFast();
 
 	_notifyWhenMaps.clear();
 	_notifyWhenAlerts.clear();
@@ -1100,7 +1100,7 @@ void MainWindow::notifyShowNext() {
 		App::playSound();
 	}
 
-	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::skipToast()) {
+	if (_notifyWaiters.isEmpty() || !Global::DesktopNotify() || Platform::Notifications::SkipToast()) {
 		if (nextAlert) {
 			_notifyWaitTimer.start(nextAlert - ms);
 		}
@@ -1194,7 +1194,7 @@ void MainWindow::notifyShowNext() {
 					} while (nextNotify);
 				}
 
-				Window::Notifications::manager()->showNotification(notifyItem, fwdCount);
+				Window::Notifications::GetManager()->showNotification(notifyItem, fwdCount);
 
 				if (!history->hasNotification()) {
 					_notifyWaiters.remove(history);
@@ -1216,7 +1216,7 @@ void MainWindow::app_activateClickHandler(ClickHandlerPtr handler, Qt::MouseButt
 }
 
 void MainWindow::notifyUpdateAll() {
-	Window::Notifications::manager()->updateAll();
+	Window::Notifications::GetManager()->updateAll();
 }
 
 QImage MainWindow::iconLarge() const {

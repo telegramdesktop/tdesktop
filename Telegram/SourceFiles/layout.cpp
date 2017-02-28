@@ -285,12 +285,12 @@ action app bin command csh osx workflow\
 		*result = qsl("\
 bin csh ksh out run\
 ").split(' ');
-#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+#else // Q_OS_MAC || Q_OS_LINUX
 		*result = qsl("\
 bat bin cmd com cpl exe gadget inf ins inx isu job jse lnk msc msi \
 msp mst paf pif ps1 reg rgs sct shb shs u3p vb vbe vbs vbscript ws wsf\
 ").split(' ');
-#endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN
+#endif // !Q_OS_MAC && !Q_OS_LINUX
 		return result.release();
 	})());
 

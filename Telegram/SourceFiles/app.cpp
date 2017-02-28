@@ -2015,7 +2015,7 @@ namespace {
 				dependent->dependencyItemRemoved(item);
 			}
 		}
-		if (auto manager = Window::Notifications::manager()) {
+		if (auto manager = Window::Notifications::GetManager()) {
 			manager->clearFromItem(item);
 		}
 		if (Global::started() && !App::quitting()) {
@@ -2434,7 +2434,7 @@ namespace {
 	}
 
 	void playSound() {
-		if (Global::SoundNotify() && !Platform::Notifications::skipAudio()) {
+		if (Global::SoundNotify() && !Platform::Notifications::SkipAudio()) {
 			Media::Player::PlayNotify();
 		}
 	}

@@ -40,9 +40,9 @@ class HideAllButton;
 
 class Manager;
 
-void start();
-Manager *manager();
-void finish();
+void Start();
+Manager *GetManager();
+void Finish();
 
 class Manager : public Notifications::Manager, private base::Subscriber {
 public:
@@ -234,9 +234,9 @@ private:
 	Animation a_actionsOpacity;
 	QPixmap _buttonsCache;
 
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
+#ifdef Q_OS_WIN
 	TimeMs _started;
-#endif // Q_OS_WIN && !Q_OS_WINRT
+#endif // Q_OS_WIN
 
 	History *_history;
 	PeerData *_peer;

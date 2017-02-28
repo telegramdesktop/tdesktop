@@ -18,12 +18,20 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-#include "platform/win/main_window_winrt.h"
+#pragma once
+
+#include "platform/platform_file_utilities.h"
 
 namespace Platform {
-namespace {
+namespace FileDialog {
 
-} // namespace
+inline bool Supported() {
+	return false;
+}
 
+inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
+	return false;
+}
+
+} // namespace FileDialog
 } // namespace Platform

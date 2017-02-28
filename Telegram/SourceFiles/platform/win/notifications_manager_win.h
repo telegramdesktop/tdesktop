@@ -20,12 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/notifications_manager.h"
+#include "platform/platform_notifications_manager.h"
 
 namespace Platform {
 namespace Notifications {
 
-inline void defaultNotificationShown(QWidget *widget) {
+inline void CustomNotificationShownHook(QWidget *widget) {
 }
 
 class Manager : public Window::Notifications::NativeManager {

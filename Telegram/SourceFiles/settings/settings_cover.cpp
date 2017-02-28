@@ -35,7 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "styles/style_settings.h"
 #include "styles/style_profile.h" // for divider
-#include "platform/platform_file_dialog.h"
+#include "platform/platform_file_utilities.h"
 
 namespace Settings {
 
@@ -187,7 +187,7 @@ bool CoverWidget::mimeDataHasImage(const QMimeData *mimeData) const {
 	auto &url = urls.at(0);
 	if (!url.isLocalFile()) return false;
 
-	auto file = Platform::FileDialog::UrlToLocal(url);
+	auto file = Platform::File::UrlToLocal(url);
 
 	QFileInfo info(file);
 	if (info.isDir()) return false;
@@ -235,7 +235,7 @@ void CoverWidget::dropEvent(QDropEvent *e) {
 		if (urls.size() == 1) {
 			auto &url = urls.at(0);
 			if (url.isLocalFile()) {
-				img = App::readImage(Platform::FileDialog::UrlToLocal(url));
+				img = App::readImage(Platform::File::UrlToLocal(url));
 			}
 		}
 	}

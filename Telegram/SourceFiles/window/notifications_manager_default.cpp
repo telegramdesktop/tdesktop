@@ -60,15 +60,15 @@ internal::Widget::Direction notificationShiftDirection() {
 
 } // namespace
 
-void start() {
+void Start() {
 	ManagerInstance.createIfNull();
 }
 
-Manager *manager() {
+Manager *GetManager() {
 	return ManagerInstance.data();
 }
 
-void finish() {
+void Finish() {
 	ManagerInstance.clear();
 }
 
@@ -197,7 +197,7 @@ void Manager::showNextFromQueue() {
 					queued.item,
 					queued.forwardedCount,
 					startPosition, startShift, shiftDirection);
-				Platform::Notifications::defaultNotificationShown(notification.get());
+				Platform::Notifications::CustomNotificationShownHook(notification.get());
 				_notifications.push_back(notification.release());
 				--count;
 			} while (count > 0 && !_queuedNotifications.isEmpty());
@@ -476,9 +476,9 @@ Notification::Notification(History *history, PeerData *peer, PeerData *author, H
 , _author(author)
 , _item(msg)
 , _forwardedCount(forwardedCount)
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
+#ifdef Q_OS_WIN
 , _started(GetTickCount())
-#endif // Q_OS_WIN && !Q_OS_WINRT
+#endif // Q_OS_WIN
 , _close(this, st::notifyClose)
 , _reply(this, lang(lng_notification_reply), st::defaultBoxButton) {
 	auto position = computePosition(st::notifyMinHeight);
@@ -544,12 +544,12 @@ bool Notification::checkLastInput(bool hasReplyingNotifications) {
 	if (!_waitingForInput) return true;
 
 	auto wasUserInput = true; // TODO
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
+#ifdef Q_OS_WIN
 	LASTINPUTINFO lii;
 	lii.cbSize = sizeof(LASTINPUTINFO);
 	BOOL res = GetLastInputInfo(&lii);
 	wasUserInput = (!res || lii.dwTime >= _started);
-#endif // Q_OS_WIN && !Q_OS_WINRT
+#endif // Q_OS_WIN
 	if (wasUserInput) {
 		_waitingForInput = false;
 		if (!hasReplyingNotifications) {

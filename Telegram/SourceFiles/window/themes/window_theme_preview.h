@@ -33,5 +33,8 @@ struct CurrentData {
 
 std::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data);
 
+int DefaultPreviewTitleHeight();
+void DefaultPreviewWindowFramePaint(QImage &preview, const style::palette &palette, QRect body, int outerWidth);
+
 } // namespace Theme
 } // namespace Window

@@ -22,28 +22,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "ui/filedialog.h"
 
-#ifdef Q_OS_MAC
-#include "platform/mac/file_dialog_mac.h"
-#elif defined Q_OS_LINUX // Q_OS_MAC
-#include "platform/linux/file_dialog_linux.h"
-#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
-
 namespace Platform {
+namespace File {
+
+QString UrlToLocal(const QUrl &url);
+
+} // namespace File
+
 namespace FileDialog {
 
-inline bool Supported() {
-	return false;
-}
+bool Supported();
 
-inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
-	return false;
-}
-
-inline QString UrlToLocal(const QUrl &url) {
-	return url.toLocalFile();
-}
+bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile);
 
 } // namespace FileDialog
 } // namespace Platform
 
+// Platform dependent implementations.
+
+#ifdef Q_OS_MAC
+#include "platform/mac/file_utilities_mac.h"
+#elif defined Q_OS_LINUX // Q_OS_MAC
+#include "platform/linux/file_utilities_linux.h"
+#elif defined Q_OS_WINRT || defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
+#include "platform/win/file_utilities_win.h"
 #endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WINRT || Q_OS_WIN

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mainwindow.h"
 #include "localstorage.h"
-#include "platform/platform_file_dialog.h"
+#include "platform/platform_file_utilities.h"
 
 #include "core/task_queue.h"
 
@@ -178,9 +178,9 @@ bool getFiles(QStringList &files, QByteArray &remoteContent, const QString &capt
 			files = dialog.selectedFiles().mid(0, 1);
 		}
 		if (type == Type::ReadFile || type == Type::ReadFiles) {
-#if defined Q_OS_WIN && !defined Q_OS_WINRT
+#ifdef Q_OS_WIN
 			remoteContent = dialog.selectedRemoteContent();
-#endif // Q_OS_WIN && !Q_OS_WINRT
+#endif // Q_OS_WIN
 		}
 		return true;
 	}

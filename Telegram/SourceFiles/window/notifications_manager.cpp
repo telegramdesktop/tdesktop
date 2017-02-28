@@ -30,21 +30,21 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Window {
 namespace Notifications {
 
-void start() {
-	Default::start();
-	Platform::Notifications::start();
+void Start() {
+	Default::Start();
+	Platform::Notifications::Start();
 }
 
-Manager *manager() {
-	if (auto result = Platform::Notifications::manager()) {
+Manager *GetManager() {
+	if (auto result = Platform::Notifications::GetManager()) {
 		return result;
 	}
-	return Default::manager();
+	return Default::GetManager();
 }
 
-void finish() {
-	Platform::Notifications::finish();
-	Default::finish();
+void Finish() {
+	Platform::Notifications::Finish();
+	Default::Finish();
 }
 
 Manager::DisplayOptions Manager::getNotificationOptions(HistoryItem *item) {

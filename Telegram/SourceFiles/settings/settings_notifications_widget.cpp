@@ -161,7 +161,7 @@ void NotificationsWidget::onNativeNotifications() {
 		return;
 	}
 
-	Window::Notifications::manager()->clearAllFast();
+	Window::Notifications::GetManager()->clearAllFast();
 	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
 

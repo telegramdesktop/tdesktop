@@ -94,7 +94,7 @@ MainWindow::Private *_private;
 }
 
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
-	if (auto manager = Window::Notifications::Default::manager()) {
+	if (auto manager = Window::Notifications::Default::GetManager()) {
 		manager->enumerateNotifications([](QWidget *widget) {
 			objc_activateWnd(widget->winId());
 		});
@@ -293,7 +293,7 @@ void MainWindow::psUpdateWorkmode() {
 			trayIcon = nullptr;
 		}
 	}
-	if (auto manager = Platform::Notifications::manager()) {
+	if (auto manager = Platform::Notifications::ManagerNative()) {
 		manager->updateDelegate();
 	}
 }

@@ -60,7 +60,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "core/qthelp_regex.h"
 #include "ui/widgets/popup_menu.h"
-#include "platform/platform_file_dialog.h"
+#include "platform/platform_file_utilities.h"
 #include "auth_session.h"
 
 namespace {
@@ -5959,7 +5959,7 @@ DragState HistoryWidget::getDragState(const QMimeData *d) {
 	for (QList<QUrl>::const_iterator i = urls.cbegin(), en = urls.cend(); i != en; ++i) {
 		if (!i->isLocalFile()) return DragStateNone;
 
-		auto file = Platform::FileDialog::UrlToLocal(*i);
+		auto file = Platform::File::UrlToLocal(*i);
 
 		QFileInfo info(file);
 		if (info.isDir()) return DragStateNone;
@@ -6658,7 +6658,7 @@ HistoryWidget::SendingFilesLists HistoryWidget::getSendingFilesLists(const QList
 		if (!url.isLocalFile()) {
 			result.nonLocalUrls.push_back(url);
 		} else {
-			auto filepath = Platform::FileDialog::UrlToLocal(url);
+			auto filepath = Platform::File::UrlToLocal(url);
 			getSendingLocalFileInfo(result, filepath);
 		}
 	}
