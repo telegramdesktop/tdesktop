@@ -2498,14 +2498,22 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 			lineHeight = 0;
 			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
-			if (_maxWidth < _width) {
-				_maxWidth = _width;
-			}
+
+			accumulate_max(_maxWidth, _width);
 			_width = (b->f_width() - last_rBearing);
 			continue;
 		}
 
 		auto b__f_rbearing = b->f_rbearing(); // cache
+
+		// We need to accumulate max width after each block, because
+		// some blocks have width less than -1 * previous right bearing.
+		// In that cases the _width gets _smaller_ after moving to the next block.
+		//
+		// But when we layout block and we're sure that _maxWidth is enough
+		// for all the blocks to fit on their line we check each block, even the
+		// intermediate one with a large negative right bearing.
+		accumulate_max(_maxWidth, _width);
 
 		_width += last_rBearing + (last_rPadding + b->f_width() - b__f_rbearing);
 		lineHeight = qMax(lineHeight, blockHeight);
@@ -2528,9 +2536,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	if (_width > 0) {
 		if (!lineHeight) lineHeight = countBlockHeight(_blocks.back(), _st);
 		_minHeight += lineHeight;
-		if (_maxWidth < _width) {
-			_maxWidth = _width;
-		}
+		accumulate_max(_maxWidth, _width);
 	}
 }
 
