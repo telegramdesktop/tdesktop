@@ -59,9 +59,6 @@ CoverWidget::CoverWidget(QWidget *parent, UserData *self) : BlockWidget(parent, 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
 
 	connect(App::app(), SIGNAL(peerPhotoDone(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
 	connect(App::app(), SIGNAL(peerPhotoFail(PeerId)), this, SLOT(onPhotoUploadStatusChanged(PeerId)));
@@ -303,33 +300,25 @@ void CoverWidget::refreshStatusText() {
 
 void CoverWidget::onSetPhoto() {
 	auto imageExtensions = cImgExtensions();
-	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
+	auto filter = qsl("Image files (*") + imageExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+	FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
 
-	_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
+		QImage img;
+		if (!result.remoteContent.isEmpty()) {
+			img = App::readImage(result.remoteContent);
+		} else {
+			img = App::readImage(result.paths.front());
+		}
+
+		showSetPhotoBox(img);
+	}));
 }
 
 void CoverWidget::onEditName() {
 	Ui::show(Box<EditNameTitleBox>(self()));
-}
-
-void CoverWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_setPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_setPhotoFileQueryId = 0;
-
-	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
-		return;
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
-
-	showSetPhotoBox(img);
 }
 
 void CoverWidget::showSetPhotoBox(const QImage &img) {

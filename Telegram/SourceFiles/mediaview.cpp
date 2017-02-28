@@ -741,7 +741,7 @@ void MediaView::onSaveAs() {
 			if (pattern.isEmpty()) {
 				filter = QString();
 			} else {
-				filter = mimeType.filterString() + qsl(";;") + filedialogAllFilesFilter();
+				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 			}
 
 			psBringToBack(this);
@@ -772,14 +772,15 @@ void MediaView::onSaveAs() {
 		if (!_photo || !_photo->loaded()) return;
 
 		psBringToBack(this);
-		auto filter = qsl("JPEG Image (*.jpg);;") + filedialogAllFilesFilter();
-		auto gotName = filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")));
-		psShowOverAll(this);
-		if (gotName) {
-			if (!file.isEmpty()) {
-				_photo->full->pix().toImage().save(file, "JPG");
+		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
+		FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")), base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+			if (!result.isEmpty() && _photo == photo && photo->loaded()) {
+				photo->full->pix().toImage().save(result, "JPG");
 			}
-		}
+			psShowOverAll(this);
+		}), base::lambda_guarded(this, [this] {
+			psShowOverAll(this);
+		}));
 	}
 	activateWindow();
 	Sandbox::setActiveWindow(this);

@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
+#include "core/file_utilities.h"
 
 namespace Settings {
 
@@ -199,9 +200,6 @@ void BackgroundRow::updateImage() {
 BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_background)) {
 	createControls();
 
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
 	using Update = Window::Theme::BackgroundUpdate;
 	subscribe(Window::Theme::Background(), [this](const Update &update) {
 		if (update.type == Update::Type::New) {
@@ -248,9 +246,40 @@ void BackgroundWidget::needBackgroundUpdate(bool tile) {
 void BackgroundWidget::onChooseFromFile() {
 	auto imgExtensions = cImgExtensions();
 	auto filters = QStringList(qsl("Theme files (*.tdesktop-theme *.tdesktop-palette *") + imgExtensions.join(qsl(" *")) + qsl(")"));
-	filters.push_back(filedialogAllFilesFilter());
+	filters.push_back(FileDialog::AllFilesFilter());
+	FileDialog::GetOpenPath(lang(lng_choose_image), filters.join(qsl(";;")), base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
+		}
 
-	_chooseFromFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filters.join(qsl(";;")));
+		if (!result.paths.isEmpty()) {
+			auto filePath = result.paths.front();
+			if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
+				|| filePath.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
+				Window::Theme::Apply(filePath);
+				return;
+			}
+		}
+
+		QImage img;
+		if (!result.remoteContent.isEmpty()) {
+			img = App::readImage(result.remoteContent);
+		} else {
+			img = App::readImage(result.paths.front());
+		}
+
+		if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
+
+		if (img.width() > 4096 * img.height()) {
+			img = img.copy((img.width() - 4096 * img.height()) / 2, 0, 4096 * img.height(), img.height());
+		} else if (img.height() > 4096 * img.width()) {
+			img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
+		}
+
+		Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std::move(img));
+		_tile->setChecked(false);
+		_background->updateImage();
+	}));
 }
 
 void BackgroundWidget::onEditTheme() {
@@ -259,45 +288,6 @@ void BackgroundWidget::onEditTheme() {
 
 void BackgroundWidget::onUseDefaultTheme() {
 	Window::Theme::ApplyDefault();
-}
-
-void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_chooseFromFileQueryId != update.queryId) {
-		return;
-	}
-	_chooseFromFileQueryId = 0;
-
-	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
-		return;
-	}
-
-	if (!update.filePaths.isEmpty()) {
-		auto filePath = update.filePaths.front();
-		if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
-			|| filePath.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
-			Window::Theme::Apply(filePath);
-			return;
-		}
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
-
-	if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
-
-	if (img.width() > 4096 * img.height()) {
-		img = img.copy((img.width() - 4096 * img.height()) / 2, 0, 4096 * img.height(), img.height());
-	} else if (img.height() > 4096 * img.width()) {
-		img = img.copy(0, (img.height() - 4096 * img.width()) / 2, img.width(), 4096 * img.width());
-	}
-
-	Window::Theme::Background()->setImage(Window::Theme::kCustomBackground, std::move(img));
-	_tile->setChecked(false);
-	_background->updateImage();
 }
 
 void BackgroundWidget::onTile() {

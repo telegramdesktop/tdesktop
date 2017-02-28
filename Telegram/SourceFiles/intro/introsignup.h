@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "intro/introwidget.h"
-#include "core/file_utilities.h"
 
 namespace Ui {
 class RoundButton;
@@ -52,7 +51,7 @@ private slots:
 	void onPhotoReady(const QImage &img);
 
 private:
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+	void setupPhotoButton();
 
 	void nameSubmitDone(const MTPauth_Authorization &result);
 	bool nameSubmitFail(const RPCError &error);
@@ -66,8 +65,6 @@ private:
 	object_ptr<Ui::InputField> _last;
 	QString _firstName, _lastName;
 	mtpRequestId _sentRequest = 0;
-
-	FileDialog::QueryId _readPhotoFileQueryId = 0;
 
 	bool _invertOrder = false;
 

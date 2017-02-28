@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "localimageloader.h"
-#include "core/file_utilities.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
@@ -849,7 +848,6 @@ private:
 	void recordUpdateCallback(QPoint globalPos);
 	void chooseAttach();
 	void historyDownAnimationFinish();
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 	void sendButtonClicked();
 	struct SendingFilesLists {
 		QList<QUrl> nonLocalUrls;
@@ -1138,8 +1136,6 @@ private:
 	// so it should be a BasicAnimation, not an Animation.
 	BasicAnimation _a_recording;
 	anim::value a_recordingLevel;
-
-	FileDialog::QueryId _attachFilesQueryId = 0;
 
 	bool kbWasHidden() const;
 

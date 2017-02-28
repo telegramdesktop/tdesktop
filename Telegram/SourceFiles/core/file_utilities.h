@@ -23,15 +23,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 
 // legacy
-bool filedialogGetOpenFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter);
-bool filedialogGetOpenFile(QString &file, QByteArray &remoteContent, const QString &caption, const QString &filter);
 bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &initialPath);
-bool filedialogGetDir(QString &dir, const QString &caption, const QString &initialPath);
 
 QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString(), bool skipExistance = false);
 QString filedialogNextFilename(const QString &name, const QString &cur, const QString &path = QString());
-
-QString filedialogAllFilesFilter();
 
 namespace File {
 
@@ -54,6 +49,18 @@ void UnsafeLaunchDefault(const QString &filepath);
 } // namespace File
 
 namespace FileDialog {
+
+struct OpenResult {
+	QStringList paths;
+	QByteArray remoteContent;
+};
+void GetOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetFolder(const QString &caption, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+
+QString AllFilesFilter();
+
 namespace internal {
 
 enum class Type {
@@ -68,34 +75,4 @@ void InitLastPathDefault();
 bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile);
 
 } // namespace internal
-
-using QueryId = uint64;
-struct QueryUpdate {
-	QueryUpdate(QueryId id) : queryId(id) {
-	}
-	QueryId queryId;
-	QStringList filePaths;
-	QByteArray remoteContent;
-};
-
-QueryId queryReadFile(const QString &caption, const QString &filter);
-QueryId queryReadFiles(const QString &caption, const QString &filter);
-QueryId queryWriteFile(const QString &caption, const QString &filter, const QString &filePath);
-QueryId queryReadFolder(const QString &caption);
-
-// Returns false if no need to call it anymore right now.
-// NB! This function enters an event loop.
-bool processQuery();
-
-base::Observable<QueryUpdate> &QueryDone();
-
-struct OpenResult {
-	QStringList paths;
-	QByteArray remoteContent;
-};
-void GetOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-void GetOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-void GetWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-void GetFolder(const QString &caption, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-
 } // namespace FileDialog

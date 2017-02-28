@@ -317,7 +317,6 @@ void finish();
 DeclareReadOnlyVar(uint64, LaunchId);
 DeclareRefVar(SingleDelayedCall, HandleHistoryUpdate);
 DeclareRefVar(SingleDelayedCall, HandleUnreadCounterUpdate);
-DeclareRefVar(SingleDelayedCall, HandleFileDialogQueue);
 DeclareRefVar(SingleDelayedCall, HandleDelayedPeerUpdates);
 DeclareRefVar(SingleDelayedCall, HandleObservables);
 

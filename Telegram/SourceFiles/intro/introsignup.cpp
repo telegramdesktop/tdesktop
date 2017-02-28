@@ -43,14 +43,7 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 , _checkRequest(this) {
 	connect(_checkRequest, SIGNAL(timeout()), this, SLOT(onCheckRequest()));
 
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_readPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
+	setupPhotoButton();
 
 	if (_invertOrder) {
 		setTabOrder(_last, _first);
@@ -62,28 +55,30 @@ SignupWidget::SignupWidget(QWidget *parent, Widget::Data *data) : Step(parent, d
 	setMouseTracking(true);
 }
 
-void SignupWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_readPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_readPhotoFileQueryId = 0;
-	if (update.remoteContent.isEmpty() && update.filePaths.isEmpty()) {
-		return;
-	}
+void SignupWidget::setupPhotoButton() {
+	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
+		auto imgExtensions = cImgExtensions();
+		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+		FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+			if (result.remoteContent.isEmpty() && result.paths.isEmpty()) {
+				return;
+			}
 
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
+			QImage img;
+			if (!result.remoteContent.isEmpty()) {
+				img = App::readImage(result.remoteContent);
+			} else {
+				img = App::readImage(result.paths.front());
+			}
 
-	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		showError(lang(lng_bad_photo));
-		return;
-	}
-	auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
-	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
+				showError(lang(lng_bad_photo));
+				return;
+			}
+			auto box = Ui::show(Box<PhotoCropBox>(img, PeerId(0)));
+			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+		}));
+	}));
 }
 
 void SignupWidget::resizeEvent(QResizeEvent *e) {

@@ -615,7 +615,6 @@ struct Data {
 	uint64 LaunchId = 0;
 	SingleDelayedCall HandleHistoryUpdate = { App::app(), "call_handleHistoryUpdate" };
 	SingleDelayedCall HandleUnreadCounterUpdate = { App::app(), "call_handleUnreadCounterUpdate" };
-	SingleDelayedCall HandleFileDialogQueue = { App::app(), "call_handleFileDialogQueue" };
 	SingleDelayedCall HandleDelayedPeerUpdates = { App::app(), "call_handleDelayedPeerUpdates" };
 	SingleDelayedCall HandleObservables = { App::app(), "call_handleObservables" };
 
@@ -737,7 +736,6 @@ void finish() {
 DefineReadOnlyVar(Global, uint64, LaunchId);
 DefineRefVar(Global, SingleDelayedCall, HandleHistoryUpdate);
 DefineRefVar(Global, SingleDelayedCall, HandleUnreadCounterUpdate);
-DefineRefVar(Global, SingleDelayedCall, HandleFileDialogQueue);
 DefineRefVar(Global, SingleDelayedCall, HandleDelayedPeerUpdates);
 DefineRefVar(Global, SingleDelayedCall, HandleObservables);
 

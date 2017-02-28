@@ -1118,12 +1118,12 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		bool mp3 = (data->mime == qstr("audio/mp3"));
 		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
 		filter = mp3 ? qsl("MP3 Audio (*.mp3);;") : qsl("OGG Opus Audio (*.ogg);;");
-		filter += filedialogAllFilesFilter();
+		filter += FileDialog::AllFilesFilter();
 		caption = lang(lng_save_audio);
 		prefix = qsl("audio");
 	} else if (data->isVideo()) {
 		name = already.isEmpty() ? qsl(".mov") : already;
-		filter = qsl("MOV Video (*.mov);;") + filedialogAllFilesFilter();
+		filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
 		caption = lang(lng_save_video);
 		prefix = qsl("video");
 	} else {
@@ -1134,7 +1134,7 @@ QString documentSaveFilename(const DocumentData *data, bool forceSavingAs = fals
 		if (pattern.isEmpty()) {
 			filter = QString();
 		} else {
-			filter = mimeType.filterString() + qsl(";;") + filedialogAllFilesFilter();
+			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
 		}
 		caption = lang(data->song() ? lng_save_audio_file : lng_save_file);
 		prefix = qsl("doc");

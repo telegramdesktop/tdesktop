@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/observer.h"
-#include "core/file_utilities.h"
 
 namespace style {
 struct RoundButton;
@@ -83,7 +82,6 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
 	// Counts userpic button left offset for a new widget width.
 	int countPhotoLeft(int newWidth) const;
@@ -137,8 +135,6 @@ private:
 	int _dividerTop = 0;
 
 	int _onlineCount = 0;
-
-	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 };
 

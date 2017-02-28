@@ -1489,13 +1489,12 @@ void HistoryInner::copyContextUrl() {
 void HistoryInner::savePhotoToFile(PhotoData *photo) {
 	if (!photo || !photo->date || !photo->loaded()) return;
 
-	QString file;
-	auto filter = qsl("JPEG Image (*.jpg);;") + filedialogAllFilesFilter();
-	if (filedialogGetSaveFile(file, lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")))) {
-		if (!file.isEmpty()) {
-			photo->full->pix().toImage().save(file, "JPG");
+	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
+	FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")), base::lambda_guarded(this, [this, photo](const QString &result) {
+		if (!result.isEmpty()) {
+			photo->full->pix().toImage().save(result, "JPG");
 		}
-	}
+	}));
 }
 
 void HistoryInner::copyContextImage() {
@@ -3169,9 +3168,6 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_attachToggle->setClickedCallback(App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [this] {
 		chooseAttach();
 	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
 
 	_updateHistoryItems.setSingleShot(true);
 	connect(&_updateHistoryItems, SIGNAL(timeout()), this, SLOT(onUpdateHistoryItems()));
@@ -5594,40 +5590,33 @@ void HistoryWidget::step_recording(float64 ms, bool timer) {
 void HistoryWidget::chooseAttach() {
 	if (!_history) return;
 
-	auto filter = filedialogAllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
+	auto filter = FileDialog::AllFilesFilter() + qsl(";;Image files (*") + cImgExtensions().join(qsl(" *")) + qsl(")");
 
-	_attachFilesQueryId = FileDialog::queryReadFiles(lang(lng_choose_files), filter);
-}
-
-void HistoryWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_attachFilesQueryId != update.queryId) {
-		return;
-	}
-	_attachFilesQueryId = 0;
-
-	if (update.filePaths.isEmpty() && update.remoteContent.isEmpty()) {
-		return;
-	}
-
-	if (!update.remoteContent.isEmpty()) {
-		auto animated = false;
-		auto image = App::readImage(update.remoteContent, nullptr, false, &animated);
-		if (!image.isNull() && !animated) {
-			confirmSendingFiles(image, update.remoteContent);
-		} else {
-			uploadFile(update.remoteContent, SendMediaType::File);
+	FileDialog::GetOpenPaths(lang(lng_choose_files), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
+			return;
 		}
-	} else {
-		auto lists = getSendingFilesLists(update.filePaths);
-		if (lists.allFilesForCompress) {
-			confirmSendingFiles(lists);
+
+		if (!result.remoteContent.isEmpty()) {
+			auto animated = false;
+			auto image = App::readImage(result.remoteContent, nullptr, false, &animated);
+			if (!image.isNull() && !animated) {
+				confirmSendingFiles(image, result.remoteContent);
+			} else {
+				uploadFile(result.remoteContent, SendMediaType::File);
+			}
 		} else {
-			validateSendingFiles(lists, [this](const QStringList &files) {
-				uploadFiles(files, SendMediaType::File);
-				return true;
-			});
+			auto lists = getSendingFilesLists(result.paths);
+			if (lists.allFilesForCompress) {
+				confirmSendingFiles(lists);
+			} else {
+				validateSendingFiles(lists, [this](const QStringList &files) {
+					uploadFiles(files, SendMediaType::File);
+					return true;
+				});
+			}
 		}
-	}
+	}));
 }
 
 void HistoryWidget::sendButtonClicked() {

@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
-#include "core/file_utilities.h"
 
 class ConfirmBox;
 
@@ -103,7 +102,7 @@ private slots:
 	}
 
 private:
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
+	void setupPhotoButton();
 
 	void creationDone(const MTPUpdates &updates);
 	bool creationFail(const RPCError &e);
@@ -124,8 +123,6 @@ private:
 	// channel creation
 	mtpRequestId _creationRequestId = 0;
 	ChannelData *_createdChannel = nullptr;
-
-	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 };
 

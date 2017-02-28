@@ -21,8 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/observer.h"
-#include "core/file_utilities.h"
-
 #include "settings/settings_block_widget.h"
 
 namespace Ui {
@@ -71,7 +69,6 @@ protected:
 private:
 	// Observed notifications.
 	void notifyPeerUpdated(const Notify::PeerUpdate &update);
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
 	PhotoData *validatePhoto() const;
 
@@ -104,8 +101,6 @@ private:
 	bool _editNameVisible = true;
 
 	int _dividerTop = 0;
-
-	FileDialog::QueryId _setPhotoFileQueryId = 0;
 
 };
 

@@ -62,6 +62,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/player_wrap_widget.h"
 #include "styles/style_boxes.h"
 #include "mtproto/dc_options.h"
+#include "core/file_utilities.h"
 #include "auth_session.h"
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)

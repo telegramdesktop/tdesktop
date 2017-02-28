@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "settings/settings_block_widget.h"
-#include "core/file_utilities.h"
 
 namespace Settings {
 
@@ -106,7 +105,6 @@ private:
 	void refreshControls();
 	void updateWorkmode();
 	void chooseCustomLang();
-	void notifyFileQueryUpdated(const FileDialog::QueryUpdate &update);
 
 	object_ptr<Ui::LinkButton> _changeLanguage;
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -119,7 +117,6 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<Ui::Checkbox>> _startMinimized = { nullptr };
 	object_ptr<Ui::Checkbox> _addInSendTo = { nullptr };
 
-	FileDialog::QueryId _chooseLangFileQueryId = 0;
 	QString _testLanguage;
 
 };
