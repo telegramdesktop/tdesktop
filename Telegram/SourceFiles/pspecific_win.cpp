@@ -30,10 +30,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "history/history_location_manager.h"
-
 #include "localstorage.h"
-
 #include "passcodewidget.h"
+#include "core/task_queue.h"
 
 #include <Shobjidl.h>
 #include <shellapi.h>
@@ -702,28 +701,32 @@ bool psShowOpenWithMenu(int x, int y, const QString &file) {
 }
 
 void psOpenFile(const QString &name, bool openWith) {
-	bool mailtoScheme = name.startsWith(qstr("mailto:"));
-	std::wstring wname = mailtoScheme ? name.toStdWString() : QDir::toNativeSeparators(name).toStdWString();
+	base::TaskQueue::Main().Put([name, openWith] {
+		bool mailtoScheme = name.startsWith(qstr("mailto:"));
+		std::wstring wname = mailtoScheme ? name.toStdWString() : QDir::toNativeSeparators(name).toStdWString();
 
-	if (openWith && useOpenAs) {
-		if (Dlls::SHOpenWithDialog) {
-			OPENASINFO info;
-			info.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC;
-			if (mailtoScheme) info.oaifInFlags |= OAIF_FILE_IS_URI | OAIF_URL_PROTOCOL;
-			info.pcszClass = NULL;
-			info.pcszFile = wname.c_str();
-			Dlls::SHOpenWithDialog(0, &info);
+		if (openWith && useOpenAs) {
+			if (Dlls::SHOpenWithDialog) {
+				OPENASINFO info;
+				info.oaifInFlags = OAIF_ALLOW_REGISTRATION | OAIF_REGISTER_EXT | OAIF_EXEC;
+				if (mailtoScheme) info.oaifInFlags |= OAIF_FILE_IS_URI | OAIF_URL_PROTOCOL;
+				info.pcszClass = NULL;
+				info.pcszFile = wname.c_str();
+				Dlls::SHOpenWithDialog(0, &info);
+			} else {
+				Dlls::OpenAs_RunDLL(0, 0, wname.c_str(), SW_SHOWNORMAL);
+			}
 		} else {
-			Dlls::OpenAs_RunDLL(0, 0, wname.c_str(), SW_SHOWNORMAL);
+			ShellExecute(0, L"open", wname.c_str(), 0, 0, SW_SHOWNORMAL);
 		}
-	} else {
-		ShellExecute(0, L"open", wname.c_str(), 0, 0, SW_SHOWNORMAL);
-	}
+	});
 }
 
 void psShowInFolder(const QString &name) {
-	QString nameEscaped = QDir::toNativeSeparators(name).replace('"', qsl("\"\""));
-	ShellExecute(0, 0, qsl("explorer").toStdWString().c_str(), (qsl("/select,") + nameEscaped).toStdWString().c_str(), 0, SW_SHOWNORMAL);
+	base::TaskQueue::Main().Put([name] {
+		auto nameEscaped = QDir::toNativeSeparators(name).replace('"', qsl("\"\""));
+		ShellExecute(0, 0, qsl("explorer").toStdWString().c_str(), (qsl("/select,") + nameEscaped).toStdWString().c_str(), 0, SW_SHOWNORMAL);
+	});
 }
 
 
