@@ -38,7 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "serialize/serialize_common.h"
 
 namespace {

@@ -68,10 +68,6 @@ void psExecTelegram(const QString &crashreport = QString());
 
 bool psShowOpenWithMenu(int x, int y, const QString &file);
 
-void psPostprocessFile(const QString &name);
-void psOpenFile(const QString &name, bool openWith = false);
-void psShowInFolder(const QString &name);
-
 QAbstractNativeEventFilter *psNativeEventFilter();
 
 void psNewVersion();
@@ -111,8 +107,5 @@ QString strNotificationAboutThemeChange();
 QString strNotificationAboutScreenLocked();
 QString strNotificationAboutScreenUnlocked();
 QString strStyleOfInterface();
-QString strNeedToReload();
-QString strNeedToRefresh1();
-QString strNeedToRefresh2();
 
 bool psLaunchMaps(const LocationCoords &coords);

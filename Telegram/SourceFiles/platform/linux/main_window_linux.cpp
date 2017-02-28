@@ -374,7 +374,7 @@ void MainWindow::updateIconCounters() {
 }
 
 bool MainWindow::psHasNativeNotifications() {
-	return Notifications::supported();
+	return Notifications::Supported();
 }
 
 void MainWindow::LibsLoaded() {

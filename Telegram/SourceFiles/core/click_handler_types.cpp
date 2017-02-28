@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/qthelp_url.h"
 #include "localstorage.h"
 #include "ui/widgets/tooltip.h"
+#include "core/file_utilities.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -68,10 +69,7 @@ void UrlClickHandler::doOpen(QString url) {
 	Ui::Tooltip::Hide();
 
 	if (isEmail(url)) {
-		QUrl u(qstr("mailto:") + url);
-		if (!QDesktopServices::openUrl(u)) {
-			psOpenFile(u.toString(QUrl::FullyEncoded), true);
-		}
+		File::OpenEmailLink(url);
 		return;
 	}
 

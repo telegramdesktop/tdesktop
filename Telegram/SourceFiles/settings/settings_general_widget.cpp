@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/languagebox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/aboutbox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "langloaderplain.h"
 #include "autoupdater.h"
 

@@ -31,18 +31,42 @@ extern "C" {
 
 namespace Platform {
 namespace File {
+namespace internal {
+
+QByteArray EscapeShell(const QByteArray &content);
+
+} // namespace internal
 
 inline QString UrlToLocal(const QUrl &url) {
-	return url.toLocalFile();
+	return ::File::internal::UrlToLocalDefault(url);
+}
+
+inline void UnsafeOpenEmailLink(const QString &email) {
+	return ::File::internal::UnsafeOpenEmailLinkDefault(email);
+}
+
+inline bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
+	return false;
+}
+
+inline bool UnsafeShowOpenWith(const QString &filepath) {
+	return false;
+}
+
+inline void UnsafeLaunch(const QString &filepath) {
+	return ::File::internal::UnsafeLaunchDefault(filepath);
+}
+
+inline void PostprocessDownloaded(const QString &filepath) {
 }
 
 } // namespace File
 
 namespace FileDialog {
 
-bool Supported();
-
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile);
+inline void InitLastPath() {
+	::FileDialog::internal::InitLastPathDefault();
+}
 
 namespace internal {
 

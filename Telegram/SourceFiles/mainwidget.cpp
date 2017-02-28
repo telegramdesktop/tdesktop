@@ -1578,7 +1578,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 		auto filepath = document->filepath(DocumentData::FilePathResolveSaveFromData);
 		if (!filepath.isEmpty()) {
 			if (documentIsValidMediaFile(filepath)) {
-				psOpenFile(filepath);
+				File::Launch(filepath);
 			}
 		}
 	}

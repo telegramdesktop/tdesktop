@@ -35,7 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "messenger.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 
@@ -93,7 +93,7 @@ void fillCodes() {
 		}
 	});
 	Codes.insert(qsl("loadcolors"), []() {
-		FileDialog::askOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}

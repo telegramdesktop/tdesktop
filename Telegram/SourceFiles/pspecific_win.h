@@ -63,12 +63,6 @@ int psFixPrevious();
 void psExecUpdater();
 void psExecTelegram(const QString &arg = QString());
 
-bool psShowOpenWithMenu(int x, int y, const QString &file);
-
-void psPostprocessFile(const QString &name);
-void psOpenFile(const QString &name, bool openWith = false);
-void psShowInFolder(const QString &name);
-
 QAbstractNativeEventFilter *psNativeEventFilter();
 
 void psNewVersion();

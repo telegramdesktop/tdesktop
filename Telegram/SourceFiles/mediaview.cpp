@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "application.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/buttons.h"
 #include "media/media_clip_reader.h"
@@ -631,7 +631,7 @@ void MediaView::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool presse
 }
 
 void MediaView::showSaveMsgFile() {
-	psShowInFolder(_saveMsgFilename);
+	File::ShowInFolder(_saveMsgFilename);
 }
 
 void MediaView::close() {
@@ -908,9 +908,9 @@ void MediaView::onSaveCancel() {
 void MediaView::onShowInFolder() {
 	if (!_doc) return;
 
-	QString filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
+	auto filepath = _doc->filepath(DocumentData::FilePathResolveChecked);
 	if (!filepath.isEmpty()) {
-		psShowInFolder(filepath);
+		File::ShowInFolder(filepath);
 	}
 }
 

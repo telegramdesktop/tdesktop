@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "window/notifications_manager.h"
 #include "boxes/notifications_box.h"
+#include "platform/platform_notifications_manager.h"
 
 namespace Settings {
 
@@ -72,16 +73,14 @@ void NotificationsWidget::createNotificationsControls() {
 	style::margins margin(0, 0, 0, st::settingsSkip);
 	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
 
-	QString nativeNotificationsLabel;
+	auto nativeNotificationsLabel = QString();
+	if (Platform::Notifications::Supported()) {
 #ifdef Q_OS_WIN
-	if (App::wnd()->psHasNativeNotifications()) {
 		nativeNotificationsLabel = lang(lng_settings_use_windows);
-	}
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
-	if (App::wnd()->psHasNativeNotifications()) {
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32 // Q_OS_WIN
 		nativeNotificationsLabel = lang(lng_settings_use_native_notifications);
+#endif // Q_OS_WIN || Q_OS_LINUX64 || Q_OS_LINUX32
 	}
-#endif // Q_OS_WIN
 	if (!nativeNotificationsLabel.isEmpty()) {
 		addChildRow(_nativeNotifications, margin, nativeNotificationsLabel, SLOT(onNativeNotifications()), Global::NativeNotifications());
 	}

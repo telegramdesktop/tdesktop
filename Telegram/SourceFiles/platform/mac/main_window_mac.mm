@@ -293,7 +293,7 @@ void MainWindow::psUpdateWorkmode() {
 			trayIcon = nullptr;
 		}
 	}
-	if (auto manager = Platform::Notifications::ManagerNative()) {
+	if (auto manager = Platform::Notifications::GetNativeManager()) {
 		manager->updateDelegate();
 	}
 }

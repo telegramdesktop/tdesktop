@@ -30,16 +30,4 @@ inline QString UrlToLocal(const QUrl &url) {
 }
 
 } // namespace File
-
-namespace FileDialog {
-
-inline bool Supported() {
-	return false;
-}
-
-inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
-	return false;
-}
-
-} // namespace FileDialog
 } // namespace Platform

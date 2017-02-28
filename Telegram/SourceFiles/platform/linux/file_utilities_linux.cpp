@@ -30,6 +30,44 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 QStringList qt_make_filter_list(const QString &filter);
 
 namespace Platform {
+namespace File {
+namespace internal {
+
+QByteArray EscapeShell(const QByteArray &content) {
+	auto result = QByteArray();
+
+	auto b = content.constData(), e = content.constEnd();
+	for (auto ch = b; ch != e; ++ch) {
+		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
+			if (result.isEmpty()) {
+				result.reserve(content.size() * 2);
+			}
+			if (ch > b) {
+				result.append(b, ch - b);
+			}
+			result.append('\\');
+			b = ch;
+		}
+	}
+	if (result.isEmpty()) {
+		return content;
+	}
+
+	if (e > b) {
+		result.append(b, e - b);
+	}
+	return result;
+}
+
+} // namespace internal
+
+void UnsafeShowInFolder(const QString &filepath) {
+	Ui::hideLayer(true);
+	system(("xdg-open " + internal::EscapeShell(QFile::encodeName(QFileInfo(filepath).absoluteDir().absolutePath()))).constData());
+}
+
+} // namespace File
+
 namespace FileDialog {
 namespace {
 
@@ -43,11 +81,9 @@ namespace {
 constexpr auto kPreviewWidth = 256;
 constexpr auto kPreviewHeight = 512;
 
-} // namespace
-
 using Type = ::FileDialog::internal::Type;
 
-bool Supported() {
+bool NativeSupported() {
 	return Platform::internal::GdkHelperLoaded()
 		&& (Libs::gtk_widget_hide_on_delete != nullptr)
 		&& (Libs::gtk_clipboard_store != nullptr)
@@ -84,11 +120,11 @@ bool Supported() {
 }
 
 bool PreviewSupported() {
-	return Supported()
+	return NativeSupported()
 		&& (Libs::gdk_pixbuf_new_from_file_at_size != nullptr);
 }
 
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
+bool GetNative(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
 	auto parent = App::wnd() ? App::wnd()->filedialogParent() : nullptr;
 	internal::GtkFileDialog dialog(parent, caption, QString(), filter);
 
@@ -129,6 +165,15 @@ bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, 
 	files = QStringList();
 	remoteContent = QByteArray();
 	return false;
+}
+
+} // namespace
+
+bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, Type type, QString startFile) {
+	if (NativeSupported()) {
+		return GetNative(files, remoteContent, caption, filter, type, startFile);
+	}
+	return ::FileDialog::internal::GetDefault(files, remoteContent, caption, filter, type, startFile);
 }
 
 namespace internal {

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "localstorage.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "pspecific.h"
@@ -100,19 +100,19 @@ void DownloadPathBox::onChange() {
 }
 
 void DownloadPathBox::onEditPath() {
-	filedialogInit();
-	QString path, lastPath = cDialogLastPath();
-	if (!Global::DownloadPath().isEmpty() && Global::DownloadPath() != qstr("tmp")) {
-		cSetDialogLastPath(Global::DownloadPath().left(Global::DownloadPath().size() - (Global::DownloadPath().endsWith('/') ? 1 : 0)));
-	}
-	if (filedialogGetDir(path, lang(lng_download_path_choose))) {
-		if (!path.isEmpty()) {
-			_path = path + '/';
+	auto initialPath = [] {
+		if (!Global::DownloadPath().isEmpty() && Global::DownloadPath() != qstr("tmp")) {
+			return Global::DownloadPath().left(Global::DownloadPath().size() - (Global::DownloadPath().endsWith('/') ? 1 : 0));
+		}
+		return QString();
+	};
+	FileDialog::GetFolder(lang(lng_download_path_choose), initialPath(), base::lambda_guarded(this, [this](const QString &result) {
+		if (!result.isEmpty()) {
+			_path = result + '/';
 			_pathBookmark = psDownloadPathBookmark(_path);
 			setPathText(QDir::toNativeSeparators(_path));
 		}
-	}
-	cSetDialogLastPath(lastPath);
+	}));
 }
 
 void DownloadPathBox::save() {

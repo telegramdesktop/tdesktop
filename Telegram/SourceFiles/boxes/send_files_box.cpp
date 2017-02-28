@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "mainwidget.h"
 #include "history/history_media_types.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"

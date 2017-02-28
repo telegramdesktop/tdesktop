@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "settings/settings_block_widget.h"
 #include "ui/effects/radial_animation.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 
 namespace Settings {
 

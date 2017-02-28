@@ -34,7 +34,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "localstorage.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 
 namespace Settings {

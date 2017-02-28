@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
 #include "mtproto/file_download.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "mainwidget.h"
 
 namespace InlineBots {

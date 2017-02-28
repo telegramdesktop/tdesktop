@@ -29,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/send_files_box.h"
 #include "boxes/sharebox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/buttons/history_down_button.h"
 #include "ui/widgets/buttons.h"
@@ -1532,7 +1532,7 @@ void HistoryInner::showContextInFolder() {
 		}
 	}
 	if (!filepath.isEmpty()) {
-		psShowInFolder(filepath);
+		File::ShowInFolder(filepath);
 	}
 }
 

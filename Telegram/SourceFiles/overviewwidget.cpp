@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/buttons.h"
@@ -1440,7 +1440,7 @@ void OverviewInner::showContextInFolder() {
 	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
 		auto filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 		if (!filepath.isEmpty()) {
-			psShowInFolder(filepath);
+			File::ShowInFolder(filepath);
 		}
 	}
 }

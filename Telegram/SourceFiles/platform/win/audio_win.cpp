@@ -180,7 +180,6 @@ void DeInit() {
 	if (WasCoInitialized) {
 		CoUninitialize();
 	}
-	AUDCLNT_E_NOT_INITIALIZED;
 }
 
 } // namespace Audio

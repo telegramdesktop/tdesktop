@@ -22,16 +22,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/observer.h"
 
-void filedialogInit();
+// legacy
 bool filedialogGetOpenFiles(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter);
 bool filedialogGetOpenFile(QString &file, QByteArray &remoteContent, const QString &caption, const QString &filter);
-bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &startName);
-bool filedialogGetDir(QString &dir, const QString &caption);
+bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &initialPath);
+bool filedialogGetDir(QString &dir, const QString &caption, const QString &initialPath);
 
 QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString(), bool skipExistance = false);
 QString filedialogNextFilename(const QString &name, const QString &cur, const QString &path = QString());
 
 QString filedialogAllFilesFilter();
+
+namespace File {
+
+// Those functions are async wrappers to Platform::File::Unsafe* calls.
+void OpenEmailLink(const QString &email);
+void OpenWith(const QString &filepath, QPoint menuPosition);
+void Launch(const QString &filepath);
+void ShowInFolder(const QString &filepath);
+
+namespace internal {
+
+inline QString UrlToLocalDefault(const QUrl &url) {
+	return url.toLocalFile();
+}
+
+void UnsafeOpenEmailLinkDefault(const QString &email);
+void UnsafeLaunchDefault(const QString &filepath);
+
+} // namespace internal
+} // namespace File
 
 namespace FileDialog {
 namespace internal {
@@ -42,6 +62,10 @@ enum class Type {
 	ReadFolder,
 	WriteFile,
 };
+
+void InitLastPathDefault();
+
+bool GetDefault(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile);
 
 } // namespace internal
 
@@ -69,9 +93,9 @@ struct OpenResult {
 	QStringList paths;
 	QByteArray remoteContent;
 };
-void askOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-void askOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-void askWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
-void askFolder(const QString &caption, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetOpenPath(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetOpenPaths(const QString &caption, const QString &filter, base::lambda<void(const OpenResult &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetWritePath(const QString &caption, const QString &filter, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
+void GetFolder(const QString &caption, const QString &initialPath, base::lambda<void(const QString &result)> callback, base::lambda<void()> failed = base::lambda<void()>());
 
 } // namespace FileDialog

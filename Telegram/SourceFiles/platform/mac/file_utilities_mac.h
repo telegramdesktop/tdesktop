@@ -23,14 +23,25 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_file_utilities.h"
 
 namespace Platform {
+namespace File {
+
+inline void UnsafeOpenEmailLink(const QString &email) {
+	return ::File::internal::UnsafeOpenEmailLinkDefault(email);
+}
+
+inline void PostprocessDownloaded(const QString &filepath) {
+}
+
+} // namespace File
+
 namespace FileDialog {
 
-inline bool Supported() {
-	return false;
+inline void InitLastPath() {
+	::FileDialog::internal::InitLastPathDefault();
 }
 
 inline bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile) {
-	return false;
+	return ::FileDialog::internal::GetDefault(files, remoteContent, caption, filter, type, startFile);
 }
 
 } // namespace FileDialog

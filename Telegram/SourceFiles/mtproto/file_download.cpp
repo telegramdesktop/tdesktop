@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "messenger.h"
 #include "localstorage.h"
+#include "platform/platform_file_utilities.h"
 
 namespace {
 
@@ -203,7 +204,7 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 	if (_fileIsOpen) {
 		_file.close();
 		_fileIsOpen = false;
-		psPostprocessFile(QFileInfo(_file).absoluteFilePath());
+		Platform::File::PostprocessDownloaded(QFileInfo(_file).absoluteFilePath());
 	}
 	FileDownload::ImageLoaded().notify();
 
@@ -531,7 +532,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		if (_fileIsOpen) {
 			_file.close();
 			_fileIsOpen = false;
-			psPostprocessFile(QFileInfo(_file).absoluteFilePath());
+			Platform::File::PostprocessDownloaded(QFileInfo(_file).absoluteFilePath());
 		}
 		removeFromQueue();
 
@@ -693,7 +694,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	if (_fileIsOpen) {
 		_file.close();
 		_fileIsOpen = false;
-		psPostprocessFile(QFileInfo(_file).absoluteFilePath());
+		Platform::File::PostprocessDownloaded(QFileInfo(_file).absoluteFilePath());
 	}
 	removeFromQueue();
 

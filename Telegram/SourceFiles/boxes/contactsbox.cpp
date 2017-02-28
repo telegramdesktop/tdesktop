@@ -33,7 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/widget_slide_wrap.h"

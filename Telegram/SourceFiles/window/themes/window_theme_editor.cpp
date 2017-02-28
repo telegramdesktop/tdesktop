@@ -39,7 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/task_queue.h"
 #include "core/zlib_help.h"
 #include "ui/toast/toast.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "boxes/editcolorbox.h"
 #include "lang.h"
 
@@ -635,7 +635,7 @@ void ThemeExportBox::updateThumbnail() {
 }
 
 void ThemeExportBox::chooseBackgroundFromFile() {
-	FileDialog::askOpenPath(lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
 		auto content = result.remoteContent;
 		if (!result.paths.isEmpty()) {
 			QFile f(result.paths.front());
@@ -664,7 +664,7 @@ void ThemeExportBox::exportTheme() {
 		auto caption = lang(lng_theme_editor_choose_name);
 		auto filter = "Themes (*.tdesktop-theme)";
 		auto name = "awesome.tdesktop-theme";
-		FileDialog::askWritePath(caption, filter, name, base::lambda_guarded(this, [this](const QString &path) {
+		FileDialog::GetWritePath(caption, filter, name, base::lambda_guarded(this, [this](const QString &path) {
 			zlib::FileToWrite zip;
 
 			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
@@ -798,7 +798,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 void Editor::Start() {
 	auto palettePath = Local::themePaletteAbsolutePath();
 	if (palettePath.isEmpty()) {
-		FileDialog::askWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
+		FileDialog::GetWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
 			if (!Local::copyThemeColorsToPalette(path)) {
 				writeDefaultPalette(path);
 			}

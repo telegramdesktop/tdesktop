@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-
+#include "platform/linux/file_utilities_linux.h"
 #include "localstorage.h"
 
 #include <sys/stat.h>
@@ -38,31 +38,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <qpa/qplatformnativeinterface.h>
 
 using namespace Platform;
+using Platform::File::internal::EscapeShell;
 
 namespace {
-
-QByteArray escapeShell(const QByteArray &str) {
-	QByteArray result;
-	const char *b = str.constData(), *e = str.constEnd();
-	for (const char *ch = b; ch != e; ++ch) {
-		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
-			if (result.isEmpty()) {
-				result.reserve(str.size() * 2);
-			}
-			if (ch > b) {
-				result.append(b, ch - b);
-			}
-			result.append('\\');
-			b = ch;
-		}
-	}
-	if (result.isEmpty()) return str;
-
-	if (e > b) {
-		result.append(b, e - b);
-	}
-	return result;
-}
 
 class _PsEventFilter : public QAbstractNativeEventFilter {
 public:
@@ -129,7 +107,7 @@ QStringList addr2linestr(uint64 *addresses, int count) {
 	if (!count) return result;
 
 	result.reserve(count);
-	QByteArray cmd = "addr2line -e " + escapeShell(QFile::encodeName(cExeDir() + cExeName()));
+	QByteArray cmd = "addr2line -e " + EscapeShell(QFile::encodeName(cExeDir() + cExeName()));
 	for (int i = 0; i < count; ++i) {
 		if (addresses[i]) {
 			cmd += qsl(" 0x%1").arg(addresses[i], 0, 16).toUtf8();
@@ -387,18 +365,6 @@ int psFixPrevious() {
 	return 0;
 }
 
-void psPostprocessFile(const QString &name) {
-}
-
-void psOpenFile(const QString &name, bool openWith) {
-	QDesktopServices::openUrl(QUrl::fromLocalFile(name));
-}
-
-void psShowInFolder(const QString &name) {
-	Ui::hideLayer(true);
-	system(("xdg-open " + escapeShell(QFile::encodeName(QFileInfo(name).absoluteDir().absolutePath()))).constData());
-}
-
 namespace Platform {
 
 void start() {
@@ -503,7 +469,7 @@ void psRegisterCustomScheme() {
 			s << "Version=1.0\n";
 			s << "Name=Telegram Desktop\n";
 			s << "Comment=Official desktop version of Telegram messaging app\n";
-			s << "Exec=" << escapeShell(QFile::encodeName(cExeDir() + cExeName())) << " -- %u\n";
+			s << "Exec=" << EscapeShell(QFile::encodeName(cExeDir() + cExeName())) << " -- %u\n";
 			s << "Icon=telegram\n";
 			s << "Terminal=false\n";
 			s << "StartupWMClass=Telegram\n";
@@ -512,11 +478,11 @@ void psRegisterCustomScheme() {
 			s << "MimeType=x-scheme-handler/tg;\n";
 			f.close();
 
-			if (_psRunCommand("desktop-file-install --dir=" + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + escapeShell(QFile::encodeName(file)))) {
+			if (_psRunCommand("desktop-file-install --dir=" + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))) + " --delete-original " + EscapeShell(QFile::encodeName(file)))) {
 				DEBUG_LOG(("App Info: removing old .desktop file"));
 				QFile(qsl("%1.local/share/applications/telegram.desktop").arg(home)).remove();
 
-				_psRunCommand("update-desktop-database " + escapeShell(QFile::encodeName(home + qsl(".local/share/applications"))));
+				_psRunCommand("update-desktop-database " + EscapeShell(QFile::encodeName(home + qsl(".local/share/applications"))));
 				_psRunCommand("xdg-mime default telegramdesktop.desktop x-scheme-handler/tg");
 			}
 		} else {
@@ -526,7 +492,7 @@ void psRegisterCustomScheme() {
 #endif // !TDESKTOP_DISABLE_DESKTOP_FILE_GENERATION
 
 	DEBUG_LOG(("App Info: registerting for Gnome"));
-	if (_psRunCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + escapeShell(escapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {
+	if (_psRunCommand("gconftool-2 -t string -s /desktop/gnome/url-handlers/tg/command " + EscapeShell(EscapeShell(QFile::encodeName(cExeDir() + cExeName())) + " -- %s"))) {
 		_psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/needs_terminal false");
 		_psRunCommand("gconftool-2 -t bool -s /desktop/gnome/url-handlers/tg/enabled true");
 	}
@@ -547,7 +513,7 @@ void psRegisterCustomScheme() {
 			QTextStream s(&f);
 			s.setCodec("UTF-8");
 			s << "[Protocol]\n";
-			s << "exec=" << QFile::decodeName(escapeShell(QFile::encodeName(cExeDir() + cExeName()))) << " -- %u\n";
+			s << "exec=" << QFile::decodeName(EscapeShell(QFile::encodeName(cExeDir() + cExeName()))) << " -- %u\n";
 			s << "protocol=tg\n";
 			s << "input=none\n";
 			s << "output=none\n";

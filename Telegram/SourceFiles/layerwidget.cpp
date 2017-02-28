@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "styles/style_boxes.h"
 #include "styles/style_widgets.h"
 #include "styles/style_stickers.h"

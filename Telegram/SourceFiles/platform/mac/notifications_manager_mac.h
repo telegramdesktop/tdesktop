@@ -36,10 +36,6 @@ inline bool SkipToast() {
 	return false;
 }
 
-inline Window::Notifications::Manager *GetManager() {
-	return GetNativeManager();
-}
-
 class Manager : public Window::Notifications::NativeManager {
 public:
 	Manager();
@@ -58,6 +54,10 @@ private:
 	std::unique_ptr<Impl> _impl;
 
 };
+
+inline Window::Notifications::Manager *GetManager() {
+	return GetNativeManager();
+}
 
 } // namespace Notifications
 } // namespace Platform

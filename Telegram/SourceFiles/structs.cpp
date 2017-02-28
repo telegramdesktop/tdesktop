@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "fileuploader.h"
 #include "mainwindow.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "apiwrap.h"
 #include "boxes/confirmbox.h"
 #include "media/media_audio.h"
@@ -1191,16 +1191,14 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 			} else {
 				auto filepath = location.name();
 				if (documentIsValidMediaFile(filepath)) {
-					psOpenFile(filepath);
-				} else {
-					psShowInFolder(filepath);
+					File::Launch(filepath);
 				}
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->voice() || data->song() || data->isVideo()) {
 			auto filepath = location.name();
 			if (documentIsValidMediaFile(filepath)) {
-				psOpenFile(filepath);
+				File::Launch(filepath);
 			}
 			if (App::main()) App::main()->mediaMarkRead(data);
 		} else if (data->size < App::kImageSizeLimit) {
@@ -1218,14 +1216,14 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 						App::wnd()->showDocument(data, context);
 					}
 				} else {
-					psOpenFile(location.name());
+					File::Launch(location.name());
 				}
 				location.accessDisable();
 			} else {
-				psOpenFile(location.name());
+				File::Launch(location.name());
 			}
 		} else {
-			psOpenFile(location.name());
+			File::Launch(location.name());
 		}
 		return;
 	}
@@ -1256,10 +1254,7 @@ void DocumentSaveClickHandler::doSave(DocumentData *data, bool forceSavingAs) {
 
 	auto filepath = data->filepath(DocumentData::FilePathResolveSaveFromDataSilent, forceSavingAs);
 	if (!filepath.isEmpty() && !forceSavingAs) {
-		auto pos = QCursor::pos();
-		if (!psShowOpenWithMenu(pos.x(), pos.y(), filepath)) {
-			psOpenFile(filepath, true);
-		}
+		File::OpenWith(filepath, QCursor::pos());
 	} else {
 		auto fileinfo = QFileInfo(filepath);
 		auto filedir = filepath.isEmpty() ? QDir() : fileinfo.dir();
@@ -1499,14 +1494,11 @@ void DocumentData::performActionOnLoad() {
 		if (already.isEmpty()) return;
 
 		if (_actionOnLoad == ActionOnLoadOpenWith) {
-			QPoint pos(QCursor::pos());
-			if (!psShowOpenWithMenu(pos.x(), pos.y(), already)) {
-				psOpenFile(already, true);
-			}
+			File::OpenWith(already, QCursor::pos());
 		} else if (_actionOnLoad == ActionOnLoadOpen || _actionOnLoad == ActionOnLoadPlayInline) {
 			if (voice() || song() || isVideo()) {
 				if (documentIsValidMediaFile(already)) {
-					psOpenFile(already);
+					File::Launch(already);
 				}
 				if (App::main()) App::main()->mediaMarkRead(this);
 			} else if (loc.accessEnable()) {
@@ -1517,11 +1509,11 @@ void DocumentData::performActionOnLoad() {
 						App::wnd()->showDocument(this, item);
 					}
 				} else {
-					psOpenFile(already);
+					File::Launch(already);
 				}
 				loc.accessDisable();
 			} else {
-				psOpenFile(already);
+				File::Launch(already);
 			}
 		}
 	}

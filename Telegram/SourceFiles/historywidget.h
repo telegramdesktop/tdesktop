@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "localimageloader.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"

@@ -489,10 +489,11 @@ enum DBIPeerReportSpamStatus {
 	dbiprsRequesting = 5, // requesting the cloud setting right now
 };
 
-inline QString strMakeFromLetters(const uint32 *letters, int32 len) {
+template <int Size>
+inline QString strMakeFromLetters(const uint32 (&letters)[Size]) {
 	QString result;
-	result.reserve(len);
-	for (int32 i = 0; i < len; ++i) {
+	result.reserve(Size);
+	for (int32 i = 0; i < Size; ++i) {
 		result.push_back(QChar((((letters[i] >> 16) & 0xFF) << 8) | (letters[i] & 0xFF)));
 	}
 	return result;

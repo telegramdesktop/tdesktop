@@ -20,20 +20,29 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 
 namespace Platform {
 namespace File {
 
 QString UrlToLocal(const QUrl &url);
 
+// All these functions may enter a nested event loop. Use with caution.
+void UnsafeOpenEmailLink(const QString &email);
+bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition);
+bool UnsafeShowOpenWith(const QString &filepath);
+void UnsafeLaunch(const QString &filepath);
+void UnsafeShowInFolder(const QString &filepath);
+
+void PostprocessDownloaded(const QString &filepath);
+
 } // namespace File
 
 namespace FileDialog {
 
-bool Supported();
+void InitLastPath();
 
-bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile);
+bool Get(QStringList &files, QByteArray &remoteContent, const QString &caption, const QString &filter, ::FileDialog::internal::Type type, QString startFile = QString());
 
 } // namespace FileDialog
 } // namespace Platform
