@@ -271,18 +271,20 @@ void BackgroundWidget::notifyFileQueryUpdated(const FileDialog::QueryUpdate &upd
 		return;
 	}
 
-	auto filePath = update.filePaths.front();
-	if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
-		|| filePath.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
-		Window::Theme::Apply(filePath);
-		return;
+	if (!update.filePaths.isEmpty()) {
+		auto filePath = update.filePaths.front();
+		if (filePath.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
+			|| filePath.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
+			Window::Theme::Apply(filePath);
+			return;
+		}
 	}
 
 	QImage img;
 	if (!update.remoteContent.isEmpty()) {
 		img = App::readImage(update.remoteContent);
 	} else {
-		img = App::readImage(filePath);
+		img = App::readImage(update.filePaths.front());
 	}
 
 	if (img.isNull() || img.width() <= 0 || img.height() <= 0) return;
