@@ -109,6 +109,10 @@ int64_t AbstractFFMpegLoader::_seek_data(void *opaque, int64_t offset, int whenc
 	case SEEK_SET: newPos = offset; break;
 	case SEEK_CUR: newPos = l->dataPos + offset; break;
 	case SEEK_END: newPos = l->data.size() + offset; break;
+	case AVSEEK_SIZE: {
+		// Special whence for determining filesize without any seek.
+		return l->data.size();
+	} break;
 	}
 	if (newPos < 0 || newPos > l->data.size()) {
 		return -1;
@@ -129,6 +133,10 @@ int64_t AbstractFFMpegLoader::_seek_file(void *opaque, int64_t offset, int whenc
 	case SEEK_SET: return l->f.seek(offset) ? l->f.pos() : -1;
 	case SEEK_CUR: return l->f.seek(l->f.pos() + offset) ? l->f.pos() : -1;
 	case SEEK_END: return l->f.seek(l->f.size() + offset) ? l->f.pos() : -1;
+	case AVSEEK_SIZE: {
+		// Special whence for determining filesize without any seek.
+		return l->f.size();
+	} break;
 	}
 	return -1;
 }

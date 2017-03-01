@@ -582,6 +582,10 @@ int64_t FFMpegReaderImplementation::_seek(void *opaque, int64_t offset, int when
 	case SEEK_SET: return l->_device->seek(offset) ? l->_device->pos() : -1;
 	case SEEK_CUR: return l->_device->seek(l->_device->pos() + offset) ? l->_device->pos() : -1;
 	case SEEK_END: return l->_device->seek(l->_device->size() + offset) ? l->_device->pos() : -1;
+	case AVSEEK_SIZE: {
+		// Special whence for determining filesize without any seek.
+		return l->_dataSize;
+	} break;
 	}
 	return -1;
 }

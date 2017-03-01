@@ -157,6 +157,10 @@ struct Instance::Inner::Private {
 		case SEEK_SET: newPos = offset; break;
 		case SEEK_CUR: newPos = l->dataPos + offset; break;
 		case SEEK_END: newPos = l->data.size() + offset; break;
+		case AVSEEK_SIZE: {
+			// Special whence for determining filesize without any seek.
+			return l->data.size();
+		} break;
 		}
 		if (newPos < 0) {
 			return -1;
