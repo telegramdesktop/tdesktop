@@ -73,39 +73,56 @@ if "%VersionAlpha%" neq "0" (
   echo Setting version: %VersionStr% stable
 )
 
+echo Checking changelog...
+set "ChangelogFile=%FullScriptPath%..\..\changelog.txt"
+call :count "Argument=^%VersionStr% " "Filename=%ChangelogFile%"
+if "%FoundCount%" equ "0" (
+  call :count "Argument=^%VersionStrSmall% " "Filename=%ChangelogFile%"
+  if "!FoundCount!" equ "0" (
+    echo Changelog entry not found!
+    exit /b 1
+  ) else if "!FoundCount!" neq "1" (
+    echo Wrong changelog entries count found: %FoundCount%
+    exit /b 1
+  )
+) else if "%FoundCount%" neq "1" (
+  echo Wrong changelog entries count found: %FoundCount%
+  exit /b 1
+)
+
 echo Patching build/version...
 set "VersionFilePath=%FullScriptPath%version"
-call :repl "Replace=(AppVersion) (\s*)\d+/$1$2 %VersionFull%" "Filename=%VersionFilePath%" || goto :error
-call :repl "Replace=(AppVersionStrMajor) (\s*)[\d\.]+/$1$2 %VersionMajor%.%VersionMinor%" "Filename=%VersionFilePath%" || goto :error
-call :repl "Replace=(AppVersionStrSmall) (\s*)[\d\.]+/$1$2 %VersionStrSmall%" "Filename=%VersionFilePath%" || goto :error
-call :repl "Replace=(AppVersionStr) (\s*)[\d\.]+/$1$2 %VersionStr%" "Filename=%VersionFilePath%" || goto :error
-call :repl "Replace=(AlphaChannel) (\s*)[\d\.]+/$1$2 %VersionAlpha%" "Filename=%VersionFilePath%" || goto :error
-call :repl "Replace=(BetaVersion) (\s*)\d+/$1$2 %VersionFullBeta%" "Filename=%VersionFilePath%" || goto :error
+call :repl "Argument=(AppVersion) (\s*)\d+/$1$2 %VersionFull%" "Filename=%VersionFilePath%" || goto :error
+call :repl "Argument=(AppVersionStrMajor) (\s*)[\d\.]+/$1$2 %VersionMajor%.%VersionMinor%" "Filename=%VersionFilePath%" || goto :error
+call :repl "Argument=(AppVersionStrSmall) (\s*)[\d\.]+/$1$2 %VersionStrSmall%" "Filename=%VersionFilePath%" || goto :error
+call :repl "Argument=(AppVersionStr) (\s*)[\d\.]+/$1$2 %VersionStr%" "Filename=%VersionFilePath%" || goto :error
+call :repl "Argument=(AlphaChannel) (\s*)[\d\.]+/$1$2 %VersionAlpha%" "Filename=%VersionFilePath%" || goto :error
+call :repl "Argument=(BetaVersion) (\s*)\d+/$1$2 %VersionFullBeta%" "Filename=%VersionFilePath%" || goto :error
 
 echo Patching core/version.h...
 set "VersionHeaderPath=%FullScriptPath%..\SourceFiles\core\version.h"
-call :repl "Replace=(BETA_VERSION_MACRO\s+)\(\d+ULL\)/$1(%VersionFullBeta%ULL)" "Filename=%VersionHeaderPath%" || goto :error
-call :repl "Replace=(AppVersion\s+=) (\s*)\d+/$1$2 %VersionFull%" "Filename=%VersionHeaderPath%" || goto :error
-call :repl "Replace=(AppVersionStr\s+=) (\s*)[&hat;;]+/$1$2 &quot;%VersionStrSmall%&quot;" "Filename=%VersionHeaderPath%" || goto :error
-call :repl "Replace=(AppAlphaVersion\s+=) (\s*)[a-z]+/$1$2 %VersionAlphaBool%" "Filename=%VersionHeaderPath%" || goto :error
+call :repl "Argument=(BETA_VERSION_MACRO\s+)\(\d+ULL\)/$1(%VersionFullBeta%ULL)" "Filename=%VersionHeaderPath%" || goto :error
+call :repl "Argument=(AppVersion\s+=) (\s*)\d+/$1$2 %VersionFull%" "Filename=%VersionHeaderPath%" || goto :error
+call :repl "Argument=(AppVersionStr\s+=) (\s*)[&hat;;]+/$1$2 &quot;%VersionStrSmall%&quot;" "Filename=%VersionHeaderPath%" || goto :error
+call :repl "Argument=(AppAlphaVersion\s+=) (\s*)[a-z]+/$1$2 %VersionAlphaBool%" "Filename=%VersionHeaderPath%" || goto :error
 
 echo Patching Telegram.rc...
 set "ResourcePath=%FullScriptPath%..\Resources\winrc\Telegram.rc"
-call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 
 echo Patching Updater.rc...
 set "ResourcePath=%FullScriptPath%..\Resources\winrc\Updater.rc"
-call :repl "Replace=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
-call :repl "Replace=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(FILEVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(PRODUCTVERSION) (\s*)\d+,\d+,\d+,\d+/$1$2 %VersionMajor%,%VersionMinor%,%VersionPatch%,%VersionBeta%" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(&quot;FileVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument=(&quot;ProductVersion&quot;,) (\s*)&quot;\d+.\d+.\d+.\d+&quot;/$1$2 &quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 
 echo Patching appxmanifest.xml...
 set "ResourcePath=%FullScriptPath%..\Resources\uwp\AppX\AppxManifest.xml"
-call :repl "Replace= (Version=)&quot;\d+.\d+.\d+.\d+&quot;/ $1&quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
+call :repl "Argument= (Version=)&quot;\d+.\d+.\d+.\d+&quot;/ $1&quot;%VersionMajor%.%VersionMinor%.%VersionPatch%.%VersionBeta%&quot;" "Filename=%ResourcePath%" || goto :error
 
 exit /b
 
@@ -121,8 +138,18 @@ exit /b
   set %1
   set %2
   set "TempFilename=!Filename!__tmp__"
-  cscript //Nologo "%FullScriptPath%replace.vbs" "!Replace!" < "!Filename!" > "!TempFilename!" || goto :repl_finish
+  cscript //Nologo "%FullScriptPath%replace.vbs" "Replace" "!Argument!" < "!Filename!" > "!TempFilename!" || goto :repl_finish
   xcopy /Y !TempFilename! !Filename! >NUL || goto :repl_finish
+  goto :repl_finish
+)
+
+:count
+(
+  set %1
+  set %2
+  set "TempFilename=!Filename!__tmp__"
+  cscript //Nologo "%FullScriptPath%replace.vbs" "Count" "!Argument!" < "!Filename!" > "!TempFilename!" || goto :repl_finish
+  FOR /F "tokens=1,2* delims= " %%i in (!TempFilename!) do set "FoundCount=%%i"
   goto :repl_finish
 )
 

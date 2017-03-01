@@ -1,4 +1,8 @@
-﻿1.0.17 alpha (28.02.17)
+1.0.18 alpha (01.03.17)
+
+- Bug fixes and other minor improvements.
+
+1.0.17 alpha (28.02.17)
 
 - Bug fixes and other minor improvements.
 
