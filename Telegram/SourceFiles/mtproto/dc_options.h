@@ -70,6 +70,10 @@ public:
 	};
 	Variants lookup(DcId dcId, DcType type) const;
 
+	// Debug feature for now.
+	bool loadFromFile(const QString &path);
+	bool writeToFile(const QString &path) const;
+
 private:
 	struct Option {
 		Option(DcId id, MTPDdcOption::Flags flags, const std::string &ip, int port) : id(id), flags(flags), ip(ip), port(port) {
@@ -88,6 +92,9 @@ private:
 	mutable QReadWriteLock _mutex;
 
 	mutable base::Observable<Ids> _changed;
+
+	// True when we have overriden options from a .tdesktop-endpoints file.
+	bool _immutable = false;
 
 };
 

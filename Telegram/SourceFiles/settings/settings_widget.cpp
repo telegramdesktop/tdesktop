@@ -35,6 +35,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "messenger.h"
+#include "mtproto/mtp_instance.h"
+#include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
@@ -109,6 +111,15 @@ void fillCodes() {
 			Local::writeUserSettings();
 			Ui::hideLayer();
 		}));
+	});
+	Codes.insert(qsl("endpoints"), []() {
+		FileDialog::GetOpenPath("Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+			if (!result.paths.isEmpty()) {
+				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
+					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
+				}
+			}
+		});
 	});
 }
 

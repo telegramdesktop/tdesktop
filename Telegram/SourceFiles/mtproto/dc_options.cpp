@@ -45,7 +45,7 @@ void DcOptions::constructFromBuiltIn() {
 }
 
 void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwrite) {
-	if (options.empty()) {
+	if (options.empty() || _immutable) {
 		return;
 	}
 
@@ -109,7 +109,7 @@ void DcOptions::addFromList(const MTPVector<MTPDcOption> &options) {
 }
 
 void DcOptions::addFromOther(const DcOptions &options) {
-	if (this == &options) {
+	if (this == &options || _immutable) {
 		return;
 	}
 
@@ -163,6 +163,11 @@ bool DcOptions::applyOneGuarded(DcId dcId, MTPDdcOption::Flags flags, const std:
 }
 
 QByteArray DcOptions::serialize() const {
+	if (_immutable) {
+		// Don't write the overriden options to our settings.
+		return DcOptions().serialize();
+	}
+
 	QReadLocker lock(&_mutex);
 
 	auto size = sizeof(qint32);
@@ -298,6 +303,89 @@ DcOptions::Variants DcOptions::lookup(DcId dcId, DcType type) const {
 		}
 	}
 	return result;
+}
+
+bool DcOptions::loadFromFile(const QString &path) {
+	QVector<MTPDcOption> options;
+
+	QFile f(path);
+	if (!f.open(QIODevice::ReadOnly)) {
+		LOG(("MTP Error: could not read '%1'").arg(path));
+		return false;
+	}
+	QTextStream stream(&f);
+	stream.setCodec("UTF-8");
+	while (!stream.atEnd()) {
+		auto line = stream.readLine();
+		auto components = line.split(QRegularExpression(R"(\s)"), QString::SkipEmptyParts);
+		if (components.isEmpty() || components[0].startsWith('#')) {
+			continue;
+		}
+
+		auto error = [line] {
+			LOG(("MTP Error: in .tdesktop-endpoints expected 'dcId host port [tcpo_only] [media_only]', got '%1'").arg(line));
+			return false;
+		};
+		if (components.size() < 3) {
+			return error();
+		}
+		auto dcId = components[0].toInt();
+		auto ip = components[1];
+		auto port = components[2].toInt();
+		auto host = QHostAddress();
+		if (dcId <= 0 || dcId >= internal::kDcShift || !host.setAddress(ip) || port <= 0) {
+			return error();
+		}
+		auto flags = MTPDdcOption::Flags(0);
+		if (host.protocol() == QAbstractSocket::IPv6Protocol) {
+			flags |= MTPDdcOption::Flag::f_ipv6;
+		}
+		for (auto &option : components.mid(3)) {
+			if (option.startsWith('#')) {
+				break;
+			} else if (option == qstr("tcpo_only")) {
+				flags |= MTPDdcOption::Flag::f_tcpo_only;
+			} else if (option == qstr("media_only")) {
+				flags |= MTPDdcOption::Flag::f_media_only;
+			} else {
+				return error();
+			}
+		}
+		options.push_back(MTP_dcOption(MTP_flags(flags), MTP_int(dcId), MTP_string(ip), MTP_int(port)));
+	}
+	if (options.isEmpty()) {
+		LOG(("MTP Error: in .tdesktop-endpoints expected at least one endpoint being provided."));
+		return false;
+	}
+
+	_immutable = false;
+	setFromList(MTP_vector<MTPDcOption>(options));
+	_immutable = true;
+
+	return true;
+}
+
+bool DcOptions::writeToFile(const QString &path) const {
+	QFile f(path);
+	if (!f.open(QIODevice::WriteOnly)) {
+		return false;
+	}
+	QTextStream stream(&f);
+	stream.setCodec("UTF-8");
+
+	QReadLocker lock(&_mutex);
+	for (auto &item : _data) {
+		auto &endpoint = item.second;
+		stream << endpoint.id << ' ' << QString::fromStdString(endpoint.ip) << ' ' << endpoint.port;
+		if (endpoint.flags & MTPDdcOption::Flag::f_tcpo_only) {
+			stream << " tcpo_only";
+		}
+		if (endpoint.flags & MTPDdcOption::Flag::f_media_only) {
+			stream << " media_only";
+		}
+		stream << '\n';
+	}
+	return true;
 }
 
 } // namespace MTP
