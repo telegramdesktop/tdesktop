@@ -104,6 +104,10 @@ Manager *GetNativeManager() {
 	return ManagerInstance.data();
 }
 
+bool Supported() {
+        return ManagerInstance.data() != nullptr;
+}
+
 void Finish() {
 	ManagerInstance.clear();
 }
