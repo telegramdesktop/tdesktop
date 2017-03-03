@@ -1690,8 +1690,8 @@ void MainWidget::playerHeightUpdated() {
 }
 
 void MainWidget::documentLoadProgress(FileLoader *loader) {
-	if (auto mtpLoader = loader ? loader->mtpLoader() : nullptr) {
-		documentLoadProgress(App::document(mtpLoader->objId()));
+	if (auto documentId = loader ? loader->objId() : 0) {
+		documentLoadProgress(App::document(documentId));
 	}
 }
 
@@ -1715,12 +1715,12 @@ void MainWidget::documentLoadProgress(DocumentData *document) {
 }
 
 void MainWidget::documentLoadFailed(FileLoader *loader, bool started) {
-	mtpFileLoader *l = loader ? loader->mtpLoader() : 0;
-	if (!l) return;
+	auto documentId = loader ? loader->objId() : 0;
+	if (!documentId) return;
 
-	auto document = App::document(l->objId());
+	auto document = App::document(documentId);
 	if (started) {
-		auto failedFileName = l->fileName();
+		auto failedFileName = loader->fileName();
 		Ui::show(Box<ConfirmBox>(lang(lng_download_finish_failed), base::lambda_guarded(this, [this, document, failedFileName] {
 			Ui::hideLayer();
 			if (document) document->save(failedFileName);

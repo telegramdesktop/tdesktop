@@ -113,7 +113,6 @@ class FileLoader : public QObject {
 	Q_OBJECT
 
 public:
-
 	FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting, LoadFromCloudSetting fromCloud, bool autoLoading);
 	bool done() const {
 		return _complete;
@@ -123,6 +122,9 @@ public:
 	}
 	const QByteArray &bytes() const {
 		return _data;
+	}
+	virtual uint64 objId() const {
+		return 0;
 	}
 	QByteArray imageFormat(const QSize &shrinkBox = QSize()) const;
 	QPixmap imagePixmap(const QSize &shrinkBox = QSize()) const;
@@ -156,18 +158,6 @@ public:
 		return _autoLoading;
 	}
 
-	virtual mtpFileLoader *mtpLoader() {
-		return 0;
-	}
-	virtual const mtpFileLoader *mtpLoader() const {
-		return 0;
-	}
-	virtual webFileLoader *webLoader() {
-		return 0;
-	}
-	virtual const webFileLoader *webLoader() const {
-		return 0;
-	}
 	virtual void stop() {
 	}
 	virtual ~FileLoader();
@@ -175,7 +165,6 @@ public:
 	void localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat = QByteArray(), const QPixmap &imagePixmap = QPixmap());
 
 signals:
-
 	void progress(FileLoader *loader);
 	void failed(FileLoader *loader, bool started);
 
@@ -220,9 +209,6 @@ protected:
 	mutable QByteArray _imageFormat;
 	mutable QPixmap _imagePixmap;
 
-private:
-	void deleteLater();
-
 };
 
 class StorageImageLocation;
@@ -233,33 +219,26 @@ public:
 	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
 	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, int32 version, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
 
-	virtual int32 currentOffset(bool includeSkipped = false) const;
+	int32 currentOffset(bool includeSkipped = false) const override;
 
-	uint64 objId() const {
+	uint64 objId() const override {
 		return _id;
 	}
 
-	virtual mtpFileLoader *mtpLoader() {
-		return this;
-	}
-	virtual const mtpFileLoader *mtpLoader() const {
-		return this;
-	}
-
-	virtual void stop() {
+	void stop() override {
 		rpcClear();
 	}
 
 	~mtpFileLoader();
 
 protected:
-	virtual bool tryLoadLocal();
-	virtual void cancelRequests();
+	bool tryLoadLocal() override;
+	void cancelRequests() override;
 
 	typedef QMap<mtpRequestId, int32> Requests;
 	Requests _requests;
 
-	virtual bool loadPart();
+	bool loadPart() override;
 	void partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req);
 	bool partFailed(const RPCError &error);
 
