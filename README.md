@@ -31,6 +31,7 @@ The source code is published under GPLv3 with OpenSSL exception, the license is 
 * OpenAL Soft ([LGPL](http://kcat.strangesoft.net/openal.html))
 * Opus codec ([BSD license](http://www.opus-codec.org/license/))
 * FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
+* Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
 * Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
 
 ## Build instructions

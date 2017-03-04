@@ -94,6 +94,7 @@
       '<(libs_loc)/openal-soft/include',
       '<(minizip_loc)',
       '<(sp_media_key_tap_loc)',
+      '<(libs_loc)/GSL/include',
     ],
     'sources': [
       '<@(qrc_files)',

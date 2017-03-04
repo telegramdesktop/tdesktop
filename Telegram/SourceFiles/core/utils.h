@@ -24,6 +24,34 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <array>
 #include <algorithm>
 #include <set>
+#include <gsl/gsl>
+
+// Release build assertions.
+inline void t_noop() {
+}
+inline void t_assert_fail(const char *message, const char *file, int32 line) {
+	auto info = qsl("%1 %2:%3").arg(message).arg(file).arg(line);
+	LOG(("Assertion Failed! ") + info);
+	SignalHandlers::setCrashAnnotation("Assertion", info);
+
+	volatile int *t_assert_nullptr = nullptr;
+	*t_assert_nullptr = 0;
+}
+#define t_assert_full(condition, message, file, line) ((GSL_UNLIKELY(!(condition))) ? t_assert_fail(message, file, line) : t_noop())
+#define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
+#define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+
+// Declare our own versions of Expects() and Ensures().
+// Let them crash with reports and logging.
+#ifdef Expects
+#undef Expects
+#define Expects(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+#endif // Expects
+
+#ifdef Ensures
+#undef Ensures
+#define Ensures(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+#endif // Ensures
 
 namespace base {
 
@@ -133,6 +161,14 @@ using set_of_unique_ptr = std::set<std::unique_ptr<T>, base::pointer_comparator<
 template <typename T>
 using set_of_shared_ptr = std::set<std::shared_ptr<T>, base::pointer_comparator<T>>;
 
+using byte_span = gsl::span<gsl::byte>;
+using const_byte_span = gsl::span<const gsl::byte>;
+
+inline void copy_bytes(byte_span destination, const_byte_span source) {
+	Expects(destination.size() >= source.size());
+	memcpy(destination.data(), source.data(), source.size());
+}
+
 } // namespace base
 
 // using for_const instead of plain range-based for loop to ensure usage of const_iterator
@@ -191,18 +227,6 @@ inline void accumulate_max(T &a, const T &b) { if (a < b) a = b; }
 
 template <typename T>
 inline void accumulate_min(T &a, const T &b) { if (a > b) a = b; }
-
-static volatile int *t_assert_nullptr = nullptr;
-inline void t_noop() {}
-inline void t_assert_fail(const char *message, const char *file, int32 line) {
-	QString info(qsl("%1 %2:%3").arg(message).arg(file).arg(line));
-	LOG(("Assertion Failed! %1 %2:%3").arg(info));
-	SignalHandlers::setCrashAnnotation("Assertion", info);
-	*t_assert_nullptr = 0;
-}
-#define t_assert_full(condition, message, file, line) ((!(condition)) ? t_assert_fail(message, file, line) : t_noop())
-#define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
-#define t_assert(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
 
 class Exception : public std::exception {
 public:

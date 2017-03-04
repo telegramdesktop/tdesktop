@@ -748,15 +748,13 @@ namespace internal {
 	};
 	std::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
 
-	void OperatorNewHandler() {
-		std::set_new_handler(nullptr);
-		SomeAllocatedMemory.reset();
-		t_assert(!"Could not allocate!");
-	}
-
 	void InstallOperatorNewHandler() {
 		SomeAllocatedMemory = std::make_unique<SomeAllocatedMemoryChunk>();
-		std::set_new_handler(OperatorNewHandler);
+		std::set_new_handler([] {
+			std::set_new_handler(nullptr);
+			SomeAllocatedMemory.reset();
+			t_assert(!"Could not allocate!");
+		});
 	}
 
 	Qt::HANDLE ReportingThreadId = nullptr;

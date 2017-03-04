@@ -32,6 +32,10 @@ Install dev libraries
 
     sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev
 
+From **/home/user/TBuild/Libraries** run
+
+    git clone https://github.com/Microsoft/GSL.git
+
 ####zlib 1.2.8
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)

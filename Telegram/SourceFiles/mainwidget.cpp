@@ -4481,7 +4481,7 @@ DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &msg) {
 		}
 		switch (d.vaction.type()) {
 		case mtpc_messageActionChatAddUser: {
-			for_const(const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.c_vector().v) {
+			for_const (const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.c_vector().v) {
 				if (!App::userLoaded(peerFromUser(userId))) {
 					return DataIsLoadedResult::NotLoaded;
 				}

@@ -51,6 +51,10 @@ and run
 
 ## Prepare libraries
 
+From **D:\\TBuild\\Libraries** run
+
+    git clone https://github.com/Microsoft/GSL.git
+
 ### OpenSSL
 
 Go to **D:\\TBuild\\Libraries** and run

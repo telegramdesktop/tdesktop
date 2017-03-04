@@ -22,6 +22,10 @@ In your build Terminal run:
 
 to set minimal supported OS version to 10.8 for future console builds.
 
+From **/Users/user/TBuild/Libraries** run
+
+    git clone https://github.com/Microsoft/GSL.git
+
 ####zlib 1.2.8
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8**](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)

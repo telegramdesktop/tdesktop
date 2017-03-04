@@ -32,6 +32,10 @@ In your build Terminal run
 
 to set minimal supported OS version to 10.6 for future console builds.
 
+From **/Users/user/TBuild/Libraries** run
+
+    git clone https://github.com/Microsoft/GSL.git
+
 ####custom build of libc++
 
 From **/Users/user/TBuild/Libraries/macold** run

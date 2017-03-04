@@ -28,6 +28,9 @@ GOTO:EOF
     git clone -q --branch=master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
     cd %LIB_DIR%
 
+    call:logInfo "Clone GSL"
+    git clone https://github.com/Microsoft/GSL.git
+
     call prepare.bat
 GOTO:EOF
 

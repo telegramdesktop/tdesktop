@@ -33,12 +33,14 @@
       'linux_path_va%': '/usr/local',
       'linux_path_vdpau%': '/usr/local',
       'linux_path_breakpad%': '<(libs_loc)/breakpad',
+      'linux_path_gsl%': '<(libs_loc)/GSL',
     },
     'include_dirs': [
       '/usr/local/include',
       '<(linux_path_ffmpeg)/include',
       '<(linux_path_openal)/include',
       '<(linux_path_breakpad)/include/breakpad',
+      '<(linux_path_gsl)/include',
     ],
     'library_dirs': [
       '/usr/local/lib',
