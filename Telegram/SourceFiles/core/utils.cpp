@@ -34,7 +34,7 @@ extern "C" {
 }
 
 #include "application.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 

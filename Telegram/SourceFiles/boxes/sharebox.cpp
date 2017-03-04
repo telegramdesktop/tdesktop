@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/qthelp_url.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "apiwrap.h"
 #include "ui/toast/toast.h"

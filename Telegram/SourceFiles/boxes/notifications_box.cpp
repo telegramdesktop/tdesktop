@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
 namespace {
 

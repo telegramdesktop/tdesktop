@@ -21,11 +21,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 
 #include "lang.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "boxes/confirmbox.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "ui/widgets/tooltip.h"
 #include "core/file_utilities.h"
 

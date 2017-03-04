@@ -23,13 +23,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "core/file_utilities.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "media/media_audio.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
 TextParseOptions _textNameOptions = {
 	0, // flags

@@ -20,15 +20,15 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "messenger.h"
 
-#include "localstorage.h"
-#include "pspecific.h"
+#include "storage/localstorage.h"
+#include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "application.h"
 #include "shortcuts.h"
 #include "auth_session.h"
 #include "langloaderplain.h"
 #include "observer_peer.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwidget.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "history/history_location_manager.h"
 #include "ui/widgets/tooltip.h"
-#include "serialize/serialize_common.h"
+#include "storage/serialize_common.h"
 
 namespace {
 

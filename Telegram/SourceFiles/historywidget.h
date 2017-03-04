@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "localimageloader.h"
+#include "storage/localimageloader.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"

@@ -21,11 +21,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/downloadpathbox.h"
 
 #include "lang.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "styles/style_boxes.h"
 
 DownloadPathBox::DownloadPathBox(QWidget *parent)

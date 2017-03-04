@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/file_download.h"
+#include "storage/file_download.h"
 
 enum class ImageRoundRadius {
 	None,

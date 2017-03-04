@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/mtp_instance.h"
 
 #include "mtproto/dc_options.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "auth_session.h"
 #include "messenger.h"
 #include "mtproto/connection.h"

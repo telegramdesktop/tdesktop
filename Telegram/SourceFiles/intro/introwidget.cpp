@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "intro/introwidget.h"
 
 #include "lang.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "langloaderplain.h"
 #include "intro/introstart.h"
 #include "intro/introphone.h"

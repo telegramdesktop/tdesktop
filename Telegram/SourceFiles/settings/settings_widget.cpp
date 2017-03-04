@@ -30,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "messenger.h"

@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mainwindow.h"
 #include "apiwrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "ui/widgets/scroll_area.h"
 #include "styles/style_history.h"
 #include "styles/style_widgets.h"

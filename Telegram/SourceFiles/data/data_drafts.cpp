@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "historywidget.h"
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
 namespace Data {
 namespace {

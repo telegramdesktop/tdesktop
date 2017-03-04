@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/facade.h"
 #include "mtproto/dc_options.h"
 #include "mtproto/mtp_instance.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
 namespace MTP {
 namespace internal {

@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "inline_bots/inline_bot_result.h"
 #include "inline_bots/inline_bot_layout_internal.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwidget.h"
 
 namespace InlineBots {

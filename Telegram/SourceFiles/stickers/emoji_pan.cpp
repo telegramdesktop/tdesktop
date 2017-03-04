@@ -32,7 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "dialogs/dialogs_layout.h"
 #include "stickers/stickers.h"
 #include "historywidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "apiwrap.h"

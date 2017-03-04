@@ -24,7 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "mainwidget.h"
 #include "photocropbox.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 

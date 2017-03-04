@@ -20,10 +20,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "application.h"
 
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "autoupdater.h"
 #include "window/notifications_manager.h"
 #include "core/task_queue.h"

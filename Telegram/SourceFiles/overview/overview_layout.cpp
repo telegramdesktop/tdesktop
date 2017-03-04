@@ -28,11 +28,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "history/history_media_types.h"
 #include "ui/effects/round_checkbox.h"
 

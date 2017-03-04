@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/win/file_utilities_win.h"
 
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "platform/win/windows_dlls.h"
 #include "lang.h"
 

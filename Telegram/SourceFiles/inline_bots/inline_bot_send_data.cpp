@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_send_data.h"
 
 #include "inline_bots/inline_bot_result.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
 namespace InlineBots {
 namespace internal {

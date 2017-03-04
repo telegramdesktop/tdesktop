@@ -26,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "apiwrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_stickers.h"

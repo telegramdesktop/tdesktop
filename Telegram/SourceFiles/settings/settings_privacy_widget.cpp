@@ -28,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/sessionsbox.h"
 #include "boxes/passcodebox.h"
 #include "boxes/autolockbox.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 
 namespace Settings {
 

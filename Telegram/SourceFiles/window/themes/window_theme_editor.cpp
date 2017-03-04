@@ -23,7 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor_block.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"

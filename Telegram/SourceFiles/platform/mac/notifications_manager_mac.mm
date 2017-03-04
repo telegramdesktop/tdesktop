@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "platform/mac/notifications_manager_mac.h"
 
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
 

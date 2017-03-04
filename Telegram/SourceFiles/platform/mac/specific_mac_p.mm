@@ -15,12 +15,12 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "pspecific_mac_p.h"
+#include "platform/mac/specific_mac_p.h"
 
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "messenger.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "media/player/media_player_instance.h"
 #include "media/media_audio.h"
 #include "platform/mac/mac_utilities.h"

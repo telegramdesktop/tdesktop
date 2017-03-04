@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstractbox.h"
 
 #include "styles/style_boxes.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "lang.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/buttons.h"

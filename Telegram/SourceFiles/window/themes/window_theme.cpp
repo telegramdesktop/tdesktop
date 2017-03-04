@@ -21,7 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "core/parse_helper.h"
 #include "core/zlib_help.h"
 #include "styles/style_widgets.h"

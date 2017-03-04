@@ -15,14 +15,14 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "pspecific.h"
+#include "platform/mac/specific_mac.h"
 
 #include "lang.h"
 #include "application.h"
 #include "mainwidget.h"
 #include "historywidget.h"
 
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "passcodewidget.h"
 #include "mainwindow.h"
 #include "history/history_location_manager.h"

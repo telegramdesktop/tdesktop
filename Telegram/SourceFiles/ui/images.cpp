@@ -21,8 +21,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/images.h"
 
 #include "mainwidget.h"
-#include "localstorage.h"
-#include "pspecific.h"
+#include "storage/localstorage.h"
+#include "platform/platform_specific.h"
 #include "messenger.h"
 
 namespace Images {

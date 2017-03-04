@@ -18,12 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "localstorage.h"
+#include "storage/localstorage.h"
 
-#include <openssl/evp.h>
-
-#include "serialize/serialize_document.h"
-#include "serialize/serialize_common.h"
+#include "storage/serialize_document.h"
+#include "storage/serialize_common.h"
 #include "data/data_drafts.h"
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
@@ -37,6 +35,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "application.h"
 #include "apiwrap.h"
 #include "auth_session.h"
+
+#include <openssl/evp.h>
 
 namespace Local {
 namespace {

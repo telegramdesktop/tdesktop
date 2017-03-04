@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "localimageloader.h"
+#include "storage/localimageloader.h"
 
 class FileUploader : public QObject, public RPCSender {
 	Q_OBJECT

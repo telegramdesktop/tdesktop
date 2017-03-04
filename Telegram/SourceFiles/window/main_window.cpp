@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "window/main_window.h"
 
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "styles/style_window.h"
 #include "platform/platform_window_title.h"
 #include "window/themes/window_theme.h"

@@ -17,7 +17,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "pspecific_mac_p.h"
+#include "platform/mac/specific_mac_p.h"
 
 inline QString psServerPrefix() {
 #ifndef OS_MAC_STORE

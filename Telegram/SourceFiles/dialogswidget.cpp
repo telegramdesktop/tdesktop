@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/aboutbox.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "apiwrap.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "ui/widgets/input_fields.h"

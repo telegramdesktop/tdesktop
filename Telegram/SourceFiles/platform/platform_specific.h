@@ -21,11 +21,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #ifdef Q_OS_MAC
-#include "pspecific_mac.h"
+#include "platform/mac/specific_mac.h"
 #elif defined Q_OS_LINUX // Q_OS_MAC
-#include "pspecific_linux.h"
+#include "platform/linux/specific_linux.h"
 #elif defined Q_OS_WIN // Q_OS_MAC || Q_OS_LINUX
-#include "pspecific_win.h"
+#include "platform/win/specific_win.h"
 #endif // Q_OS_MAC || Q_OS_LINUX || Q_OS_WIN
 
 namespace Platform {

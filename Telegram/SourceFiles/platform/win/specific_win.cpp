@@ -18,7 +18,7 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "pspecific.h"
+#include "platform/win/specific_win.h"
 
 #include "platform/win/main_window_win.h"
 #include "platform/win/notifications_manager_win.h"
@@ -29,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "history/history_location_manager.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "passcodewidget.h"
 #include "core/task_queue.h"
 

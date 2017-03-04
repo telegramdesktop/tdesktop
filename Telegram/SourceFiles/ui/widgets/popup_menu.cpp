@@ -18,7 +18,7 @@
 #include "ui/widgets/popup_menu.h"
 
 #include "ui/widgets/shadow.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "application.h"
 #include "mainwindow.h"
 #include "lang.h"

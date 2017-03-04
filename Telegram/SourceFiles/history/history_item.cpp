@@ -27,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_history.h"
 #include "ui/effects/ripple_animation.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "auth_session.h"
 
 namespace {
