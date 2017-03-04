@@ -43,6 +43,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "auth_session.h"
+#include "storage/file_download.h"
 
 QString PeerFloodErrorText(PeerFloodType type) {
 	auto link = textcmdLink(CreateInternalLinkHttps(qsl("spambot")), lang(lng_cant_more_info));
@@ -623,7 +624,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 }
 
 void ContactsBox::Inner::init() {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(_allAdmins, SIGNAL(changed()), this, SLOT(onAllAdminsChanged()));
 
@@ -848,7 +849,7 @@ void ContactsBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop - _rowsTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader()->clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;

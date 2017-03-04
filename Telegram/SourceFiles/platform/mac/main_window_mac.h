@@ -36,24 +36,19 @@ public:
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
-	void psFlash();
-
-	void psUpdateWorkmode();
-
 	void psRefreshTaskbarIcon() {
 	}
 
 	bool psFilterNativeEvent(void *event);
-
-	bool psHasNativeNotifications() {
-		return !(QSysInfo::macVersion() < QSysInfo::MV_10_8);
-	}
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
 	int getCustomTitleHeight() const {
 		return _customTitleHeight;
 	}
+
+	// It is placed here while the window handles activeSpaceDidChange event.
+	void customNotificationCreated(QWidget *notification);
 
 	~MainWindow();
 
@@ -88,6 +83,8 @@ protected:
 
 	void updateGlobalMenuHook() override;
 
+	void workmodeUpdated(DBIWorkMode mode) override;
+
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;
 	QImage icon256, iconbig256;
@@ -109,8 +106,15 @@ private:
 	void updateTitleCounter();
 	void updateIconCounters();
 
+	class CustomNotificationHandle;
+	friend class CustomNotificationHandle;
+	void customNotificationDestroyed(CustomNotificationHandle *handle);
+	void activateCustomNotifications();
+
 	friend class Private;
 	std::unique_ptr<Private> _private;
+
+	std::set<CustomNotificationHandle*> _customNotifications;
 
 	mutable bool psIdle;
 	mutable QTimer psIdleTimer;

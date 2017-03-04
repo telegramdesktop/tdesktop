@@ -20,6 +20,34 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+using MediaKey = QPair<uint64, uint64>;
+
+inline uint64 mediaMix32To64(int32 a, int32 b) {
+	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
+}
+
+enum LocationType {
+	UnknownFileLocation = 0,
+	// 1, 2, etc are used as "version" value in mediaKey() method.
+
+	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
+	AudioFileLocation = 0x74dc404d, // mtpc_inputAudioFileLocation
+	VideoFileLocation = 0x3d0364ec, // mtpc_inputVideoFileLocation
+};
+
+// Old method, should not be used anymore.
+//inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
+//	return MediaKey(mediaMix32To64(type, dc), id);
+//}
+// New method when version was introduced, type is not relevant anymore (all files are Documents).
+inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id, int32 version) {
+	return (version > 0) ? MediaKey(mediaMix32To64(version, dc), id) : MediaKey(mediaMix32To64(type, dc), id);
+}
+
+inline StorageKey mediaKey(const MTPDfileLocation &location) {
+	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
+}
+
 typedef int32 UserId;
 typedef int32 ChatId;
 typedef int32 ChannelId;

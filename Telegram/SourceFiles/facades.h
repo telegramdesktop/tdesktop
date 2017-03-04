@@ -187,15 +187,6 @@ void historyMuteUpdated(History *history);
 void handlePendingHistoryUpdate();
 void unreadCounterUpdated();
 
-enum class ChangeType {
-	SoundEnabled,
-	IncludeMuted,
-	DesktopEnabled,
-	ViewParams,
-	MaxCount,
-	Corner,
-	DemoIsShown,
-};
 
 enum class ScreenCorner {
 	TopLeft     = 0,
@@ -213,14 +204,6 @@ inline bool IsTopCorner(ScreenCorner corner) {
 }
 
 } // namespace Notify
-
-namespace base {
-
-template <>
-struct custom_is_fast_copy_type<Notify::ChangeType> : public std::true_type {
-};
-
-} // namespace base
 
 #define DeclareReadOnlyVar(Type, Name) const Type &Name();
 #define DeclareRefVar(Type, Name) DeclareReadOnlyVar(Type, Name) \
@@ -395,7 +378,6 @@ DeclareVar(bool, NativeNotifications);
 DeclareVar(int, NotificationsCount);
 DeclareVar(Notify::ScreenCorner, NotificationsCorner);
 DeclareVar(bool, NotificationsDemoIsShown);
-DeclareRefVar(base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DeclareVar(DBIConnectionType, ConnectionType);
 DeclareVar(bool, TryIPv6);
@@ -407,6 +389,8 @@ DeclareRefVar(base::Observable<void>, ChooseCustomLang);
 DeclareVar(int, AutoLock);
 DeclareVar(bool, LocalPasscode);
 DeclareRefVar(base::Observable<void>, LocalPasscodeChanged);
+
+DeclareRefVar(base::Variable<DBIWorkMode>, WorkMode);
 
 DeclareRefVar(base::Observable<HistoryItem*>, ItemRemoved);
 DeclareRefVar(base::Observable<void>, UnreadCounterUpdate);

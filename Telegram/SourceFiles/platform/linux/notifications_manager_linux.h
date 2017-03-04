@@ -36,11 +36,14 @@ inline bool SkipToast() {
 	return false;
 }
 
+inline void FlashBounce() {
+}
+
+void Finish();
+
 class Manager : public Window::Notifications::NativeManager {
 public:
-	Manager();
-
-	bool init();
+	Manager(Window::Notifications::System *system);
 
 	void clearNotification(PeerId peerId, MsgId msgId);
 	bool hasPoorSupport() const;
@@ -54,9 +57,8 @@ protected:
 	void doClearFromHistory(History *history) override;
 
 private:
-	class Impl;
-	friend class Impl;
-	std::unique_ptr<Impl> _impl;
+	class Private;
+	const std::unique_ptr<Private> _private;
 
 };
 

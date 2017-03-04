@@ -56,7 +56,6 @@ public:
 	Private(MainWindow *window);
 
 	void setWindowBadge(const QString &str);
-	void startBounce();
 
 	void enableShadow(WId winId);
 
@@ -64,6 +63,7 @@ public:
 
 	void willEnterFullScreen();
 	void willExitFullScreen();
+	void activateCustomNotifications();
 
 	void initCustomTitle(NSWindow *window, NSView *view);
 
@@ -79,6 +79,25 @@ private:
 	NSPasteboard *_generalPasteboard = nullptr;
 	int _generalPasteboardChangeCount = -1;
 	bool _generalPasteboardHasText = false;
+
+};
+
+class MainWindow::CustomNotificationHandle : public QObject {
+public:
+	CustomNotificationHandle(QWidget *parent) : QObject(parent) {
+	}
+
+	void activate() {
+		auto widget = static_cast<QWidget*>(parent());
+		NSWindow *wnd = [reinterpret_cast<NSView *>(widget->winId()) window];
+		[wnd orderFront:wnd];
+	}
+
+	~CustomNotificationHandle() {
+		if (auto window = App::wnd()) {
+			window->customNotificationDestroyed(this);
+		}
+	}
 
 };
 
@@ -98,11 +117,7 @@ MainWindow::Private *_private;
 }
 
 - (void) activeSpaceDidChange:(NSNotification *)aNotification {
-	if (auto manager = Window::Notifications::Default::GetManager()) {
-		manager->enumerateNotifications([](QWidget *widget) {
-			objc_activateWnd(widget->winId());
-		});
-	}
+	_private->activateCustomNotifications();
 }
 
 - (void) darkModeChanged:(NSNotification *)aNotification {
@@ -157,10 +172,6 @@ void MainWindow::Private::setWindowBadge(const QString &str) {
 	}
 }
 
-void MainWindow::Private::startBounce() {
-	[NSApp requestUserAttention:NSInformationalRequest];
-}
-
 void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
 	[window setStyleMask:[window styleMask] | NSFullSizeContentViewWindowMask];
 	[window setTitlebarAppearsTransparent:YES];
@@ -189,6 +200,10 @@ void MainWindow::Private::willEnterFullScreen() {
 
 void MainWindow::Private::willExitFullScreen() {
 	_public->setTitleVisible(true);
+}
+
+void MainWindow::Private::activateCustomNotifications() {
+	_public->activateCustomNotifications();
 }
 
 void MainWindow::Private::enableShadow(WId winId) {
@@ -299,17 +314,14 @@ void MainWindow::psSetupTrayIcon() {
 	trayIcon->show();
 }
 
-void MainWindow::psUpdateWorkmode() {
+void MainWindow::workmodeUpdated(DBIWorkMode mode) {
 	psSetupTrayIcon();
-	if (cWorkMode() == dbiwmWindowOnly) {
+	if (mode == dbiwmWindowOnly) {
 		if (trayIcon) {
 			trayIcon->setContextMenu(0);
 			delete trayIcon;
 			trayIcon = nullptr;
 		}
-	}
-	if (auto manager = Platform::Notifications::GetNativeManager()) {
-		manager->updateDelegate();
 	}
 }
 
@@ -400,7 +412,7 @@ void MainWindow::psFirstShow() {
 
 	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
-		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();
@@ -514,6 +526,20 @@ void MainWindow::psUpdateSysMenu(Qt::WindowState state) {
 void MainWindow::psUpdateMargins() {
 }
 
+void MainWindow::customNotificationCreated(QWidget *notification) {
+	_customNotifications.insert(object_ptr<CustomNotificationHandle>(notification));
+}
+
+void MainWindow::customNotificationDestroyed(CustomNotificationHandle *handle) {
+	_customNotifications.erase(handle);
+}
+
+void MainWindow::activateCustomNotifications() {
+	for (auto handle : _customNotifications) {
+		handle->activate();
+	}
+}
+
 void MainWindow::updateGlobalMenuHook() {
 	if (!App::wnd() || !positionInited()) return;
 
@@ -550,10 +576,6 @@ void MainWindow::updateGlobalMenuHook() {
 	_forceDisabled(psNewGroup, !isLogged || App::passcoded());
 	_forceDisabled(psNewChannel, !isLogged || App::passcoded());
 	_forceDisabled(psShowTelegram, App::wnd()->isActive());
-}
-
-void MainWindow::psFlash() {
-	return _private->startBounce();
 }
 
 bool MainWindow::psFilterNativeEvent(void *event) {

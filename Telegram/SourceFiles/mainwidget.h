@@ -158,7 +158,7 @@ public:
 
 	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
 
-	void start(const MTPUser &user);
+	void start(const MTPUser *self = nullptr);
 
 	void checkStartUrl();
 	void openLocalUrl(const QString &str);
@@ -166,7 +166,6 @@ public:
 	void joinGroupByHash(const QString &hash);
 	void stickersBox(const MTPInputStickerSet &set);
 
-	void startFull(const MTPVector<MTPUser> &users);
 	bool started();
 	void applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *history = 0);
 
@@ -517,6 +516,8 @@ private:
 	Window::SectionSlideParams prepareHistoryAnimation(PeerId historyPeerId);
 	Window::SectionSlideParams prepareOverviewAnimation();
 	Window::SectionSlideParams prepareDialogsAnimation();
+
+	void startWithSelf(const MTPVector<MTPUser> &users);
 
 	void saveSectionInStack();
 

@@ -29,10 +29,9 @@ void CustomNotificationShownHook(QWidget *widget);
 bool SkipAudio();
 bool SkipToast();
 
-void Start();
-Window::Notifications::Manager *GetManager();
 bool Supported();
-void Finish();
+std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system);
+void FlashBounce();
 
 } // namespace Notifications
 } // namespace Platform

@@ -30,6 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/aboutbox.h"
 #include "lang.h"
 #include "core/click_handler_types.h"
+#include "auth_session.h"
 
 namespace Window {
 
@@ -70,7 +71,7 @@ MainMenu::MainMenu(QWidget *parent) : TWidget(parent)
 	_version->setLink(1, MakeShared<UrlClickHandler>(qsl("https://desktop.telegram.org/changelog")));
 	_version->setLink(2, MakeShared<LambdaClickHandler>([] { Ui::show(Box<AboutBox>()); }));
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	subscribe(Global::RefConnectionTypeChanged(), [this] { updateConnectionState(); });
 	updateConnectionState();
 }

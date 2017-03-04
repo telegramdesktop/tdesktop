@@ -24,7 +24,6 @@ void objc_holdOnTop(WId winId);
 bool objc_darkMode();
 void objc_showOverAll(WId winId, bool canFocus = true);
 void objc_bringToBack(WId winId);
-void objc_activateWnd(WId winId);
 
 void objc_debugShowAlert(const QString &str);
 void objc_outputDebugString(const QString &str);

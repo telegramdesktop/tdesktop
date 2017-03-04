@@ -883,6 +883,10 @@ void RemoteImage::setData(QByteArray &bytes, const QByteArray &bytesFormat) {
 	_forgot = false;
 }
 
+bool RemoteImage::amLoading() const {
+	return _loader && _loader != CancelledFileLoader;
+}
+
 void RemoteImage::automaticLoad(const HistoryItem *item) {
 	if (loaded()) return;
 

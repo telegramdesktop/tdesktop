@@ -28,10 +28,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_window.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
+#include "auth_session.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
 constexpr int kMaxNotificationsCount = 5;
+
+using ChangeType = Window::Notifications::ChangeType;
 
 } // namespace
 
@@ -190,7 +194,7 @@ void NotificationsBox::countChanged() {
 
 	if (currentCount() != Global::NotificationsCount()) {
 		Global::SetNotificationsCount(currentCount());
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::MaxCount);
+		AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::MaxCount);
 		Local::writeUserSettings();
 	}
 }
@@ -347,7 +351,7 @@ void NotificationsBox::setOverCorner(Notify::ScreenCorner corner) {
 		_isOverCorner = true;
 		setCursor(style::cur_pointer);
 		Global::SetNotificationsDemoIsShown(true);
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DemoIsShown);
+		AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::DemoIsShown);
 	}
 	_overCorner = corner;
 
@@ -382,7 +386,7 @@ void NotificationsBox::clearOverCorner() {
 		_isOverCorner = false;
 		setCursor(style::cur_default);
 		Global::SetNotificationsDemoIsShown(false);
-		Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DemoIsShown);
+		AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::DemoIsShown);
 
 		for_const (auto &samples, _cornerSamples) {
 			for_const (auto widget, samples) {
@@ -409,7 +413,7 @@ void NotificationsBox::mouseReleaseEvent(QMouseEvent *e) {
 
 		if (_chosenCorner != Global::NotificationsCorner()) {
 			Global::SetNotificationsCorner(_chosenCorner);
-			Global::RefNotifySettingsChanged().notify(Notify::ChangeType::Corner);
+			AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::Corner);
 			Local::writeUserSettings();
 		}
 	}

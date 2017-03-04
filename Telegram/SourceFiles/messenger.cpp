@@ -86,7 +86,6 @@ Messenger::Messenger() : QObject()
 	anim::startManager();
 	historyInit();
 	Media::Player::start();
-	Window::Notifications::Start();
 
 	DEBUG_LOG(("Application Info: inited..."));
 
@@ -130,7 +129,7 @@ Messenger::Messenger() : QObject()
 	if (state == Local::ReadMapPassNeeded) {
 		_window->setupPasscode();
 	} else {
-		if (AuthSession::Current()) {
+		if (AuthSession::Exists()) {
 			_window->setupMain();
 		} else {
 			_window->setupIntro();
@@ -196,7 +195,7 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 			QDataStream stream(&buffer);
 			stream.setVersion(QDataStream::Qt_5_1);
 
-			stream << qint32(AuthSession::CurrentUserId()) << qint32(mainDcId);
+			stream << qint32(AuthSession::Exists() ? AuthSession::CurrentUserId() : 0) << qint32(mainDcId);
 			writeKeys(stream, keys);
 			writeKeys(stream, keysToDestroy);
 		}
@@ -433,7 +432,7 @@ bool Messenger::peerPhotoFail(PeerId peer, const RPCError &error) {
 }
 
 void Messenger::peerClearPhoto(PeerId id) {
-	if (!AuthSession::Current()) return;
+	if (!AuthSession::Exists()) return;
 
 	if (id == AuthSession::CurrentUserPeerId()) {
 		MTP::send(MTPphotos_UpdateProfilePhoto(MTP_inputPhotoEmpty()), rpcDone(&Messenger::selfPhotoCleared), rpcFail(&Messenger::peerPhotoFail, id));
@@ -525,7 +524,7 @@ void Messenger::killDownloadSessions() {
 }
 
 void Messenger::photoUpdated(const FullMsgId &msgId, bool silent, const MTPInputFile &file) {
-	if (!AuthSession::Current()) return;
+	if (!AuthSession::Exists()) return;
 
 	auto i = photoUpdates.find(msgId);
 	if (i != photoUpdates.end()) {
@@ -583,10 +582,12 @@ void Messenger::onSwitchTestMode() {
 
 void Messenger::authSessionCreate(UserId userId) {
 	_authSession = std::make_unique<AuthSession>(userId);
+	authSessionChanged().notify();
 }
 
 void Messenger::authSessionDestroy() {
 	_authSession.reset();
+	authSessionChanged().notify();
 }
 
 FileUploader *Messenger::uploader() {
@@ -656,6 +657,7 @@ void Messenger::prepareToDestroy() {
 
 	// Some MTP requests can be cancelled from data clearing.
 	App::clearHistories();
+	authSessionDestroy();
 	_delayedDestroyedLoaders.clear();
 
 	_mtproto.reset();
@@ -667,8 +669,6 @@ Messenger::~Messenger() {
 	SingleInstance = nullptr;
 
 	Shortcuts::finish();
-
-	Window::Notifications::Finish();
 
 	anim::stopManager();
 

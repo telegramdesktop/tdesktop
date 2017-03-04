@@ -32,7 +32,7 @@ class MainWidget;
 class FileUploader;
 class Translator;
 
-class Messenger : public QObject, public RPCSender, private base::Subscriber {
+class Messenger final : public QObject, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -73,6 +73,9 @@ public:
 	}
 	void authSessionCreate(UserId userId);
 	void authSessionDestroy();
+	base::Observable<void> &authSessionChanged() {
+		return _authSessionChanged;
+	}
 
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
@@ -145,6 +148,7 @@ private:
 	std::unique_ptr<MTP::Instance> _mtproto;
 	std::unique_ptr<MTP::Instance> _mtprotoForKeysDestroy;
 	std::unique_ptr<AuthSession> _authSession;
+	base::Observable<void> _authSessionChanged;
 
 	SingleDelayedCall _delayedLoadersDestroyer;
 	std::vector<std::unique_ptr<FileLoader>> _delayedDestroyedLoaders;

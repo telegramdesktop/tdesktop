@@ -319,10 +319,6 @@ void Application::closeApplication() {
 	if (App::launchState() == App::QuitProcessed) return;
 	App::setLaunchState(App::QuitProcessed);
 
-	if (auto manager = Window::Notifications::GetManager()) {
-		manager->clearAllFast();
-	}
-
 	if (_messengerInstance) {
 		Messenger::Instance().prepareToDestroy();
 		_messengerInstance.reset();

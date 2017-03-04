@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/toast/toast.h"
 #include "core/click_handler_types.h"
 #include "storage/localstorage.h"
+#include "auth_session.h"
 
 TextParseOptions _confirmBoxTextOptions = {
 	TextParseLinks | TextParseMultiline | TextParseRichText, // flags
@@ -569,7 +570,7 @@ ConfirmInviteBox::ConfirmInviteBox(QWidget*, const QString &title, const MTPChat
 		if (!location.isNull()) {
 			_photo = ImagePtr(location);
 			if (!_photo->loaded()) {
-				subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+				subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 				_photo->load();
 			}
 		}

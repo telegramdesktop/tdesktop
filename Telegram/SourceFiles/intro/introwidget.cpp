@@ -425,6 +425,15 @@ QString Widget::Step::nextButtonText() const {
 }
 
 void Widget::Step::finish(const MTPUser &user, QImage photo) {
+	if (user.type() != mtpc_user || !user.c_user().is_self()) {
+		// No idea what to do here.
+		// We could've reset intro and MTP, but this really should not happen.
+		Ui::show(Box<InformBox>("Internal error: bad user.is_self() after sign in."));
+		return;
+	}
+
+	Messenger::Instance().authSessionCreate(user.c_user().vid.v);
+
 	App::wnd()->setupMain(&user);
 
 	// "this" is already deleted here by creating the main widget.

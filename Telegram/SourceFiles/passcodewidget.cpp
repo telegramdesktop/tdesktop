@@ -72,7 +72,7 @@ void PasscodeWidget::onSubmit() {
 			cSetPasscodeBadTries(0);
 
 			Messenger::Instance().startMtp();
-			if (AuthSession::Current()) {
+			if (AuthSession::Exists()) {
 				App::wnd()->setupMain();
 			} else {
 				App::wnd()->setupIntro();

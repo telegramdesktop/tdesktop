@@ -30,7 +30,9 @@ inline void CustomNotificationShownHook(QWidget *widget) {
 
 class Manager : public Window::Notifications::NativeManager {
 public:
-	Manager();
+	Manager(Window::Notifications::System *system);
+
+	bool init();
 
 	void clearNotification(PeerId peerId, MsgId msgId);
 
@@ -44,8 +46,8 @@ protected:
 	void onAfterNotificationActivated(PeerId peerId, MsgId msgId) override;
 
 private:
-	class Impl;
-	std::unique_ptr<Impl> _impl;
+	class Private;
+	const std::unique_ptr<Private> _private;
 
 };
 

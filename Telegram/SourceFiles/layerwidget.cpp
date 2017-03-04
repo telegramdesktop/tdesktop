@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_stickers.h"
 #include "ui/widgets/shadow.h"
 #include "window/window_main_menu.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -720,7 +721,7 @@ LayerStackWidget::~LayerStackWidget() {
 MediaPreviewWidget::MediaPreviewWidget(QWidget *parent) : TWidget(parent)
 , _emojiSize(Ui::Emoji::Size(Ui::Emoji::Index() + 1) / cIntRetinaFactor()) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 }
 
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {

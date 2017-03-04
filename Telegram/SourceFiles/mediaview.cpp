@@ -36,6 +36,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme_preview.h"
 #include "core/task_queue.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "messenger.h"
+#include "storage/file_download.h"
 
 namespace {
 
@@ -86,10 +89,15 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
-	subscribe(FileDownload::ImageLoaded(), [this] {
-		if (!isHidden()) {
-			updateControls();
-		}
+	// While we have one mediaview for all authsessions we have to do this.
+	subscribe(Messenger::Instance().authSessionChanged(), [this] {
+		if (!AuthSession::Exists()) return;
+
+		subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+			if (!isHidden()) {
+				updateControls();
+			}
+		});
 	});
 	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
@@ -1155,7 +1163,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	}
 
 	_zoomToScreen = 0;
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader()->clearPriorities();
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;

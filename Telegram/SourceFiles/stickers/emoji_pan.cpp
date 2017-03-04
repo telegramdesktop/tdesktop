@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "auth_session.h"
 
 namespace internal {
 namespace {
@@ -719,7 +720,7 @@ StickerPanInner::StickerPanInner(QWidget *parent) : TWidget(parent)
 	_updateInlineItems.setSingleShot(true);
 	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
-	subscribe(FileDownload::ImageLoaded(), [this] {
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 		readVisibleSets();
 	});

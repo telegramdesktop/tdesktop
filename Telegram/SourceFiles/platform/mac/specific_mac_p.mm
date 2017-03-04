@@ -208,11 +208,6 @@ void objc_bringToBack(WId winId) {
 	[wnd setLevel:NSModalPanelWindowLevel];
 }
 
-void objc_activateWnd(WId winId) {
-	NSWindow *wnd = [reinterpret_cast<NSView *>(winId) window];
-	[wnd orderFront:wnd];
-}
-
 bool objc_handleMediaKeyEvent(void *ev) {
 	auto e = reinterpret_cast<NSEvent*>(ev);
 

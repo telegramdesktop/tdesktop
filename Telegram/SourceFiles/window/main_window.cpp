@@ -43,6 +43,7 @@ MainWindow::MainWindow() : QWidget()
 		}
 	});
 	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
+	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) { workmodeUpdated(mode); });
 
 	_isActiveTimer->setSingleShot(true);
 	connect(_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActiveByTimer()));
@@ -53,7 +54,7 @@ bool MainWindow::hideNoQuit() {
 		hideMediaview();
 		return true;
 	}
-	if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+	if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 		if (minimizeToTray()) {
 			Ui::showChatsList();
 			return true;

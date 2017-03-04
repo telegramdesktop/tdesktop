@@ -21,19 +21,28 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "core/observer.h"
+#include "storage/localimageloader.h" // for TaskId
 
-namespace MTP {
-	void clearLoaderPriorities();
-}
+namespace Storage {
 
-enum LocationType {
-	UnknownFileLocation  = 0,
-	// 1, 2, etc are used as "version" value in mediaKey() method.
+class Downloader final {
+public:
+	int currentPriority() const {
+		return _priority;
+	}
+	void clearPriorities();
 
-	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
-	AudioFileLocation    = 0x74dc404d, // mtpc_inputAudioFileLocation
-	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
+	base::Observable<void> &taskFinished() {
+		return _taskFinishedObservable;
+	}
+
+private:
+	base::Observable<void> _taskFinishedObservable;
+	int _priority = 1;
+
 };
+
+} // namespace Storage
 
 struct StorageImageSaved {
 	StorageImageSaved() = default;
@@ -50,17 +59,6 @@ enum LocalLoadStatus {
 	LocalLoading,
 	LocalLoaded,
 	LocalFailed,
-};
-
-using TaskId = void*; // no interface, just id
-
-enum LoadFromCloudSetting {
-	LoadFromCloudOrLocal,
-	LoadFromLocalOnly,
-};
-enum LoadToCacheSetting {
-	LoadToFileOnly,
-	LoadToCacheAsWell,
 };
 
 class mtpFileLoader;
@@ -129,6 +127,7 @@ signals:
 protected:
 	void readImage(const QSize &shrinkBox) const;
 
+	Storage::Downloader *_downloader = nullptr;
 	FileLoader *_prev = nullptr;
 	FileLoader *_next = nullptr;
 	int _priority = 0;
@@ -338,9 +337,3 @@ static WebLoadManager * const FinishedWebLoadManager = SharedMemoryLocation<WebL
 
 void reinitWebLoadManager();
 void stopWebLoadManager();
-
-namespace FileDownload {
-
-base::Observable<void> &ImageLoaded();
-
-} // namespace FileDownload

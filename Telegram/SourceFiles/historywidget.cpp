@@ -61,6 +61,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "platform/platform_file_utilities.h"
 #include "auth_session.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -3130,7 +3131,7 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 , _topShadow(this, st::shadowFg) {
 	setAcceptDrops(true);
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 	connect(_reportSpamPanel, SIGNAL(reportClicked()), this, SLOT(onReportSpamClicked()));
 	connect(_reportSpamPanel, SIGNAL(hideClicked()), this, SLOT(onReportSpamHide()));
@@ -4341,7 +4342,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	if (_peer) {
 		App::forgetMedia();
 		_serviceImageCacheSize = imageCacheSize();
-		MTP::clearLoaderPriorities();
+		AuthSession::Current().downloader()->clearPriorities();
 
 		_history = App::history(_peer->id);
 		_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
@@ -4797,7 +4798,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 			return;
 		}
 	}
-	App::wnd()->notifySchedule(history, item);
+	AuthSession::Current().notifications()->schedule(history, item);
 	history->setUnreadCount(history->unreadCount() + 1);
 }
 
@@ -6803,8 +6804,6 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 }
 
 void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const MTPInputFile &file) {
-	if (!AuthSession::Current()) return;
-
 	if (auto item = App::histItemById(newId)) {
 		uint64 randomId = rand_value<uint64>();
 		App::historyRegRandom(randomId, newId);
@@ -6853,8 +6852,6 @@ namespace {
 }
 
 void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, const MTPInputFile &file) {
-	if (!AuthSession::Current()) return;
-
 	if (auto item = dynamic_cast<HistoryMessage*>(App::histItemById(newId))) {
 		auto media = item->getMedia();
 		if (auto document = media ? media->getDocument() : nullptr) {
@@ -6881,8 +6878,6 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 }
 
 void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent, const MTPInputFile &file, const MTPInputFile &thumb) {
-	if (!AuthSession::Current()) return;
-
 	if (auto item = dynamic_cast<HistoryMessage*>(App::histItemById(newId))) {
 		auto media = item->getMedia();
 		if (auto document = media ? media->getDocument() : nullptr) {
@@ -6909,8 +6904,6 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 }
 
 void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
-	if (!AuthSession::Current()) return;
-
 	if (auto item = App::histItemById(newId)) {
 		auto photo = (item->getMedia() && item->getMedia()->type() == MediaTypePhoto) ? static_cast<HistoryPhoto*>(item->getMedia())->photo() : nullptr;
 		if (!item->isPost()) {
@@ -6921,8 +6914,6 @@ void HistoryWidget::onPhotoProgress(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
-	if (!AuthSession::Current()) return;
-
 	if (auto item = App::histItemById(newId)) {
 		auto media = item->getMedia();
 		auto document = media ? media->getDocument() : nullptr;
@@ -6934,8 +6925,6 @@ void HistoryWidget::onDocumentProgress(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
-	if (!AuthSession::Current()) return;
-
 	HistoryItem *item = App::histItemById(newId);
 	if (item) {
 		if (!item->isPost()) {
@@ -6946,8 +6935,6 @@ void HistoryWidget::onPhotoFailed(const FullMsgId &newId) {
 }
 
 void HistoryWidget::onDocumentFailed(const FullMsgId &newId) {
-	if (!AuthSession::Current()) return;
-
 	if (auto item = App::histItemById(newId)) {
 		auto media = item->getMedia();
 		auto document = media ? media->getDocument() : nullptr;

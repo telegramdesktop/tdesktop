@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
+#include "auth_session.h"
 
 namespace Profile {
 
@@ -38,7 +39,7 @@ PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &t
 , _removeText(removeText)
 , _removeWidth(st::normalFont->width(_removeText)) {
 	setMouseTracking(true);
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 }
 
 int PeerListWidget::resizeGetHeight(int newWidth) {

@@ -30,18 +30,24 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/notifications_manager.h"
 #include "boxes/notifications_box.h"
 #include "platform/platform_notifications_manager.h"
+#include "auth_session.h"
 
 namespace Settings {
+namespace {
+
+using ChangeType = Window::Notifications::ChangeType;
+
+} // namespace
 
 NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_notify)) {
 	createControls();
 
-	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType type) {
-		if (type == Notify::ChangeType::DesktopEnabled) {
+	subscribe(AuthSession::Current().notifications()->settingsChanged(), [this](ChangeType type) {
+		if (type == ChangeType::DesktopEnabled) {
 			desktopEnabledUpdated();
-		} else if (type == Notify::ChangeType::ViewParams) {
+		} else if (type == ChangeType::ViewParams) {
 			viewParamUpdated();
-		} else if (type == Notify::ChangeType::SoundEnabled) {
+		} else if (type == ChangeType::SoundEnabled) {
 			_playSound->setChecked(Global::SoundNotify());
 		}
 	});
@@ -95,7 +101,7 @@ void NotificationsWidget::onDesktopNotifications() {
 	}
 	Global::SetDesktopNotify(_desktopNotifications->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DesktopEnabled);
+	AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::DesktopEnabled);
 }
 
 void NotificationsWidget::desktopEnabledUpdated() {
@@ -125,7 +131,7 @@ void NotificationsWidget::onShowSenderName() {
 	}
 	Global::SetNotifyView(viewParam);
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::ViewParams);
+	AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::ViewParams);
 }
 
 void NotificationsWidget::onShowMessagePreview() {
@@ -143,7 +149,7 @@ void NotificationsWidget::onShowMessagePreview() {
 
 	Global::SetNotifyView(viewParam);
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::ViewParams);
+	AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::ViewParams);
 }
 
 void NotificationsWidget::viewParamUpdated() {
@@ -159,9 +165,10 @@ void NotificationsWidget::onNativeNotifications() {
 		return;
 	}
 
-	Window::Notifications::GetManager()->clearAllFast();
 	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
+
+	AuthSession::Current().notifications()->createManager();
 
 	if (Global::NativeNotifications()) {
 		_advanced->slideUp();
@@ -181,13 +188,13 @@ void NotificationsWidget::onPlaySound() {
 
 	Global::SetSoundNotify(_playSound->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::SoundEnabled);
+	AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::SoundEnabled);
 }
 
 void NotificationsWidget::onIncludeMuted() {
 	Global::SetIncludeMuted(_includeMuted->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::IncludeMuted);
+	AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::IncludeMuted);
 }
 
 } // namespace Settings

@@ -43,14 +43,7 @@ public:
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
-	void psFlash();
-	void psNotifySettingGot();
-
-	void psUpdateWorkmode();
-
 	void psRefreshTaskbarIcon();
-
-	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
@@ -107,6 +100,8 @@ protected:
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	void showTrayTooltip() override;
+
+	void workmodeUpdated(DBIWorkMode mode) override;
 
 	QTimer psUpdatedPositionTimer;
 

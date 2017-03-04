@@ -25,9 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
-class Manager;
-Manager *GetNativeManager();
-
 inline bool SkipAudio() {
 	return false;
 }
@@ -38,10 +35,7 @@ inline bool SkipToast() {
 
 class Manager : public Window::Notifications::NativeManager {
 public:
-	Manager();
-
-	void updateDelegate();
-
+	Manager(Window::Notifications::System *system);
 	~Manager();
 
 protected:
@@ -50,14 +44,10 @@ protected:
 	void doClearFromHistory(History *history) override;
 
 private:
-	class Impl;
-	std::unique_ptr<Impl> _impl;
+	class Private;
+	const std::unique_ptr<Private> _private;
 
 };
-
-inline Window::Notifications::Manager *GetManager() {
-	return GetNativeManager();
-}
 
 } // namespace Notifications
 } // namespace Platform

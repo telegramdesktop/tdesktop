@@ -63,6 +63,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
 #include "auth_session.h"
+#include "window/notifications_manager.h"
 
 StackItemSection::StackItemSection(std::unique_ptr<Window::SectionMemento> &&memento) : StackItem(nullptr)
 , _memento(std::move(memento)) {
@@ -810,7 +811,6 @@ void MainWidget::deleteHistoryPart(DeleteHistoryRequest request, const MTPmessag
 	}
 
 	int32 offset = d.voffset.v;
-	if (!AuthSession::Current()) return;
 	if (offset <= 0) {
 		cRefReportSpamStatuses().remove(peer->id);
 		Local::writeReportSpamStatuses();
@@ -909,7 +909,6 @@ void MainWidget::deleteAllFromUserPart(DeleteAllFromUserParams params, const MTP
 	}
 
 	int32 offset = d.voffset.v;
-	if (!AuthSession::Current()) return;
 	if (offset > 0) {
 		MTP::send(MTPchannels_DeleteUserHistory(params.channel->inputChannel, params.from->inputUser), rpcDone(&MainWidget::deleteAllFromUserPart, params));
 	} else if (History *h = App::historyLoaded(params.channel)) {
@@ -1504,7 +1503,6 @@ void MainWidget::overviewLoaded(History *history, const MTPmessages_Messages &re
 }
 
 void MainWidget::sendReadRequest(PeerData *peer, MsgId upTo) {
-	if (!AuthSession::Current()) return;
 	if (peer->isChannel()) {
 		_readRequests.insert(peer, qMakePair(MTP::send(MTPchannels_ReadHistory(peer->asChannel()->inputChannel, MTP_int(upTo)), rpcDone(&MainWidget::channelReadDone, peer), rpcFail(&MainWidget::readRequestFail, peer)), upTo));
 	} else {
@@ -2106,8 +2104,6 @@ void MainWidget::fillPeerMenu(PeerData *peer, base::lambda<QAction*(const QStrin
 }
 
 void MainWidget::onViewsIncrement() {
-	if (!App::main() || !AuthSession::Current()) return;
-
 	for (ViewsIncrement::iterator i = _viewsToIncrement.begin(); i != _viewsToIncrement.cend();) {
 		if (_viewsIncrementRequests.contains(i.key())) {
 			++i;
@@ -3628,8 +3624,6 @@ bool MainWidget::failDifference(const RPCError &error) {
 }
 
 void MainWidget::onGetDifferenceTimeByPts() {
-	if (!AuthSession::Current()) return;
-
 	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeByPts) {
 		if (_getDifferenceTimeByPts > now) {
@@ -3655,8 +3649,6 @@ void MainWidget::onGetDifferenceTimeByPts() {
 }
 
 void MainWidget::onGetDifferenceTimeAfterFail() {
-	if (!AuthSession::Current()) return;
-
 	auto now = getms(true), wait = 0LL;
 	if (_getDifferenceTimeAfterFail) {
 		if (_getDifferenceTimeAfterFail > now) {
@@ -3731,24 +3723,21 @@ void MainWidget::mtpPing() {
 	MTP::ping();
 }
 
-void MainWidget::start(const MTPUser &user) {
-	int32 uid = user.c_user().vid.v;
-	if (!uid) {
-		LOG(("MTP Error: incorrect user received"));
-		App::logOut();
+void MainWidget::start(const MTPUser *self) {
+	if (!self) {
+		MTP::send(MTPusers_GetUsers(MTP_vector<MTPInputUser>(1, MTP_inputUserSelf())), rpcDone(&MainWidget::startWithSelf));
 		return;
 	}
-	if (AuthSession::CurrentUserId() != uid) {
-		Messenger::Instance().authSessionCreate(uid);
-		Local::writeMtpData();
+	if (!AuthSession::Current().validateSelf(*self)) {
+		return;
 	}
 
 	Local::readSavedPeers();
-
 	cSetOtherOnline(0);
-	if (auto self = App::feedUsers(MTP_vector<MTPUser>(1, user))) {
-		self->loadUserpic();
+	if (auto user = App::feedUsers(MTP_vector<MTPUser>(1, *self))) {
+		user->loadUserpic();
 	}
+
 	MTP::send(MTPupdates_GetState(), rpcDone(&MainWidget::gotState));
 	update();
 
@@ -4039,12 +4028,13 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 	return true;
 }
 
-void MainWidget::startFull(const MTPVector<MTPUser> &users) {
-	const auto &v(users.c_vector().v);
-	if (v.isEmpty() || v[0].type() != mtpc_user || !v[0].c_user().is_self()) { // wtf?..
+void MainWidget::startWithSelf(const MTPVector<MTPUser> &users) {
+	auto &v = users.c_vector().v;
+	if (v.isEmpty()) {
+		LOG(("Auth Error: self user not received."));
 		return App::logOutDelayed();
 	}
-	start(v[0]);
+	start(&v[0]);
 }
 
 void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNotifySettings &settings, History *h) {
@@ -4100,7 +4090,7 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 				if (!h) h = App::history(updatePeer->id);
 				int32 changeIn = 0;
 				if (isNotifyMuted(setTo, &changeIn)) {
-					App::wnd()->notifyClear(h);
+					AuthSession::Current().notifications()->clearFromHistory(h);
 					h->setMute(true);
 					App::regMuted(updatePeer, changeIn);
 				} else {
@@ -4379,7 +4369,7 @@ void MainWidget::checkIdleFinish() {
 }
 
 void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
-	if (end <= from || !AuthSession::Current()) return;
+	if (end <= from) return;
 
 	App::wnd()->checkAutoLock();
 
@@ -4638,8 +4628,6 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 }
 
 void MainWidget::feedUpdate(const MTPUpdate &update) {
-	if (!AuthSession::Current()) return;
-
 	switch (update.type()) {
 	case mtpc_updateNewMessage: {
 		auto &d = update.c_updateNewMessage();

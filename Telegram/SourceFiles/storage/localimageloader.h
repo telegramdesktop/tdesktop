@@ -99,6 +99,8 @@ struct SendMediaReady {
 
 };
 
+using TaskId = void*; // no interface, just id
+
 class Task {
 public:
 	virtual void process() = 0; // is executed in a separate thread

@@ -31,7 +31,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/ripple_animation.h"
 #include "observer_peer.h"
-
+#include "auth_session.h"
+#include "storage/file_download.h"
 
 MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
 , _st(st) {
@@ -132,7 +133,7 @@ MembersBox::Inner::Inner(QWidget *parent, ChannelData *channel, MembersFilter fi
 , _kickWidth(st::normalFont->width(_kickText))
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _about(_aboutWidth) {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	connect(App::main(), SIGNAL(peerNameChanged(PeerData*,const PeerData::Names&,const PeerData::NameFirstChars&)), this, SLOT(onPeerNameChanged(PeerData*, const PeerData::Names&, const PeerData::NameFirstChars&)));
 	connect(App::main(), SIGNAL(peerPhotoChanged(PeerData*)), this, SLOT(peerUpdated(PeerData*)));
@@ -341,7 +342,7 @@ void MembersBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader()->clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;

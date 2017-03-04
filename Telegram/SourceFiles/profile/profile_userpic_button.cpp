@@ -22,7 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_profile.h"
 #include "observer_peer.h"
-#include "storage/file_download.h"
+#include "auth_session.h"
 
 namespace Profile {
 
@@ -41,7 +41,7 @@ UserpicButton::UserpicButton(QWidget *parent, PeerData *peer, int size) : Abstra
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(FileDownload::ImageLoaded(), [this] {
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		if (_waiting && _peer->userpicLoaded()) {
 			_waiting = false;
 			startNewPhotoShowing();

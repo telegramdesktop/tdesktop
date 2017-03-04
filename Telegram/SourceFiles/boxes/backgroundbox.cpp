@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_overview.h"
 #include "styles/style_boxes.h"
 #include "ui/effects/round_checkbox.h"
+#include "auth_session.h"
 
 BackgroundBox::BackgroundBox(QWidget*) {
 }
@@ -63,7 +64,7 @@ BackgroundBox::Inner::Inner(QWidget *parent) : TWidget(parent)
 		updateWallpapers();
 	}
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	subscribe(Window::Theme::Background(), [this](const Window::Theme::BackgroundUpdate &update) {
 		if (update.paletteChanged()) {
 			_check->invalidateCache();

@@ -23,6 +23,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "platform/platform_specific.h"
 #include "platform/mac/mac_utilities.h"
 #include "styles/style_window.h"
+#include "mainwindow.h"
+#include "core/task_queue.h"
 
 #include <Cocoa/Cocoa.h>
 
@@ -93,22 +95,19 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 namespace Platform {
 namespace Notifications {
 
-void Start() {
-	if (cPlatform() != dbipMacOld) {
-		ManagerInstance.createIfNull();
-	}
-}
-
-Manager *GetNativeManager() {
-	return ManagerInstance.data();
-}
-
 bool Supported() {
-        return ManagerInstance.data() != nullptr;
+	return (cPlatform() != dbipMacOld);
 }
 
-void Finish() {
-	ManagerInstance.clear();
+std::unique_ptr<Window::Notifications::Manager> Create(Window::Notifications::System *system) {
+	if (Supported()) {
+		return std::make_unique<Manager>(system);
+	}
+	return nullptr;
+}
+
+void FlashBounce() {
+	[NSApp requestUserAttention:NSInformationalRequest];
 }
 
 void CustomNotificationShownHook(QWidget *widget) {
@@ -116,27 +115,38 @@ void CustomNotificationShownHook(QWidget *widget) {
 	objc_holdOnTop(widget->winId());
 	widget->show();
 	psShowOverAll(widget, false);
+	if (auto window = App::wnd()) {
+		window->customNotificationCreated(widget);
+	}
 }
 
-class Manager::Impl {
+class Manager::Private : public QObject, private base::Subscriber {
 public:
-	Impl();
+	Private();
 	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
 	void updateDelegate();
 
-	~Impl();
+	~Private();
 
 private:
 	NotificationDelegate *_delegate;
 
 };
 
-Manager::Impl::Impl() : _delegate([[NotificationDelegate alloc] init]) {
+Manager::Private::Private() : _delegate([[NotificationDelegate alloc] init]) {
+	updateDelegate();
+	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
+		// We need to update the delegate _after_ the tray icon change was done in Qt.
+		// Because Qt resets the delegate.
+		base::TaskQueue::Main().Put(base::lambda_guarded(this, [this] {
+			updateDelegate();
+		}));
+	});
 }
 
-void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
+void Manager::Private::showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
 	@autoreleasepool {
 
 	NSUserNotification *notification = [[[NSUserNotification alloc] init] autorelease];
@@ -168,7 +178,7 @@ void Manager::Impl::showNotification(PeerData *peer, MsgId msgId, const QString 
 	}
 }
 
-void Manager::Impl::clearAll() {
+void Manager::Private::clearAll() {
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	NSArray *notificationsList = [center deliveredNotifications];
 	for (id notification in notificationsList) {
@@ -182,7 +192,7 @@ void Manager::Impl::clearAll() {
 	[center removeAllDeliveredNotifications];
 }
 
-void Manager::Impl::clearFromHistory(History *history) {
+void Manager::Private::clearFromHistory(History *history) {
 	unsigned long long peerId = history->peer->id;
 
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
@@ -199,34 +209,32 @@ void Manager::Impl::clearFromHistory(History *history) {
 	}
 }
 
-void Manager::Impl::updateDelegate() {
+void Manager::Private::updateDelegate() {
 	NSUserNotificationCenter *center = [NSUserNotificationCenter defaultUserNotificationCenter];
 	[center setDelegate:_delegate];
 }
 
-Manager::Impl::~Impl() {
+Manager::Private::~Private() {
+	clearAll();
 	[_delegate release];
 }
 
-Manager::Manager() : _impl(std::make_unique<Impl>()) {
-}
-
-void Manager::updateDelegate() {
-	_impl->updateDelegate();
+Manager::Manager(Window::Notifications::System *system) : NativeManager(system)
+, _private(std::make_unique<Private>()) {
 }
 
 Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton) {
-	_impl->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
+	_private->showNotification(peer, msgId, title, subtitle, msg, hideNameAndPhoto, hideReplyButton);
 }
 
 void Manager::doClearAllFast() {
-	_impl->clearAll();
+	_private->clearAll();
 }
 
 void Manager::doClearFromHistory(History *history) {
-	_impl->clearFromHistory(history);
+	_private->clearFromHistory(history);
 }
 
 } // namespace Notifications

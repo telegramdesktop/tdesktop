@@ -38,6 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 
 AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
 : _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
@@ -1119,7 +1120,7 @@ void RevokePublicLinkBox::prepare() {
 
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	updateMaxHeight();
 }

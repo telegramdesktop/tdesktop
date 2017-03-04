@@ -1088,11 +1088,14 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		switch (v) {
-		case dbiwmTrayOnly: cSetWorkMode(dbiwmTrayOnly); break;
-		case dbiwmWindowOnly: cSetWorkMode(dbiwmWindowOnly); break;
-		default: cSetWorkMode(dbiwmWindowAndTray); break;
+		auto newMode = [v] {
+			switch (v) {
+			case dbiwmTrayOnly: return dbiwmTrayOnly;
+			case dbiwmWindowOnly: return dbiwmWindowOnly;
+			};
+			return dbiwmWindowAndTray;
 		};
+		Global::RefWorkMode().set(newMode());
 	} break;
 
 	case dbiConnectionType: {
@@ -2269,7 +2272,7 @@ void writeSettings() {
 	data.stream << quint32(dbiAutoStart) << qint32(cAutoStart());
 	data.stream << quint32(dbiStartMinimized) << qint32(cStartMinimized());
 	data.stream << quint32(dbiSendToMenu) << qint32(cSendToMenu());
-	data.stream << quint32(dbiWorkMode) << qint32(cWorkMode());
+	data.stream << quint32(dbiWorkMode) << qint32(Global::WorkMode().value());
 	data.stream << quint32(dbiSeenTrayTooltip) << qint32(cSeenTrayTooltip());
 	data.stream << quint32(dbiAutoUpdate) << qint32(cAutoUpdate());
 	data.stream << quint32(dbiLastUpdateCheck) << qint32(cLastUpdateCheck());
@@ -2731,7 +2734,7 @@ public:
 		qint32 legacyTypeField = 0;
 		stream >> first >> second >> legacyTypeField >> data;
 	}
-	void clearInMap() {
+	void clearInMap() override {
 		StorageMap::iterator j = _imagesMap.find(_location);
 		if (j != _imagesMap.cend() && j->first == _key) {
 			clearKey(_key, FileOption::User);

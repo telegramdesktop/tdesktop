@@ -42,6 +42,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "media/media_audio.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "storage/file_download.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -59,7 +61,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::windowMinWidth) {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::Current().downloader()->taskFinished(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -1917,7 +1919,7 @@ void OverviewWidget::clear() {
 }
 
 void OverviewWidget::onScroll() {
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader()->clearPriorities();
 	int32 preloadThreshold = _scroll->height() * 5;
 	bool needToPreload = false;
 	do {

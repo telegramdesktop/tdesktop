@@ -31,13 +31,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_boxes.h"
 #include "styles/style_window.h"
+#include "storage/file_download.h"
+#include "auth_session.h"
 
 namespace Window {
 namespace Notifications {
 namespace Default {
 namespace {
-
-NeverFreedPointer<Manager> ManagerInstance;
 
 int notificationMaxHeight() {
 	return st::notifyMinHeight + st::notifyReplyArea.heightMax + st::notifyBorderWidth;
@@ -59,32 +59,24 @@ internal::Widget::Direction notificationShiftDirection() {
 
 } // namespace
 
-void Start() {
-	ManagerInstance.createIfNull();
+std::unique_ptr<Manager> Create(System *system) {
+	return std::make_unique<Manager>(system);
 }
 
-Manager *GetManager() {
-	return ManagerInstance.data();
-}
-
-void Finish() {
-	ManagerInstance.clear();
-}
-
-Manager::Manager() {
-	subscribe(FileDownload::ImageLoaded(), [this] {
-		for_const (auto notification, _notifications) {
+Manager::Manager(System *system) : Notifications::Manager(system) {
+	subscribe(system->authSession()->downloader()->taskFinished(), [this] {
+		for_const (auto &notification, _notifications) {
 			notification->updatePeerPhoto();
 		}
 	});
-	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType change) {
+	subscribe(system->settingsChanged(), [this](ChangeType change) {
 		settingsChanged(change);
 	});
 	_inputCheckTimer.setTimeoutHandler([this] { checkLastInput(); });
 }
 
 bool Manager::hasReplyingNotification() const {
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		if (notification->isReplying()) {
 			return true;
 		}
@@ -92,20 +84,20 @@ bool Manager::hasReplyingNotification() const {
 	return false;
 }
 
-void Manager::settingsChanged(Notify::ChangeType change) {
-	if (change == Notify::ChangeType::Corner) {
+void Manager::settingsChanged(ChangeType change) {
+	if (change == ChangeType::Corner) {
 		auto startPosition = notificationStartPosition();
 		auto shiftDirection = notificationShiftDirection();
-		for_const (auto notification, _notifications) {
+		for_const (auto &notification, _notifications) {
 			notification->updatePosition(startPosition, shiftDirection);
 		}
 		if (_hideAll) {
 			_hideAll->updatePosition(startPosition, shiftDirection);
 		}
-	} else if (change == Notify::ChangeType::MaxCount) {
+	} else if (change == ChangeType::MaxCount) {
 		int allow = Global::NotificationsCount();
 		for (int i = _notifications.size(); i != 0;) {
-			auto notification = _notifications[--i];
+			auto &notification = _notifications[--i];
 			if (notification->isUnlinked()) continue;
 			if (--allow < 0) {
 				notification->unlinkHistory();
@@ -116,14 +108,14 @@ void Manager::settingsChanged(Notify::ChangeType change) {
 				showNextFromQueue();
 			}
 		}
-	} else if (change == Notify::ChangeType::DemoIsShown) {
+	} else if (change == ChangeType::DemoIsShown) {
 		auto demoIsShown = Global::NotificationsDemoIsShown();
 		_demoMasterOpacity.start([this] { demoMasterOpacityCallback(); }, demoIsShown ? 1. : 0., demoIsShown ? 0. : 1., st::notifyFastAnim);
 	}
 }
 
 void Manager::demoMasterOpacityCallback() {
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		notification->updateOpacity();
 	}
 	if (_hideAll) {
@@ -138,7 +130,7 @@ float64 Manager::demoMasterOpacity() const {
 void Manager::checkLastInput() {
 	auto replying = hasReplyingNotification();
 	auto waiting = false;
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		if (!notification->checkLastInput(replying)) {
 			waiting = true;
 		}
@@ -151,7 +143,7 @@ void Manager::checkLastInput() {
 void Manager::startAllHiding() {
 	if (!hasReplyingNotification()) {
 		int notHidingCount = 0;
-		for_const (auto notification, _notifications) {
+		for_const (auto &notification, _notifications) {
 			if (notification->isShowing()) {
 				++notHidingCount;
 			} else {
@@ -166,7 +158,7 @@ void Manager::startAllHiding() {
 }
 
 void Manager::stopAllHiding() {
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		notification->stopHiding();
 	}
 	if (_hideAll) {
@@ -175,46 +167,52 @@ void Manager::stopAllHiding() {
 }
 
 void Manager::showNextFromQueue() {
-	if (!_queuedNotifications.isEmpty()) {
-		int count = Global::NotificationsCount();
-		for_const (auto notification, _notifications) {
-			if (notification->isUnlinked()) continue;
-			--count;
+	auto guard = base::scope_guard([this] {
+		if (_positionsOutdated) {
+			moveWidgets();
 		}
-		if (count > 0) {
-			auto startPosition = notificationStartPosition();
-			auto startShift = 0;
-			auto shiftDirection = notificationShiftDirection();
-			do {
-				auto queued = _queuedNotifications.front();
-				_queuedNotifications.pop_front();
-
-				auto notification = std::make_unique<Notification>(
-					queued.history,
-					queued.peer,
-					queued.author,
-					queued.item,
-					queued.forwardedCount,
-					startPosition, startShift, shiftDirection);
-				Platform::Notifications::CustomNotificationShownHook(notification.get());
-				_notifications.push_back(notification.release());
-				--count;
-			} while (count > 0 && !_queuedNotifications.isEmpty());
-
-			_positionsOutdated = true;
-			checkLastInput();
-		}
+	});
+	if (_queuedNotifications.empty()) {
+		return;
 	}
-	if (_positionsOutdated) {
-		moveWidgets();
+	int count = Global::NotificationsCount();
+	for_const (auto &notification, _notifications) {
+		if (notification->isUnlinked()) continue;
+		--count;
 	}
+	if (count <= 0) {
+		return;
+	}
+
+	auto startPosition = notificationStartPosition();
+	auto startShift = 0;
+	auto shiftDirection = notificationShiftDirection();
+	do {
+		auto queued = _queuedNotifications.front();
+		_queuedNotifications.pop_front();
+
+		auto notification = std::make_unique<Notification>(
+			this,
+			queued.history,
+			queued.peer,
+			queued.author,
+			queued.item,
+			queued.forwardedCount,
+			startPosition, startShift, shiftDirection);
+		Platform::Notifications::CustomNotificationShownHook(notification.get());
+		_notifications.push_back(std::move(notification));
+		--count;
+	} while (count > 0 && !_queuedNotifications.empty());
+
+	_positionsOutdated = true;
+	checkLastInput();
 }
 
 void Manager::moveWidgets() {
 	auto shift = st::notifyDeltaY;
 	int lastShift = 0, lastShiftCurrent = 0, count = 0;
 	for (int i = _notifications.size(); i != 0;) {
-		auto notification = _notifications[--i];
+		auto &notification = _notifications[--i];
 		if (notification->isUnlinked()) continue;
 
 		notification->changeShift(shift);
@@ -226,10 +224,10 @@ void Manager::moveWidgets() {
 		++count;
 	}
 
-	if (count > 1 || !_queuedNotifications.isEmpty()) {
+	if (count > 1 || !_queuedNotifications.empty()) {
 		auto deltaY = st::notifyHideAllHeight + st::notifyDeltaY;
 		if (!_hideAll) {
-			_hideAll = new HideAllButton(notificationStartPosition(), lastShiftCurrent, notificationShiftDirection());
+			_hideAll = std::make_unique<HideAllButton>(this, notificationStartPosition(), lastShiftCurrent, notificationShiftDirection());
 		}
 		_hideAll->changeShift(lastShift);
 		_hideAll->stopHiding();
@@ -243,10 +241,12 @@ void Manager::changeNotificationHeight(Notification *notification, int newHeight
 	if (!deltaHeight) return;
 
 	notification->addToHeight(deltaHeight);
-	auto index = _notifications.indexOf(notification);
-	if (index > 0) {
-		for (int i = 0; i != index; ++i) {
-			auto notification = _notifications[i];
+	auto it = std::find_if(_notifications.cbegin(), _notifications.cend(), [notification](auto &item) {
+		return (item.get() == notification);
+	});
+	if (it != _notifications.cend()) {
+		for (auto i = _notifications.cbegin(); i != it; ++i) {
+			auto &notification = *i;
 			if (notification->isUnlinked()) continue;
 
 			notification->addToShift(deltaHeight);
@@ -266,22 +266,21 @@ void Manager::unlinkFromShown(Notification *remove) {
 	showNextFromQueue();
 }
 
-void Manager::removeFromShown(Notification *remove) {
-	if (remove) {
-		auto index = _notifications.indexOf(remove);
-		if (index >= 0) {
-			_notifications.removeAt(index);
+void Manager::removeWidget(internal::Widget *remove) {
+	if (remove == _hideAll.get()) {
+		_hideAll.reset();
+	} else if (remove) {
+		auto it = std::find_if(_notifications.cbegin(), _notifications.cend(), [remove](auto &item) {
+			return item.get() == remove;
+		});
+		if (it != _notifications.cend()) {
+			_notifications.erase(it);
 			_positionsOutdated = true;
 		}
 	}
 	showNextFromQueue();
 }
 
-void Manager::removeHideAll(HideAllButton *remove) {
-	if (remove == _hideAll) {
-		_hideAll = nullptr;
-	}
-}
 void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
 	_queuedNotifications.push_back(QueuedNotification(item, forwardedCount));
 	showNextFromQueue();
@@ -289,7 +288,7 @@ void Manager::doShowNotification(HistoryItem *item, int forwardedCount) {
 
 void Manager::doClearAll() {
 	_queuedNotifications.clear();
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		notification->unlinkHistory();
 	}
 	showNextFromQueue();
@@ -297,11 +296,8 @@ void Manager::doClearAll() {
 
 void Manager::doClearAllFast() {
 	_queuedNotifications.clear();
-	auto notifications = base::take(_notifications);
-	for_const (auto notification, notifications) {
-		delete notification;
-	}
-	delete base::take(_hideAll);
+	base::take(_notifications);
+	base::take(_hideAll);
 }
 
 void Manager::doClearFromHistory(History *history) {
@@ -312,7 +308,7 @@ void Manager::doClearFromHistory(History *history) {
 			++i;
 		}
 	}
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		if (notification->unlinkHistory(history)) {
 			_positionsOutdated = true;
 		}
@@ -321,20 +317,18 @@ void Manager::doClearFromHistory(History *history) {
 }
 
 void Manager::doClearFromItem(HistoryItem *item) {
-	for (auto i = 0, queuedCount = _queuedNotifications.size(); i != queuedCount; ++i) {
-		if (_queuedNotifications[i].item == item) {
-			_queuedNotifications.removeAt(i);
-			break;
-		}
-	}
-	for_const (auto notification, _notifications) {
+	_queuedNotifications.erase(std::remove_if(_queuedNotifications.begin(), _queuedNotifications.end(), [item](auto &queued) {
+		return (queued.item == item);
+	}), _queuedNotifications.cend());
+
+	for_const (auto &notification, _notifications) {
 		// Calls unlinkFromShown() -> showNextFromQueue()
 		notification->itemRemoved(item);
 	}
 }
 
 void Manager::doUpdateAll() {
-	for_const (auto notification, _notifications) {
+	for_const (auto &notification, _notifications) {
 		notification->updateNotifyDisplay();
 	}
 }
@@ -345,7 +339,8 @@ Manager::~Manager() {
 
 namespace internal {
 
-Widget::Widget(QPoint startPosition, int shift, Direction shiftDirection) : TWidget(nullptr)
+Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : TWidget(nullptr)
+, _manager(manager)
 , _startPosition(startPosition)
 , _direction(shiftDirection)
 , a_shift(shift)
@@ -364,12 +359,10 @@ void Widget::destroyDelayed() {
 	if (_deleted) return;
 	_deleted = true;
 
-	// Ubuntu has a lag if deleteLater() called immediately.
-#if defined Q_OS_LINUX32 || defined Q_OS_LINUX64
-	QTimer::singleShot(1000, [this] { delete this; });
-#else // Q_OS_LINUX32 || Q_OS_LINUX64
-	deleteLater();
-#endif // Q_OS_LINUX32 || Q_OS_LINUX64
+	// Ubuntu has a lag if a fully transparent widget is destroyed immediately.
+	App::CallDelayed(1000, this, [this] {
+		manager()->removeWidget(this);
+	});
 }
 
 void Widget::opacityAnimationCallback() {
@@ -411,9 +404,7 @@ void Widget::hideAnimated(float64 duration, const anim::transition &func) {
 }
 
 void Widget::updateOpacity() {
-	if (auto manager = ManagerInstance.data()) {
-		setWindowOpacity(_a_opacity.current(_hiding ? 0. : 1.) * manager->demoMasterOpacity());
-	}
+	setWindowOpacity(_a_opacity.current(_hiding ? 0. : 1.) * _manager->demoMasterOpacity());
 }
 
 void Widget::changeShift(int top) {
@@ -469,7 +460,7 @@ void Background::paintEvent(QPaintEvent *e) {
 	p.fillRect(st::notifyBorderWidth, height() - st::notifyBorderWidth, width() - 2 * st::notifyBorderWidth, st::notifyBorderWidth, st::notifyBorder);
 }
 
-Notification::Notification(History *history, PeerData *peer, PeerData *author, HistoryItem *msg, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection) : Widget(startPosition, shift, shiftDirection)
+Notification::Notification(Manager *manager, History *history, PeerData *peer, PeerData *author, HistoryItem *msg, int forwardedCount, QPoint startPosition, int shift, Direction shiftDirection) : Widget(manager, startPosition, shift, shiftDirection)
 , _history(history)
 , _peer(peer)
 , _author(author)
@@ -711,9 +702,7 @@ bool Notification::canReply() const {
 }
 
 void Notification::unlinkHistoryInManager() {
-	if (auto manager = ManagerInstance.data()) {
-		manager->unlinkFromShown(this);
-	}
+	manager()->unlinkFromShown(this);
 }
 
 void Notification::toggleActionButtons(bool visible) {
@@ -766,19 +755,15 @@ void Notification::showReplyField() {
 void Notification::sendReply() {
 	if (!_history) return;
 
-	if (auto manager = ManagerInstance.data()) {
-		auto peerId = _history->peer->id;
-		auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
-		manager->notificationReplied(peerId, msgId, _replyArea->getLastText());
+	auto peerId = _history->peer->id;
+	auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
+	manager()->notificationReplied(peerId, msgId, _replyArea->getLastText());
 
-		manager->startAllHiding();
-	}
+	manager()->startAllHiding();
 }
 
 void Notification::changeHeight(int newHeight) {
-	if (auto manager = ManagerInstance.data()) {
-		manager->changeNotificationHeight(this, newHeight);
-	}
+	manager()->changeNotificationHeight(this, newHeight);
 }
 
 bool Notification::unlinkHistory(History *history) {
@@ -793,9 +778,7 @@ bool Notification::unlinkHistory(History *history) {
 
 void Notification::enterEventHook(QEvent *e) {
 	if (!_history) return;
-	if (auto manager = ManagerInstance.data()) {
-		manager->stopAllHiding();
-	}
+	manager()->stopAllHiding();
 	if (!_replyArea && canReply()) {
 		toggleActionButtons(true);
 	}
@@ -803,9 +786,7 @@ void Notification::enterEventHook(QEvent *e) {
 
 void Notification::leaveEventHook(QEvent *e) {
 	if (!_history) return;
-	if (auto manager = ManagerInstance.data()) {
-		manager->startAllHiding();
-	}
+	manager()->startAllHiding();
 	toggleActionButtons(false);
 }
 
@@ -821,11 +802,9 @@ void Notification::mousePressEvent(QMouseEvent *e) {
 		unlinkHistoryInManager();
 	} else {
 		e->ignore();
-		if (auto manager = ManagerInstance.data()) {
-			auto peerId = _history->peer->id;
-			auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
-			manager->notificationActivated(peerId, msgId);
-		}
+		auto peerId = _history->peer->id;
+		auto msgId = _item ? _item->id : ShowAtUnreadMsgId;
+		manager()->notificationActivated(peerId, msgId);
 	}
 }
 
@@ -850,13 +829,7 @@ void Notification::onHideByTimer() {
 	startHiding();
 }
 
-Notification::~Notification() {
-	if (auto manager = ManagerInstance.data()) {
-		manager->removeFromShown(this);
-	}
-}
-
-HideAllButton::HideAllButton(QPoint startPosition, int shift, Direction shiftDirection) : Widget(startPosition, shift, shiftDirection) {
+HideAllButton::HideAllButton(Manager *manager, QPoint startPosition, int shift, Direction shiftDirection) : Widget(manager, startPosition, shift, shiftDirection) {
 	setCursor(style::cur_pointer);
 
 	auto position = computePosition(st::notifyHideAllHeight);
@@ -885,12 +858,6 @@ void HideAllButton::stopHiding() {
 	hideStop();
 }
 
-HideAllButton::~HideAllButton() {
-	if (auto manager = ManagerInstance.data()) {
-		manager->removeHideAll(this);
-	}
-}
-
 void HideAllButton::enterEventHook(QEvent *e) {
 	_mouseOver = true;
 	update();
@@ -908,9 +875,7 @@ void HideAllButton::mousePressEvent(QMouseEvent *e) {
 void HideAllButton::mouseReleaseEvent(QMouseEvent *e) {
 	auto mouseDown = base::take(_mouseDown);
 	if (mouseDown && _mouseOver) {
-		if (auto manager = ManagerInstance.data()) {
-			manager->clearAll();
-		}
+		manager()->clearAll();
 	}
 }
 

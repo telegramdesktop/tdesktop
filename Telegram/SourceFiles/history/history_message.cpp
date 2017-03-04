@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -2032,10 +2033,8 @@ bool HistoryService::updateDependent(bool force) {
 		}
 		updateDependentText();
 	}
-	if (force) {
-		if (gotDependencyItem && App::wnd()) {
-			App::wnd()->notifySettingGot();
-		}
+	if (force && gotDependencyItem) {
+		AuthSession::Current().notifications()->checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }

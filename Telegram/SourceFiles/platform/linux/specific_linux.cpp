@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "platform/linux/file_utilities_linux.h"
+#include "platform/platform_notifications_manager.h"
 #include "storage/localstorage.h"
 
 #include <sys/stat.h>
@@ -370,6 +371,8 @@ void start() {
 }
 
 void finish() {
+	Notifications::Finish();
+
 	delete _psEventFilter;
 	_psEventFilter = nullptr;
 }

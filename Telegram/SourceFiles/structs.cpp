@@ -37,6 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "auth_session.h"
 #include "messenger.h"
+#include "storage/file_download.h"
 
 namespace {
 

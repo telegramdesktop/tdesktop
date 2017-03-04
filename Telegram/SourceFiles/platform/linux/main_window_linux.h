@@ -35,15 +35,8 @@ public:
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
-	void psFlash();
-	void psNotifySettingGot();
-
-	void psUpdateWorkmode();
-
 	void psRefreshTaskbarIcon() {
 	}
-
-	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
@@ -62,6 +55,8 @@ protected:
 	void unreadCounterChangedHook() override;
 
 	bool hasTrayIcon() const override;
+
+	void workmodeUpdated(DBIWorkMode mode) override;
 
 	QSystemTrayIcon *trayIcon = nullptr;
 	QMenu *trayIconMenu = nullptr;

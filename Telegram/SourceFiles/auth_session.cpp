@@ -21,18 +21,41 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 
 #include "messenger.h"
+#include "storage/file_download.h"
+#include "window/notifications_manager.h"
 
-AuthSession::AuthSession(UserId userId) : _userId(userId) {
+AuthSession::AuthSession(UserId userId)
+: _userId(userId)
+, _downloader(std::make_unique<Storage::Downloader>())
+, _notifications(std::make_unique<Window::Notifications::System>(this)) {
 	t_assert(_userId != 0);
 }
 
-AuthSession *AuthSession::Current() {
-	return Messenger::Instance().authSession();
+bool AuthSession::Exists() {
+	return (Messenger::Instance().authSession() != nullptr);
+}
+
+AuthSession &AuthSession::Current() {
+	auto result = Messenger::Instance().authSession();
+	t_assert(result != nullptr);
+	return *result;
 }
 
 UserData *AuthSession::CurrentUser() {
-	if (auto userId = CurrentUserId()) {
-		return App::user(userId);
-	}
-	return nullptr;
+	return App::user(CurrentUserId());
 }
+
+base::Observable<void> &AuthSession::CurrentDownloaderTaskFinished() {
+	return Current().downloader()->taskFinished();
+}
+
+bool AuthSession::validateSelf(const MTPUser &user) {
+	if (user.type() != mtpc_user || !user.c_user().is_self() || user.c_user().vid.v != userId()) {
+		LOG(("Auth Error: wrong self user received."));
+		App::logOutDelayed();
+		return false;
+	}
+	return true;
+}
+
+AuthSession::~AuthSession() = default;

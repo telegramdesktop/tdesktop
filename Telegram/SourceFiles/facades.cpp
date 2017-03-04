@@ -686,7 +686,6 @@ struct Data {
 	int NotificationsCount = 3;
 	Notify::ScreenCorner NotificationsCorner = Notify::ScreenCorner::BottomRight;
 	bool NotificationsDemoIsShown = false;
-	base::Observable<Notify::ChangeType> NotifySettingsChanged;
 
 	DBIConnectionType ConnectionType = dbictAuto;
 	bool TryIPv6 = (cPlatform() == dbipWindows) ? false : true;
@@ -698,6 +697,8 @@ struct Data {
 	int AutoLock = 3600;
 	bool LocalPasscode = false;
 	base::Observable<void> LocalPasscodeChanged;
+
+	base::Variable<DBIWorkMode> WorkMode = { dbiwmWindowAndTray };
 
 	base::Observable<HistoryItem*> ItemRemoved;
 	base::Observable<void> UnreadCounterUpdate;
@@ -807,7 +808,6 @@ DefineVar(Global, bool, NativeNotifications);
 DefineVar(Global, int, NotificationsCount);
 DefineVar(Global, Notify::ScreenCorner, NotificationsCorner);
 DefineVar(Global, bool, NotificationsDemoIsShown);
-DefineRefVar(Global, base::Observable<Notify::ChangeType>, NotifySettingsChanged);
 
 DefineVar(Global, DBIConnectionType, ConnectionType);
 DefineVar(Global, bool, TryIPv6);
@@ -819,6 +819,8 @@ DefineRefVar(Global, base::Observable<void>, ChooseCustomLang);
 DefineVar(Global, int, AutoLock);
 DefineVar(Global, bool, LocalPasscode);
 DefineRefVar(Global, base::Observable<void>, LocalPasscodeChanged);
+
+DefineRefVar(Global, base::Variable<DBIWorkMode>, WorkMode);
 
 DefineRefVar(Global, base::Observable<HistoryItem*>, ItemRemoved);
 DefineRefVar(Global, base::Observable<void>, UnreadCounterUpdate);

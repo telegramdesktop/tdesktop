@@ -46,7 +46,7 @@ bool lock_telegram() {
 
 bool minimize_telegram() {
 	if (auto w = App::wnd()) {
-		if (cWorkMode() == dbiwmTrayOnly) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly) {
 			w->minimizeToTray();
 		} else {
 			w->setWindowState(Qt::WindowMinimized);

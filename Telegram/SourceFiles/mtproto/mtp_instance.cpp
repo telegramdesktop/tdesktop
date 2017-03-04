@@ -796,7 +796,7 @@ bool Instance::Private::rpcErrorOccured(mtpRequestId requestId, const RPCFailHan
 }
 
 bool Instance::Private::hasAuthorization() {
-	return (AuthSession::Current() != nullptr);
+	return AuthSession::Exists();
 }
 
 void Instance::Private::importDone(const MTPauth_Authorization &result, mtpRequestId requestId) {

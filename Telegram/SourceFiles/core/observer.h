@@ -376,7 +376,7 @@ public:
 
 	void setForced(parameter_type<Type> newValue, bool sync = false) {
 		_value = newValue;
-		_observable.notify(_value, sync);
+		changed().notify(_value, sync);
 	}
 
 	void set(parameter_type<Type> newValue, bool sync = false) {
@@ -388,16 +388,16 @@ public:
 	template <typename Callback>
 	void process(Callback callback, bool sync = false) {
 		callback(_value);
-		_observable.notify(_value, sync);
+		changed().notify(_value, sync);
 	}
 
-	Observable<Type> &observable() {
-		return _observable;
+	Observable<Type> &changed() {
+		return _changed;
 	}
 
 private:
 	Type _value;
-	Observable<Type> _observable;
+	Observable<Type> _changed;
 
 };
 
@@ -416,12 +416,12 @@ protected:
 
 	template <typename Type, typename Lambda>
 	int subscribe(base::Variable<Type> &variable, Lambda &&handler) {
-		return subscribe(variable.observable(), std::forward<Lambda>(handler));
+		return subscribe(variable.changed(), std::forward<Lambda>(handler));
 	}
 
 	template <typename Type, typename Lambda>
 	int subscribe(base::Variable<Type> *variable, Lambda &&handler) {
-		return subscribe(variable->observable(), std::forward<Lambda>(handler));
+		return subscribe(variable->changed(), std::forward<Lambda>(handler));
 	}
 
 	void unsubscribe(int index) {

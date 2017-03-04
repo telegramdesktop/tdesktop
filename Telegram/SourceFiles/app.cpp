@@ -203,15 +203,14 @@ namespace {
 		Media::Player::mixer()->stopAndClear();
 		if (auto w = wnd()) {
 			w->tempDirDelete(Local::ClearManagerAll);
-			w->notifyClearFast();
 			w->setupIntro();
 		}
+		histories().clear();
 		Messenger::Instance().authSessionDestroy();
 		Local::reset();
 		Window::Theme::Background()->reset();
 
 		cSetOtherOnline(0);
-		histories().clear();
 		globalNotifyAllPtr = UnknownNotifySettings;
 		globalNotifyUsersPtr = UnknownNotifySettings;
 		globalNotifyChatsPtr = UnknownNotifySettings;
@@ -2014,9 +2013,7 @@ namespace {
 				dependent->dependencyItemRemoved(item);
 			}
 		}
-		if (auto manager = Window::Notifications::GetManager()) {
-			manager->clearFromItem(item);
-		}
+		AuthSession::Current().notifications()->clearFromItem(item);
 		if (Global::started() && !App::quitting()) {
 			Global::RefItemRemoved().notify(item, true);
 		}
@@ -2038,13 +2035,13 @@ namespace {
 		::dependentItems.clear();
 
 		QVector<HistoryItem*> toDelete;
-		for_const (HistoryItem *item, msgsData) {
+		for_const (auto item, msgsData) {
 			if (item->detached()) {
 				toDelete.push_back(item);
 			}
 		}
-		for_const (const MsgsData &chMsgsData, channelMsgsData) {
-			for_const (HistoryItem *item, chMsgsData) {
+		for_const (auto &chMsgsData, channelMsgsData) {
+			for_const (auto item, chMsgsData) {
 				if (item->detached()) {
 					toDelete.push_back(item);
 				}
@@ -2052,8 +2049,8 @@ namespace {
 		}
 		msgsData.clear();
 		channelMsgsData.clear();
-		for (int32 i = 0, l = toDelete.size(); i < l; ++i) {
-			delete toDelete[i];
+		for_const (auto item, toDelete) {
+			delete item;
 		}
 
 		clearMousedItems();

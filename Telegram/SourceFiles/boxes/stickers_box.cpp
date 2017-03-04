@@ -35,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -576,7 +577,7 @@ StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) :
 }
 
 void StickersBox::Inner::setup() {
-	subscribe(FileDownload::ImageLoaded(), [this] {
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 		readVisibleSets();
 	});

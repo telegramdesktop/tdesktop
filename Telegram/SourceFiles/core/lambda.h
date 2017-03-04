@@ -176,7 +176,7 @@ struct vtable_once_impl<Lambda, false, Return, Args...> : public vtable_base<Ret
 	vtable_once_impl() : Parent(
 		&bad_construct_copy,
 		&vtable_once_impl::construct_move_other_method,
-		&bad_const_call<Args...>,
+		&bad_const_call<Return, Args...>,
 		&vtable_once_impl::call_method,
 		&vtable_once_impl::destruct_method) {
 	}

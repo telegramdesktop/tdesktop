@@ -25,10 +25,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "messenger.h"
 #include "storage/localstorage.h"
 #include "platform/platform_file_utilities.h"
+#include "auth_session.h"
+
+namespace Storage {
+
+void Downloader::clearPriorities() {
+	++_priority;
+}
+
+} // namespace Storage
 
 namespace {
 
-int32 GlobalPriority = 1;
 struct DataRequested {
 	DataRequested() {
 		memset(v, 0, sizeof(v));
@@ -37,16 +45,15 @@ struct DataRequested {
 };
 QMap<int32, DataRequested> DataRequestedMap;
 
-// Debug flag to find out how we end up crashing.
-std::set<FileLoader*> MustNotDestroy;
-
-}
+} // namespace
 
 struct FileLoaderQueue {
-	FileLoaderQueue(int32 limit) : queries(0), limit(limit), start(0), end(0) {
+	FileLoaderQueue(int32 limit) : limit(limit) {
 	}
-	int32 queries, limit;
-	FileLoader *start, *end;
+	int queries = 0;
+	int limit = 0;
+	FileLoader *start = nullptr;
+	FileLoader *end = nullptr;
 };
 
 namespace {
@@ -64,7 +71,8 @@ namespace {
 }
 
 FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
-: _autoLoading(autoLoading)
+: _downloader(AuthSession::Current().downloader())
+, _autoLoading(autoLoading)
 , _file(toFile)
 , _fname(toFile)
 , _toCache(toCache)
@@ -158,8 +166,6 @@ void FileLoader::pause() {
 }
 
 FileLoader::~FileLoader() {
-	t_assert(MustNotDestroy.find(this) == MustNotDestroy.cend());
-
 	if (_localTaskId) {
 		Local::cancelTask(_localTaskId);
 	}
@@ -197,11 +203,9 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 		_fileIsOpen = false;
 		Platform::File::PostprocessDownloaded(QFileInfo(_file).absoluteFilePath());
 	}
-	FileDownload::ImageLoaded().notify();
+	_downloader->taskFinished().notify();
 
-	MustNotDestroy.insert(this);
 	emit progress(this);
-	MustNotDestroy.erase(this);
 
 	loadNext();
 }
@@ -224,45 +228,46 @@ void FileLoader::start(bool loadFirst, bool prior) {
 		}
 	}
 
+	auto currentPriority = _downloader->currentPriority();
 	FileLoader *before = 0, *after = 0;
 	if (prior) {
-		if (_inQueue && _priority == GlobalPriority) {
+		if (_inQueue && _priority == currentPriority) {
 			if (loadFirst) {
 				if (!_prev) return startLoading(loadFirst, prior);
 				before = _queue->start;
 			} else {
-				if (!_next || _next->_priority < GlobalPriority) return startLoading(loadFirst, prior);
+				if (!_next || _next->_priority < currentPriority) return startLoading(loadFirst, prior);
 				after = _next;
-				while (after->_next && after->_next->_priority == GlobalPriority) {
+				while (after->_next && after->_next->_priority == currentPriority) {
 					after = after->_next;
 				}
 			}
 		} else {
-			_priority = GlobalPriority;
+			_priority = currentPriority;
 			if (loadFirst) {
 				if (_inQueue && !_prev) return startLoading(loadFirst, prior);
 				before = _queue->start;
 			} else {
 				if (_inQueue) {
-					if (_next && _next->_priority == GlobalPriority) {
+					if (_next && _next->_priority == currentPriority) {
 						after = _next;
-					} else if (_prev && _prev->_priority < GlobalPriority) {
+					} else if (_prev && _prev->_priority < currentPriority) {
 						before = _prev;
-						while (before->_prev && before->_prev->_priority < GlobalPriority) {
+						while (before->_prev && before->_prev->_priority < currentPriority) {
 							before = before->_prev;
 						}
 					} else {
 						return startLoading(loadFirst, prior);
 					}
 				} else {
-					if (_queue->start && _queue->start->_priority == GlobalPriority) {
+					if (_queue->start && _queue->start->_priority == currentPriority) {
 						after = _queue->start;
 					} else {
 						before = _queue->start;
 					}
 				}
 				if (after) {
-					while (after->_next && after->_next->_priority == GlobalPriority) {
+					while (after->_next && after->_next->_priority == currentPriority) {
 						after = after->_next;
 					}
 				}
@@ -270,9 +275,9 @@ void FileLoader::start(bool loadFirst, bool prior) {
 		}
 	} else {
 		if (loadFirst) {
-			if (_inQueue && (!_prev || _prev->_priority == GlobalPriority)) return startLoading(loadFirst, prior);
+			if (_inQueue && (!_prev || _prev->_priority == currentPriority)) return startLoading(loadFirst, prior);
 			before = _prev;
-			while (before->_prev && before->_prev->_priority != GlobalPriority) {
+			while (before->_prev && before->_prev->_priority != currentPriority) {
 				before = before->_prev;
 			}
 		} else {
@@ -330,13 +335,11 @@ void FileLoader::cancel(bool fail) {
 	_fname = QString();
 	_file.setFileName(_fname);
 
-	MustNotDestroy.insert(this);
 	if (fail) {
 		emit failed(this, started);
 	} else {
 		emit progress(this);
 	}
-	MustNotDestroy.erase(this);
 
 	loadNext();
 }
@@ -553,12 +556,10 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		}
 	}
 	if (_finished) {
-		FileDownload::ImageLoaded().notify();
+		_downloader->taskFinished().notify();
 	}
 
-	MustNotDestroy.insert(this);
 	emit progress(this);
-	MustNotDestroy.erase(this);
 
 	loadNext();
 }
@@ -609,9 +610,7 @@ bool mtpFileLoader::tryLoadLocal() {
 		}
 	}
 
-	MustNotDestroy.insert(this);
 	emit progress(this);
-	MustNotDestroy.erase(this);
 
 	if (_localStatus != LocalNotTried) {
 		return _finished;
@@ -690,11 +689,9 @@ void webFileLoader::onFinished(const QByteArray &data) {
 	if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
 		Local::writeWebFile(_url, _data);
 	}
-	FileDownload::ImageLoaded().notify();
+	_downloader->taskFinished().notify();
 
-	MustNotDestroy.insert(this);
 	emit progress(this);
-	MustNotDestroy.erase(this);
 
 	loadNext();
 }
@@ -1103,22 +1100,3 @@ void WebLoadMainManager::error(webFileLoader *loader) {
 		loader->onError();
 	}
 }
-
-namespace MTP {
-	void clearLoaderPriorities() {
-		++GlobalPriority;
-	}
-}
-
-namespace FileDownload {
-namespace {
-
-base::Observable<void> ImageLoadedObservable;
-
-} // namespace
-
-base::Observable<void> &ImageLoaded() {
-	return ImageLoadedObservable;
-}
-
-} // namespace FileDownload

@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "boxes/confirmbox.h"
 #include "window/themes/window_theme.h"
+#include "window/notifications_manager.h"
 
 ApiWrap::ApiWrap(QObject *parent) : QObject(parent)
 , _messageDataResolveDelayed(new SingleDelayedCall(this, "resolveMessageDatas")) {
@@ -1016,7 +1017,7 @@ PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MT
 		}
 	} break;
 	}
-	App::wnd()->notifySettingGot();
+	AuthSession::Current().notifications()->checkDelayed();
 	return requestedPeer;
 }
 

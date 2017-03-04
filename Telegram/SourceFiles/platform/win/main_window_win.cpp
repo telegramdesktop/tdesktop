@@ -703,8 +703,8 @@ void MainWindow::showTrayTooltip() {
 	}
 }
 
-void MainWindow::psUpdateWorkmode() {
-	switch (cWorkMode()) {
+void MainWindow::workmodeUpdated(DBIWorkMode mode) {
+	switch (mode) {
 	case dbiwmWindowAndTray: {
 		psSetupTrayIcon();
 		HWND psOwner = (HWND)GetWindowLong(ps_hWnd, GWL_HWNDPARENT);
@@ -800,10 +800,6 @@ void MainWindow::initHook() {
 	setWindowIcon(wndIcon);
 }
 
-bool MainWindow::psHasNativeNotifications() {
-	return Notifications::Supported();
-}
-
 Q_DECLARE_METATYPE(QMargins);
 void MainWindow::psFirstShow() {
 	_psShadowWindows.init(st::windowShadowFg->c);
@@ -821,7 +817,7 @@ void MainWindow::psFirstShow() {
 
 	if ((cLaunchMode() == LaunchModeAutoStart && cStartMinimized() && !App::passcoded()) || cStartInTray()) {
 		setWindowState(Qt::WindowMinimized);
-		if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+		if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 			hide();
 		} else {
 			show();
@@ -932,18 +928,6 @@ void MainWindow::psUpdateMargins() {
 			}
 		}
 	}
-}
-
-void MainWindow::psFlash() {
-	if (GetForegroundWindow() == ps_hWnd) return;
-
-	FLASHWINFO info;
-	info.cbSize = sizeof(info);
-	info.hwnd = ps_hWnd;
-	info.dwFlags = FLASHW_ALL;
-	info.dwTimeout = 0;
-	info.uCount = 1;
-	FlashWindowEx(&info);
 }
 
 HWND MainWindow::psHwnd() const {

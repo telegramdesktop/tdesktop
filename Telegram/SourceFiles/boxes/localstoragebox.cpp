@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "storage/localstorage.h"
 #include "lang.h"
 #include "mainwindow.h"
+#include "auth_session.h"
 
 LocalStorageBox::LocalStorageBox(QWidget *parent)
 : _clear(this, lang(lng_local_storage_clear), st::boxLinkButton) {
@@ -40,7 +41,7 @@ void LocalStorageBox::prepare() {
 	connect(App::wnd(), SIGNAL(tempDirCleared(int)), this, SLOT(onTempDirCleared(int)));
 	connect(App::wnd(), SIGNAL(tempDirClearFailed(int)), this, SLOT(onTempDirClearFailed(int)));
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	updateControls();
 

@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/top_bar_widget.h"
 #include "observer_peer.h"
 #include "auth_session.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -1503,7 +1504,7 @@ MsgId History::inboxRead(MsgId upTo) {
 	}
 
 	showFrom = nullptr;
-	App::wnd()->notifyClear(this);
+	AuthSession::Current().notifications()->clearFromHistory(this);
 
 	return upTo;
 }
