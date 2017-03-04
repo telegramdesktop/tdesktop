@@ -158,6 +158,7 @@
       '<(src_loc)/structs.h',
       '<(src_loc)/mainwindow.cpp',
       '<(src_loc)/mainwindow.h',
+      '<(src_loc)/qt_static_plugins.cpp',
       '<(src_loc)/boxes/aboutbox.cpp',
       '<(src_loc)/boxes/aboutbox.h',
       '<(src_loc)/boxes/abstractbox.cpp',

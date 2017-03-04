@@ -18,26 +18,22 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "window/player_wrap_widget.h"
+#include <QtCore/QtPlugin>
 
-#include "ui/widgets/shadow.h"
-
-namespace Window {
-
-PlayerWrapWidget::PlayerWrapWidget(QWidget *parent, base::lambda<void()> updateCallback) : Parent(parent
-	, object_ptr<Media::Player::Widget>(parent)
-	, style::margins(0, 0, 0, 0)
-	, std::move(updateCallback)) {
-}
-
-void PlayerWrapWidget::resizeEvent(QResizeEvent *e) {
-	updateShadowGeometry();
-	Parent::resizeEvent(e);
-}
-
-void PlayerWrapWidget::updateShadowGeometry() {
-	auto skip = Adaptive::OneColumn() ? 0 : st::lineWidth;
-	entity()->setShadowGeometryToLeft(skip, height() - st::lineWidth, width() - skip, st::lineWidth);
-}
-
-} // namespace Window
+#ifdef Q_OS_WIN
+Q_IMPORT_PLUGIN(QWebpPlugin)
+Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
+#elif defined Q_OS_MAC // Q_OS_WIN
+Q_IMPORT_PLUGIN(QWebpPlugin)
+Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
+Q_IMPORT_PLUGIN(QGenericEnginePlugin)
+#elif defined Q_OS_LINUX // Q_OS_WIN | Q_OS_MAC
+Q_IMPORT_PLUGIN(QWebpPlugin)
+Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
+Q_IMPORT_PLUGIN(QConnmanEnginePlugin)
+Q_IMPORT_PLUGIN(QGenericEnginePlugin)
+Q_IMPORT_PLUGIN(QNetworkManagerEnginePlugin)
+Q_IMPORT_PLUGIN(QComposePlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QIbusPlatformInputContextPlugin)
+Q_IMPORT_PLUGIN(QFcitxPlatformInputContextPlugin)
+#endif // Q_OS_WIN | Q_OS_MAC | Q_OS_LINUX

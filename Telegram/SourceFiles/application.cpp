@@ -18,31 +18,15 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "application.h"
 
-#include "shortcuts.h"
 #include "pspecific.h"
-#include "fileuploader.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "lang.h"
-#include "boxes/confirmbox.h"
-#include "core/file_utilities.h"
-#include "ui/widgets/tooltip.h"
-#include "langloaderplain.h"
 #include "localstorage.h"
 #include "autoupdater.h"
-#include "core/observer.h"
-#include "observer_peer.h"
-#include "window/themes/window_theme.h"
-#include "media/player/media_player_instance.h"
 #include "window/notifications_manager.h"
-#include "history/history_location_manager.h"
 #include "core/task_queue.h"
-#include "mtproto/dc_options.h"
-#include "core/single_timer.h"
-#include "auth_session.h"
 #include "messenger.h"
 
 namespace {

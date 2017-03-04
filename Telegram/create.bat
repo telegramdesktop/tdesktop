@@ -75,11 +75,9 @@ exit /b %errorlevel%
   call :write_comment !CommandPathWin!.cpp
   set "quote="""
   set "quote=!quote:~0,1!"
-  set "source1=#include !quote!stdafx.h!quote!"
-  set "source2=#include !quote!!CommandPathUnix!.h!quote!"
+  set "source1=#include !quote!!CommandPathUnix!.h!quote!"
   (
     echo !source1!
-    echo !source2!
     echo.
   )>> "SourceFiles\!CommandPathWin!.cpp"
   exit /b

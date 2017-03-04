@@ -976,7 +976,7 @@ outCpp.write('\n');
 outCpp.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
 outCpp.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
 outCpp.write('*/\n');
-outCpp.write('#include "stdafx.h"\n\n#include "mtproto/scheme_auto.h"\n\n');
+outCpp.write('#include "mtproto/scheme_auto.h"\n\n');
 outCpp.write('typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\n');
 outCpp.write(textSerializeMethods);
 outCpp.write('namespace {\n');

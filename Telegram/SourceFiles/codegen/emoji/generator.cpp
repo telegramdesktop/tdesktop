@@ -46,7 +46,6 @@ constexpr int kErrorCantWritePath = 851;
 common::ProjectInfo Project = {
 	"codegen_emoji",
 	"empty",
-	"stdafx.h",
 	true, // forceReGenerate
 };
 
