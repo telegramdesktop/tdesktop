@@ -691,8 +691,9 @@ void _writeLocations(WriteMapWhen when = WriteMapSoon) {
 		}
 
 		EncryptedDescriptor data(size);
+		auto legacyTypeField = 0;
 		for (FileLocations::const_iterator i = _fileLocations.cbegin(); i != _fileLocations.cend(); ++i) {
-			data.stream << quint64(i.key().first) << quint64(i.key().second) << quint32(i.value().type) << i.value().name();
+			data.stream << quint64(i.key().first) << quint64(i.key().second) << quint32(legacyTypeField) << i.value().name();
 			if (AppVersion > 9013) {
 				data.stream << i.value().bookmark();
 			}
@@ -734,21 +735,20 @@ void _readLocations() {
 		quint64 first, second;
 		QByteArray bookmark;
 		FileLocation loc;
-		quint32 type;
-		locations.stream >> first >> second >> type >> loc.fname;
+		quint32 legacyTypeField = 0;
+		locations.stream >> first >> second >> legacyTypeField >> loc.fname;
 		if (locations.version > 9013) {
 			locations.stream >> bookmark;
 		}
 		locations.stream >> loc.modified >> loc.size;
 		loc.setBookmark(bookmark);
 
-		if (!first && !second && !type && loc.fname.isEmpty() && !loc.size) { // end mark
+		if (!first && !second && !legacyTypeField && loc.fname.isEmpty() && !loc.size) { // end mark
 			endMarkFound = true;
 			break;
 		}
 
 		MediaKey key(first, second);
-		loc.type = StorageFileType(type);
 
 		_fileLocations.insert(key, loc);
 		_fileLocationPairs.insert(loc.fname, FileLocationPair(key, loc));
@@ -2628,19 +2628,8 @@ void writeImage(const StorageKey &location, const ImagePtr &image) {
 	if (image->isNull() || !image->loaded()) return;
 	if (_imagesMap.constFind(location) != _imagesMap.cend()) return;
 
-	QByteArray fmt = image->savedFormat();
-	StorageFileType format = StorageFileUnknown;
-	if (fmt == "JPG") {
-		format = StorageFileJpeg;
-	} else if (fmt == "PNG") {
-		format = StorageFilePng;
-	} else if (fmt == "GIF") {
-		format = StorageFileGif;
-	}
-	if (format) {
-		image->forget();
-		writeImage(location, StorageImageSaved(format, image->savedData()), false);
-	}
+	image->forget();
+	writeImage(location, StorageImageSaved(image->savedData()), false);
 }
 
 void writeImage(const StorageKey &location, const StorageImageSaved &image, bool overwrite) {
@@ -2656,8 +2645,12 @@ void writeImage(const StorageKey &location, const StorageImageSaved &image, bool
 	} else if (!overwrite) {
 		return;
 	}
+
+	auto legacyTypeField = 0;
+
 	EncryptedDescriptor data(sizeof(quint64) * 2 + sizeof(quint32) + sizeof(quint32) + image.data.size());
-	data.stream << quint64(location.first) << quint64(location.second) << quint32(image.type) << image.data;
+	data.stream << quint64(location.first) << quint64(location.second) << quint32(legacyTypeField) << image.data;
+
 	FileWriteDescriptor file(i.value().first, FileOption::User);
 	file.writeEncrypted(data);
 	if (i.value().second != size) {
@@ -2681,15 +2674,15 @@ public:
 
 		QByteArray imageData;
 		quint64 locFirst, locSecond;
-		quint32 imageType;
-		readFromStream(image.stream, locFirst, locSecond, imageType, imageData);
+		quint32 legacyTypeField = 0;
+		readFromStream(image.stream, locFirst, locSecond, imageData);
 
 		// we're saving files now before we have actual location
 		//if (locFirst != _location.first || locSecond != _location.second) {
 		//	return;
 		//}
 
-		_result = new Result(StorageFileType(imageType), imageData, _readImageFlag);
+		_result = new Result(imageData, _readImageFlag);
 	}
 	void finish() {
 		if (_result) {
@@ -2699,7 +2692,7 @@ public:
 			_loader->localLoaded(StorageImageSaved());
 		}
 	}
-	virtual void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) = 0;
+	virtual void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) = 0;
 	virtual void clearInMap() = 0;
 	virtual ~AbstractCachedLoadTask() {
 		delete base::take(_result);
@@ -2710,25 +2703,19 @@ protected:
 	StorageKey _location;
 	bool _readImageFlag;
 	struct Result {
-		Result(StorageFileType type, const QByteArray &data, bool readImageFlag) : image(type, data) {
+		Result(const QByteArray &data, bool readImageFlag) : image(data) {
 			if (readImageFlag) {
-				QByteArray guessFormat;
-				switch (type) {
-					case StorageFileGif: guessFormat = "GIF"; break;
-					case StorageFileJpeg: guessFormat = "JPG"; break;
-					case StorageFilePng: guessFormat = "PNG"; break;
-					case StorageFileWebp: guessFormat = "WEBP"; break;
-					default: guessFormat = QByteArray(); break;
-				}
-				pixmap = App::pixmapFromImageInPlace(App::readImage(data, &guessFormat, false));
+				auto realFormat = QByteArray();
+				pixmap = App::pixmapFromImageInPlace(App::readImage(data, &realFormat, false));
 				if (!pixmap.isNull()) {
-					format = guessFormat;
+					format = realFormat;
 				}
 			}
 		}
 		StorageImageSaved image;
 		QByteArray format;
 		QPixmap pixmap;
+
 	};
 	mtpFileLoader *_loader;
 	Result *_result;
@@ -2740,8 +2727,9 @@ public:
 	ImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
 	AbstractCachedLoadTask(key, location, true, loader) {
 	}
-	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) {
-		stream >> first >> second >> type >> data;
+	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) override {
+		qint32 legacyTypeField = 0;
+		stream >> first >> second >> legacyTypeField >> data;
 	}
 	void clearInMap() {
 		StorageMap::iterator j = _imagesMap.find(_location);
@@ -2798,9 +2786,8 @@ public:
 	StickerImageLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
 	AbstractCachedLoadTask(key, location, true, loader) {
 	}
-	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) {
+	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) {
 		stream >> first >> second >> data;
-		type = StorageFilePartial;
 	}
 	void clearInMap() {
 		auto j = _stickerImagesMap.find(_location);
@@ -2872,9 +2859,8 @@ public:
 	AudioLoadTask(const FileKey &key, const StorageKey &location, mtpFileLoader *loader) :
 	AbstractCachedLoadTask(key, location, false, loader) {
 	}
-	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, quint32 &type, QByteArray &data) {
+	void readFromStream(QDataStream &stream, quint64 &first, quint64 &second, QByteArray &data) {
 		stream >> first >> second >> data;
-		type = StorageFilePartial;
 	}
 	void clearInMap() {
 		auto j = _audiosMap.find(_location);
@@ -2962,7 +2948,7 @@ public:
 		QString url;
 		image.stream >> url >> imageData;
 
-		_result = new Result(StorageFilePartial, imageData);
+		_result = new Result(imageData);
 	}
 	void finish() {
 		if (_result) {
@@ -2985,7 +2971,7 @@ protected:
 	FileKey _key;
 	QString _url;
 	struct Result {
-		Result(StorageFileType type, const QByteArray &data) : image(type, data) {
+		explicit Result(const QByteArray &data) : image(data) {
 			QByteArray guessFormat;
 			pixmap = App::pixmapFromImageInPlace(App::readImage(data, &guessFormat, false));
 			if (!pixmap.isNull()) {
@@ -2995,6 +2981,7 @@ protected:
 		StorageImageSaved image;
 		QByteArray format;
 		QPixmap pixmap;
+
 	};
 	webFileLoader *_loader;
 	Result *_result;

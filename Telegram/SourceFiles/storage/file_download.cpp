@@ -70,7 +70,6 @@ FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationT
 , _toCache(toCache)
 , _fromCloud(fromCloud)
 , _size(size)
-, _type(mtpc_storage_fileUnknown)
 , _locationType(locationType) {
 }
 
@@ -89,14 +88,8 @@ QPixmap FileLoader::imagePixmap(const QSize &shrinkBox) const {
 }
 
 void FileLoader::readImage(const QSize &shrinkBox) const {
-	QByteArray format;
-	switch (_type) {
-	case mtpc_storage_fileGif: format = "GIF"; break;
-	case mtpc_storage_fileJpeg: format = "JPG"; break;
-	case mtpc_storage_filePng: format = "PNG"; break;
-	default: format = QByteArray(); break;
-	}
-	QImage image = App::readImage(_data, &format, false);
+	auto format = QByteArray();
+	auto image = App::readImage(_data, &format, false);
 	if (!image.isNull()) {
 		if (!shrinkBox.isEmpty() && (image.width() > shrinkBox.width() || image.height() > shrinkBox.height())) {
 			_imagePixmap = App::pixmapFromImageInPlace(image.scaled(shrinkBox, Qt::KeepAspectRatio, Qt::SmoothTransformation));
@@ -108,7 +101,7 @@ void FileLoader::readImage(const QSize &shrinkBox) const {
 }
 
 float64 FileLoader::currentProgress() const {
-	if (_complete) return 1.;
+	if (_finished) return 1.;
 	if (!fullSize()) return 0.;
 	return snap(float64(currentOffset()) / fullSize(), 0., 1.);
 }
@@ -175,13 +168,12 @@ FileLoader::~FileLoader() {
 
 void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &imageFormat, const QPixmap &imagePixmap) {
 	_localTaskId = 0;
-	if (result.type == StorageFileUnknown) {
+	if (result.data.isEmpty()) {
 		_localStatus = LocalFailed;
 		start(true);
 		return;
 	}
 	_data = result.data;
-	_type = mtpFromStorageType(result.type);
 	if (!imagePixmap.isNull()) {
 		_imageFormat = imageFormat;
 		_imagePixmap = imagePixmap;
@@ -199,7 +191,7 @@ void FileLoader::localLoaded(const StorageImageSaved &result, const QByteArray &
 		}
 	}
 
-	_complete = true;
+	_finished = true;
 	if (_fileIsOpen) {
 		_file.close();
 		_fileIsOpen = false;
@@ -218,7 +210,7 @@ void FileLoader::start(bool loadFirst, bool prior) {
 	if (_paused) {
 		_paused = false;
 	}
-	if (_complete || tryLoadLocal()) return;
+	if (_finished || tryLoadLocal()) return;
 
 	if (_fromCloud == LoadFromLocalOnly) {
 		cancel();
@@ -327,8 +319,8 @@ void FileLoader::cancel() {
 void FileLoader::cancel(bool fail) {
 	bool started = currentOffset(true) > 0;
 	cancelRequests();
-	_type = mtpc_storage_fileUnknown;
-	_complete = true;
+	_cancelled = true;
+	_finished = true;
 	if (_fileIsOpen) {
 		_file.close();
 		_fileIsOpen = false;
@@ -350,7 +342,7 @@ void FileLoader::cancel(bool fail) {
 }
 
 void FileLoader::startLoading(bool loadFirst, bool prior) {
-	if ((_queue->queries >= _queue->limit && (!loadFirst || !prior)) || _complete) return;
+	if ((_queue->queries >= _queue->limit && (!loadFirst || !prior)) || _finished) return;
 	loadPart();
 }
 
@@ -403,9 +395,9 @@ namespace {
 }
 
 bool mtpFileLoader::loadPart() {
-	if (_complete || _lastComplete || (!_requests.isEmpty() && !_size)) {
+	if (_finished || _lastComplete || (!_requests.isEmpty() && !_size)) {
 		if (DebugLogging::FileLoader() && _id) {
-			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _complete=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_complete)).arg(Logs::b(_lastComplete)).arg(_requests.size()).arg(_size));
+			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _finished=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_finished)).arg(Logs::b(_lastComplete)).arg(_requests.size()).arg(_size));
 		}
 		return false;
 	}
@@ -526,8 +518,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 				return cancel(true);
 			}
 		}
-		_type = d.vtype.type();
-		_complete = true;
+		_finished = true;
 		if (_fileIsOpen) {
 			_file.close();
 			_fileIsOpen = false;
@@ -543,7 +534,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 			if (_locationType != UnknownFileLocation) { // audio, video, document
 				MediaKey mkey = mediaKey(_locationType, _dc, _id, _version);
 				if (!_fname.isEmpty()) {
-					Local::writeFileLocation(mkey, FileLocation(mtpToStorageType(_type), _fname));
+					Local::writeFileLocation(mkey, FileLocation(_fname));
 				}
 				if (_toCache == LoadToCacheAsWell) {
 					if (_locationType == DocumentFileLocation) {
@@ -553,7 +544,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 					}
 				}
 			} else {
-				Local::writeImage(storageKey(*_location), StorageImageSaved(mtpToStorageType(_type), _data));
+				Local::writeImage(storageKey(*_location), StorageImageSaved(_data));
 			}
 		}
 	} else {
@@ -561,7 +552,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 			DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
 		}
 	}
-	if (_complete) {
+	if (_finished) {
 		FileDownload::ImageLoaded().notify();
 	}
 
@@ -623,7 +614,7 @@ bool mtpFileLoader::tryLoadLocal() {
 	MustNotDestroy.erase(this);
 
 	if (_localStatus != LocalNotTried) {
-		return _complete;
+		return _finished;
 	} else if (_localTaskId) {
 		_localStatus = LocalLoading;
 		return true;
@@ -645,7 +636,7 @@ webFileLoader::webFileLoader(const QString &url, const QString &to, LoadFromClou
 }
 
 bool webFileLoader::loadPart() {
-	if (_complete || _requestSent || _webLoadManager == FinishedWebLoadManager) return false;
+	if (_finished || _requestSent || _webLoadManager == FinishedWebLoadManager) return false;
 	if (!_webLoadManager) {
 		_webLoadMainManager = new WebLoadMainManager();
 
@@ -688,8 +679,7 @@ void webFileLoader::onFinished(const QByteArray &data) {
 			return cancel(true);
 		}
 	}
-	_type = mtpc_storage_filePartial;
-	_complete = true;
+	_finished = true;
 	if (_fileIsOpen) {
 		_file.close();
 		_fileIsOpen = false;
@@ -723,7 +713,7 @@ bool webFileLoader::tryLoadLocal() {
 
 	_localTaskId = Local::startWebFileLoad(_url, this);
 	if (_localStatus != LocalNotTried) {
-		return _complete;
+		return _finished;
 	} else if (_localTaskId) {
 		_localStatus = LocalLoading;
 		return true;

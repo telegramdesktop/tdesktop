@@ -43,7 +43,7 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &med
 			document->setData(media.data);
 		}
 		if (!media.file.isEmpty()) {
-			document->setLocation(FileLocation(StorageFilePartial, media.file));
+			document->setLocation(FileLocation(media.file));
 		}
 	}
 	queue.insert(msgId, File(media));
@@ -66,7 +66,7 @@ void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file)
 			document->setData(file->content);
 		}
 		if (!file->filepath.isEmpty()) {
-			document->setLocation(FileLocation(StorageFilePartial, file->filepath));
+			document->setLocation(FileLocation(file->filepath));
 		}
 	}
 	queue.insert(msgId, File(file));

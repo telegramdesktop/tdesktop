@@ -35,55 +35,13 @@ enum LocationType {
 	VideoFileLocation    = 0x3d0364ec, // mtpc_inputVideoFileLocation
 };
 
-enum StorageFileType {
-	StorageFileUnknown = 0xaa963b05, // mtpc_storage_fileUnknown
-	StorageFileJpeg = 0x7efe0e,   // mtpc_storage_fileJpeg
-	StorageFileGif = 0xcae1aadf, // mtpc_storage_fileGif
-	StorageFilePng = 0xa4f63c0,  // mtpc_storage_filePng
-	StorageFilePdf = 0xae1e508d, // mtpc_storage_filePdf
-	StorageFileMp3 = 0x528a0677, // mtpc_storage_fileMp3
-	StorageFileMov = 0x4b09ebbc, // mtpc_storage_fileMov
-	StorageFilePartial = 0x40bc6f52, // mtpc_storage_filePartial
-	StorageFileMp4 = 0xb3cea0e4, // mtpc_storage_fileMp4
-	StorageFileWebp = 0x1081464c, // mtpc_storage_fileWebp
-};
-inline StorageFileType mtpToStorageType(mtpTypeId type) {
-	switch (type) {
-	case mtpc_storage_fileJpeg: return StorageFileJpeg;
-	case mtpc_storage_fileGif: return StorageFileGif;
-	case mtpc_storage_filePng: return StorageFilePng;
-	case mtpc_storage_filePdf: return StorageFilePdf;
-	case mtpc_storage_fileMp3: return StorageFileMp3;
-	case mtpc_storage_fileMov: return StorageFileMov;
-	case mtpc_storage_filePartial: return StorageFilePartial;
-	case mtpc_storage_fileMp4: return StorageFileMp4;
-	case mtpc_storage_fileWebp: return StorageFileWebp;
-	case mtpc_storage_fileUnknown:
-	default: return StorageFileUnknown;
-	}
-}
-inline mtpTypeId mtpFromStorageType(StorageFileType type) {
-	switch (type) {
-	case StorageFileJpeg: return mtpc_storage_fileJpeg;
-	case StorageFileGif: return mtpc_storage_fileGif;
-	case StorageFilePng: return mtpc_storage_filePng;
-	case StorageFilePdf: return mtpc_storage_filePdf;
-	case StorageFileMp3: return mtpc_storage_fileMp3;
-	case StorageFileMov: return mtpc_storage_fileMov;
-	case StorageFilePartial: return mtpc_storage_filePartial;
-	case StorageFileMp4: return mtpc_storage_fileMp4;
-	case StorageFileWebp: return mtpc_storage_fileWebp;
-	case StorageFileUnknown:
-	default: return mtpc_storage_fileUnknown;
-	}
-}
 struct StorageImageSaved {
-	StorageImageSaved() : type(StorageFileUnknown) {
+	StorageImageSaved() = default;
+	explicit StorageImageSaved(const QByteArray &data) : data(data) {
 	}
-	StorageImageSaved(StorageFileType type, const QByteArray &data) : type(type), data(data) {
-	}
-	StorageFileType type;
+
 	QByteArray data;
+
 };
 
 enum LocalLoadStatus {
@@ -114,11 +72,11 @@ class FileLoader : public QObject {
 
 public:
 	FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting, LoadFromCloudSetting fromCloud, bool autoLoading);
-	bool done() const {
-		return _complete;
+	bool finished() const {
+		return _finished;
 	}
-	mtpTypeId fileType() const {
-		return _type;
+	bool cancelled() const {
+		return _cancelled;
 	}
 	const QByteArray &bytes() const {
 		return _data;
@@ -179,7 +137,8 @@ protected:
 	bool _paused = false;
 	bool _autoLoading = false;
 	bool _inQueue = false;
-	bool _complete = false;
+	bool _finished = false;
+	bool _cancelled = false;
 	mutable LocalLoadStatus _localStatus = LocalNotTried;
 
 	virtual bool tryLoadLocal() = 0;
@@ -202,7 +161,6 @@ protected:
 	QByteArray _data;
 
 	int32 _size;
-	mtpTypeId _type;
 	LocationType _locationType;
 
 	TaskId _localTaskId = 0;

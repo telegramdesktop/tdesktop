@@ -823,7 +823,7 @@ int64 imageCacheSize() {
 }
 
 void RemoteImage::doCheckload() const {
-	if (!amLoading() || !_loader->done()) return;
+	if (!amLoading() || !_loader->finished()) return;
 
 	QPixmap data = _loader->imagePixmap(shrinkBox());
 	if (data.isNull()) {
@@ -969,7 +969,7 @@ StorageImage::StorageImage(const StorageImageLocation &location, QByteArray &byt
 , _size(bytes.size()) {
 	setData(bytes);
 	if (!_location.isNull()) {
-		Local::writeImage(storageKey(_location), StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+		Local::writeImage(storageKey(_location), StorageImageSaved(bytes));
 	}
 }
 
@@ -1178,7 +1178,7 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 		QByteArray bytesArr(bytes);
 		i.value()->setData(bytesArr);
 		if (!location.isNull()) {
-			Local::writeImage(key, StorageImageSaved(mtpToStorageType(mtpc_storage_filePartial), bytes));
+			Local::writeImage(key, StorageImageSaved(bytes));
 		}
 	}
 	return i.value();
@@ -1196,10 +1196,9 @@ ReadAccessEnabler::~ReadAccessEnabler() {
 	if (_bookmark && !_failed) _bookmark->disable();
 }
 
-FileLocation::FileLocation(StorageFileType type, const QString &name) : type(type), fname(name) {
+FileLocation::FileLocation(const QString &name) : fname(name) {
 	if (fname.isEmpty()) {
 		size = 0;
-		type = StorageFileUnknown;
 	} else {
 		setBookmark(psPathBookmark(name));
 
@@ -1210,7 +1209,6 @@ FileLocation::FileLocation(StorageFileType type, const QString &name) : type(typ
 				fname = QString();
 				_bookmark.clear();
 				size = 0;
-				type = StorageFileUnknown;
 			} else {
 				modified = f.lastModified();
 				size = qint32(s);
@@ -1219,7 +1217,6 @@ FileLocation::FileLocation(StorageFileType type, const QString &name) : type(typ
 			fname = QString();
 			_bookmark.clear();
 			size = 0;
-			type = StorageFileUnknown;
 		}
 	}
 }

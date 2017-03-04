@@ -1520,12 +1520,12 @@ void DocumentData::performActionOnLoad() {
 }
 
 bool DocumentData::loaded(FilePathResolveType type) const {
-	if (loading() && _loader->done()) {
-		if (_loader->fileType() == mtpc_storage_fileUnknown) {
+	if (loading() && _loader->finished()) {
+		if (_loader->cancelled()) {
 			destroyLoaderDelayed(CancelledMtpFileLoader);
 		} else {
 			auto that = const_cast<DocumentData*>(this);
-			that->_location = FileLocation(mtpToStorageType(_loader->fileType()), _loader->fileName());
+			that->_location = FileLocation(_loader->fileName());
 			that->_data = _loader->bytes();
 			if (that->sticker() && !_loader->imagePixmap().isNull()) {
 				that->sticker()->img = ImagePtr(_data, _loader->imageFormat(), _loader->imagePixmap());
@@ -1580,8 +1580,8 @@ void DocumentData::save(const QString &toFile, ActionOnLoad action, const FullMs
 				f.write(_data);
 				f.close();
 
-				setLocation(FileLocation(StorageFilePartial, toFile));
-				Local::writeFileLocation(mediaKey(), FileLocation(mtpToStorageType(mtpc_storage_filePartial), toFile));
+				setLocation(FileLocation(toFile));
+				Local::writeFileLocation(mediaKey(), FileLocation(toFile));
 			} else if (l.accessEnable()) {
 				auto alreadyName = l.name();
 				if (alreadyName != toFile) {
@@ -1738,7 +1738,7 @@ QString DocumentData::filepath(FilePathResolveType type, bool forceSavingAs) con
 			if (f.open(QIODevice::WriteOnly)) {
 				if (f.write(data()) == data().size()) {
 					f.close();
-					const_cast<DocumentData*>(this)->_location = FileLocation(StorageFilePartial, filename);
+					const_cast<DocumentData*>(this)->_location = FileLocation(filename);
 					Local::writeFileLocation(mediaKey(), _location);
 					result = filename;
 				}

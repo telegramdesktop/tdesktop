@@ -483,9 +483,8 @@ private:
 
 class FileLocation {
 public:
-	FileLocation(StorageFileType type, const QString &name);
-	FileLocation() : size(0) {
-	}
+	FileLocation() = default;
+	explicit FileLocation(const QString &name);
 
 	bool check() const;
 	const QString &name() const;
@@ -498,7 +497,6 @@ public:
 	bool accessEnable() const;
 	void accessDisable() const;
 
-	StorageFileType type;
 	QString fname;
 	QDateTime modified;
 	qint32 size;
@@ -508,7 +506,7 @@ private:
 
 };
 inline bool operator==(const FileLocation &a, const FileLocation &b) {
-	return a.type == b.type && a.name() == b.name() && a.modified == b.modified && a.size == b.size;
+	return (a.name() == b.name()) && (a.modified == b.modified) && (a.size == b.size);
 }
 inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);

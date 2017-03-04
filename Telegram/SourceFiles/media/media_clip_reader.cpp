@@ -833,7 +833,7 @@ Manager::~Manager() {
 }
 
 MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data, QImage &cover) {
-	FileLocation localloc(StorageFilePartial, fname);
+	FileLocation localloc(fname);
 	QByteArray localdata(data);
 
 	auto playId = 0ULL;

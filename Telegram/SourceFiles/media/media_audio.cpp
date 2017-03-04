@@ -1657,7 +1657,7 @@ private:
 };
 
 MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat) {
-	FFMpegAttributesReader reader(FileLocation(StorageFilePartial, fname), data);
+	FFMpegAttributesReader reader(FileLocation(fname), data);
 	qint64 position = 0;
 	if (reader.open(position)) {
 		int32 duration = reader.duration() / reader.frequency();
