@@ -340,8 +340,6 @@ enum {
 
 	FileLoaderQueueStopTimeout = 5000,
 
-	DownloadPartSize = 64 * 1024, // 64kb for photo
-	DocumentDownloadPartSize = 128 * 1024, // 128kb for document
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
 	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
 	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time

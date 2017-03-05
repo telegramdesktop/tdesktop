@@ -169,12 +169,14 @@ protected:
 };
 
 class StorageImageLocation;
+class WebFileImageLocation;
 class mtpFileLoader : public FileLoader, public RPCSender {
 	Q_OBJECT
 
 public:
 	mtpFileLoader(const StorageImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
-	mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, int32 version, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(int32 dc, uint64 id, uint64 accessHash, int32 version, LocationType type, const QString &toFile, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading);
+	mtpFileLoader(const WebFileImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading);
 
 	int32 currentOffset(bool includeSkipped = false) const override;
 
@@ -188,27 +190,34 @@ public:
 
 	~mtpFileLoader();
 
-protected:
+private:
 	bool tryLoadLocal() override;
 	void cancelRequests() override;
 
-	typedef QMap<mtpRequestId, int32> Requests;
-	Requests _requests;
+	int partSize() const;
+	mtpRequestId makeRequest(int offset, int dcIndex);
+
+	QMap<mtpRequestId, int> _dcIndexByRequest;
 
 	bool loadPart() override;
-	void partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req);
+	void normalPartLoaded(int offset, const MTPupload_File &result, mtpRequestId req);
+	void webPartLoaded(int offset, const MTPupload_WebFile &result, mtpRequestId req);
+
+	void partLoaded(int offset, base::const_byte_span bytes, mtpRequestId req);
 	bool partFailed(const RPCError &error);
 
 	bool _lastComplete = false;
 	int32 _skippedBytes = 0;
 	int32 _nextRequestOffset = 0;
 
-	int32 _dc;
+	int32 _dc; // for photo locations
 	const StorageImageLocation *_location = nullptr;
 
-	uint64 _id = 0; // for other locations
-	uint64 _access = 0;
+	uint64 _id = 0; // for document locations
+	uint64 _accessHash = 0;
 	int32 _version = 0;
+
+	const WebFileImageLocation *_urlLocation = nullptr; // for webdocument locations
 
 };
 

@@ -3457,8 +3457,29 @@ QString HistoryInvoice::fillAmountAndCurrency(int amount, const QString &currenc
 
 void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 	// init attach
-	if (data.has_photo()) {
-//		_attach = std::make_unique<HistoryPhoto>(_parent, data.vphoto.c_webDocument(), QString());
+	if (data.has_photo() && data.vphoto.type() == mtpc_webDocument) {
+		auto &doc = data.vphoto.c_webDocument();
+		auto imageSize = QSize();
+		for (auto &attribute : doc.vattributes.v) {
+			if (attribute.type() == mtpc_documentAttributeImageSize) {
+				auto &size = attribute.c_documentAttributeImageSize();
+				imageSize = QSize(size.vw.v, size.vh.v);
+				break;
+			}
+		}
+		if (!imageSize.isEmpty()) {
+			auto thumbsize = shrinkToKeepAspect(imageSize.width(), imageSize.height(), 100, 100);
+			auto thumb = ImagePtr(thumbsize.width(), thumbsize.height());
+
+			auto mediumsize = shrinkToKeepAspect(imageSize.width(), imageSize.height(), 320, 320);
+			auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
+
+			auto full = ImagePtr(WebFileImageLocation(imageSize.width(), imageSize.height(), doc.vdc_id.v, doc.vurl.v, doc.vaccess_hash.v), doc.vsize.v);
+			auto photoId = rand_value<PhotoId>();
+			auto photo = App::photoSet(photoId, 0, 0, unixtime(), thumb, medium, full);
+
+			_attach = std::make_unique<HistoryPhoto>(_parent, photo, QString());
+		}
 	}
 
 	auto statusText = TextWithEntities { fillAmountAndCurrency(data.vtotal_amount.v, qs(data.vcurrency)), EntitiesInText() };

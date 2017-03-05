@@ -364,6 +364,9 @@ Image *blank() {
 using StorageImages = QMap<StorageKey, StorageImage*>;
 StorageImages storageImages;
 
+using WebFileImages = QMap<StorageKey, WebFileImage*>;
+WebFileImages webFileImages;
+
 int64 globalAcquiredSize = 0;
 
 uint64 PixKey(int width, int height, Images::Options options) {
@@ -377,6 +380,7 @@ uint64 SinglePixKey(Images::Options options) {
 } // namespace
 
 StorageImageLocation StorageImageLocation::Null;
+WebFileImageLocation WebFileImageLocation::Null;
 
 bool Image::isNull() const {
 	return (this == blank());
@@ -809,6 +813,9 @@ void clearStorageImages() {
 	for (auto image : base::take(webImages)) {
 		delete image;
 	}
+	for (auto image : base::take(webFileImages)) {
+		delete image;
+	}
 }
 
 void clearAllImages() {
@@ -991,6 +998,29 @@ void StorageImage::setInformation(int32 size, int32 width, int32 height) {
 }
 
 FileLoader *StorageImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
+	if (_location.isNull()) return 0;
+	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
+}
+
+WebFileImage::WebFileImage(const WebFileImageLocation &location, int32 size)
+: _location(location)
+, _size(size) {
+}
+
+int32 WebFileImage::countWidth() const {
+	return _location.width();
+}
+
+int32 WebFileImage::countHeight() const {
+	return _location.height();
+}
+
+void WebFileImage::setInformation(int32 size, int32 width, int32 height) {
+	_size = size;
+	_location.setSize(width, height);
+}
+
+FileLoader *WebFileImage::createLoader(LoadFromCloudSetting fromCloud, bool autoLoading) {
 	if (_location.isNull()) return 0;
 	return new mtpFileLoader(&_location, _size, fromCloud, autoLoading);
 }
@@ -1184,6 +1214,15 @@ StorageImage *getImage(const StorageImageLocation &location, const QByteArray &b
 		if (!location.isNull()) {
 			Local::writeImage(key, StorageImageSaved(bytes));
 		}
+	}
+	return i.value();
+}
+
+WebFileImage *getImage(const WebFileImageLocation &location, int32 size) {
+	auto key = storageKey(location);
+	auto i = webFileImages.constFind(key);
+	if (i == webFileImages.cend()) {
+		i = webFileImages.insert(key, new WebFileImage(location, size));
 	}
 	return i.value();
 }

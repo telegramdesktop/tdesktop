@@ -45,6 +45,9 @@ struct DataRequested {
 };
 QMap<int32, DataRequested> DataRequestedMap;
 
+constexpr auto kDownloadPhotoPartSize = 64 * 1024; // 64kb for photo
+constexpr auto kDownloadDocumentPartSize = 128 * 1024; // 128kb for document
+
 } // namespace
 
 struct FileLoaderQueue {
@@ -361,12 +364,24 @@ mtpFileLoader::mtpFileLoader(const StorageImageLocation *location, int32 size, L
 	_queue = &i.value();
 }
 
-mtpFileLoader::mtpFileLoader(int32 dc, const uint64 &id, const uint64 &access, int32 version, LocationType type, const QString &to, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
+mtpFileLoader::mtpFileLoader(int32 dc, uint64 id, uint64 accessHash, int32 version, LocationType type, const QString &to, int32 size, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
 : FileLoader(to, size, type, toCache, fromCloud, autoLoading)
 , _dc(dc)
 , _id(id)
-, _access(access)
+, _accessHash(accessHash)
 , _version(version) {
+	auto shiftedDcId = MTP::downloadDcId(_dc, 0);
+	auto i = queues.find(shiftedDcId);
+	if (i == queues.cend()) {
+		i = queues.insert(shiftedDcId, FileLoaderQueue(MaxFileQueries));
+	}
+	_queue = &i.value();
+}
+
+mtpFileLoader::mtpFileLoader(const WebFileImageLocation *location, int32 size, LoadFromCloudSetting fromCloud, bool autoLoading)
+: FileLoader(QString(), size, UnknownFileLocation, LoadToCacheAsWell, fromCloud, autoLoading)
+, _dc(location->dc())
+, _urlLocation(location) {
 	auto shiftedDcId = MTP::downloadDcId(_dc, 0);
 	auto i = queues.find(shiftedDcId);
 	if (i == queues.cend()) {
@@ -398,36 +413,24 @@ namespace {
 }
 
 bool mtpFileLoader::loadPart() {
-	if (_finished || _lastComplete || (!_requests.isEmpty() && !_size)) {
+	if (_finished || _lastComplete || (!_dcIndexByRequest.isEmpty() && !_size)) {
 		if (DebugLogging::FileLoader() && _id) {
-			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _finished=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_finished)).arg(Logs::b(_lastComplete)).arg(_requests.size()).arg(_size));
+			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _finished=%2, _lastComplete=%3, _requests.size()=%4, _size=%5").arg(_id).arg(Logs::b(_finished)).arg(Logs::b(_lastComplete)).arg(_dcIndexByRequest.size()).arg(_size));
 		}
 		return false;
 	}
 	if (_size && _nextRequestOffset >= _size) {
 		if (DebugLogging::FileLoader() && _id) {
-			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _size=%2, _nextRequestOffset=%3, _requests=%4").arg(_id).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+			DEBUG_LOG(("FileLoader(%1): loadPart() returned, _size=%2, _nextRequestOffset=%3, _requests=%4").arg(_id).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_dcIndexByRequest)));
 		}
 		return false;
 	}
 
-	int32 limit = DocumentDownloadPartSize;
-	MTPInputFileLocation loc;
-	if (_location) {
-		loc = MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
-		limit = DownloadPartSize;
-	} else {
-		switch (_locationType) {
-		case VideoFileLocation:
-		case AudioFileLocation:
-		case DocumentFileLocation: loc = MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_access), MTP_int(_version)); break;
-		default: cancel(true); return false; break;
-		}
-	}
-	int32 offset = _nextRequestOffset, dcIndex = 0;
-	DataRequested &dr(DataRequestedMap[_dc]);
+	auto offset = _nextRequestOffset;
+	auto dcIndex = 0;
+	auto &dr = DataRequestedMap[_dc];
 	if (_size) {
-		for (int32 i = 1; i < MTPDownloadSessionsCount; ++i) {
+		for (auto i = 1; i != MTPDownloadSessionsCount; ++i) {
 			if (dr.v[i] < dr.v[dcIndex]) {
 				dcIndex = i;
 			}
@@ -436,47 +439,86 @@ bool mtpFileLoader::loadPart() {
 
 	App::app()->killDownloadSessionsStop(_dc);
 
-	mtpRequestId reqId = MTP::send(MTPupload_GetFile(loc, MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::partLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::downloadDcId(_dc, dcIndex), 50);
-
-	++_queue->queries;
-	dr.v[dcIndex] += limit;
-	_requests.insert(reqId, dcIndex);
-	_nextRequestOffset += limit;
+	auto requestId = makeRequest(offset, dcIndex);
+	_dcIndexByRequest.insert(requestId, dcIndex);
 
 	if (DebugLogging::FileLoader() && _id) {
-		DEBUG_LOG(("FileLoader(%1): requested part with offset=%2, _queue->queries=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(offset).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		DEBUG_LOG(("FileLoader(%1): requested part with offset=%2, _queue->queries=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(offset).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_dcIndexByRequest)));
 	}
 
 	return true;
 }
 
-void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRequestId req) {
-	Requests::iterator i = _requests.find(req);
-	if (i == _requests.cend()) {
-		if (DebugLogging::FileLoader() && _id) {
-			DEBUG_LOG(("FileLoader(%1): request req=%2 for offset=%3 not found in _requests=%4").arg(_id).arg(req).arg(offset).arg(serializereqs(_requests)));
-		}
-		return loadNext();
+int mtpFileLoader::partSize() const {
+	if (_locationType == UnknownFileLocation) {
+		return kDownloadPhotoPartSize;
 	}
+	return kDownloadDocumentPartSize;
+}
+
+mtpRequestId mtpFileLoader::makeRequest(int offset, int dcIndex) {
+	auto limit = partSize();
+	DataRequestedMap[_dc].v[dcIndex] += limit;
+	++_queue->queries;
+	_nextRequestOffset += limit;
+
+	if (_urlLocation) {
+		return MTP::send(MTPupload_GetWebFile(MTP_inputWebFileLocation(MTP_bytes(_urlLocation->url()), MTP_long(_urlLocation->accessHash())), MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::webPartLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::downloadDcId(_dc, dcIndex), 50);
+	}
+	MTPInputFileLocation loc;
+	if (_location) {
+		loc = MTP_inputFileLocation(MTP_long(_location->volume()), MTP_int(_location->local()), MTP_long(_location->secret()));
+	} else {
+		loc = MTP_inputDocumentFileLocation(MTP_long(_id), MTP_long(_accessHash), MTP_int(_version));
+	}
+	return MTP::send(MTPupload_GetFile(loc, MTP_int(offset), MTP_int(limit)), rpcDone(&mtpFileLoader::normalPartLoaded, offset), rpcFail(&mtpFileLoader::partFailed), MTP::downloadDcId(_dc, dcIndex), 50);
+}
+
+void mtpFileLoader::normalPartLoaded(int offset, const MTPupload_File &result, mtpRequestId req) {
 	if (result.type() != mtpc_upload_file) {
 		if (DebugLogging::FileLoader() && _id) {
 			DEBUG_LOG(("FileLoader(%1): bad cons received! %2").arg(_id).arg(result.type()));
 		}
 		return cancel(true);
 	}
+	auto bytes = gsl::as_bytes(gsl::make_span(result.c_upload_file().vbytes.v));
+	return partLoaded(offset, bytes, req);
+}
 
-	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
-	int32 dcIndex = i.value();
+void mtpFileLoader::webPartLoaded(int offset, const MTPupload_WebFile &result, mtpRequestId req) {
+	if (result.type() != mtpc_upload_webFile) {
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): bad cons received! %2").arg(_id).arg(result.type()));
+		}
+		return cancel(true);
+	}
+	auto &webFile = result.c_upload_webFile();
+	if (webFile.vsize.v != _size) {
+		LOG(("MTP Error: Bad size provided by bot for webDocument: %1, real: %2").arg(_size).arg(webFile.vsize.v));
+		return cancel(true);
+	}
+	auto bytes = gsl::as_bytes(gsl::make_span(webFile.vbytes.v));
+	return partLoaded(offset, bytes, req);
+}
+
+void mtpFileLoader::partLoaded(int offset, base::const_byte_span bytes, mtpRequestId req) {
+	auto i = _dcIndexByRequest.find(req);
+	if (i == _dcIndexByRequest.cend()) {
+		if (DebugLogging::FileLoader() && _id) {
+			DEBUG_LOG(("FileLoader(%1): request req=%2 for offset=%3 not found in _requests=%4").arg(_id).arg(req).arg(offset).arg(serializereqs(_dcIndexByRequest)));
+		}
+		return loadNext();
+	}
+
+	auto limit = partSize();
+	auto dcIndex = i.value();
 	DataRequestedMap[_dc].v[dcIndex] -= limit;
 
 	--_queue->queries;
-	_requests.erase(i);
-
-	auto &d = result.c_upload_file();
-	auto &bytes = d.vbytes.v;
+	_dcIndexByRequest.erase(i);
 
 	if (DebugLogging::FileLoader() && _id) {
-		DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+		DEBUG_LOG(("FileLoader(%1): got part with offset=%2, bytes=%3, _queue->queries=%4, _nextRequestOffset=%5, _requests=%6").arg(_id).arg(offset).arg(bytes.size()).arg(_queue->queries).arg(_nextRequestOffset).arg(serializereqs(_dcIndexByRequest)));
 	}
 
 	if (bytes.size()) {
@@ -488,7 +530,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 				_skippedBytes += offset - fsize;
 			}
 			_file.seek(offset);
-			if (_file.write(bytes.data(), bytes.size()) != qint64(bytes.size())) {
+			if (_file.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()) != qint64(bytes.size())) {
 				return cancel(true);
 			}
 		} else {
@@ -498,20 +540,22 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 				_data.resize(offset);
 			}
 			if (offset == _data.size()) {
-				_data.append(bytes.data(), bytes.size());
+				_data.append(reinterpret_cast<const char*>(bytes.data()), bytes.size());
 			} else {
 				_skippedBytes -= bytes.size();
 				if (int64(offset + bytes.size()) > _data.size()) {
 					_data.resize(offset + bytes.size());
 				}
-				memcpy(_data.data() + offset, bytes.data(), bytes.size());
+				auto src = bytes;
+				auto dst = gsl::make_span(_data).subspan(offset, bytes.size());
+				base::copy_bytes(gsl::as_writeable_bytes(dst), src);
 			}
 		}
 	}
 	if (!bytes.size() || (bytes.size() % 1024)) { // bad next offset
 		_lastComplete = true;
 	}
-	if (_requests.isEmpty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
+	if (_dcIndexByRequest.isEmpty() && (_lastComplete || (_size && _nextRequestOffset >= _size))) {
 		if (!_fname.isEmpty() && (_toCache == LoadToCacheAsWell)) {
 			if (!_fileIsOpen) _fileIsOpen = _file.open(QIODevice::WriteOnly);
 			if (!_fileIsOpen) {
@@ -534,7 +578,9 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		}
 
 		if (_localStatus == LocalNotFound || _localStatus == LocalFailed) {
-			if (_locationType != UnknownFileLocation) { // audio, video, document
+			if (_urlLocation) {
+				Local::writeImage(storageKey(*_urlLocation), StorageImageSaved(_data));
+			} else if (_locationType != UnknownFileLocation) { // audio, video, document
 				MediaKey mkey = mediaKey(_locationType, _dc, _id, _version);
 				if (!_fname.isEmpty()) {
 					Local::writeFileLocation(mkey, FileLocation(_fname));
@@ -552,7 +598,7 @@ void mtpFileLoader::partLoaded(int32 offset, const MTPupload_File &result, mtpRe
 		}
 	} else {
 		if (DebugLogging::FileLoader() && _id) {
-			DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_requests)));
+			DEBUG_LOG(("FileLoader(%1): not done yet, _lastComplete=%2, _size=%3, _nextRequestOffset=%4, _requests=%5").arg(_id).arg(Logs::b(_lastComplete)).arg(_size).arg(_nextRequestOffset).arg(serializereqs(_dcIndexByRequest)));
 		}
 	}
 	if (_finished) {
@@ -572,17 +618,17 @@ bool mtpFileLoader::partFailed(const RPCError &error) {
 }
 
 void mtpFileLoader::cancelRequests() {
-	if (_requests.isEmpty()) return;
+	if (_dcIndexByRequest.isEmpty()) return;
 
-	int32 limit = (_locationType == UnknownFileLocation) ? DownloadPartSize : DocumentDownloadPartSize;
+	auto limit = partSize();
 	DataRequested &dr(DataRequestedMap[_dc]);
-	for (Requests::const_iterator i = _requests.cbegin(), e = _requests.cend(); i != e; ++i) {
+	for (auto i = _dcIndexByRequest.cbegin(), e = _dcIndexByRequest.cend(); i != e; ++i) {
 		MTP::cancel(i.key());
 		int32 dcIndex = i.value();
 		dr.v[dcIndex] -= limit;
 	}
-	_queue->queries -= _requests.size();
-	_requests.clear();
+	_queue->queries -= _dcIndexByRequest.size();
+	_dcIndexByRequest.clear();
 
 	if (!_queue->queries) {
 		Messenger::Instance().killDownloadSessionsStart(_dc);
@@ -597,7 +643,9 @@ bool mtpFileLoader::tryLoadLocal() {
 		return true;
 	}
 
-	if (_location) {
+	if (_urlLocation) {
+		_localTaskId = Local::startImageLoad(storageKey(*_urlLocation), this);
+	} else if (_location) {
 		_localTaskId = Local::startImageLoad(storageKey(*_location), this);
 	} else {
 		if (_toCache == LoadToCacheAsWell) {
