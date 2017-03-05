@@ -876,7 +876,7 @@ public:
 	HistoryInvoice(HistoryItem *parent, const MTPDmessageMediaInvoice &data);
 	HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other);
 	HistoryMediaType type() const override {
-		return MediaTypeGame;
+		return MediaTypeInvoice;
 	}
 	std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const override {
 		return std::make_unique<HistoryInvoice>(newParent, *this);
@@ -884,6 +884,11 @@ public:
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
+
+	QString getTitle() const {
+		return _title.originalText();
+	}
+	static QString fillAmountAndCurrency(int amount, const QString &currency);
 
 	void draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const override;
 	HistoryTextState getState(int x, int y, HistoryStateRequest request) const override;

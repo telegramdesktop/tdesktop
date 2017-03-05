@@ -2011,6 +2011,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionPinMessage: messageText = preparePinnedText(); break;
 	case mtpc_messageActionGameScore: messageText = prepareGameScoreText(); break;
 	case mtpc_messageActionPhoneCall: messageText = preparePhoneCallText(action.c_messageActionPhoneCall()); break;
+	case mtpc_messageActionPaymentSent: messageText = preparePaymentSentText(); break;
 	default: messageText.text = lang(lng_message_empty); break;
 	}
 
@@ -2151,16 +2152,16 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 }
 
 HistoryService::PreparedText HistoryService::prepareGameScoreText() {
-	auto result = PreparedText { QString(), { peerOpenClickHandler(_from) } };
+	auto result = PreparedText {};
 	auto gamescore = Get<HistoryServiceGameScore>();
 
-	auto gameTitle = ([gamescore, &result]() -> QString {
+	auto computeGameTitle = [gamescore, &result]() -> QString {
 		if (gamescore && gamescore->msg) {
 			if (auto media = gamescore->msg->getMedia()) {
 				if (media->type() == MediaTypeGame) {
 					result.links.push_back(MakeShared<ReplyMarkupClickHandler>(gamescore->msg, 0, 0));
 					auto titleText = static_cast<HistoryGame*>(media)->game()->title;
-					return textcmdLink(2, titleText);
+					return textcmdLink(result.links.size(), titleText);
 				}
 			}
 			return lang(lng_deleted_message);
@@ -2168,22 +2169,50 @@ HistoryService::PreparedText HistoryService::prepareGameScoreText() {
 			return lang(lng_contacts_loading);
 		}
 		return QString();
-	})();
+	};
 
 	auto scoreNumber = gamescore ? gamescore->score : 0;
 	if (_from->isSelf()) {
+		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
 			result.text = lng_action_game_you_scored_no_game(lt_count, scoreNumber);
 		} else {
 			result.text = lng_action_game_you_scored(lt_count, scoreNumber, lt_game, gameTitle);
 		}
 	} else {
-		auto from = textcmdLink(1, _from->name);
+		result.links.push_back(fromLink());
+		auto gameTitle = computeGameTitle();
 		if (gameTitle.isEmpty()) {
-			result.text = lng_action_game_score_no_game(lt_from, from, lt_count, scoreNumber);
+			result.text = lng_action_game_score_no_game(lt_from, fromLinkText(), lt_count, scoreNumber);
 		} else {
-			result.text = lng_action_game_score(lt_from, from, lt_count, scoreNumber, lt_game, gameTitle);
+			result.text = lng_action_game_score(lt_from, fromLinkText(), lt_count, scoreNumber, lt_game, gameTitle);
 		}
+	}
+	return result;
+}
+
+HistoryService::PreparedText HistoryService::preparePaymentSentText() {
+	auto result = PreparedText {};
+	auto payment = Get<HistoryServicePayment>();
+
+	auto invoiceTitle = ([payment]() -> QString {
+		if (payment && payment->msg) {
+			if (auto media = payment->msg->getMedia()) {
+				if (media->type() == MediaTypeInvoice) {
+					return static_cast<HistoryInvoice*>(media)->getTitle();
+				}
+			}
+			return lang(lng_deleted_message);
+		} else if (payment && payment->msgId) {
+			return lang(lng_contacts_loading);
+		}
+		return QString();
+	})();
+
+	if (invoiceTitle.isEmpty()) {
+		result.text = lng_action_payment_done(lt_amount, payment->amount, lt_user, history()->peer->name);
+	} else {
+		result.text = lng_action_payment_done_for(lt_amount, payment->amount, lt_user, history()->peer->name, lt_invoice, invoiceTitle);
 	}
 	return result;
 }
@@ -2366,6 +2395,10 @@ HistoryTextState HistoryService::getState(int x, int y, HistoryStateRequest requ
 			if (!result.link && result.cursor == HistoryInTextCursorState && outer.contains(x, y)) {
 				result.link = gamescore->lnk;
 			}
+		} else if (auto payment = Get<HistoryServicePayment>()) {
+			if (!result.link && result.cursor == HistoryInTextCursorState && outer.contains(x, y)) {
+				result.link = payment->lnk;
+			}
 		}
 	} else if (_media) {
 		result = _media->getState(x - st::msgServiceMargin.left() - (width - _media->maxWidth()) / 2, y - st::msgServiceMargin.top() - height - st::msgServiceMargin.top(), request);
@@ -2377,6 +2410,11 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	if (message.vaction.type() == mtpc_messageActionGameScore) {
 		UpdateComponents(HistoryServiceGameScore::Bit());
 		Get<HistoryServiceGameScore>()->score = message.vaction.c_messageActionGameScore().vscore.v;
+	} else if (message.vaction.type() == mtpc_messageActionPaymentSent) {
+		UpdateComponents(HistoryServicePayment::Bit());
+		auto amount = message.vaction.c_messageActionPaymentSent().vtotal_amount.v;
+		auto currency = qs(message.vaction.c_messageActionPaymentSent().vcurrency);
+		Get<HistoryServicePayment>()->amount = HistoryInvoice::fillAmountAndCurrency(amount, currency);
 	}
 	if (message.has_reply_to_msg_id()) {
 		if (message.vaction.type() == mtpc_messageActionPinMessage) {
@@ -2447,6 +2485,8 @@ void HistoryService::updateDependentText() {
 		text = preparePinnedText();
 	} else if (Has<HistoryServiceGameScore>()) {
 		text = prepareGameScoreText();
+	} else if (Has<HistoryServicePayment>()) {
+		text = preparePaymentSentText();
 	} else {
 		return;
 	}

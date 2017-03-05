@@ -250,6 +250,10 @@ struct HistoryServiceGameScore : public RuntimeComponent<HistoryServiceGameScore
 	int score = 0;
 };
 
+struct HistoryServicePayment : public RuntimeComponent<HistoryServicePayment>, public HistoryServiceDependentData {
+	QString amount;
+};
+
 namespace HistoryLayout {
 class ServiceMessagePainter;
 } // namespace HistoryLayout
@@ -344,6 +348,8 @@ private:
 			return pinned;
 		} else if (auto gamescore = Get<HistoryServiceGameScore>()) {
 			return gamescore;
+		} else if (auto payment = Get<HistoryServicePayment>()) {
+			return payment;
 		}
 		return nullptr;
 	}
@@ -359,6 +365,7 @@ private:
 
 	PreparedText preparePinnedText();
 	PreparedText prepareGameScoreText();
+	PreparedText preparePaymentSentText();
 
 };
 

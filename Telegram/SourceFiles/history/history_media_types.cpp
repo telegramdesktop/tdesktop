@@ -3441,9 +3441,7 @@ HistoryInvoice::HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other)
 , _status(other._status) {
 }
 
-namespace {
-
-QString fillAmountAndCurrency(int amount, const QString &currency) {
+QString HistoryInvoice::fillAmountAndCurrency(int amount, const QString &currency) {
 	static auto shortCurrencyNames = QMap<QString, QString> {
 		{ qsl("USD"), qsl("$") },
 		{ qsl("GBP"), qsl("£") },
@@ -3456,8 +3454,6 @@ QString fillAmountAndCurrency(int amount, const QString &currency) {
 	auto currencyText = shortCurrencyNames.value(currency, currency);
 	return currencyText + amountText;
 }
-
-} // namespace
 
 void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 	// init attach
