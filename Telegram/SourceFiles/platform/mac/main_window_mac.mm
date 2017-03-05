@@ -67,6 +67,8 @@ public:
 
 	void initCustomTitle(NSWindow *window, NSView *view);
 
+	bool clipboardHasText();
+
 	~Private();
 
 private:
@@ -74,6 +76,9 @@ private:
 	friend class MainWindow;
 
 	MainWindowObserver *_observer;
+	NSPasteboard *_generalPasteboard = nullptr;
+	int _generalPasteboardChangeCount = -1;
+	bool _generalPasteboardHasText = false;
 
 };
 
@@ -127,6 +132,8 @@ namespace Platform {
 MainWindow::Private::Private(MainWindow *window)
 : _public(window)
 , _observer([[MainWindowObserver alloc] init:this]) {
+	_generalPasteboard = [NSPasteboard generalPasteboard];
+
 	@autoreleasepool {
 
 	[[[NSWorkspace sharedWorkspace] notificationCenter] addObserver:_observer selector:@selector(activeSpaceDidChange:) name:NSWorkspaceActiveSpaceDidChangeNotification object:nil];
@@ -165,6 +172,15 @@ void MainWindow::Private::initCustomTitle(NSWindow *window, NSView *view) {
 	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillEnterFullScreen:) name:NSWindowWillEnterFullScreenNotification object:window];
 	[[NSNotificationCenter defaultCenter] addObserver:_observer selector:@selector(windowWillExitFullScreen:) name:NSWindowWillExitFullScreenNotification object:window];
 #endif // !OS_MAC_OLD
+}
+
+bool MainWindow::Private::clipboardHasText() {
+	auto currentChangeCount = static_cast<int>([_generalPasteboard changeCount]);
+	if (_generalPasteboardChangeCount != currentChangeCount) {
+		_generalPasteboardChangeCount = currentChangeCount;
+		_generalPasteboardHasText = !Application::clipboard()->text().isEmpty();
+	}
+	return _generalPasteboardHasText;
 }
 
 void MainWindow::Private::willEnterFullScreen() {
@@ -503,18 +519,19 @@ void MainWindow::updateGlobalMenuHook() {
 
 	auto focused = QApplication::focusWidget();
 	bool isLogged = !!App::self(), canUndo = false, canRedo = false, canCut = false, canCopy = false, canPaste = false, canDelete = false, canSelectAll = false;
+	auto clipboardHasText = _private->clipboardHasText();
 	if (auto edit = qobject_cast<QLineEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->hasSelectedText();
 		canSelectAll = !edit->text().isEmpty();
 		canUndo = edit->isUndoAvailable();
 		canRedo = edit->isRedoAvailable();
-		canPaste = !Application::clipboard()->text().isEmpty();
+		canPaste = clipboardHasText;
 	} else if (auto edit = qobject_cast<QTextEdit*>(focused)) {
 		canCut = canCopy = canDelete = edit->textCursor().hasSelection();
 		canSelectAll = !edit->document()->isEmpty();
 		canUndo = edit->document()->isUndoAvailable();
 		canRedo = edit->document()->isRedoAvailable();
-		canPaste = !Application::clipboard()->text().isEmpty();
+		canPaste = clipboardHasText;
 	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
