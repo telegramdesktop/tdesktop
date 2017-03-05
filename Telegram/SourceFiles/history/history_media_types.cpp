@@ -3443,10 +3443,10 @@ HistoryInvoice::HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other)
 
 QString HistoryInvoice::fillAmountAndCurrency(int amount, const QString &currency) {
 	static auto shortCurrencyNames = QMap<QString, QString> {
-		{ qsl("USD"), qsl("$") },
-		{ qsl("GBP"), qsl("£") },
-		{ qsl("EUR"), qsl("€") },
-		{ qsl("JPY"), qsl("¥") },
+		{ qsl("USD"), QString::fromUtf8("\x24") },
+		{ qsl("GBP"), QString::fromUtf8("\xC2\xA3") },
+		{ qsl("EUR"), QString::fromUtf8("\xE2\x82\xAC") },
+		{ qsl("JPY"), QString::fromUtf8("\xC2\xA5") },
 	};
 	auto amountBucks = amount / 100;
 	auto amountCents = amount % 100;
