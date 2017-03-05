@@ -164,6 +164,7 @@ inputMediaGifExternal#4843b0fd url:string q:string = InputMedia;
 inputMediaPhotoExternal#b55f4f18 url:string caption:string = InputMedia;
 inputMediaDocumentExternal#e5e9607c url:string caption:string = InputMedia;
 inputMediaGame#d33f43f3 id:InputGame = InputMedia;
+inputMediaInvoice#92153685 flags:# title:string description:string photo:flags.0?InputWebDocument invoice:Invoice payload:bytes provider:string start_param:string = InputMedia;
 
 inputChatPhotoEmpty#1ca48f57 = InputChatPhoto;
 inputChatUploadedPhoto#927c55b4 file:InputFile = InputChatPhoto;
@@ -186,13 +187,13 @@ peerChat#bad0e5bb chat_id:int = Peer;
 peerChannel#bddde532 channel_id:int = Peer;
 
 storage.fileUnknown#aa963b05 = storage.FileType;
+storage.filePartial#40bc6f52 = storage.FileType;
 storage.fileJpeg#7efe0e = storage.FileType;
 storage.fileGif#cae1aadf = storage.FileType;
 storage.filePng#a4f63c0 = storage.FileType;
 storage.filePdf#ae1e508d = storage.FileType;
 storage.fileMp3#528a0677 = storage.FileType;
 storage.fileMov#4b09ebbc = storage.FileType;
-storage.filePartial#40bc6f52 = storage.FileType;
 storage.fileMp4#b3cea0e4 = storage.FileType;
 storage.fileWebp#1081464c = storage.FileType;
 
@@ -244,6 +245,7 @@ messageMediaDocument#f3e02ea8 document:Document caption:string = MessageMedia;
 messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
 messageMediaVenue#7912b71f geo:GeoPoint title:string address:string provider:string venue_id:string = MessageMedia;
 messageMediaGame#fdb19008 game:Game = MessageMedia;
+messageMediaInvoice#84551347 flags:# shipping_address_requested:flags.1?true test:flags.3?true title:string description:string photo:flags.0?WebDocument receipt_msg_id:flags.2?int currency:string total_amount:long start_param:string = MessageMedia;
 
 messageActionEmpty#b6aef7b0 = MessageAction;
 messageActionChatCreate#a6638b9a title:string users:Vector<int> = MessageAction;
@@ -260,6 +262,8 @@ messageActionPinMessage#94bd38ed = MessageAction;
 messageActionHistoryClear#9fbab604 = MessageAction;
 messageActionGameScore#92a72876 game_id:long score:int = MessageAction;
 messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = MessageAction;
+messageActionPaymentSentMe#8f31b327 flags:# currency:string total_amount:long payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string charge:PaymentCharge = MessageAction;
+messageActionPaymentSent#40699cd0 currency:string total_amount:long = MessageAction;
 
 dialog#66ffba14 flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
@@ -410,6 +414,10 @@ updateChannelWebPage#40771900 channel_id:int webpage:WebPage pts:int pts_count:i
 updatePhoneCall#ab0f6b1e phone_call:PhoneCall = Update;
 updateDialogPinned#d711a2cc flags:# pinned:flags.0?true peer:Peer = Update;
 updatePinnedDialogs#d8caf68d flags:# order:flags.0?Vector<Peer> = Update;
+updateBotWebhookJSON#8317c0c3 data:DataJSON = Update;
+updateBotWebhookJSONQuery#9b9240a6 query_id:long data:DataJSON timeout:int = Update;
+updateBotShippingQuery#e0cdc940 query_id:long user_id:int payload:bytes shipping_address:PostAddress = Update;
+updateBotPrecheckoutQuery#5d2f3aa9 flags:# query_id:long user_id:int payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string currency:string total_amount:long = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -435,7 +443,7 @@ upload.file#96a18d5 type:storage.FileType mtime:int bytes:bytes = upload.File;
 
 dcOption#5d8c6cc flags:# ipv6:flags.0?true media_only:flags.1?true tcpo_only:flags.2?true id:int ip_address:string port:int = DcOption;
 
-config#3af6fb5f flags:# phonecalls_enabled:flags.1?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int disabled_features:Vector<DisabledFeature> = Config;
+config#cb601684 flags:# phonecalls_enabled:flags.1?true date:int expires:int test_mode:Bool this_dc:int dc_options:Vector<DcOption> chat_size_max:int megagroup_size_max:int forwarded_count_max:int online_update_period_ms:int offline_blur_timeout_ms:int offline_idle_timeout_ms:int online_cloud_timeout_ms:int notify_cloud_delay_ms:int notify_default_delay_ms:int chat_big_size:int push_chat_period_ms:int push_chat_limit:int saved_gifs_limit:int edit_time_limit:int rating_e_decay:int stickers_recent_limit:int tmp_sessions:flags.0?int pinned_dialogs_count_max:int call_receive_timeout_ms:int call_ring_timeout_ms:int call_connect_timeout_ms:int call_packet_timeout_ms:int me_url_prefix:string disabled_features:Vector<DisabledFeature> = Config;
 
 nearestDc#8e1a1775 country:string this_dc:int nearest_dc:int = NearestDc;
 
@@ -592,6 +600,7 @@ keyboardButtonRequestPhone#b16a6c29 text:string = KeyboardButton;
 keyboardButtonRequestGeoLocation#fc796b3f text:string = KeyboardButton;
 keyboardButtonSwitchInline#568a748 flags:# same_peer:flags.0?true text:string query:string = KeyboardButton;
 keyboardButtonGame#50f41ccf text:string = KeyboardButton;
+keyboardButtonBuy#afd93fbb text:string = KeyboardButton;
 
 keyboardButtonRow#77608b83 buttons:Vector<KeyboardButton> = KeyboardButtonRow;
 
@@ -599,9 +608,6 @@ replyKeyboardHide#a03e5b85 flags:# selective:flags.2?true = ReplyMarkup;
 replyKeyboardForceReply#f4108aa0 flags:# single_use:flags.1?true selective:flags.2?true = ReplyMarkup;
 replyKeyboardMarkup#3502758c flags:# resize:flags.0?true single_use:flags.1?true selective:flags.2?true rows:Vector<KeyboardButtonRow> = ReplyMarkup;
 replyInlineMarkup#48a30254 rows:Vector<KeyboardButtonRow> = ReplyMarkup;
-
-help.appChangelogEmpty#af7e0394 = help.AppChangelog;
-help.appChangelog#2a137e7c message:string media:MessageMedia entities:Vector<MessageEntity> = help.AppChangelog;
 
 messageEntityUnknown#bb92ba95 offset:int length:int = MessageEntity;
 messageEntityMention#fa04579d offset:int length:int = MessageEntity;
@@ -793,7 +799,7 @@ phoneCallEmpty#5366c915 id:long = PhoneCall;
 phoneCallWaiting#1b8f4ad1 flags:# id:long access_hash:long date:int admin_id:int participant_id:int protocol:PhoneCallProtocol receive_date:flags.0?int = PhoneCall;
 phoneCallRequested#6c448ae8 id:long access_hash:long date:int admin_id:int participant_id:int g_a:bytes protocol:PhoneCallProtocol = PhoneCall;
 phoneCall#ffe6ab67 id:long access_hash:long date:int admin_id:int participant_id:int g_a_or_b:bytes key_fingerprint:long protocol:PhoneCallProtocol connection:PhoneConnection alternative_connections:Vector<PhoneConnection> start_date:int = PhoneCall;
-phoneCallDiscarded#50ca4de1 flags:# id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = PhoneCall;
+phoneCallDiscarded#50ca4de1 flags:# need_rating:flags.2?true id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = PhoneCall;
 
 phoneConnection#9d4c17c0 id:long ip:string ipv6:string port:int peer_tag:bytes = PhoneConnection;
 
@@ -805,6 +811,46 @@ phoneCallDiscardReasonMissed#85e42301 = PhoneCallDiscardReason;
 phoneCallDiscardReasonDisconnect#e095c1a0 = PhoneCallDiscardReason;
 phoneCallDiscardReasonHangup#57adc690 = PhoneCallDiscardReason;
 phoneCallDiscardReasonBusy#faf7e8c9 = PhoneCallDiscardReason;
+
+dataJSON#7d748d04 data:string = DataJSON;
+
+labeledPrice#cb296bf8 label:string amount:long = LabeledPrice;
+
+invoice#c30aa358 flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true currency:string prices:Vector<LabeledPrice> = Invoice;
+
+paymentCharge#ea02c27e id:string provider_charge_id:string = PaymentCharge;
+
+postAddress#1e8caaeb street_line1:string street_line2:string city:string state:string country_iso2:string post_code:string = PostAddress;
+
+paymentRequestedInfo#909c3f94 flags:# name:flags.0?string phone:flags.1?string email:flags.2?string shipping_address:flags.3?PostAddress = PaymentRequestedInfo;
+
+paymentSavedCredentialsCard#cdc27a1f id:string title:string = PaymentSavedCredentials;
+
+webDocument#c61acbd8 url:string access_hash:long size:int mime_type:string attributes:Vector<DocumentAttribute> dc_id:int = WebDocument;
+
+inputWebDocument#9bed434d url:string size:int mime_type:string attributes:Vector<DocumentAttribute> = InputWebDocument;
+
+inputWebFileLocation#c239d686 url:string access_hash:long = InputWebFileLocation;
+
+upload.webFile#21e753bc size:int mime_type:string file_type:storage.FileType mtime:int bytes:bytes = upload.WebFile;
+
+payments.paymentForm#3f56aea3 flags:# can_save_credentials:flags.2?true password_missing:flags.3?true bot_id:int invoice:Invoice provider_id:int url:string native_provider:flags.4?string native_params:flags.4?DataJSON saved_info:flags.0?PaymentRequestedInfo saved_credentials:flags.1?PaymentSavedCredentials users:Vector<User> = payments.PaymentForm;
+
+payments.validatedRequestedInfo#d1451883 flags:# id:flags.0?string shipping_options:flags.1?Vector<ShippingOption> = payments.ValidatedRequestedInfo;
+
+payments.paymentResult#4e5f810d updates:Updates = payments.PaymentResult;
+payments.paymentVerficationNeeded#6b56b921 url:string = payments.PaymentResult;
+
+payments.paymentReceipt#500911e1 flags:# date:int bot_id:int invoice:Invoice provider_id:int info:flags.0?PaymentRequestedInfo shipping:flags.1?ShippingOption currency:string total_amount:long credentials_title:string users:Vector<User> = payments.PaymentReceipt;
+
+payments.savedInfo#fb8fe43c flags:# has_saved_credentials:flags.1?true saved_info:flags.0?PaymentRequestedInfo = payments.SavedInfo;
+
+inputPaymentCredentialsSaved#c10eb2cf id:string tmp_password:bytes = InputPaymentCredentials;
+inputPaymentCredentials#3417d728 flags:# save:flags.0?true data:DataJSON = InputPaymentCredentials;
+
+account.tmpPassword#db64fd34 tmp_password:bytes valid_until:int = account.TmpPassword;
+
+shippingOption#b6213cdf id:string title:string prices:Vector<LabeledPrice> = ShippingOption;
 
 ---functions---
 
@@ -858,6 +904,7 @@ account.getPasswordSettings#bc8d11bb current_password_hash:bytes = account.Passw
 account.updatePasswordSettings#fa7c4b86 current_password_hash:bytes new_settings:account.PasswordInputSettings = Bool;
 account.sendConfirmPhoneCode#1516d7bd flags:# allow_flashcall:flags.0?true hash:string current_number:flags.0?Bool = auth.SentCode;
 account.confirmPhone#5f2178c3 phone_code_hash:string phone_code:string = Bool;
+account.getTmpPassword#4a82327e password_hash:bytes period:int = account.TmpPassword;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
 users.getFullUser#ca30a5b1 id:InputUser = UserFull;
@@ -960,6 +1007,8 @@ messages.getWebPage#32ca8f91 url:string hash:int = WebPage;
 messages.toggleDialogPin#3289be6a flags:# pinned:flags.0?true peer:InputPeer = Bool;
 messages.reorderPinnedDialogs#959ff644 flags:# force:flags.0?true order:Vector<InputPeer> = Bool;
 messages.getPinnedDialogs#e254d64e = messages.PeerDialogs;
+messages.setBotShippingResults#e5f672fa flags:# query_id:long error:flags.0?string shipping_options:flags.1?Vector<ShippingOption> = Bool;
+messages.setBotPrecheckoutResults#9c2dd95 flags:# success:flags.1?true query_id:long error:flags.0?string = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -973,6 +1022,7 @@ photos.getUserPhotos#91cd32a8 user_id:InputUser offset:int max_id:long limit:int
 upload.saveFilePart#b304a621 file_id:long file_part:int bytes:bytes = Bool;
 upload.getFile#e3a6cfb5 location:InputFileLocation offset:int limit:int = upload.File;
 upload.saveBigFilePart#de7b673d file_id:long file_part:int file_total_parts:int bytes:bytes = Bool;
+upload.getWebFile#24e6818d location:InputWebFileLocation offset:int limit:int = upload.WebFile;
 
 help.getConfig#c4f9186b = Config;
 help.getNearestDc#1fb33026 = NearestDc;
@@ -980,7 +1030,7 @@ help.getAppUpdate#ae2de196 = help.AppUpdate;
 help.saveAppLog#6f02f748 events:Vector<InputAppEvent> = Bool;
 help.getInviteText#4d392343 = help.InviteText;
 help.getSupport#9cdf08cd = help.Support;
-help.getAppChangelog#b921197a = help.AppChangelog;
+help.getAppChangelog#9010ef6f prev_app_version:string = Updates;
 help.getTermsOfService#350170f3 = help.TermsOfService;
 help.setBotUpdatesStatus#ec22cfcd pending_updates_count:int message:string = Bool;
 
@@ -1014,7 +1064,19 @@ channels.getAdminedPublicChannels#8d8d82d7 = messages.Chats;
 
 phone.requestCall#a41aa5e4 user_id:InputUser random_id:int g_a:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
 phone.acceptCall#220f0b20 peer:InputPhoneCall g_b:bytes key_fingerprint:long protocol:PhoneCallProtocol = phone.PhoneCall;
-phone.discardCall#5dfbcddc peer:InputPhoneCall duration:int reason:PhoneCallDiscardReason connection_id:long = Bool;
+phone.discardCall#78d413a6 peer:InputPhoneCall duration:int reason:PhoneCallDiscardReason connection_id:long = Updates;
 phone.receivedCall#17d54f61 peer:InputPhoneCall = Bool;
+phone.setCallRating#1c536a34 peer:InputPhoneCall rating:int comment:string = Updates;
+phone.getCallConfig#55451fa9 = DataJSON;
 
-// LAYER 62
+bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
+bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
+
+payments.getPaymentForm#99f09745 msg_id:int = payments.PaymentForm;
+payments.getPaymentReceipt#a092a980 msg_id:int = payments.PaymentReceipt;
+payments.validateRequestedInfo#770a8e74 flags:# save:flags.0?true msg_id:int info:PaymentRequestedInfo = payments.ValidatedRequestedInfo;
+payments.sendPaymentForm#2b8879b3 flags:# msg_id:int requested_info_id:flags.0?string shipping_option_id:flags.1?string credentials:InputPaymentCredentials = payments.PaymentResult;
+payments.getSavedInfo#227d824b = payments.SavedInfo;
+payments.clearSavedInfo#d83d70c1 flags:# credentials:flags.0?true info:flags.1?true = Bool;
+
+// LAYER 65
