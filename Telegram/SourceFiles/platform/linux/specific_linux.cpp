@@ -15,7 +15,7 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "platform/linux/platform_specific_linux.h"
+#include "platform/linux/specific_linux.h"
 
 #include "platform/linux/linux_libs.h"
 #include "lang.h"
