@@ -215,6 +215,7 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 			SwitchInline,
 			SwitchInlineSame,
 			Game,
+			Buy,
 		};
 		Type type;
 		QString text;
@@ -420,33 +421,35 @@ public:
 	HistoryMediaPtr() = default;
 	HistoryMediaPtr(const HistoryMediaPtr &other) = delete;
 	HistoryMediaPtr &operator=(const HistoryMediaPtr &other) = delete;
-	HistoryMedia *data() const {
-		return _p;
+	HistoryMediaPtr(std::unique_ptr<HistoryMedia> other);
+	HistoryMediaPtr &operator=(std::unique_ptr<HistoryMedia> other);
+
+	HistoryMedia *get() const {
+		return _pointer.get();
 	}
-	void reset(HistoryMedia *p = nullptr);
-	void clear() {
-		reset();
+	void reset(std::unique_ptr<HistoryMedia> pointer = nullptr) {
+		*this = std::move(pointer);
 	}
 	bool isNull() const {
-		return data() == nullptr;
+		return !_pointer;
 	}
 
 	HistoryMedia *operator->() const {
-		return data();
+		return get();
 	}
 	HistoryMedia &operator*() const {
 		t_assert(!isNull());
-		return *data();
+		return *get();
 	}
 	explicit operator bool() const {
 		return !isNull();
 	}
 	~HistoryMediaPtr() {
-		clear();
+		reset();
 	}
 
 private:
-	HistoryMedia *_p = nullptr;
+	std::unique_ptr<HistoryMedia> _pointer;
 
 };
 
@@ -726,7 +729,7 @@ public:
 	}
 
 	HistoryMedia *getMedia() const {
-		return _media.data();
+		return _media.get();
 	}
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}

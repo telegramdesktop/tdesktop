@@ -89,6 +89,10 @@ void activateBotCommand(const HistoryItem *msg, int row, int col) {
 		}
 	} break;
 
+	case ButtonType::Buy: {
+		Ui::show(Box<InformBox>(lang(lng_payments_not_supported)));
+	} break;
+
 	case ButtonType::Url: {
 		auto url = QString::fromUtf8(button->data);
 		auto skipConfirmation = false;

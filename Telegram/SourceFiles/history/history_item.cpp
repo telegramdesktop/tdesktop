@@ -438,6 +438,10 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 						auto &buttonData = button.c_keyboardButtonGame();
 						buttonRow.push_back({ Button::Type::Game, qs(buttonData.vtext), QByteArray(), 0 });
 					} break;
+					case mtpc_keyboardButtonBuy: {
+						auto &buttonData = button.c_keyboardButtonBuy();
+						buttonRow.push_back({ Button::Type::Buy, qs(buttonData.vtext), QByteArray(), 0 });
+					}
 					}
 				}
 				if (!buttonRow.isEmpty()) rows.push_back(buttonRow);
@@ -537,15 +541,21 @@ void HistoryMessageDate::paint(Painter &p, int y, int w) const {
 	HistoryLayout::ServiceMessagePainter::paintDate(p, _text, _width, y, w);
 }
 
-void HistoryMediaPtr::reset(HistoryMedia *p) {
-	if (_p) {
-		_p->detachFromParent();
-		delete _p;
+HistoryMediaPtr::HistoryMediaPtr(std::unique_ptr<HistoryMedia> pointer) : _pointer(std::move(pointer)) {
+	if (_pointer) {
+		_pointer->attachToParent();
 	}
-	_p = p;
-	if (_p) {
-		_p->attachToParent();
+}
+
+HistoryMediaPtr &HistoryMediaPtr::operator=(std::unique_ptr<HistoryMedia> pointer) {
+	if (_pointer) {
+		_pointer->detachFromParent();
 	}
+	_pointer = std::move(pointer);
+	if (_pointer) {
+		_pointer->attachToParent();
+	}
+	return *this;
 }
 
 namespace internal {

@@ -96,7 +96,7 @@ public:
 	virtual bool uploading() const {
 		return false;
 	}
-	virtual HistoryMedia *clone(HistoryItem *newParent) const = 0;
+	virtual std::unique_ptr<HistoryMedia> clone(HistoryItem *newParent) const = 0;
 
 	virtual DocumentData *getDocument() {
 		return nullptr;

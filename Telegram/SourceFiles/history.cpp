@@ -813,6 +813,8 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			default: badMedia = MediaCheckResult::Unsupported; break;
 			}
 			break;
+		case mtpc_messageMediaInvoice:
+			break;
 		case mtpc_messageMediaUnsupported:
 		default: badMedia = MediaCheckResult::Unsupported; break;
 		}

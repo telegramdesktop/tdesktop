@@ -2530,7 +2530,9 @@ int32 articleThumbHeight(PhotoData *thumb, int32 width) {
 	return qMax(thumb->medium->height() * width / thumb->medium->width(), 1);
 }
 
-int32 _lineHeight = 0;
+int unitedLineHeight() {
+	return qMax(st::webPageTitleFont->height, st::webPageDescriptionFont->height);
+}
 
 } // namespace
 
@@ -2557,7 +2559,7 @@ void HistoryWebPage::initDimensions() {
 		_maxw = _minh = _height = 0;
 		return;
 	}
-	if (!_lineHeight) _lineHeight = qMax(st::webPageTitleFont->height, st::webPageDescriptionFont->height);
+	auto lineHeight = unitedLineHeight();
 
 	if (!_openl && !_data->url.isEmpty()) {
 		_openl = MakeShared<UrlClickHandler>(_data->url, true);
@@ -2631,14 +2633,14 @@ void HistoryWebPage::initDimensions() {
 	_maxw = skipBlockWidth;
 	_minh = 0;
 
-	int32 siteNameHeight = _data->siteName.isEmpty() ? 0 : _lineHeight;
-	int32 titleMinHeight = _title.isEmpty() ? 0 : _lineHeight;
+	int32 siteNameHeight = _data->siteName.isEmpty() ? 0 : lineHeight;
+	int32 titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
 	int32 descMaxLines = (3 + (siteNameHeight ? 0 : 1) + (titleMinHeight ? 0 : 1));
-	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * _lineHeight);
+	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
 	int32 articleMinHeight = siteNameHeight + titleMinHeight + descriptionMinHeight;
 	int32 articlePhotoMaxWidth = 0;
 	if (_asArticle) {
-		articlePhotoMaxWidth = st::webPagePhotoDelta + qMax(articleThumbWidth(_data->photo, articleMinHeight), _lineHeight);
+		articlePhotoMaxWidth = st::webPagePhotoDelta + qMax(articleThumbWidth(_data->photo, articleMinHeight), lineHeight);
 	}
 
 	if (_siteNameWidth) {
@@ -2647,7 +2649,7 @@ void HistoryWebPage::initDimensions() {
 		} else {
 			accumulate_max(_maxw, _siteNameWidth + articlePhotoMaxWidth);
 		}
-		_minh += _lineHeight;
+		_minh += lineHeight;
 	}
 	if (!_title.isEmpty()) {
 		accumulate_max(_maxw, _title.maxWidth() + articlePhotoMaxWidth);
@@ -2693,13 +2695,15 @@ int HistoryWebPage::resizeGetHeight(int width) {
 	_width = width/* = qMin(width, _maxw)*/;
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
-	int32 linesMax = 5;
-	int32 siteNameLines = _siteNameWidth ? 1 : 0, siteNameHeight = _siteNameWidth ? _lineHeight : 0;
+	auto lineHeight = unitedLineHeight();
+	auto linesMax = 5;
+	auto siteNameLines = _siteNameWidth ? 1 : 0;
+	auto siteNameHeight = _siteNameWidth ? lineHeight : 0;
 	if (_asArticle) {
-		_pixh = linesMax * _lineHeight;
+		_pixh = linesMax * lineHeight;
 		do {
 			_pixw = articleThumbWidth(_data->photo, _pixh);
-			int32 wleft = width - st::webPagePhotoDelta - qMax(_pixw, int16(_lineHeight));
+			int32 wleft = width - st::webPagePhotoDelta - qMax(_pixw, int16(lineHeight));
 
 			_height = siteNameHeight;
 
@@ -2711,23 +2715,23 @@ int HistoryWebPage::resizeGetHeight(int width) {
 				} else {
 					_titleLines = 2;
 				}
-				_height += _titleLines * _lineHeight;
+				_height += _titleLines * lineHeight;
 			}
 
-			int32 descriptionHeight = _description.countHeight(wleft);
+			auto descriptionHeight = _description.countHeight(wleft);
 			if (descriptionHeight < (linesMax - siteNameLines - _titleLines) * st::webPageDescriptionFont->height) {
 				_descriptionLines = (descriptionHeight / st::webPageDescriptionFont->height);
 			} else {
 				_descriptionLines = (linesMax - siteNameLines - _titleLines);
 			}
-			_height += _descriptionLines * _lineHeight;
+			_height += _descriptionLines * lineHeight;
 
 			if (_height >= _pixh) {
 				break;
 			}
 
-			_pixh -= _lineHeight;
-		} while (_pixh > _lineHeight);
+			_pixh -= lineHeight;
+		} while (_pixh > lineHeight);
 		_height += bottomInfoPadding();
 	} else {
 		_height = siteNameHeight;
@@ -2740,7 +2744,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 			} else {
 				_titleLines = 2;
 			}
-			_height += _titleLines * _lineHeight;
+			_height += _titleLines * lineHeight;
 		}
 
 		if (_description.isEmpty()) {
@@ -2752,7 +2756,7 @@ int HistoryWebPage::resizeGetHeight(int width) {
 			} else {
 				_descriptionLines = (linesMax - siteNameLines - _titleLines);
 			}
-			_height += _descriptionLines * _lineHeight;
+			_height += _descriptionLines * lineHeight;
 		}
 
 		if (_attach) {
@@ -2797,11 +2801,12 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, _height - tshift - bshift, _width));
 	p.fillRect(bar, barfg);
 
+	auto lineHeight = unitedLineHeight();
 	if (_asArticle) {
 		_data->photo->medium->load(false, false);
 		bool full = _data->photo->medium->loaded();
 		QPixmap pix;
-		int32 pw = qMax(_pixw, int16(_lineHeight)), ph = _pixh;
+		int32 pw = qMax(_pixw, int16(lineHeight)), ph = _pixh;
 		int32 pixw = _pixw, pixh = articleThumbHeight(_data->photo, _pixw);
 		int32 maxw = convertScale(_data->photo->medium->width()), maxh = convertScale(_data->photo->medium->height());
 		if (pixw * ph != pixh * pw) {
@@ -2824,7 +2829,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 		p.setFont(st::webPageTitleFont);
 		p.setPen(semibold);
 		p.drawTextLeft(padding.left(), tshift, _width, (width >= _siteNameWidth) ? _data->siteName : st::webPageTitleFont->elided(_data->siteName, width));
-		tshift += _lineHeight;
+		tshift += lineHeight;
 	}
 	if (_titleLines) {
 		p.setPen(outbg ? st::webPageTitleOutFg : st::webPageTitleInFg);
@@ -2833,7 +2838,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 			endskip = _parent->skipBlockWidth();
 		}
 		_title.drawLeftElided(p, padding.left(), tshift, width, _width, _titleLines, style::al_left, 0, -1, endskip, false, selection);
-		tshift += _titleLines * _lineHeight;
+		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
 		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
@@ -2842,7 +2847,7 @@ void HistoryWebPage::draw(Painter &p, const QRect &r, TextSelection selection, T
 			endskip = _parent->skipBlockWidth();
 		}
 		_description.drawLeftElided(p, padding.left(), tshift, width, _width, _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(selection));
-		tshift += _descriptionLines * _lineHeight;
+		tshift += _descriptionLines * lineHeight;
 	}
 	if (_attach) {
 		auto attachAtTop = !_siteNameWidth && !_titleLines && !_descriptionLines;
@@ -2899,9 +2904,10 @@ HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest requ
 	}
 	width -= padding.left() + padding.right();
 
-	bool inThumb = false;
+	auto lineHeight = unitedLineHeight();
+	auto inThumb = false;
 	if (_asArticle) {
-		int32 pw = qMax(_pixw, int16(_lineHeight));
+		int32 pw = qMax(_pixw, int16(lineHeight));
 		if (rtlrect(padding.left() + width - pw, 0, pw, _pixh, _width).contains(x, y)) {
 			inThumb = true;
 		}
@@ -2909,27 +2915,27 @@ HistoryTextState HistoryWebPage::getState(int x, int y, HistoryStateRequest requ
 	}
 	int symbolAdd = 0;
 	if (_siteNameWidth) {
-		tshift += _lineHeight;
+		tshift += lineHeight;
 	}
 	if (_titleLines) {
-		if (y >= tshift && y < tshift + _titleLines * _lineHeight) {
+		if (y >= tshift && y < tshift + _titleLines * lineHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
 			result = _title.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, titleRequest);
-		} else if (y >= tshift + _titleLines * _lineHeight) {
+		} else if (y >= tshift + _titleLines * lineHeight) {
 			symbolAdd += _title.length();
 		}
-		tshift += _titleLines * _lineHeight;
+		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		if (y >= tshift && y < tshift + _descriptionLines * _lineHeight) {
+		if (y >= tshift && y < tshift + _descriptionLines * lineHeight) {
 			Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
 			result = _description.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, descriptionRequest);
-		} else if (y >= tshift + _descriptionLines * _lineHeight) {
+		} else if (y >= tshift + _descriptionLines * lineHeight) {
 			symbolAdd += _description.length();
 		}
-		tshift += _descriptionLines * _lineHeight;
+		tshift += _descriptionLines * lineHeight;
 	}
 	if (inThumb) {
 		result.link = _openl;
@@ -3054,9 +3060,11 @@ HistoryGame::HistoryGame(HistoryItem *parent, const HistoryGame &other) : Histor
 }
 
 void HistoryGame::initDimensions() {
-	if (!_lineHeight) _lineHeight = qMax(st::webPageTitleFont->height, st::webPageDescriptionFont->height);
+	auto lineHeight = unitedLineHeight();
 
-	if (!_openl) _openl.reset(new ReplyMarkupClickHandler(_parent, 0, 0));
+	if (!_openl) {
+		_openl = MakeShared<ReplyMarkupClickHandler>(_parent, 0, 0);
+	}
 
 	auto title = _data->title;
 
@@ -3081,6 +3089,9 @@ void HistoryGame::initDimensions() {
 	if (_description.isEmpty() && !_data->description.isEmpty()) {
 		auto text = _data->description;
 		if (!text.isEmpty()) {
+			if (!_attach) {
+				text += _parent->skipBlock();
+			}
 			_description.setText(st::webPageDescriptionStyle, text, _webpageDescriptionOptions);
 		}
 	}
@@ -3094,10 +3105,10 @@ void HistoryGame::initDimensions() {
 	_maxw = skipBlockWidth;
 	_minh = 0;
 
-	int32 titleMinHeight = _title.isEmpty() ? 0 : _lineHeight;
+	int32 titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
 	// enable any count of lines in game description / message
 	int descMaxLines = 4096;
-	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * _lineHeight);
+	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
 
 	if (!_title.isEmpty()) {
 		accumulate_max(_maxw, _title.maxWidth());
@@ -3134,7 +3145,8 @@ int HistoryGame::resizeGetHeight(int width) {
 	width -= st::msgPadding.left() + st::webPageLeft + st::msgPadding.right();
 
 	// enable any count of lines in game description / message
-	int linesMax = 4096;
+	auto linesMax = 4096;
+	auto lineHeight = unitedLineHeight();
 	_height = 0;
 	if (_title.isEmpty()) {
 		_titleLines = 0;
@@ -3144,7 +3156,7 @@ int HistoryGame::resizeGetHeight(int width) {
 		} else {
 			_titleLines = 2;
 		}
-		_height += _titleLines * _lineHeight;
+		_height += _titleLines * lineHeight;
 	}
 
 	if (_description.isEmpty()) {
@@ -3156,7 +3168,7 @@ int HistoryGame::resizeGetHeight(int width) {
 		} else {
 			_descriptionLines = (linesMax - _titleLines);
 		}
-		_height += _descriptionLines * _lineHeight;
+		_height += _descriptionLines * lineHeight;
 	}
 
 	if (_attach) {
@@ -3200,6 +3212,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 	QRect bar(rtlrect(st::msgPadding.left(), tshift, st::webPageBar, _height - tshift - bshift, _width));
 	p.fillRect(bar, barfg);
 
+	auto lineHeight = unitedLineHeight();
 	if (_titleLines) {
 		p.setPen(semibold);
 		int32 endskip = 0;
@@ -3207,7 +3220,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 			endskip = _parent->skipBlockWidth();
 		}
 		_title.drawLeftElided(p, padding.left(), tshift, width, _width, _titleLines, style::al_left, 0, -1, endskip, false, selection);
-		tshift += _titleLines * _lineHeight;
+		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
 		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
@@ -3216,7 +3229,7 @@ void HistoryGame::draw(Painter &p, const QRect &r, TextSelection selection, Time
 			endskip = _parent->skipBlockWidth();
 		}
 		_description.drawLeftElided(p, padding.left(), tshift, width, _width, _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(selection));
-		tshift += _descriptionLines * _lineHeight;
+		tshift += _descriptionLines * lineHeight;
 	}
 	if (_attach) {
 		auto attachAtTop = !_titleLines && !_descriptionLines;
@@ -3263,27 +3276,28 @@ HistoryTextState HistoryGame::getState(int x, int y, HistoryStateRequest request
 	}
 	width -= padding.left() + padding.right();
 
-	bool inThumb = false;
-	int symbolAdd = 0;
+	auto inThumb = false;
+	auto symbolAdd = 0;
+	auto lineHeight = unitedLineHeight();
 	if (_titleLines) {
-		if (y >= tshift && y < tshift + _titleLines * _lineHeight) {
+		if (y >= tshift && y < tshift + _titleLines * lineHeight) {
 			Text::StateRequestElided titleRequest = request.forText();
 			titleRequest.lines = _titleLines;
 			result = _title.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, titleRequest);
-		} else if (y >= tshift + _titleLines * _lineHeight) {
+		} else if (y >= tshift + _titleLines * lineHeight) {
 			symbolAdd += _title.length();
 		}
-		tshift += _titleLines * _lineHeight;
+		tshift += _titleLines * lineHeight;
 	}
 	if (_descriptionLines) {
-		if (y >= tshift && y < tshift + _descriptionLines * _lineHeight) {
+		if (y >= tshift && y < tshift + _descriptionLines * lineHeight) {
 			Text::StateRequestElided descriptionRequest = request.forText();
 			descriptionRequest.lines = _descriptionLines;
 			result = _description.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, descriptionRequest);
-		} else if (y >= tshift + _descriptionLines * _lineHeight) {
+		} else if (y >= tshift + _descriptionLines * lineHeight) {
 			symbolAdd += _description.length();
 		}
-		tshift += _descriptionLines * _lineHeight;
+		tshift += _descriptionLines * lineHeight;
 	}
 	if (inThumb) {
 		result.link = _openl;
@@ -3408,6 +3422,353 @@ int HistoryGame::bottomInfoPadding() const {
 	// we don't need that additional padding so we replace it
 	// back with st::msgPadding.bottom() instead of left().
 	result += st::msgPadding.bottom() - st::msgPadding.left();
+	return result;
+}
+
+HistoryInvoice::HistoryInvoice(HistoryItem *parent, const MTPDmessageMediaInvoice &data) : HistoryMedia(parent)
+, _title(st::msgMinWidth)
+, _description(st::msgMinWidth)
+, _status(st::msgMinWidth) {
+	fillFromData(data);
+}
+
+HistoryInvoice::HistoryInvoice(HistoryItem *parent, const HistoryInvoice &other) : HistoryMedia(parent)
+, _attach(other._attach ? other._attach->clone(parent) : nullptr)
+, _titleHeight(other._titleHeight)
+, _descriptionHeight(other._descriptionHeight)
+, _title(other._title)
+, _description(other._description)
+, _status(other._status) {
+}
+
+namespace {
+
+QString fillAmountAndCurrency(int amount, const QString &currency) {
+	static auto shortCurrencyNames = QMap<QString, QString> {
+		{ qsl("USD"), qsl("$") },
+		{ qsl("GBP"), qsl("£") },
+		{ qsl("EUR"), qsl("€") },
+		{ qsl("JPY"), qsl("¥") },
+	};
+	auto amountBucks = amount / 100;
+	auto amountCents = amount % 100;
+	auto amountText = qsl("%1,%2").arg(amountBucks).arg(amountCents, 2, 10, QChar('0'));
+	auto currencyText = shortCurrencyNames.value(currency, currency);
+	return currencyText + amountText;
+}
+
+} // namespace
+
+void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
+	// init attach
+	if (data.has_photo()) {
+//		_attach = std::make_unique<HistoryPhoto>(_parent, data.vphoto.c_webDocument(), QString());
+	}
+
+	auto statusText = TextWithEntities { fillAmountAndCurrency(data.vtotal_amount.v, qs(data.vcurrency)), EntitiesInText() };
+	statusText.entities.push_back(EntityInText(EntityInTextBold, 0, statusText.text.size()));
+	if (data.is_test()) {
+		statusText.text += " TEST";
+	}
+	_status.setMarkedText(st::defaultTextStyle, statusText, itemTextOptions(_parent));
+
+	// init strings
+	auto description = qs(data.vdescription);
+	if (!description.isEmpty()) {
+		_description.setText(st::webPageDescriptionStyle, description, _webpageDescriptionOptions);
+	}
+	auto title = qs(data.vtitle);
+	if (!title.isEmpty()) {
+		_title.setText(st::webPageTitleStyle, title, _webpageTitleOptions);
+	}
+}
+
+void HistoryInvoice::initDimensions() {
+	auto lineHeight = unitedLineHeight();
+
+	if (_attach) {
+		if (_status.hasSkipBlock()) {
+			_status.removeSkipBlock();
+		}
+	} else if (!_status.hasSkipBlock()) {
+		_status.setSkipBlock(_parent->skipBlockWidth(), _parent->skipBlockHeight());
+	}
+
+	// init dimensions
+	int32 l = st::msgPadding.left(), r = st::msgPadding.right();
+	int32 skipBlockWidth = _parent->skipBlockWidth();
+	_maxw = skipBlockWidth;
+	_minh = 0;
+
+	int32 titleMinHeight = _title.isEmpty() ? 0 : lineHeight;
+	// enable any count of lines in game description / message
+	int descMaxLines = 4096;
+	int32 descriptionMinHeight = _description.isEmpty() ? 0 : qMin(_description.minHeight(), descMaxLines * lineHeight);
+
+	if (!_title.isEmpty()) {
+		accumulate_max(_maxw, _title.maxWidth());
+		_minh += titleMinHeight;
+	}
+	if (!_description.isEmpty()) {
+		accumulate_max(_maxw, _description.maxWidth());
+		_minh += descriptionMinHeight;
+	}
+	if (_attach) {
+		auto attachAtTop = _title.isEmpty() && _description.isEmpty();
+		if (!attachAtTop) _minh += st::mediaInBubbleSkip;
+
+		_attach->initDimensions();
+		auto bubble = _attach->bubbleMargins();
+		auto maxMediaWidth = _attach->maxWidth() - bubble.left() - bubble.right();
+		if (isBubbleBottom() && _attach->customInfoLayout()) {
+			maxMediaWidth += skipBlockWidth;
+		}
+		accumulate_max(_maxw, maxMediaWidth);
+		_minh += _attach->minHeight() - bubble.top() - bubble.bottom();
+	} else {
+		accumulate_max(_maxw, _status.maxWidth());
+		_minh += st::mediaInBubbleSkip + _status.minHeight();
+	}
+	auto padding = inBubblePadding();
+	_maxw += padding.left() + padding.right();
+	_minh += padding.top() + padding.bottom();
+}
+
+int HistoryInvoice::resizeGetHeight(int width) {
+	_width = width = qMin(width, _maxw);
+	width -= st::msgPadding.left() + st::msgPadding.right();
+
+	auto lineHeight = unitedLineHeight();
+
+	_height = 0;
+	if (_title.isEmpty()) {
+		_titleHeight = 0;
+	} else {
+		if (_title.countHeight(width) < 2 * st::webPageTitleFont->height) {
+			_titleHeight = lineHeight;
+		} else {
+			_titleHeight = 2 * lineHeight;
+		}
+		_height += _titleHeight;
+	}
+
+	if (_description.isEmpty()) {
+		_descriptionHeight = 0;
+	} else {
+		_descriptionHeight = _description.countHeight(width);
+		_height += _descriptionHeight;
+	}
+
+	if (_attach) {
+		auto attachAtTop = !_title.isEmpty() && _description.isEmpty();
+		if (!attachAtTop) _height += st::mediaInBubbleSkip;
+
+		QMargins bubble(_attach->bubbleMargins());
+
+		_attach->resizeGetHeight(width + bubble.left() + bubble.right());
+		_height += _attach->height() - bubble.top() - bubble.bottom();
+		if (isBubbleBottom() && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+			_height += bottomInfoPadding();
+		}
+	} else {
+		_height += st::mediaInBubbleSkip + _status.countHeight(width);
+	}
+	auto padding = inBubblePadding();
+	_height += padding.top() + padding.bottom();
+
+	return _height;
+}
+
+void HistoryInvoice::draw(Painter &p, const QRect &r, TextSelection selection, TimeMs ms) const {
+	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
+	int32 width = _width, height = _height;
+
+	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
+	bool selected = (selection == FullSelection);
+
+	auto &barfg = selected ? (outbg ? st::msgOutReplyBarSelColor : st::msgInReplyBarSelColor) : (outbg ? st::msgOutReplyBarColor : st::msgInReplyBarColor);
+	auto &semibold = selected ? (outbg ? st::msgOutServiceFgSelected : st::msgInServiceFgSelected) : (outbg ? st::msgOutServiceFg : st::msgInServiceFg);
+	auto &regular = selected ? (outbg ? st::msgOutDateFgSelected : st::msgInDateFgSelected) : (outbg ? st::msgOutDateFg : st::msgInDateFg);
+
+	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
+	auto padding = inBubblePadding();
+	auto tshift = padding.top();
+	auto bshift = padding.bottom();
+	width -= padding.left() + padding.right();
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+		bshift += bottomInfoPadding();
+	}
+
+	auto lineHeight = unitedLineHeight();
+	if (_titleHeight) {
+		p.setPen(semibold);
+		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outSemiboldPalette : st::inSemiboldPalette));
+
+		int32 endskip = 0;
+		if (_title.hasSkipBlock()) {
+			endskip = _parent->skipBlockWidth();
+		}
+		_title.drawLeftElided(p, padding.left(), tshift, width, _width, _titleHeight / lineHeight, style::al_left, 0, -1, endskip, false, selection);
+		tshift += _titleHeight;
+
+		p.setTextPalette(selected ? (outbg ? st::outTextPaletteSelected : st::inTextPaletteSelected) : (outbg ? st::outTextPalette : st::inTextPalette));
+	}
+	if (_descriptionHeight) {
+		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+		_description.drawLeft(p, padding.left(), tshift, width, _width, style::al_left, 0, -1, toDescriptionSelection(selection));
+		tshift += _descriptionHeight;
+	}
+	if (_attach) {
+		auto attachAtTop = !_titleHeight && !_descriptionHeight;
+		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
+
+		auto attachLeft = padding.left() - bubble.left();
+		auto attachTop = tshift - bubble.top();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+
+		auto attachSelection = selected ? FullSelection : TextSelection { 0, 0 };
+
+		p.translate(attachLeft, attachTop);
+		_attach->draw(p, r.translated(-attachLeft, -attachTop), attachSelection, ms);
+		auto pixwidth = _attach->currentWidth();
+		auto pixheight = _attach->height();
+
+		auto available = _status.maxWidth();
+		auto statusW = available + 2 * st::msgDateImgPadding.x();
+		auto statusH = st::msgDateFont->height + 2 * st::msgDateImgPadding.y();
+		auto statusX = st::msgDateImgDelta;
+		auto statusY = st::msgDateImgDelta;
+
+		App::roundRect(p, rtlrect(statusX, statusY, statusW, statusH, pixwidth), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
+
+		p.setFont(st::msgDateFont);
+		p.setPen(st::msgDateImgFg);
+		_status.drawLeftElided(p, statusX + st::msgDateImgPadding.x(), statusY + st::msgDateImgPadding.y(), available, pixwidth);
+
+		p.translate(-attachLeft, -attachTop);
+	} else {
+		p.setPen(outbg ? st::webPageDescriptionOutFg : st::webPageDescriptionInFg);
+		_status.drawLeft(p, padding.left(), tshift + st::mediaInBubbleSkip, width, _width);
+	}
+}
+
+HistoryTextState HistoryInvoice::getState(int x, int y, HistoryStateRequest request) const {
+	HistoryTextState result;
+
+	if (_width < st::msgPadding.left() + st::msgPadding.right() + 1) return result;
+	int32 width = _width, height = _height;
+
+	QMargins bubble(_attach ? _attach->bubbleMargins() : QMargins());
+	auto padding = inBubblePadding();
+	auto tshift = padding.top();
+	auto bshift = padding.bottom();
+	if (isBubbleBottom() && _attach && _attach->customInfoLayout() && _attach->currentWidth() + _parent->skipBlockWidth() > width + bubble.left() + bubble.right()) {
+		bshift += bottomInfoPadding();
+	}
+	width -= padding.left() + padding.right();
+
+	auto lineHeight = unitedLineHeight();
+	auto symbolAdd = 0;
+	if (_titleHeight) {
+		if (y >= tshift && y < tshift + _titleHeight) {
+			Text::StateRequestElided titleRequest = request.forText();
+			titleRequest.lines = _titleHeight / lineHeight;
+			result = _title.getStateElidedLeft(x - padding.left(), y - tshift, width, _width, titleRequest);
+		} else if (y >= tshift + _titleHeight) {
+			symbolAdd += _title.length();
+		}
+		tshift += _titleHeight;
+	}
+	if (_descriptionHeight) {
+		if (y >= tshift && y < tshift + _descriptionHeight) {
+			result = _description.getStateLeft(x - padding.left(), y - tshift, width, _width, request.forText());
+		} else if (y >= tshift + _descriptionHeight) {
+			symbolAdd += _description.length();
+		}
+		tshift += _descriptionHeight;
+	}
+	if (_attach) {
+		auto attachAtTop = !_titleHeight && !_descriptionHeight;
+		if (!attachAtTop) tshift += st::mediaInBubbleSkip;
+
+		auto attachLeft = padding.left() - bubble.left();
+		auto attachTop = tshift - bubble.top();
+		if (rtl()) attachLeft = _width - attachLeft - _attach->currentWidth();
+
+		if (x >= attachLeft && x < attachLeft + _attach->currentWidth() && y >= tshift && y < _height - bshift) {
+			result = _attach->getState(x - attachLeft, y - attachTop, request);
+		}
+	}
+
+	result.symbol += symbolAdd;
+	return result;
+}
+
+TextSelection HistoryInvoice::adjustSelection(TextSelection selection, TextSelectType type) const {
+	if (!_descriptionHeight || selection.to <= _title.length()) {
+		return _title.adjustSelection(selection, type);
+	}
+	auto descriptionSelection = _description.adjustSelection(toDescriptionSelection(selection), type);
+	if (selection.from >= _title.length()) {
+		return fromDescriptionSelection(descriptionSelection);
+	}
+	auto titleSelection = _title.adjustSelection(selection, type);
+	return { titleSelection.from, fromDescriptionSelection(descriptionSelection).to };
+}
+
+void HistoryInvoice::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) {
+	if (_attach) {
+		_attach->clickHandlerActiveChanged(p, active);
+	}
+}
+
+void HistoryInvoice::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
+	if (_attach) {
+		_attach->clickHandlerPressedChanged(p, pressed);
+	}
+}
+
+void HistoryInvoice::attachToParent() {
+	if (_attach) _attach->attachToParent();
+}
+
+void HistoryInvoice::detachFromParent() {
+	if (_attach) _attach->detachFromParent();
+}
+
+QString HistoryInvoice::notificationText() const {
+	return _title.originalText();
+}
+
+TextWithEntities HistoryInvoice::selectedText(TextSelection selection) const {
+	if (selection == FullSelection) {
+		return TextWithEntities();
+	}
+	auto titleResult = _title.originalTextWithEntities(selection, ExpandLinksAll);
+	auto descriptionResult = _description.originalTextWithEntities(toDescriptionSelection(selection), ExpandLinksAll);
+	if (titleResult.text.isEmpty()) {
+		return descriptionResult;
+	} else if (descriptionResult.text.isEmpty()) {
+		return titleResult;
+	}
+
+	titleResult.text += '\n';
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
+	return titleResult;
+}
+
+QMargins HistoryInvoice::inBubblePadding() const {
+	auto lshift = st::msgPadding.left();
+	auto rshift = st::msgPadding.right();
+	auto bshift = isBubbleBottom() ? st::msgPadding.top() : st::mediaInBubbleSkip;
+	auto tshift = isBubbleTop() ? st::msgPadding.bottom() : st::mediaInBubbleSkip;
+	return QMargins(lshift, tshift, rshift, bshift);
+}
+
+int HistoryInvoice::bottomInfoPadding() const {
+	if (!isBubbleBottom()) return 0;
+
+	auto result = st::msgDateFont->height;
 	return result;
 }
 

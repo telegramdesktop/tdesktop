@@ -210,7 +210,7 @@ bool HistoryMessageReply::updateData(HistoryMessage *holder, bool force) {
 		replyToLnk = goToMessageClickHandler(replyToMsg);
 		if (!replyToMsg->Has<HistoryMessageForwarded>()) {
 			if (auto bot = replyToMsg->viaBot()) {
-				_replyToVia.reset(new HistoryMessageVia());
+				_replyToVia = std::make_unique<HistoryMessageVia>();
 				_replyToVia->create(peerToUser(bot->id));
 			}
 		}
@@ -474,7 +474,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId id, MTPDmessage::Flags fl
 	createComponents(config);
 
 	if (mediaOriginal) {
-		_media.reset(mediaOriginal->clone(this));
+		_media = mediaOriginal->clone(this);
 	}
 	setText(fwd->originalText());
 }
@@ -498,7 +498,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
-	_media.reset(new HistoryPhoto(this, photo, caption));
+	_media = std::make_unique<HistoryPhoto>(this, photo, caption);
 	setText(TextWithEntities());
 }
 
@@ -506,7 +506,7 @@ HistoryMessage::HistoryMessage(History *history, MsgId msgId, MTPDmessage::Flags
 	: HistoryItem(history, msgId, flags, date, (flags & MTPDmessage::Flag::f_from_id) ? from : 0) {
 	createComponentsHelper(flags, replyTo, viaBotId, markup);
 
-	_media.reset(new HistoryGame(this, game));
+	_media = std::make_unique<HistoryGame>(this, game);
 	setText(TextWithEntities());
 }
 
@@ -682,24 +682,24 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 	switch (media ? media->type() : mtpc_messageMediaEmpty) {
 	case mtpc_messageMediaContact: {
 		auto &d = media->c_messageMediaContact();
-		_media.reset(new HistoryContact(this, d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number)));
+		_media = std::make_unique<HistoryContact>(this, d.vuser_id.v, qs(d.vfirst_name), qs(d.vlast_name), qs(d.vphone_number));
 	} break;
 	case mtpc_messageMediaGeo: {
 		auto &point = media->c_messageMediaGeo().vgeo;
 		if (point.type() == mtpc_geoPoint) {
-			_media.reset(new HistoryLocation(this, LocationCoords(point.c_geoPoint())));
+			_media = std::make_unique<HistoryLocation>(this, LocationCoords(point.c_geoPoint()));
 		}
 	} break;
 	case mtpc_messageMediaVenue: {
 		auto &d = media->c_messageMediaVenue();
 		if (d.vgeo.type() == mtpc_geoPoint) {
-			_media.reset(new HistoryLocation(this, LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress)));
+			_media = std::make_unique<HistoryLocation>(this, LocationCoords(d.vgeo.c_geoPoint()), qs(d.vtitle), qs(d.vaddress));
 		}
 	} break;
 	case mtpc_messageMediaPhoto: {
 		auto &photo = media->c_messageMediaPhoto();
 		if (photo.vphoto.type() == mtpc_photo) {
-			_media.reset(new HistoryPhoto(this, App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption)));
+			_media = std::make_unique<HistoryPhoto>(this, App::feedPhoto(photo.vphoto.c_photo()), qs(photo.vcaption));
 		}
 	} break;
 	case mtpc_messageMediaDocument: {
@@ -713,10 +713,10 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 		switch (d.type()) {
 		case mtpc_webPageEmpty: break;
 		case mtpc_webPagePending: {
-			_media.reset(new HistoryWebPage(this, App::feedWebPage(d.c_webPagePending())));
+			_media = std::make_unique<HistoryWebPage>(this, App::feedWebPage(d.c_webPagePending()));
 		} break;
 		case mtpc_webPage: {
-			_media.reset(new HistoryWebPage(this, App::feedWebPage(d.c_webPage())));
+			_media = std::make_unique<HistoryWebPage>(this, App::feedWebPage(d.c_webPage()));
 		} break;
 		case mtpc_webPageNotModified: LOG(("API Error: webPageNotModified is unexpected in message media.")); break;
 		}
@@ -724,21 +724,24 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 	case mtpc_messageMediaGame: {
 		auto &d = media->c_messageMediaGame().vgame;
 		if (d.type() == mtpc_game) {
-			_media.reset(new HistoryGame(this, App::feedGame(d.c_game())));
+			_media = std::make_unique<HistoryGame>(this, App::feedGame(d.c_game()));
 		}
+	} break;
+	case mtpc_messageMediaInvoice: {
+		_media = std::make_unique<HistoryInvoice>(this, media->c_messageMediaInvoice());
 	} break;
 	};
 }
 
 void HistoryMessage::initMediaFromDocument(DocumentData *doc, const QString &caption) {
 	if (doc->sticker()) {
-		_media.reset(new HistorySticker(this, doc));
+		_media = std::make_unique<HistorySticker>(this, doc);
 	} else if (doc->isAnimation()) {
-		_media.reset(new HistoryGif(this, doc, caption));
+		_media = std::make_unique<HistoryGif>(this, doc, caption);
 	} else if (doc->isVideo()) {
-		_media.reset(new HistoryVideo(this, doc, caption));
+		_media = std::make_unique<HistoryVideo>(this, doc, caption);
 	} else {
-		_media.reset(new HistoryDocument(this, doc, caption));
+		_media = std::make_unique<HistoryDocument>(this, doc, caption);
 	}
 }
 
@@ -1026,7 +1029,7 @@ void HistoryMessage::setMedia(const MTPMessageMedia *media) {
 		if (_media->type() == MediaTypeGame) return;
 
 		mediaRemovedSkipBlock = _media->isDisplayed() && _media->isBubbleBottom();
-		_media.clear();
+		_media.reset();
 	}
 	initMedia(media);
 	auto mediaDisplayed = _media && _media->isDisplayed();
@@ -1834,7 +1837,7 @@ bool HistoryMessage::hasFromPhoto() const {
 }
 
 HistoryMessage::~HistoryMessage() {
-	_media.clear();
+	_media.reset();
 	if (auto reply = Get<HistoryMessageReply>()) {
 		reply->clearData(this);
 	}
@@ -2036,7 +2039,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	case mtpc_messageActionChatEditPhoto: {
 		auto &photo = action.c_messageActionChatEditPhoto().vphoto;
 		if (photo.type() == mtpc_photo) {
-			_media.reset(new HistoryPhoto(this, history()->peer, photo.c_photo(), st::msgServicePhotoWidth));
+			_media = std::make_unique<HistoryPhoto>(this, history()->peer, photo.c_photo(), st::msgServicePhotoWidth);
 		}
 	} break;
 
@@ -2407,7 +2410,7 @@ void HistoryService::removeMedia() {
 	if (!_media) return;
 
 	bool mediaWasDisplayed = _media->isDisplayed();
-	_media.clear();
+	_media.reset();
 	if (mediaWasDisplayed) {
 		_textWidth = -1;
 		_textHeight = 0;
@@ -2468,7 +2471,7 @@ void HistoryService::clearDependency() {
 
 HistoryService::~HistoryService() {
 	clearDependency();
-	_media.clear();
+	_media.reset();
 }
 
 HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, UserData *inviter, MTPDmessage::Flags flags)

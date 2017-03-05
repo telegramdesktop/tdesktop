@@ -1102,6 +1102,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_title" = "Edit color palette";
 "lng_theme_editor_export_button" = "Export theme";
 
+"lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
+
 // Not used
 
 "lng_topbar_info" = "Info";

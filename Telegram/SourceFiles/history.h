@@ -118,6 +118,7 @@ enum HistoryMediaType {
 	MediaTypeMusicFile,
 	MediaTypeVoiceFile,
 	MediaTypeGame,
+	MediaTypeInvoice,
 
 	MediaTypeCount
 };

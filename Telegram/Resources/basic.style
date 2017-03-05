@@ -182,6 +182,16 @@ inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
 	linkFg: msgOutServiceFgSelected;
 }
+inSemiboldPalette: TextPalette(inTextPalette) {
+	linkFg: msgInServiceFg;
+	selectFg: msgInServiceFgSelected;
+	selectLinkFg: msgInServiceFgSelected;
+}
+outSemiboldPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutServiceFg;
+	selectFg: msgOutServiceFgSelected;
+	selectLinkFg: msgOutServiceFgSelected;
+}
 
 mediaPadding: margins(0px, 0px, 0px, 0px);
 mediaCaptionSkip: 5px;
