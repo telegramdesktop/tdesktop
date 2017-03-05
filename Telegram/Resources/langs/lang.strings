@@ -622,6 +622,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the last version in Settings or install it from {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# second|# seconds}";
+"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# sec|# sec|# sec}";
+
 "lng_action_add_user" = "{from} added {user}";
 "lng_action_add_users_many" = "{from} added {users}";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -661,6 +664,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "You scored {count:#|#|#} in {game}";
 "lng_action_game_score_no_game" = "{from} scored {count:#|#|#}";
 "lng_action_game_you_scored_no_game" = "You scored {count:#|#|#}";
+"lng_action_call_outgoing" = "Outgoing call at {time}";
+"lng_action_call_incoming" = "Incoming call at {time}";
+"lng_action_call_outgoing_duration" = "Outgoing call ({duration}) at {time}";
+"lng_action_call_incoming_duration" = "Incoming call ({duration}) at {time}";
+"lng_action_call_incoming_missed" = "Missed call at {time}";
+"lng_action_call_outgoing_missed" = "Cancelled call at {time}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# member|# members} limit reached";
 "lng_profile_migrate_body" = "To get over this limit, you can upgrade your group to a supergroup.";

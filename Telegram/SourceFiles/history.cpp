@@ -827,12 +827,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 
 	case mtpc_messageService: {
 		auto &m = msg.c_messageService();
-		if (m.vaction.type() == mtpc_messageActionPhoneCall) {
-			auto viaBotId = 0;
-			result = createUnsupportedMessage(this, m.vid.v, mtpCastFlags(m.vflags.v), m.vreply_to_msg_id.v, viaBotId, date(m.vdate), m.vfrom_id.v);
-		} else {
-			result = HistoryService::create(this, m);
-		}
+		result = HistoryService::create(this, m);
 
 		if (applyServiceAction) {
 			auto &action = m.vaction;

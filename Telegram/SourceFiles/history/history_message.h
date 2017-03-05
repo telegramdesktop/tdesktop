@@ -323,8 +323,18 @@ protected:
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
 
-	using Links = QList<ClickHandlerPtr>;
-	void setServiceText(const QString &text, const Links &links);
+	struct PreparedText {
+		QString text;
+		QList<ClickHandlerPtr> links;
+	};
+	void setServiceText(const PreparedText &prepared);
+
+	QString fromLinkText() const {
+		return textcmdLink(1, _from->name);
+	};
+	ClickHandlerPtr fromLink() const {
+		return peerOpenClickHandler(_from);
+	};
 
 	void removeMedia();
 
@@ -341,14 +351,14 @@ private:
 		return const_cast<HistoryService*>(this)->GetDependentData();
 	}
 	bool updateDependent(bool force = false);
-	bool updateDependentText();
+	void updateDependentText();
 	void clearDependency();
 
 	void createFromMtp(const MTPDmessageService &message);
 	void setMessageByAction(const MTPmessageAction &action);
 
-	bool preparePinnedText(const QString &from, QString *outText, Links *outLinks);
-	bool prepareGameScoreText(const QString &from, QString *outText, Links *outLinks);
+	PreparedText preparePinnedText();
+	PreparedText prepareGameScoreText();
 
 };
 
