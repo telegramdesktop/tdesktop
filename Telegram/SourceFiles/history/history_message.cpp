@@ -568,7 +568,6 @@ bool HistoryMessage::displayEditedBadge(bool hasViaBotOrInlineMarkup) const {
 	return true;
 }
 
-
 void HistoryMessage::createComponents(const CreateConfig &config) {
 	uint64 mask = 0;
 	if (config.replyTo) {
@@ -729,8 +728,23 @@ void HistoryMessage::initMedia(const MTPMessageMedia *media) {
 	} break;
 	case mtpc_messageMediaInvoice: {
 		_media = std::make_unique<HistoryInvoice>(this, media->c_messageMediaInvoice());
+		if (static_cast<HistoryInvoice*>(getMedia())->getReceiptMsgId()) {
+			replaceBuyWithReceiptInMarkup();
+		}
 	} break;
 	};
+}
+
+void HistoryMessage::replaceBuyWithReceiptInMarkup() {
+	if (auto markup = inlineReplyMarkup()) {
+		for (auto &row : markup->rows) {
+			for (auto &button : row) {
+				if (button.type == HistoryMessageReplyMarkup::Button::Type::Buy) {
+					button.text = lang(lng_payments_receipt_button);
+				}
+			}
+		}
+	}
 }
 
 void HistoryMessage::initMediaFromDocument(DocumentData *doc, const QString &caption) {
@@ -901,8 +915,8 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 		textWithEntities.entities = entitiesFromMTP(message.ventities.v);
 	}
 	setText(textWithEntities);
-	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setReplyMarkup(message.has_reply_markup() ? (&message.vreply_markup) : nullptr);
+	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
 	setViewsCount(message.has_views() ? message.vviews.v : -1);
 
 	finishEdition(keyboardTop);

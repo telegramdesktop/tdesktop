@@ -1105,6 +1105,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_export_button" = "Export theme";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
+"lng_payments_receipt_label" = "Receipt";
+"lng_payments_receipt_label_test" = "Test receipt";
+"lng_payments_invoice_label" = "Invoice";
+"lng_payments_invoice_label_test" = "Test invoice";
+"lng_payments_receipt_button" = "Receipt";
 
 // Not used
 

@@ -885,6 +885,9 @@ public:
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
 
+	MsgId getReceiptMsgId() const {
+		return _receiptMsgId;
+	}
 	QString getTitle() const {
 		return _title.originalText();
 	}
@@ -946,11 +949,13 @@ private:
 
 	std::unique_ptr<HistoryMedia> _attach;
 
-	int _titleHeight;
-	int _descriptionHeight;
+	int _titleHeight = 0;
+	int _descriptionHeight = 0;
 	Text _title;
 	Text _description;
 	Text _status;
+
+	MsgId _receiptMsgId = 0;
 
 };
 

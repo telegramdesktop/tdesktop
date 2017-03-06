@@ -3482,12 +3482,23 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 		}
 	}
 
+	auto labelText = [&data] {
+		if (data.has_receipt_msg_id()) {
+			if (data.is_test()) {
+				return lang(lng_payments_receipt_label_test);
+			}
+			return lang(lng_payments_receipt_label);
+		} else if (data.is_test()) {
+			return lang(lng_payments_invoice_label_test);
+		}
+		return lang(lng_payments_invoice_label);
+	};
 	auto statusText = TextWithEntities { fillAmountAndCurrency(data.vtotal_amount.v, qs(data.vcurrency)), EntitiesInText() };
 	statusText.entities.push_back(EntityInText(EntityInTextBold, 0, statusText.text.size()));
-	if (data.is_test()) {
-		statusText.text += " TEST";
-	}
+	statusText.text += ' ' + labelText().toUpper();
 	_status.setMarkedText(st::defaultTextStyle, statusText, itemTextOptions(_parent));
+
+	_receiptMsgId = data.has_receipt_msg_id() ? data.vreceipt_msg_id.v : 0;
 
 	// init strings
 	auto description = qs(data.vdescription);

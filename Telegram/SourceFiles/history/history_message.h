@@ -156,6 +156,10 @@ private:
 
 	void setEmptyText();
 
+	// For an invoice button we replace the button text with a "Receipt" key.
+	// It should show the receipt for the payed invoice. Still let mobile apps do that.
+	void replaceBuyWithReceiptInMarkup();
+
 	void initDimensions() override;
 	int resizeGetHeight_(int width) override;
 	int performResizeGetHeight(int width);
