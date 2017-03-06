@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace {
 
 constexpr auto kCoordPrecision = 8;
+constexpr auto kMaxHttpRedirects = 5;
 
 } // namespace
 
@@ -144,7 +145,7 @@ void LocationManager::onFinished(QNetworkReply *reply) {
 					LocationData *d = i.value();
 					if (serverRedirects.constFind(d) == serverRedirects.cend()) {
 						serverRedirects.insert(d, 1);
-					} else if (++serverRedirects[d] > MaxHttpRedirects) {
+					} else if (++serverRedirects[d] > kMaxHttpRedirects) {
 						DEBUG_LOG(("Network Error: Too many HTTP redirects in onFinished() for image link: %1").arg(loc));
 						return onFailed(reply);
 					}
@@ -155,7 +156,7 @@ void LocationManager::onFinished(QNetworkReply *reply) {
 					LocationData *d = i.value();
 					if (serverRedirects.constFind(d) == serverRedirects.cend()) {
 						serverRedirects.insert(d, 1);
-					} else if (++serverRedirects[d] > MaxHttpRedirects) {
+					} else if (++serverRedirects[d] > kMaxHttpRedirects) {
 						DEBUG_LOG(("Network Error: Too many HTTP redirects in onFinished() for image link: %1").arg(loc));
 						return onFailed(reply);
 					}

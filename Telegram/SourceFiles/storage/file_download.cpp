@@ -493,7 +493,9 @@ void mtpFileLoader::webPartLoaded(int offset, const MTPupload_WebFile &result, m
 		return cancel(true);
 	}
 	auto &webFile = result.c_upload_webFile();
-	if (webFile.vsize.v != _size) {
+	if (!_size) {
+		_size = webFile.vsize.v;
+	} else if (webFile.vsize.v != _size) {
 		LOG(("MTP Error: Bad size provided by bot for webDocument: %1, real: %2").arg(_size).arg(webFile.vsize.v));
 		return cancel(true);
 	}
@@ -780,10 +782,7 @@ public:
 	webFileLoaderPrivate(webFileLoader *loader, const QString &url)
 		: _interface(loader)
 		, _url(url)
-		, _already(0)
-		, _size(0)
-		, _reply(0)
-		, _redirectsLeft(MaxHttpRedirects) {
+		, _redirectsLeft(kMaxHttpRedirects) {
 	}
 
 	QNetworkReply *reply() {
@@ -830,11 +829,14 @@ public:
 	}
 
 private:
-	webFileLoader *_interface;
+	static constexpr auto kMaxHttpRedirects = 5;
+
+	webFileLoader *_interface = nullptr;
 	QUrl _url;
-	qint64 _already, _size;
-	QNetworkReply *_reply;
-	int32 _redirectsLeft;
+	qint64 _already = 0;
+	qint64 _size = 0;
+	QNetworkReply *_reply = nullptr;
+	int32 _redirectsLeft = kMaxHttpRedirects;
 	QByteArray _data;
 
 	friend class WebLoadManager;
