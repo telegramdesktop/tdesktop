@@ -28,7 +28,7 @@ namespace Ui {
 
 class FadeAnimation {
 public:
-	FadeAnimation(TWidget *widget);
+	FadeAnimation(TWidget *widget, bool scaled = false);
 
 	bool paint(Painter &p);
 	void refreshCache();
@@ -58,9 +58,13 @@ private:
 	void stopAnimation();
 
 	void updateCallback();
+	QPixmap grabContent();
 
-	TWidget *_widget;
+	TWidget *_widget = nullptr;
+	bool _scaled = false;
+
 	Animation _animation;
+	QSize _size;
 	QPixmap _cache;
 	bool _visible = false;
 
@@ -78,7 +82,8 @@ public:
 	WidgetFadeWrap(QWidget *parent
 		, object_ptr<TWidget> entity
 		, int duration = st::widgetFadeDuration
-		, base::lambda<void()> updateCallback = base::lambda<void()>());
+		, base::lambda<void()> updateCallback = base::lambda<void()>()
+		, bool scaled = false);
 
 	void showAnimated() {
 		_animation.fadeIn(_duration);
@@ -140,16 +145,33 @@ public:
 	WidgetFadeWrap(QWidget *parent
 		, object_ptr<Widget> entity
 		, int duration = st::widgetFadeDuration
-		, base::lambda<void()> updateCallback = base::lambda<void()>()) : WidgetFadeWrap<TWidget>(parent
+		, base::lambda<void()> updateCallback = base::lambda<void()>()
+		, bool scaled = false) : WidgetFadeWrap<TWidget>(parent
 			, std::move(entity)
 			, duration
-			, std::move(updateCallback)) {
+			, std::move(updateCallback)
+			, scaled) {
 	}
 	Widget *entity() {
 		return static_cast<Widget*>(WidgetFadeWrap<TWidget>::entity());
 	}
 	const Widget *entity() const {
 		return static_cast<const Widget*>(WidgetFadeWrap<TWidget>::entity());
+	}
+
+};
+
+template <typename Widget>
+class WidgetScaledFadeWrap : public WidgetFadeWrap<Widget> {
+public:
+	WidgetScaledFadeWrap(QWidget *parent
+		, object_ptr<Widget> entity
+		, int duration = st::widgetFadeDuration
+		, base::lambda<void()> updateCallback = base::lambda<void()>()) : WidgetFadeWrap<Widget>(parent
+			, std::move(entity)
+			, duration
+			, std::move(updateCallback)
+			, true) {
 	}
 
 };
