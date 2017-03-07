@@ -109,7 +109,7 @@ public:
 
 };
 
-constexpr int ScrollDateHideTimeout = 1000;
+constexpr auto kScrollDateHideTimeout = 1000;
 
 ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 	return [](ChannelData *channel, MsgId msgId) {
@@ -118,6 +118,26 @@ ApiWrap::RequestMessageDataCallback replyEditMessageDataCallback() {
 		}
 	};
 }
+
+class DateClickHandler : public ClickHandler {
+public:
+	DateClickHandler(PeerData *peer, QDate date) : _peer(peer), _date(date) {
+	}
+
+	void setDate(QDate date) {
+		_date = date;
+	}
+
+	void onClick(Qt::MouseButton) const override {
+		App::main()->showJumpToDate(_peer, _date);
+	}
+
+private:
+	PeerData *_peer = nullptr;
+	QDate _date;
+
+};
+
 
 } // namespace
 
@@ -137,7 +157,7 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll,
 
 	_trippleClickTimer.setSingleShot(true);
 
-	connect(&_scrollDateHideTimer, SIGNAL(timeout()), this, SLOT(onScrollDateHide()));
+	connect(&_scrollDateHideTimer, SIGNAL(timeout()), this, SLOT(onScrollDateHideByTimer()));
 
 	notifyIsBotChanged();
 
@@ -845,8 +865,12 @@ void HistoryInner::touchEvent(QTouchEvent *e) {
 }
 
 void HistoryInner::mouseMoveEvent(QMouseEvent *e) {
-	if (!(e->buttons() & (Qt::LeftButton | Qt::MiddleButton)) && _dragAction != NoDrag) {
+	auto buttonsPressed = (e->buttons() & (Qt::LeftButton | Qt::MiddleButton));
+	if (!buttonsPressed && _dragAction != NoDrag) {
 		mouseReleaseEvent(e);
+	}
+	if (!buttonsPressed || ClickHandler::getPressed() == _scrollDateLink) {
+		keepScrollDateForNow();
 	}
 	dragActionUpdate(e->globalPos());
 }
@@ -1800,7 +1824,7 @@ void HistoryInner::onScrollDateCheck() {
 	if (!newScrollDateItem) {
 		_scrollDateLastItem = nullptr;
 		_scrollDateLastItemTop = 0;
-		onScrollDateHide();
+		scrollDateHide();
 	} else if (newScrollDateItem != _scrollDateLastItem || newScrollDateItemTop != _scrollDateLastItemTop) {
 		// Show scroll date only if it is not the initial onScroll() event (with empty _scrollDateLastItem).
 		if (_scrollDateLastItem && !_scrollDateShown) {
@@ -1808,15 +1832,28 @@ void HistoryInner::onScrollDateCheck() {
 		}
 		_scrollDateLastItem = newScrollDateItem;
 		_scrollDateLastItemTop = newScrollDateItemTop;
-		_scrollDateHideTimer.start(ScrollDateHideTimeout);
+		_scrollDateHideTimer.start(kScrollDateHideTimeout);
 	}
 }
 
-void HistoryInner::onScrollDateHide() {
+void HistoryInner::onScrollDateHideByTimer() {
 	_scrollDateHideTimer.stop();
+	if (ClickHandler::getPressed() != _scrollDateLink) {
+		scrollDateHide();
+	}
+}
+
+void HistoryInner::scrollDateHide() {
 	if (_scrollDateShown) {
 		toggleScrollDateShown();
 	}
+}
+
+void HistoryInner::keepScrollDateForNow() {
+	if (!_scrollDateShown && _scrollDateLastItem && _scrollDateOpacity.animating()) {
+		toggleScrollDateShown();
+	}
+	_scrollDateHideTimer.start(kScrollDateHideTimeout);
 }
 
 void HistoryInner::toggleScrollDateShown() {
@@ -2086,31 +2123,82 @@ void HistoryInner::onUpdateSelected() {
 			}
 		}
 
-		HistoryStateRequest request;
-		if (_dragAction == Selecting) {
-			request.flags |= Text::StateRequest::Flag::LookupSymbol;
-		} else {
-			selectingText = false;
-		}
-		dragState = item->getState(m.x(), m.y(), request);
-		lnkhost = item;
-		if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
-			if (auto msg = item->toHistoryMessage()) {
-				if (msg->hasFromPhoto()) {
-					enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
-						// stop enumeration if the userpic is below our point
-						if (userpicTop > point.y()) {
-							return false;
-						}
+		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+		auto scrollDateOpacity = _scrollDateOpacity.current(_scrollDateShown ? 1. : 0.);
+		enumerateDates([this, &dragState, &lnkhost, &point, scrollDateOpacity, dateHeight/*, lastDate, showFloatingBefore*/](HistoryItem *item, int itemtop, int dateTop) {
+			// stop enumeration if the date is above our point
+			if (dateTop + dateHeight <= point.y()) {
+				return false;
+			}
 
-						// stop enumeration if we've found a userpic under the cursor
-						if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
-							dragState.link = message->from()->openLink();
-							lnkhost = message;
-							return false;
+			bool displayDate = item->displayDate();
+			bool dateInPlace = displayDate;
+			if (dateInPlace) {
+				int correctDateTop = itemtop + st::msgServiceMargin.top();
+				dateInPlace = (dateTop < correctDateTop + dateHeight);
+			}
+
+			// stop enumeration if we've found a date under the cursor
+			if (dateTop <= point.y()) {
+				auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
+				if (opacity > 0.) {
+					auto dateWidth = 0;
+					if (auto date = item->Get<HistoryMessageDate>()) {
+						dateWidth = date->_width;
+					} else {
+						dateWidth = st::msgServiceFont->width(langDayOfMonthFull(item->date.date()));
+					}
+					dateWidth += st::msgServicePadding.left() + st::msgServicePadding.right();
+					auto dateLeft = st::msgServiceMargin.left();
+					auto maxwidth = item->history()->width;
+					if (Adaptive::ChatWide()) {
+						maxwidth = qMin(maxwidth, int32(st::msgMaxWidth + 2 * st::msgPhotoSkip + 2 * st::msgMargin.left()));
+					}
+					auto widthForDate = maxwidth - st::msgServiceMargin.left() - st::msgServiceMargin.left();
+
+					dateLeft += (widthForDate - dateWidth) / 2;
+
+					if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
+						if (!_scrollDateLink) {
+							_scrollDateLink = MakeShared<DateClickHandler>(item->history()->peer, item->date.date());
+						} else {
+							static_cast<DateClickHandler*>(_scrollDateLink.data())->setDate(item->date.date());
 						}
-						return true;
-					});
+						dragState.link = _scrollDateLink;
+						lnkhost = item;
+					}
+				}
+				return false;
+			}
+			return true;
+		});
+		if (!dragState.link) {
+			HistoryStateRequest request;
+			if (_dragAction == Selecting) {
+				request.flags |= Text::StateRequest::Flag::LookupSymbol;
+			} else {
+				selectingText = false;
+			}
+			dragState = item->getState(m.x(), m.y(), request);
+			lnkhost = item;
+			if (!dragState.link && m.x() >= st::historyPhotoLeft && m.x() < st::historyPhotoLeft + st::msgPhotoSize) {
+				if (auto msg = item->toHistoryMessage()) {
+					if (msg->hasFromPhoto()) {
+						enumerateUserpics([&dragState, &lnkhost, &point](HistoryMessage *message, int userpicTop) -> bool {
+							// stop enumeration if the userpic is below our point
+							if (userpicTop > point.y()) {
+								return false;
+							}
+
+							// stop enumeration if we've found a userpic under the cursor
+							if (point.y() >= userpicTop && point.y() < userpicTop + st::msgPhotoSize) {
+								dragState.link = message->from()->openLink();
+								lnkhost = message;
+								return false;
+							}
+							return true;
+						});
+					}
 				}
 			}
 		}

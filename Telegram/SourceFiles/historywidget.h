@@ -152,7 +152,7 @@ public slots:
 
 private slots:
 	void onScrollDateCheck();
-	void onScrollDateHide();
+	void onScrollDateHideByTimer();
 
 private:
 	void itemRemoved(HistoryItem *item);
@@ -174,6 +174,8 @@ private:
 	void toggleScrollDateShown();
 	void repaintScrollDateCallback();
 	bool displayScrollDate() const;
+	void scrollDateHide();
+	void keepScrollDateForNow();
 
 	PeerData *_peer = nullptr;
 	History *_migrated = nullptr;
@@ -278,6 +280,7 @@ private:
 	SingleTimer _scrollDateHideTimer;
 	HistoryItem *_scrollDateLastItem = nullptr;
 	int _scrollDateLastItemTop = 0;
+	ClickHandlerPtr _scrollDateLink;
 
 	enum class EnumItemsDirection {
 		TopToBottom,

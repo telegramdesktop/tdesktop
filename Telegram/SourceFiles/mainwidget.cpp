@@ -2759,7 +2759,7 @@ void MainWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
 	}
 }
 
-void MainWidget::showJumpToDate(PeerData *peer) {
+void MainWidget::showJumpToDate(PeerData *peer, QDate requestedDate) {
 	t_assert(peer != nullptr);
 	auto currentPeerDate = [peer] {
 		if (auto history = App::historyLoaded(peer)) {
@@ -2798,7 +2798,8 @@ void MainWidget::showJumpToDate(PeerData *peer) {
 		}
 		return QDate(2013, 8, 1); // Telegram was launched in August 2013 :)
 	};
-	auto highlighted = currentPeerDate(), month = highlighted;
+	auto highlighted = requestedDate.isNull() ? currentPeerDate() : requestedDate;
+	auto month = highlighted;
 	auto box = Box<CalendarBox>(month, highlighted, [this, peer](const QDate &date) { jumpToDate(peer, date); });
 	box->setMinDate(minPeerDate());
 	box->setMaxDate(maxPeerDate());

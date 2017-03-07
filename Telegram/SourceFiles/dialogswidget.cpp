@@ -2293,7 +2293,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
-	_jumpToDate->entity()->setClickedCallback([this] { if (_searchInPeer) App::main()->showJumpToDate(_searchInPeer); });
+	_jumpToDate->entity()->setClickedCallback([this] { if (_searchInPeer) App::main()->showJumpToDate(_searchInPeer, QDate()); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {

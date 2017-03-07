@@ -180,7 +180,7 @@ public:
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(PeerData *peer, MsgId msgId);
 
-	void showJumpToDate(PeerData *peer);
+	void showJumpToDate(PeerData *peer, QDate requestedDate);
 
 	void windowShown();
 
