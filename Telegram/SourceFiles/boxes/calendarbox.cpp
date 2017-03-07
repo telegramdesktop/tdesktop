@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang.h"
+#include "ui/effects/ripple_animation.h"
 
 namespace {
 
@@ -185,6 +186,7 @@ protected:
 
 private:
 	void monthChanged(QDate month);
+	void setPressed(int pressed);
 
 	int rowsLeft() const;
 	int rowsTop() const;
@@ -193,6 +195,8 @@ private:
 	void paintRows(Painter &p, QRect clip);
 
 	Context *_context = nullptr;
+
+	std::map<int, std::unique_ptr<Ui::RippleAnimation>> _ripples;
 
 	base::lambda<void(QDate)> _dateChosenCallback;
 
@@ -209,6 +213,7 @@ CalendarBox::Inner::Inner(QWidget *parent, Context *context) : TWidget(parent)
 }
 
 void CalendarBox::Inner::monthChanged(QDate month) {
+	_ripples.clear();
 	resizeToCurrent();
 	update();
 }
@@ -253,6 +258,7 @@ int CalendarBox::Inner::rowsTop() const {
 
 void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 	p.setFont(st::calendarDaysFont);
+	auto ms = getms();
 	auto y = rowsTop();
 	auto index = -_context->daysShift();
 	auto highlightedIndex = _context->highlightedIndex();
@@ -269,18 +275,30 @@ void CalendarBox::Inner::paintRows(Painter &p, QRect clip) {
 			auto grayedOut = (index < 0 || index >= daysCount || !rect.intersects(clip));
 			auto highlighted = (index == highlightedIndex);
 			auto enabled = _context->isEnabled(index);
+			auto innerLeft = x + (st::calendarCellSize.width() - st::calendarCellInner) / 2;
+			auto innerTop = y + (st::calendarCellSize.height() - st::calendarCellInner) / 2;
 			if (highlighted) {
 				PainterHighQualityEnabler hq(p);
 				p.setPen(Qt::NoPen);
-				p.setBrush(grayedOut ? st::dialogsUnreadBgMuted : st::dialogsBgActive);
-				p.drawEllipse(myrtlrect(x + (st::calendarCellSize.width() - st::calendarCellInner) / 2, y + (st::calendarCellSize.height() - st::calendarCellInner) / 2, st::calendarCellInner, st::calendarCellInner));
+				p.setBrush(grayedOut ? st::windowBgOver : st::dialogsBgActive);
+				p.drawEllipse(myrtlrect(innerLeft, innerTop, st::calendarCellInner, st::calendarCellInner));
 				p.setBrush(Qt::NoBrush);
 			}
-			//if (index == _rippleIndex) {
-			//	_ripple
-			//}
+			auto it = _ripples.find(index);
+			if (it != _ripples.cend()) {
+				auto colorOverride = [highlighted, grayedOut] {
+					if (highlighted) {
+						return grayedOut ? st::windowBgRipple : st::dialogsRippleBgActive;
+					}
+					return st::windowBgOver;
+				};
+				it->second->paint(p, innerLeft, innerTop, width(), ms, &(colorOverride()->c));
+				if (it->second->empty()) {
+					_ripples.erase(it);
+				}
+			}
 			if (highlighted) {
-				p.setPen(grayedOut ? st::dialogsUnreadFg : st::dialogsNameFgActive);
+				p.setPen(grayedOut ? st::windowSubTextFg : st::dialogsNameFgActive);
 			} else if (enabled) {
 				p.setPen(grayedOut ? st::windowSubTextFg : st::boxTextFg);
 			} else {
@@ -306,13 +324,42 @@ void CalendarBox::Inner::mouseMoveEvent(QMouseEvent *e) {
 }
 
 void CalendarBox::Inner::mousePressEvent(QMouseEvent *e) {
-	_pressed = _selected;
+	setPressed(_selected);
+	if (_selected != kEmptySelection) {
+		auto index = _selected + _context->daysShift();
+		t_assert(index >= 0);
+
+		auto row = index / kDaysInWeek;
+		auto col = index % kDaysInWeek;
+		auto cell = QRect(rowsLeft() + col * st::calendarCellSize.width(), rowsTop() + row * st::calendarCellSize.height(), st::calendarCellSize.width(), st::calendarCellSize.height());
+		auto it = _ripples.find(_selected);
+		if (it == _ripples.cend()) {
+			auto mask = Ui::RippleAnimation::ellipseMask(QSize(st::calendarCellInner, st::calendarCellInner));
+			auto update = [this, cell] { rtlupdate(cell); };
+			it = _ripples.emplace(_selected, std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(mask), std::move(update))).first;
+		}
+		auto ripplePosition = QPoint(cell.x() + (st::calendarCellSize.width() - st::calendarCellInner) / 2, cell.y() + (st::calendarCellSize.height() - st::calendarCellInner) / 2);
+		it->second->add(e->pos() - ripplePosition);
+	}
 }
 
 void CalendarBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = std::exchange(_pressed, kEmptySelection);
+	auto pressed = _pressed;
+	setPressed(kEmptySelection);
 	if (pressed != kEmptySelection && pressed == _selected) {
 		_dateChosenCallback(_context->dateFromIndex(pressed));
+	}
+}
+
+void CalendarBox::Inner::setPressed(int pressed) {
+	if (_pressed != pressed) {
+		if (_pressed != kEmptySelection) {
+			auto it = _ripples.find(_pressed);
+			if (it != _ripples.cend()) {
+				it->second->lastStop();
+			}
+		}
+		_pressed = pressed;
 	}
 }
 
