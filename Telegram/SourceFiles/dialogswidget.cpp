@@ -46,6 +46,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
+#include "ui/effects/widget_fade_wrap.h"
 
 namespace {
 
@@ -2263,6 +2264,7 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
+, _jumpToDate(this, object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _lockUnlock(this, st::dialogsLock)
 , _scroll(this, st::dialogsScroll) {
@@ -2291,6 +2293,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
+	_jumpToDate->entity()->setClickedCallback([this] { jumpToDate(); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
@@ -2318,6 +2321,8 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 
 	_filter->setFocusPolicy(Qt::StrongFocus);
 	_filter->customUpDown(true);
+
+	updateJumpToDateVisibility(true);
 }
 
 #ifndef TDESKTOP_DISABLE_AUTOUPDATE
@@ -2341,6 +2346,10 @@ void DialogsWidget::onCheckUpdateStatus() {
 void DialogsWidget::activate() {
 	_filter->setFocus();
 	_inner->activate();
+}
+
+void DialogsWidget::jumpToDate() {
+	Ui::show(Box<InformBox>("not implemented"));
 }
 
 void DialogsWidget::createDialog(History *history) {
@@ -2413,6 +2422,7 @@ void DialogsWidget::showAnimated(Window::SlideDirection direction, const Window:
 	if (_forwardCancel) _forwardCancel->hide();
 	_filter->hide();
 	_cancelSearch->hideFast();
+	_jumpToDate->hideFast();
 	_lockUnlock->hide();
 
 	int delta = st::slideShift;
@@ -2432,6 +2442,7 @@ void DialogsWidget::animationCallback() {
 		if (_forwardCancel) _forwardCancel->show();
 		_filter->show();
 		updateLockUnlockVisibility();
+		updateJumpToDateVisibility(true);
 
 		onFilterUpdate();
 		if (App::wnd()) App::wnd()->setInnerFocus();
@@ -2941,7 +2952,7 @@ void DialogsWidget::onListScroll() {
 void DialogsWidget::onFilterUpdate(bool force) {
 	if (_a_show.animating() && !force) return;
 
-	QString filterText = _filter->getLastText();
+	auto filterText = _filter->getLastText();
 	_inner->onFilterUpdate(filterText, force);
 	if (filterText.isEmpty()) {
 		_searchCache.clear();
@@ -2951,6 +2962,8 @@ void DialogsWidget::onFilterUpdate(bool force) {
 	} else {
 		_cancelSearch->showAnimated();
 	}
+	updateJumpToDateVisibility();
+
 	if (filterText.size() < MinUsernameLength) {
 		_peerSearchCache.clear();
 		_peerSearchQueries.clear();
@@ -2970,6 +2983,7 @@ void DialogsWidget::setSearchInPeer(PeerData *peer) {
 	if (newSearchInPeer != _searchInPeer) {
 		_searchInPeer = newSearchInPeer;
 		App::main()->searchInPeerChanged().notify(_searchInPeer, true);
+		updateJumpToDateVisibility();
 	}
 	_inner->searchInPeer(_searchInPeer);
 }
@@ -3028,6 +3042,22 @@ void DialogsWidget::updateLockUnlockVisibility() {
 	updateControlsGeometry();
 }
 
+void DialogsWidget::updateJumpToDateVisibility(bool fast) {
+	if (_a_show.animating()) return;
+
+	if (_searchInPeer && _filter->getLastText().isEmpty()) {
+		if (fast) {
+			_jumpToDate->showFast();
+		} else {
+			_jumpToDate->showAnimated();
+		}
+	} else if (fast) {
+		_jumpToDate->hideFast();
+	} else {
+		_jumpToDate->hideAnimated();
+	}
+}
+
 void DialogsWidget::updateControlsGeometry() {
 	auto filterAreaTop = 0;
 	if (_forwardCancel) {
@@ -3047,6 +3077,7 @@ void DialogsWidget::updateControlsGeometry() {
 	_mainMenuToggle->moveToLeft(mainMenuLeft, filterAreaTop + st::dialogsFilterPadding.y());
 	_lockUnlock->moveToLeft(filterLeft + filterWidth + st::dialogsFilterPadding.x(), filterAreaTop + st::dialogsFilterPadding.y());
 	_cancelSearch->moveToLeft(filterLeft + filterWidth - _cancelSearch->width(), _filter->y());
+	_jumpToDate->moveToLeft(filterLeft + filterWidth - _jumpToDate->width(), _filter->y());
 
 	auto scrollTop = filterAreaTop + filterAreaHeight;
 	auto addToScroll = App::main() ? App::main()->contentScrollAddToY() : 0;

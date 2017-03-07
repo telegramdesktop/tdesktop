@@ -37,6 +37,8 @@ class FlatButton;
 class LinkButton;
 class FlatInput;
 class CrossButton;
+template <typename Widget>
+class WidgetScaledFadeWrap;
 } // namespace Ui
 
 enum DialogsSearchRequestType {
@@ -391,9 +393,12 @@ private:
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
 	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 
+	void jumpToDate();
+
 	void setSearchInPeer(PeerData *peer);
 	void showMainMenu();
 	void updateLockUnlockVisibility();
+	void updateJumpToDateVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
 
@@ -419,6 +424,7 @@ private:
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
 	object_ptr<Ui::ScrollArea> _scroll;
