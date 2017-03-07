@@ -2761,7 +2761,7 @@ void MainWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
 
 void MainWidget::showJumpToDate(PeerData *peer) {
 	t_assert(peer != nullptr);
-	auto shown = ([peer] {
+	auto currentPeerDate = [peer] {
 		if (auto history = App::historyLoaded(peer)) {
 			if (history->scrollTopItem) {
 				return history->scrollTopItem->date.date();
@@ -2770,10 +2770,48 @@ void MainWidget::showJumpToDate(PeerData *peer) {
 			}
 		}
 		return QDate::currentDate();
-	})();
-	auto highlighted = shown;
-	Ui::show(Box<CalendarBox>(shown, highlighted, [peer](QDate date) {
-		Ui::show(Box<InformBox>("not implemented " + langDayOfMonthFull(date)));
+	};
+	auto highlighted = currentPeerDate(), month = highlighted;
+	Ui::show(Box<CalendarBox>(month, highlighted, [this, peer](const QDate &date) { jumpToDate(peer, date); }));
+}
+
+void MainWidget::jumpToDate(PeerData *peer, const QDate &date) {
+	auto time = static_cast<int>(QDateTime(date).toTime_t());
+	auto flags = MTPmessages_Search::Flags(0);
+	auto request = MTPmessages_GetHistory(peer->input, MTP_int(0), MTP_int(time), MTP_int(-1), MTP_int(1), MTP_int(0), MTP_int(0));
+	MTP::send(request, ::rpcDone([peer](const MTPmessages_Messages &result) {
+		auto getMessagesList = [&result, peer]() -> const QVector<MTPMessage>* {
+			auto handleMessages = [](auto &messages) {
+				App::feedUsers(messages.vusers);
+				App::feedChats(messages.vchats);
+				return &messages.vmessages.c_vector().v;
+			};
+			switch (result.type()) {
+			case mtpc_messages_messages: return handleMessages(result.c_messages_messages());
+			case mtpc_messages_messagesSlice: return handleMessages(result.c_messages_messagesSlice());
+			case mtpc_messages_channelMessages: {
+				auto &messages = result.c_messages_channelMessages();
+				if (peer && peer->isChannel()) {
+					peer->asChannel()->ptsReceived(messages.vpts.v);
+				} else {
+					LOG(("API Error: received messages.channelMessages when no channel was passed! (MainWidget::showJumpToDate)"));
+				}
+				return handleMessages(messages);
+			} break;
+			}
+			return nullptr;
+		};
+
+		if (auto list = getMessagesList()) {
+			App::feedMsgs(*list, NewMessageExisting);
+			for (auto &message : *list) {
+				if (auto id = idFromMessage(message)) {
+					Ui::showPeerHistory(peer, id);
+					return;
+				}
+			}
+		}
+		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
 	}));
 }
 

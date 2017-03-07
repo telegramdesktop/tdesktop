@@ -352,7 +352,7 @@ void CalendarBox::Title::paintEvent(QPaintEvent *e) {
 }
 
 CalendarBox::CalendarBox(QWidget*, QDate month, QDate highlighted, base::lambda<void(QDate date)> callback)
-: _context(std::make_unique<Context>(month, highlighted.addDays(-5)))
+: _context(std::make_unique<Context>(month, highlighted))
 , _inner(this, _context.get())
 , _title(this, _context.get())
 , _left(this, st::calendarLeft)
