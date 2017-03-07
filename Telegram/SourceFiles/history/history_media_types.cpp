@@ -3474,7 +3474,10 @@ void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
 			auto mediumsize = shrinkToKeepAspect(imageSize.width(), imageSize.height(), 320, 320);
 			auto medium = ImagePtr(mediumsize.width(), mediumsize.height());
 
-			auto full = ImagePtr(WebFileImageLocation(imageSize.width(), imageSize.height(), doc.vdc_id.v, doc.vurl.v, doc.vaccess_hash.v), doc.vsize.v);
+			// We don't use size from WebDocument, because it is not reliable.
+			// It can be > 0 and different from the real size that we get in upload.WebFile result.
+			auto filesize = 0; // doc.vsize.v;
+			auto full = ImagePtr(WebFileImageLocation(imageSize.width(), imageSize.height(), doc.vdc_id.v, doc.vurl.v, doc.vaccess_hash.v), filesize);
 			auto photoId = rand_value<PhotoId>();
 			auto photo = App::photoSet(photoId, 0, 0, unixtime(), thumb, medium, full);
 
