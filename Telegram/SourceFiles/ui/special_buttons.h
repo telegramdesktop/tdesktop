@@ -21,7 +21,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/widgets/buttons.h"
+#include "styles/style_window.h"
 #include "styles/style_widgets.h"
+
+class PeerData;
 
 namespace Ui {
 
@@ -133,6 +136,41 @@ private:
 	base::lambda<void(bool active)> _recordStopCallback;
 	base::lambda<void(QPoint globalPos)> _recordUpdateCallback;
 	base::lambda<void()> _recordAnimationCallback;
+
+};
+
+class PeerAvatarButton : public AbstractButton {
+public:
+	PeerAvatarButton(QWidget *parent, PeerData *peer, const style::PeerAvatarButton &st);
+
+	void setPeer(PeerData *peer) {
+		_peer = peer;
+		update();
+	}
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	PeerData *_peer;
+	const style::PeerAvatarButton &_st;
+
+};
+
+class NewAvatarButton : public RippleButton {
+public:
+	NewAvatarButton(QWidget *parent, int size, QPoint position);
+
+	void setImage(const QImage &image);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+	QImage prepareRippleMask() const override;
+
+private:
+	QPixmap _image;
+	QPoint _position;
 
 };
 

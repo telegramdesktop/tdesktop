@@ -41,7 +41,6 @@ class Panel;
 } // namespace Media
 
 namespace Ui {
-class PeerAvatarButton;
 class PlainShadow;
 class DropdownMenu;
 } // namespace Ui
