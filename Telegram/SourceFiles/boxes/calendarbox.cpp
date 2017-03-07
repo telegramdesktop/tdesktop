@@ -40,6 +40,16 @@ public:
 		_month.setForced(_month.value(), true);
 	}
 
+	void setMinDate(QDate date);
+	void setMaxDate(QDate date);
+
+	int minDayIndex() const {
+		return _minDayIndex;
+	}
+	int maxDayIndex() const {
+		return _maxDayIndex;
+	}
+
 	void skipMonth(int skip);
 	void showMonth(QDate month);
 
@@ -56,7 +66,7 @@ public:
 		return _daysCount;
 	}
 	bool isEnabled(int index) const {
-		return (_currentDayIndex < 0) || (index <= _currentDayIndex);
+		return (index >= _minDayIndex) && (index <= _maxDayIndex);
 	}
 
 	const base::Variable<QDate> &month() {
@@ -67,14 +77,18 @@ public:
 	QString labelFromIndex(int index) const;
 
 private:
+	void applyMonth(const QDate &month, bool forced = false);
+
 	static int daysShiftForMonth(QDate month);
 	static int rowsCountForMonth(QDate month);
 
 	base::Variable<QDate> _month;
+	QDate _min, _max;
 	QDate _highlighted;
 
 	int _highlightedIndex = 0;
-	int _currentDayIndex = 0;
+	int _minDayIndex = 0;
+	int _maxDayIndex = 0;
 	int _daysCount = 0;
 	int _daysShift = 0;
 	int _rowsCount = 0;
@@ -85,18 +99,37 @@ CalendarBox::Context::Context(QDate month, QDate highlighted) : _highlighted(hig
 	showMonth(month);
 }
 
+void CalendarBox::Context::setMinDate(QDate date) {
+	_min = date;
+	applyMonth(_month.value(), true);
+}
+
+void CalendarBox::Context::setMaxDate(QDate date) {
+	_max = date;
+	applyMonth(_month.value(), true);
+}
+
 void CalendarBox::Context::showMonth(QDate month) {
 	if (month.day() != 1) {
 		month = QDate(month.year(), month.month(), 1);
 	}
-	_month.set(month);
+	applyMonth(month);
+}
+
+void CalendarBox::Context::applyMonth(const QDate &month, bool forced) {
+	if (forced) {
+		_month.setForced(month);
+	} else {
+		_month.set(month);
+	}
 	_daysCount = month.daysInMonth();
 	_daysShift = daysShiftForMonth(month);
 	_rowsCount = rowsCountForMonth(month);
 	auto yearIndex = month.year();
 	auto monthIndex = month.month();
 	_highlightedIndex = month.daysTo(_highlighted);
-	_currentDayIndex = month.daysTo(QDate::currentDate());
+	_minDayIndex = _min.isNull() ? INT_MIN : month.daysTo(_min);
+	_maxDayIndex = _max.isNull() ? INT_MAX : month.daysTo(_max);
 }
 
 void CalendarBox::Context::skipMonth(int skip) {
@@ -235,7 +268,7 @@ void CalendarBox::Inner::paintDayNames(Painter &p, QRect clip) {
 	p.setFont(st::calendarDaysFont);
 	p.setPen(st::calendarDaysFg);
 	auto y = st::calendarPadding.top();
-	auto x = st::calendarPadding.left();
+	auto x = rowsLeft();
 	if (!myrtlrect(x, y, st::calendarCellSize.width() * kDaysInWeek, st::calendarDaysHeight).intersects(clip)) {
 		return;
 	}
@@ -402,17 +435,29 @@ CalendarBox::CalendarBox(QWidget*, QDate month, QDate highlighted, base::lambda<
 : _context(std::make_unique<Context>(month, highlighted))
 , _inner(this, _context.get())
 , _title(this, _context.get())
-, _left(this, st::calendarLeft)
-, _right(this, st::calendarRight)
+, _previous(this, st::calendarPrevious)
+, _next(this, st::calendarNext)
 , _callback(std::move(callback)) {
 }
 
+void CalendarBox::setMinDate(QDate date) {
+	_context->setMinDate(date);
+}
+
+void CalendarBox::setMaxDate(QDate date) {
+	_context->setMaxDate(date);
+}
+
 void CalendarBox::prepare() {
-	_left->setClickedCallback([this] {
-		_context->skipMonth(-1);
+	_previous->setClickedCallback([this] {
+		if (isPreviousEnabled()) {
+			_context->skipMonth(-1);
+		}
 	});
-	_right->setClickedCallback([this] {
-		_context->skipMonth(1);
+	_next->setClickedCallback([this] {
+		if (isNextEnabled()) {
+			_context->skipMonth(1);
+		}
 	});
 
 //	_inner = setInnerWidget(object_ptr<Inner>(this, _context.get()), st::calendarScroll, st::calendarTitleHeight);
@@ -425,14 +470,30 @@ void CalendarBox::prepare() {
 	_context->start();
 }
 
+bool CalendarBox::isPreviousEnabled() const {
+	return (_context->minDayIndex() < 0);
+}
+
+bool CalendarBox::isNextEnabled() const {
+	return (_context->maxDayIndex() >= _context->daysCount());
+}
+
 void CalendarBox::monthChanged(QDate month) {
 	setDimensions(st::boxWideWidth, st::calendarTitleHeight + _inner->countHeight());
+	auto previousEnabled = isPreviousEnabled();
+	_previous->setIconOverride(previousEnabled ? nullptr : &st::calendarPreviousDisabled);
+	_previous->setRippleColorOverride(previousEnabled ? nullptr : &st::boxBg);
+	_previous->setCursor(previousEnabled ? style::cur_pointer : style::cur_default);
+	auto nextEnabled = isNextEnabled();
+	_next->setIconOverride(nextEnabled ? nullptr : &st::calendarNextDisabled);
+	_next->setRippleColorOverride(nextEnabled ? nullptr : &st::boxBg);
+	_next->setCursor(nextEnabled ? style::cur_pointer : style::cur_default);
 }
 
 void CalendarBox::resizeEvent(QResizeEvent *e) {
-	_left->moveToLeft(0, 0);
-	_right->moveToRight(0, 0);
-	_title->setGeometryToLeft(_left->width(), 0, width() - _left->width() - _right->width(), st::calendarTitleHeight);
+	_previous->moveToLeft(0, 0);
+	_next->moveToRight(0, 0);
+	_title->setGeometryToLeft(_previous->width(), 0, width() - _previous->width() - _next->width(), st::calendarTitleHeight);
 	_inner->setGeometryToLeft(0, st::calendarTitleHeight, width(), height() - st::calendarTitleHeight);
 	BoxContent::resizeEvent(e);
 }

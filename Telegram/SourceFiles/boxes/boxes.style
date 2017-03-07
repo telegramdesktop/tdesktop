@@ -517,7 +517,7 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 }
 
 calendarTitleHeight: boxTitleHeight;
-calendarLeft: IconButton {
+calendarPrevious: IconButton {
 	width: calendarTitleHeight;
 	height: calendarTitleHeight;
 
@@ -530,9 +530,11 @@ calendarLeft: IconButton {
 		color: windowBgOver;
 	}
 }
-calendarRight: IconButton(calendarLeft) {
+calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
+calendarNext: IconButton(calendarPrevious) {
 	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
 }
+calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
 calendarTitleFont: boxTitleFont;
 calendarDaysFont: normalFont;
 calendarDaysFg: boxTitleAdditionalFg;

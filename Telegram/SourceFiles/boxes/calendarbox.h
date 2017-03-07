@@ -29,6 +29,10 @@ class IconButton;
 class CalendarBox : public BoxContent {
 public:
 	CalendarBox(QWidget*, QDate month, QDate highlighted, base::lambda<void(QDate date)> callback);
+
+	void setMinDate(QDate date);
+	void setMaxDate(QDate date);
+
 	~CalendarBox();
 
 protected:
@@ -39,6 +43,9 @@ protected:
 private:
 	void monthChanged(QDate month);
 
+	bool isPreviousEnabled() const;
+	bool isNextEnabled() const;
+
 	class Context;
 	std::unique_ptr<Context> _context;
 
@@ -47,8 +54,8 @@ private:
 
 	class Title;
 	object_ptr<Title> _title;
-	object_ptr<Ui::IconButton> _left;
-	object_ptr<Ui::IconButton> _right;
+	object_ptr<Ui::IconButton> _previous;
+	object_ptr<Ui::IconButton> _next;
 
 	base::lambda<void(QDate date)> _callback;
 
