@@ -393,8 +393,6 @@ private:
 	void searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId requestId);
 	void peerSearchReceived(const MTPcontacts_Found &result, mtpRequestId requestId);
 
-	void jumpToDate();
-
 	void setSearchInPeer(PeerData *peer);
 	void showMainMenu();
 	void updateLockUnlockVisibility();

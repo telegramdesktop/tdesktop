@@ -2293,7 +2293,7 @@ DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
 	subscribe(Adaptive::Changed(), [this] { updateForwardBar(); });
 
 	_cancelSearch->setClickedCallback([this] { onCancelSearch(); });
-	_jumpToDate->entity()->setClickedCallback([this] { jumpToDate(); });
+	_jumpToDate->entity()->setClickedCallback([this] { if (_searchInPeer) App::main()->showJumpToDate(_searchInPeer); });
 	_lockUnlock->setVisible(Global::LocalPasscode());
 	subscribe(Global::RefLocalPasscodeChanged(), [this] { updateLockUnlockVisibility(); });
 	_lockUnlock->setClickedCallback([this] {
@@ -2346,10 +2346,6 @@ void DialogsWidget::onCheckUpdateStatus() {
 void DialogsWidget::activate() {
 	_filter->setFocus();
 	_inner->activate();
-}
-
-void DialogsWidget::jumpToDate() {
-	Ui::show(Box<InformBox>("not implemented"));
 }
 
 void DialogsWidget::createDialog(History *history) {

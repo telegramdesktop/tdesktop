@@ -20,23 +20,36 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "boxes/abstractbox.h"
+#include "abstractbox.h"
 
 namespace Ui {
-class RoundCheckbox;
+class IconButton;
 } // namespace Ui
 
-class BackgroundBox : public BoxContent {
+class CalendarBox : public BoxContent {
 public:
-	BackgroundBox(QWidget*);
+	CalendarBox(QWidget*, QDate month, QDate highlighted, base::lambda<void(QDate date)> callback);
+	~CalendarBox();
 
 protected:
 	void prepare() override;
 
+	void resizeEvent(QResizeEvent *e) override;
+
 private:
-	void backgroundChosen(int index);
+	void monthChanged(QDate month);
+
+	class Context;
+	std::unique_ptr<Context> _context;
 
 	class Inner;
-	QPointer<Inner> _inner;
+	object_ptr<Inner> _inner;
+
+	class Title;
+	object_ptr<Title> _title;
+	object_ptr<Ui::IconButton> _left;
+	object_ptr<Ui::IconButton> _right;
+
+	base::lambda<void(QDate date)> _callback;
 
 };

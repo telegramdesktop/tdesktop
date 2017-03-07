@@ -391,13 +391,13 @@ public:
 		changed().notify(_value, sync);
 	}
 
-	Observable<Type> &changed() {
+	Observable<Type> &changed() const {
 		return _changed;
 	}
 
 private:
 	Type _value;
-	Observable<Type> _changed;
+	mutable Observable<Type> _changed;
 
 };
 
@@ -415,12 +415,12 @@ protected:
 	}
 
 	template <typename Type, typename Lambda>
-	int subscribe(base::Variable<Type> &variable, Lambda &&handler) {
+	int subscribe(const base::Variable<Type> &variable, Lambda &&handler) {
 		return subscribe(variable.changed(), std::forward<Lambda>(handler));
 	}
 
 	template <typename Type, typename Lambda>
-	int subscribe(base::Variable<Type> *variable, Lambda &&handler) {
+	int subscribe(const base::Variable<Type> *variable, Lambda &&handler) {
 		return subscribe(variable->changed(), std::forward<Lambda>(handler));
 	}
 

@@ -62,6 +62,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_boxes.h"
 #include "mtproto/dc_options.h"
 #include "core/file_utilities.h"
+#include "boxes/calendarbox.h"
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 
@@ -2756,6 +2757,24 @@ void MainWidget::dlgUpdated(PeerData *peer, MsgId msgId) {
 	} else {
 		_dialogs->dlgUpdated(peer, msgId);
 	}
+}
+
+void MainWidget::showJumpToDate(PeerData *peer) {
+	t_assert(peer != nullptr);
+	auto shown = ([peer] {
+		if (auto history = App::historyLoaded(peer)) {
+			if (history->scrollTopItem) {
+				return history->scrollTopItem->date.date();
+			} else if (!history->lastMsgDate.isNull()) {
+				return history->lastMsgDate.date();
+			}
+		}
+		return QDate::currentDate();
+	})();
+	auto highlighted = shown;
+	Ui::show(Box<CalendarBox>(shown, highlighted, [peer](QDate date) {
+		Ui::show(Box<InformBox>("not implemented " + langDayOfMonthFull(date)));
+	}));
 }
 
 void MainWidget::windowShown() {

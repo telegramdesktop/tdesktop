@@ -180,6 +180,8 @@ public:
 	void dlgUpdated(Dialogs::Mode list, Dialogs::Row *row);
 	void dlgUpdated(PeerData *peer, MsgId msgId);
 
+	void showJumpToDate(PeerData *peer);
+
 	void windowShown();
 
 	void sentUpdatesReceived(uint64 randomId, const MTPUpdates &updates);

@@ -109,6 +109,8 @@
       '<(src_loc)/boxes/autolockbox.h',
       '<(src_loc)/boxes/backgroundbox.cpp',
       '<(src_loc)/boxes/backgroundbox.h',
+      '<(src_loc)/boxes/calendarbox.cpp',
+      '<(src_loc)/boxes/calendarbox.h',
       '<(src_loc)/boxes/confirmbox.cpp',
       '<(src_loc)/boxes/confirmbox.h',
       '<(src_loc)/boxes/confirmphonebox.cpp',
