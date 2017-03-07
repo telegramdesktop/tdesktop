@@ -3448,11 +3448,12 @@ QString HistoryInvoice::fillAmountAndCurrency(int amount, const QString &currenc
 		{ qsl("EUR"), QString::fromUtf8("\xE2\x82\xAC") },
 		{ qsl("JPY"), QString::fromUtf8("\xC2\xA5") },
 	};
-	auto amountBucks = amount / 100;
-	auto amountCents = amount % 100;
-	auto amountText = qsl("%1,%2").arg(amountBucks).arg(amountCents, 2, 10, QChar('0'));
 	auto currencyText = shortCurrencyNames.value(currency, currency);
-	return currencyText + amountText;
+	return QLocale::system().toCurrencyString(amount / 100., currencyText);
+	//auto amountBucks = amount / 100;
+	//auto amountCents = amount % 100;
+	//auto amountText = qsl("%1,%2").arg(amountBucks).arg(amountCents, 2, 10, QChar('0'));
+	//return currencyText + amountText;
 }
 
 void HistoryInvoice::fillFromData(const MTPDmessageMediaInvoice &data) {
