@@ -150,7 +150,8 @@ public:
 	}
 	void notify(const EventType &event, bool sync = false) {
 		if (this->_data) {
-			this->_data->notify(EventType(event), sync);
+			auto event_copy = event;
+			this->_data->notify(std::move(event_copy), sync);
 		}
 	}
 
