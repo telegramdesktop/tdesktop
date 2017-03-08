@@ -25,13 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Platform {
 namespace Notifications {
 
-inline bool SkipAudio() {
-	return false;
-}
-
-inline bool SkipToast() {
-	return false;
-}
+bool SkipAudio();
+bool SkipToast();
 
 class Manager : public Window::Notifications::NativeManager {
 public:

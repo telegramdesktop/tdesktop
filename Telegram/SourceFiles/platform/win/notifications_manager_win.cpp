@@ -637,12 +637,12 @@ void queryUserNotificationState() {
 	}
 }
 
-static constexpr int QuerySettingsEachMs = 1000;
+static constexpr auto kQuerySettingsEachMs = 1000;
 TimeMs LastSettingsQueryMs = 0;
 
 void querySystemNotificationSettings() {
 	auto ms = getms(true);
-	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + QuerySettingsEachMs) {
+	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
 		return;
 	}
 	LastSettingsQueryMs = ms;

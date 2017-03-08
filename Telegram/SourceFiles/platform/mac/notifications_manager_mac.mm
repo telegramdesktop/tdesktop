@@ -30,7 +30,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-NeverFreedPointer<Platform::Notifications::Manager> ManagerInstance;
+static constexpr auto kQuerySettingsEachMs = 1000;
+auto DoNotDisturbEnabled = false;
+auto LastSettingsQueryMs = 0;
+
+void queryDoNotDisturbState() {
+	auto ms = getms(true);
+	if (LastSettingsQueryMs > 0 && ms <= LastSettingsQueryMs + kQuerySettingsEachMs) {
+		return;
+	}
+	LastSettingsQueryMs = ms;
+
+	id userDefaultsValue = [[[NSUserDefaults alloc] initWithSuiteName:@"com.apple.notificationcenterui"] objectForKey:@"doNotDisturb"];
+	DoNotDisturbEnabled = [userDefaultsValue boolValue];
+}
+
+using Manager = Platform::Notifications::Manager;
 
 } // namespace
 
@@ -97,6 +112,21 @@ std::weak_ptr<Manager*> _manager;
 
 namespace Platform {
 namespace Notifications {
+
+bool SkipAudio() {
+	queryDoNotDisturbState();
+	return DoNotDisturbEnabled;
+}
+
+bool SkipToast() {
+	if (Supported()) {
+		// Do not skip native notifications because of Do not disturb.
+		// They respect this setting anyway.
+		return false;
+	}
+	queryDoNotDisturbState();
+	return DoNotDisturbEnabled;
+}
 
 bool Supported() {
 	return (cPlatform() != dbipMacOld);
