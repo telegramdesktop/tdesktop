@@ -1,3 +1,9 @@
+1.0.19 alpha (08.03.17)
+
+- Go to date. Click on the date in a chat to jump to a specific day.
+- Respect macOS "Do not disturb" settings for sound notifications.
+- Bug fixes and other minor improvements.
+
 1.0.18 alpha (01.03.17)
 
 - Bug fixes and other minor improvements.
