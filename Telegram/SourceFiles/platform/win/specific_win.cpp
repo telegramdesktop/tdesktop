@@ -84,9 +84,6 @@ using namespace Platform;
 namespace {
     QStringList _initLogs;
 
-	bool useOpenWith = false;
-	bool useOpenAs = false;
-	bool useShellapi = false;
 	bool themeInited = false;
 	bool finished = true;
 	QMargins simpleMargins, margins;
@@ -96,10 +93,6 @@ namespace {
 	public:
 		_PsInitializer() {
 			Dlls::start();
-
-			useOpenWith = (Dlls::SHAssocEnumHandlers != nullptr) && (Dlls::SHCreateItemFromParsingName != nullptr);
-			useOpenAs = (Dlls::SHOpenWithDialog != nullptr) || (Dlls::OpenAs_RunDLL != nullptr);
-			useShellapi = (Dlls::SHQueryUserNotificationState != nullptr);
 		}
 	};
 	_PsInitializer _psInitializer;

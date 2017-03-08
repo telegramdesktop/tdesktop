@@ -135,8 +135,14 @@ void UnsafeOpenEmailLink(const QString &email) {
 }
 
 bool UnsafeShowOpenWithDropdown(const QString &filepath, QPoint menuPosition) {
+	if (!Dlls::SHAssocEnumHandlers || !Dlls::SHCreateItemFromParsingName) {
+		return false;
+	}
+
 	auto window = App::wnd();
-	if (!window) return false;
+	if (!window) {
+		return false;
+	}
 
 	auto parentHWND = window->psHwnd();
 	auto wstringPath = QDir::toNativeSeparators(filepath).toStdWString();
