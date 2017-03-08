@@ -198,7 +198,7 @@ public:
 	}
 
 	// Called only by Manager.
-	void itemRemoved(HistoryItem *del);
+	bool unlinkItem(HistoryItem *del);
 	bool unlinkHistory(History *history = nullptr);
 	bool checkLastInput(bool hasReplyingNotifications);
 

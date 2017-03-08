@@ -1,3 +1,7 @@
+1.0.20 alpha (08.03.17)
+
+- Bug fixes and other minor improvements.
+
 1.0.19 alpha (08.03.17)
 
 - Go to date. Click on the date in a chat to jump to a specific day.

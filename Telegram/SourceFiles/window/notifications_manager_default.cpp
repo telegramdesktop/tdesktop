@@ -321,9 +321,15 @@ void Manager::doClearFromItem(HistoryItem *item) {
 		return (queued.item == item);
 	}), _queuedNotifications.cend());
 
+	auto showNext = false;
 	for_const (auto &notification, _notifications) {
-		// Calls unlinkFromShown() -> showNextFromQueue()
-		notification->itemRemoved(item);
+		if (notification->unlinkItem(item)) {
+			showNext = true;
+		}
+	}
+	if (showNext) {
+		// This call invalidates _notifications iterators.
+		showNextFromQueue();
 	}
 }
 
@@ -690,11 +696,13 @@ void Notification::updatePeerPhoto() {
 	update();
 }
 
-void Notification::itemRemoved(HistoryItem *deleted) {
-	if (_item && _item == deleted) {
+bool Notification::unlinkItem(HistoryItem *deleted) {
+	auto unlink = (_item && _item == deleted);
+	if (unlink) {
 		_item = nullptr;
-		unlinkHistoryInManager();
+		unlinkHistory();
 	}
+	return unlink;
 }
 
 bool Notification::canReply() const {
