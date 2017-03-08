@@ -39,27 +39,26 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 @interface NotificationDelegate : NSObject<NSUserNotificationCenterDelegate> {
 }
 
-- (id) init;
+- (id) initWithManager:(std::shared_ptr<Manager*>)manager;
 - (void)userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification;
 - (BOOL)userNotificationCenter:(NSUserNotificationCenter *)center shouldPresentNotification:(NSUserNotification *)notification;
 
 @end
 
 @implementation NotificationDelegate {
+
+std::weak_ptr<Manager*> _manager;
+
 }
 
-- (id) init {
+- (id) initWithManager:(std::shared_ptr<Manager*>)manager {
 	if (self = [super init]) {
+		_manager = manager;
 	}
 	return self;
 }
 
 - (void) userNotificationCenter:(NSUserNotificationCenter *)center didActivateNotification:(NSUserNotification *)notification {
-	auto manager = ManagerInstance.data();
-	if (!manager) {
-		return;
-	}
-
 	NSDictionary *notificationUserInfo = [notification userInfo];
 	NSNumber *launchIdObject = [notificationUserInfo objectForKey:@"launch"];
 	auto notificationLaunchId = launchIdObject ? [launchIdObject unsignedLongLongValue] : 0ULL;
@@ -78,9 +77,13 @@ NSImage *qt_mac_create_nsimage(const QPixmap &pm);
 	auto notificationMsgId = msgObject ? [msgObject intValue] : 0;
 	if (notification.activationType == NSUserNotificationActivationTypeReplied) {
 		auto notificationReply = QString::fromUtf8([[[notification response] string] UTF8String]);
-		manager->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
+		if (auto manager = _manager.lock()) {
+			(*manager)->notificationReplied(notificationPeerId, notificationMsgId, notificationReply);
+		}
 	} else if (notification.activationType == NSUserNotificationActivationTypeContentsClicked) {
-		manager->notificationActivated(notificationPeerId, notificationMsgId);
+		if (auto manager = _manager.lock()) {
+			(*manager)->notificationActivated(notificationPeerId, notificationMsgId);
+		}
 	}
 
 	[center removeDeliveredNotification: notification];
@@ -122,7 +125,7 @@ void CustomNotificationShownHook(QWidget *widget) {
 
 class Manager::Private : public QObject, private base::Subscriber {
 public:
-	Private();
+	Private(Manager *manager);
 	void showNotification(PeerData *peer, MsgId msgId, const QString &title, const QString &subtitle, const QString &msg, bool hideNameAndPhoto, bool hideReplyButton);
 	void clearAll();
 	void clearFromHistory(History *history);
@@ -131,11 +134,14 @@ public:
 	~Private();
 
 private:
-	NotificationDelegate *_delegate;
+	std::shared_ptr<Manager*> _guarded;
+	NotificationDelegate *_delegate = nullptr;
 
 };
 
-Manager::Private::Private() : _delegate([[NotificationDelegate alloc] init]) {
+Manager::Private::Private(Manager *manager)
+: _guarded(std::make_shared<Manager*>(manager))
+, _delegate([[NotificationDelegate alloc] initWithManager:_guarded]) {
 	updateDelegate();
 	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) {
 		// We need to update the delegate _after_ the tray icon change was done in Qt.
@@ -220,7 +226,7 @@ Manager::Private::~Private() {
 }
 
 Manager::Manager(Window::Notifications::System *system) : NativeManager(system)
-, _private(std::make_unique<Private>()) {
+, _private(std::make_unique<Private>(this)) {
 }
 
 Manager::~Manager() = default;

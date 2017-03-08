@@ -187,7 +187,7 @@ void MainWindow::firstShow() {
 		trayIconMenu->addAction(notificationActionText, this, SLOT(toggleDisplayNotifyFromTray()))->setEnabled(true);
 		trayIconMenu->addAction(lang(lng_quit_from_tray), this, SLOT(quitFromTray()))->setEnabled(true);
 	}
-	workmodeUpdated(Global::WorkMode().value());
+	Global::RefWorkMode().setForced(Global::WorkMode().value(), true);
 
 	psFirstShow();
 	updateTrayMenu();
