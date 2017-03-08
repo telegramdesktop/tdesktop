@@ -1075,7 +1075,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Support for more emoji.\n— Click and drag on waveform to play audio from a chosen moment.\n— Added Theme editor to Settings.\n— Bug fixes and other minor improvements.";
+"lng_new_version_text" = "— Go to date. Click on the date in a chat to jump to a specific day.\n— Added Last Seen and Group Invite privacy settings.\n— Edit list of blocked users in Settings.\n— Send MP4/MOV files as videos that will play right inside Telegram.\n— App now respects the \"Do Not Disturb\" setting for macOS notifications.\n— Bug fixes and other minor improvements.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

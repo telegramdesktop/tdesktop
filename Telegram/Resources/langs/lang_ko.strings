@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{month} {day}일";
 "lng_month_day_year" = "{month} {day}, {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} {year}";
 
 "lng_box_ok" = "확인";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "메시지 길이가 너무 깁니다.";
 "lng_edit_message" = "메시지 수정";
 "lng_edit_message_text" = "새로운 메시지...";
-"lng_deleted" = "알 수 없음";
+"lng_deleted" = "삭제된 계정";
 "lng_deleted_message" = "삭제된 메시지";
 "lng_pinned_message" = "고정된 메시지";
 "lng_pinned_unpin_sure" = "메시지를 고정 해제하시겠습니까?";
@@ -568,6 +568,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "메시지 없음";
 "lng_message_unsupported" = "이 메시지는 텔레그램 데스크탑에서 호환이 되지 않습니다. 설정에서 최신 버전으로 업데이트를 하던가 {link}를 통하여 설치해주세요.";
 
+"lng_duration_seconds" = "{count:_not_used_|# 초|# 초}";
+"lng_duration_minutes_seconds" = "{count_minutes:# 분|# 분|# 분} {count_seconds:# 초|# 초|# 초}";
+
 "lng_action_add_user" = "{from} 님께서 {user} 님을 초대하셨습니다.";
 "lng_action_add_users_many" = "{from}님께서 {users}명을 초대하였습니다.";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +610,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "{game} 에서 {count:#|#|#} 점 획득";
 "lng_action_game_score_no_game" = "{from} 에서 {count:#|#|#} 점 획득";
 "lng_action_game_you_scored_no_game" = "{count:#|#|#} 점 획득";
+"lng_action_call_outgoing" = "{time}에 발신한 전화";
+"lng_action_call_incoming" = "{time}에 수신한 전화";
+"lng_action_call_outgoing_duration" = "{time}에 ({duration}) 동안 발신한 전화";
+"lng_action_call_incoming_duration" = "{time}에 ({duration}) 동안 수신한 전화";
+"lng_action_call_incoming_missed" = "{time}에 부재중 전화";
+"lng_action_call_outgoing_missed" = "{time}에 취소한 전화";
+"lng_action_payment_done" = "{amount}만큼 {user}에게 성공적으로 전송하였습니다.";
+"lng_action_payment_done_for" = "{invoice}에 대하여 {user}에게 {amount}만큼 전송하였습니다.";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# 명|# 명} 한계치에 도달 되었습니다.";
 "lng_profile_migrate_body" = "제한을 초과하고 싶으실 경우, 슈퍼그룹으로 그룹 업그레이드가 가능합니다.";
@@ -1010,7 +1021,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 더많은 이모티콘 지원\n— 오디오 구간을 선택하여 원하는 시간대 재생\n— 설정에 테마 에디터 추가\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 날자로 이동하여 특정일자 대화내역 확인\n— OSX 알림설정인 \"Do Not Disturb\" 설정 반영\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 
@@ -1038,6 +1049,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_done" = "성공적으로 테마 내보내기가 완료되었습니다!";
 "lng_theme_editor_title" = "색상 팔레트 수정";
 "lng_theme_editor_export_button" = "테마 내보내기";
+
+"lng_payments_not_supported" = "죄송합니다, 텔레그램 데스크탑은 아직 결제를 지원하고 있지 않습니다. 모바일앱을 사용해주세요.";
+"lng_payments_receipt_label" = "영수증";
+"lng_payments_receipt_label_test" = "테스트 영수증";
+"lng_payments_invoice_label" = "인보이스";
+"lng_payments_invoice_label_test" = "테스트 인보이스";
+"lng_payments_receipt_button" = "영수증";
 
 // Not used
 

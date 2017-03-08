@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day}. {month}";
 "lng_month_day_year" = "{day}. {month} {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} {year}";
 
 "lng_box_ok" = "OK";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Der Text ist leider zu lang";
 "lng_edit_message" = "Nachricht bearbeiten";
 "lng_edit_message_text" = "Neuer Text...";
-"lng_deleted" = "Gelöschter Kontakt";
+"lng_deleted" = "Gelöschtes Konto";
 "lng_deleted_message" = "Gelöschte Nachricht";
 "lng_pinned_message" = "Angeheftete Nachricht";
 "lng_pinned_unpin_sure" = "Angeheftete Nachricht entfernen?";
@@ -568,6 +568,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Leere Nachricht";
 "lng_message_unsupported" = "Diese Nachricht wird von deiner Telegram Desktop Version nicht unterstützt. Bitte aktualisiere sie in den Einstellungen oder über {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# Sekunde|# Sekunden}";
+"lng_duration_minutes_seconds" = "{count_minutes:# Min|# Min|# Min} {count_seconds:# Sek|# Sek|# Sek}";
+
 "lng_action_add_user" = "{from} hat {user} hinzugefügt";
 "lng_action_add_users_many" = "{from} hat {users} hinzugefügt";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +610,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Du hast {count:# Punkte|# Punkt|# Punkte} bei {game} erzielt";
 "lng_action_game_score_no_game" = "{from} erzielte {count:# Punkte|# Punkt|# Punkte}";
 "lng_action_game_you_scored_no_game" = "Du hast {count:# Punkte erzielt|# Punkt erzielt|# Punkte erzielt}";
+"lng_action_call_outgoing" = "Ausgehender Anruf um {time}";
+"lng_action_call_incoming" = "Eingehender Anruf um {time}";
+"lng_action_call_outgoing_duration" = "Ausgehender Anruf ({duration}) um {time}";
+"lng_action_call_incoming_duration" = "Eingehender Anruf ({duration}) um {time}";
+"lng_action_call_incoming_missed" = "Verpasster Anruf um {time}";
+"lng_action_call_outgoing_missed" = "Abgebrochener Anruf um {time}";
+"lng_action_payment_done" = "Du hast erfolgreich {amount} an {user} übermittelt";
+"lng_action_payment_done_for" = "Du hast erfolgreich {amount} an {user} für {invoice} übermittelt";
 
 "lng_profile_migrate_reached" = "Limit von {count:_not_used_|# Mitglied|# Mitgliedern} erreicht";
 "lng_profile_migrate_body" = "Um das Limit aufzuheben, ändere die Gruppe in eine Supergruppe.";
@@ -1010,7 +1021,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Weitere Emoji wurden hinzugefügt.\n— Springe an jede gewünschte Stelle einer Sprachnachricht (klicken und ziehen).\n— Themen-Editor wurde Einstellungen hinzugefügt.\n— Fehlerbehebungen und sonstige Verbesserungen.";
+"lng_new_version_text" = "— Schnell zu einem bestimmten Datum springen: Dazu einfach auf das Datum im Chat klicken.\n— App hält sich nun an die \"Nicht stören\"-Einstellungen auf macOS Systemen.\n— Fehlerbehebungen und sonstige Softwareoptimierungen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 
@@ -1038,6 +1049,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_done" = "Thema erfolgreich exportiert!";
 "lng_theme_editor_title" = "Farbpalette bearbeiten";
 "lng_theme_editor_export_button" = "Thema exportieren";
+
+"lng_payments_not_supported" = "Telegram Desktop unterstützt derzeit leider noch keine Zahlungen. Bitte benutze eine unserer mobilen Apps, um die Zahlung abzuschliessen.";
+"lng_payments_receipt_label" = "Beleg";
+"lng_payments_receipt_label_test" = "Test-Beleg";
+"lng_payments_invoice_label" = "Rechnung";
+"lng_payments_invoice_label_test" = "Test-Rechnung";
+"lng_payments_receipt_button" = "Beleg";
 
 // Not used
 

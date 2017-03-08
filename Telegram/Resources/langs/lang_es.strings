@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} de {month}";
 "lng_month_day_year" = "{day} de {month} de {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} de {year}";
 
 "lng_box_ok" = "OK";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Tu texto es demasiado largo";
 "lng_edit_message" = "Editar mensaje";
 "lng_edit_message_text" = "Mensaje nuevo...";
-"lng_deleted" = "Desconocido";
+"lng_deleted" = "Cuenta eliminada";
 "lng_deleted_message" = "Mensaje eliminado";
 "lng_pinned_message" = "Mensaje anclado";
 "lng_pinned_unpin_sure" = "¿Quieres desanclar este mensaje?";
@@ -568,6 +568,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Mensaje vacío";
 "lng_message_unsupported" = "Este mensaje no es soportado por tu versión de Telegram Desktop. Por favor, actualiza a la última versión desde Ajustes o instálala desde {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# segundo|# segundos}";
+"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# s|# s|# s}";
+
 "lng_action_add_user" = "{from} añadió a {user}";
 "lng_action_add_users_many" = "{from} añadió a {users}";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +610,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Conseguiste {count:# puntos|# punto|# puntos} en {game}";
 "lng_action_game_score_no_game" = "{from} consiguió {count:# puntos|# punto|# puntos}";
 "lng_action_game_you_scored_no_game" = "Conseguiste {count:# puntos|# punto|# puntos}";
+"lng_action_call_outgoing" = "Llamada saliente a las {time}";
+"lng_action_call_incoming" = "Llamada entrante a las {time}";
+"lng_action_call_outgoing_duration" = "Llamada saliente ({duration}) a las {time}";
+"lng_action_call_incoming_duration" = "Llamada entrante ({duration}) a las {time}";
+"lng_action_call_incoming_missed" = "Llamada perdida a las {time}";
+"lng_action_call_outgoing_missed" = "Llamada cancelada a las {time}";
+"lng_action_payment_done" = "Has transferido satisfactoriamente {amount} a {user}";
+"lng_action_payment_done_for" = "Has transferido satisfactoriamente {amount} a {name} por {invoice}";
 
 "lng_profile_migrate_reached" = "Límite de {count:_not_used_|# miembro|# miembros} alcanzado";
 "lng_profile_migrate_body" = "Para superar este límite, puedes convertir tu grupo en un supergrupo.";
@@ -1010,7 +1021,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Soporte de más emojis.\n— Haz clic y arrastra sobre la onda de audio para reproducir el momento que quieras.\n— Editor de temas añadido a Ajustes.\n— Corrección de errores y otras mejoras menores.";
+"lng_new_version_text" = "— Ir a la fecha: Haz clic en la fecha para ir a un día en específico dentro del chat.\n— La aplicación ahora respeta la opción “No molestar” en las notificaciones de macOS.\n— Corrección de errores y otras mejoras menores.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 
@@ -1038,6 +1049,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_done" = "¡Tema exportado con éxito!";
 "lng_theme_editor_title" = "Editar la paleta de colores";
 "lng_theme_editor_export_button" = "Exportar tema";
+
+"lng_payments_not_supported" = "Lo sentimos, Telegram Desktop no soporta pagos todavía. Por favor, usa una de nuestras aplicaciones móviles para hacerlo.";
+"lng_payments_receipt_label" = "Recibo";
+"lng_payments_receipt_label_test" = "Recibo de prueba";
+"lng_payments_invoice_label" = "Factura";
+"lng_payments_invoice_label_test" = "Factura de prueba";
+"lng_payments_receipt_button" = "Recibo";
 
 // Not used
 

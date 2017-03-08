@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} {month}";
 "lng_month_day_year" = "{day} {month}, {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} {year}";
 
 "lng_box_ok" = "Ok";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Je bericht is te lang";
 "lng_edit_message" = "Bericht wijzigen";
 "lng_edit_message_text" = "Nieuw bericht...";
-"lng_deleted" = "Onbekend";
+"lng_deleted" = "Verwijderd Account";
 "lng_deleted_message" = "Verwijderd bericht";
 "lng_pinned_message" = "Vastgezet bericht";
 "lng_pinned_unpin_sure" = "Wil je dit bericht losmaken?";
@@ -568,6 +568,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Leeg bericht";
 "lng_message_unsupported" = "Dit bericht wordt niet ondersteund door jouw versie van Telegram Desktop. Werk bij naar de laatste versie via de instellingen of installeer vanuit {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# seconde|# seconden}";
+"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# sec|# sec|# sec}";
+
 "lng_action_add_user" = "{from} heeft {user} toegevoegd";
 "lng_action_add_users_many" = "{from} heeft {users} toegevoegd";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +610,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Je hebt met {game} {count:# punten|# punt|# punten} behaald";
 "lng_action_game_score_no_game" = "{from} heeft {count:# punten|# punt|# punten} behaald";
 "lng_action_game_you_scored_no_game" = "Je hebt {count:# punten|# punt|# punten} behaald";
+"lng_action_call_outgoing" = "Uitgaande oproep om {time}";
+"lng_action_call_incoming" = "Inkomende oproep om {time}";
+"lng_action_call_outgoing_duration" = "Uitgaande oproep ({duration}) om {time}";
+"lng_action_call_incoming_duration" = "Inkomende oproep ({duration}) om {time}";
+"lng_action_call_incoming_missed" = "Gemiste oproep om {time}";
+"lng_action_call_outgoing_missed" = "Geannuleerde oproep om {time}";
+"lng_action_payment_done" = "Je hebt een bedrag van {amount} overgemaakt naar {user}";
+"lng_action_payment_done_for" = "Je hebt een bedrag van {amount} overgemaakt naar {user} voor {invoice}";
 
 "lng_profile_migrate_reached" = "{count:_not_used_|# lid |# leden} limiet bereikt";
 "lng_profile_migrate_body" = "Wil je een hogere limiet? Waardeer op naar een supergroep.";
@@ -1010,7 +1021,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Ondersteuning voor meer Emoji\n— Klik en sleep om naar de gewenste tijd te springen in spraakberichten.\n— Thema-editor toegevoegd aan instellingen.\n— Probleemoplossing en andere kleine verbeteringen.";
+"lng_new_version_text" = "— Spring naar datum. Klik op de datum in een chat om naar een specifieke dag te springen.\n— Ondersteuning voor de \"Niet storen\"-functie van macOS.\n— Probleemoplossing en andere kleine verbeteringen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 
@@ -1038,6 +1049,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_done" = "Exporteren van thema gelukt!";
 "lng_theme_editor_title" = "Kleurenpalet bewerken";
 "lng_theme_editor_export_button" = "Thema exporteren";
+
+"lng_payments_not_supported" = "Telegram Desktop heeft nog geen ondersteuning voor betalingen. Gebruik één van onze mobiele apps hiervoor.";
+"lng_payments_receipt_label" = "Betalingsbewijs";
+"lng_payments_receipt_label_test" = "Test betalingsbewijs";
+"lng_payments_invoice_label" = "Factuur";
+"lng_payments_invoice_label_test" = "Test Factuur";
+"lng_payments_receipt_button" = "Betalingsbewijs";
 
 // Not used
 

@@ -79,7 +79,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_month_day" = "{day} {month}";
 "lng_month_day_year" = "{day} {month} {year}";
-"lng_month_year" = "{month}, {year}";
+"lng_month_year" = "{month} {year}";
 
 "lng_box_ok" = "Ok";
 
@@ -133,7 +133,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_too_long" = "Il tuo messaggio è troppo lungo";
 "lng_edit_message" = "Modifica messaggio";
 "lng_edit_message_text" = "Nuovo testo messaggio...";
-"lng_deleted" = "Sconosciuto";
+"lng_deleted" = "Account eliminato";
 "lng_deleted_message" = "Messaggio eliminato";
 "lng_pinned_message" = "Messaggio fissato";
 "lng_pinned_unpin_sure" = "Vuoi togliere questo messaggio?";
@@ -208,8 +208,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_signup_lastname" = "Cognome";
 
 "lng_dlg_filter" = "Cerca";
-"lng_dlg_new_group_name" = "Nome gruppo";
-"lng_dlg_new_channel_name" = "Nome canale";
+"lng_dlg_new_group_name" = "Nome del gruppo";
+"lng_dlg_new_channel_name" = "Nome del canale";
 "lng_no_contacts" = "Non hai contatti";
 "lng_no_chats" = "Le tua chat saranno qui";
 "lng_contacts_loading" = "Carico...";
@@ -568,6 +568,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_message_empty" = "Messaggio vuoto";
 "lng_message_unsupported" = "Questo messaggio non è supportato dalla tua versione di Telegram Desktop. Per favore, aggiorna all'ultima versione dalle Impostazioni o installalo da {link}";
 
+"lng_duration_seconds" = "{count:_not_used_|# secondo|# secondi}";
+"lng_duration_minutes_seconds" = "{count_minutes:# min|# min|# min} {count_seconds:# sec|# sec|# sec}";
+
 "lng_action_add_user" = "{from} ha aggiunto {user}";
 "lng_action_add_users_many" = "{from} ha aggiunto {users}";
 "lng_action_add_users_and_one" = "{accumulated}, {user}";
@@ -607,6 +610,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_action_game_you_scored" = "Hai totalizzato {count:# punti|# punto|# punti} a {game}";
 "lng_action_game_score_no_game" = "{from} ha totalizzato {count:# punti|# punto|# punti}";
 "lng_action_game_you_scored_no_game" = "Hai totalizzato {count:# punti|# punto|# punti}";
+"lng_action_call_outgoing" = "Chiamata in uscita alle {time}";
+"lng_action_call_incoming" = "Chiamata in entrata alle {time}";
+"lng_action_call_outgoing_duration" = "Chiamata in uscita ({duration}) alle {time}";
+"lng_action_call_incoming_duration" = "Chiamata in entrata ({duration}) alle {time}";
+"lng_action_call_incoming_missed" = "Chiamata persa alle {time}";
+"lng_action_call_outgoing_missed" = "Chiamata annullata alle {time}";
+"lng_action_payment_done" = "Hai appena trasferito con successo {amount} a {user}";
+"lng_action_payment_done_for" = "Hai appena trasferito con successo {amount} a {user} per {invoice}";
 
 "lng_profile_migrate_reached" = "Limite di {count:_not_used_|# membro|# membri} raggiunto";
 "lng_profile_migrate_body" = "Per superare questo limite, puoi aggiornare il gruppo a supergruppo.";
@@ -930,7 +941,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_contact_phone" = "Numero di telefono";
 "lng_enter_contact_data" = "Nuovo contatto";
-"lng_edit_group_title" = "Modifica nome gruppo";
+"lng_edit_group_title" = "Modifica il nome del gruppo";
 "lng_edit_contact_title" = "Modifica nome contatto";
 "lng_edit_channel_title" = "Modifica canale";
 "lng_edit_sign_messages" = "Firma messaggi";
@@ -989,8 +1000,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_mediaview_photos_all" = "Visualizza tutte le foto";
 "lng_mediaview_files_all" = "Visualizza tutti i file";
 "lng_mediaview_single_photo" = "Foto singola";
-"lng_mediaview_group_photo" = "Foto gruppo";
-"lng_mediaview_channel_photo" = "Foto canale";
+"lng_mediaview_group_photo" = "Foto del gruppo";
+"lng_mediaview_channel_photo" = "Foto del canale";
 "lng_mediaview_profile_photo" = "Foto profilo";
 "lng_mediaview_file_n_of_count" = "{file} {n} di {count}";
 "lng_mediaview_n_of_count" = "Foto {n} di {count}";
@@ -1010,7 +1021,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Supporto per più emoji.\n— Clicca e trascina sui messaggi vocali per riprodurli da dove vuoi.\n— Aggiunto l'editor temi nelle Impostazioni.\n— Risoluzione di problemi e altri miglioramenti minori.";
+"lng_new_version_text" = "— Vai alla data. Clicca sulla data in una chat per visualizzare un giorno specifico.\n— L'app ora rispetta la modalità \"Non disturbare\" di macOS.\n— Risoluzione di problemi e altri miglioramenti minori.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 
@@ -1038,6 +1049,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_theme_editor_done" = "Tema esportato con successo!";
 "lng_theme_editor_title" = "Modifica tavolozza dei colori";
 "lng_theme_editor_export_button" = "Esporta tema";
+
+"lng_payments_not_supported" = "Spiacenti, Telegram Desktop non supporta i pagamenti al momento. Per favore usa una delle nostre app mobili per fare questo.";
+"lng_payments_receipt_label" = "Ricevuta";
+"lng_payments_receipt_label_test" = "Ricevuta di test";
+"lng_payments_invoice_label" = "Fattura";
+"lng_payments_invoice_label_test" = "Fattura di test";
+"lng_payments_receipt_button" = "Ricevuta";
 
 // Not used
 
