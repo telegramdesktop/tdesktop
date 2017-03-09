@@ -33,6 +33,7 @@ namespace internal {
 class AbstractConnection;
 class ConnectionPrivate;
 class SessionData;
+class RSAPublicKey;
 
 class Thread : public QThread {
 	Q_OBJECT
@@ -178,6 +179,9 @@ private:
 	void clearMessages();
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
+
+	std::string encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey *key);
+	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
 
 	Instance *_instance = nullptr;
 

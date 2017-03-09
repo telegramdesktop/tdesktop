@@ -206,13 +206,15 @@ void Session::sendPong(quint64 msgId, quint64 pingId) {
 }
 
 void Session::sendMsgsStateInfo(quint64 msgId, QByteArray data) {
-	MTPMsgsStateInfo req(MTP_msgs_state_info(MTP_long(msgId), MTPstring()));
-	auto &info = req._msgs_state_info().vinfo._string().v;
-	info.resize(data.size());
+	auto info = std::string();
 	if (!data.isEmpty()) {
-		memcpy(&info[0], data.constData(), data.size());
+		info.resize(data.size());
+		auto src = gsl::as_bytes(gsl::make_span(data));
+//		auto dst = gsl::as_writeable_bytes(gsl::make_span(info));
+		auto dst = gsl::as_writeable_bytes(gsl::make_span(&info[0], info.size()));
+		base::copy_bytes(dst, src);
 	}
-	send(req);
+	send(MTPMsgsStateInfo(MTP_msgs_state_info(MTP_long(msgId), MTP_string(std::move(info)))));
 }
 
 void Session::checkRequestsByTimer() {

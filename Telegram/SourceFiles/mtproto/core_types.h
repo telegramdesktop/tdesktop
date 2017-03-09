@@ -29,7 +29,7 @@ namespace MTP {
 using DcId = int32;
 using ShiftedDcId = int32;
 
-}
+} // namespace MTP
 
 using mtpPrime = int32;
 using mtpRequestId = int32;
@@ -177,68 +177,23 @@ public:
 
 class mtpData {
 public:
-	mtpData() : cnt(1) {
-	}
-    mtpData(const mtpData &) : cnt(1) {
-	}
-
-	mtpData *incr() {
-		++cnt;
-		return this;
-	}
-	bool decr() {
-		return !--cnt;
-	}
-	bool needSplit() {
-		return (cnt > 1);
-	}
-
-	virtual mtpData *clone() = 0;
 	virtual ~mtpData() {
 	}
 
-private:
-	uint32 cnt;
-
-};
-
-template <typename T>
-class mtpDataImpl : public mtpData {
-public:
-	virtual mtpData *clone() {
-		return new T(*(T*)this);
-	}
 };
 
 class mtpDataOwner {
 public:
-	mtpDataOwner(const mtpDataOwner &v) : data(v.data ? v.data->incr() : 0) {
-	}
-	mtpDataOwner &operator=(const mtpDataOwner &v) {
-		setData(v.data ? v.data->incr() : v.data);
-		return *this;
-	}
-	~mtpDataOwner() {
-		if (data && data->decr()) delete data;
-	}
+	mtpDataOwner(mtpDataOwner &&other) = default;
+	mtpDataOwner(const mtpDataOwner &other) = default;
+	mtpDataOwner &operator=(mtpDataOwner &&other) = default;
+	mtpDataOwner &operator=(const mtpDataOwner &other) = default;
 
 protected:
-	explicit mtpDataOwner(mtpData *_data) : data(_data) {
+	explicit mtpDataOwner(std::shared_ptr<const mtpData> &&data) : data(data) {
 	}
-	void split() {
-		if (data && data->needSplit()) {
-			mtpData *clone = data->clone();
-			if (data->decr()) delete data;
-			data = clone;
-		}
-	}
-	void setData(mtpData *_data) {
-		if (data != _data) {
-			if (data && data->decr()) delete data;
-			data = _data;
-		}
-	}
-	mtpData *data;
+	std::shared_ptr<const mtpData> data;
+
 };
 
 enum {
@@ -614,11 +569,13 @@ inline bool operator!=(const MTPdouble &a, const MTPdouble &b) {
 	return a.v != b.v;
 }
 
-class MTPDstring : public mtpDataImpl<MTPDstring> {
+class MTPDstring : public mtpData {
 public:
 	MTPDstring() {
 	}
 	MTPDstring(const std::string &val) : v(val) {
+	}
+	MTPDstring(std::string &&val) : v(std::move(val)) {
 	}
 	MTPDstring(const QString &val) : v(val.toUtf8().constData()) {
 	}
@@ -628,24 +585,20 @@ public:
 	}
 
 	std::string v;
+
 };
 
 class MTPstring : private mtpDataOwner {
 public:
-	MTPstring() : mtpDataOwner(new MTPDstring()) {
+	MTPstring() : mtpDataOwner(nullptr) {
 	}
 	MTPstring(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_string) : mtpDataOwner(0) {
 		read(from, end, cons);
 	}
 
-	MTPDstring &_string() {
-		t_assert(data != nullptr);
-		split();
-		return *(MTPDstring*)data;
-	}
 	const MTPDstring &c_string() const {
 		t_assert(data != nullptr);
-		return *(const MTPDstring*)data;
+		return static_cast<const MTPDstring&>(*data);
 	}
 
 	uint32 innerLength() const {
@@ -679,10 +632,8 @@ public:
 		}
 		if (from > end) throw mtpErrorInsufficient();
 
-		if (!data) setData(new MTPDstring());
-		MTPDstring &v(_string());
-		v.v.resize(l);
-		memcpy(&v.v[0], buf, l);
+		auto string = std::string(reinterpret_cast<const char*>(buf), l);
+		data = std::make_shared<MTPDstring>(std::move(string));
 	}
 	void write(mtpBuffer &to) const {
 		uint32 l = c_string().v.length(), s = l + ((l < 254) ? 1 : 4), was = to.size();
@@ -705,23 +656,28 @@ public:
 	}
 
 private:
-	explicit MTPstring(MTPDstring *_data) : mtpDataOwner(_data) {
+	explicit MTPstring(std::shared_ptr<const MTPDstring> &&data) : mtpDataOwner(std::move(data)) {
 	}
 
 	friend MTPstring MTP_string(const std::string &v);
+	friend MTPstring MTP_string(std::string &&v);
 	friend MTPstring MTP_string(const QString &v);
 	friend MTPstring MTP_string(const char *v);
 
 	friend MTPstring MTP_bytes(const QByteArray &v);
+
 };
 inline MTPstring MTP_string(const std::string &v) {
-	return MTPstring(new MTPDstring(v));
+	return MTPstring(std::make_shared<MTPDstring>(v));
+}
+inline MTPstring MTP_string(std::string &&v) {
+	return MTPstring(std::make_shared<MTPDstring>(std::move(v)));
 }
 inline MTPstring MTP_string(const QString &v) {
-	return MTPstring(new MTPDstring(v));
+	return MTPstring(std::make_shared<MTPDstring>(v));
 }
 inline MTPstring MTP_string(const char *v) {
-	return MTPstring(new MTPDstring(v));
+	return MTPstring(std::make_shared<MTPDstring>(v));
 }
 MTPstring MTP_string(const QByteArray &v) = delete;
 using MTPString = MTPBoxed<MTPstring>;
@@ -730,7 +686,7 @@ using MTPbytes = MTPstring;
 using MTPBytes = MTPBoxed<MTPbytes>;
 
 inline MTPbytes MTP_bytes(const QByteArray &v) {
-	return MTPbytes(new MTPDstring(v));
+	return MTPbytes(std::make_shared<MTPDstring>(v));
 }
 
 inline bool operator==(const MTPstring &a, const MTPstring &b) {
@@ -751,7 +707,7 @@ inline QByteArray qba(const MTPstring &v) {
 }
 
 template <typename T>
-class MTPDvector : public mtpDataImpl<MTPDvector<T> > {
+class MTPDvector : public mtpData {
 public:
 	MTPDvector() {
 	}
@@ -769,26 +725,21 @@ public:
 template <typename T>
 class MTPvector : private mtpDataOwner {
 public:
-	MTPvector() : mtpDataOwner(new MTPDvector<T>()) {
+	MTPvector() : mtpDataOwner(nullptr) {
 	}
 	MTPvector(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_vector) : mtpDataOwner(0) {
 		read(from, end, cons);
 	}
 
-	MTPDvector<T> &_vector() {
-		t_assert(data != nullptr);
-		split();
-		return *(MTPDvector<T>*)data;
-	}
 	const MTPDvector<T> &c_vector() const {
 		t_assert(data != nullptr);
-		return *(const MTPDvector<T>*)data;
+		return static_cast<const MTPDvector<T>&>(*data);
 	}
 
 	uint32 innerLength() const {
 		uint32 result(sizeof(uint32));
-        for (typename VType::const_iterator i = c_vector().v.cbegin(), e = c_vector().v.cend(); i != e; ++i) {
-			result += i->innerLength();
+		for_const (auto &item, c_vector().v) {
+			result += item.innerLength();
 		}
 		return result;
 	}
@@ -800,23 +751,22 @@ public:
 		if (cons != mtpc_vector) throw mtpErrorUnexpected(cons, "MTPvector");
 		uint32 count = (uint32)*(from++);
 
-		if (!data) setData(new MTPDvector<T>());
-		MTPDvector<T> &v(_vector());
-		v.v.resize(0);
-		v.v.reserve(count);
-		for (uint32 i = 0; i < count; ++i) {
-			v.v.push_back(T(from, end));
+		auto vector = QVector<T>();
+		vector.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			vector.push_back(T(from, end));
 		}
+		data = std::make_shared<MTPDvector<T>>(std::move(vector));
 	}
 	void write(mtpBuffer &to) const {
 		to.push_back(c_vector().v.size());
-        for (typename VType::const_iterator i = c_vector().v.cbegin(), e = c_vector().v.cend(); i != e; ++i) {
-			(*i).write(to);
+		for_const (auto &item, c_vector().v) {
+			item.write(to);
 		}
 	}
 
 private:
-	explicit MTPvector(MTPDvector<T> *_data) : mtpDataOwner(_data) {
+	explicit MTPvector(std::shared_ptr<MTPDvector<T>> &&data) : mtpDataOwner(std::move(data)) {
 	}
 
 	template <typename U>
@@ -825,19 +775,25 @@ private:
 	friend MTPvector<U> MTP_vector(uint32 count, const U &value);
 	template <typename U>
 	friend MTPvector<U> MTP_vector(const QVector<U> &v);
-	using VType = typename MTPDvector<T>::VType;
+	template <typename U>
+	friend MTPvector<U> MTP_vector(QVector<U> &&v);
+
 };
 template <typename T>
 inline MTPvector<T> MTP_vector(uint32 count) {
-	return MTPvector<T>(new MTPDvector<T>(count));
+	return MTPvector<T>(std::make_shared<MTPDvector<T>>(count));
 }
 template <typename T>
 inline MTPvector<T> MTP_vector(uint32 count, const T &value) {
-	return MTPvector<T>(new MTPDvector<T>(count, value));
+	return MTPvector<T>(std::make_shared<MTPDvector<T>>(count, value));
 }
 template <typename T>
 inline MTPvector<T> MTP_vector(const QVector<T> &v) {
-	return MTPvector<T>(new MTPDvector<T>(v));
+	return MTPvector<T>(std::make_shared<MTPDvector<T>>(v));
+}
+template <typename T>
+inline MTPvector<T> MTP_vector(QVector<T> &&v) {
+	return MTPvector<T>(std::make_shared<MTPDvector<T>>(std::move(v)));
 }
 template <typename T>
 using MTPVector = MTPBoxed<MTPvector<T>>;
@@ -866,7 +822,7 @@ struct MTPStringLogger {
 	}
 
 	MTPStringLogger &add(const QString &data) {
-		QByteArray d = data.toUtf8();
+		auto d = data.toUtf8();
 		return add(d.constData(), d.size());
 	}
 

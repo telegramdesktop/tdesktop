@@ -2042,7 +2042,7 @@ mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) c
 		return result;
 	}
 	stream.avail_in = packedLen;
-	stream.next_in = (Bytef*)&packed._string().v[0];
+	stream.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(packed.c_string().v.data()));
 
 	stream.avail_out = 0;
 	while (!stream.avail_out) {
@@ -2382,7 +2382,7 @@ void ConnectionPrivate::pqAnswered() {
 		return restart();
 	}
 
-	const auto &res_pq_data(res_pq.c_resPQ());
+	auto &res_pq_data = res_pq.c_resPQ();
 	if (res_pq_data.vnonce != _authKeyData->nonce) {
 		LOG(("AuthKey Error: received nonce <> sent nonce (in res_pq)!"));
 		DEBUG_LOG(("AuthKey Error: received nonce: %1, sent nonce: %2").arg(Logs::mb(&res_pq_data.vnonce, 16).str()).arg(Logs::mb(&_authKeyData->nonce, 16).str()));
@@ -2391,8 +2391,8 @@ void ConnectionPrivate::pqAnswered() {
 
 	static MTP::internal::RSAPublicKeys RSAKeys = MTP::internal::InitRSAPublicKeys();
 	const MTP::internal::RSAPublicKey *rsaKey = nullptr;
-	const auto &fingerPrints(res_pq.c_resPQ().vserver_public_key_fingerprints.c_vector().v);
-	for (const auto &fingerPrint : fingerPrints) {
+	auto &fingerPrints = res_pq.c_resPQ().vserver_public_key_fingerprints.c_vector().v;
+	for (auto &fingerPrint : fingerPrints) {
 		auto it = RSAKeys.constFind(static_cast<uint64>(fingerPrint.v));
 		if (it != RSAKeys.cend()) {
 			rsaKey = &it.value();
@@ -2401,7 +2401,7 @@ void ConnectionPrivate::pqAnswered() {
 	}
 	if (!rsaKey) {
 		QStringList suggested, my;
-		for (const auto &fingerPrint : fingerPrints) {
+		for (auto &fingerPrint : fingerPrints) {
 			suggested.push_back(QString("%1").arg(fingerPrint.v));
 		}
 		for (auto i = RSAKeys.cbegin(), e = RSAKeys.cend(); i != e; ++i) {
@@ -2412,49 +2412,54 @@ void ConnectionPrivate::pqAnswered() {
 	}
 
 	_authKeyData->server_nonce = res_pq_data.vserver_nonce;
+	_authKeyData->new_nonce = rand_value<MTPint256>();
 
-	MTPP_Q_inner_data p_q_inner;
-	MTPDp_q_inner_data &p_q_inner_data(p_q_inner._p_q_inner_data());
-	p_q_inner_data.vnonce = _authKeyData->nonce;
-	p_q_inner_data.vserver_nonce = _authKeyData->server_nonce;
-	p_q_inner_data.vpq = res_pq_data.vpq;
-
-	const string &pq(res_pq_data.vpq.c_string().v);
-	string &p(p_q_inner_data.vp._string().v), &q(p_q_inner_data.vq._string().v);
-
+	auto &pq = res_pq_data.vpq.c_string().v;
+	auto p = std::string();
+	auto q = std::string();
 	if (!MTP::internal::parsePQ(pq, p, q)) {
 		LOG(("AuthKey Error: could not factor pq!"));
 		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(&pq[0], pq.length()).str()));
 		return restart();
 	}
 
-	_authKeyData->new_nonce = rand_value<MTPint256>();
-	p_q_inner_data.vnew_nonce = _authKeyData->new_nonce;
+	auto p_q_inner = MTP_p_q_inner_data(res_pq_data.vpq, MTP_string(std::move(p)), MTP_string(std::move(q)), _authKeyData->nonce, _authKeyData->server_nonce, _authKeyData->new_nonce);
+	auto dhEncString = encryptPQInnerRSA(p_q_inner, rsaKey);
+	if (dhEncString.empty()) {
+		return restart();
+	}
+
+	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhParamsAnswered()));
+
+	DEBUG_LOG(("AuthKey Info: sending Req_DH_params..."));
 
 	MTPReq_DH_params req_DH_params;
 	req_DH_params.vnonce = _authKeyData->nonce;
 	req_DH_params.vserver_nonce = _authKeyData->server_nonce;
 	req_DH_params.vpublic_key_fingerprint = MTP_long(rsaKey->getFingerPrint());
-	req_DH_params.vp = p_q_inner_data.vp;
-	req_DH_params.vq = p_q_inner_data.vq;
+	req_DH_params.vp = p_q_inner.c_p_q_inner_data().vp;
+	req_DH_params.vq = p_q_inner.c_p_q_inner_data().vq;
+	req_DH_params.vencrypted_data = MTP_string(std::move(dhEncString));
+	sendRequestNotSecure(req_DH_params);
+}
 
-	string &dhEncString(req_DH_params.vencrypted_data._string().v);
-
-	uint32 p_q_inner_size = p_q_inner.innerLength(), encSize = (p_q_inner_size >> 2) + 6;
+std::string ConnectionPrivate::encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey *key) {
+	auto p_q_inner_size = data.innerLength();
+	auto encSize = (p_q_inner_size >> 2) + 6;
 	if (encSize >= 65) {
-		mtpBuffer tmp;
+		auto tmp = mtpBuffer();
 		tmp.reserve(encSize);
-		p_q_inner.write(tmp);
+		data.write(tmp);
 		LOG(("AuthKey Error: too large data for RSA encrypt, size %1").arg(encSize * sizeof(mtpPrime)));
 		DEBUG_LOG(("AuthKey Error: bad data for RSA encrypt %1").arg(Logs::mb(&tmp[0], tmp.size() * 4).str()));
-		return restart(); // can't be 255-byte string
+		return std::string(); // can't be 255-byte string
 	}
 
-	mtpBuffer encBuffer;
+	auto encBuffer = mtpBuffer();
 	encBuffer.reserve(65); // 260 bytes
 	encBuffer.resize(6);
 	encBuffer[0] = 0;
-	p_q_inner.write(encBuffer);
+	data.write(encBuffer);
 
 	hashSha1(&encBuffer[6], p_q_inner_size, &encBuffer[1]);
 	if (encSize < 65) {
@@ -2462,13 +2467,11 @@ void ConnectionPrivate::pqAnswered() {
 		memset_rand(&encBuffer[encSize], (65 - encSize) * sizeof(mtpPrime));
 	}
 
-	if (!rsaKey->encrypt(reinterpret_cast<const char*>(&encBuffer[0]) + 3, dhEncString)) {
-		return restart();
+	auto dhEncString = std::string();
+	if (!key->encrypt(reinterpret_cast<const char*>(&encBuffer[0]) + 3, dhEncString)) {
+		return std::string();
 	}
-	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhParamsAnswered()));
-
-	DEBUG_LOG(("AuthKey Info: sending Req_DH_params..."));
-	sendRequestNotSecure(req_DH_params);
+	return dhEncString;
 }
 
 void ConnectionPrivate::dhParamsAnswered() {
@@ -2598,15 +2601,11 @@ void ConnectionPrivate::dhClientParamsSend() {
 		return restart();
 	}
 
-	MTPClient_DH_Inner_Data client_dh_inner;
-	MTPDclient_DH_inner_data &client_dh_inner_data(client_dh_inner._client_DH_inner_data());
-	client_dh_inner_data.vnonce = _authKeyData->nonce;
-	client_dh_inner_data.vserver_nonce = _authKeyData->server_nonce;
-	client_dh_inner_data.vretry_id = _authKeyData->retry_id;
-	client_dh_inner_data.vg_b._string().v.resize(256);
+	auto g_b_string = std::string(256, ' ');
 
 	// gen rand 'b'
-	uint32 b[64], *g_b((uint32*)&client_dh_inner_data.vg_b._string().v[0]);
+	uint32 b[64];
+	auto g_b = reinterpret_cast<uint32*>(&g_b_string[0]);
 	memset_rand(b, sizeof(b));
 
 	// count g_b and auth_key using openssl BIGNUM methods
@@ -2620,21 +2619,33 @@ void ConnectionPrivate::dhClientParamsSend() {
 	memcpy(&_authKeyData->auth_key_aux_hash, auth_key_sha.data(), 8);
 	memcpy(&_authKeyData->auth_key_hash, auth_key_sha.data() + 12, 8);
 
+	auto client_dh_inner = MTP_client_DH_inner_data(_authKeyData->nonce, _authKeyData->server_nonce, _authKeyData->retry_id, MTP_string(std::move(g_b_string)));
+
+	auto sdhEncString = encryptClientDHInner(client_dh_inner);
+
+	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhClientParamsAnswered()));
+
 	MTPSet_client_DH_params req_client_DH_params;
 	req_client_DH_params.vnonce = _authKeyData->nonce;
 	req_client_DH_params.vserver_nonce = _authKeyData->server_nonce;
+	req_client_DH_params.vencrypted_data = MTP_string(std::move(sdhEncString));
 
-	string &sdhEncString(req_client_DH_params.vencrypted_data._string().v);
+	DEBUG_LOG(("AuthKey Info: sending Req_client_DH_params..."));
+	sendRequestNotSecure(req_client_DH_params);
+}
 
-	uint32 client_dh_inner_size = client_dh_inner.innerLength(), encSize = (client_dh_inner_size >> 2) + 5, encFullSize = encSize;
+std::string ConnectionPrivate::encryptClientDHInner(const MTPClient_DH_Inner_Data &data) {
+	auto client_dh_inner_size = data.innerLength();
+	auto encSize = (client_dh_inner_size >> 2) + 5;
+	auto encFullSize = encSize;
 	if (encSize & 0x03) {
 		encFullSize += 4 - (encSize & 0x03);
 	}
 
-	mtpBuffer encBuffer;
+	auto encBuffer = mtpBuffer();
 	encBuffer.reserve(encFullSize);
 	encBuffer.resize(5);
-	client_dh_inner.write(encBuffer);
+	data.write(encBuffer);
 
 	hashSha1(&encBuffer[5], client_dh_inner_size, &encBuffer[0]);
 	if (encSize < encFullSize) {
@@ -2642,14 +2653,11 @@ void ConnectionPrivate::dhClientParamsSend() {
 		memset_rand(&encBuffer[encSize], (encFullSize - encSize) * sizeof(mtpPrime));
 	}
 
-	sdhEncString.resize(encFullSize * 4);
+	auto sdhEncString = std::string(encFullSize * 4, ' ');
 
 	aesIgeEncrypt(&encBuffer[0], &sdhEncString[0], encFullSize * sizeof(mtpPrime), _authKeyData->aesKey, _authKeyData->aesIV);
 
-	connect(_conn, SIGNAL(receivedData()), this, SLOT(dhClientParamsAnswered()));
-
-	DEBUG_LOG(("AuthKey Info: sending Req_client_DH_params..."));
-	sendRequestNotSecure(req_client_DH_params);
+	return sdhEncString;
 }
 
 void ConnectionPrivate::dhClientParamsAnswered() {

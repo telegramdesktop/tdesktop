@@ -104,7 +104,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 			throw Exception(QString("ungzip init, code: %1").arg(res));
 		}
 		stream.avail_in = packedLen;
-		stream.next_in = (Bytef*)&packed._string().v[0];
+		stream.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(packed.c_string().v.data()));
 		stream.avail_out = 0;
 		while (!stream.avail_out) {
 			result.resize(result.size() + unpackedChunk);

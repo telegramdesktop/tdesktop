@@ -1400,9 +1400,9 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 }
 
 MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending) {
-	MTPVector<MTPMessageEntity> result(MTP_vector<MTPMessageEntity>(0));
-	auto &v = result._vector().v;
-	for_const (const auto &link, links) {
+	auto v = QVector<MTPMessageEntity>();
+	v.reserve(links.size());
+	for_const (auto &link, links) {
 		if (link.length() <= 0) continue;
 		if (sending
 			&& link.type() != EntityInTextCode
@@ -1441,7 +1441,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 		case EntityInTextPre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(link.data()))); break;
 		}
 	}
-	return result;
+	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
 // Some code is duplicated in flattextarea.cpp!
