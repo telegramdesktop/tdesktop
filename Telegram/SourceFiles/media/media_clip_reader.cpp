@@ -39,47 +39,54 @@ namespace {
 QVector<QThread*> threads;
 QVector<Manager*> managers;
 
-QPixmap _prepareFrame(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
-	bool badSize = (original.width() != request.framew) || (original.height() != request.frameh);
-	bool needOuter = (request.outerw != request.framew) || (request.outerh != request.frameh);
-	if (badSize || needOuter || hasAlpha || request.radius != ImageRoundRadius::None) {
-		int32 factor(request.factor);
-		bool newcache = (cache.width() != request.outerw || cache.height() != request.outerh);
-		if (newcache) {
-			cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
-			cache.setDevicePixelRatio(factor);
-		}
-		{
-			Painter p(&cache);
-			if (newcache) {
-				if (request.framew < request.outerw) {
-					p.fillRect(0, 0, (request.outerw - request.framew) / (2 * factor), cache.height() / factor, st::imageBg);
-					p.fillRect((request.outerw - request.framew) / (2 * factor) + (request.framew / factor), 0, (cache.width() / factor) - ((request.outerw - request.framew) / (2 * factor) + (request.framew / factor)), cache.height() / factor, st::imageBg);
-				}
-				if (request.frameh < request.outerh) {
-					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), 0, qMin(cache.width(), request.framew) / factor, (request.outerh - request.frameh) / (2 * factor), st::imageBg);
-					p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), (request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor), qMin(cache.width(), request.framew) / factor, (cache.height() / factor) - ((request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor)), st::imageBg);
-				}
-			}
-			if (hasAlpha) {
-				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), qMax(0, (request.outerh - request.frameh) / (2 * factor)), qMin(cache.width(), request.framew) / factor, qMin(cache.height(), request.frameh) / factor, st::imageBgTransparent);
-			}
-			QPoint position((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
-			if (badSize) {
-				p.setRenderHint(QPainter::SmoothPixmapTransform);
-				QRect to(position, QSize(request.framew / factor, request.frameh / factor));
-				QRect from(0, 0, original.width(), original.height());
-				p.drawImage(to, original, from, Qt::ColorOnly);
-			} else {
-				p.drawImage(position, original);
-			}
-		}
-		if (request.radius != ImageRoundRadius::None) {
-			Images::prepareRound(cache, request.radius, request.corners);
-		}
-		return QPixmap::fromImage(cache, Qt::ColorOnly);
+QImage PrepareFrameImage(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
+	auto needResize = (original.width() != request.framew) || (original.height() != request.frameh);
+	auto needOuterFill = (request.outerw != request.framew) || (request.outerh != request.frameh);
+	auto needRounding = (request.radius != ImageRoundRadius::None);
+	if (!needResize && !needOuterFill && !hasAlpha && !needRounding) {
+		return original;
 	}
-	return QPixmap::fromImage(original, Qt::ColorOnly);
+
+	auto factor = request.factor;
+	auto needNewCache = (cache.width() != request.outerw || cache.height() != request.outerh);
+	if (needNewCache) {
+		cache = QImage(request.outerw, request.outerh, QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(factor);
+	}
+	{
+		Painter p(&cache);
+		if (needNewCache) {
+			if (request.framew < request.outerw) {
+				p.fillRect(0, 0, (request.outerw - request.framew) / (2 * factor), cache.height() / factor, st::imageBg);
+				p.fillRect((request.outerw - request.framew) / (2 * factor) + (request.framew / factor), 0, (cache.width() / factor) - ((request.outerw - request.framew) / (2 * factor) + (request.framew / factor)), cache.height() / factor, st::imageBg);
+			}
+			if (request.frameh < request.outerh) {
+				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), 0, qMin(cache.width(), request.framew) / factor, (request.outerh - request.frameh) / (2 * factor), st::imageBg);
+				p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), (request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor), qMin(cache.width(), request.framew) / factor, (cache.height() / factor) - ((request.outerh - request.frameh) / (2 * factor) + (request.frameh / factor)), st::imageBg);
+			}
+		}
+		if (hasAlpha) {
+			p.fillRect(qMax(0, (request.outerw - request.framew) / (2 * factor)), qMax(0, (request.outerh - request.frameh) / (2 * factor)), qMin(cache.width(), request.framew) / factor, qMin(cache.height(), request.frameh) / factor, st::imageBgTransparent);
+		}
+		auto position = QPoint((request.outerw - request.framew) / (2 * factor), (request.outerh - request.frameh) / (2 * factor));
+		if (needResize) {
+			PainterHighQualityEnabler hq(p);
+
+			auto dst = QRect(position, QSize(request.framew / factor, request.frameh / factor));
+			auto src = QRect(0, 0, original.width(), original.height());
+			p.drawImage(dst, original, src, Qt::ColorOnly);
+		} else {
+			p.drawImage(position, original);
+		}
+	}
+	if (needRounding) {
+		Images::prepareRound(cache, request.radius, request.corners);
+	}
+	return cache;
+}
+
+QPixmap PrepareFrame(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
+	return QPixmap::fromImage(PrepareFrameImage(request, original, hasAlpha, cache), Qt::ColorOnly);
 }
 
 } // namespace
@@ -239,7 +246,7 @@ QPixmap Reader::current(int32 framew, int32 frameh, int32 outerw, int32 outerh, 
 	QImage cacheForResize;
 	frame->original.setDevicePixelRatio(factor);
 	frame->pix = QPixmap();
-	frame->pix = _prepareFrame(frame->request, frame->original, true, cacheForResize);
+	frame->pix = PrepareFrame(frame->request, frame->original, true, cacheForResize);
 
 	auto other = frameToWriteNext(true);
 	if (other) other->request = frame->request;
@@ -446,7 +453,7 @@ public:
 		}
 		frame()->original.setDevicePixelRatio(_request.factor);
 		frame()->pix = QPixmap();
-		frame()->pix = _prepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
+		frame()->pix = PrepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
 		frame()->when = _nextFrameWhen;
 		frame()->positionMs = _nextFramePositionMs;
 		return true;
@@ -832,33 +839,39 @@ Manager::~Manager() {
 	clear();
 }
 
-MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data, QImage &cover) {
-	FileLocation localloc(fname);
-	QByteArray localdata(data);
+SendData PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = SendData();
+	auto localLocation = FileLocation(fname);
+	auto localData = QByteArray(data);
 
 	auto playId = 0ULL;
 	auto seekPositionMs = 0LL;
-	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localloc, &localdata, playId);
-	if (reader->start(internal::ReaderImplementation::Mode::OnlyGifv, seekPositionMs)) {
-		bool hasAlpha = false;
-		auto readResult = reader->readFramesTill(-1, getms());
-		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
-		if (readFrame && reader->renderFrame(cover, hasAlpha, QSize())) {
-			if (cover.width() > 0 && cover.height() > 0 && cover.width() < cover.height() * 10 && cover.height() < cover.width() * 10) {
-				if (hasAlpha) {
-					QImage cacheForResize;
-					FrameRequest request;
-					request.framew = request.outerw = cover.width();
-					request.frameh = request.outerh = cover.height();
-					request.factor = 1;
-					cover = _prepareFrame(request, cover, hasAlpha, cacheForResize).toImage();
-				}
-				int duration = reader->durationMs() / 1000;
-				return MTP_documentAttributeVideo(MTP_int(duration), MTP_int(cover.width()), MTP_int(cover.height()));
+	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localLocation, &localData, playId);
+	if (reader->start(internal::ReaderImplementation::Mode::Inspecting, seekPositionMs)) {
+		auto durationMs = reader->durationMs();
+		result.isGifv = reader->isGifv();
+		if (!result.isGifv) {
+			auto middleMs = durationMs / 2;
+			if (!reader->inspectAt(middleMs)) {
+				return result;
 			}
 		}
+		auto hasAlpha = false;
+		auto readResult = reader->readFramesTill(-1, getms());
+		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
+		if (readFrame && reader->renderFrame(result.cover, hasAlpha, QSize())) {
+			if (hasAlpha) {
+				auto cacheForResize = QImage();
+				auto request = FrameRequest();
+				request.framew = request.outerw = result.cover.width();
+				request.frameh = request.outerh = result.cover.height();
+				request.factor = 1;
+				result.cover = PrepareFrameImage(request, result.cover, hasAlpha, cacheForResize);
+			}
+			result.duration = static_cast<int>(durationMs / 1000);
+		}
 	}
-	return MTP_documentAttributeFilename(MTP_string(fname));
+	return result;
 }
 
 void Finish() {

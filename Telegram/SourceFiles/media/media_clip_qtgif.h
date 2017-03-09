@@ -57,7 +57,7 @@ private:
 
 	Mode _mode = Mode::Normal;
 
-	QImageReader *_reader = nullptr;
+	std::unique_ptr<QImageReader> _reader;
 	int _framesLeft = 0;
 	TimeMs _frameRealTime = 0;
 	TimeMs _frameTime = 0;

@@ -237,6 +237,7 @@ public:
 	void attachToParent() override;
 	void detachFromParent() override;
 
+	void updateSentMedia(const MTPMessageMedia &media) override;
 	bool needReSetInlineResultMedia(const MTPMessageMedia &media) override;
 
 	bool hasReplyPreview() const override {

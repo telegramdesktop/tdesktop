@@ -761,11 +761,14 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		p.setOpacity(1);
 	}
 
-	auto icon = ([loaded, radial, this, selected] {
-		if (loaded) {
+	auto icon = ([this, radial, selected, loaded]() -> const style::icon * {
+		if (loaded && !radial) {
 			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		} else if (radial || _data->loading()) {
-			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+			if (_parent->id > 0 || _data->uploading()) {
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+			}
+			return nullptr;
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	})();
@@ -775,9 +778,9 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 	}
 
-	int32 statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
-	int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-	int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+	auto statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
+	auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+	auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 	App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
@@ -823,7 +826,11 @@ HistoryTextState HistoryVideo::getState(int x, int y, HistoryStateRequest reques
 		height -= skipy + st::mediaPadding.bottom();
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
-		result.link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
+		if (_data->uploading()) {
+			result.link = _cancell;
+		} else {
+			result.link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
+		}
 		if (_caption.isEmpty() && _parent->getMedia() == this) {
 			int32 fullRight = skipx + width, fullBottom = skipy + height;
 			bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
@@ -877,6 +884,12 @@ void HistoryVideo::attachToParent() {
 
 void HistoryVideo::detachFromParent() {
 	App::unregDocumentItem(_data, _parent);
+}
+
+void HistoryVideo::updateSentMedia(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaDocument) {
+		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
+	}
 }
 
 bool HistoryVideo::needReSetInlineResultMedia(const MTPMessageMedia &media) {

@@ -243,7 +243,12 @@ private:
 
 };
 
-MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data, QImage &cover);
+struct SendData {
+	QImage cover;
+	int duration = 0;
+	bool isGifv = false;
+};
+SendData PrepareForSending(const QString &fname, const QByteArray &data);
 
 void Finish();
 

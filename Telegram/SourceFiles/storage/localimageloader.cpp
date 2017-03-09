@@ -29,6 +29,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "boxes/confirmbox.h"
 
+namespace {
+
+bool ValidateThumbDimensions(int width, int height) {
+	return (width > 0) && (height > 0) && (width < 20 * height) && (height < 20 * width);
+}
+
+} // namespace
+
 TaskQueue::TaskQueue(QObject *parent, int32 stopTimeoutMs) : QObject(parent), _thread(0), _worker(0), _stopTimer(0) {
 	if (stopTimeoutMs > 0) {
 		_stopTimer = new QTimer(this);
@@ -211,7 +219,7 @@ void FileLoadTask::process() {
 
 	auto animated = false;
 	auto song = false;
-	auto gif = false;
+	auto video = false;
 	auto voice = (_type == SendMediaType::Audio);
 	auto fullimage = base::take(_image);
 	auto info = _filepath.isEmpty() ? QFileInfo() : QFileInfo(_filepath);
@@ -251,13 +259,12 @@ void FileLoadTask::process() {
 		}
 	} else if (!fullimage.isNull() && fullimage.width() > 0) {
 		if (_type == SendMediaType::Photo) {
-			auto w = fullimage.width(), h = fullimage.height();
-			if (w >= 20 * h || h >= 20 * w) {
-				_type = SendMediaType::File;
-			} else {
+			if (ValidateThumbDimensions(fullimage.width(), fullimage.height())) {
 				filesize = -1; // Fill later.
 				filemime = mimeTypeForName("image/jpeg").name();
 				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+			} else {
+				_type = SendMediaType::File;
 			}
 		}
 		if (_type == SendMediaType::File) {
@@ -294,17 +301,18 @@ void FileLoadTask::process() {
 			filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
 			QImage cover;
 			QByteArray coverBytes, coverFormat;
-			MTPDocumentAttribute audioAttribute = audioReadSongAttributes(_filepath, _content, cover, coverBytes, coverFormat);
+			auto audioAttribute = audioReadSongAttributes(_filepath, _content, cover, coverBytes, coverFormat);
 			if (audioAttribute.type() == mtpc_documentAttributeAudio) {
 				attributes.push_back(audioAttribute);
 				song = true;
 				if (!cover.isNull()) { // cover to thumb
-					int32 cw = cover.width(), ch = cover.height();
-					if (cw < 20 * ch && ch < 20 * cw) {
-						QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(cover));
+					auto coverWidth = cover.width();
+					auto coverHeight = cover.height();
+					if (ValidateThumbDimensions(coverWidth, coverHeight)) {
+						auto full = (coverWidth > 90 || coverHeight > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(cover));
 						{
-							QByteArray thumbFormat = "JPG";
-							int32 thumbQuality = 87;
+							auto thumbFormat = QByteArray("JPG");
+							auto thumbQuality = 87;
 
 							QBuffer buffer(&thumbdata);
 							full.save(&buffer, thumbFormat, thumbQuality);
@@ -318,27 +326,32 @@ void FileLoadTask::process() {
 				}
 			}
 		}
-		if (filemime == qstr("video/mp4") || filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive) || animated) {
-			QImage cover;
-			MTPDocumentAttribute animatedAttribute = Media::Clip::readAttributes(_filepath, _content, cover);
-			if (animatedAttribute.type() == mtpc_documentAttributeVideo) {
-				int32 cw = cover.width(), ch = cover.height();
-				if (cw < 20 * ch && ch < 20 * cw) {
-					attributes.push_back(MTP_documentAttributeAnimated());
-					attributes.push_back(animatedAttribute);
-					gif = true;
+		if (filemime == qstr("video/mp4") || filemime == qstr("video/quicktime")
+			|| filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive) || filename.endsWith(qstr(".mov"), Qt::CaseInsensitive)) {
+			auto sendVideoData = Media::Clip::PrepareForSending(_filepath, _content);
+			if (sendVideoData.duration > 0) {
+				auto coverWidth = sendVideoData.cover.width();
+				auto coverHeight = sendVideoData.cover.height();
+				if (ValidateThumbDimensions(coverWidth, coverHeight)) {
+					if (sendVideoData.isGifv) {
+						attributes.push_back(MTP_documentAttributeAnimated());
+					}
+					attributes.push_back(MTP_documentAttributeVideo(MTP_int(sendVideoData.duration), MTP_int(coverWidth), MTP_int(coverHeight)));
+					video = true;
 
-					QPixmap full = (cw > 90 || ch > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(cover));
+					auto cover = (coverWidth > 90 || coverHeight > 90)
+						? sendVideoData.cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+						: std::move(sendVideoData.cover);
 					{
-						QByteArray thumbFormat = "JPG";
-						int32 thumbQuality = 87;
+						auto thumbFormat = QByteArray("JPG");
+						auto thumbQuality = 87;
 
 						QBuffer buffer(&thumbdata);
-						full.save(&buffer, thumbFormat, thumbQuality);
+						cover.save(&buffer, thumbFormat, thumbQuality);
 					}
 
-					thumb = full;
-					thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+					thumb = App::pixmapFromImageInPlace(std::move(cover));
+					thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0));
 
 					thumbId = rand_value<uint64>();
 
@@ -350,11 +363,11 @@ void FileLoadTask::process() {
 		}
 	}
 
-	if (!fullimage.isNull() && fullimage.width() > 0 && !song && !gif && !voice) {
+	if (!fullimage.isNull() && fullimage.width() > 0 && !song && !video && !voice) {
 		auto w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
-		if (w < 20 * h && h < 20 * w) {
+		if (ValidateThumbDimensions(w, h)) {
 			if (animated) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != SendMediaType::File) {
