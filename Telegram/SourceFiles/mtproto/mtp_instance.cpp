@@ -733,9 +733,11 @@ void Instance::Private::execCallback(mtpRequestId requestId, const mtpPrime *fro
 			if (from >= end) throw mtpErrorInsufficient();
 
 			if (*from == mtpc_rpc_error) {
-				RPCError err(MTPRpcError(from, end));
-				DEBUG_LOG(("RPC Info: error received, code %1, type %2, description: %3").arg(err.code()).arg(err.type()).arg(err.description()));
-				if (!rpcErrorOccured(requestId, h, err)) {
+				auto mtpError = MTPRpcError();
+				mtpError.read(from, end);
+				auto error = RPCError(mtpError);
+				DEBUG_LOG(("RPC Info: error received, code %1, type %2, description: %3").arg(error.code()).arg(error.type()).arg(error.description()));
+				if (!rpcErrorOccured(requestId, h, error)) {
 					QMutexLocker locker(&_parserMapLock);
 					_parserMap.emplace(requestId, h);
 					return;

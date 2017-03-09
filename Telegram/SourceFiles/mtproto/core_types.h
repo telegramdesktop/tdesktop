@@ -190,6 +190,7 @@ public:
 	mtpDataOwner &operator=(const mtpDataOwner &other) = default;
 
 protected:
+	mtpDataOwner() = default;
 	explicit mtpDataOwner(std::shared_ptr<const mtpData> &&data) : data(data) {
 	}
 	std::shared_ptr<const mtpData> data;
@@ -261,14 +262,10 @@ static const uint32 mtpLayerMaxSingle = sizeof(mtpLayers) / sizeof(mtpLayers[0])
 template <typename bareT>
 class MTPBoxed : public bareT {
 public:
-	MTPBoxed() {
-	}
+	MTPBoxed() = default;
 	MTPBoxed(const bareT &v) : bareT(v) {
 	}
 	MTPBoxed(const MTPBoxed<bareT> &v) : bareT(v) {
-	}
-	MTPBoxed(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) {
-		read(from, end, cons);
 	}
 
 	MTPBoxed<bareT> &operator=(const bareT &v) {
@@ -300,13 +297,9 @@ class MTPBoxed<MTPBoxed<T> > {
 
 class MTPint {
 public:
-	int32 v;
+	int32 v = 0;
 
-	MTPint() {
-	}
-	MTPint(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_int) {
-		read(from, end, cons);
-	}
+	MTPint() = default;
 
 	uint32 innerLength() const {
 		return sizeof(int32);
@@ -337,14 +330,10 @@ using MTPInt = MTPBoxed<MTPint>;
 template <typename Flags>
 class MTPflags {
 public:
-	Flags v;
+	Flags v = Flags(0);
 	static_assert(sizeof(Flags) == sizeof(int32), "MTPflags are allowed only wrapping int32 flag types!");
 
-	MTPflags() {
-	}
-	MTPflags(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_flags) {
-		read(from, end, cons);
-	}
+	MTPflags() = default;
 
 	uint32 innerLength() const {
 		return sizeof(Flags);
@@ -386,13 +375,9 @@ inline bool operator!=(const MTPint &a, const MTPint &b) {
 
 class MTPlong {
 public:
-	uint64 v;
+	uint64 v = 0;
 
-	MTPlong() {
-	}
-	MTPlong(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_long) {
-		read(from, end, cons);
-	}
+	MTPlong() = default;
 
 	uint32 innerLength() const {
 		return sizeof(uint64);
@@ -431,14 +416,10 @@ inline bool operator!=(const MTPlong &a, const MTPlong &b) {
 
 class MTPint128 {
 public:
-	uint64 l;
-	uint64 h;
+	uint64 l = 0;
+	uint64 h = 0;
 
-	MTPint128() {
-	}
-	MTPint128(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_int128) {
-		read(from, end, cons);
-	}
+	MTPint128() = default;
 
 	uint32 innerLength() const {
 		return sizeof(uint64) + sizeof(uint64);
@@ -483,11 +464,7 @@ public:
 	MTPint128 l;
 	MTPint128 h;
 
-	MTPint256() {
-	}
-	MTPint256(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_int256) {
-		read(from, end, cons);
-	}
+	MTPint256() = default;
 
 	uint32 innerLength() const {
 		return l.innerLength() + h.innerLength();
@@ -525,13 +502,9 @@ inline bool operator!=(const MTPint256 &a, const MTPint256 &b) {
 
 class MTPdouble {
 public:
-	float64 v;
+	float64 v = 0.;
 
-	MTPdouble() {
-	}
-	MTPdouble(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_double) {
-		read(from, end, cons);
-	}
+	MTPdouble() = default;
 
 	uint32 innerLength() const {
 		return sizeof(float64);
@@ -590,11 +563,7 @@ public:
 
 class MTPstring : private mtpDataOwner {
 public:
-	MTPstring() : mtpDataOwner(nullptr) {
-	}
-	MTPstring(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_string) : mtpDataOwner(0) {
-		read(from, end, cons);
-	}
+	MTPstring() = default;
 
 	const MTPDstring &c_string() const {
 		t_assert(data != nullptr);
@@ -725,11 +694,7 @@ public:
 template <typename T>
 class MTPvector : private mtpDataOwner {
 public:
-	MTPvector() : mtpDataOwner(nullptr) {
-	}
-	MTPvector(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_vector) : mtpDataOwner(0) {
-		read(from, end, cons);
-	}
+	MTPvector() = default;
 
 	const MTPDvector<T> &c_vector() const {
 		t_assert(data != nullptr);
@@ -749,12 +714,11 @@ public:
 	void read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_vector) {
 		if (from + 1 > end) throw mtpErrorInsufficient();
 		if (cons != mtpc_vector) throw mtpErrorUnexpected(cons, "MTPvector");
-		uint32 count = (uint32)*(from++);
+		auto count = static_cast<uint32>(*(from++));
 
-		auto vector = QVector<T>();
-		vector.reserve(count);
-		for (auto i = 0; i != count; ++i) {
-			vector.push_back(T(from, end));
+		auto vector = QVector<T>(count, T());
+		for (auto &item : vector) {
+			item.read(from, end);
 		}
 		data = std::make_shared<MTPDvector<T>>(std::move(vector));
 	}

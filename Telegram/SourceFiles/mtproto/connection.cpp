@@ -1524,15 +1524,18 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			if (from + 4 >= end) throw mtpErrorInsufficient();
 			otherEnd = from + 4;
 
-			MTPlong inMsgId(from, otherEnd);
+			MTPlong inMsgId;
+			inMsgId.read(from, otherEnd);
 			bool isReply = ((inMsgId.v & 0x03) == 1);
 			if (!isReply && ((inMsgId.v & 0x03) != 3)) {
 				LOG(("Message Error: bad msg_id %1 in contained message received").arg(inMsgId.v));
 				return HandleResult::RestartConnection;
 			}
 
-			MTPint inSeqNo(from, otherEnd);
-			MTPint bytes(from, otherEnd);
+			MTPint inSeqNo;
+			inSeqNo.read(from, otherEnd);
+			MTPint bytes;
+			bytes.read(from, otherEnd);
 			if ((bytes.v & 0x03) || bytes.v < 4) {
 				LOG(("Message Error: bad length %1 of contained message received").arg(bytes.v));
 				return HandleResult::RestartConnection;
@@ -1565,7 +1568,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	} return HandleResult::Success;
 
 	case mtpc_msgs_ack: {
-		MTPMsgsAck msg(from, end);
+		MTPMsgsAck msg;
+		msg.read(from, end);
 		const auto &ids(msg.c_msgs_ack().vmsg_ids.c_vector().v);
 		uint32 idsCount = ids.size();
 
@@ -1583,7 +1587,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	} return HandleResult::Success;
 
 	case mtpc_bad_msg_notification: {
-		MTPBadMsgNotification msg(from, end);
+		MTPBadMsgNotification msg;
+		msg.read(from, end);
 		const auto &data(msg.c_bad_msg_notification());
 		LOG(("Message Info: bad message notification received (error_code %3) for msg_id = %1, seq_no = %2").arg(data.vbad_msg_id.v).arg(data.vbad_msg_seqno.v).arg(data.verror_code.v));
 
@@ -1659,7 +1664,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	} return HandleResult::Success;
 
 	case mtpc_bad_server_salt: {
-		MTPBadMsgNotification msg(from, end);
+		MTPBadMsgNotification msg;
+		msg.read(from, end);
 		const auto &data(msg.c_bad_server_salt());
 		DEBUG_LOG(("Message Info: bad server salt received (error_code %4) for msg_id = %1, seq_no = %2, new salt: %3").arg(data.vbad_msg_id.v).arg(data.vbad_msg_seqno.v).arg(data.vnew_server_salt.v).arg(data.verror_code.v));
 
@@ -1693,7 +1699,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			DEBUG_LOG(("Message Info: skipping with bad time..."));
 			return HandleResult::Ignored;
 		}
-		MTPMsgsStateReq msg(from, end);
+		MTPMsgsStateReq msg;
+		msg.read(from, end);
 		const auto &ids(msg.c_msgs_state_req().vmsg_ids.c_vector().v);
 		uint32 idsCount = ids.size();
 		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(Logs::vector(ids)));
@@ -1740,7 +1747,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	} return HandleResult::Success;
 
 	case mtpc_msgs_state_info: {
-		MTPMsgsStateInfo msg(from, end);
+		MTPMsgsStateInfo msg;
+		msg.read(from, end);
 		const auto &data(msg.c_msgs_state_info());
 
 		uint64 reqMsgId = data.vreq_msg_id.v;
@@ -1776,10 +1784,12 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		try {
 			const mtpPrime *rFrom = requestBuffer->constData() + 8, *rEnd = requestBuffer->constData() + requestBuffer->size();
 			if (mtpTypeId(*rFrom) == mtpc_msgs_state_req) {
-				MTPMsgsStateReq request(rFrom, rEnd);
+				MTPMsgsStateReq request;
+				request.read(rFrom, rEnd);
 				handleMsgsStates(request.c_msgs_state_req().vmsg_ids.c_vector().v, states, toAck);
 			} else {
-				MTPMsgResendReq request(rFrom, rEnd);
+				MTPMsgResendReq request;
+				request.read(rFrom, rEnd);
 				handleMsgsStates(request.c_msg_resend_req().vmsg_ids.c_vector().v, states, toAck);
 			}
 		} catch(Exception &) {
@@ -1796,7 +1806,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			return HandleResult::Ignored;
 		}
 
-		MTPMsgsAllInfo msg(from, end);
+		MTPMsgsAllInfo msg;
+		msg.read(from, end);
 		const auto &data(msg.c_msgs_all_info());
 		const auto &ids(data.vmsg_ids.c_vector().v);
 		const auto &states(data.vinfo.c_string().v);
@@ -1810,7 +1821,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	} return HandleResult::Success;
 
 	case mtpc_msg_detailed_info: {
-		MTPMsgDetailedInfo msg(from, end);
+		MTPMsgDetailedInfo msg;
+		msg.read(from, end);
 		const auto &data(msg.c_msg_detailed_info());
 
 		DEBUG_LOG(("Message Info: msg detailed info, sent msgId %1, answerId %2, status %3, bytes %4").arg(data.vmsg_id.v).arg(data.vanswer_msg_id.v).arg(data.vstatus.v).arg(data.vbytes.v));
@@ -1845,7 +1857,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			DEBUG_LOG(("Message Info: skipping msg_new_detailed_info with bad time..."));
 			return HandleResult::Ignored;
 		}
-		MTPMsgDetailedInfo msg(from, end);
+		MTPMsgDetailedInfo msg;
+		msg.read(from, end);
 		const auto &data(msg.c_msg_new_detailed_info());
 
 		DEBUG_LOG(("Message Info: msg new detailed info, answerId %2, status %3, bytes %4").arg(data.vanswer_msg_id.v).arg(data.vstatus.v).arg(data.vbytes.v));
@@ -1865,7 +1878,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	} return HandleResult::Success;
 
 	case mtpc_msg_resend_req: {
-		MTPMsgResendReq msg(from, end);
+		MTPMsgResendReq msg;
+		msg.read(from, end);
 		const auto &ids(msg.c_msg_resend_req().vmsg_ids.c_vector().v);
 
 		uint32 idsCount = ids.size();
@@ -1883,7 +1897,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		if (from + 3 > end) throw mtpErrorInsufficient();
 		mtpResponse response;
 
-		MTPlong reqMsgId(++from, end);
+		MTPlong reqMsgId;
+		reqMsgId.read(++from, end);
 		mtpTypeId typeId = from[0];
 
 		DEBUG_LOG(("RPC Info: response received for %1, queueing...").arg(reqMsgId.v));
@@ -1926,7 +1941,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 	case mtpc_new_session_created: {
 		const mtpPrime *start = from;
-		MTPNewSession msg(from, end);
+		MTPNewSession msg;
+		msg.read(from, end);
 		const auto &data(msg.c_new_session_created());
 
 		if (badTime) {
@@ -1966,14 +1982,16 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	case mtpc_ping: {
 		if (badTime) return HandleResult::Ignored;
 
-		MTPPing msg(from, end);
+		MTPPing msg;
+		msg.read(from, end);
 		DEBUG_LOG(("Message Info: ping received, ping_id: %1, sending pong...").arg(msg.vping_id.v));
 
 		emit sendPongAsync(msgId, msg.vping_id.v);
 	} return HandleResult::Success;
 
 	case mtpc_pong: {
-		MTPPong msg(from, end);
+		MTPPong msg;
+		msg.read(from, end);
 		const auto &data(msg.c_pong());
 		DEBUG_LOG(("Message Info: pong received, msg_id: %1, ping_id: %2").arg(data.vmsg_id.v).arg(data.vping_id.v));
 
@@ -2025,7 +2043,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 }
 
 mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) const {
-	MTPstring packed(from, end); // read packed string as serialized mtp string type
+	MTPstring packed;
+	packed.read(from, end); // read packed string as serialized mtp string type
 	uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen, unpackedLen = 0;
 
 	mtpBuffer result; // * 4 because of mtpPrime type
@@ -2527,7 +2546,8 @@ void ConnectionPrivate::dhParamsAnswered() {
 		aesIgeDecrypt(&encDHStr[0], &decBuffer[0], encDHLen, _authKeyData->aesKey, _authKeyData->aesIV);
 
 		const mtpPrime *from(&decBuffer[5]), *to(from), *end(from + (encDHBufLen - 5));
-		MTPServer_DH_inner_data dh_inner(to, end);
+		MTPServer_DH_inner_data dh_inner;
+		dh_inner.read(to, end);
 		const auto &dh_inner_data(dh_inner.c_server_DH_inner_data());
 		if (dh_inner_data.vnonce != _authKeyData->nonce) {
 			LOG(("AuthKey Error: received nonce <> sent nonce (in server_DH_inner_data)!"));

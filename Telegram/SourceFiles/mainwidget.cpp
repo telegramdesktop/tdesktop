@@ -4467,13 +4467,18 @@ void MainWidget::updateReceived(const mtpPrime *from, const mtpPrime *end) {
 	App::wnd()->checkAutoLock();
 
 	if (mtpTypeId(*from) == mtpc_new_session_created) {
-		MTPNewSession newSession(from, end);
+		try {
+			MTPNewSession newSession;
+			newSession.read(from, end);
+		} catch (mtpErrorUnexpected &) {
+		}
 		updSeq = 0;
 		MTP_LOG(0, ("getDifference { after new_session_created }%1").arg(cTestMode() ? " TESTMODE" : ""));
 		return getDifference();
 	} else {
 		try {
-			MTPUpdates updates(from, end);
+			MTPUpdates updates;
+			updates.read(from, end);
 
 			_lastUpdateTime = getms(true);
 			noUpdatesTimer.start(NoUpdatesTimeout);

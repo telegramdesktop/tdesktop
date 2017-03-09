@@ -345,8 +345,7 @@ with open('scheme.tl') as f:
             prmsStr.append('const ' + ptypeFull + ' &_' + paramName);
         funcsText += '\n';
 
-      funcsText += '\tMTP' + name + '() {\n\t}\n'; # constructor
-      funcsText += '\tMTP' + name + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = mtpc_' + name + ') {\n\t\tread(from, end, cons);\n\t}\n'; # stream constructor
+      funcsText += '\tMTP' + name + '() = default;\n'; # constructor
       if (len(prms) > len(trivialConditions)):
         funcsText += '\tMTP' + name + '(' + ', '.join(prmsStr) + ') : ' + ', '.join(prmsInit) + ' {\n\t}\n';
 
@@ -399,7 +398,7 @@ with open('scheme.tl') as f:
         funcsText += 'template <typename TQueryType>\n';
         funcsText += 'class MTP' + Name + ' : public MTPBoxed<MTP' + name + '<TQueryType> > {\n';
         funcsText += 'public:\n';
-        funcsText += '\tMTP' + Name + '() {\n\t}\n';
+        funcsText += '\tMTP' + Name + '() = default;\n';
         funcsText += '\tMTP' + Name + '(const MTP' + name + '<TQueryType> &v) : MTPBoxed<MTP' + name + '<TQueryType> >(v) {\n\t}\n';
         if (len(prms) > len(trivialConditions)):
           funcsText += '\tMTP' + Name + '(' + ', '.join(prmsStr) + ') : MTPBoxed<MTP' + name + '<TQueryType> >(MTP' + name + '<TQueryType>(' + ', '.join(prmsNames) + ')) {\n\t}\n';
@@ -407,9 +406,8 @@ with open('scheme.tl') as f:
       else:
         funcsText += 'class MTP' + Name + ' : public MTPBoxed<MTP' + name + '> {\n';
         funcsText += 'public:\n';
-        funcsText += '\tMTP' + Name + '() {\n\t}\n';
+        funcsText += '\tMTP' + Name + '() = default;\n';
         funcsText += '\tMTP' + Name + '(const MTP' + name + ' &v) : MTPBoxed<MTP' + name + '>(v) {\n\t}\n';
-        funcsText += '\tMTP' + Name + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons = 0) : MTPBoxed<MTP' + name + '>(from, end, cons) {\n\t}\n';
         if (len(prms) > len(trivialConditions)):
           funcsText += '\tMTP' + Name + '(' + ', '.join(prmsStr) + ') : MTPBoxed<MTP' + name + '>(MTP' + name + '(' + ', '.join(prmsNames) + ')) {\n\t}\n';
         funcsText += '};\n';
@@ -605,7 +603,7 @@ for restype in typesList:
             dataText += '\tbool has_' + paramName + '() const { return v' + hasFlags + '.v & Flag::f_' + paramName + '; }\n';
         dataText += '\n';
 
-    dataText += '\tMTPD' + name + '() {\n\t}\n'; # default constructor
+    dataText += '\tMTPD' + name + '() = default;\n'; # default constructor
     switchLines += '\t\tcase mtpc_' + name + ': '; # for by-type-id type constructor
     if (len(prms) > len(trivialConditions)):
       switchLines += 'data = std::make_shared<MTPD' + name + '>(); ';
@@ -729,10 +727,7 @@ for restype in typesList:
   typesText += 'public:\n';
   typesText += '\tMTP' + restype + '()'; # default constructor
   inits = [];
-  if (withType):
-    if (withData):
-      inits.append('mtpDataOwner(nullptr)');
-  else:
+  if not (withType):
     if (withData):
       inits.append('mtpDataOwner(' + newFast + ')');
   if (withData and not withType):
@@ -745,17 +740,6 @@ for restype in typesList:
     if (inits):
       typesText += ' : ' + ', '.join(inits);
     typesText += ' {\n\t}\n';
-
-  inits = [];
-  if (withData):
-    inits.append('mtpDataOwner(nullptr)');
-  typesText += '\tMTP' + restype + '(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons';
-  if (not withType):
-    typesText += ' = mtpc_' + name;
-  typesText += ')'; # read constructor
-  if (inits):
-    typesText += ' : ' + ', '.join(inits);
-  typesText += ' {\n\t\tread(from, end, cons);\n\t}\n';
 
   if (withData):
     typesText += getters;
@@ -815,8 +799,6 @@ for restype in typesList:
   if (withType): # by-type-id constructor
     typesText += '\texplicit MTP' + restype + '(mtpTypeId type);\n';
     inlineMethods += 'inline MTP' + restype + '::MTP' + restype + '(mtpTypeId type) : ';
-    if (withData):
-      inlineMethods += 'mtpDataOwner(nullptr), ';
     inlineMethods += '_type(type)';
     inlineMethods += ' {\n';
     inlineMethods += '\tswitch (type) {\n'; # type id check
