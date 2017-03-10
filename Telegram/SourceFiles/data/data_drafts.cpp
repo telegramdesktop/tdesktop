@@ -40,7 +40,7 @@ Draft::Draft(const Ui::FlatTextarea *field, MsgId msgId, bool previewCancelled, 
 void applyPeerCloudDraft(PeerId peerId, const MTPDdraftMessage &draft) {
 	auto history = App::history(peerId);
 	auto text = qs(draft.vmessage);
-	auto entities = draft.has_entities() ? entitiesFromMTP(draft.ventities.c_vector().v) : EntitiesInText();
+	auto entities = draft.has_entities() ? entitiesFromMTP(draft.ventities.v) : EntitiesInText();
 	TextWithTags textWithTags = { textApplyEntities(text, entities), textTagsFromEntities(entities) };
 	MsgId replyTo = draft.has_reply_to_msg_id() ? draft.vreply_to_msg_id.v : 0;
 	auto cloudDraft = std::make_unique<Draft>(textWithTags, replyTo, MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX), draft.is_no_webpage());

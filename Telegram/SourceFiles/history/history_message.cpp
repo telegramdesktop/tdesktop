@@ -415,7 +415,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 
 	TextWithEntities textWithEntities = {
 		textClean(qs(msg.vmessage)),
-		msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText(),
+		msg.has_entities() ? entitiesFromMTP(msg.ventities.v) : EntitiesInText(),
 	};
 	setText(textWithEntities);
 }
@@ -895,7 +895,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	TextWithEntities textWithEntities = { qs(message.vmessage), EntitiesInText() };
 	if (message.has_entities()) {
-		textWithEntities.entities = entitiesFromMTP(message.ventities.c_vector().v);
+		textWithEntities.entities = entitiesFromMTP(message.ventities.v);
 	}
 	setText(textWithEntities);
 	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
@@ -1850,7 +1850,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
 		auto &d = action.c_messageActionChatAddUser();
-		auto &v = d.vusers.c_vector().v;
+		auto &v = d.vusers.v;
 		bool foundSelf = false;
 		for (int i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).v == AuthSession::CurrentUserId()) {

@@ -1015,14 +1015,14 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
 		auto &d(result.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
@@ -1034,19 +1034,19 @@ void MainWidget::checkedHistory(PeerData *peer, const MTPmessages_Messages &resu
 		}
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 	}
 	if (!v) return;
 
 	if (v->isEmpty()) {
 		if (peer->isChat() && !peer->asChat()->haveLeft()) {
-			History *h = App::historyLoaded(peer->id);
+			auto h = App::historyLoaded(peer->id);
 			if (h) Local::addSavedPeer(peer, h->lastMsgDate);
 		} else if (peer->isChannel()) {
 			if (peer->asChannel()->inviter > 0 && peer->asChannel()->amIn()) {
-				if (UserData *from = App::userLoaded(peer->asChannel()->inviter)) {
-					History *h = App::history(peer->id);
+				if (auto from = App::userLoaded(peer->asChannel()->inviter)) {
+					auto h = App::history(peer->id);
 					h->clear(true);
 					h->addNewerSlice(QVector<MTPMessage>());
 					h->asChannelHistory()->insertJoinedMessage(true);
@@ -1244,8 +1244,9 @@ void MainWidget::sendMessage(const MessageToSend &message) {
 		if (silentPost) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_silent;
 		}
-		MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
-		if (!sentEntities.c_vector().v.isEmpty()) {
+		auto localEntities = linksToMTP(sendingEntities);
+		auto sentEntities = linksToMTP(sendingEntities, true);
+		if (!sentEntities.v.isEmpty()) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
 		if (message.clearDraft) {
@@ -2123,7 +2124,7 @@ void MainWidget::onViewsIncrement() {
 }
 
 void MainWidget::viewsIncrementDone(QVector<MTPint> ids, const MTPVector<MTPint> &result, mtpRequestId req) {
-	const auto &v(result.c_vector().v);
+	auto &v = result.v;
 	if (ids.size() == v.size()) {
 		for (ViewsIncrementRequests::iterator i = _viewsIncrementRequests.begin(); i != _viewsIncrementRequests.cend(); ++i) {
 			if (i.value() == req) {
@@ -2820,7 +2821,7 @@ void MainWidget::jumpToDate(PeerData *peer, const QDate &date) {
 			auto handleMessages = [](auto &messages) {
 				App::feedUsers(messages.vusers);
 				App::feedChats(messages.vchats);
-				return &messages.vmessages.c_vector().v;
+				return &messages.vmessages.v;
 			};
 			switch (result.type()) {
 			case mtpc_messages_messages: return handleMessages(result.c_messages_messages());
@@ -3359,18 +3360,16 @@ void MainWidget::onUpdateNotifySettings() {
 }
 
 void MainWidget::feedUpdateVector(const MTPVector<MTPUpdate> &updates, bool skipMessageIds) {
-	const auto &v(updates.c_vector().v);
-	for (QVector<MTPUpdate>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-		if (skipMessageIds && i->type() == mtpc_updateMessageID) continue;
-		feedUpdate(*i);
+	for_const (auto &update, updates.v) {
+		if (skipMessageIds && update.type() == mtpc_updateMessageID) continue;
+		feedUpdate(update);
 	}
 }
 
 void MainWidget::feedMessageIds(const MTPVector<MTPUpdate> &updates) {
-	const auto &v(updates.c_vector().v);
-	for (QVector<MTPUpdate>::const_iterator i = v.cbegin(), e = v.cend(); i != e; ++i) {
-		if (i->type() == mtpc_updateMessageID) {
-			feedUpdate(*i);
+	for_const (auto &update, updates.v) {
+		if (update.type() == mtpc_updateMessageID) {
+			feedUpdate(update);
 		}
 	}
 }
@@ -3463,7 +3462,7 @@ void MainWidget::gotChannelDifference(ChannelData *channel, const MTPupdates_Cha
 
 		// feed messages and groups, copy from App::feedMsgs
 		auto h = App::history(channel->id);
-		auto &vmsgs = d.vnew_messages.c_vector().v;
+		auto &vmsgs = d.vnew_messages.v;
 		QMap<uint64, int> msgsIds;
 		for (int i = 0, l = vmsgs.size(); i < l; ++i) {
 			auto &msg = vmsgs[i];
@@ -4054,7 +4053,7 @@ void MainWidget::inviteCheckDone(QString hash, const MTPChatInvite &invite) {
 
 		QVector<UserData*> participants;
 		if (d.has_participants()) {
-			auto &v = d.vparticipants.c_vector().v;
+			auto &v = d.vparticipants.v;
 			participants.reserve(v.size());
 			for_const (auto &user, v) {
 				if (auto feededUser = App::feedUser(user)) {
@@ -4096,8 +4095,8 @@ void MainWidget::inviteImportDone(const MTPUpdates &updates) {
 	Ui::hideLayer();
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (MainWidget::inviteImportDone)").arg(updates.type())); break;
 	}
 	if (v && !v->isEmpty()) {
@@ -4122,7 +4121,7 @@ bool MainWidget::inviteImportFail(const RPCError &error) {
 }
 
 void MainWidget::startWithSelf(const MTPVector<MTPUser> &users) {
-	auto &v = users.c_vector().v;
+	auto &v = users.v;
 	if (v.isEmpty()) {
 		LOG(("Auth Error: self user not received."));
 		return App::logOutDelayed();
@@ -4174,11 +4173,12 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 		}
 		if (setTo == UnknownNotifySettings) break;
 
-		changed = (setTo->flags != d.vflags.v) || (setTo->mute != d.vmute_until.v) || (setTo->sound != d.vsound.c_string().v);
+		auto sound = qs(d.vsound);
+		changed = (setTo->flags != d.vflags.v) || (setTo->mute != d.vmute_until.v) || (setTo->sound != sound);
 		if (changed) {
 			setTo->flags = d.vflags.v;
 			setTo->mute = d.vmute_until.v;
-			setTo->sound = d.vsound.c_string().v;
+			setTo->sound = sound;
 			if (updatePeer) {
 				if (!h) h = App::history(updatePeer->id);
 				int32 changeIn = 0;
@@ -4514,7 +4514,7 @@ bool fwdInfoDataLoaded(const MTPMessageFwdHeader &header) {
 }
 
 bool mentionUsersLoaded(const MTPVector<MTPMessageEntity> &entities) {
-	for_const (auto &entity, entities.c_vector().v) {
+	for_const (auto &entity, entities.v) {
 		auto type = entity.type();
 		if (type == mtpc_messageEntityMentionName) {
 			if (!App::userLoaded(peerFromUser(entity.c_messageEntityMentionName().vuser_id))) {
@@ -4568,7 +4568,7 @@ DataIsLoadedResult allDataLoadedForMessage(const MTPMessage &msg) {
 		}
 		switch (d.vaction.type()) {
 		case mtpc_messageActionChatAddUser: {
-			for_const (const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.c_vector().v) {
+			for_const (const MTPint &userId, d.vaction.c_messageActionChatAddUser().vusers.v) {
 				if (!App::userLoaded(peerFromUser(userId))) {
 					return DataIsLoadedResult::NotLoaded;
 				}
@@ -4701,7 +4701,7 @@ void MainWidget::feedUpdates(const MTPUpdates &updates, uint64 randomId) {
 					if (d.has_entities() && !mentionUsersLoaded(d.ventities)) {
 						api()->requestMessageData(item->history()->peer->asChannel(), item->id, ApiWrap::RequestMessageDataCallback());
 					}
-					auto entities = d.has_entities() ? entitiesFromMTP(d.ventities.c_vector().v) : EntitiesInText();
+					auto entities = d.has_entities() ? entitiesFromMTP(d.ventities.v) : EntitiesInText();
 					item->setText({ text, entities });
 					item->updateMedia(d.has_media() ? (&d.vmedia) : nullptr);
 					item->addToOverview(AddToOverviewNew);
@@ -4796,9 +4796,9 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		auto &v = d.vmessages.c_vector().v;
+		auto &v = d.vmessages.v;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
-			if (HistoryItem *item = App::histItemById(NoChannel, v.at(i).v)) {
+			if (auto item = App::histItemById(NoChannel, v.at(i).v)) {
 				if (item->isMediaUnread()) {
 					item->markMediaRead();
 					Ui::repaintHistoryItem(item);
@@ -4867,7 +4867,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		App::feedWereDeleted(NoChannel, d.vmessages.c_vector().v);
+		App::feedWereDeleted(NoChannel, d.vmessages.v);
 		_history->peerMessagesUpdated();
 
 		ptsApplySkippedUpdates();
@@ -5053,7 +5053,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		if (d.is_popup()) {
 			Ui::show(Box<InformBox>(qs(d.vmessage)));
 		} else {
-			App::wnd()->serviceNotification({ qs(d.vmessage), entitiesFromMTP(d.ventities.c_vector().v) }, d.vmedia);
+			App::wnd()->serviceNotification({ qs(d.vmessage), entitiesFromMTP(d.ventities.v) }, d.vmedia);
 			emit App::wnd()->checkNewAuthorization();
 		}
 	} break;
@@ -5066,7 +5066,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		auto &d = update.c_updatePinnedDialogs();
 		if (d.has_order()) {
 			auto allLoaded = true;
-			auto &order = d.vorder.c_vector().v;
+			auto &order = d.vorder.v;
 			for_const (auto &peer, order) {
 				auto peerId = peerFromMTP(peer);
 				if (!App::historyLoaded(peerId)) {
@@ -5258,7 +5258,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 		}
 
 		// update before applying skipped
-		App::feedWereDeleted(d.vchannel_id.v, d.vmessages.c_vector().v);
+		App::feedWereDeleted(d.vchannel_id.v, d.vmessages.v);
 		_history->peerMessagesUpdated();
 
 		if (channel && !_handlingChannelDifference) {
@@ -5303,7 +5303,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						}
 					}
 					auto inputSet = MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access));
-					auto &v = set.vdocuments.c_vector().v;
+					auto &v = set.vdocuments.v;
 					it->stickers.clear();
 					it->stickers.reserve(v.size());
 					for (int i = 0, l = v.size(); i < l; ++i) {
@@ -5316,13 +5316,13 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 						}
 					}
 					it->emoji.clear();
-					auto &packs = set.vpacks.c_vector().v;
+					auto &packs = set.vpacks.v;
 					for (auto i = 0, l = packs.size(); i != l; ++i) {
 						if (packs[i].type() != mtpc_stickerPack) continue;
 						auto &pack = packs.at(i).c_stickerPack();
 						if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
 							emoji = emoji->original();
-							auto &stickers = pack.vdocuments.c_vector().v;
+							auto &stickers = pack.vdocuments.v;
 
 							StickerPack p;
 							p.reserve(stickers.size());
@@ -5366,7 +5366,7 @@ void MainWidget::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
 		if (!d.is_masks()) {
-			auto &order = d.vorder.c_vector().v;
+			auto &order = d.vorder.v;
 			auto &sets = Global::StickerSets();
 			Stickers::Order result;
 			for (int i = 0, l = order.size(); i < l; ++i) {

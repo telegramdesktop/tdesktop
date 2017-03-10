@@ -66,11 +66,11 @@ void wrapInvokeAfter(mtpRequest &to, const mtpRequest &from, const mtpRequestMap
 	}
 }
 
-bool parsePQ(const string &pqStr, string &pStr, string &qStr) {
+bool parsePQ(const QByteArray &pqStr, QByteArray &pStr, QByteArray &qStr) {
 	if (pqStr.length() > 8) return false; // more than 64 bit pq
 
 	uint64 pq = 0, p, q;
-	const uchar *pqChars = (const uchar*)&pqStr[0];
+	const uchar *pqChars = (const uchar*)pqStr.constData();
 	for (uint32 i = 0, l = pqStr.length(); i < l; ++i) {
 		pq <<= 8;
 		pq |= (uint64)pqChars[i];
@@ -92,14 +92,14 @@ bool parsePQ(const string &pqStr, string &pStr, string &qStr) {
 	if (p > q) std::swap(p, q);
 
 	pStr.resize(4);
-	uchar *pChars = (uchar*)&pStr[0];
+	uchar *pChars = (uchar*)pStr.data();
 	for (uint32 i = 0; i < 4; ++i) {
 		*(pChars + 3 - i) = (uchar)(p & 0xFF);
 		p >>= 8;
 	}
 
 	qStr.resize(4);
-	uchar *qChars = (uchar*)&qStr[0];
+	uchar *qChars = (uchar*)qStr.data();
 	for (uint32 i = 0; i < 4; ++i) {
 		*(qChars + 3 - i) = (uchar)(q & 0xFF);
 		q >>= 8;
@@ -1570,7 +1570,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	case mtpc_msgs_ack: {
 		MTPMsgsAck msg;
 		msg.read(from, end);
-		const auto &ids(msg.c_msgs_ack().vmsg_ids.c_vector().v);
+		auto &ids = msg.c_msgs_ack().vmsg_ids.v;
 		uint32 idsCount = ids.size();
 
 		DEBUG_LOG(("Message Info: acks received, ids: %1").arg(Logs::vector(ids)));
@@ -1701,8 +1701,8 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 		}
 		MTPMsgsStateReq msg;
 		msg.read(from, end);
-		const auto &ids(msg.c_msgs_state_req().vmsg_ids.c_vector().v);
-		uint32 idsCount = ids.size();
+		auto &ids = msg.c_msgs_state_req().vmsg_ids.v;
+		auto idsCount = ids.size();
 		DEBUG_LOG(("Message Info: msgs_state_req received, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return HandleResult::Success;
 
@@ -1749,10 +1749,10 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	case mtpc_msgs_state_info: {
 		MTPMsgsStateInfo msg;
 		msg.read(from, end);
-		const auto &data(msg.c_msgs_state_info());
+		auto &data = msg.c_msgs_state_info();
 
-		uint64 reqMsgId = data.vreq_msg_id.v;
-		const auto &states(data.vinfo.c_string().v);
+		auto reqMsgId = data.vreq_msg_id.v;
+		auto &states = data.vinfo.v;
 
 		DEBUG_LOG(("Message Info: msg state received, msgId %1, reqMsgId: %2, HEX states %3").arg(msgId).arg(reqMsgId).arg(Logs::mb(states.data(), states.length()).str()));
 		mtpRequest requestBuffer;
@@ -1786,11 +1786,11 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 			if (mtpTypeId(*rFrom) == mtpc_msgs_state_req) {
 				MTPMsgsStateReq request;
 				request.read(rFrom, rEnd);
-				handleMsgsStates(request.c_msgs_state_req().vmsg_ids.c_vector().v, states, toAck);
+				handleMsgsStates(request.c_msgs_state_req().vmsg_ids.v, states, toAck);
 			} else {
 				MTPMsgResendReq request;
 				request.read(rFrom, rEnd);
-				handleMsgsStates(request.c_msg_resend_req().vmsg_ids.c_vector().v, states, toAck);
+				handleMsgsStates(request.c_msg_resend_req().vmsg_ids.v, states, toAck);
 			}
 		} catch(Exception &) {
 			LOG(("Message Error: could not parse sent msgs_state_req"));
@@ -1808,9 +1808,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 
 		MTPMsgsAllInfo msg;
 		msg.read(from, end);
-		const auto &data(msg.c_msgs_all_info());
-		const auto &ids(data.vmsg_ids.c_vector().v);
-		const auto &states(data.vinfo.c_string().v);
+		auto &data = msg.c_msgs_all_info();
+		auto &ids = data.vmsg_ids.v;
+		auto &states = data.vinfo.v;
 
 		QVector<MTPlong> toAck;
 
@@ -1880,9 +1880,9 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 	case mtpc_msg_resend_req: {
 		MTPMsgResendReq msg;
 		msg.read(from, end);
-		const auto &ids(msg.c_msg_resend_req().vmsg_ids.c_vector().v);
+		auto &ids = msg.c_msg_resend_req().vmsg_ids.v;
 
-		uint32 idsCount = ids.size();
+		auto idsCount = ids.size();
 		DEBUG_LOG(("Message Info: resend of msgs requested, ids: %1").arg(Logs::vector(ids)));
 		if (!idsCount) return (badTime ? HandleResult::Ignored : HandleResult::Success);
 
@@ -2045,7 +2045,7 @@ ConnectionPrivate::HandleResult ConnectionPrivate::handleOneReceived(const mtpPr
 mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) const {
 	MTPstring packed;
 	packed.read(from, end); // read packed string as serialized mtp string type
-	uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen, unpackedLen = 0;
+	uint32 packedLen = packed.v.size(), unpackedChunk = packedLen, unpackedLen = 0;
 
 	mtpBuffer result; // * 4 because of mtpPrime type
 	result.resize(0);
@@ -2061,7 +2061,7 @@ mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) c
 		return result;
 	}
 	stream.avail_in = packedLen;
-	stream.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(packed.c_string().v.data()));
+	stream.next_in = reinterpret_cast<Bytef*>(packed.v.data());
 
 	stream.avail_out = 0;
 	while (!stream.avail_out) {
@@ -2072,7 +2072,7 @@ mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) c
 		if (res != Z_OK && res != Z_STREAM_END) {
 			inflateEnd(&stream);
 			LOG(("RPC Error: could not unpack gziped data, code: %1").arg(res));
-			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(&packed.c_string().v[0], packedLen).str()));
+			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(&packed.v[0], packedLen).str()));
 			return mtpBuffer();
 		}
 	}
@@ -2202,15 +2202,18 @@ void ConnectionPrivate::requestsAcked(const QVector<MTPlong> &ids, bool byRespon
 	}
 }
 
-void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const string &states, QVector<MTPlong> &acked) {
+void ConnectionPrivate::handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked) {
 	uint32 idsCount = ids.size();
 	if (!idsCount) {
 		DEBUG_LOG(("Message Info: void ids vector in handleMsgsStates()"));
 		return;
 	}
+	if (states.size() < idsCount) {
+		LOG(("Message Error: got less states than required ids count."));
+		return;
+	}
 
 	acked.reserve(acked.size() + idsCount);
-
 	for (uint32 i = 0, count = idsCount; i < count; ++i) {
 		char state = states[i];
 		uint64 requestMsgId = ids[i].v;
@@ -2410,7 +2413,7 @@ void ConnectionPrivate::pqAnswered() {
 
 	static MTP::internal::RSAPublicKeys RSAKeys = MTP::internal::InitRSAPublicKeys();
 	const MTP::internal::RSAPublicKey *rsaKey = nullptr;
-	auto &fingerPrints = res_pq.c_resPQ().vserver_public_key_fingerprints.c_vector().v;
+	auto &fingerPrints = res_pq.c_resPQ().vserver_public_key_fingerprints.v;
 	for (auto &fingerPrint : fingerPrints) {
 		auto it = RSAKeys.constFind(static_cast<uint64>(fingerPrint.v));
 		if (it != RSAKeys.cend()) {
@@ -2433,16 +2436,16 @@ void ConnectionPrivate::pqAnswered() {
 	_authKeyData->server_nonce = res_pq_data.vserver_nonce;
 	_authKeyData->new_nonce = rand_value<MTPint256>();
 
-	auto &pq = res_pq_data.vpq.c_string().v;
-	auto p = std::string();
-	auto q = std::string();
+	auto &pq = res_pq_data.vpq.v;
+	auto p = QByteArray();
+	auto q = QByteArray();
 	if (!MTP::internal::parsePQ(pq, p, q)) {
 		LOG(("AuthKey Error: could not factor pq!"));
-		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(&pq[0], pq.length()).str()));
+		DEBUG_LOG(("AuthKey Error: problematic pq: %1").arg(Logs::mb(pq.constData(), pq.length()).str()));
 		return restart();
 	}
 
-	auto p_q_inner = MTP_p_q_inner_data(res_pq_data.vpq, MTP_string(std::move(p)), MTP_string(std::move(q)), _authKeyData->nonce, _authKeyData->server_nonce, _authKeyData->new_nonce);
+	auto p_q_inner = MTP_p_q_inner_data(res_pq_data.vpq, MTP_bytes(std::move(p)), MTP_bytes(std::move(q)), _authKeyData->nonce, _authKeyData->server_nonce, _authKeyData->new_nonce);
 	auto dhEncString = encryptPQInnerRSA(p_q_inner, rsaKey);
 	if (dhEncString.empty()) {
 		return restart();
@@ -2516,11 +2519,11 @@ void ConnectionPrivate::dhParamsAnswered() {
 			return restart();
 		}
 
-		const string &encDHStr(encDH.vencrypted_answer.c_string().v);
+		auto &encDHStr = encDH.vencrypted_answer.v;
 		uint32 encDHLen = encDHStr.length(), encDHBufLen = encDHLen >> 2;
 		if ((encDHLen & 0x03) || encDHBufLen < 6) {
 			LOG(("AuthKey Error: bad encrypted data length %1 (in server_DH_params_ok)!").arg(encDHLen));
-			DEBUG_LOG(("AuthKey Error: received encrypted data %1").arg(Logs::mb(&encDHStr[0], encDHLen).str()));
+			DEBUG_LOG(("AuthKey Error: received encrypted data %1").arg(Logs::mb(encDHStr.constData(), encDHLen).str()));
 			return restart();
 		}
 
@@ -2543,7 +2546,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 		memcpy(_authKeyData->aesIV + 8, sha1nn, 20);
 		memcpy(_authKeyData->aesIV + 28, &_authKeyData->new_nonce, 4);
 
-		aesIgeDecrypt(&encDHStr[0], &decBuffer[0], encDHLen, _authKeyData->aesKey, _authKeyData->aesIV);
+		aesIgeDecrypt(encDHStr.constData(), &decBuffer[0], encDHLen, _authKeyData->aesKey, _authKeyData->aesIV);
 
 		const mtpPrime *from(&decBuffer[5]), *to(from), *end(from + (encDHBufLen - 5));
 		MTPServer_DH_inner_data dh_inner;
@@ -2562,23 +2565,24 @@ void ConnectionPrivate::dhParamsAnswered() {
 		uchar sha1Buffer[20];
 		if (memcmp(&decBuffer[0], hashSha1(&decBuffer[5], (to - from) * sizeof(mtpPrime), sha1Buffer), 20)) {
 			LOG(("AuthKey Error: sha1 hash of encrypted part did not match!"));
-			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&_authKeyData->server_nonce, 16).str()).arg(Logs::mb(&_authKeyData->new_nonce, 16).str()).arg(Logs::mb(&encDHStr[0], encDHLen).str()));
+			DEBUG_LOG(("AuthKey Error: sha1 did not match, server_nonce: %1, new_nonce %2, encrypted data %3").arg(Logs::mb(&_authKeyData->server_nonce, 16).str()).arg(Logs::mb(&_authKeyData->new_nonce, 16).str()).arg(Logs::mb(encDHStr.constData(), encDHLen).str()));
 			return restart();
 		}
 		unixtimeSet(dh_inner_data.vserver_time.v);
 
-		const string &dhPrime(dh_inner_data.vdh_prime.c_string().v), &g_a(dh_inner_data.vg_a.c_string().v);
+		auto &dhPrime = dh_inner_data.vdh_prime.v;
+		auto &g_a = dh_inner_data.vg_a.v;
 		if (dhPrime.length() != 256 || g_a.length() != 256) {
 			LOG(("AuthKey Error: bad dh_prime len (%1) or g_a len (%2)").arg(dhPrime.length()).arg(g_a.length()));
-			DEBUG_LOG(("AuthKey Error: dh_prime %1, g_a %2").arg(Logs::mb(&dhPrime[0], dhPrime.length()).str()).arg(Logs::mb(&g_a[0], g_a.length()).str()));
+			DEBUG_LOG(("AuthKey Error: dh_prime %1, g_a %2").arg(Logs::mb(dhPrime.constData(), dhPrime.length()).str()).arg(Logs::mb(g_a.constData(), g_a.length()).str()));
 			return restart();
 		}
 
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime using openssl BIGNUM methods
 		MTP::internal::BigNumPrimeTest bnPrimeTest;
-		if (!bnPrimeTest.isPrimeAndGood(&dhPrime[0], MTPMillerRabinIterCount, dh_inner_data.vg.v)) {
+		if (!bnPrimeTest.isPrimeAndGood(dhPrime.constData(), MTPMillerRabinIterCount, dh_inner_data.vg.v)) {
 			LOG(("AuthKey Error: bad dh_prime primality!").arg(dhPrime.length()).arg(g_a.length()));
-			DEBUG_LOG(("AuthKey Error: dh_prime %1").arg(Logs::mb(&dhPrime[0], dhPrime.length()).str()));
+			DEBUG_LOG(("AuthKey Error: dh_prime %1").arg(Logs::mb(dhPrime.constData(), dhPrime.length()).str()));
 			return restart();
 		}
 

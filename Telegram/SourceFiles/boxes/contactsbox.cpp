@@ -240,7 +240,7 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 		case mtpc_contacts_found: {
 			App::feedUsers(result.c_contacts_found().vusers);
 			App::feedChats(result.c_contacts_found().vchats);
-			_inner->peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
+			_inner->peopleReceived(q, result.c_contacts_found().vresults.v);
 		} break;
 		}
 
@@ -487,8 +487,8 @@ void ContactsBox::creationDone(const MTPUpdates &updates) {
 	App::main()->sentUpdatesReceived(updates);
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (ContactsBox::creationDone)").arg(updates.type())); break;
 	}
 

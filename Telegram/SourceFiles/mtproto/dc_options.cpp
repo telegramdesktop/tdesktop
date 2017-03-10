@@ -72,7 +72,7 @@ void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwr
 			}
 
 			shiftedIdsProcessed.push_back(dcIdWithShift);
-			auto &ip = option.vip_address.c_string().v;
+			auto &ip = std::string(option.vip_address.v.constData(), option.vip_address.v.size());
 			auto port = option.vport.v;
 			if (applyOneGuarded(dcId, flags, ip, port)) {
 				if (!base::contains(idsChanged, dcId)) {
@@ -100,11 +100,11 @@ void DcOptions::processFromList(const QVector<MTPDcOption> &options, bool overwr
 }
 
 void DcOptions::setFromList(const MTPVector<MTPDcOption> &options) {
-	processFromList(options.c_vector().v, true);
+	processFromList(options.v, true);
 }
 
 void DcOptions::addFromList(const MTPVector<MTPDcOption> &options) {
-	processFromList(options.c_vector().v, false);
+	processFromList(options.v, false);
 }
 
 void DcOptions::addFromOther(const DcOptions &options) {

@@ -3799,9 +3799,9 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 
 	bool adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
-		const auto &d(result.c_messages_botResults());
-		const auto &v(d.vresults.c_vector().v);
-		uint64 queryId(d.vquery_id.v);
+		auto &d = result.c_messages_botResults();
+		auto &v = d.vresults.v;
+		auto queryId = d.vquery_id.v;
 
 		if (!adding) {
 			it = _inlineCache.insert(_inlineQuery, new internal::InlineCacheEntry());

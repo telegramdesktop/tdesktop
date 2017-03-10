@@ -91,7 +91,7 @@ void SessionsBox::gotAuthorizations(const MTPaccount_Authorizations &result) {
 	if (result.type() != mtpc_account_authorizations) {
 		return;
 	}
-	auto &v = result.c_account_authorizations().vauthorizations.c_vector().v;
+	auto &v = result.c_account_authorizations().vauthorizations.v;
 	_list.reserve(v.size());
 
 	const CountriesByISO2 &countries(countriesByISO2());

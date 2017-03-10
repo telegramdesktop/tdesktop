@@ -774,7 +774,7 @@ void EditCaptionBox::onSave(bool ctrlShiftEnter) {
 		flags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
 	MTPVector<MTPMessageEntity> sentEntities;
-	if (!sentEntities.c_vector().v.isEmpty()) {
+	if (!sentEntities.v.isEmpty()) {
 		flags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
 	auto text = prepareText(_field->getLastText(), true);

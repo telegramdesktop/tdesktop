@@ -510,8 +510,8 @@ void MembersBox::Inner::membersReceived(const MTPchannels_ChannelParticipants &r
 	_loadingRequestId = 0;
 
 	if (result.type() == mtpc_channels_channelParticipants) {
-		const auto &d(result.c_channels_channelParticipants());
-		const auto &v(d.vparticipants.c_vector().v);
+		auto &d = result.c_channels_channelParticipants();
+		auto &v = d.vparticipants.v;
 		_rows.reserve(v.size());
 		_datas.reserve(v.size());
 		_dates.reserve(v.size());

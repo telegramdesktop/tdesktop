@@ -223,7 +223,7 @@ void SignupWidget::submit() {
 
 	_firstName = _first->getLastText().trimmed();
 	_lastName = _last->getLastText().trimmed();
-	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_string(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SignUp(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(getData()->code), MTP_string(_firstName), MTP_string(_lastName)), rpcDone(&SignupWidget::nameSubmitDone), rpcFail(&SignupWidget::nameSubmitFail));
 }
 
 QString SignupWidget::nextButtonText() const {

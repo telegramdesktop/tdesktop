@@ -194,7 +194,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	auto &v = d.vimported.c_vector().v;
+	auto &v = d.vimported.v;
 	UserData *user = nullptr;
 	if (!v.isEmpty()) {
 		const auto &c(v.front().c_importedContact());
@@ -352,8 +352,8 @@ void GroupInfoBox::creationDone(const MTPUpdates &updates) {
 
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates.type())); break;
 	}
 
@@ -1218,7 +1218,7 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 
 void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 	if (auto chats = Api::getChatsFromMessagesChats(result)) {
-		for_const (auto &chat, chats->c_vector().v) {
+		for_const (auto &chat, chats->v) {
 			if (auto peer = App::feedChat(chat)) {
 				if (!peer->isChannel() || peer->userName().isEmpty()) continue;
 

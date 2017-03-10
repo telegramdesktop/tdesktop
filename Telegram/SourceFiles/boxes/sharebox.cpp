@@ -143,7 +143,7 @@ void ShareBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId requ
 			auto &found = result.c_contacts_found();
 			App::feedUsers(found.vusers);
 			App::feedChats(found.vchats);
-			_inner->peopleReceived(query, found.vresults.c_vector().v);
+			_inner->peopleReceived(query, found.vresults.v);
 		} break;
 		}
 

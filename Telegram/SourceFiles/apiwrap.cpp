@@ -175,9 +175,9 @@ void ApiWrap::processFullPeer(PeerData *peer, const MTPUserFull &result) {
 }
 
 void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mtpRequestId req) {
-	const auto &d(result.c_messages_chatFull());
-	const auto &vc(d.vchats.c_vector().v);
-	bool badVersion = false;
+	auto &d = result.c_messages_chatFull();
+	auto &vc = d.vchats.v;
+	auto badVersion = false;
 	if (peer->isChat()) {
 		badVersion = (!vc.isEmpty() && vc.at(0).type() == mtpc_chat && vc.at(0).c_chat().vversion.v < peer->asChat()->version);
 	} else if (peer->isChannel()) {
@@ -192,16 +192,15 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 			LOG(("MTP Error: bad type in gotChatFull for chat: %1").arg(d.vfull_chat.type()));
 			return;
 		}
-		const auto &f(d.vfull_chat.c_chatFull());
+		auto &f = d.vfull_chat.c_chatFull();
 		App::feedParticipants(f.vparticipants, false, false);
-		const auto &v(f.vbot_info.c_vector().v);
-		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
-			switch (i->type()) {
+		auto &v = f.vbot_info.v;
+		for_const (auto &item, v) {
+			switch (item.type()) {
 			case mtpc_botInfo: {
-				const auto &b(i->c_botInfo());
-				UserData *user = App::userLoaded(b.vuser_id.v);
-				if (user) {
-					user->setBotInfo(*i);
+				auto &b = item.c_botInfo();
+				if (auto user = App::userLoaded(b.vuser_id.v)) {
+					user->setBotInfo(item);
 					App::clearPeerUpdated(user);
 					emit fullPeerUpdated(user);
 				}
@@ -267,14 +266,13 @@ void ApiWrap::gotChatFull(PeerData *peer, const MTPmessages_ChatFull &result, mt
 				App::main()->peerUpdated(cfrom);
 			}
 		}
-		auto &v(f.vbot_info.c_vector().v);
-		for (QVector<MTPBotInfo>::const_iterator i = v.cbegin(), e = v.cend(); i < e; ++i) {
-			switch (i->type()) {
+		auto &v = f.vbot_info.v;
+		for_const (auto &item, v) {
+			switch (item.type()) {
 			case mtpc_botInfo: {
-				const auto &b(i->c_botInfo());
-				UserData *user = App::userLoaded(b.vuser_id.v);
-				if (user) {
-					user->setBotInfo(*i);
+				auto &b = item.c_botInfo();
+				if (auto user = App::userLoaded(b.vuser_id.v)) {
+					user->setBotInfo(item);
 					App::clearPeerUpdated(user);
 					emit fullPeerUpdated(user);
 				}
@@ -428,7 +426,7 @@ void ApiWrap::gotChat(PeerData *peer, const MTPmessages_Chats &result) {
 	_peerRequests.remove(peer);
 
 	if (auto chats = Api::getChatsFromMessagesChats(result)) {
-		auto &v = chats->c_vector().v;
+		auto &v = chats->v;
 		bool badVersion = false;
 		if (peer->isChat()) {
 			badVersion = (!v.isEmpty() && v.at(0).type() == mtpc_chat && v.at(0).c_chat().vversion.v < peer->asChat()->version);
@@ -501,8 +499,8 @@ void ApiWrap::lastParticipantsDone(ChannelData *peer, const MTPchannels_ChannelP
 		peer->mgInfo->lastParticipantsStatus = MegagroupInfo::LastParticipantsUpToDate;
 	}
 
-	const auto &d(result.c_channels_channelParticipants());
-	const auto &v(d.vparticipants.c_vector().v);
+	auto &d = result.c_channels_channelParticipants();
+	auto &v = d.vparticipants.v;
 	App::feedUsers(d.vusers);
 	bool added = false, needBotsInfos = false;
 	int32 botStatus = peer->mgInfo->botStatus;
@@ -1050,7 +1048,7 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	it->flags = s.vflags.v | clientFlags;
 	it->flags &= ~MTPDstickerSet_ClientFlag::f_not_loaded;
 
-	const auto &d_docs(d.vdocuments.c_vector().v);
+	auto &d_docs = d.vdocuments.v;
 	auto custom = sets.find(Stickers::CustomSetId);
 
 	StickerPack pack;
@@ -1090,14 +1088,14 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	} else {
 		it->stickers = pack;
 		it->emoji.clear();
-		auto &v = d.vpacks.c_vector().v;
+		auto &v = d.vpacks.v;
 		for (auto i = 0, l = v.size(); i != l; ++i) {
 			if (v[i].type() != mtpc_stickerPack) continue;
 
 			auto &pack = v[i].c_stickerPack();
 			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
 				emoji = emoji->original();
-				auto &stickers = pack.vdocuments.c_vector().v;
+				auto &stickers = pack.vdocuments.v;
 
 				StickerPack p;
 				p.reserve(stickers.size());
@@ -1227,14 +1225,14 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		auto &d = msgs.c_messages_messages();
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_messagesSlice: {
 		auto &d = msgs.c_messages_messagesSlice();
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
@@ -1246,7 +1244,7 @@ void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &msgs
 		}
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 	}
 

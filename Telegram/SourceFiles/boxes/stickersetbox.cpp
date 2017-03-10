@@ -126,7 +126,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	setCursor(style::cur_default);
 	if (set.type() == mtpc_messages_stickerSet) {
 		auto &d = set.c_messages_stickerSet();
-		auto &v = d.vdocuments.c_vector().v;
+		auto &v = d.vdocuments.v;
 		_pack.reserve(v.size());
 		_packOvers.reserve(v.size());
 		for (int i = 0, l = v.size(); i < l; ++i) {
@@ -136,13 +136,13 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_pack.push_back(doc);
 			_packOvers.push_back(Animation());
 		}
-		auto &packs = d.vpacks.c_vector().v;
+		auto &packs = d.vpacks.v;
 		for (auto i = 0, l = packs.size(); i != l; ++i) {
 			if (packs.at(i).type() != mtpc_stickerPack) continue;
 			auto &pack = packs.at(i).c_stickerPack();
 			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon))) {
 				emoji = emoji->original();
-				auto &stickers = pack.vdocuments.c_vector().v;
+				auto &stickers = pack.vdocuments.v;
 
 				StickerPack p;
 				p.reserve(stickers.size());

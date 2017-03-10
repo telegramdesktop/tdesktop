@@ -514,9 +514,9 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->text = Text(st::msgMinWidth);
 		}
 
-		const auto &v(d.vcommands.c_vector().v);
+		auto &v = d.vcommands.v;
 		botInfo->commands.reserve(v.size());
-		bool changedCommands = false;
+		auto changedCommands = false;
 		int32 j = 0;
 		for (int32 i = 0, l = v.size(); i < l; ++i) {
 			if (v.at(i).type() != mtpc_botCommand) continue;

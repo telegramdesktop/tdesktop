@@ -195,11 +195,11 @@ constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 constexpr const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
-	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), mute(0), sound("default") {
+	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), sound(qsl("default")) {
 	}
 	MTPDpeerNotifySettings::Flags flags;
-	TimeId mute;
-	std::string sound;
+	TimeId mute = 0;
+	QString sound;
 	bool previews() const {
 		return flags & MTPDpeerNotifySettings::Flag::f_show_previews;
 	}

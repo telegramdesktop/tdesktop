@@ -3835,9 +3835,9 @@ void HistoryWidget::stickersGot(const MTPmessages_AllStickers &stickers) {
 	_stickersUpdateRequest = 0;
 
 	if (stickers.type() != mtpc_messages_allStickers) return;
-	const auto &d(stickers.c_messages_allStickers());
+	auto &d = stickers.c_messages_allStickers();
 
-	const auto &d_sets(d.vsets.c_vector().v);
+	auto &d_sets = d.vsets.v;
 
 	auto &setsOrder = Global::RefStickerSetsOrder();
 	setsOrder.clear();
@@ -3921,7 +3921,7 @@ void HistoryWidget::recentStickersGot(const MTPmessages_RecentStickers &stickers
 	auto &sets = Global::RefStickerSets();
 	auto it = sets.find(Stickers::CloudRecentSetId);
 
-	auto &d_docs = d.vstickers.c_vector().v;
+	auto &d_docs = d.vstickers.v;
 	if (d_docs.isEmpty()) {
 		if (it != sets.cend()) {
 			sets.erase(it);
@@ -4005,11 +4005,11 @@ void HistoryWidget::featuredStickersGot(const MTPmessages_FeaturedStickers &stic
 	auto &d = stickers.c_messages_featuredStickers();
 
 	OrderedSet<uint64> unread;
-	for_const (auto &unreadSetId, d.vunread.c_vector().v) {
+	for_const (auto &unreadSetId, d.vunread.v) {
 		unread.insert(unreadSetId.v);
 	}
 
-	auto &d_sets = d.vsets.c_vector().v;
+	auto &d_sets = d.vsets.v;
 
 	auto &setsOrder = Global::RefFeaturedStickerSetsOrder();
 	setsOrder.clear();
@@ -4122,9 +4122,9 @@ void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
 	_savedGifsUpdateRequest = 0;
 
 	if (gifs.type() != mtpc_messages_savedGifs) return;
-	const auto &d(gifs.c_messages_savedGifs());
+	auto &d = gifs.c_messages_savedGifs();
 
-	const auto &d_gifs(d.vgifs.c_vector().v);
+	auto &d_gifs = d.vgifs.v;
 
 	SavedGifs &saved(cRefSavedGifs());
 	saved.clear();
@@ -4965,14 +4965,14 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		auto &d(messages.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		histList = &d.vmessages.c_vector().v;
+		histList = &d.vmessages.v;
 		count = histList->size();
 	} break;
 	case mtpc_messages_messagesSlice: {
 		auto &d(messages.c_messages_messagesSlice());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		histList = &d.vmessages.c_vector().v;
+		histList = &d.vmessages.v;
 		count = d.vcount.v;
 	} break;
 	case mtpc_messages_channelMessages: {
@@ -4984,7 +4984,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		}
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		histList = &d.vmessages.c_vector().v;
+		histList = &d.vmessages.v;
 		count = d.vcount.v;
 	} break;
 	}
@@ -5321,8 +5321,9 @@ void HistoryWidget::saveEditMsg() {
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
-	MTPVector<MTPMessageEntity> localEntities = linksToMTP(sendingEntities), sentEntities = linksToMTP(sendingEntities, true);
-	if (!sentEntities.c_vector().v.isEmpty()) {
+	auto localEntities = linksToMTP(sendingEntities);
+	auto sentEntities = linksToMTP(sendingEntities, true);
+	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_entities;
 	}
 	_saveEditMsgRequestId = MTP::send(MTPmessages_EditMessage(MTP_flags(sendFlags), _history->peer->input, MTP_int(_editMsgId), MTP_string(sendingText), MTPnullMarkup, sentEntities), rpcDone(&HistoryWidget::saveEditMsgDone, _history), rpcFail(&HistoryWidget::saveEditMsgFail, _history));

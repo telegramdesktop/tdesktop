@@ -401,7 +401,7 @@ void HistoryMessageReplyMarkup::createFromButtonRows(const QVector<MTPKeyboardBu
 		switch (row.type()) {
 		case mtpc_keyboardButtonRow: {
 			auto &r = row.c_keyboardButtonRow();
-			auto &b = r.vbuttons.c_vector().v;
+			auto &b = r.vbuttons.v;
 			if (!b.isEmpty()) {
 				ButtonRow buttonRow;
 				buttonRow.reserve(b.size());
@@ -457,14 +457,14 @@ void HistoryMessageReplyMarkup::create(const MTPReplyMarkup &markup) {
 		auto &d = markup.c_replyKeyboardMarkup();
 		flags = d.vflags.v;
 
-		createFromButtonRows(d.vrows.c_vector().v);
+		createFromButtonRows(d.vrows.v);
 	} break;
 
 	case mtpc_replyInlineMarkup: {
 		auto &d = markup.c_replyInlineMarkup();
 		flags = MTPDreplyKeyboardMarkup::Flags(0) | MTPDreplyKeyboardMarkup_ClientFlag::f_inline;
 
-		createFromButtonRows(d.vrows.c_vector().v);
+		createFromButtonRows(d.vrows.v);
 	} break;
 
 	case mtpc_replyKeyboardHide: {

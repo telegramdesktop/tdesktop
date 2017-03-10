@@ -99,7 +99,6 @@ public:
 	static bool needAckByType(mtpTypeId type);
 
 private:
-
 	static uint32 _padding(uint32 requestSize) {
 		return ((8 + requestSize) & 0x03) ? (4 - ((8 + requestSize) & 0x03)) : 0;
 	}
@@ -542,36 +541,15 @@ inline bool operator!=(const MTPdouble &a, const MTPdouble &b) {
 	return a.v != b.v;
 }
 
-class MTPDstring : public mtpData {
-public:
-	MTPDstring() {
-	}
-	MTPDstring(const std::string &val) : v(val) {
-	}
-	MTPDstring(std::string &&val) : v(std::move(val)) {
-	}
-	MTPDstring(const QString &val) : v(val.toUtf8().constData()) {
-	}
-	MTPDstring(const QByteArray &val) : v(val.constData(), val.size()) {
-	}
-	MTPDstring(const char *val) : v(val) {
-	}
+class MTPstring;
+using MTPbytes = MTPstring;
 
-	std::string v;
-
-};
-
-class MTPstring : private mtpDataOwner {
+class MTPstring {
 public:
 	MTPstring() = default;
 
-	const MTPDstring &c_string() const {
-		t_assert(data != nullptr);
-		return static_cast<const MTPDstring&>(*data);
-	}
-
 	uint32 innerLength() const {
-		uint32 l = c_string().v.length();
+		uint32 l = v.length();
 		if (l < 254) {
 			l += 1;
 		} else {
@@ -601,11 +579,10 @@ public:
 		}
 		if (from > end) throw mtpErrorInsufficient();
 
-		auto string = std::string(reinterpret_cast<const char*>(buf), l);
-		data = std::make_shared<MTPDstring>(std::move(string));
+		v = QByteArray(reinterpret_cast<const char*>(buf), l);
 	}
 	void write(mtpBuffer &to) const {
-		uint32 l = c_string().v.length(), s = l + ((l < 254) ? 1 : 4), was = to.size();
+		uint32 l = v.length(), s = l + ((l < 254) ? 1 : 4), was = to.size();
 		if (s & 0x03) {
 			s += 4;
 		}
@@ -621,89 +598,67 @@ public:
 			*(buf++) = (char)((l >> 8) & 0xFF);
 			*(buf++) = (char)((l >> 16) & 0xFF);
 		}
-		memcpy(buf, c_string().v.c_str(), l);
+		memcpy(buf, v.constData(), l);
 	}
 
+	QByteArray v;
+
 private:
-	explicit MTPstring(std::shared_ptr<const MTPDstring> &&data) : mtpDataOwner(std::move(data)) {
+	explicit MTPstring(QByteArray &&data) : v(std::move(data)) {
 	}
 
 	friend MTPstring MTP_string(const std::string &v);
-	friend MTPstring MTP_string(std::string &&v);
 	friend MTPstring MTP_string(const QString &v);
 	friend MTPstring MTP_string(const char *v);
 
-	friend MTPstring MTP_bytes(const QByteArray &v);
+	friend MTPbytes MTP_bytes(const QByteArray &v);
+	friend MTPbytes MTP_bytes(QByteArray &&v);
 
 };
-inline MTPstring MTP_string(const std::string &v) {
-	return MTPstring(std::make_shared<MTPDstring>(v));
-}
-inline MTPstring MTP_string(std::string &&v) {
-	return MTPstring(std::make_shared<MTPDstring>(std::move(v)));
-}
-inline MTPstring MTP_string(const QString &v) {
-	return MTPstring(std::make_shared<MTPDstring>(v));
-}
-inline MTPstring MTP_string(const char *v) {
-	return MTPstring(std::make_shared<MTPDstring>(v));
-}
-MTPstring MTP_string(const QByteArray &v) = delete;
 using MTPString = MTPBoxed<MTPstring>;
-
-using MTPbytes = MTPstring;
 using MTPBytes = MTPBoxed<MTPbytes>;
 
+inline MTPstring MTP_string(const std::string &v) {
+	return MTPstring(QByteArray(v.data(), v.size()));
+}
+inline MTPstring MTP_string(const QString &v) {
+	return MTPstring(v.toUtf8());
+}
+inline MTPstring MTP_string(const char *v) {
+	return MTPstring(QByteArray(v, strlen(v)));
+}
+MTPstring MTP_string(const QByteArray &v) = delete;
+
 inline MTPbytes MTP_bytes(const QByteArray &v) {
-	return MTPbytes(std::make_shared<MTPDstring>(v));
+	return MTPbytes(QByteArray(v));
+}
+inline MTPbytes MTP_bytes(QByteArray &&v) {
+	return MTPbytes(std::move(v));
 }
 
 inline bool operator==(const MTPstring &a, const MTPstring &b) {
-	return a.c_string().v == b.c_string().v;
+	return a.v == b.v;
 }
 inline bool operator!=(const MTPstring &a, const MTPstring &b) {
-	return a.c_string().v != b.c_string().v;
+	return a.v != b.v;
 }
 
 inline QString qs(const MTPstring &v) {
-	auto &d = v.c_string().v;
-	return QString::fromUtf8(d.data(), d.length());
+	return QString::fromUtf8(v.v);
 }
 
 inline QByteArray qba(const MTPstring &v) {
-	auto &d = v.c_string().v;
-	return QByteArray(d.data(), d.length());
+	return v.v;
 }
 
 template <typename T>
-class MTPDvector : public mtpData {
-public:
-	MTPDvector() {
-	}
-	MTPDvector(uint32 count) : v(count) {
-	}
-	MTPDvector(uint32 count, const T &value) : v(count, value) {
-	}
-	MTPDvector(const QVector<T> &vec) : v(vec) {
-	}
-
-	using VType = QVector<T>;
-	VType v;
-};
-
-template <typename T>
-class MTPvector : private mtpDataOwner {
+class MTPvector {
 public:
 	MTPvector() = default;
 
-	const MTPDvector<T> &c_vector() const {
-		t_assert(data != nullptr);
-		return static_cast<const MTPDvector<T>&>(*data);
-	}
-
 	uint32 innerLength() const {
 		uint32 result(sizeof(uint32));
-		for_const (auto &item, c_vector().v) {
+		for_const (auto &item, v) {
 			result += item.innerLength();
 		}
 		return result;
@@ -720,17 +675,19 @@ public:
 		for (auto &item : vector) {
 			item.read(from, end);
 		}
-		data = std::make_shared<MTPDvector<T>>(std::move(vector));
+		v = std::move(vector);
 	}
 	void write(mtpBuffer &to) const {
-		to.push_back(c_vector().v.size());
-		for_const (auto &item, c_vector().v) {
+		to.push_back(v.size());
+		for_const (auto &item, v) {
 			item.write(to);
 		}
 	}
 
+	QVector<T> v;
+
 private:
-	explicit MTPvector(std::shared_ptr<MTPDvector<T>> &&data) : mtpDataOwner(std::move(data)) {
+	explicit MTPvector(QVector<T> &&data) : v(std::move(data)) {
 	}
 
 	template <typename U>
@@ -745,19 +702,19 @@ private:
 };
 template <typename T>
 inline MTPvector<T> MTP_vector(uint32 count) {
-	return MTPvector<T>(std::make_shared<MTPDvector<T>>(count));
+	return MTPvector<T>(QVector<T>(count));
 }
 template <typename T>
 inline MTPvector<T> MTP_vector(uint32 count, const T &value) {
-	return MTPvector<T>(std::make_shared<MTPDvector<T>>(count, value));
+	return MTPvector<T>(QVector<T>(count, value));
 }
 template <typename T>
 inline MTPvector<T> MTP_vector(const QVector<T> &v) {
-	return MTPvector<T>(std::make_shared<MTPDvector<T>>(v));
+	return MTPvector<T>(QVector<T>(v));
 }
 template <typename T>
 inline MTPvector<T> MTP_vector(QVector<T> &&v) {
-	return MTPvector<T>(std::make_shared<MTPDvector<T>>(std::move(v)));
+	return MTPvector<T>(std::move(v));
 }
 template <typename T>
 using MTPVector = MTPBoxed<MTPvector<T>>;

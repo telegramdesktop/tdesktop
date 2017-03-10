@@ -180,7 +180,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	auto &d = result.c_auth_sentCode();
 	fillSentCodeData(d.vtype);
 	getData()->phone = _sentPhone;
-	getData()->phoneHash = d.vphone_code_hash.c_string().v.c_str();
+	getData()->phoneHash = qba(d.vphone_code_hash);
 	getData()->phoneIsRegistered = d.is_phone_registered();
 	if (d.has_next_type() && d.vnext_type.type() == mtpc_auth_codeTypeCall) {
 		getData()->callStatus = Widget::Data::CallStatus::Waiting;

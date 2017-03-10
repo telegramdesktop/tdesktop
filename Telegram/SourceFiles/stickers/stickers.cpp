@@ -39,7 +39,7 @@ internal::FeaturedReader *FeaturedReaderInstance = nullptr;
 } // namespace
 
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d) {
-	auto &v = d.vsets.c_vector().v;
+	auto &v = d.vsets.v;
 	auto &order = Global::RefStickerSetsOrder();
 	Stickers::Order archived;
 	archived.reserve(v.size());

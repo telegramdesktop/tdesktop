@@ -171,7 +171,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 	auto addedSet = false;
 	auto changedSets = false;
-	auto &v = stickers.vsets.c_vector().v;
+	auto &v = stickers.vsets.v;
 	for_const (auto &stickerSet, v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {

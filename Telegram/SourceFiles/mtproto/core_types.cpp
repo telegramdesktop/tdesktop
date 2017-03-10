@@ -63,8 +63,8 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	case mtpc_string: {
 		MTPstring value;
 		value.read(from, end, cons);
-		QByteArray strUtf8(value.c_string().v.c_str(), value.c_string().v.length());
-		QString str = QString::fromUtf8(strUtf8);
+		auto strUtf8 = value.v;
+		auto str = QString::fromUtf8(strUtf8);
 		if (str.toUtf8() == strUtf8) {
 			to.add("\"").add(str.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")).add("\" [STRING]");
 		} else if (strUtf8.size() < 64) {
@@ -96,7 +96,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	case mtpc_gzip_packed: {
 		MTPstring packed;
 		packed.read(from, end); // read packed string as serialized mtp string type
-		uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen;
+		uint32 packedLen = packed.v.size(), unpackedChunk = packedLen;
 		mtpBuffer result; // * 4 because of mtpPrime type
 		result.resize(0);
 
@@ -111,7 +111,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 			throw Exception(QString("ungzip init, code: %1").arg(res));
 		}
 		stream.avail_in = packedLen;
-		stream.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(packed.c_string().v.data()));
+		stream.next_in = reinterpret_cast<Bytef*>(packed.v.data());
 		stream.avail_out = 0;
 		while (!stream.avail_out) {
 			result.resize(result.size() + unpackedChunk);

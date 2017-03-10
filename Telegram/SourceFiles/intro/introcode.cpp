@@ -180,7 +180,7 @@ void CodeWidget::finished() {
 void CodeWidget::cancelled() {
 	MTP::cancel(base::take(_sentRequest));
 	MTP::cancel(base::take(_callRequestId));
-	MTP::send(MTPauth_CancelCode(MTP_string(getData()->phone), MTP_string(getData()->phoneHash)));
+	MTP::send(MTPauth_CancelCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)));
 }
 
 void CodeWidget::stopCheck() {
@@ -263,7 +263,7 @@ void CodeWidget::onSendCall() {
 		if (--_callTimeout <= 0) {
 			_callStatus = Widget::Data::CallStatus::Calling;
 			_callTimer->stop();
-			_callRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_string(getData()->phoneHash)), rpcDone(&CodeWidget::callDone));
+			_callRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::callDone));
 		} else {
 			getData()->callStatus = _callStatus;
 			getData()->callTimeout = _callTimeout;
@@ -314,12 +314,12 @@ void CodeWidget::submit() {
 	getData()->pwdSalt = QByteArray();
 	getData()->hasRecovery = false;
 	getData()->pwdHint = QString();
-	_sentRequest = MTP::send(MTPauth_SignIn(MTP_string(getData()->phone), MTP_string(getData()->phoneHash), MTP_string(_sentCode)), rpcDone(&CodeWidget::codeSubmitDone), rpcFail(&CodeWidget::codeSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SignIn(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash), MTP_string(_sentCode)), rpcDone(&CodeWidget::codeSubmitDone), rpcFail(&CodeWidget::codeSubmitFail));
 }
 
 void CodeWidget::onNoTelegramCode() {
 	if (_noTelegramCodeRequestId) return;
-	_noTelegramCodeRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_string(getData()->phoneHash)), rpcDone(&CodeWidget::noTelegramCodeDone), rpcFail(&CodeWidget::noTelegramCodeFail));
+	_noTelegramCodeRequestId = MTP::send(MTPauth_ResendCode(MTP_string(getData()->phone), MTP_bytes(getData()->phoneHash)), rpcDone(&CodeWidget::noTelegramCodeDone), rpcFail(&CodeWidget::noTelegramCodeFail));
 }
 
 void CodeWidget::noTelegramCodeDone(const MTPauth_SentCode &result) {

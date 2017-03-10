@@ -2813,20 +2813,20 @@ void MediaView::userPhotosLoaded(UserData *u, const MTPphotos_Photos &photos, mt
 		_loadRequest = 0;
 	}
 
-	const QVector<MTPPhoto> *v = 0;
+	const QVector<MTPPhoto> *v = nullptr;
 	switch (photos.type()) {
 	case mtpc_photos_photos: {
-		const auto &d(photos.c_photos_photos());
+		auto &d = photos.c_photos_photos();
 		App::feedUsers(d.vusers);
-		v = &d.vphotos.c_vector().v;
+		v = &d.vphotos.v;
 		u->photosCount = 0;
 	} break;
 
 	case mtpc_photos_photosSlice: {
-		const auto &d(photos.c_photos_photosSlice());
+		auto &d = photos.c_photos_photosSlice();
 		App::feedUsers(d.vusers);
 		u->photosCount = d.vcount.v;
-		v = &d.vphotos.c_vector().v;
+		v = &d.vphotos.v;
 	} break;
 
 	default: return;

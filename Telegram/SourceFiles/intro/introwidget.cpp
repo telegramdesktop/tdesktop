@@ -263,7 +263,7 @@ bool Widget::resetFail(const RPCError &error) {
 
 void Widget::gotNearestDC(const MTPNearestDc &result) {
 	auto &nearest = result.c_nearestDc();
-	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(nearest.vcountry.c_string().v.c_str()).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
+	DEBUG_LOG(("Got nearest dc, country: %1, nearest: %2, this: %3").arg(qs(nearest.vcountry)).arg(nearest.vnearest_dc.v).arg(nearest.vthis_dc.v));
 	Messenger::Instance().suggestMainDcId(nearest.vnearest_dc.v);
 	auto nearestCountry = qs(nearest.vcountry);
 	if (getData()->country != nearestCountry) {

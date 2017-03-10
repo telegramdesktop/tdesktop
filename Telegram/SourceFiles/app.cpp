@@ -571,7 +571,7 @@ namespace {
 
 	UserData *feedUsers(const MTPVector<MTPUser> &users) {
         UserData *result = nullptr;
-		for_const (auto &user, users.c_vector().v) {
+		for_const (auto &user, users.v) {
 			if (auto feededUser = feedUser(user)) {
 				result = feededUser;
 			}
@@ -793,7 +793,7 @@ namespace {
 
 	PeerData *feedChats(const MTPVector<MTPChat> &chats) {
 		PeerData *result = nullptr;
-		for_const (auto &chat, chats.c_vector().v) {
+		for_const (auto &chat, chats.v) {
 			if (auto feededChat = feedChat(chat)) {
 				result = feededChat;
 			}
@@ -817,7 +817,7 @@ namespace {
 			auto canEdit = chat->canEdit();
 			if (!requestBotInfos || chat->version <= d.vversion.v) { // !requestBotInfos is true on getFullChat result
 				chat->version = d.vversion.v;
-				const auto &v(d.vparticipants.c_vector().v);
+				auto &v = d.vparticipants.v;
 				chat->count = v.size();
 				int32 pversion = chat->participants.isEmpty() ? 1 : (chat->participants.begin().value() + 1);
 				chat->invitedByMe = ChatData::InvitedByMe();
@@ -1101,7 +1101,7 @@ namespace {
 		}
 		if (auto existing = App::histItemById(peerToChannel(peerId), m.vid.v)) {
 			auto text = qs(m.vmessage);
-			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.c_vector().v) : EntitiesInText();
+			auto entities = m.has_entities() ? entitiesFromMTP(m.ventities.v) : EntitiesInText();
 			existing->setText({ text, entities });
 			existing->updateMedia(m.has_media() ? (&m.vmedia) : nullptr);
 			existing->updateReplyMarkup(m.has_reply_markup() ? (&m.vreply_markup) : nullptr);
@@ -1192,7 +1192,7 @@ namespace {
 	}
 
 	void feedMsgs(const MTPVector<MTPMessage> &msgs, NewMessageType type) {
-		return feedMsgs(msgs.c_vector().v, type);
+		return feedMsgs(msgs.v, type);
 	}
 
 	ImagePtr image(const MTPPhotoSize &size) {
@@ -1422,19 +1422,19 @@ namespace {
 	}
 
 	PhotoData *feedPhoto(const MTPDphoto &photo, PhotoData *convert) {
-		const auto &sizes(photo.vsizes.c_vector().v);
+		auto &sizes = photo.vsizes.v;
 		const MTPPhotoSize *thumb = 0, *medium = 0, *full = 0;
 		int32 thumbLevel = -1, mediumLevel = -1, fullLevel = -1;
 		for (QVector<MTPPhotoSize>::const_iterator i = sizes.cbegin(), e = sizes.cend(); i != e; ++i) {
 			char size = 0;
 			switch (i->type()) {
 			case mtpc_photoSize: {
-				auto &s = i->c_photoSize().vtype.c_string().v;
+				auto &s = i->c_photoSize().vtype.v;
 				if (s.size()) size = s[0];
 			} break;
 
 			case mtpc_photoCachedSize: {
-				auto &s = i->c_photoCachedSize().vtype.c_string().v;
+				auto &s = i->c_photoCachedSize().vtype.v;
 				if (s.size()) size = s[0];
 			} break;
 			}
@@ -1478,7 +1478,7 @@ namespace {
 		switch (document.type()) {
 		case mtpc_document: {
 			auto &d = document.c_document();
-			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.c_vector().v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
+			return App::documentSet(d.vid.v, 0, d.vaccess_hash.v, d.vversion.v, d.vdate.v, d.vattributes.v, qs(d.vmime_type), ImagePtr(thumb, "JPG"), d.vdc_id.v, d.vsize.v, StorageImageLocation());
 		} break;
 		case mtpc_documentEmpty: return App::document(document.c_documentEmpty().vid.v);
 		}
@@ -1498,7 +1498,7 @@ namespace {
 	}
 
 	DocumentData *feedDocument(const MTPDdocument &document, DocumentData *convert) {
-		return App::documentSet(document.vid.v, convert, document.vaccess_hash.v, document.vversion.v, document.vdate.v, document.vattributes.c_vector().v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v, App::imageLocation(document.vthumb));
+		return App::documentSet(document.vid.v, convert, document.vaccess_hash.v, document.vversion.v, document.vdate.v, document.vattributes.v, qs(document.vmime_type), App::image(document.vthumb), document.vdc_id.v, document.vsize.v, App::imageLocation(document.vthumb));
 	}
 
 	WebPageData *feedWebPage(const MTPDwebPage &webpage, WebPageData *convert) {

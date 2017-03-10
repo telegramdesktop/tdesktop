@@ -159,7 +159,7 @@ void InnerWidget::preloadMore() {
 		_preloadGroupId = 0;
 		_allLoaded = true;
 		if (auto chats = Api::getChatsFromMessagesChats(result)) {
-			auto &list = chats->c_vector().v;
+			auto &list = chats->v;
 			if (!list.empty()) {
 				_items.reserve(_items.size() + list.size());
 				for_const (auto &chatData, list) {

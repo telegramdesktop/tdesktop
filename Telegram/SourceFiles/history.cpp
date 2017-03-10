@@ -840,7 +840,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_messageActionChatAddUser: {
 				auto &d = action.c_messageActionChatAddUser();
 				if (peer->isMegagroup()) {
-					auto &v = d.vusers.c_vector().v;
+					auto &v = d.vusers.v;
 					for (auto i = 0, l = v.size(); i != l; ++i) {
 						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
 							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
@@ -920,13 +920,14 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditPhoto: {
-				const auto &d(action.c_messageActionChatEditPhoto());
+				auto &d = action.c_messageActionChatEditPhoto();
 				if (d.vphoto.type() == mtpc_photo) {
-					const auto &sizes(d.vphoto.c_photo().vsizes.c_vector().v);
+					auto &sizes = d.vphoto.c_photo().vsizes.v;
 					if (!sizes.isEmpty()) {
-						PhotoData *photo = App::feedPhoto(d.vphoto.c_photo());
+						auto photo = App::feedPhoto(d.vphoto.c_photo());
 						if (photo) photo->peer = peer;
-						const auto &smallSize(sizes.front()), &bigSize(sizes.back());
+						auto &smallSize = sizes.front();
+						auto &bigSize = sizes.back();
 						const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
 						switch (smallSize.type()) {
 						case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
@@ -2121,7 +2122,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 		overviewCountData[overviewIndex] = 0;
 	} break;
 
@@ -2130,7 +2131,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
@@ -2143,7 +2144,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	default: return;

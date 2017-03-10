@@ -204,26 +204,26 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 	}
 
 	if (_searchRequest == req) {
-		const QVector<MTPMessage> *messages = 0;
+		const QVector<MTPMessage> *messages = nullptr;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			auto &d(result.c_messages_messages());
+			auto &d = result.c_messages_messages();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = messages->size();
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			auto &d(result.c_messages_messagesSlice());
+			auto &d = result.c_messages_messagesSlice();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = d.vcount.v;
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			auto &d(result.c_messages_channelMessages());
+			auto &d = result.c_messages_channelMessages();
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
@@ -231,7 +231,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 			}
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = d.vcount.v;
 		} break;
 		}

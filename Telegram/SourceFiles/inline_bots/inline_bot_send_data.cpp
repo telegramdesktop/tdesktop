@@ -37,8 +37,8 @@ QString SendData::getLayoutDescription(const Result *owner) const {
 void SendDataCommon::addToHistory(const Result *owner, History *history,
 MTPDmessage::Flags flags, MsgId msgId, UserId fromId, MTPint mtpDate,
 UserId viaBotId, MsgId replyToId, const MTPReplyMarkup &markup) const {
-	SentMTPMessageFields fields = getSentMessageFields();
-	if (!fields.entities.c_vector().v.isEmpty()) {
+	auto fields = getSentMessageFields();
+	if (!fields.entities.v.isEmpty()) {
 		flags |= MTPDmessage::Flag::f_entities;
 	}
 	history->addNewMessage(MTP_message(MTP_flags(flags), MTP_int(msgId), MTP_int(fromId), peerToMTP(history->peer->id), MTPnullFwdHeader, MTP_int(viaBotId), MTP_int(replyToId), mtpDate, fields.text, fields.media, markup, fields.entities, MTP_int(1), MTPint()), NewMessageUnread);

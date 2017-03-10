@@ -63,7 +63,7 @@ public:
 	struct Data {
 		QString country;
 		QString phone;
-		QString phoneHash;
+		QByteArray phoneHash;
 		bool phoneIsRegistered = false;
 
 		enum class CallStatus {

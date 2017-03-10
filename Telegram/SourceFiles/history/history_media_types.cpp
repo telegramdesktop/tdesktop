@@ -510,7 +510,7 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		App::feedPhoto(photo, _data);
 
 		if (photo.type() == mtpc_photo) {
-			auto &sizes = photo.c_photo().vsizes.c_vector().v;
+			auto &sizes = photo.c_photo().vsizes.v;
 			int32 max = 0;
 			const MTPDfileLocation *maxLocation = 0;
 			for (int32 i = 0, l = sizes.size(); i < l; ++i) {
@@ -518,13 +518,13 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 				const MTPFileLocation *loc = 0;
 				switch (sizes.at(i).type()) {
 				case mtpc_photoSize: {
-					auto &s = sizes.at(i).c_photoSize().vtype.c_string().v;
+					auto &s = sizes.at(i).c_photoSize().vtype.v;
 					loc = &sizes.at(i).c_photoSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
 
 				case mtpc_photoCachedSize: {
-					auto &s = sizes.at(i).c_photoCachedSize().vtype.c_string().v;
+					auto &s = sizes.at(i).c_photoCachedSize().vtype.v;
 					loc = &sizes.at(i).c_photoCachedSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;

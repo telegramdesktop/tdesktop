@@ -2477,16 +2477,16 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 		auto &data = dialogs.c_messages_dialogs();
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		messagesList = &data.vmessages.c_vector().v;
-		dialogsList = &data.vdialogs.c_vector().v;
+		messagesList = &data.vmessages.v;
+		dialogsList = &data.vdialogs.v;
 		_dialogsFull = true;
 	} break;
 	case mtpc_messages_dialogsSlice: {
 		auto &data = dialogs.c_messages_dialogsSlice();
 		App::feedUsers(data.vusers);
 		App::feedChats(data.vchats);
-		messagesList = &data.vmessages.c_vector().v;
-		dialogsList = &data.vdialogs.c_vector().v;
+		messagesList = &data.vmessages.v;
+		dialogsList = &data.vdialogs.v;
 	} break;
 	}
 
@@ -2557,7 +2557,7 @@ void DialogsWidget::pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs
 		auto &dialogsData = dialogs.c_messages_peerDialogs();
 		App::feedUsers(dialogsData.vusers);
 		App::feedChats(dialogsData.vchats);
-		auto &list = dialogsData.vdialogs.c_vector().v;
+		auto &list = dialogsData.vdialogs.v;
 		for (auto i = list.size(); i > 0;) {
 			auto &dialog = list[--i];
 			if (dialog.type() != mtpc_dialog) {
@@ -2741,7 +2741,7 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &result) {
 	if (result.type() == mtpc_contacts_contacts) {
 		auto &d = result.c_contacts_contacts();
 		App::feedUsers(d.vusers);
-		_inner->contactsReceived(d.vcontacts.c_vector().v);
+		_inner->contactsReceived(d.vcontacts.v);
 	}
 	if (App::main()) App::main()->contactsReceived();
 }
@@ -2755,7 +2755,7 @@ bool DialogsWidget::contactsFailed(const RPCError &error) {
 void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessages_Messages &result, mtpRequestId req) {
 	if (_inner->state() == DialogsInner::FilteredState || _inner->state() == DialogsInner::SearchedState) {
 		if (type == DialogsSearchFromStart || type == DialogsSearchPeerFromStart) {
-			SearchQueries::iterator i = _searchQueries.find(req);
+			auto i = _searchQueries.find(req);
 			if (i != _searchQueries.cend()) {
 				_searchCache[i.value()] = result;
 				_searchQueries.erase(i);
@@ -2766,10 +2766,10 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 	if (_searchRequest == req) {
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			auto &d(result.c_messages_messages());
+			auto &d = result.c_messages_messages();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			auto &msgs(d.vmessages.c_vector().v);
+			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, msgs.size())) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 					_searchFullMigrated = true;
@@ -2780,10 +2780,10 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			auto &d(result.c_messages_messagesSlice());
+			auto &d = result.c_messages_messagesSlice();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			auto &msgs(d.vmessages.c_vector().v);
+			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 					_searchFullMigrated = true;
@@ -2794,7 +2794,7 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			auto &d(result.c_messages_channelMessages());
+			auto &d = result.c_messages_channelMessages();
 			if (_searchInPeer && _searchInPeer->isChannel()) {
 				_searchInPeer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
@@ -2802,7 +2802,7 @@ void DialogsWidget::searchReceived(DialogsSearchRequestType type, const MTPmessa
 			}
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			auto &msgs(d.vmessages.c_vector().v);
+			auto &msgs = d.vmessages.v;
 			if (!_inner->searchReceived(msgs, type, d.vcount.v)) {
 				if (type == DialogsSearchMigratedFromStart || type == DialogsSearchMigratedFromOffset) {
 					_searchFullMigrated = true;
@@ -2835,7 +2835,7 @@ void DialogsWidget::peerSearchReceived(const MTPcontacts_Found &result, mtpReque
 			auto &d = result.c_contacts_found();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			_inner->peerSearchReceived(q, d.vresults.c_vector().v);
+			_inner->peerSearchReceived(q, d.vresults.v);
 		} break;
 		}
 
