@@ -84,7 +84,10 @@ void FadeAnimation::setUpdatedCallback(UpdatedCallback &&callback) {
 }
 
 void FadeAnimation::show() {
-	_visible = true;
+	if (!_visible) {
+		_visible = true;
+		_widget->showChildren();
+	}
 	stopAnimation();
 }
 
