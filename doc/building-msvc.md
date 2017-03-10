@@ -46,14 +46,10 @@ Go to **D:\\TBuild**
 
 and run
 
-    git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
     mkdir Libraries
 
 ## Prepare libraries
-
-From **D:\\TBuild\\Libraries** run
-
-    git clone https://github.com/Microsoft/GSL.git
 
 ### OpenSSL
 

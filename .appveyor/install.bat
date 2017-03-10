@@ -27,10 +27,6 @@ GOTO:EOF
     call:logInfo "Clone dependencies repository"
     git clone -q --branch=master https://github.com/telegramdesktop/dependencies_windows.git %LIB_DIR%
     cd %LIB_DIR%
-
-    call:logInfo "Clone GSL"
-    git clone https://github.com/Microsoft/GSL.git
-
     call prepare.bat
 GOTO:EOF
 
@@ -39,6 +35,9 @@ GOTO:EOF
     cd %LIB_DIR%
     git clone https://chromium.googlesource.com/external/gyp
     SET PATH=%PATH%;C:\TBuild\Libraries\gyp;C:\TBuild\Libraries\ninja;
+    cd %SRC_DIR%
+    git submodule init
+    git submodule update
     cd %SRC_DIR%\Telegram
     call gyp\refresh.bat
 GOTO:EOF

@@ -21,17 +21,13 @@ Choose a folder for the future build, for example **/home/user/TBuild** There yo
 
 By git – in Terminal go to **/home/user/TBuild** and run
 
-    git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
 ###Prepare libraries
 
 Install dev libraries
 
     sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdee-dev
-
-From **/home/user/TBuild/Libraries** run
-
-    git clone https://github.com/Microsoft/GSL.git
 
 ####zlib 1.2.8
 

@@ -10,7 +10,7 @@ Choose a folder for the future build, for example **/Users/user/TBuild** There y
 
 By git – in Terminal go to **/Users/user/TBuild** and run
 
-    git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
 then go to **/Users/user/TBuild/tdesktop** and run
 
@@ -31,10 +31,6 @@ In your build Terminal run
     MACOSX_DEPLOYMENT_TARGET=10.6
 
 to set minimal supported OS version to 10.6 for future console builds.
-
-From **/Users/user/TBuild/Libraries** run
-
-    git clone https://github.com/Microsoft/GSL.git
 
 ####custom build of libc++
 

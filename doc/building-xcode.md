@@ -12,7 +12,7 @@ There you will have two folders, **Libraries** for third-party libs and **tdeskt
 
 By git – in Terminal go to **/Users/user/TBuild** and run:
 
-    git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
 ###Prepare libraries
 
@@ -21,10 +21,6 @@ In your build Terminal run:
     MACOSX_DEPLOYMENT_TARGET=10.8
 
 to set minimal supported OS version to 10.8 for future console builds.
-
-From **/Users/user/TBuild/Libraries** run
-
-    git clone https://github.com/Microsoft/GSL.git
 
 ####zlib 1.2.8
 

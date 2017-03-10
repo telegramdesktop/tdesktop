@@ -30,6 +30,7 @@
       'libs_loc': '<(libs_loc)',
       'src_loc': '../SourceFiles',
       'res_loc': '../Resources',
+      'submodules_loc': '../../third_party',
       'third_party_loc': '../ThirdParty',
       'minizip_loc': '<(third_party_loc)/minizip',
       'sp_media_key_tap_loc': '<(third_party_loc)/SPMediaKeyTap',
@@ -94,7 +95,7 @@
       '<(libs_loc)/openal-soft/include',
       '<(minizip_loc)',
       '<(sp_media_key_tap_loc)',
-      '<(libs_loc)/GSL/include',
+      '<(submodules_loc)/GSL/include',
     ],
     'sources': [
       '<@(qrc_files)',

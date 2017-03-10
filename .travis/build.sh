@@ -543,8 +543,9 @@ buildCustomQt() {
 }
 
 getGSL() {
-  cd "$EXTERNAL"
-  git clone https://github.com/Microsoft/GSL.git
+  cd "$UPSTREAM"
+  git submodule init
+  git submodule update
 }
 
 getGYP() {
@@ -602,7 +603,6 @@ buildTelegram() {
   cd "$UPSTREAM/Telegram/gyp"
   "$GYP_PATH/gyp" \
       -Dbuild_defines=${GYP_DEFINES:1} \
-      -Dlinux_path_gsl=$EXTERNAL/GSL \
       -Dlinux_path_xkbcommon=$XKB_PATH \
       -Dlinux_path_va=$VA_PATH \
       -Dlinux_path_vdpau=$VDPAU_PATH \
