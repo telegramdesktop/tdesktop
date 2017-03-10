@@ -66,6 +66,8 @@ private:
 	void prepareSingleFileLayout();
 	void prepareDocumentLayout();
 	void tryToReadSingleFile();
+	void prepareGifPreview();
+	void clipCallback(Media::Clip::Notification notification);
 
 	void updateTitleText();
 	void updateBoxSize();
@@ -84,6 +86,7 @@ private:
 	int _previewLeft = 0;
 	int _previewWidth = 0;
 	int _previewHeight = 0;
+	Media::Clip::ReaderPointer _gifPreview;
 
 	QPixmap _fileThumb;
 	Text _nameText;
@@ -131,6 +134,8 @@ protected:
 
 private:
 	void updateBoxSize();
+	void prepareGifPreview(DocumentData *document);
+	void clipCallback(Media::Clip::Notification notification);
 
 	void saveDone(const MTPUpdates &updates);
 	bool saveFail(const RPCError &error);
@@ -141,6 +146,7 @@ private:
 	bool _doc = false;
 
 	QPixmap _thumb;
+	Media::Clip::ReaderPointer _gifPreview;
 
 	object_ptr<Ui::InputArea> _field = { nullptr };
 
