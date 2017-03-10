@@ -262,7 +262,7 @@ DcId Instance::Private::mainDcId() const {
 }
 
 void Instance::Private::configLoadRequest() {
-	if (_configLoader || true) {
+	if (_configLoader) {
 		return;
 	}
 	_configLoader = std::make_unique<internal::ConfigLoader>(_instance, rpcDone([this](const MTPConfig &result) {

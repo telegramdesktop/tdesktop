@@ -3083,8 +3083,6 @@ void DialogsWidget::updateControlsGeometry() {
 		auto updateHeight = _updateTelegram->height();
 		_updateTelegram->setGeometry(0, height() - updateHeight, width(), updateHeight);
 		scrollHeight -= updateHeight;
-	} else {
-		scrollHeight -= st::dialogsPadding.y();
 	}
 	_scroll->setGeometry(0, scrollTop, width(), scrollHeight);
 	if (addToScroll) {
