@@ -868,10 +868,9 @@ private:
 	bool validateSendingFiles(const SendingFilesLists &lists, Callback callback);
 	template <typename SendCallback>
 	bool showSendFilesBox(object_ptr<SendFilesBox> box, const QString &insertTextOnCancel, const QString *addedComment, SendCallback callback);
-	CompressConfirm imageCompressConfirm(const QImage &image, CompressConfirm compressed, bool animated = false);
 
 	// If an empty filepath is found we upload (possible) "image" with (possible) "content".
-	void uploadFilesAfterConfirmation(const QStringList &files, const QImage &image, const QByteArray &content, SendMediaType type, QString caption);
+	void uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption);
 
 	void itemRemoved(HistoryItem *item);
 

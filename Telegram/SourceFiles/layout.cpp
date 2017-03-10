@@ -139,33 +139,6 @@ QString formatPlayedText(qint64 played, qint64 duration) {
 	return lng_duration_played(lt_played, formatDurationText(played), lt_duration, formatDurationText(duration));
 }
 
-QString documentName(DocumentData *document) {
-	auto song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		return document->name.isEmpty() ? qsl("Unknown File") : document->name;
-	}
-
-	if (song->performer.isEmpty()) return song->title;
-
-	return song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-}
-
-TextWithEntities documentNameWithEntities(DocumentData *document) {
-	TextWithEntities result;
-	auto song = document->song();
-	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
-		result.text = document->name.isEmpty() ? qsl("Unknown File") : document->name;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
-	} else if (song->performer.isEmpty()) {
-		result.text = song->title;
-		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
-	} else {
-		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
-		result.entities.push_back({ EntityInTextBold, 0, song->performer.size() });
-	}
-	return result;
-}
-
 int32 documentColorIndex(DocumentData *document, QString &ext) {
 	int32 colorIndex = 0;
 

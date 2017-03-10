@@ -30,20 +30,47 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/input_fields.h"
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
+#include "media/media_clip_reader.h"
 
 namespace {
 
 constexpr auto kMinPreviewWidth = 20;
 
+bool ValidatePhotoDimensions(int width, int height) {
+	return (width > 0) && (height > 0) && (width < 20 * height) && (height < 20 * width);
+}
+
 } // namespace
 
-SendFilesBox::SendFilesBox(QWidget*, const QString &filepath, QImage image, CompressConfirm compressed, bool animated)
-: _files(filepath)
-, _image(image)
+SendFilesBox::SendFilesBox(QWidget*, QImage image, CompressConfirm compressed)
+: _image(image)
 , _compressConfirm(compressed)
-, _animated(image.isNull() ? false : animated)
 , _caption(this, st::confirmCaptionArea, lang(lng_photo_caption)) {
-	if (!image.isNull()) {
+	_files.push_back(QString());
+	prepareSingleFileLayout();
+}
+
+SendFilesBox::SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed)
+: _files(files)
+, _compressConfirm(compressed)
+, _caption(this, st::confirmCaptionArea, lang(_files.size() > 1 ? lng_photos_comment : lng_photo_caption)) {
+	if (_files.size() == 1) {
+		prepareSingleFileLayout();
+	}
+}
+
+void SendFilesBox::prepareSingleFileLayout() {
+	t_assert(_files.size() == 1);
+	if (!_files.front().isEmpty()) {
+		tryToReadSingleFile();
+	}
+
+	if (_image.isNull() || !ValidatePhotoDimensions(_image.width(), _image.height()) || _animated) {
+		_compressConfirm = CompressConfirm::None;
+	}
+
+	if (!_image.isNull()) {
+		auto image = _image;
 		if (!_animated && _compressConfirm == CompressConfirm::None) {
 			auto originalWidth = image.width();
 			auto originalHeight = image.height();
@@ -99,27 +126,51 @@ SendFilesBox::SendFilesBox(QWidget*, const QString &filepath, QImage image, Comp
 		}
 	}
 	if (_preview.isNull()) {
-		if (filepath.isEmpty()) {
-			auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-			_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
-			_statusText = qsl("%1x%2").arg(_image.width()).arg(_image.height());
-			_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
-			_fileIsImage = true;
-		} else {
-			auto fileinfo = QFileInfo(filepath);
-			auto filename = fileinfo.fileName();
-			_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
-			_statusText = formatSizeText(fileinfo.size());
-			_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
-			_fileIsImage = fileIsImage(filename, mimeTypeForFile(fileinfo).name());
-		}
+		prepareDocumentLayout();
 	}
 }
 
-SendFilesBox::SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed)
-: _files(files)
-, _compressConfirm(compressed)
-, _caption(this, st::confirmCaptionArea, lang(lng_photos_comment)) {
+void SendFilesBox::prepareDocumentLayout() {
+	auto filepath = _files.front();
+	if (filepath.isEmpty()) {
+		auto filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+		_nameText.setText(st::semiboldTextStyle, filename, _textNameOptions);
+		_statusText = qsl("%1x%2").arg(_image.width()).arg(_image.height());
+		_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+		_fileIsImage = true;
+	} else {
+		auto fileinfo = QFileInfo(filepath);
+		auto filename = fileinfo.fileName();
+		_fileIsImage = fileIsImage(filename, mimeTypeForFile(fileinfo).name());
+
+		auto songTitle = QString();
+		auto songPerformer = QString();
+		if (_information) {
+			if (auto song = base::get_if<FileLoadTask::Song>(&_information->media)) {
+				songTitle = song->title;
+				songPerformer = song->performer;
+				_fileIsAudio = true;
+			}
+		}
+
+		auto nameString = DocumentData::composeNameString(filename, songTitle, songPerformer);
+		_nameText.setText(st::semiboldTextStyle, nameString, _textNameOptions);
+		_statusText = formatSizeText(fileinfo.size());
+		_statusWidth = qMax(_nameText.maxWidth(), st::normalFont->width(_statusText));
+	}
+}
+
+void SendFilesBox::tryToReadSingleFile() {
+	auto filepath = _files.front();
+	auto filemime = mimeTypeForFile(QFileInfo(filepath)).name();
+	_information = FileLoadTask::ReadMediaInformation(_files.front(), QByteArray(), filemime);
+	if (auto image = base::get_if<FileLoadTask::Image>(&_information->media)) {
+		_image = image->data;
+		_animated = image->animated;
+	} else if (auto video = base::get_if<FileLoadTask::Video>(&_information->media)) {
+		_image = video->thumbnail;
+		_animated = true;
+	}
 }
 
 SendFilesBox::SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname)
@@ -278,7 +329,7 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 					p.drawEllipse(inner);
 				}
 
-				auto &icon = _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
+				auto &icon = _fileIsAudio ? st::historyFileOutPlay : _fileIsImage ? st::historyFileOutImage : st::historyFileOutDocument;
 				icon.paintInCenter(p, inner);
 			} else {
 				_contactPhotoEmpty.paint(p, x + st::msgFilePadding.left(), y + st::msgFilePadding.top(), width(), st::msgFileSize);
@@ -333,7 +384,7 @@ void SendFilesBox::onSend(bool ctrlShiftEnter) {
 	if (_confirmedCallback) {
 		auto compressed = _compressed ? _compressed->checked() : false;
 		auto caption = _caption ? prepareText(_caption->getLastText(), true) : QString();
-		_confirmedCallback(_files, compressed, caption, ctrlShiftEnter);
+		_confirmedCallback(_files, _animated ? QImage() : _image, std::move(_information), compressed, caption, ctrlShiftEnter);
 	}
 	closeBox();
 }
@@ -403,11 +454,12 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryItem *msg)
 			if (doc->voice()) {
 				_name.setText(st::semiboldTextStyle, lang(lng_media_audio), _textNameOptions);
 			} else {
-				_name.setText(st::semiboldTextStyle, documentName(doc), _textNameOptions);
+				_name.setText(st::semiboldTextStyle, doc->composeNameString(), _textNameOptions);
 			}
 			_status = formatSizeText(doc->size);
 			_statusw = qMax(_name.maxWidth(), st::normalFont->width(_status));
 			_isImage = doc->isImage();
+			_isAudio = (doc->voice() || doc->song());
 		}
 	} else {
 		int32 maxW = 0, maxH = 0;
@@ -579,7 +631,7 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 				p.drawEllipse(inner);
 			}
 
-			auto icon = &(_isImage ? st::historyFileInImage : st::historyFileInDocument);
+			auto icon = &(_isAudio ? st::historyFileInPlay : _isImage ? st::historyFileInImage : st::historyFileInDocument);
 			icon->paintInCenter(p, inner);
 		}
 		p.setFont(st::semiboldFont);

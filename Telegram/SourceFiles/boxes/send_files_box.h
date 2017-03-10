@@ -33,11 +33,11 @@ class SendFilesBox : public BoxContent {
 	Q_OBJECT
 
 public:
-	SendFilesBox(QWidget*, const QString &filepath, QImage image, CompressConfirm compressed, bool animated = false);
+	SendFilesBox(QWidget*, QImage image, CompressConfirm compressed);
 	SendFilesBox(QWidget*, const QStringList &files, CompressConfirm compressed);
 	SendFilesBox(QWidget*, const QString &phone, const QString &firstname, const QString &lastname);
 
-	void setConfirmedCallback(base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> callback) {
+	void setConfirmedCallback(base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> callback) {
 		_confirmedCallback = std::move(callback);
 	}
 	void setCancelledCallback(base::lambda<void()> callback) {
@@ -63,6 +63,10 @@ private slots:
 	}
 
 private:
+	void prepareSingleFileLayout();
+	void prepareDocumentLayout();
+	void tryToReadSingleFile();
+
 	void updateTitleText();
 	void updateBoxSize();
 	void updateControlsGeometry();
@@ -70,7 +74,8 @@ private:
 
 	QString _titleText;
 	QStringList _files;
-	const QImage _image;
+	QImage _image;
+	std::unique_ptr<FileLoadTask::MediaInformation> _information;
 
 	CompressConfirm _compressConfirm = CompressConfirm::None;
 	bool _animated = false;
@@ -82,6 +87,7 @@ private:
 
 	QPixmap _fileThumb;
 	Text _nameText;
+	bool _fileIsAudio = false;
 	bool _fileIsImage = false;
 	QString _statusText;
 	int _statusWidth = 0;
@@ -91,7 +97,7 @@ private:
 	QString _contactLastName;
 	EmptyUserpic _contactPhotoEmpty;
 
-	base::lambda<void(const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
+	base::lambda<void(const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter)> _confirmedCallback;
 	base::lambda<void()> _cancelledCallback;
 	bool _confirmed = false;
 
@@ -145,6 +151,7 @@ private:
 	Text _name;
 	QString _status;
 	int _statusw = 0;
+	bool _isAudio = false;
 	bool _isImage = false;
 
 	bool _previewCancelled = false;

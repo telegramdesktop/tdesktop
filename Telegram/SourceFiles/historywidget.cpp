@@ -6609,14 +6609,14 @@ bool HistoryWidget::showSendFilesBox(object_ptr<SendFilesBox> box, const QString
 	App::wnd()->activateWindow();
 
 	auto withComment = (addedComment != nullptr);
-	box->setConfirmedCallback(base::lambda_guarded(this, [this, withComment, sendCallback = std::move(callback)](const QStringList &files, bool compressed, const QString &caption, bool ctrlShiftEnter) {
+	box->setConfirmedCallback(base::lambda_guarded(this, [this, withComment, sendCallback = std::move(callback)](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, bool ctrlShiftEnter) {
 		if (!canWriteMessage()) return;
 
 		auto replyTo = replyToId();
 		if (withComment) {
 			onSend(ctrlShiftEnter, replyTo);
 		}
-		sendCallback(files, compressed, caption, replyTo);
+		sendCallback(files, image, std::move(information), compressed, caption, replyTo);
 	}));
 
 	if (withComment) {
@@ -6662,21 +6662,12 @@ bool HistoryWidget::confirmSendingFiles(const QStringList &files, CompressConfir
 
 bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, CompressConfirm compressed, const QString *addedComment) {
 	return validateSendingFiles(lists, [this, &lists, compressed, addedComment](const QStringList &files) {
-		auto image = QImage();
 		auto insertTextOnCancel = QString();
-		auto box = ([this, &files, &lists, compressed, &image] {
-			if (files.size() > 1) {
-				return Box<SendFilesBox>(files, lists.allFilesForCompress ? compressed : CompressConfirm::None);
-			}
-			auto filepath = files.front();
-			auto animated = false;
-			image = App::readImage(filepath, nullptr, false, &animated);
-			return Box<SendFilesBox>(filepath, image, imageCompressConfirm(image, compressed, animated), animated);
-		})();
-		auto sendCallback = [this, image](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
+		auto sendCallback = [this](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
 			auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
-			uploadFilesAfterConfirmation(files, image, QByteArray(), type, caption);
+			uploadFilesAfterConfirmation(files, QByteArray(), image, std::move(information), type, caption);
 		};
+		auto box = Box<SendFilesBox>(files, lists.allFilesForCompress ? compressed : CompressConfirm::None);
 		return showSendFilesBox(std::move(box), insertTextOnCancel, addedComment, std::move(sendCallback));
 	});
 }
@@ -6685,12 +6676,11 @@ bool HistoryWidget::confirmSendingFiles(const QImage &image, const QByteArray &c
 	if (!canWriteMessage() || image.isNull()) return false;
 
 	App::wnd()->activateWindow();
-	auto animated = false;
-	auto sendCallback = [this, content, image](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
+	auto sendCallback = [this, content](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
 		auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
-		uploadFilesAfterConfirmation(files, image, content, type, caption);
+		uploadFilesAfterConfirmation(files, content, image, std::move(information), type, caption);
 	};
-	auto box = Box<SendFilesBox>(QString(), image, imageCompressConfirm(image, compressed), animated);
+	auto box = Box<SendFilesBox>(image, compressed);
 	return showSendFilesBox(std::move(box), insertTextOnCancel, nullptr, std::move(sendCallback));
 }
 
@@ -6722,7 +6712,7 @@ bool HistoryWidget::confirmShareContact(const QString &phone, const QString &fna
 	if (!canWriteMessage()) return false;
 
 	auto box = Box<SendFilesBox>(phone, fname, lname);
-	auto sendCallback = [this, phone, fname, lname](const QStringList &files, bool compressed, const QString &caption, MsgId replyTo) {
+	auto sendCallback = [this, phone, fname, lname](const QStringList &files, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, bool compressed, const QString &caption, MsgId replyTo) {
 		shareContact(_peer->id, phone, fname, lname, replyTo);
 	};
 	auto insertTextOnCancel = QString();
@@ -6779,26 +6769,14 @@ void HistoryWidget::getSendingLocalFileInfo(SendingFilesLists &result, const QSt
 	}
 }
 
-CompressConfirm HistoryWidget::imageCompressConfirm(const QImage &image, CompressConfirm compressed, bool animated) {
-	if (animated || image.isNull()) {
-		return CompressConfirm::None;
-	}
-	auto imageWidth = image.width();
-	auto imageHeight = image.height();
-	if (imageWidth >= 20 * imageHeight || imageHeight >= 20 * imageWidth) {
-		return CompressConfirm::None;
-	}
-	return compressed;
-}
-
 void HistoryWidget::uploadFiles(const QStringList &files, SendMediaType type) {
 	if (!canWriteMessage()) return;
 
 	auto caption = QString();
-	uploadFilesAfterConfirmation(files, QImage(), QByteArray(), type, caption);
+	uploadFilesAfterConfirmation(files, QByteArray(), QImage(), std::unique_ptr<FileLoadTask::MediaInformation>(), type, caption);
 }
 
-void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const QImage &image, const QByteArray &content, SendMediaType type, QString caption) {
+void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const QByteArray &content, const QImage &image, std::unique_ptr<FileLoadTask::MediaInformation> information, SendMediaType type, QString caption) {
 	t_assert(canWriteMessage());
 
 	auto to = FileLoadTo(_peer->id, _silent->checked(), replyToId());
@@ -6818,7 +6796,7 @@ void HistoryWidget::uploadFilesAfterConfirmation(const QStringList &files, const
 		if (filepath.isEmpty() && (!image.isNull() || !content.isNull())) {
 			tasks.push_back(MakeShared<FileLoadTask>(content, image, type, to, caption));
 		} else {
-			tasks.push_back(MakeShared<FileLoadTask>(filepath, image, type, to, caption));
+			tasks.push_back(MakeShared<FileLoadTask>(filepath, std::move(information), type, to, caption));
 		}
 	}
 	_fileLoader.addTasks(tasks);

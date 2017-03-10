@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "storage/localimageloader.h"
+
 class FileLocation;
 
 namespace Media {
@@ -243,12 +245,7 @@ private:
 
 };
 
-struct SendData {
-	QImage cover;
-	int duration = 0;
-	bool isGifv = false;
-};
-SendData PrepareForSending(const QString &fname, const QByteArray &data);
+FileLoadTask::Video PrepareForSending(const QString &fname, const QByteArray &data);
 
 void Finish();
 

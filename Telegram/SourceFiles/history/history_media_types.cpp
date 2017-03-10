@@ -1010,7 +1010,7 @@ void HistoryDocument::createComponents(bool caption) {
 }
 
 void HistoryDocument::fillNamedFromData(HistoryDocumentNamed *named) {
-	auto name = named->_name = documentName(_data);
+	auto name = named->_name = _data->composeNameString();
 	named->_namew = st::semiboldFont->width(name);
 }
 

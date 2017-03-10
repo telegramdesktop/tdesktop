@@ -839,8 +839,8 @@ Manager::~Manager() {
 	clear();
 }
 
-SendData PrepareForSending(const QString &fname, const QByteArray &data) {
-	auto result = SendData();
+FileLoadTask::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = FileLoadTask::Video();
 	auto localLocation = FileLocation(fname);
 	auto localData = QByteArray(data);
 
@@ -859,14 +859,14 @@ SendData PrepareForSending(const QString &fname, const QByteArray &data) {
 		auto hasAlpha = false;
 		auto readResult = reader->readFramesTill(-1, getms());
 		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
-		if (readFrame && reader->renderFrame(result.cover, hasAlpha, QSize())) {
+		if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
 			if (hasAlpha) {
 				auto cacheForResize = QImage();
 				auto request = FrameRequest();
-				request.framew = request.outerw = result.cover.width();
-				request.frameh = request.outerh = result.cover.height();
+				request.framew = request.outerw = result.thumbnail.width();
+				request.frameh = request.outerh = result.thumbnail.height();
 				request.factor = 1;
-				result.cover = PrepareFrameImage(request, result.cover, hasAlpha, cacheForResize);
+				result.thumbnail = PrepareFrameImage(request, result.thumbnail, hasAlpha, cacheForResize);
 			}
 			result.duration = static_cast<int>(durationMs / 1000);
 		}

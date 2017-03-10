@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "storage/localimageloader.h"
+
 struct VideoSoundData;
 struct VideoSoundPart;
 
@@ -278,6 +280,8 @@ private:
 
 };
 
+FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data);
+
 } // namespace Player
 } // namespace Media
 
@@ -291,5 +295,4 @@ bool CheckAudioDeviceConnected();
 
 } // namespace internal
 
-MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat);
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);

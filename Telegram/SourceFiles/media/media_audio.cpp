@@ -1656,24 +1656,27 @@ private:
 
 };
 
-MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat) {
+namespace Media {
+namespace Player {
+
+FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = FileLoadTask::Song();
 	FFMpegAttributesReader reader(FileLocation(fname), data);
 	qint64 position = 0;
-	if (reader.open(position)) {
-		int32 duration = reader.duration() / reader.frequency();
-		if (reader.duration() > 0) {
-			cover = reader.cover();
-			coverBytes = reader.coverBytes();
-			coverFormat = reader.coverFormat();
-			return MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(duration), MTP_string(reader.title()), MTP_string(reader.performer()), MTPstring());
-		}
+	if (reader.open(position) && reader.duration() > 0) {
+		result.duration = reader.duration() / reader.frequency();
+		result.title = reader.title();
+		result.performer = reader.performer();
+		result.cover = reader.cover();
 	}
-	return MTP_documentAttributeFilename(MTP_string(fname));
+	return result;
 }
+
+} // namespace Player
+} // namespace Media
 
 class FFMpegWaveformCounter : public FFMpegLoader {
 public:
-
 	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data) {
 	}
 

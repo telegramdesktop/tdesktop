@@ -1844,6 +1844,19 @@ DocumentData::~DocumentData() {
 	}
 }
 
+QString DocumentData::composeNameString(const QString &filename, const QString &songTitle, const QString &songPerformer) {
+	if (songTitle.isEmpty() && songPerformer.isEmpty()) {
+		return filename.isEmpty() ? qsl("Unknown File") : filename;
+	}
+
+	if (songPerformer.isEmpty()) {
+		return songTitle;
+	}
+
+	auto trackTitle = (songTitle.isEmpty() ? qsl("Unknown Track") : songTitle);
+	return songPerformer + QString::fromUtf8(" \xe2\x80\x93 ") + trackTitle;
+}
+
 WebPageData::WebPageData(const WebPageId &id, WebPageType type, const QString &url, const QString &displayUrl, const QString &siteName, const QString &title, const QString &description, DocumentData *document, PhotoData *photo, int32 duration, const QString &author, int32 pendingTill) : id(id)
 , type(type)
 , url(url)

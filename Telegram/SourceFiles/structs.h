@@ -1258,6 +1258,14 @@ public:
 		return ::mediaKey(locationType(), _dc, id, _version);
 	}
 
+	static QString composeNameString(const QString &filename, const QString &songTitle, const QString &songPerformer);
+	QString composeNameString() const {
+		if (auto songData = song()) {
+			return composeNameString(name, songData->title, songData->performer);
+		}
+		return composeNameString(name, QString(), QString());
+	}
+
 private:
 	DocumentData(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
 

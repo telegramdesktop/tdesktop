@@ -47,6 +47,22 @@ TextParseOptions _documentNameOptions = {
 	Qt::LayoutDirectionAuto, // dir
 };
 
+TextWithEntities ComposeNameWithEntities(DocumentData *document) {
+	TextWithEntities result;
+	auto song = document->song();
+	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
+		result.text = document->name.isEmpty() ? qsl("Unknown File") : document->name;
+		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
+	} else if (song->performer.isEmpty()) {
+		result.text = song->title;
+		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
+	} else {
+		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
+		result.entities.push_back({ EntityInTextBold, 0, song->performer.size() });
+	}
+	return result;
+}
+
 } // namespace
 
 void ItemBase::clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) {
@@ -672,7 +688,7 @@ Document::Document(DocumentData *document, HistoryItem *parent, const style::Ove
 , _date(langDateTime(date(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
-	_name.setMarkedText(st::defaultTextStyle, documentNameWithEntities(_data), _documentNameOptions);
+	_name.setMarkedText(st::defaultTextStyle, ComposeNameWithEntities(_data), _documentNameOptions);
 
 	AddComponents(Info::Bit());
 

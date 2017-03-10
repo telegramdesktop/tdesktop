@@ -179,10 +179,10 @@ void TaskQueueWorker::onTaskAdded() {
 	_inTaskAdded = false;
 }
 
-FileLoadTask::FileLoadTask(const QString &filepath, const QImage &image, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
+FileLoadTask::FileLoadTask(const QString &filepath, std::unique_ptr<MediaInformation> information, SendMediaType type, const FileLoadTo &to, const QString &caption) : _id(rand_value<uint64>())
 , _to(to)
 , _filepath(filepath)
-, _image(image)
+, _information(std::move(information))
 , _type(type)
 , _caption(caption) {
 }
@@ -204,6 +204,115 @@ FileLoadTask::FileLoadTask(const QByteArray &voice, int32 duration, const VoiceW
 , _caption(caption) {
 }
 
+std::unique_ptr<FileLoadTask::MediaInformation> FileLoadTask::ReadMediaInformation(const QString &filepath, const QByteArray &content, const QString &filemime) {
+	auto result = std::make_unique<MediaInformation>();
+	result->filemime = filemime;
+
+	if (CheckForSong(filepath, content, result)) {
+		return result;
+	} else if (CheckForVideo(filepath, content, result)) {
+		return result;
+	} else if (CheckForImage(filepath, content, result)) {
+		return result;
+	}
+	return result;
+}
+
+template <typename Mimes, typename Extensions>
+bool FileLoadTask::CheckMimeOrExtensions(const QString &filepath, const QString &filemime, Mimes &mimes, Extensions &extensions) {
+	if (std::find(std::begin(mimes), std::end(mimes), filemime) != std::end(mimes)) {
+		return true;
+	}
+	if (std::find_if(std::begin(extensions), std::end(extensions), [&filepath](auto &extension) {
+		return filepath.endsWith(extension, Qt::CaseInsensitive);
+	}) != std::end(extensions)) {
+		return true;
+	}
+	return false;
+}
+
+bool FileLoadTask::CheckForSong(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result) {
+	static const auto mimes = {
+		qstr("audio/mp3"),
+		qstr("audio/m4a"),
+		qstr("audio/aac"),
+		qstr("audio/ogg"),
+		qstr("audio/flac"),
+	};
+	static const auto extensions = {
+		qstr(".mp3"),
+		qstr(".m4a"),
+		qstr(".aac"),
+		qstr(".ogg"),
+		qstr(".flac"),
+	};
+	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
+		return false;
+	}
+
+	auto media = Media::Player::PrepareForSending(filepath, content);
+	if (media.duration <= 0) {
+		return false;
+	}
+	if (!ValidateThumbDimensions(media.cover.width(), media.cover.height())) {
+		media.cover = QImage();
+	}
+	result->media = std::move(media);
+	return true;
+}
+
+bool FileLoadTask::CheckForVideo(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result) {
+	static const auto mimes = {
+		qstr("video/mp4"),
+		qstr("video/quicktime"),
+	};
+	static const auto extensions = {
+		qstr(".mp4"),
+		qstr(".mov"),
+	};
+	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
+		return false;
+	}
+
+	auto media = Media::Clip::PrepareForSending(filepath, content);
+	if (media.duration <= 0) {
+		return false;
+	}
+
+	auto coverWidth = media.thumbnail.width();
+	auto coverHeight = media.thumbnail.height();
+	if (!ValidateThumbDimensions(coverWidth, coverHeight)) {
+		return false;
+	}
+
+	if (filepath.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
+		result->filemime = qstr("video/mp4");
+	}
+	result->media = std::move(media);
+	return true;
+}
+
+bool FileLoadTask::CheckForImage(const QString &filepath, const QByteArray &content, std::unique_ptr<MediaInformation> &result) {
+	auto animated = false;
+	auto image = ([&filepath, &content, &animated] {
+		if (!content.isEmpty()) {
+			return App::readImage(content, nullptr, false, &animated);
+		} else if (!filepath.isEmpty()) {
+			return App::readImage(filepath, nullptr, false, &animated);
+		}
+		return QImage();
+	})();
+
+	if (image.isNull()) {
+		return false;
+	}
+	auto media = Image();
+	media.data = std::move(image);
+	media.animated = animated;
+	result->media = media;
+	return true;
+}
+
 void FileLoadTask::process() {
 	const QString stickerMime = qsl("image/webp");
 
@@ -217,10 +326,11 @@ void FileLoadTask::process() {
 	QString thumbname = "thumb.jpg";
 	QByteArray thumbdata;
 
-	auto animated = false;
-	auto song = false;
-	auto video = false;
-	auto voice = (_type == SendMediaType::Audio);
+	auto isAnimation = false;
+	auto isSong = false;
+	auto isVideo = false;
+	auto isVoice = (_type == SendMediaType::Audio);
+
 	auto fullimage = base::take(_image);
 	auto info = _filepath.isEmpty() ? QFileInfo() : QFileInfo(_filepath);
 	if (info.exists()) {
@@ -228,14 +338,28 @@ void FileLoadTask::process() {
 			_result->filesize = -1;
 			return;
 		}
+
+		// Voice sending is supported only from memory for now.
+		// Because for voice we force mime type and don't read MediaInformation.
+		// For a real file we always read mime type and read MediaInformation.
+		t_assert(!isVoice);
+
 		filesize = info.size();
-		filemime = mimeTypeForFile(info).name();
 		filename = info.fileName();
-		auto opaque = (filemime != stickerMime);
-		fullimage = App::readImage(_filepath, 0, opaque, &animated);
+		if (!_information) {
+			_information = readMediaInformation(mimeTypeForFile(info).name());
+		}
+		filemime = _information->filemime;
+		if (auto image = base::get_if<FileLoadTask::Image>(&_information->media)) {
+			fullimage = base::take(image->data);
+			if (auto opaque = (filemime != stickerMime)) {
+				fullimage = Images::prepareOpaque(std::move(fullimage));
+			}
+			isAnimation = image->animated;
+		}
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
-		if (voice) {
+		if (isVoice) {
 			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
 			filemime = "audio/ogg";
 		} else {
@@ -294,81 +418,65 @@ void FileLoadTask::process() {
 	MTPPhoto photo(MTP_photoEmpty(MTP_long(0)));
 	MTPDocument document(MTP_documentEmpty(MTP_long(0)));
 
-	if (!voice) {
-		if (filemime == qstr("audio/mp3") || filemime == qstr("audio/m4a") || filemime == qstr("audio/aac") || filemime == qstr("audio/ogg") || filemime == qstr("audio/flac") ||
-			filename.endsWith(qstr(".mp3"), Qt::CaseInsensitive) || filename.endsWith(qstr(".m4a"), Qt::CaseInsensitive) ||
-			filename.endsWith(qstr(".aac"), Qt::CaseInsensitive) || filename.endsWith(qstr(".ogg"), Qt::CaseInsensitive) ||
-			filename.endsWith(qstr(".flac"), Qt::CaseInsensitive)) {
-			QImage cover;
-			QByteArray coverBytes, coverFormat;
-			auto audioAttribute = audioReadSongAttributes(_filepath, _content, cover, coverBytes, coverFormat);
-			if (audioAttribute.type() == mtpc_documentAttributeAudio) {
-				attributes.push_back(audioAttribute);
-				song = true;
-				if (!cover.isNull()) { // cover to thumb
-					auto coverWidth = cover.width();
-					auto coverHeight = cover.height();
-					if (ValidateThumbDimensions(coverWidth, coverHeight)) {
-						auto full = (coverWidth > 90 || coverHeight > 90) ? App::pixmapFromImageInPlace(cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(cover));
-						{
-							auto thumbFormat = QByteArray("JPG");
-							auto thumbQuality = 87;
-
-							QBuffer buffer(&thumbdata);
-							full.save(&buffer, thumbFormat, thumbQuality);
-						}
-
-						thumb = full;
-						thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
-
-						thumbId = rand_value<uint64>();
-					}
-				}
-			}
+	if (!isVoice) {
+		if (!_information) {
+			_information = readMediaInformation(filemime);
+			filemime = _information->filemime;
 		}
-		if (filemime == qstr("video/mp4") || filemime == qstr("video/quicktime")
-			|| filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive) || filename.endsWith(qstr(".mov"), Qt::CaseInsensitive)) {
-			auto sendVideoData = Media::Clip::PrepareForSending(_filepath, _content);
-			if (sendVideoData.duration > 0) {
-				auto coverWidth = sendVideoData.cover.width();
-				auto coverHeight = sendVideoData.cover.height();
-				if (ValidateThumbDimensions(coverWidth, coverHeight)) {
-					if (sendVideoData.isGifv) {
-						attributes.push_back(MTP_documentAttributeAnimated());
-					}
-					attributes.push_back(MTP_documentAttributeVideo(MTP_int(sendVideoData.duration), MTP_int(coverWidth), MTP_int(coverHeight)));
-					video = true;
+		if (auto song = base::get_if<Song>(&_information->media)) {
+			isSong = true;
+			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
+			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(song->duration), MTP_string(song->title), MTP_string(song->performer), MTPstring()));
+			if (!song->cover.isNull()) { // cover to thumb
+				auto coverWidth = song->cover.width();
+				auto coverHeight = song->cover.height();
+				auto full = (coverWidth > 90 || coverHeight > 90) ? App::pixmapFromImageInPlace(song->cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : App::pixmapFromImageInPlace(std::move(song->cover));
+				{
+					auto thumbFormat = QByteArray("JPG");
+					auto thumbQuality = 87;
 
-					auto cover = (coverWidth > 90 || coverHeight > 90)
-						? sendVideoData.cover.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)
-						: std::move(sendVideoData.cover);
-					{
-						auto thumbFormat = QByteArray("JPG");
-						auto thumbQuality = 87;
-
-						QBuffer buffer(&thumbdata);
-						cover.save(&buffer, thumbFormat, thumbQuality);
-					}
-
-					thumb = App::pixmapFromImageInPlace(std::move(cover));
-					thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0));
-
-					thumbId = rand_value<uint64>();
-
-					if (filename.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
-						filemime = qstr("video/mp4");
-					}
+					QBuffer buffer(&thumbdata);
+					full.save(&buffer, thumbFormat, thumbQuality);
 				}
+
+				thumb = full;
+				thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(full.width()), MTP_int(full.height()), MTP_int(0));
+
+				thumbId = rand_value<uint64>();
 			}
+		} else if (auto video = base::get_if<Video>(&_information->media)) {
+			isVideo = true;
+			auto coverWidth = video->thumbnail.width();
+			auto coverHeight = video->thumbnail.height();
+			if (video->isGifv) {
+				attributes.push_back(MTP_documentAttributeAnimated());
+			}
+			attributes.push_back(MTP_documentAttributeVideo(MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
+
+			auto cover = (coverWidth > 90 || coverHeight > 90)
+				? video->thumbnail.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+				: std::move(video->thumbnail);
+			{
+				auto thumbFormat = QByteArray("JPG");
+				auto thumbQuality = 87;
+
+				QBuffer buffer(&thumbdata);
+				cover.save(&buffer, thumbFormat, thumbQuality);
+			}
+
+			thumb = App::pixmapFromImageInPlace(std::move(cover));
+			thumbSize = MTP_photoSize(MTP_string(""), MTP_fileLocationUnavailable(MTP_long(0), MTP_int(0), MTP_long(0)), MTP_int(thumb.width()), MTP_int(thumb.height()), MTP_int(0));
+
+			thumbId = rand_value<uint64>();
 		}
 	}
 
-	if (!fullimage.isNull() && fullimage.width() > 0 && !song && !video && !voice) {
+	if (!fullimage.isNull() && fullimage.width() > 0 && !isSong && !isVideo && !isVoice) {
 		auto w = fullimage.width(), h = fullimage.height();
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
 		if (ValidateThumbDimensions(w, h)) {
-			if (animated) {
+			if (isAnimation) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (_type != SendMediaType::File) {
 				auto thumb = (w > 100 || h > 100) ? App::pixmapFromImageInPlace(fullimage.scaled(100, 100, Qt::KeepAspectRatio, Qt::SmoothTransformation)) : QPixmap::fromImage(fullimage);
@@ -398,7 +506,7 @@ void FileLoadTask::process() {
 
 			QByteArray thumbFormat = "JPG";
 			int32 thumbQuality = 87;
-			if (!animated && filemime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
+			if (!isAnimation && filemime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
 				MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(""), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 				thumbFormat = "webp";
@@ -419,7 +527,7 @@ void FileLoadTask::process() {
 		}
 	}
 
-	if (voice) {
+	if (isVoice) {
 		attributes[0] = MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
