@@ -314,7 +314,7 @@ bool FileLoadTask::CheckForImage(const QString &filepath, const QByteArray &cont
 }
 
 void FileLoadTask::process() {
-	const QString stickerMime = qsl("image/webp");
+	const auto stickerMime = qsl("image/webp");
 
 	_result = MakeShared<FileLoadResult>(_id, _to, _caption);
 
@@ -323,7 +323,7 @@ void FileLoadTask::process() {
 	QByteArray filedata;
 
 	uint64 thumbId = 0;
-	QString thumbname = "thumb.jpg";
+	auto thumbname = qsl("thumb.jpg");
 	QByteArray thumbdata;
 
 	auto isAnimation = false;

@@ -1602,8 +1602,7 @@ namespace {
 					::photosData.erase(i);
 				}
 				convert->id = photo;
-				delete convert->uploadingData;
-				convert->uploadingData = 0;
+				convert->uploadingData.reset();
 			}
 			if (date) {
 				convert->access = access;

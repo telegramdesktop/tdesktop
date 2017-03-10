@@ -6667,7 +6667,11 @@ bool HistoryWidget::confirmSendingFiles(const SendingFilesLists &lists, Compress
 			auto type = compressed ? SendMediaType::Photo : SendMediaType::File;
 			uploadFilesAfterConfirmation(files, QByteArray(), image, std::move(information), type, caption);
 		};
-		auto box = Box<SendFilesBox>(files, lists.allFilesForCompress ? compressed : CompressConfirm::None);
+		auto boxCompressConfirm = compressed;
+		if (files.size() > 1 && !lists.allFilesForCompress) {
+			boxCompressConfirm = CompressConfirm::None;
+		}
+		auto box = Box<SendFilesBox>(files, boxCompressConfirm);
 		return showSendFilesBox(std::move(box), insertTextOnCancel, addedComment, std::move(sendCallback));
 	});
 }

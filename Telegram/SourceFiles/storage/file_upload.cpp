@@ -52,15 +52,10 @@ void FileUploader::uploadMedia(const FullMsgId &msgId, const SendMediaReady &med
 
 void FileUploader::upload(const FullMsgId &msgId, const FileLoadResultPtr &file) {
 	if (file->type == SendMediaType::Photo) {
-		PhotoData *photo = App::feedPhoto(file->photo, file->photoThumbs);
-		photo->uploadingData = new PhotoData::UploadingData(file->partssize);
+		auto photo = App::feedPhoto(file->photo, file->photoThumbs);
+		photo->uploadingData = std::make_unique<PhotoData::UploadingData>(file->partssize);
 	} else if (file->type == SendMediaType::File || file->type == SendMediaType::Audio) {
-		DocumentData *document;
-		if (file->thumb.isNull()) {
-			document = App::feedDocument(file->document);
-		} else {
-			document = App::feedDocument(file->document, file->thumb);
-		}
+		auto document = file->thumb.isNull() ? App::feedDocument(file->document) : App::feedDocument(file->document, file->thumb);
 		document->status = FileUploading;
 		if (!file->content.isEmpty()) {
 			document->setData(file->content);
@@ -141,7 +136,14 @@ void FileUploader::sendNext() {
 			if (requestsSent.isEmpty() && docRequestsSent.isEmpty()) {
 				bool silent = i->file && i->file->to.silent;
 				if (i->type() == SendMediaType::Photo) {
-					emit photoReady(uploading, silent, MTP_inputFile(MTP_long(i->id()), MTP_int(i->partsCount), MTP_string(i->filename()), MTP_bytes(i->file ? i->file->filemd5 : i->media.jpeg_md5)));
+					auto photoFilename = i->filename();
+					if (!photoFilename.endsWith(qstr(".jpg"), Qt::CaseInsensitive)) {
+						// Server has some extensions checking for inputMediaUploadedPhoto,
+						// so force the extension to be .jpg anyway. It doesn't matter,
+						// because the filename from inputFile is not used anywhere.
+						photoFilename += qstr(".jpg");
+					}
+					emit photoReady(uploading, silent, MTP_inputFile(MTP_long(i->id()), MTP_int(i->partsCount), MTP_string(photoFilename), MTP_bytes(i->file ? i->file->filemd5 : i->media.jpeg_md5)));
 				} else if (i->type() == SendMediaType::File || i->type() == SendMediaType::Audio) {
 					QByteArray docMd5(32, Qt::Uninitialized);
 					hashMd5Hex(i->md5Hash.result(), docMd5.data());

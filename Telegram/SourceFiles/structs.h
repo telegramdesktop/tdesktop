@@ -1000,8 +1000,6 @@ public:
 	void forget();
 	ImagePtr makeReplyPreview();
 
-	~PhotoData();
-
 	PhotoId id;
 	uint64 access;
 	int32 date;
@@ -1009,15 +1007,16 @@ public:
 	ImagePtr medium;
 	ImagePtr full;
 
-	PeerData *peer; // for chat and channel photos connection
+	PeerData *peer = nullptr; // for chat and channel photos connection
 	// geo, caption
 
 	struct UploadingData {
-		UploadingData(int32 size) : offset(0), size(size) {
+		UploadingData(int size) : size(size) {
 		}
-		int32 offset, size;
+		int offset = 0;
+		int size = 0;
 	};
-	UploadingData *uploadingData;
+	std::unique_ptr<UploadingData> uploadingData;
 
 private:
 	void notifyLayoutChanged() const;

@@ -859,9 +859,7 @@ PhotoData::PhotoData(const PhotoId &id, const uint64 &access, int32 date, const 
 , date(date)
 , thumb(thumb)
 , medium(medium)
-, full(full)
-, peer(0)
-, uploadingData(0) {
+, full(full) {
 }
 
 void PhotoData::automaticLoad(const HistoryItem *item) {
@@ -926,7 +924,7 @@ int32 PhotoData::loadOffset() const {
 }
 
 bool PhotoData::uploading() const {
-	return uploadingData;
+	return !!uploadingData;
 }
 
 void PhotoData::forget() {
@@ -948,10 +946,6 @@ ImagePtr PhotoData::makeReplyPreview() {
 		}
 	}
 	return replyPreview;
-}
-
-PhotoData::~PhotoData() {
-	delete base::take(uploadingData);
 }
 
 void PhotoOpenClickHandler::onClickImpl() const {
