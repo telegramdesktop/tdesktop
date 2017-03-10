@@ -96,6 +96,7 @@
       '<(minizip_loc)',
       '<(sp_media_key_tap_loc)',
       '<(submodules_loc)/GSL/include',
+      '<(submodules_loc)/variant/include',
     ],
     'sources': [
       '<@(qrc_files)',
@@ -178,6 +179,7 @@
       '<(src_loc)/core/type_traits.h',
       '<(src_loc)/core/utils.cpp',
       '<(src_loc)/core/utils.h',
+      '<(src_loc)/core/variant.h',
       '<(src_loc)/core/version.h',
       '<(src_loc)/core/virtual_method.h',
       '<(src_loc)/core/zlib_help.h',
