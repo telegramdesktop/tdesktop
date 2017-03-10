@@ -30,7 +30,7 @@ using variant = mapbox::util::variant<Types...>;
 
 template <typename T, typename... Types>
 inline T *get_if(variant<Types...> *v) {
-	return (v && v->is<T>()) ? &v->get_unchecked<T>() : nullptr;
+	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
 }
 
 } // namespace base
