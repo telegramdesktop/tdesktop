@@ -90,15 +90,20 @@ MediaView::MediaView(QWidget*) : TWidget(nullptr)
 	connect(QApplication::desktop(), SIGNAL(resized(int)), this, SLOT(onScreenResized(int)));
 
 	// While we have one mediaview for all authsessions we have to do this.
-	subscribe(Messenger::Instance().authSessionChanged(), [this] {
-		if (!AuthSession::Exists()) return;
-
-		subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
-			if (!isHidden()) {
-				updateControls();
-			}
-		});
+	auto subscribeToDownloadFinished = [this] {
+		if (AuthSession::Exists()) {
+			subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
+				if (!isHidden()) {
+					updateControls();
+				}
+			});
+		}
+	};
+	subscribe(Messenger::Instance().authSessionChanged(), [this, subscribeToDownloadFinished] {
+		subscribeToDownloadFinished();
 	});
+	subscribeToDownloadFinished();
+
 	auto observeEvents = Notify::PeerUpdate::Flag::SharedMediaChanged;
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		mediaOverviewUpdated(update);
