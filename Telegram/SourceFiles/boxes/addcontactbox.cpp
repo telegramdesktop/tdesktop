@@ -1163,7 +1163,7 @@ void RevokePublicLinkBox::mouseReleaseEvent(QMouseEvent *e) {
 	setCursor((_selected || _pressed) ? style::cur_pointer : style::cur_default);
 	if (pressed && pressed == _selected) {
 		auto text_method = pressed->isMegagroup() ? lng_channels_too_much_public_revoke_confirm_group : lng_channels_too_much_public_revoke_confirm_channel;
-		auto text = text_method(lt_link, CreateInternalLink(pressed->userName()), lt_group, pressed->name);
+		auto text = text_method(lt_link, Messenger::Instance().createInternalLink(pressed->userName()), lt_group, pressed->name);
 		auto confirmText = lang(lng_channels_too_much_public_revoke);
 		_weakRevokeConfirmBox = Ui::show(Box<ConfirmBox>(text, confirmText, base::lambda_guarded(this, [this, pressed]() {
 			if (_revokeRequestId) return;
@@ -1223,7 +1223,7 @@ void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 				ChatRow row;
 				row.peer = peer;
 				row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
-				row.status.setText(st::defaultTextStyle, CreateInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
+				row.status.setText(st::defaultTextStyle, Messenger::Instance().createInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
 				_rows.push_back(std::move(row));
 			}
 		}

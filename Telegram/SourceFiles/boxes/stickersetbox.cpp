@@ -33,6 +33,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
 #include "auth_session.h"
+#include "messenger.h"
 
 StickerSetBox::StickerSetBox(QWidget*, const MTPInputStickerSet &set)
 : _set(set) {
@@ -68,7 +69,7 @@ void StickerSetBox::onAddStickers() {
 }
 
 void StickerSetBox::onShareStickers() {
-	auto url = CreateInternalLinkHttps(qsl("addstickers/") + _inner->shortName());
+	auto url = Messenger::Instance().createInternalLinkFull(qsl("addstickers/") + _inner->shortName());
 	QApplication::clipboard()->setText(url);
 	Ui::show(Box<InformBox>(lang(lng_stickers_copied)));
 }

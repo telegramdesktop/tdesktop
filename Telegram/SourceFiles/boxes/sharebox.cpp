@@ -39,6 +39,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "boxes/contactsbox.h"
 #include "auth_session.h"
+#include "messenger.h"
 
 ShareBox::ShareBox(QWidget*, CopyCallback &&copyCallback, SubmitCallback &&submitCallback, FilterCallback &&filterCallback)
 : _copyCallback(std::move(copyCallback))
@@ -870,7 +871,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 						if (media->type() == MediaTypeGame) {
 							auto shortName = static_cast<HistoryGame*>(media)->game()->shortName;
 
-							QApplication::clipboard()->setText(CreateInternalLinkHttps(bot->username + qsl("?game=") + shortName));
+							QApplication::clipboard()->setText(Messenger::Instance().createInternalLinkFull(bot->username + qsl("?game=") + shortName));
 
 							Ui::Toast::Show(lang(lng_share_game_link_copied));
 						}

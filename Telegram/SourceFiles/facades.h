@@ -342,6 +342,7 @@ DeclareVar(int32, SavedGifsLimit);
 DeclareVar(int32, EditTimeLimit);
 DeclareVar(int32, StickersRecentLimit);
 DeclareVar(int32, PinnedDialogsCountMax);
+DeclareVar(QString, InternalLinksDomain);
 
 typedef QMap<PeerId, MsgId> HiddenPinnedMessagesMap;
 DeclareVar(HiddenPinnedMessagesMap, HiddenPinnedMessages);

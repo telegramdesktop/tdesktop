@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "observer_peer.h"
 #include "apiwrap.h"
 #include "lang.h"
+#include "messenger.h"
 
 namespace Profile {
 
@@ -191,10 +192,10 @@ void InfoWidget::refreshChannelLink() {
 	TextWithEntities channelLinkTextShort;
 	if (auto channel = peer()->asChannel()) {
 		if (!channel->username.isEmpty()) {
-			channelLinkText.text = CreateInternalLinkHttps(channel->username);
+			channelLinkText.text = Messenger::Instance().createInternalLinkFull(channel->username);
 			channelLinkText.entities.push_back(EntityInText(EntityInTextUrl, 0, channelLinkText.text.size()));
-			channelLinkTextShort.text = CreateInternalLink(channel->username);
-			channelLinkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, channelLinkTextShort.text.size(), CreateInternalLinkHttps(channel->username)));
+			channelLinkTextShort.text = Messenger::Instance().createInternalLink(channel->username);
+			channelLinkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, channelLinkTextShort.text.size(), Messenger::Instance().createInternalLinkFull(channel->username)));
 		}
 	}
 	setLabeledText(nullptr, lang(lng_profile_link), &_channelLink, channelLinkText, QString());

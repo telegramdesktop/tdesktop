@@ -77,6 +77,10 @@ public:
 		return _authSessionChanged;
 	}
 
+	void setInternalLinkDomain(const QString &domain) const;
+	QString createInternalLink(const QString &query) const;
+	QString createInternalLinkFull(const QString &query) const;
+
 	FileUploader *uploader();
 	void uploadProfilePhoto(const QImage &tosend, const PeerId &peerId);
 	void regPhotoUpdate(const PeerId &peer, const FullMsgId &msgId);

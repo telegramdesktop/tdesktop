@@ -590,6 +590,44 @@ void Messenger::authSessionDestroy() {
 	authSessionChanged().notify();
 }
 
+void Messenger::setInternalLinkDomain(const QString &domain) const {
+	// This domain should start with 'http[s]://' and end with '/', like 'https://t.me/'.
+	auto validate = [](auto &domain) {
+		auto prefixes = {
+			qstr("https://"),
+			qstr("http://"),
+		};
+		for (auto &prefix : prefixes) {
+			if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
+				return domain.endsWith('/');
+			}
+		}
+		return false;
+	};
+	if (validate(domain) && domain != Global::InternalLinksDomain()) {
+		Global::SetInternalLinksDomain(domain);
+	}
+}
+
+QString Messenger::createInternalLink(const QString &query) const {
+	auto result = createInternalLinkFull(query);
+	auto prefixes = {
+		qstr("https://"),
+		qstr("http://"),
+	};
+	for (auto &prefix : prefixes) {
+		if (result.startsWith(prefix, Qt::CaseInsensitive)) {
+			return result.mid(prefix.size());
+		}
+	}
+	LOG(("Warning: bad internal url '%1'").arg(result));
+	return result;
+}
+
+QString Messenger::createInternalLinkFull(const QString &query) const {
+	return Global::InternalLinksDomain() + query;
+}
+
 FileUploader *Messenger::uploader() {
 	if (!_uploader && !App::quitting()) _uploader = new FileUploader();
 	return _uploader;

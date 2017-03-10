@@ -713,9 +713,7 @@ public:
 	bool hasDirectLink() const {
 		return id > 0 && _history->peer->isChannel() && _history->peer->asChannel()->isPublic() && !_history->peer->isMegagroup();
 	}
-	QString directLink() const {
-		return hasDirectLink() ? CreateInternalLinkHttps(_history->peer->asChannel()->username + '/' + QString::number(id)) : QString();
-	}
+	QString directLink() const;
 
 	int32 y;
 	MsgId id;

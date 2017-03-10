@@ -560,6 +560,7 @@ void Instance::Private::configLoadDone(const MTPConfig &result) {
 	Global::SetEditTimeLimit(data.vedit_time_limit.v); // ?
 	Global::SetStickersRecentLimit(data.vstickers_recent_limit.v);
 	Global::SetPinnedDialogsCountMax(data.vpinned_dialogs_count_max.v);
+	Messenger::Instance().setInternalLinkDomain(qs(data.vme_url_prefix));
 
 	Local::writeSettings();
 

@@ -27,6 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/usernamebox.h"
 #include "boxes/change_phone_box.h"
 #include "observer_peer.h"
+#include "messenger.h"
 
 namespace Settings {
 
@@ -86,7 +87,7 @@ void InfoWidget::refreshUsername() {
 		usernameText.text = '@' + self()->username;
 		copyText = lang(lng_context_copy_mention);
 	}
-	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), CreateInternalLinkHttps(self()->username)));
+	usernameText.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, usernameText.text.size(), Messenger::Instance().createInternalLinkFull(self()->username)));
 	setLabeledText(_username, lang(lng_profile_username), usernameText, TextWithEntities(), copyText);
 	if (auto text = _username->entity()->textLabel()) {
 		text->setClickHandlerHook([](const ClickHandlerPtr &handler, Qt::MouseButton button) {
@@ -100,10 +101,10 @@ void InfoWidget::refreshLink() {
 	TextWithEntities linkText;
 	TextWithEntities linkTextShort;
 	if (!self()->username.isEmpty()) {
-		linkText.text = CreateInternalLinkHttps(self()->username);
+		linkText.text = Messenger::Instance().createInternalLinkFull(self()->username);
 		linkText.entities.push_back(EntityInText(EntityInTextUrl, 0, linkText.text.size()));
-		linkTextShort.text = CreateInternalLink(self()->username);
-		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), CreateInternalLinkHttps(self()->username)));
+		linkTextShort.text = Messenger::Instance().createInternalLink(self()->username);
+		linkTextShort.entities.push_back(EntityInText(EntityInTextCustomUrl, 0, linkTextShort.text.size(), Messenger::Instance().createInternalLinkFull(self()->username)));
 	}
 	setLabeledText(_link, lang(lng_profile_link), linkText, linkTextShort, QString());
 	if (auto text = _link->entity()->textLabel()) {

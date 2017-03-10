@@ -657,6 +657,7 @@ struct Data {
 	int32 EditTimeLimit = 172800;
 	int32 StickersRecentLimit = 30;
 	int32 PinnedDialogsCountMax = 5;
+	QString InternalLinksDomain = qsl("https://t.me/");
 
 	HiddenPinnedMessagesMap HiddenPinnedMessages;
 
@@ -779,6 +780,7 @@ DefineVar(Global, int32, SavedGifsLimit);
 DefineVar(Global, int32, EditTimeLimit);
 DefineVar(Global, int32, StickersRecentLimit);
 DefineVar(Global, int32, PinnedDialogsCountMax);
+DefineVar(Global, QString, InternalLinksDomain);
 
 DefineVar(Global, HiddenPinnedMessagesMap, HiddenPinnedMessages);
 

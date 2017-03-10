@@ -305,16 +305,6 @@ inline QString cApiAppVersion() {
 	return QString::number(AppVersion);
 }
 
-constexpr str_const AppLinksDomain = "t.me";
-
-inline QString CreateInternalLink(const QString &query) {
-	return str_const_toString(AppLinksDomain) + '/' + query;
-}
-
-inline QString CreateInternalLinkHttps(const QString &query) {
-	return qsl("https://") + CreateInternalLink(query);
-}
-
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;

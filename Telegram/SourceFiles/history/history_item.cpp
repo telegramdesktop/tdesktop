@@ -29,6 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "storage/file_upload.h"
 #include "auth_session.h"
+#include "messenger.h"
 
 namespace {
 
@@ -793,6 +794,9 @@ bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 	return false;
 }
 
+QString HistoryItem::directLink() const {
+	return hasDirectLink() ? Messenger::Instance().createInternalLinkFull(_history->peer->asChannel()->username + '/' + QString::number(id)) : QString();
+}
 bool HistoryItem::unread() const {
 	// Messages from myself are always read.
 	if (history()->peer->isSelf()) return false;
