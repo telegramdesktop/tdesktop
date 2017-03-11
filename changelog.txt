@@ -1,3 +1,8 @@
+1.0.21 alpha (11.03.17)
+
+- Send MP4/MOV files as videos that will play right inside Telegram.
+- Bug fixes and other minor improvements.
+
 1.0.20 alpha (08.03.17)
 
 - Bug fixes and other minor improvements.
