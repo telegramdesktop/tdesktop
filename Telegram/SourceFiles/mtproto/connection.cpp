@@ -2072,7 +2072,7 @@ mtpBuffer ConnectionPrivate::ungzip(const mtpPrime *from, const mtpPrime *end) c
 		if (res != Z_OK && res != Z_STREAM_END) {
 			inflateEnd(&stream);
 			LOG(("RPC Error: could not unpack gziped data, code: %1").arg(res));
-			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(&packed.v[0], packedLen).str()));
+			DEBUG_LOG(("RPC Error: bad gzip: %1").arg(Logs::mb(packed.v.constData(), packedLen).str()));
 			return mtpBuffer();
 		}
 	}
