@@ -152,7 +152,7 @@ public:
 	void operator()(mtpRequestId requestId, const mtpPrime *from, const mtpPrime *end) const override {
 		auto response = TResponse();
 		response.read(from, end);
-		(*_onDone)(std::move(responce));
+		(*_onDone)(std::move(response));
 	}
 
 private:
