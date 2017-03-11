@@ -94,7 +94,7 @@ with open('scheme.tl') as f:
   for line in f:
     layerline = re.match(r'// LAYER (\d+)', line)
     if (layerline):
-      layer = 'static constexpr mtpPrime CurrentLayer = ' + layerline.group(1) + ';';
+      layer = 'constexpr auto CurrentLayer = mtpPrime(' + layerline.group(1) + ');';
     nocomment = re.match(r'^(.*?)//', line)
     if (nocomment):
       line = nocomment.group(1);
@@ -571,7 +571,7 @@ for restype in typesList:
     trivialConditions = data[7];
 
     dataText = '';
-    dataText += '\nclass MTPD' + name + ' : public mtpData {\n'; # data class
+    dataText += '\nclass MTPD' + name + ' : public MTP::internal::TypeData {\n'; # data class
     dataText += 'public:\n';
 
     sizeList = [];
@@ -606,20 +606,18 @@ for restype in typesList:
     dataText += '\tMTPD' + name + '() = default;\n'; # default constructor
     switchLines += '\t\tcase mtpc_' + name + ': '; # for by-type-id type constructor
     if (len(prms) > len(trivialConditions)):
-      switchLines += 'data = std::make_shared<MTPD' + name + '>(); ';
+      switchLines += 'setData(new MTPD' + name + '()); ';
       withData = 1;
 
       getters += '\tconst MTPD' + name + ' &c_' + name + '() const;\n'; # const getter
       constructsInline += 'inline const MTPD' + name + ' &MTP' + restype + '::c_' + name + '() const {\n';
       if (withType):
-        constructsInline += '\tt_assert(data != nullptr && _type == mtpc_' + name + ');\n';
-      else:
-        constructsInline += '\tt_assert(data != nullptr);\n';
-      constructsInline += '\treturn static_cast<const MTPD' + name + '&>(*data);\n';
+        constructsInline += '\tt_assert(_type == mtpc_' + name + ');\n';
+      constructsInline += '\treturn queryData<MTPD' + name + '>();\n';
       constructsInline += '}\n';
 
-      constructsText += '\texplicit MTP' + restype + '(std::shared_ptr<const MTPD' + name + '> &&data);\n'; # by-data type constructor
-      constructsInline += 'inline MTP' + restype + '::MTP' + restype + '(std::shared_ptr<const MTPD' + name + '> &&data) : mtpDataOwner(std::move(data))';
+      constructsText += '\texplicit MTP' + restype + '(const MTPD' + name + ' *data);\n'; # by-data type constructor
+      constructsInline += 'inline MTP' + restype + '::MTP' + restype + '(const MTPD' + name + ' *data) : TypeDataOwner(data)';
       if (withType):
         constructsInline += ', _type(mtpc_' + name + ')';
       constructsInline += ' {\n}\n';
@@ -667,7 +665,7 @@ for restype in typesList:
       sizeCases += '\t\t\treturn ' + ' + '.join(sizeList) + ';\n';
       sizeCases += '\t\t}\n';
       sizeFast = '\tconst MTPD' + name + ' &v(c_' + name + '());\n\treturn ' + ' + '.join(sizeList) + ';\n';
-      newFast = 'std::make_shared<MTPD' + name + '>()';
+      newFast = 'new MTPD' + name + '()';
     else:
       sizeFast = '\treturn 0;\n';
 
@@ -681,7 +679,7 @@ for restype in typesList:
       friendDecl += '\tfriend class MTP::internal::TypeCreator;\n';
     creatorProxyText += '\tinline static MTP' + restype + ' new_' + name + '(' + ', '.join(creatorParams) + ') {\n';
     if (len(prms) > len(trivialConditions)): # creator with params
-      creatorProxyText += '\t\treturn MTP' + restype + '(std::make_shared<MTPD' + name + '>(' + ', '.join(creatorParamsList) + '));\n';
+      creatorProxyText += '\t\treturn MTP' + restype + '(new MTPD' + name + '(' + ', '.join(creatorParamsList) + '));\n';
     else:
       if (withType): # creator by type
         creatorProxyText += '\t\treturn MTP' + restype + '(mtpc_' + name + ');\n';
@@ -698,9 +696,9 @@ for restype in typesList:
       reader += '\t\tcase mtpc_' + name + ': _type = cons; '; # read switch line
       if (len(prms) > len(trivialConditions)):
         reader += '{\n';
-        reader += '\t\t\tauto v = std::make_shared<MTPD' + name + '>();\n';
+        reader += '\t\t\tauto v = new MTPD' + name + '();\n';
+        reader += '\t\t\tsetData(v);\n';
         reader += readText;
-        reader += '\t\t\tdata = std::move(v);\n';
         reader += '\t\t} break;\n';
 
         writer += '\t\tcase mtpc_' + name + ': {\n'; # write switch line
@@ -711,9 +709,9 @@ for restype in typesList:
         reader += 'break;\n';
     else:
       if (len(prms) > len(trivialConditions)):
-        reader += '\n\tauto v = std::make_shared<MTPD' + name + '>();\n';
+        reader += '\n\tauto v = new MTPD' + name + '();\n';
+        reader += '\tsetData(v);\n';
         reader += readText;
-        reader += '\tdata = std::move(v);\n';
 
         writer += '\tauto &v = c_' + name + '();\n';
         writer += writeText;
@@ -722,14 +720,14 @@ for restype in typesList:
 
   typesText += '\nclass MTP' + restype; # type class declaration
   if (withData):
-    typesText += ' : private mtpDataOwner'; # if has data fields
+    typesText += ' : private MTP::internal::TypeDataOwner'; # if has data fields
   typesText += ' {\n';
   typesText += 'public:\n';
   typesText += '\tMTP' + restype + '()'; # default constructor
   inits = [];
   if not (withType):
     if (withData):
-      inits.append('mtpDataOwner(' + newFast + ')');
+      inits.append('TypeDataOwner(' + newFast + ')');
   if (withData and not withType):
     typesText += ';\n';
     inlineMethods += '\ninline MTP' + restype + '::MTP' + restype + '()';
@@ -770,9 +768,7 @@ for restype in typesList:
   typesText += ');\n';
   inlineMethods += 'inline void MTP' + restype + '::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {\n';
   if (withData):
-    if (withType):
-      inlineMethods += '\tdata.reset();\n';
-    else:
+    if not (withType):
       inlineMethods += '\tif (cons != mtpc_' + v[0][0] + ') throw mtpErrorUnexpected(cons, "MTP' + restype + '");\n';
   if (withType):
     inlineMethods += '\tswitch (cons) {\n'

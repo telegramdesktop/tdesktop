@@ -1772,7 +1772,7 @@ typedef MTPBoxed<MTPphoneCallDiscardReason> MTPPhoneCallDiscardReason;
 
 // Type classes definitions
 
-class MTPresPQ : private mtpDataOwner {
+class MTPresPQ : private MTP::internal::TypeDataOwner {
 public:
 	MTPresPQ();
 	const MTPDresPQ &c_resPQ() const;
@@ -1785,13 +1785,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPresPQ(std::shared_ptr<const MTPDresPQ> &&data);
+	explicit MTPresPQ(const MTPDresPQ *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPresPQ> MTPResPQ;
 
-class MTPp_Q_inner_data : private mtpDataOwner {
+class MTPp_Q_inner_data : private MTP::internal::TypeDataOwner {
 public:
 	MTPp_Q_inner_data();
 	const MTPDp_q_inner_data &c_p_q_inner_data() const;
@@ -1804,13 +1804,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPp_Q_inner_data(std::shared_ptr<const MTPDp_q_inner_data> &&data);
+	explicit MTPp_Q_inner_data(const MTPDp_q_inner_data *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPp_Q_inner_data> MTPP_Q_inner_data;
 
-class MTPserver_DH_Params : private mtpDataOwner {
+class MTPserver_DH_Params : private MTP::internal::TypeDataOwner {
 public:
 	MTPserver_DH_Params() {
 	}
@@ -1826,8 +1826,8 @@ public:
 
 private:
 	explicit MTPserver_DH_Params(mtpTypeId type);
-	explicit MTPserver_DH_Params(std::shared_ptr<const MTPDserver_DH_params_fail> &&data);
-	explicit MTPserver_DH_Params(std::shared_ptr<const MTPDserver_DH_params_ok> &&data);
+	explicit MTPserver_DH_Params(const MTPDserver_DH_params_fail *data);
+	explicit MTPserver_DH_Params(const MTPDserver_DH_params_ok *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -1835,7 +1835,7 @@ private:
 };
 typedef MTPBoxed<MTPserver_DH_Params> MTPServer_DH_Params;
 
-class MTPserver_DH_inner_data : private mtpDataOwner {
+class MTPserver_DH_inner_data : private MTP::internal::TypeDataOwner {
 public:
 	MTPserver_DH_inner_data();
 	const MTPDserver_DH_inner_data &c_server_DH_inner_data() const;
@@ -1848,13 +1848,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPserver_DH_inner_data(std::shared_ptr<const MTPDserver_DH_inner_data> &&data);
+	explicit MTPserver_DH_inner_data(const MTPDserver_DH_inner_data *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPserver_DH_inner_data> MTPServer_DH_inner_data;
 
-class MTPclient_DH_Inner_Data : private mtpDataOwner {
+class MTPclient_DH_Inner_Data : private MTP::internal::TypeDataOwner {
 public:
 	MTPclient_DH_Inner_Data();
 	const MTPDclient_DH_inner_data &c_client_DH_inner_data() const;
@@ -1867,13 +1867,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPclient_DH_Inner_Data(std::shared_ptr<const MTPDclient_DH_inner_data> &&data);
+	explicit MTPclient_DH_Inner_Data(const MTPDclient_DH_inner_data *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPclient_DH_Inner_Data> MTPClient_DH_Inner_Data;
 
-class MTPset_client_DH_params_answer : private mtpDataOwner {
+class MTPset_client_DH_params_answer : private MTP::internal::TypeDataOwner {
 public:
 	MTPset_client_DH_params_answer() {
 	}
@@ -1890,9 +1890,9 @@ public:
 
 private:
 	explicit MTPset_client_DH_params_answer(mtpTypeId type);
-	explicit MTPset_client_DH_params_answer(std::shared_ptr<const MTPDdh_gen_ok> &&data);
-	explicit MTPset_client_DH_params_answer(std::shared_ptr<const MTPDdh_gen_retry> &&data);
-	explicit MTPset_client_DH_params_answer(std::shared_ptr<const MTPDdh_gen_fail> &&data);
+	explicit MTPset_client_DH_params_answer(const MTPDdh_gen_ok *data);
+	explicit MTPset_client_DH_params_answer(const MTPDdh_gen_retry *data);
+	explicit MTPset_client_DH_params_answer(const MTPDdh_gen_fail *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -1921,7 +1921,7 @@ private:
 };
 typedef MTPBoxed<MTPdestroyAuthKeyRes> MTPDestroyAuthKeyRes;
 
-class MTPmsgsAck : private mtpDataOwner {
+class MTPmsgsAck : private MTP::internal::TypeDataOwner {
 public:
 	MTPmsgsAck();
 	const MTPDmsgs_ack &c_msgs_ack() const;
@@ -1934,13 +1934,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmsgsAck(std::shared_ptr<const MTPDmsgs_ack> &&data);
+	explicit MTPmsgsAck(const MTPDmsgs_ack *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmsgsAck> MTPMsgsAck;
 
-class MTPbadMsgNotification : private mtpDataOwner {
+class MTPbadMsgNotification : private MTP::internal::TypeDataOwner {
 public:
 	MTPbadMsgNotification() {
 	}
@@ -1956,8 +1956,8 @@ public:
 
 private:
 	explicit MTPbadMsgNotification(mtpTypeId type);
-	explicit MTPbadMsgNotification(std::shared_ptr<const MTPDbad_msg_notification> &&data);
-	explicit MTPbadMsgNotification(std::shared_ptr<const MTPDbad_server_salt> &&data);
+	explicit MTPbadMsgNotification(const MTPDbad_msg_notification *data);
+	explicit MTPbadMsgNotification(const MTPDbad_server_salt *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -1965,7 +1965,7 @@ private:
 };
 typedef MTPBoxed<MTPbadMsgNotification> MTPBadMsgNotification;
 
-class MTPmsgsStateReq : private mtpDataOwner {
+class MTPmsgsStateReq : private MTP::internal::TypeDataOwner {
 public:
 	MTPmsgsStateReq();
 	const MTPDmsgs_state_req &c_msgs_state_req() const;
@@ -1978,13 +1978,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmsgsStateReq(std::shared_ptr<const MTPDmsgs_state_req> &&data);
+	explicit MTPmsgsStateReq(const MTPDmsgs_state_req *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmsgsStateReq> MTPMsgsStateReq;
 
-class MTPmsgsStateInfo : private mtpDataOwner {
+class MTPmsgsStateInfo : private MTP::internal::TypeDataOwner {
 public:
 	MTPmsgsStateInfo();
 	const MTPDmsgs_state_info &c_msgs_state_info() const;
@@ -1997,13 +1997,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmsgsStateInfo(std::shared_ptr<const MTPDmsgs_state_info> &&data);
+	explicit MTPmsgsStateInfo(const MTPDmsgs_state_info *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmsgsStateInfo> MTPMsgsStateInfo;
 
-class MTPmsgsAllInfo : private mtpDataOwner {
+class MTPmsgsAllInfo : private MTP::internal::TypeDataOwner {
 public:
 	MTPmsgsAllInfo();
 	const MTPDmsgs_all_info &c_msgs_all_info() const;
@@ -2016,13 +2016,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmsgsAllInfo(std::shared_ptr<const MTPDmsgs_all_info> &&data);
+	explicit MTPmsgsAllInfo(const MTPDmsgs_all_info *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmsgsAllInfo> MTPMsgsAllInfo;
 
-class MTPmsgDetailedInfo : private mtpDataOwner {
+class MTPmsgDetailedInfo : private MTP::internal::TypeDataOwner {
 public:
 	MTPmsgDetailedInfo() {
 	}
@@ -2038,8 +2038,8 @@ public:
 
 private:
 	explicit MTPmsgDetailedInfo(mtpTypeId type);
-	explicit MTPmsgDetailedInfo(std::shared_ptr<const MTPDmsg_detailed_info> &&data);
-	explicit MTPmsgDetailedInfo(std::shared_ptr<const MTPDmsg_new_detailed_info> &&data);
+	explicit MTPmsgDetailedInfo(const MTPDmsg_detailed_info *data);
+	explicit MTPmsgDetailedInfo(const MTPDmsg_new_detailed_info *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2047,7 +2047,7 @@ private:
 };
 typedef MTPBoxed<MTPmsgDetailedInfo> MTPMsgDetailedInfo;
 
-class MTPmsgResendReq : private mtpDataOwner {
+class MTPmsgResendReq : private MTP::internal::TypeDataOwner {
 public:
 	MTPmsgResendReq();
 	const MTPDmsg_resend_req &c_msg_resend_req() const;
@@ -2060,13 +2060,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmsgResendReq(std::shared_ptr<const MTPDmsg_resend_req> &&data);
+	explicit MTPmsgResendReq(const MTPDmsg_resend_req *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmsgResendReq> MTPMsgResendReq;
 
-class MTPrpcError : private mtpDataOwner {
+class MTPrpcError : private MTP::internal::TypeDataOwner {
 public:
 	MTPrpcError();
 	const MTPDrpc_error &c_rpc_error() const;
@@ -2079,13 +2079,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPrpcError(std::shared_ptr<const MTPDrpc_error> &&data);
+	explicit MTPrpcError(const MTPDrpc_error *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPrpcError> MTPRpcError;
 
-class MTPrpcDropAnswer : private mtpDataOwner {
+class MTPrpcDropAnswer : private MTP::internal::TypeDataOwner {
 public:
 	MTPrpcDropAnswer() {
 	}
@@ -2100,7 +2100,7 @@ public:
 
 private:
 	explicit MTPrpcDropAnswer(mtpTypeId type);
-	explicit MTPrpcDropAnswer(std::shared_ptr<const MTPDrpc_answer_dropped> &&data);
+	explicit MTPrpcDropAnswer(const MTPDrpc_answer_dropped *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2108,7 +2108,7 @@ private:
 };
 typedef MTPBoxed<MTPrpcDropAnswer> MTPRpcDropAnswer;
 
-class MTPfutureSalt : private mtpDataOwner {
+class MTPfutureSalt : private MTP::internal::TypeDataOwner {
 public:
 	MTPfutureSalt();
 	const MTPDfuture_salt &c_future_salt() const;
@@ -2121,13 +2121,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPfutureSalt(std::shared_ptr<const MTPDfuture_salt> &&data);
+	explicit MTPfutureSalt(const MTPDfuture_salt *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPfutureSalt> MTPFutureSalt;
 
-class MTPfutureSalts : private mtpDataOwner {
+class MTPfutureSalts : private MTP::internal::TypeDataOwner {
 public:
 	MTPfutureSalts();
 	const MTPDfuture_salts &c_future_salts() const;
@@ -2140,13 +2140,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPfutureSalts(std::shared_ptr<const MTPDfuture_salts> &&data);
+	explicit MTPfutureSalts(const MTPDfuture_salts *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPfutureSalts> MTPFutureSalts;
 
-class MTPpong : private mtpDataOwner {
+class MTPpong : private MTP::internal::TypeDataOwner {
 public:
 	MTPpong();
 	const MTPDpong &c_pong() const;
@@ -2159,13 +2159,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPpong(std::shared_ptr<const MTPDpong> &&data);
+	explicit MTPpong(const MTPDpong *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPpong> MTPPong;
 
-class MTPdestroySessionRes : private mtpDataOwner {
+class MTPdestroySessionRes : private MTP::internal::TypeDataOwner {
 public:
 	MTPdestroySessionRes() {
 	}
@@ -2181,8 +2181,8 @@ public:
 
 private:
 	explicit MTPdestroySessionRes(mtpTypeId type);
-	explicit MTPdestroySessionRes(std::shared_ptr<const MTPDdestroy_session_ok> &&data);
-	explicit MTPdestroySessionRes(std::shared_ptr<const MTPDdestroy_session_none> &&data);
+	explicit MTPdestroySessionRes(const MTPDdestroy_session_ok *data);
+	explicit MTPdestroySessionRes(const MTPDdestroy_session_none *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2190,7 +2190,7 @@ private:
 };
 typedef MTPBoxed<MTPdestroySessionRes> MTPDestroySessionRes;
 
-class MTPnewSession : private mtpDataOwner {
+class MTPnewSession : private MTP::internal::TypeDataOwner {
 public:
 	MTPnewSession();
 	const MTPDnew_session_created &c_new_session_created() const;
@@ -2203,13 +2203,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPnewSession(std::shared_ptr<const MTPDnew_session_created> &&data);
+	explicit MTPnewSession(const MTPDnew_session_created *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPnewSession> MTPNewSession;
 
-class MTPhttpWait : private mtpDataOwner {
+class MTPhttpWait : private MTP::internal::TypeDataOwner {
 public:
 	MTPhttpWait();
 	const MTPDhttp_wait &c_http_wait() const;
@@ -2222,7 +2222,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPhttpWait(std::shared_ptr<const MTPDhttp_wait> &&data);
+	explicit MTPhttpWait(const MTPDhttp_wait *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -2267,7 +2267,7 @@ private:
 };
 typedef MTPBoxed<MTPtrue> MTPTrue;
 
-class MTPerror : private mtpDataOwner {
+class MTPerror : private MTP::internal::TypeDataOwner {
 public:
 	MTPerror();
 	const MTPDerror &c_error() const;
@@ -2280,7 +2280,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPerror(std::shared_ptr<const MTPDerror> &&data);
+	explicit MTPerror(const MTPDerror *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -2304,7 +2304,7 @@ private:
 };
 typedef MTPBoxed<MTPnull> MTPNull;
 
-class MTPinputPeer : private mtpDataOwner {
+class MTPinputPeer : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputPeer() {
 	}
@@ -2321,9 +2321,9 @@ public:
 
 private:
 	explicit MTPinputPeer(mtpTypeId type);
-	explicit MTPinputPeer(std::shared_ptr<const MTPDinputPeerChat> &&data);
-	explicit MTPinputPeer(std::shared_ptr<const MTPDinputPeerUser> &&data);
-	explicit MTPinputPeer(std::shared_ptr<const MTPDinputPeerChannel> &&data);
+	explicit MTPinputPeer(const MTPDinputPeerChat *data);
+	explicit MTPinputPeer(const MTPDinputPeerUser *data);
+	explicit MTPinputPeer(const MTPDinputPeerChannel *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2331,7 +2331,7 @@ private:
 };
 typedef MTPBoxed<MTPinputPeer> MTPInputPeer;
 
-class MTPinputUser : private mtpDataOwner {
+class MTPinputUser : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputUser() {
 	}
@@ -2346,7 +2346,7 @@ public:
 
 private:
 	explicit MTPinputUser(mtpTypeId type);
-	explicit MTPinputUser(std::shared_ptr<const MTPDinputUser> &&data);
+	explicit MTPinputUser(const MTPDinputUser *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2354,7 +2354,7 @@ private:
 };
 typedef MTPBoxed<MTPinputUser> MTPInputUser;
 
-class MTPinputContact : private mtpDataOwner {
+class MTPinputContact : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputContact();
 	const MTPDinputPhoneContact &c_inputPhoneContact() const;
@@ -2367,13 +2367,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinputContact(std::shared_ptr<const MTPDinputPhoneContact> &&data);
+	explicit MTPinputContact(const MTPDinputPhoneContact *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPinputContact> MTPInputContact;
 
-class MTPinputFile : private mtpDataOwner {
+class MTPinputFile : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputFile() {
 	}
@@ -2389,8 +2389,8 @@ public:
 
 private:
 	explicit MTPinputFile(mtpTypeId type);
-	explicit MTPinputFile(std::shared_ptr<const MTPDinputFile> &&data);
-	explicit MTPinputFile(std::shared_ptr<const MTPDinputFileBig> &&data);
+	explicit MTPinputFile(const MTPDinputFile *data);
+	explicit MTPinputFile(const MTPDinputFileBig *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2398,7 +2398,7 @@ private:
 };
 typedef MTPBoxed<MTPinputFile> MTPInputFile;
 
-class MTPinputMedia : private mtpDataOwner {
+class MTPinputMedia : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputMedia() {
 	}
@@ -2424,18 +2424,18 @@ public:
 
 private:
 	explicit MTPinputMedia(mtpTypeId type);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaUploadedPhoto> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaPhoto> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaGeoPoint> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaContact> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaUploadedDocument> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaUploadedThumbDocument> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaDocument> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaVenue> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaGifExternal> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaPhotoExternal> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaDocumentExternal> &&data);
-	explicit MTPinputMedia(std::shared_ptr<const MTPDinputMediaGame> &&data);
+	explicit MTPinputMedia(const MTPDinputMediaUploadedPhoto *data);
+	explicit MTPinputMedia(const MTPDinputMediaPhoto *data);
+	explicit MTPinputMedia(const MTPDinputMediaGeoPoint *data);
+	explicit MTPinputMedia(const MTPDinputMediaContact *data);
+	explicit MTPinputMedia(const MTPDinputMediaUploadedDocument *data);
+	explicit MTPinputMedia(const MTPDinputMediaUploadedThumbDocument *data);
+	explicit MTPinputMedia(const MTPDinputMediaDocument *data);
+	explicit MTPinputMedia(const MTPDinputMediaVenue *data);
+	explicit MTPinputMedia(const MTPDinputMediaGifExternal *data);
+	explicit MTPinputMedia(const MTPDinputMediaPhotoExternal *data);
+	explicit MTPinputMedia(const MTPDinputMediaDocumentExternal *data);
+	explicit MTPinputMedia(const MTPDinputMediaGame *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2443,7 +2443,7 @@ private:
 };
 typedef MTPBoxed<MTPinputMedia> MTPInputMedia;
 
-class MTPinputChatPhoto : private mtpDataOwner {
+class MTPinputChatPhoto : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputChatPhoto() {
 	}
@@ -2459,8 +2459,8 @@ public:
 
 private:
 	explicit MTPinputChatPhoto(mtpTypeId type);
-	explicit MTPinputChatPhoto(std::shared_ptr<const MTPDinputChatUploadedPhoto> &&data);
-	explicit MTPinputChatPhoto(std::shared_ptr<const MTPDinputChatPhoto> &&data);
+	explicit MTPinputChatPhoto(const MTPDinputChatUploadedPhoto *data);
+	explicit MTPinputChatPhoto(const MTPDinputChatPhoto *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2468,7 +2468,7 @@ private:
 };
 typedef MTPBoxed<MTPinputChatPhoto> MTPInputChatPhoto;
 
-class MTPinputGeoPoint : private mtpDataOwner {
+class MTPinputGeoPoint : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputGeoPoint() {
 	}
@@ -2483,7 +2483,7 @@ public:
 
 private:
 	explicit MTPinputGeoPoint(mtpTypeId type);
-	explicit MTPinputGeoPoint(std::shared_ptr<const MTPDinputGeoPoint> &&data);
+	explicit MTPinputGeoPoint(const MTPDinputGeoPoint *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2491,7 +2491,7 @@ private:
 };
 typedef MTPBoxed<MTPinputGeoPoint> MTPInputGeoPoint;
 
-class MTPinputPhoto : private mtpDataOwner {
+class MTPinputPhoto : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputPhoto() {
 	}
@@ -2506,7 +2506,7 @@ public:
 
 private:
 	explicit MTPinputPhoto(mtpTypeId type);
-	explicit MTPinputPhoto(std::shared_ptr<const MTPDinputPhoto> &&data);
+	explicit MTPinputPhoto(const MTPDinputPhoto *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2514,7 +2514,7 @@ private:
 };
 typedef MTPBoxed<MTPinputPhoto> MTPInputPhoto;
 
-class MTPinputFileLocation : private mtpDataOwner {
+class MTPinputFileLocation : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputFileLocation() {
 	}
@@ -2531,9 +2531,9 @@ public:
 
 private:
 	explicit MTPinputFileLocation(mtpTypeId type);
-	explicit MTPinputFileLocation(std::shared_ptr<const MTPDinputFileLocation> &&data);
-	explicit MTPinputFileLocation(std::shared_ptr<const MTPDinputEncryptedFileLocation> &&data);
-	explicit MTPinputFileLocation(std::shared_ptr<const MTPDinputDocumentFileLocation> &&data);
+	explicit MTPinputFileLocation(const MTPDinputFileLocation *data);
+	explicit MTPinputFileLocation(const MTPDinputEncryptedFileLocation *data);
+	explicit MTPinputFileLocation(const MTPDinputDocumentFileLocation *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2541,7 +2541,7 @@ private:
 };
 typedef MTPBoxed<MTPinputFileLocation> MTPInputFileLocation;
 
-class MTPinputAppEvent : private mtpDataOwner {
+class MTPinputAppEvent : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputAppEvent();
 	const MTPDinputAppEvent &c_inputAppEvent() const;
@@ -2554,13 +2554,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinputAppEvent(std::shared_ptr<const MTPDinputAppEvent> &&data);
+	explicit MTPinputAppEvent(const MTPDinputAppEvent *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPinputAppEvent> MTPInputAppEvent;
 
-class MTPpeer : private mtpDataOwner {
+class MTPpeer : private MTP::internal::TypeDataOwner {
 public:
 	MTPpeer() {
 	}
@@ -2577,9 +2577,9 @@ public:
 
 private:
 	explicit MTPpeer(mtpTypeId type);
-	explicit MTPpeer(std::shared_ptr<const MTPDpeerUser> &&data);
-	explicit MTPpeer(std::shared_ptr<const MTPDpeerChat> &&data);
-	explicit MTPpeer(std::shared_ptr<const MTPDpeerChannel> &&data);
+	explicit MTPpeer(const MTPDpeerUser *data);
+	explicit MTPpeer(const MTPDpeerChat *data);
+	explicit MTPpeer(const MTPDpeerChannel *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2608,7 +2608,7 @@ private:
 };
 typedef MTPBoxed<MTPstorage_fileType> MTPstorage_FileType;
 
-class MTPfileLocation : private mtpDataOwner {
+class MTPfileLocation : private MTP::internal::TypeDataOwner {
 public:
 	MTPfileLocation() {
 	}
@@ -2624,8 +2624,8 @@ public:
 
 private:
 	explicit MTPfileLocation(mtpTypeId type);
-	explicit MTPfileLocation(std::shared_ptr<const MTPDfileLocationUnavailable> &&data);
-	explicit MTPfileLocation(std::shared_ptr<const MTPDfileLocation> &&data);
+	explicit MTPfileLocation(const MTPDfileLocationUnavailable *data);
+	explicit MTPfileLocation(const MTPDfileLocation *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2633,7 +2633,7 @@ private:
 };
 typedef MTPBoxed<MTPfileLocation> MTPFileLocation;
 
-class MTPuser : private mtpDataOwner {
+class MTPuser : private MTP::internal::TypeDataOwner {
 public:
 	MTPuser() {
 	}
@@ -2649,8 +2649,8 @@ public:
 
 private:
 	explicit MTPuser(mtpTypeId type);
-	explicit MTPuser(std::shared_ptr<const MTPDuserEmpty> &&data);
-	explicit MTPuser(std::shared_ptr<const MTPDuser> &&data);
+	explicit MTPuser(const MTPDuserEmpty *data);
+	explicit MTPuser(const MTPDuser *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2658,7 +2658,7 @@ private:
 };
 typedef MTPBoxed<MTPuser> MTPUser;
 
-class MTPuserProfilePhoto : private mtpDataOwner {
+class MTPuserProfilePhoto : private MTP::internal::TypeDataOwner {
 public:
 	MTPuserProfilePhoto() {
 	}
@@ -2673,7 +2673,7 @@ public:
 
 private:
 	explicit MTPuserProfilePhoto(mtpTypeId type);
-	explicit MTPuserProfilePhoto(std::shared_ptr<const MTPDuserProfilePhoto> &&data);
+	explicit MTPuserProfilePhoto(const MTPDuserProfilePhoto *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2681,7 +2681,7 @@ private:
 };
 typedef MTPBoxed<MTPuserProfilePhoto> MTPUserProfilePhoto;
 
-class MTPuserStatus : private mtpDataOwner {
+class MTPuserStatus : private MTP::internal::TypeDataOwner {
 public:
 	MTPuserStatus() {
 	}
@@ -2697,8 +2697,8 @@ public:
 
 private:
 	explicit MTPuserStatus(mtpTypeId type);
-	explicit MTPuserStatus(std::shared_ptr<const MTPDuserStatusOnline> &&data);
-	explicit MTPuserStatus(std::shared_ptr<const MTPDuserStatusOffline> &&data);
+	explicit MTPuserStatus(const MTPDuserStatusOnline *data);
+	explicit MTPuserStatus(const MTPDuserStatusOffline *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2706,7 +2706,7 @@ private:
 };
 typedef MTPBoxed<MTPuserStatus> MTPUserStatus;
 
-class MTPchat : private mtpDataOwner {
+class MTPchat : private MTP::internal::TypeDataOwner {
 public:
 	MTPchat() {
 	}
@@ -2725,11 +2725,11 @@ public:
 
 private:
 	explicit MTPchat(mtpTypeId type);
-	explicit MTPchat(std::shared_ptr<const MTPDchatEmpty> &&data);
-	explicit MTPchat(std::shared_ptr<const MTPDchat> &&data);
-	explicit MTPchat(std::shared_ptr<const MTPDchatForbidden> &&data);
-	explicit MTPchat(std::shared_ptr<const MTPDchannel> &&data);
-	explicit MTPchat(std::shared_ptr<const MTPDchannelForbidden> &&data);
+	explicit MTPchat(const MTPDchatEmpty *data);
+	explicit MTPchat(const MTPDchat *data);
+	explicit MTPchat(const MTPDchatForbidden *data);
+	explicit MTPchat(const MTPDchannel *data);
+	explicit MTPchat(const MTPDchannelForbidden *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2737,7 +2737,7 @@ private:
 };
 typedef MTPBoxed<MTPchat> MTPChat;
 
-class MTPchatFull : private mtpDataOwner {
+class MTPchatFull : private MTP::internal::TypeDataOwner {
 public:
 	MTPchatFull() {
 	}
@@ -2753,8 +2753,8 @@ public:
 
 private:
 	explicit MTPchatFull(mtpTypeId type);
-	explicit MTPchatFull(std::shared_ptr<const MTPDchatFull> &&data);
-	explicit MTPchatFull(std::shared_ptr<const MTPDchannelFull> &&data);
+	explicit MTPchatFull(const MTPDchatFull *data);
+	explicit MTPchatFull(const MTPDchannelFull *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2762,7 +2762,7 @@ private:
 };
 typedef MTPBoxed<MTPchatFull> MTPChatFull;
 
-class MTPchatParticipant : private mtpDataOwner {
+class MTPchatParticipant : private MTP::internal::TypeDataOwner {
 public:
 	MTPchatParticipant() {
 	}
@@ -2779,9 +2779,9 @@ public:
 
 private:
 	explicit MTPchatParticipant(mtpTypeId type);
-	explicit MTPchatParticipant(std::shared_ptr<const MTPDchatParticipant> &&data);
-	explicit MTPchatParticipant(std::shared_ptr<const MTPDchatParticipantCreator> &&data);
-	explicit MTPchatParticipant(std::shared_ptr<const MTPDchatParticipantAdmin> &&data);
+	explicit MTPchatParticipant(const MTPDchatParticipant *data);
+	explicit MTPchatParticipant(const MTPDchatParticipantCreator *data);
+	explicit MTPchatParticipant(const MTPDchatParticipantAdmin *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2789,7 +2789,7 @@ private:
 };
 typedef MTPBoxed<MTPchatParticipant> MTPChatParticipant;
 
-class MTPchatParticipants : private mtpDataOwner {
+class MTPchatParticipants : private MTP::internal::TypeDataOwner {
 public:
 	MTPchatParticipants() {
 	}
@@ -2805,8 +2805,8 @@ public:
 
 private:
 	explicit MTPchatParticipants(mtpTypeId type);
-	explicit MTPchatParticipants(std::shared_ptr<const MTPDchatParticipantsForbidden> &&data);
-	explicit MTPchatParticipants(std::shared_ptr<const MTPDchatParticipants> &&data);
+	explicit MTPchatParticipants(const MTPDchatParticipantsForbidden *data);
+	explicit MTPchatParticipants(const MTPDchatParticipants *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2814,7 +2814,7 @@ private:
 };
 typedef MTPBoxed<MTPchatParticipants> MTPChatParticipants;
 
-class MTPchatPhoto : private mtpDataOwner {
+class MTPchatPhoto : private MTP::internal::TypeDataOwner {
 public:
 	MTPchatPhoto() {
 	}
@@ -2829,7 +2829,7 @@ public:
 
 private:
 	explicit MTPchatPhoto(mtpTypeId type);
-	explicit MTPchatPhoto(std::shared_ptr<const MTPDchatPhoto> &&data);
+	explicit MTPchatPhoto(const MTPDchatPhoto *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2837,7 +2837,7 @@ private:
 };
 typedef MTPBoxed<MTPchatPhoto> MTPChatPhoto;
 
-class MTPmessage : private mtpDataOwner {
+class MTPmessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessage() {
 	}
@@ -2854,9 +2854,9 @@ public:
 
 private:
 	explicit MTPmessage(mtpTypeId type);
-	explicit MTPmessage(std::shared_ptr<const MTPDmessageEmpty> &&data);
-	explicit MTPmessage(std::shared_ptr<const MTPDmessage> &&data);
-	explicit MTPmessage(std::shared_ptr<const MTPDmessageService> &&data);
+	explicit MTPmessage(const MTPDmessageEmpty *data);
+	explicit MTPmessage(const MTPDmessage *data);
+	explicit MTPmessage(const MTPDmessageService *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2864,7 +2864,7 @@ private:
 };
 typedef MTPBoxed<MTPmessage> MTPMessage;
 
-class MTPmessageMedia : private mtpDataOwner {
+class MTPmessageMedia : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessageMedia() {
 	}
@@ -2885,13 +2885,13 @@ public:
 
 private:
 	explicit MTPmessageMedia(mtpTypeId type);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaPhoto> &&data);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaGeo> &&data);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaContact> &&data);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaDocument> &&data);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaWebPage> &&data);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaVenue> &&data);
-	explicit MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaGame> &&data);
+	explicit MTPmessageMedia(const MTPDmessageMediaPhoto *data);
+	explicit MTPmessageMedia(const MTPDmessageMediaGeo *data);
+	explicit MTPmessageMedia(const MTPDmessageMediaContact *data);
+	explicit MTPmessageMedia(const MTPDmessageMediaDocument *data);
+	explicit MTPmessageMedia(const MTPDmessageMediaWebPage *data);
+	explicit MTPmessageMedia(const MTPDmessageMediaVenue *data);
+	explicit MTPmessageMedia(const MTPDmessageMediaGame *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2899,7 +2899,7 @@ private:
 };
 typedef MTPBoxed<MTPmessageMedia> MTPMessageMedia;
 
-class MTPmessageAction : private mtpDataOwner {
+class MTPmessageAction : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessageAction() {
 	}
@@ -2924,17 +2924,17 @@ public:
 
 private:
 	explicit MTPmessageAction(mtpTypeId type);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatCreate> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatEditTitle> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatEditPhoto> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatAddUser> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatDeleteUser> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatJoinedByLink> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChannelCreate> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatMigrateTo> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionChannelMigrateFrom> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionGameScore> &&data);
-	explicit MTPmessageAction(std::shared_ptr<const MTPDmessageActionPhoneCall> &&data);
+	explicit MTPmessageAction(const MTPDmessageActionChatCreate *data);
+	explicit MTPmessageAction(const MTPDmessageActionChatEditTitle *data);
+	explicit MTPmessageAction(const MTPDmessageActionChatEditPhoto *data);
+	explicit MTPmessageAction(const MTPDmessageActionChatAddUser *data);
+	explicit MTPmessageAction(const MTPDmessageActionChatDeleteUser *data);
+	explicit MTPmessageAction(const MTPDmessageActionChatJoinedByLink *data);
+	explicit MTPmessageAction(const MTPDmessageActionChannelCreate *data);
+	explicit MTPmessageAction(const MTPDmessageActionChatMigrateTo *data);
+	explicit MTPmessageAction(const MTPDmessageActionChannelMigrateFrom *data);
+	explicit MTPmessageAction(const MTPDmessageActionGameScore *data);
+	explicit MTPmessageAction(const MTPDmessageActionPhoneCall *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2942,7 +2942,7 @@ private:
 };
 typedef MTPBoxed<MTPmessageAction> MTPMessageAction;
 
-class MTPdialog : private mtpDataOwner {
+class MTPdialog : private MTP::internal::TypeDataOwner {
 public:
 	MTPdialog();
 	const MTPDdialog &c_dialog() const;
@@ -2955,13 +2955,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPdialog(std::shared_ptr<const MTPDdialog> &&data);
+	explicit MTPdialog(const MTPDdialog *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPdialog> MTPDialog;
 
-class MTPphoto : private mtpDataOwner {
+class MTPphoto : private MTP::internal::TypeDataOwner {
 public:
 	MTPphoto() {
 	}
@@ -2977,8 +2977,8 @@ public:
 
 private:
 	explicit MTPphoto(mtpTypeId type);
-	explicit MTPphoto(std::shared_ptr<const MTPDphotoEmpty> &&data);
-	explicit MTPphoto(std::shared_ptr<const MTPDphoto> &&data);
+	explicit MTPphoto(const MTPDphotoEmpty *data);
+	explicit MTPphoto(const MTPDphoto *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -2986,7 +2986,7 @@ private:
 };
 typedef MTPBoxed<MTPphoto> MTPPhoto;
 
-class MTPphotoSize : private mtpDataOwner {
+class MTPphotoSize : private MTP::internal::TypeDataOwner {
 public:
 	MTPphotoSize() {
 	}
@@ -3003,9 +3003,9 @@ public:
 
 private:
 	explicit MTPphotoSize(mtpTypeId type);
-	explicit MTPphotoSize(std::shared_ptr<const MTPDphotoSizeEmpty> &&data);
-	explicit MTPphotoSize(std::shared_ptr<const MTPDphotoSize> &&data);
-	explicit MTPphotoSize(std::shared_ptr<const MTPDphotoCachedSize> &&data);
+	explicit MTPphotoSize(const MTPDphotoSizeEmpty *data);
+	explicit MTPphotoSize(const MTPDphotoSize *data);
+	explicit MTPphotoSize(const MTPDphotoCachedSize *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3013,7 +3013,7 @@ private:
 };
 typedef MTPBoxed<MTPphotoSize> MTPPhotoSize;
 
-class MTPgeoPoint : private mtpDataOwner {
+class MTPgeoPoint : private MTP::internal::TypeDataOwner {
 public:
 	MTPgeoPoint() {
 	}
@@ -3028,7 +3028,7 @@ public:
 
 private:
 	explicit MTPgeoPoint(mtpTypeId type);
-	explicit MTPgeoPoint(std::shared_ptr<const MTPDgeoPoint> &&data);
+	explicit MTPgeoPoint(const MTPDgeoPoint *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3036,7 +3036,7 @@ private:
 };
 typedef MTPBoxed<MTPgeoPoint> MTPGeoPoint;
 
-class MTPauth_checkedPhone : private mtpDataOwner {
+class MTPauth_checkedPhone : private MTP::internal::TypeDataOwner {
 public:
 	MTPauth_checkedPhone();
 	const MTPDauth_checkedPhone &c_auth_checkedPhone() const;
@@ -3049,13 +3049,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPauth_checkedPhone(std::shared_ptr<const MTPDauth_checkedPhone> &&data);
+	explicit MTPauth_checkedPhone(const MTPDauth_checkedPhone *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPauth_checkedPhone> MTPauth_CheckedPhone;
 
-class MTPauth_sentCode : private mtpDataOwner {
+class MTPauth_sentCode : private MTP::internal::TypeDataOwner {
 public:
 	MTPauth_sentCode();
 	const MTPDauth_sentCode &c_auth_sentCode() const;
@@ -3068,13 +3068,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPauth_sentCode(std::shared_ptr<const MTPDauth_sentCode> &&data);
+	explicit MTPauth_sentCode(const MTPDauth_sentCode *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPauth_sentCode> MTPauth_SentCode;
 
-class MTPauth_authorization : private mtpDataOwner {
+class MTPauth_authorization : private MTP::internal::TypeDataOwner {
 public:
 	MTPauth_authorization();
 	const MTPDauth_authorization &c_auth_authorization() const;
@@ -3087,13 +3087,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPauth_authorization(std::shared_ptr<const MTPDauth_authorization> &&data);
+	explicit MTPauth_authorization(const MTPDauth_authorization *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPauth_authorization> MTPauth_Authorization;
 
-class MTPauth_exportedAuthorization : private mtpDataOwner {
+class MTPauth_exportedAuthorization : private MTP::internal::TypeDataOwner {
 public:
 	MTPauth_exportedAuthorization();
 	const MTPDauth_exportedAuthorization &c_auth_exportedAuthorization() const;
@@ -3106,13 +3106,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPauth_exportedAuthorization(std::shared_ptr<const MTPDauth_exportedAuthorization> &&data);
+	explicit MTPauth_exportedAuthorization(const MTPDauth_exportedAuthorization *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPauth_exportedAuthorization> MTPauth_ExportedAuthorization;
 
-class MTPinputNotifyPeer : private mtpDataOwner {
+class MTPinputNotifyPeer : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputNotifyPeer() {
 	}
@@ -3127,7 +3127,7 @@ public:
 
 private:
 	explicit MTPinputNotifyPeer(mtpTypeId type);
-	explicit MTPinputNotifyPeer(std::shared_ptr<const MTPDinputNotifyPeer> &&data);
+	explicit MTPinputNotifyPeer(const MTPDinputNotifyPeer *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3156,7 +3156,7 @@ private:
 };
 typedef MTPBoxed<MTPinputPeerNotifyEvents> MTPInputPeerNotifyEvents;
 
-class MTPinputPeerNotifySettings : private mtpDataOwner {
+class MTPinputPeerNotifySettings : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputPeerNotifySettings();
 	const MTPDinputPeerNotifySettings &c_inputPeerNotifySettings() const;
@@ -3169,7 +3169,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinputPeerNotifySettings(std::shared_ptr<const MTPDinputPeerNotifySettings> &&data);
+	explicit MTPinputPeerNotifySettings(const MTPDinputPeerNotifySettings *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -3196,7 +3196,7 @@ private:
 };
 typedef MTPBoxed<MTPpeerNotifyEvents> MTPPeerNotifyEvents;
 
-class MTPpeerNotifySettings : private mtpDataOwner {
+class MTPpeerNotifySettings : private MTP::internal::TypeDataOwner {
 public:
 	MTPpeerNotifySettings() {
 	}
@@ -3211,7 +3211,7 @@ public:
 
 private:
 	explicit MTPpeerNotifySettings(mtpTypeId type);
-	explicit MTPpeerNotifySettings(std::shared_ptr<const MTPDpeerNotifySettings> &&data);
+	explicit MTPpeerNotifySettings(const MTPDpeerNotifySettings *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3219,7 +3219,7 @@ private:
 };
 typedef MTPBoxed<MTPpeerNotifySettings> MTPPeerNotifySettings;
 
-class MTPpeerSettings : private mtpDataOwner {
+class MTPpeerSettings : private MTP::internal::TypeDataOwner {
 public:
 	MTPpeerSettings();
 	const MTPDpeerSettings &c_peerSettings() const;
@@ -3232,13 +3232,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPpeerSettings(std::shared_ptr<const MTPDpeerSettings> &&data);
+	explicit MTPpeerSettings(const MTPDpeerSettings *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPpeerSettings> MTPPeerSettings;
 
-class MTPwallPaper : private mtpDataOwner {
+class MTPwallPaper : private MTP::internal::TypeDataOwner {
 public:
 	MTPwallPaper() {
 	}
@@ -3254,8 +3254,8 @@ public:
 
 private:
 	explicit MTPwallPaper(mtpTypeId type);
-	explicit MTPwallPaper(std::shared_ptr<const MTPDwallPaper> &&data);
-	explicit MTPwallPaper(std::shared_ptr<const MTPDwallPaperSolid> &&data);
+	explicit MTPwallPaper(const MTPDwallPaper *data);
+	explicit MTPwallPaper(const MTPDwallPaperSolid *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3263,7 +3263,7 @@ private:
 };
 typedef MTPBoxed<MTPwallPaper> MTPWallPaper;
 
-class MTPreportReason : private mtpDataOwner {
+class MTPreportReason : private MTP::internal::TypeDataOwner {
 public:
 	MTPreportReason() {
 	}
@@ -3278,7 +3278,7 @@ public:
 
 private:
 	explicit MTPreportReason(mtpTypeId type);
-	explicit MTPreportReason(std::shared_ptr<const MTPDinputReportReasonOther> &&data);
+	explicit MTPreportReason(const MTPDinputReportReasonOther *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3286,7 +3286,7 @@ private:
 };
 typedef MTPBoxed<MTPreportReason> MTPReportReason;
 
-class MTPuserFull : private mtpDataOwner {
+class MTPuserFull : private MTP::internal::TypeDataOwner {
 public:
 	MTPuserFull();
 	const MTPDuserFull &c_userFull() const;
@@ -3299,13 +3299,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPuserFull(std::shared_ptr<const MTPDuserFull> &&data);
+	explicit MTPuserFull(const MTPDuserFull *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPuserFull> MTPUserFull;
 
-class MTPcontact : private mtpDataOwner {
+class MTPcontact : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontact();
 	const MTPDcontact &c_contact() const;
@@ -3318,13 +3318,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontact(std::shared_ptr<const MTPDcontact> &&data);
+	explicit MTPcontact(const MTPDcontact *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPcontact> MTPContact;
 
-class MTPimportedContact : private mtpDataOwner {
+class MTPimportedContact : private MTP::internal::TypeDataOwner {
 public:
 	MTPimportedContact();
 	const MTPDimportedContact &c_importedContact() const;
@@ -3337,13 +3337,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPimportedContact(std::shared_ptr<const MTPDimportedContact> &&data);
+	explicit MTPimportedContact(const MTPDimportedContact *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPimportedContact> MTPImportedContact;
 
-class MTPcontactBlocked : private mtpDataOwner {
+class MTPcontactBlocked : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontactBlocked();
 	const MTPDcontactBlocked &c_contactBlocked() const;
@@ -3356,13 +3356,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontactBlocked(std::shared_ptr<const MTPDcontactBlocked> &&data);
+	explicit MTPcontactBlocked(const MTPDcontactBlocked *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPcontactBlocked> MTPContactBlocked;
 
-class MTPcontactStatus : private mtpDataOwner {
+class MTPcontactStatus : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontactStatus();
 	const MTPDcontactStatus &c_contactStatus() const;
@@ -3375,13 +3375,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontactStatus(std::shared_ptr<const MTPDcontactStatus> &&data);
+	explicit MTPcontactStatus(const MTPDcontactStatus *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPcontactStatus> MTPContactStatus;
 
-class MTPcontacts_link : private mtpDataOwner {
+class MTPcontacts_link : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_link();
 	const MTPDcontacts_link &c_contacts_link() const;
@@ -3394,13 +3394,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontacts_link(std::shared_ptr<const MTPDcontacts_link> &&data);
+	explicit MTPcontacts_link(const MTPDcontacts_link *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPcontacts_link> MTPcontacts_Link;
 
-class MTPcontacts_contacts : private mtpDataOwner {
+class MTPcontacts_contacts : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_contacts() {
 	}
@@ -3415,7 +3415,7 @@ public:
 
 private:
 	explicit MTPcontacts_contacts(mtpTypeId type);
-	explicit MTPcontacts_contacts(std::shared_ptr<const MTPDcontacts_contacts> &&data);
+	explicit MTPcontacts_contacts(const MTPDcontacts_contacts *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3423,7 +3423,7 @@ private:
 };
 typedef MTPBoxed<MTPcontacts_contacts> MTPcontacts_Contacts;
 
-class MTPcontacts_importedContacts : private mtpDataOwner {
+class MTPcontacts_importedContacts : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_importedContacts();
 	const MTPDcontacts_importedContacts &c_contacts_importedContacts() const;
@@ -3436,13 +3436,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontacts_importedContacts(std::shared_ptr<const MTPDcontacts_importedContacts> &&data);
+	explicit MTPcontacts_importedContacts(const MTPDcontacts_importedContacts *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPcontacts_importedContacts> MTPcontacts_ImportedContacts;
 
-class MTPcontacts_blocked : private mtpDataOwner {
+class MTPcontacts_blocked : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_blocked() {
 	}
@@ -3458,8 +3458,8 @@ public:
 
 private:
 	explicit MTPcontacts_blocked(mtpTypeId type);
-	explicit MTPcontacts_blocked(std::shared_ptr<const MTPDcontacts_blocked> &&data);
-	explicit MTPcontacts_blocked(std::shared_ptr<const MTPDcontacts_blockedSlice> &&data);
+	explicit MTPcontacts_blocked(const MTPDcontacts_blocked *data);
+	explicit MTPcontacts_blocked(const MTPDcontacts_blockedSlice *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3467,7 +3467,7 @@ private:
 };
 typedef MTPBoxed<MTPcontacts_blocked> MTPcontacts_Blocked;
 
-class MTPmessages_dialogs : private mtpDataOwner {
+class MTPmessages_dialogs : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_dialogs() {
 	}
@@ -3483,8 +3483,8 @@ public:
 
 private:
 	explicit MTPmessages_dialogs(mtpTypeId type);
-	explicit MTPmessages_dialogs(std::shared_ptr<const MTPDmessages_dialogs> &&data);
-	explicit MTPmessages_dialogs(std::shared_ptr<const MTPDmessages_dialogsSlice> &&data);
+	explicit MTPmessages_dialogs(const MTPDmessages_dialogs *data);
+	explicit MTPmessages_dialogs(const MTPDmessages_dialogsSlice *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3492,7 +3492,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_dialogs> MTPmessages_Dialogs;
 
-class MTPmessages_messages : private mtpDataOwner {
+class MTPmessages_messages : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_messages() {
 	}
@@ -3509,9 +3509,9 @@ public:
 
 private:
 	explicit MTPmessages_messages(mtpTypeId type);
-	explicit MTPmessages_messages(std::shared_ptr<const MTPDmessages_messages> &&data);
-	explicit MTPmessages_messages(std::shared_ptr<const MTPDmessages_messagesSlice> &&data);
-	explicit MTPmessages_messages(std::shared_ptr<const MTPDmessages_channelMessages> &&data);
+	explicit MTPmessages_messages(const MTPDmessages_messages *data);
+	explicit MTPmessages_messages(const MTPDmessages_messagesSlice *data);
+	explicit MTPmessages_messages(const MTPDmessages_channelMessages *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3519,7 +3519,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_messages> MTPmessages_Messages;
 
-class MTPmessages_chats : private mtpDataOwner {
+class MTPmessages_chats : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_chats() {
 	}
@@ -3535,8 +3535,8 @@ public:
 
 private:
 	explicit MTPmessages_chats(mtpTypeId type);
-	explicit MTPmessages_chats(std::shared_ptr<const MTPDmessages_chats> &&data);
-	explicit MTPmessages_chats(std::shared_ptr<const MTPDmessages_chatsSlice> &&data);
+	explicit MTPmessages_chats(const MTPDmessages_chats *data);
+	explicit MTPmessages_chats(const MTPDmessages_chatsSlice *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3544,7 +3544,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_chats> MTPmessages_Chats;
 
-class MTPmessages_chatFull : private mtpDataOwner {
+class MTPmessages_chatFull : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_chatFull();
 	const MTPDmessages_chatFull &c_messages_chatFull() const;
@@ -3557,13 +3557,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_chatFull(std::shared_ptr<const MTPDmessages_chatFull> &&data);
+	explicit MTPmessages_chatFull(const MTPDmessages_chatFull *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_chatFull> MTPmessages_ChatFull;
 
-class MTPmessages_affectedHistory : private mtpDataOwner {
+class MTPmessages_affectedHistory : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_affectedHistory();
 	const MTPDmessages_affectedHistory &c_messages_affectedHistory() const;
@@ -3576,13 +3576,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_affectedHistory(std::shared_ptr<const MTPDmessages_affectedHistory> &&data);
+	explicit MTPmessages_affectedHistory(const MTPDmessages_affectedHistory *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_affectedHistory> MTPmessages_AffectedHistory;
 
-class MTPmessagesFilter : private mtpDataOwner {
+class MTPmessagesFilter : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessagesFilter() {
 	}
@@ -3597,7 +3597,7 @@ public:
 
 private:
 	explicit MTPmessagesFilter(mtpTypeId type);
-	explicit MTPmessagesFilter(std::shared_ptr<const MTPDinputMessagesFilterPhoneCalls> &&data);
+	explicit MTPmessagesFilter(const MTPDinputMessagesFilterPhoneCalls *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3605,7 +3605,7 @@ private:
 };
 typedef MTPBoxed<MTPmessagesFilter> MTPMessagesFilter;
 
-class MTPupdate : private mtpDataOwner {
+class MTPupdate : private MTP::internal::TypeDataOwner {
 public:
 	MTPupdate() {
 	}
@@ -3669,56 +3669,56 @@ public:
 
 private:
 	explicit MTPupdate(mtpTypeId type);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateNewMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateMessageID> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateDeleteMessages> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateUserTyping> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChatUserTyping> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChatParticipants> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateUserStatus> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateUserName> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateUserPhoto> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateContactRegistered> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateContactLink> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateNewEncryptedMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateEncryptedChatTyping> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateEncryption> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateEncryptedMessagesRead> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChatParticipantAdd> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChatParticipantDelete> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateDcOptions> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateUserBlocked> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateNotifySettings> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateServiceNotification> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdatePrivacy> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateUserPhone> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateReadHistoryInbox> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateReadHistoryOutbox> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateWebPage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateReadMessagesContents> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChannelTooLong> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChannel> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateNewChannelMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateReadChannelInbox> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateDeleteChannelMessages> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChannelMessageViews> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChatAdmins> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChatParticipantAdmin> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateNewStickerSet> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateStickerSetsOrder> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateBotInlineQuery> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateBotInlineSend> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateEditChannelMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChannelPinnedMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateBotCallbackQuery> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateEditMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateInlineBotCallbackQuery> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateReadChannelOutbox> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateDraftMessage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateChannelWebPage> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdatePhoneCall> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdateDialogPinned> &&data);
-	explicit MTPupdate(std::shared_ptr<const MTPDupdatePinnedDialogs> &&data);
+	explicit MTPupdate(const MTPDupdateNewMessage *data);
+	explicit MTPupdate(const MTPDupdateMessageID *data);
+	explicit MTPupdate(const MTPDupdateDeleteMessages *data);
+	explicit MTPupdate(const MTPDupdateUserTyping *data);
+	explicit MTPupdate(const MTPDupdateChatUserTyping *data);
+	explicit MTPupdate(const MTPDupdateChatParticipants *data);
+	explicit MTPupdate(const MTPDupdateUserStatus *data);
+	explicit MTPupdate(const MTPDupdateUserName *data);
+	explicit MTPupdate(const MTPDupdateUserPhoto *data);
+	explicit MTPupdate(const MTPDupdateContactRegistered *data);
+	explicit MTPupdate(const MTPDupdateContactLink *data);
+	explicit MTPupdate(const MTPDupdateNewEncryptedMessage *data);
+	explicit MTPupdate(const MTPDupdateEncryptedChatTyping *data);
+	explicit MTPupdate(const MTPDupdateEncryption *data);
+	explicit MTPupdate(const MTPDupdateEncryptedMessagesRead *data);
+	explicit MTPupdate(const MTPDupdateChatParticipantAdd *data);
+	explicit MTPupdate(const MTPDupdateChatParticipantDelete *data);
+	explicit MTPupdate(const MTPDupdateDcOptions *data);
+	explicit MTPupdate(const MTPDupdateUserBlocked *data);
+	explicit MTPupdate(const MTPDupdateNotifySettings *data);
+	explicit MTPupdate(const MTPDupdateServiceNotification *data);
+	explicit MTPupdate(const MTPDupdatePrivacy *data);
+	explicit MTPupdate(const MTPDupdateUserPhone *data);
+	explicit MTPupdate(const MTPDupdateReadHistoryInbox *data);
+	explicit MTPupdate(const MTPDupdateReadHistoryOutbox *data);
+	explicit MTPupdate(const MTPDupdateWebPage *data);
+	explicit MTPupdate(const MTPDupdateReadMessagesContents *data);
+	explicit MTPupdate(const MTPDupdateChannelTooLong *data);
+	explicit MTPupdate(const MTPDupdateChannel *data);
+	explicit MTPupdate(const MTPDupdateNewChannelMessage *data);
+	explicit MTPupdate(const MTPDupdateReadChannelInbox *data);
+	explicit MTPupdate(const MTPDupdateDeleteChannelMessages *data);
+	explicit MTPupdate(const MTPDupdateChannelMessageViews *data);
+	explicit MTPupdate(const MTPDupdateChatAdmins *data);
+	explicit MTPupdate(const MTPDupdateChatParticipantAdmin *data);
+	explicit MTPupdate(const MTPDupdateNewStickerSet *data);
+	explicit MTPupdate(const MTPDupdateStickerSetsOrder *data);
+	explicit MTPupdate(const MTPDupdateBotInlineQuery *data);
+	explicit MTPupdate(const MTPDupdateBotInlineSend *data);
+	explicit MTPupdate(const MTPDupdateEditChannelMessage *data);
+	explicit MTPupdate(const MTPDupdateChannelPinnedMessage *data);
+	explicit MTPupdate(const MTPDupdateBotCallbackQuery *data);
+	explicit MTPupdate(const MTPDupdateEditMessage *data);
+	explicit MTPupdate(const MTPDupdateInlineBotCallbackQuery *data);
+	explicit MTPupdate(const MTPDupdateReadChannelOutbox *data);
+	explicit MTPupdate(const MTPDupdateDraftMessage *data);
+	explicit MTPupdate(const MTPDupdateChannelWebPage *data);
+	explicit MTPupdate(const MTPDupdatePhoneCall *data);
+	explicit MTPupdate(const MTPDupdateDialogPinned *data);
+	explicit MTPupdate(const MTPDupdatePinnedDialogs *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3726,7 +3726,7 @@ private:
 };
 typedef MTPBoxed<MTPupdate> MTPUpdate;
 
-class MTPupdates_state : private mtpDataOwner {
+class MTPupdates_state : private MTP::internal::TypeDataOwner {
 public:
 	MTPupdates_state();
 	const MTPDupdates_state &c_updates_state() const;
@@ -3739,13 +3739,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPupdates_state(std::shared_ptr<const MTPDupdates_state> &&data);
+	explicit MTPupdates_state(const MTPDupdates_state *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPupdates_state> MTPupdates_State;
 
-class MTPupdates_difference : private mtpDataOwner {
+class MTPupdates_difference : private MTP::internal::TypeDataOwner {
 public:
 	MTPupdates_difference() {
 	}
@@ -3763,10 +3763,10 @@ public:
 
 private:
 	explicit MTPupdates_difference(mtpTypeId type);
-	explicit MTPupdates_difference(std::shared_ptr<const MTPDupdates_differenceEmpty> &&data);
-	explicit MTPupdates_difference(std::shared_ptr<const MTPDupdates_difference> &&data);
-	explicit MTPupdates_difference(std::shared_ptr<const MTPDupdates_differenceSlice> &&data);
-	explicit MTPupdates_difference(std::shared_ptr<const MTPDupdates_differenceTooLong> &&data);
+	explicit MTPupdates_difference(const MTPDupdates_differenceEmpty *data);
+	explicit MTPupdates_difference(const MTPDupdates_difference *data);
+	explicit MTPupdates_difference(const MTPDupdates_differenceSlice *data);
+	explicit MTPupdates_difference(const MTPDupdates_differenceTooLong *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3774,7 +3774,7 @@ private:
 };
 typedef MTPBoxed<MTPupdates_difference> MTPupdates_Difference;
 
-class MTPupdates : private mtpDataOwner {
+class MTPupdates : private MTP::internal::TypeDataOwner {
 public:
 	MTPupdates() {
 	}
@@ -3794,12 +3794,12 @@ public:
 
 private:
 	explicit MTPupdates(mtpTypeId type);
-	explicit MTPupdates(std::shared_ptr<const MTPDupdateShortMessage> &&data);
-	explicit MTPupdates(std::shared_ptr<const MTPDupdateShortChatMessage> &&data);
-	explicit MTPupdates(std::shared_ptr<const MTPDupdateShort> &&data);
-	explicit MTPupdates(std::shared_ptr<const MTPDupdatesCombined> &&data);
-	explicit MTPupdates(std::shared_ptr<const MTPDupdates> &&data);
-	explicit MTPupdates(std::shared_ptr<const MTPDupdateShortSentMessage> &&data);
+	explicit MTPupdates(const MTPDupdateShortMessage *data);
+	explicit MTPupdates(const MTPDupdateShortChatMessage *data);
+	explicit MTPupdates(const MTPDupdateShort *data);
+	explicit MTPupdates(const MTPDupdatesCombined *data);
+	explicit MTPupdates(const MTPDupdates *data);
+	explicit MTPupdates(const MTPDupdateShortSentMessage *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3807,7 +3807,7 @@ private:
 };
 typedef MTPBoxed<MTPupdates> MTPUpdates;
 
-class MTPphotos_photos : private mtpDataOwner {
+class MTPphotos_photos : private MTP::internal::TypeDataOwner {
 public:
 	MTPphotos_photos() {
 	}
@@ -3823,8 +3823,8 @@ public:
 
 private:
 	explicit MTPphotos_photos(mtpTypeId type);
-	explicit MTPphotos_photos(std::shared_ptr<const MTPDphotos_photos> &&data);
-	explicit MTPphotos_photos(std::shared_ptr<const MTPDphotos_photosSlice> &&data);
+	explicit MTPphotos_photos(const MTPDphotos_photos *data);
+	explicit MTPphotos_photos(const MTPDphotos_photosSlice *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3832,7 +3832,7 @@ private:
 };
 typedef MTPBoxed<MTPphotos_photos> MTPphotos_Photos;
 
-class MTPphotos_photo : private mtpDataOwner {
+class MTPphotos_photo : private MTP::internal::TypeDataOwner {
 public:
 	MTPphotos_photo();
 	const MTPDphotos_photo &c_photos_photo() const;
@@ -3845,13 +3845,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPphotos_photo(std::shared_ptr<const MTPDphotos_photo> &&data);
+	explicit MTPphotos_photo(const MTPDphotos_photo *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPphotos_photo> MTPphotos_Photo;
 
-class MTPupload_file : private mtpDataOwner {
+class MTPupload_file : private MTP::internal::TypeDataOwner {
 public:
 	MTPupload_file();
 	const MTPDupload_file &c_upload_file() const;
@@ -3864,13 +3864,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPupload_file(std::shared_ptr<const MTPDupload_file> &&data);
+	explicit MTPupload_file(const MTPDupload_file *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPupload_file> MTPupload_File;
 
-class MTPdcOption : private mtpDataOwner {
+class MTPdcOption : private MTP::internal::TypeDataOwner {
 public:
 	MTPdcOption();
 	const MTPDdcOption &c_dcOption() const;
@@ -3883,13 +3883,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPdcOption(std::shared_ptr<const MTPDdcOption> &&data);
+	explicit MTPdcOption(const MTPDdcOption *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPdcOption> MTPDcOption;
 
-class MTPconfig : private mtpDataOwner {
+class MTPconfig : private MTP::internal::TypeDataOwner {
 public:
 	MTPconfig();
 	const MTPDconfig &c_config() const;
@@ -3902,13 +3902,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPconfig(std::shared_ptr<const MTPDconfig> &&data);
+	explicit MTPconfig(const MTPDconfig *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPconfig> MTPConfig;
 
-class MTPnearestDc : private mtpDataOwner {
+class MTPnearestDc : private MTP::internal::TypeDataOwner {
 public:
 	MTPnearestDc();
 	const MTPDnearestDc &c_nearestDc() const;
@@ -3921,13 +3921,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPnearestDc(std::shared_ptr<const MTPDnearestDc> &&data);
+	explicit MTPnearestDc(const MTPDnearestDc *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPnearestDc> MTPNearestDc;
 
-class MTPhelp_appUpdate : private mtpDataOwner {
+class MTPhelp_appUpdate : private MTP::internal::TypeDataOwner {
 public:
 	MTPhelp_appUpdate() {
 	}
@@ -3942,7 +3942,7 @@ public:
 
 private:
 	explicit MTPhelp_appUpdate(mtpTypeId type);
-	explicit MTPhelp_appUpdate(std::shared_ptr<const MTPDhelp_appUpdate> &&data);
+	explicit MTPhelp_appUpdate(const MTPDhelp_appUpdate *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -3950,7 +3950,7 @@ private:
 };
 typedef MTPBoxed<MTPhelp_appUpdate> MTPhelp_AppUpdate;
 
-class MTPhelp_inviteText : private mtpDataOwner {
+class MTPhelp_inviteText : private MTP::internal::TypeDataOwner {
 public:
 	MTPhelp_inviteText();
 	const MTPDhelp_inviteText &c_help_inviteText() const;
@@ -3963,13 +3963,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPhelp_inviteText(std::shared_ptr<const MTPDhelp_inviteText> &&data);
+	explicit MTPhelp_inviteText(const MTPDhelp_inviteText *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPhelp_inviteText> MTPhelp_InviteText;
 
-class MTPencryptedChat : private mtpDataOwner {
+class MTPencryptedChat : private MTP::internal::TypeDataOwner {
 public:
 	MTPencryptedChat() {
 	}
@@ -3988,11 +3988,11 @@ public:
 
 private:
 	explicit MTPencryptedChat(mtpTypeId type);
-	explicit MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatEmpty> &&data);
-	explicit MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatWaiting> &&data);
-	explicit MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatRequested> &&data);
-	explicit MTPencryptedChat(std::shared_ptr<const MTPDencryptedChat> &&data);
-	explicit MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatDiscarded> &&data);
+	explicit MTPencryptedChat(const MTPDencryptedChatEmpty *data);
+	explicit MTPencryptedChat(const MTPDencryptedChatWaiting *data);
+	explicit MTPencryptedChat(const MTPDencryptedChatRequested *data);
+	explicit MTPencryptedChat(const MTPDencryptedChat *data);
+	explicit MTPencryptedChat(const MTPDencryptedChatDiscarded *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4000,7 +4000,7 @@ private:
 };
 typedef MTPBoxed<MTPencryptedChat> MTPEncryptedChat;
 
-class MTPinputEncryptedChat : private mtpDataOwner {
+class MTPinputEncryptedChat : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputEncryptedChat();
 	const MTPDinputEncryptedChat &c_inputEncryptedChat() const;
@@ -4013,13 +4013,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinputEncryptedChat(std::shared_ptr<const MTPDinputEncryptedChat> &&data);
+	explicit MTPinputEncryptedChat(const MTPDinputEncryptedChat *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPinputEncryptedChat> MTPInputEncryptedChat;
 
-class MTPencryptedFile : private mtpDataOwner {
+class MTPencryptedFile : private MTP::internal::TypeDataOwner {
 public:
 	MTPencryptedFile() {
 	}
@@ -4034,7 +4034,7 @@ public:
 
 private:
 	explicit MTPencryptedFile(mtpTypeId type);
-	explicit MTPencryptedFile(std::shared_ptr<const MTPDencryptedFile> &&data);
+	explicit MTPencryptedFile(const MTPDencryptedFile *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4042,7 +4042,7 @@ private:
 };
 typedef MTPBoxed<MTPencryptedFile> MTPEncryptedFile;
 
-class MTPinputEncryptedFile : private mtpDataOwner {
+class MTPinputEncryptedFile : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputEncryptedFile() {
 	}
@@ -4059,9 +4059,9 @@ public:
 
 private:
 	explicit MTPinputEncryptedFile(mtpTypeId type);
-	explicit MTPinputEncryptedFile(std::shared_ptr<const MTPDinputEncryptedFileUploaded> &&data);
-	explicit MTPinputEncryptedFile(std::shared_ptr<const MTPDinputEncryptedFile> &&data);
-	explicit MTPinputEncryptedFile(std::shared_ptr<const MTPDinputEncryptedFileBigUploaded> &&data);
+	explicit MTPinputEncryptedFile(const MTPDinputEncryptedFileUploaded *data);
+	explicit MTPinputEncryptedFile(const MTPDinputEncryptedFile *data);
+	explicit MTPinputEncryptedFile(const MTPDinputEncryptedFileBigUploaded *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4069,7 +4069,7 @@ private:
 };
 typedef MTPBoxed<MTPinputEncryptedFile> MTPInputEncryptedFile;
 
-class MTPencryptedMessage : private mtpDataOwner {
+class MTPencryptedMessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPencryptedMessage() {
 	}
@@ -4085,8 +4085,8 @@ public:
 
 private:
 	explicit MTPencryptedMessage(mtpTypeId type);
-	explicit MTPencryptedMessage(std::shared_ptr<const MTPDencryptedMessage> &&data);
-	explicit MTPencryptedMessage(std::shared_ptr<const MTPDencryptedMessageService> &&data);
+	explicit MTPencryptedMessage(const MTPDencryptedMessage *data);
+	explicit MTPencryptedMessage(const MTPDencryptedMessageService *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4094,7 +4094,7 @@ private:
 };
 typedef MTPBoxed<MTPencryptedMessage> MTPEncryptedMessage;
 
-class MTPmessages_dhConfig : private mtpDataOwner {
+class MTPmessages_dhConfig : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_dhConfig() {
 	}
@@ -4110,8 +4110,8 @@ public:
 
 private:
 	explicit MTPmessages_dhConfig(mtpTypeId type);
-	explicit MTPmessages_dhConfig(std::shared_ptr<const MTPDmessages_dhConfigNotModified> &&data);
-	explicit MTPmessages_dhConfig(std::shared_ptr<const MTPDmessages_dhConfig> &&data);
+	explicit MTPmessages_dhConfig(const MTPDmessages_dhConfigNotModified *data);
+	explicit MTPmessages_dhConfig(const MTPDmessages_dhConfig *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4119,7 +4119,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_dhConfig> MTPmessages_DhConfig;
 
-class MTPmessages_sentEncryptedMessage : private mtpDataOwner {
+class MTPmessages_sentEncryptedMessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_sentEncryptedMessage() {
 	}
@@ -4135,8 +4135,8 @@ public:
 
 private:
 	explicit MTPmessages_sentEncryptedMessage(mtpTypeId type);
-	explicit MTPmessages_sentEncryptedMessage(std::shared_ptr<const MTPDmessages_sentEncryptedMessage> &&data);
-	explicit MTPmessages_sentEncryptedMessage(std::shared_ptr<const MTPDmessages_sentEncryptedFile> &&data);
+	explicit MTPmessages_sentEncryptedMessage(const MTPDmessages_sentEncryptedMessage *data);
+	explicit MTPmessages_sentEncryptedMessage(const MTPDmessages_sentEncryptedFile *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4144,7 +4144,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_sentEncryptedMessage> MTPmessages_SentEncryptedMessage;
 
-class MTPinputDocument : private mtpDataOwner {
+class MTPinputDocument : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputDocument() {
 	}
@@ -4159,7 +4159,7 @@ public:
 
 private:
 	explicit MTPinputDocument(mtpTypeId type);
-	explicit MTPinputDocument(std::shared_ptr<const MTPDinputDocument> &&data);
+	explicit MTPinputDocument(const MTPDinputDocument *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4167,7 +4167,7 @@ private:
 };
 typedef MTPBoxed<MTPinputDocument> MTPInputDocument;
 
-class MTPdocument : private mtpDataOwner {
+class MTPdocument : private MTP::internal::TypeDataOwner {
 public:
 	MTPdocument() {
 	}
@@ -4183,8 +4183,8 @@ public:
 
 private:
 	explicit MTPdocument(mtpTypeId type);
-	explicit MTPdocument(std::shared_ptr<const MTPDdocumentEmpty> &&data);
-	explicit MTPdocument(std::shared_ptr<const MTPDdocument> &&data);
+	explicit MTPdocument(const MTPDdocumentEmpty *data);
+	explicit MTPdocument(const MTPDdocument *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4192,7 +4192,7 @@ private:
 };
 typedef MTPBoxed<MTPdocument> MTPDocument;
 
-class MTPhelp_support : private mtpDataOwner {
+class MTPhelp_support : private MTP::internal::TypeDataOwner {
 public:
 	MTPhelp_support();
 	const MTPDhelp_support &c_help_support() const;
@@ -4205,13 +4205,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPhelp_support(std::shared_ptr<const MTPDhelp_support> &&data);
+	explicit MTPhelp_support(const MTPDhelp_support *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPhelp_support> MTPhelp_Support;
 
-class MTPnotifyPeer : private mtpDataOwner {
+class MTPnotifyPeer : private MTP::internal::TypeDataOwner {
 public:
 	MTPnotifyPeer() {
 	}
@@ -4226,7 +4226,7 @@ public:
 
 private:
 	explicit MTPnotifyPeer(mtpTypeId type);
-	explicit MTPnotifyPeer(std::shared_ptr<const MTPDnotifyPeer> &&data);
+	explicit MTPnotifyPeer(const MTPDnotifyPeer *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4234,7 +4234,7 @@ private:
 };
 typedef MTPBoxed<MTPnotifyPeer> MTPNotifyPeer;
 
-class MTPsendMessageAction : private mtpDataOwner {
+class MTPsendMessageAction : private MTP::internal::TypeDataOwner {
 public:
 	MTPsendMessageAction() {
 	}
@@ -4252,10 +4252,10 @@ public:
 
 private:
 	explicit MTPsendMessageAction(mtpTypeId type);
-	explicit MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadVideoAction> &&data);
-	explicit MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadAudioAction> &&data);
-	explicit MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadPhotoAction> &&data);
-	explicit MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadDocumentAction> &&data);
+	explicit MTPsendMessageAction(const MTPDsendMessageUploadVideoAction *data);
+	explicit MTPsendMessageAction(const MTPDsendMessageUploadAudioAction *data);
+	explicit MTPsendMessageAction(const MTPDsendMessageUploadPhotoAction *data);
+	explicit MTPsendMessageAction(const MTPDsendMessageUploadDocumentAction *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4263,7 +4263,7 @@ private:
 };
 typedef MTPBoxed<MTPsendMessageAction> MTPSendMessageAction;
 
-class MTPcontacts_found : private mtpDataOwner {
+class MTPcontacts_found : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_found();
 	const MTPDcontacts_found &c_contacts_found() const;
@@ -4276,7 +4276,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontacts_found(std::shared_ptr<const MTPDcontacts_found> &&data);
+	explicit MTPcontacts_found(const MTPDcontacts_found *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -4324,7 +4324,7 @@ private:
 };
 typedef MTPBoxed<MTPprivacyKey> MTPPrivacyKey;
 
-class MTPinputPrivacyRule : private mtpDataOwner {
+class MTPinputPrivacyRule : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputPrivacyRule() {
 	}
@@ -4340,8 +4340,8 @@ public:
 
 private:
 	explicit MTPinputPrivacyRule(mtpTypeId type);
-	explicit MTPinputPrivacyRule(std::shared_ptr<const MTPDinputPrivacyValueAllowUsers> &&data);
-	explicit MTPinputPrivacyRule(std::shared_ptr<const MTPDinputPrivacyValueDisallowUsers> &&data);
+	explicit MTPinputPrivacyRule(const MTPDinputPrivacyValueAllowUsers *data);
+	explicit MTPinputPrivacyRule(const MTPDinputPrivacyValueDisallowUsers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4349,7 +4349,7 @@ private:
 };
 typedef MTPBoxed<MTPinputPrivacyRule> MTPInputPrivacyRule;
 
-class MTPprivacyRule : private mtpDataOwner {
+class MTPprivacyRule : private MTP::internal::TypeDataOwner {
 public:
 	MTPprivacyRule() {
 	}
@@ -4365,8 +4365,8 @@ public:
 
 private:
 	explicit MTPprivacyRule(mtpTypeId type);
-	explicit MTPprivacyRule(std::shared_ptr<const MTPDprivacyValueAllowUsers> &&data);
-	explicit MTPprivacyRule(std::shared_ptr<const MTPDprivacyValueDisallowUsers> &&data);
+	explicit MTPprivacyRule(const MTPDprivacyValueAllowUsers *data);
+	explicit MTPprivacyRule(const MTPDprivacyValueDisallowUsers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4374,7 +4374,7 @@ private:
 };
 typedef MTPBoxed<MTPprivacyRule> MTPPrivacyRule;
 
-class MTPaccount_privacyRules : private mtpDataOwner {
+class MTPaccount_privacyRules : private MTP::internal::TypeDataOwner {
 public:
 	MTPaccount_privacyRules();
 	const MTPDaccount_privacyRules &c_account_privacyRules() const;
@@ -4387,13 +4387,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPaccount_privacyRules(std::shared_ptr<const MTPDaccount_privacyRules> &&data);
+	explicit MTPaccount_privacyRules(const MTPDaccount_privacyRules *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPaccount_privacyRules> MTPaccount_PrivacyRules;
 
-class MTPaccountDaysTTL : private mtpDataOwner {
+class MTPaccountDaysTTL : private MTP::internal::TypeDataOwner {
 public:
 	MTPaccountDaysTTL();
 	const MTPDaccountDaysTTL &c_accountDaysTTL() const;
@@ -4406,13 +4406,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPaccountDaysTTL(std::shared_ptr<const MTPDaccountDaysTTL> &&data);
+	explicit MTPaccountDaysTTL(const MTPDaccountDaysTTL *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPaccountDaysTTL> MTPAccountDaysTTL;
 
-class MTPdocumentAttribute : private mtpDataOwner {
+class MTPdocumentAttribute : private MTP::internal::TypeDataOwner {
 public:
 	MTPdocumentAttribute() {
 	}
@@ -4431,11 +4431,11 @@ public:
 
 private:
 	explicit MTPdocumentAttribute(mtpTypeId type);
-	explicit MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeImageSize> &&data);
-	explicit MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeSticker> &&data);
-	explicit MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeVideo> &&data);
-	explicit MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeAudio> &&data);
-	explicit MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeFilename> &&data);
+	explicit MTPdocumentAttribute(const MTPDdocumentAttributeImageSize *data);
+	explicit MTPdocumentAttribute(const MTPDdocumentAttributeSticker *data);
+	explicit MTPdocumentAttribute(const MTPDdocumentAttributeVideo *data);
+	explicit MTPdocumentAttribute(const MTPDdocumentAttributeAudio *data);
+	explicit MTPdocumentAttribute(const MTPDdocumentAttributeFilename *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4443,7 +4443,7 @@ private:
 };
 typedef MTPBoxed<MTPdocumentAttribute> MTPDocumentAttribute;
 
-class MTPmessages_stickers : private mtpDataOwner {
+class MTPmessages_stickers : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_stickers() {
 	}
@@ -4458,7 +4458,7 @@ public:
 
 private:
 	explicit MTPmessages_stickers(mtpTypeId type);
-	explicit MTPmessages_stickers(std::shared_ptr<const MTPDmessages_stickers> &&data);
+	explicit MTPmessages_stickers(const MTPDmessages_stickers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4466,7 +4466,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_stickers> MTPmessages_Stickers;
 
-class MTPstickerPack : private mtpDataOwner {
+class MTPstickerPack : private MTP::internal::TypeDataOwner {
 public:
 	MTPstickerPack();
 	const MTPDstickerPack &c_stickerPack() const;
@@ -4479,13 +4479,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPstickerPack(std::shared_ptr<const MTPDstickerPack> &&data);
+	explicit MTPstickerPack(const MTPDstickerPack *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPstickerPack> MTPStickerPack;
 
-class MTPmessages_allStickers : private mtpDataOwner {
+class MTPmessages_allStickers : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_allStickers() {
 	}
@@ -4500,7 +4500,7 @@ public:
 
 private:
 	explicit MTPmessages_allStickers(mtpTypeId type);
-	explicit MTPmessages_allStickers(std::shared_ptr<const MTPDmessages_allStickers> &&data);
+	explicit MTPmessages_allStickers(const MTPDmessages_allStickers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4508,7 +4508,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_allStickers> MTPmessages_AllStickers;
 
-class MTPdisabledFeature : private mtpDataOwner {
+class MTPdisabledFeature : private MTP::internal::TypeDataOwner {
 public:
 	MTPdisabledFeature();
 	const MTPDdisabledFeature &c_disabledFeature() const;
@@ -4521,13 +4521,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPdisabledFeature(std::shared_ptr<const MTPDdisabledFeature> &&data);
+	explicit MTPdisabledFeature(const MTPDdisabledFeature *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPdisabledFeature> MTPDisabledFeature;
 
-class MTPmessages_affectedMessages : private mtpDataOwner {
+class MTPmessages_affectedMessages : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_affectedMessages();
 	const MTPDmessages_affectedMessages &c_messages_affectedMessages() const;
@@ -4540,7 +4540,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_affectedMessages(std::shared_ptr<const MTPDmessages_affectedMessages> &&data);
+	explicit MTPmessages_affectedMessages(const MTPDmessages_affectedMessages *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -4567,7 +4567,7 @@ private:
 };
 typedef MTPBoxed<MTPcontactLink> MTPContactLink;
 
-class MTPwebPage : private mtpDataOwner {
+class MTPwebPage : private MTP::internal::TypeDataOwner {
 public:
 	MTPwebPage() {
 	}
@@ -4584,9 +4584,9 @@ public:
 
 private:
 	explicit MTPwebPage(mtpTypeId type);
-	explicit MTPwebPage(std::shared_ptr<const MTPDwebPageEmpty> &&data);
-	explicit MTPwebPage(std::shared_ptr<const MTPDwebPagePending> &&data);
-	explicit MTPwebPage(std::shared_ptr<const MTPDwebPage> &&data);
+	explicit MTPwebPage(const MTPDwebPageEmpty *data);
+	explicit MTPwebPage(const MTPDwebPagePending *data);
+	explicit MTPwebPage(const MTPDwebPage *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4594,7 +4594,7 @@ private:
 };
 typedef MTPBoxed<MTPwebPage> MTPWebPage;
 
-class MTPauthorization : private mtpDataOwner {
+class MTPauthorization : private MTP::internal::TypeDataOwner {
 public:
 	MTPauthorization();
 	const MTPDauthorization &c_authorization() const;
@@ -4607,13 +4607,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPauthorization(std::shared_ptr<const MTPDauthorization> &&data);
+	explicit MTPauthorization(const MTPDauthorization *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPauthorization> MTPAuthorization;
 
-class MTPaccount_authorizations : private mtpDataOwner {
+class MTPaccount_authorizations : private MTP::internal::TypeDataOwner {
 public:
 	MTPaccount_authorizations();
 	const MTPDaccount_authorizations &c_account_authorizations() const;
@@ -4626,13 +4626,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPaccount_authorizations(std::shared_ptr<const MTPDaccount_authorizations> &&data);
+	explicit MTPaccount_authorizations(const MTPDaccount_authorizations *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPaccount_authorizations> MTPaccount_Authorizations;
 
-class MTPaccount_password : private mtpDataOwner {
+class MTPaccount_password : private MTP::internal::TypeDataOwner {
 public:
 	MTPaccount_password() {
 	}
@@ -4648,8 +4648,8 @@ public:
 
 private:
 	explicit MTPaccount_password(mtpTypeId type);
-	explicit MTPaccount_password(std::shared_ptr<const MTPDaccount_noPassword> &&data);
-	explicit MTPaccount_password(std::shared_ptr<const MTPDaccount_password> &&data);
+	explicit MTPaccount_password(const MTPDaccount_noPassword *data);
+	explicit MTPaccount_password(const MTPDaccount_password *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4657,7 +4657,7 @@ private:
 };
 typedef MTPBoxed<MTPaccount_password> MTPaccount_Password;
 
-class MTPaccount_passwordSettings : private mtpDataOwner {
+class MTPaccount_passwordSettings : private MTP::internal::TypeDataOwner {
 public:
 	MTPaccount_passwordSettings();
 	const MTPDaccount_passwordSettings &c_account_passwordSettings() const;
@@ -4670,13 +4670,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPaccount_passwordSettings(std::shared_ptr<const MTPDaccount_passwordSettings> &&data);
+	explicit MTPaccount_passwordSettings(const MTPDaccount_passwordSettings *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPaccount_passwordSettings> MTPaccount_PasswordSettings;
 
-class MTPaccount_passwordInputSettings : private mtpDataOwner {
+class MTPaccount_passwordInputSettings : private MTP::internal::TypeDataOwner {
 public:
 	MTPaccount_passwordInputSettings();
 	const MTPDaccount_passwordInputSettings &c_account_passwordInputSettings() const;
@@ -4689,13 +4689,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPaccount_passwordInputSettings(std::shared_ptr<const MTPDaccount_passwordInputSettings> &&data);
+	explicit MTPaccount_passwordInputSettings(const MTPDaccount_passwordInputSettings *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPaccount_passwordInputSettings> MTPaccount_PasswordInputSettings;
 
-class MTPauth_passwordRecovery : private mtpDataOwner {
+class MTPauth_passwordRecovery : private MTP::internal::TypeDataOwner {
 public:
 	MTPauth_passwordRecovery();
 	const MTPDauth_passwordRecovery &c_auth_passwordRecovery() const;
@@ -4708,13 +4708,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPauth_passwordRecovery(std::shared_ptr<const MTPDauth_passwordRecovery> &&data);
+	explicit MTPauth_passwordRecovery(const MTPDauth_passwordRecovery *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPauth_passwordRecovery> MTPauth_PasswordRecovery;
 
-class MTPreceivedNotifyMessage : private mtpDataOwner {
+class MTPreceivedNotifyMessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPreceivedNotifyMessage();
 	const MTPDreceivedNotifyMessage &c_receivedNotifyMessage() const;
@@ -4727,13 +4727,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPreceivedNotifyMessage(std::shared_ptr<const MTPDreceivedNotifyMessage> &&data);
+	explicit MTPreceivedNotifyMessage(const MTPDreceivedNotifyMessage *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPreceivedNotifyMessage> MTPReceivedNotifyMessage;
 
-class MTPexportedChatInvite : private mtpDataOwner {
+class MTPexportedChatInvite : private MTP::internal::TypeDataOwner {
 public:
 	MTPexportedChatInvite() {
 	}
@@ -4748,7 +4748,7 @@ public:
 
 private:
 	explicit MTPexportedChatInvite(mtpTypeId type);
-	explicit MTPexportedChatInvite(std::shared_ptr<const MTPDchatInviteExported> &&data);
+	explicit MTPexportedChatInvite(const MTPDchatInviteExported *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4756,7 +4756,7 @@ private:
 };
 typedef MTPBoxed<MTPexportedChatInvite> MTPExportedChatInvite;
 
-class MTPchatInvite : private mtpDataOwner {
+class MTPchatInvite : private MTP::internal::TypeDataOwner {
 public:
 	MTPchatInvite() {
 	}
@@ -4772,8 +4772,8 @@ public:
 
 private:
 	explicit MTPchatInvite(mtpTypeId type);
-	explicit MTPchatInvite(std::shared_ptr<const MTPDchatInviteAlready> &&data);
-	explicit MTPchatInvite(std::shared_ptr<const MTPDchatInvite> &&data);
+	explicit MTPchatInvite(const MTPDchatInviteAlready *data);
+	explicit MTPchatInvite(const MTPDchatInvite *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4781,7 +4781,7 @@ private:
 };
 typedef MTPBoxed<MTPchatInvite> MTPChatInvite;
 
-class MTPinputStickerSet : private mtpDataOwner {
+class MTPinputStickerSet : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputStickerSet() {
 	}
@@ -4797,8 +4797,8 @@ public:
 
 private:
 	explicit MTPinputStickerSet(mtpTypeId type);
-	explicit MTPinputStickerSet(std::shared_ptr<const MTPDinputStickerSetID> &&data);
-	explicit MTPinputStickerSet(std::shared_ptr<const MTPDinputStickerSetShortName> &&data);
+	explicit MTPinputStickerSet(const MTPDinputStickerSetID *data);
+	explicit MTPinputStickerSet(const MTPDinputStickerSetShortName *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4806,7 +4806,7 @@ private:
 };
 typedef MTPBoxed<MTPinputStickerSet> MTPInputStickerSet;
 
-class MTPstickerSet : private mtpDataOwner {
+class MTPstickerSet : private MTP::internal::TypeDataOwner {
 public:
 	MTPstickerSet();
 	const MTPDstickerSet &c_stickerSet() const;
@@ -4819,13 +4819,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPstickerSet(std::shared_ptr<const MTPDstickerSet> &&data);
+	explicit MTPstickerSet(const MTPDstickerSet *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPstickerSet> MTPStickerSet;
 
-class MTPmessages_stickerSet : private mtpDataOwner {
+class MTPmessages_stickerSet : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_stickerSet();
 	const MTPDmessages_stickerSet &c_messages_stickerSet() const;
@@ -4838,13 +4838,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_stickerSet(std::shared_ptr<const MTPDmessages_stickerSet> &&data);
+	explicit MTPmessages_stickerSet(const MTPDmessages_stickerSet *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_stickerSet> MTPmessages_StickerSet;
 
-class MTPbotCommand : private mtpDataOwner {
+class MTPbotCommand : private MTP::internal::TypeDataOwner {
 public:
 	MTPbotCommand();
 	const MTPDbotCommand &c_botCommand() const;
@@ -4857,13 +4857,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPbotCommand(std::shared_ptr<const MTPDbotCommand> &&data);
+	explicit MTPbotCommand(const MTPDbotCommand *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPbotCommand> MTPBotCommand;
 
-class MTPbotInfo : private mtpDataOwner {
+class MTPbotInfo : private MTP::internal::TypeDataOwner {
 public:
 	MTPbotInfo();
 	const MTPDbotInfo &c_botInfo() const;
@@ -4876,13 +4876,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPbotInfo(std::shared_ptr<const MTPDbotInfo> &&data);
+	explicit MTPbotInfo(const MTPDbotInfo *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPbotInfo> MTPBotInfo;
 
-class MTPkeyboardButton : private mtpDataOwner {
+class MTPkeyboardButton : private MTP::internal::TypeDataOwner {
 public:
 	MTPkeyboardButton() {
 	}
@@ -4903,13 +4903,13 @@ public:
 
 private:
 	explicit MTPkeyboardButton(mtpTypeId type);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButton> &&data);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonUrl> &&data);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonCallback> &&data);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonRequestPhone> &&data);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonRequestGeoLocation> &&data);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonSwitchInline> &&data);
-	explicit MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonGame> &&data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButton *data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButtonUrl *data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButtonCallback *data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButtonRequestPhone *data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButtonRequestGeoLocation *data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButtonSwitchInline *data);
+	explicit MTPkeyboardButton(const MTPDkeyboardButtonGame *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4917,7 +4917,7 @@ private:
 };
 typedef MTPBoxed<MTPkeyboardButton> MTPKeyboardButton;
 
-class MTPkeyboardButtonRow : private mtpDataOwner {
+class MTPkeyboardButtonRow : private MTP::internal::TypeDataOwner {
 public:
 	MTPkeyboardButtonRow();
 	const MTPDkeyboardButtonRow &c_keyboardButtonRow() const;
@@ -4930,13 +4930,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPkeyboardButtonRow(std::shared_ptr<const MTPDkeyboardButtonRow> &&data);
+	explicit MTPkeyboardButtonRow(const MTPDkeyboardButtonRow *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPkeyboardButtonRow> MTPKeyboardButtonRow;
 
-class MTPreplyMarkup : private mtpDataOwner {
+class MTPreplyMarkup : private MTP::internal::TypeDataOwner {
 public:
 	MTPreplyMarkup() {
 	}
@@ -4954,10 +4954,10 @@ public:
 
 private:
 	explicit MTPreplyMarkup(mtpTypeId type);
-	explicit MTPreplyMarkup(std::shared_ptr<const MTPDreplyKeyboardHide> &&data);
-	explicit MTPreplyMarkup(std::shared_ptr<const MTPDreplyKeyboardForceReply> &&data);
-	explicit MTPreplyMarkup(std::shared_ptr<const MTPDreplyKeyboardMarkup> &&data);
-	explicit MTPreplyMarkup(std::shared_ptr<const MTPDreplyInlineMarkup> &&data);
+	explicit MTPreplyMarkup(const MTPDreplyKeyboardHide *data);
+	explicit MTPreplyMarkup(const MTPDreplyKeyboardForceReply *data);
+	explicit MTPreplyMarkup(const MTPDreplyKeyboardMarkup *data);
+	explicit MTPreplyMarkup(const MTPDreplyInlineMarkup *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4965,7 +4965,7 @@ private:
 };
 typedef MTPBoxed<MTPreplyMarkup> MTPReplyMarkup;
 
-class MTPhelp_appChangelog : private mtpDataOwner {
+class MTPhelp_appChangelog : private MTP::internal::TypeDataOwner {
 public:
 	MTPhelp_appChangelog() {
 	}
@@ -4980,7 +4980,7 @@ public:
 
 private:
 	explicit MTPhelp_appChangelog(mtpTypeId type);
-	explicit MTPhelp_appChangelog(std::shared_ptr<const MTPDhelp_appChangelog> &&data);
+	explicit MTPhelp_appChangelog(const MTPDhelp_appChangelog *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -4988,7 +4988,7 @@ private:
 };
 typedef MTPBoxed<MTPhelp_appChangelog> MTPhelp_AppChangelog;
 
-class MTPmessageEntity : private mtpDataOwner {
+class MTPmessageEntity : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessageEntity() {
 	}
@@ -5015,19 +5015,19 @@ public:
 
 private:
 	explicit MTPmessageEntity(mtpTypeId type);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityUnknown> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityMention> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityHashtag> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityBotCommand> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityUrl> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityEmail> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityBold> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityItalic> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityCode> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityPre> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityTextUrl> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityMentionName> &&data);
-	explicit MTPmessageEntity(std::shared_ptr<const MTPDinputMessageEntityMentionName> &&data);
+	explicit MTPmessageEntity(const MTPDmessageEntityUnknown *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityMention *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityHashtag *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityBotCommand *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityUrl *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityEmail *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityBold *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityItalic *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityCode *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityPre *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityTextUrl *data);
+	explicit MTPmessageEntity(const MTPDmessageEntityMentionName *data);
+	explicit MTPmessageEntity(const MTPDinputMessageEntityMentionName *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5035,7 +5035,7 @@ private:
 };
 typedef MTPBoxed<MTPmessageEntity> MTPMessageEntity;
 
-class MTPinputChannel : private mtpDataOwner {
+class MTPinputChannel : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputChannel() {
 	}
@@ -5050,7 +5050,7 @@ public:
 
 private:
 	explicit MTPinputChannel(mtpTypeId type);
-	explicit MTPinputChannel(std::shared_ptr<const MTPDinputChannel> &&data);
+	explicit MTPinputChannel(const MTPDinputChannel *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5058,7 +5058,7 @@ private:
 };
 typedef MTPBoxed<MTPinputChannel> MTPInputChannel;
 
-class MTPcontacts_resolvedPeer : private mtpDataOwner {
+class MTPcontacts_resolvedPeer : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_resolvedPeer();
 	const MTPDcontacts_resolvedPeer &c_contacts_resolvedPeer() const;
@@ -5071,13 +5071,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPcontacts_resolvedPeer(std::shared_ptr<const MTPDcontacts_resolvedPeer> &&data);
+	explicit MTPcontacts_resolvedPeer(const MTPDcontacts_resolvedPeer *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPcontacts_resolvedPeer> MTPcontacts_ResolvedPeer;
 
-class MTPmessageRange : private mtpDataOwner {
+class MTPmessageRange : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessageRange();
 	const MTPDmessageRange &c_messageRange() const;
@@ -5090,13 +5090,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessageRange(std::shared_ptr<const MTPDmessageRange> &&data);
+	explicit MTPmessageRange(const MTPDmessageRange *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessageRange> MTPMessageRange;
 
-class MTPupdates_channelDifference : private mtpDataOwner {
+class MTPupdates_channelDifference : private MTP::internal::TypeDataOwner {
 public:
 	MTPupdates_channelDifference() {
 	}
@@ -5113,9 +5113,9 @@ public:
 
 private:
 	explicit MTPupdates_channelDifference(mtpTypeId type);
-	explicit MTPupdates_channelDifference(std::shared_ptr<const MTPDupdates_channelDifferenceEmpty> &&data);
-	explicit MTPupdates_channelDifference(std::shared_ptr<const MTPDupdates_channelDifferenceTooLong> &&data);
-	explicit MTPupdates_channelDifference(std::shared_ptr<const MTPDupdates_channelDifference> &&data);
+	explicit MTPupdates_channelDifference(const MTPDupdates_channelDifferenceEmpty *data);
+	explicit MTPupdates_channelDifference(const MTPDupdates_channelDifferenceTooLong *data);
+	explicit MTPupdates_channelDifference(const MTPDupdates_channelDifference *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5123,7 +5123,7 @@ private:
 };
 typedef MTPBoxed<MTPupdates_channelDifference> MTPupdates_ChannelDifference;
 
-class MTPchannelMessagesFilter : private mtpDataOwner {
+class MTPchannelMessagesFilter : private MTP::internal::TypeDataOwner {
 public:
 	MTPchannelMessagesFilter() {
 	}
@@ -5138,7 +5138,7 @@ public:
 
 private:
 	explicit MTPchannelMessagesFilter(mtpTypeId type);
-	explicit MTPchannelMessagesFilter(std::shared_ptr<const MTPDchannelMessagesFilter> &&data);
+	explicit MTPchannelMessagesFilter(const MTPDchannelMessagesFilter *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5146,7 +5146,7 @@ private:
 };
 typedef MTPBoxed<MTPchannelMessagesFilter> MTPChannelMessagesFilter;
 
-class MTPchannelParticipant : private mtpDataOwner {
+class MTPchannelParticipant : private MTP::internal::TypeDataOwner {
 public:
 	MTPchannelParticipant() {
 	}
@@ -5166,12 +5166,12 @@ public:
 
 private:
 	explicit MTPchannelParticipant(mtpTypeId type);
-	explicit MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipant> &&data);
-	explicit MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantSelf> &&data);
-	explicit MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantModerator> &&data);
-	explicit MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantEditor> &&data);
-	explicit MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantKicked> &&data);
-	explicit MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantCreator> &&data);
+	explicit MTPchannelParticipant(const MTPDchannelParticipant *data);
+	explicit MTPchannelParticipant(const MTPDchannelParticipantSelf *data);
+	explicit MTPchannelParticipant(const MTPDchannelParticipantModerator *data);
+	explicit MTPchannelParticipant(const MTPDchannelParticipantEditor *data);
+	explicit MTPchannelParticipant(const MTPDchannelParticipantKicked *data);
+	explicit MTPchannelParticipant(const MTPDchannelParticipantCreator *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5221,7 +5221,7 @@ private:
 };
 typedef MTPBoxed<MTPchannelParticipantRole> MTPChannelParticipantRole;
 
-class MTPchannels_channelParticipants : private mtpDataOwner {
+class MTPchannels_channelParticipants : private MTP::internal::TypeDataOwner {
 public:
 	MTPchannels_channelParticipants();
 	const MTPDchannels_channelParticipants &c_channels_channelParticipants() const;
@@ -5234,13 +5234,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPchannels_channelParticipants(std::shared_ptr<const MTPDchannels_channelParticipants> &&data);
+	explicit MTPchannels_channelParticipants(const MTPDchannels_channelParticipants *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPchannels_channelParticipants> MTPchannels_ChannelParticipants;
 
-class MTPchannels_channelParticipant : private mtpDataOwner {
+class MTPchannels_channelParticipant : private MTP::internal::TypeDataOwner {
 public:
 	MTPchannels_channelParticipant();
 	const MTPDchannels_channelParticipant &c_channels_channelParticipant() const;
@@ -5253,13 +5253,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPchannels_channelParticipant(std::shared_ptr<const MTPDchannels_channelParticipant> &&data);
+	explicit MTPchannels_channelParticipant(const MTPDchannels_channelParticipant *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPchannels_channelParticipant> MTPchannels_ChannelParticipant;
 
-class MTPhelp_termsOfService : private mtpDataOwner {
+class MTPhelp_termsOfService : private MTP::internal::TypeDataOwner {
 public:
 	MTPhelp_termsOfService();
 	const MTPDhelp_termsOfService &c_help_termsOfService() const;
@@ -5272,13 +5272,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPhelp_termsOfService(std::shared_ptr<const MTPDhelp_termsOfService> &&data);
+	explicit MTPhelp_termsOfService(const MTPDhelp_termsOfService *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPhelp_termsOfService> MTPhelp_TermsOfService;
 
-class MTPfoundGif : private mtpDataOwner {
+class MTPfoundGif : private MTP::internal::TypeDataOwner {
 public:
 	MTPfoundGif() {
 	}
@@ -5294,8 +5294,8 @@ public:
 
 private:
 	explicit MTPfoundGif(mtpTypeId type);
-	explicit MTPfoundGif(std::shared_ptr<const MTPDfoundGif> &&data);
-	explicit MTPfoundGif(std::shared_ptr<const MTPDfoundGifCached> &&data);
+	explicit MTPfoundGif(const MTPDfoundGif *data);
+	explicit MTPfoundGif(const MTPDfoundGifCached *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5303,7 +5303,7 @@ private:
 };
 typedef MTPBoxed<MTPfoundGif> MTPFoundGif;
 
-class MTPmessages_foundGifs : private mtpDataOwner {
+class MTPmessages_foundGifs : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_foundGifs();
 	const MTPDmessages_foundGifs &c_messages_foundGifs() const;
@@ -5316,13 +5316,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_foundGifs(std::shared_ptr<const MTPDmessages_foundGifs> &&data);
+	explicit MTPmessages_foundGifs(const MTPDmessages_foundGifs *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_foundGifs> MTPmessages_FoundGifs;
 
-class MTPmessages_savedGifs : private mtpDataOwner {
+class MTPmessages_savedGifs : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_savedGifs() {
 	}
@@ -5337,7 +5337,7 @@ public:
 
 private:
 	explicit MTPmessages_savedGifs(mtpTypeId type);
-	explicit MTPmessages_savedGifs(std::shared_ptr<const MTPDmessages_savedGifs> &&data);
+	explicit MTPmessages_savedGifs(const MTPDmessages_savedGifs *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5345,7 +5345,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_savedGifs> MTPmessages_SavedGifs;
 
-class MTPinputBotInlineMessage : private mtpDataOwner {
+class MTPinputBotInlineMessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputBotInlineMessage() {
 	}
@@ -5365,12 +5365,12 @@ public:
 
 private:
 	explicit MTPinputBotInlineMessage(mtpTypeId type);
-	explicit MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaAuto> &&data);
-	explicit MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageText> &&data);
-	explicit MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaGeo> &&data);
-	explicit MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaVenue> &&data);
-	explicit MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaContact> &&data);
-	explicit MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageGame> &&data);
+	explicit MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaAuto *data);
+	explicit MTPinputBotInlineMessage(const MTPDinputBotInlineMessageText *data);
+	explicit MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaGeo *data);
+	explicit MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaVenue *data);
+	explicit MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaContact *data);
+	explicit MTPinputBotInlineMessage(const MTPDinputBotInlineMessageGame *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5378,7 +5378,7 @@ private:
 };
 typedef MTPBoxed<MTPinputBotInlineMessage> MTPInputBotInlineMessage;
 
-class MTPinputBotInlineResult : private mtpDataOwner {
+class MTPinputBotInlineResult : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputBotInlineResult() {
 	}
@@ -5396,10 +5396,10 @@ public:
 
 private:
 	explicit MTPinputBotInlineResult(mtpTypeId type);
-	explicit MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResult> &&data);
-	explicit MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResultPhoto> &&data);
-	explicit MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResultDocument> &&data);
-	explicit MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResultGame> &&data);
+	explicit MTPinputBotInlineResult(const MTPDinputBotInlineResult *data);
+	explicit MTPinputBotInlineResult(const MTPDinputBotInlineResultPhoto *data);
+	explicit MTPinputBotInlineResult(const MTPDinputBotInlineResultDocument *data);
+	explicit MTPinputBotInlineResult(const MTPDinputBotInlineResultGame *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5407,7 +5407,7 @@ private:
 };
 typedef MTPBoxed<MTPinputBotInlineResult> MTPInputBotInlineResult;
 
-class MTPbotInlineMessage : private mtpDataOwner {
+class MTPbotInlineMessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPbotInlineMessage() {
 	}
@@ -5426,11 +5426,11 @@ public:
 
 private:
 	explicit MTPbotInlineMessage(mtpTypeId type);
-	explicit MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaAuto> &&data);
-	explicit MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageText> &&data);
-	explicit MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaGeo> &&data);
-	explicit MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaVenue> &&data);
-	explicit MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaContact> &&data);
+	explicit MTPbotInlineMessage(const MTPDbotInlineMessageMediaAuto *data);
+	explicit MTPbotInlineMessage(const MTPDbotInlineMessageText *data);
+	explicit MTPbotInlineMessage(const MTPDbotInlineMessageMediaGeo *data);
+	explicit MTPbotInlineMessage(const MTPDbotInlineMessageMediaVenue *data);
+	explicit MTPbotInlineMessage(const MTPDbotInlineMessageMediaContact *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5438,7 +5438,7 @@ private:
 };
 typedef MTPBoxed<MTPbotInlineMessage> MTPBotInlineMessage;
 
-class MTPbotInlineResult : private mtpDataOwner {
+class MTPbotInlineResult : private MTP::internal::TypeDataOwner {
 public:
 	MTPbotInlineResult() {
 	}
@@ -5454,8 +5454,8 @@ public:
 
 private:
 	explicit MTPbotInlineResult(mtpTypeId type);
-	explicit MTPbotInlineResult(std::shared_ptr<const MTPDbotInlineResult> &&data);
-	explicit MTPbotInlineResult(std::shared_ptr<const MTPDbotInlineMediaResult> &&data);
+	explicit MTPbotInlineResult(const MTPDbotInlineResult *data);
+	explicit MTPbotInlineResult(const MTPDbotInlineMediaResult *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5463,7 +5463,7 @@ private:
 };
 typedef MTPBoxed<MTPbotInlineResult> MTPBotInlineResult;
 
-class MTPmessages_botResults : private mtpDataOwner {
+class MTPmessages_botResults : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_botResults();
 	const MTPDmessages_botResults &c_messages_botResults() const;
@@ -5476,13 +5476,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_botResults(std::shared_ptr<const MTPDmessages_botResults> &&data);
+	explicit MTPmessages_botResults(const MTPDmessages_botResults *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_botResults> MTPmessages_BotResults;
 
-class MTPexportedMessageLink : private mtpDataOwner {
+class MTPexportedMessageLink : private MTP::internal::TypeDataOwner {
 public:
 	MTPexportedMessageLink();
 	const MTPDexportedMessageLink &c_exportedMessageLink() const;
@@ -5495,13 +5495,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPexportedMessageLink(std::shared_ptr<const MTPDexportedMessageLink> &&data);
+	explicit MTPexportedMessageLink(const MTPDexportedMessageLink *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPexportedMessageLink> MTPExportedMessageLink;
 
-class MTPmessageFwdHeader : private mtpDataOwner {
+class MTPmessageFwdHeader : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessageFwdHeader();
 	const MTPDmessageFwdHeader &c_messageFwdHeader() const;
@@ -5514,7 +5514,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessageFwdHeader(std::shared_ptr<const MTPDmessageFwdHeader> &&data);
+	explicit MTPmessageFwdHeader(const MTPDmessageFwdHeader *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -5541,7 +5541,7 @@ private:
 };
 typedef MTPBoxed<MTPauth_codeType> MTPauth_CodeType;
 
-class MTPauth_sentCodeType : private mtpDataOwner {
+class MTPauth_sentCodeType : private MTP::internal::TypeDataOwner {
 public:
 	MTPauth_sentCodeType() {
 	}
@@ -5559,10 +5559,10 @@ public:
 
 private:
 	explicit MTPauth_sentCodeType(mtpTypeId type);
-	explicit MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeApp> &&data);
-	explicit MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeSms> &&data);
-	explicit MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeCall> &&data);
-	explicit MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeFlashCall> &&data);
+	explicit MTPauth_sentCodeType(const MTPDauth_sentCodeTypeApp *data);
+	explicit MTPauth_sentCodeType(const MTPDauth_sentCodeTypeSms *data);
+	explicit MTPauth_sentCodeType(const MTPDauth_sentCodeTypeCall *data);
+	explicit MTPauth_sentCodeType(const MTPDauth_sentCodeTypeFlashCall *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5570,7 +5570,7 @@ private:
 };
 typedef MTPBoxed<MTPauth_sentCodeType> MTPauth_SentCodeType;
 
-class MTPmessages_botCallbackAnswer : private mtpDataOwner {
+class MTPmessages_botCallbackAnswer : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_botCallbackAnswer();
 	const MTPDmessages_botCallbackAnswer &c_messages_botCallbackAnswer() const;
@@ -5583,13 +5583,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_botCallbackAnswer(std::shared_ptr<const MTPDmessages_botCallbackAnswer> &&data);
+	explicit MTPmessages_botCallbackAnswer(const MTPDmessages_botCallbackAnswer *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_botCallbackAnswer> MTPmessages_BotCallbackAnswer;
 
-class MTPmessages_messageEditData : private mtpDataOwner {
+class MTPmessages_messageEditData : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_messageEditData();
 	const MTPDmessages_messageEditData &c_messages_messageEditData() const;
@@ -5602,13 +5602,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_messageEditData(std::shared_ptr<const MTPDmessages_messageEditData> &&data);
+	explicit MTPmessages_messageEditData(const MTPDmessages_messageEditData *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_messageEditData> MTPmessages_MessageEditData;
 
-class MTPinputBotInlineMessageID : private mtpDataOwner {
+class MTPinputBotInlineMessageID : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputBotInlineMessageID();
 	const MTPDinputBotInlineMessageID &c_inputBotInlineMessageID() const;
@@ -5621,13 +5621,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinputBotInlineMessageID(std::shared_ptr<const MTPDinputBotInlineMessageID> &&data);
+	explicit MTPinputBotInlineMessageID(const MTPDinputBotInlineMessageID *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPinputBotInlineMessageID> MTPInputBotInlineMessageID;
 
-class MTPinlineBotSwitchPM : private mtpDataOwner {
+class MTPinlineBotSwitchPM : private MTP::internal::TypeDataOwner {
 public:
 	MTPinlineBotSwitchPM();
 	const MTPDinlineBotSwitchPM &c_inlineBotSwitchPM() const;
@@ -5640,13 +5640,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinlineBotSwitchPM(std::shared_ptr<const MTPDinlineBotSwitchPM> &&data);
+	explicit MTPinlineBotSwitchPM(const MTPDinlineBotSwitchPM *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPinlineBotSwitchPM> MTPInlineBotSwitchPM;
 
-class MTPmessages_peerDialogs : private mtpDataOwner {
+class MTPmessages_peerDialogs : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_peerDialogs();
 	const MTPDmessages_peerDialogs &c_messages_peerDialogs() const;
@@ -5659,13 +5659,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_peerDialogs(std::shared_ptr<const MTPDmessages_peerDialogs> &&data);
+	explicit MTPmessages_peerDialogs(const MTPDmessages_peerDialogs *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_peerDialogs> MTPmessages_PeerDialogs;
 
-class MTPtopPeer : private mtpDataOwner {
+class MTPtopPeer : private MTP::internal::TypeDataOwner {
 public:
 	MTPtopPeer();
 	const MTPDtopPeer &c_topPeer() const;
@@ -5678,7 +5678,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPtopPeer(std::shared_ptr<const MTPDtopPeer> &&data);
+	explicit MTPtopPeer(const MTPDtopPeer *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -5705,7 +5705,7 @@ private:
 };
 typedef MTPBoxed<MTPtopPeerCategory> MTPTopPeerCategory;
 
-class MTPtopPeerCategoryPeers : private mtpDataOwner {
+class MTPtopPeerCategoryPeers : private MTP::internal::TypeDataOwner {
 public:
 	MTPtopPeerCategoryPeers();
 	const MTPDtopPeerCategoryPeers &c_topPeerCategoryPeers() const;
@@ -5718,13 +5718,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPtopPeerCategoryPeers(std::shared_ptr<const MTPDtopPeerCategoryPeers> &&data);
+	explicit MTPtopPeerCategoryPeers(const MTPDtopPeerCategoryPeers *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPtopPeerCategoryPeers> MTPTopPeerCategoryPeers;
 
-class MTPcontacts_topPeers : private mtpDataOwner {
+class MTPcontacts_topPeers : private MTP::internal::TypeDataOwner {
 public:
 	MTPcontacts_topPeers() {
 	}
@@ -5739,7 +5739,7 @@ public:
 
 private:
 	explicit MTPcontacts_topPeers(mtpTypeId type);
-	explicit MTPcontacts_topPeers(std::shared_ptr<const MTPDcontacts_topPeers> &&data);
+	explicit MTPcontacts_topPeers(const MTPDcontacts_topPeers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5747,7 +5747,7 @@ private:
 };
 typedef MTPBoxed<MTPcontacts_topPeers> MTPcontacts_TopPeers;
 
-class MTPdraftMessage : private mtpDataOwner {
+class MTPdraftMessage : private MTP::internal::TypeDataOwner {
 public:
 	MTPdraftMessage() {
 	}
@@ -5762,7 +5762,7 @@ public:
 
 private:
 	explicit MTPdraftMessage(mtpTypeId type);
-	explicit MTPdraftMessage(std::shared_ptr<const MTPDdraftMessage> &&data);
+	explicit MTPdraftMessage(const MTPDdraftMessage *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5770,7 +5770,7 @@ private:
 };
 typedef MTPBoxed<MTPdraftMessage> MTPDraftMessage;
 
-class MTPmessages_featuredStickers : private mtpDataOwner {
+class MTPmessages_featuredStickers : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_featuredStickers() {
 	}
@@ -5785,7 +5785,7 @@ public:
 
 private:
 	explicit MTPmessages_featuredStickers(mtpTypeId type);
-	explicit MTPmessages_featuredStickers(std::shared_ptr<const MTPDmessages_featuredStickers> &&data);
+	explicit MTPmessages_featuredStickers(const MTPDmessages_featuredStickers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5793,7 +5793,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_featuredStickers> MTPmessages_FeaturedStickers;
 
-class MTPmessages_recentStickers : private mtpDataOwner {
+class MTPmessages_recentStickers : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_recentStickers() {
 	}
@@ -5808,7 +5808,7 @@ public:
 
 private:
 	explicit MTPmessages_recentStickers(mtpTypeId type);
-	explicit MTPmessages_recentStickers(std::shared_ptr<const MTPDmessages_recentStickers> &&data);
+	explicit MTPmessages_recentStickers(const MTPDmessages_recentStickers *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5816,7 +5816,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_recentStickers> MTPmessages_RecentStickers;
 
-class MTPmessages_archivedStickers : private mtpDataOwner {
+class MTPmessages_archivedStickers : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_archivedStickers();
 	const MTPDmessages_archivedStickers &c_messages_archivedStickers() const;
@@ -5829,13 +5829,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_archivedStickers(std::shared_ptr<const MTPDmessages_archivedStickers> &&data);
+	explicit MTPmessages_archivedStickers(const MTPDmessages_archivedStickers *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_archivedStickers> MTPmessages_ArchivedStickers;
 
-class MTPmessages_stickerSetInstallResult : private mtpDataOwner {
+class MTPmessages_stickerSetInstallResult : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_stickerSetInstallResult() {
 	}
@@ -5850,7 +5850,7 @@ public:
 
 private:
 	explicit MTPmessages_stickerSetInstallResult(mtpTypeId type);
-	explicit MTPmessages_stickerSetInstallResult(std::shared_ptr<const MTPDmessages_stickerSetInstallResultArchive> &&data);
+	explicit MTPmessages_stickerSetInstallResult(const MTPDmessages_stickerSetInstallResultArchive *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5858,7 +5858,7 @@ private:
 };
 typedef MTPBoxed<MTPmessages_stickerSetInstallResult> MTPmessages_StickerSetInstallResult;
 
-class MTPstickerSetCovered : private mtpDataOwner {
+class MTPstickerSetCovered : private MTP::internal::TypeDataOwner {
 public:
 	MTPstickerSetCovered() {
 	}
@@ -5874,8 +5874,8 @@ public:
 
 private:
 	explicit MTPstickerSetCovered(mtpTypeId type);
-	explicit MTPstickerSetCovered(std::shared_ptr<const MTPDstickerSetCovered> &&data);
-	explicit MTPstickerSetCovered(std::shared_ptr<const MTPDstickerSetMultiCovered> &&data);
+	explicit MTPstickerSetCovered(const MTPDstickerSetCovered *data);
+	explicit MTPstickerSetCovered(const MTPDstickerSetMultiCovered *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5883,7 +5883,7 @@ private:
 };
 typedef MTPBoxed<MTPstickerSetCovered> MTPStickerSetCovered;
 
-class MTPmaskCoords : private mtpDataOwner {
+class MTPmaskCoords : private MTP::internal::TypeDataOwner {
 public:
 	MTPmaskCoords();
 	const MTPDmaskCoords &c_maskCoords() const;
@@ -5896,13 +5896,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmaskCoords(std::shared_ptr<const MTPDmaskCoords> &&data);
+	explicit MTPmaskCoords(const MTPDmaskCoords *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmaskCoords> MTPMaskCoords;
 
-class MTPinputStickeredMedia : private mtpDataOwner {
+class MTPinputStickeredMedia : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputStickeredMedia() {
 	}
@@ -5918,8 +5918,8 @@ public:
 
 private:
 	explicit MTPinputStickeredMedia(mtpTypeId type);
-	explicit MTPinputStickeredMedia(std::shared_ptr<const MTPDinputStickeredMediaPhoto> &&data);
-	explicit MTPinputStickeredMedia(std::shared_ptr<const MTPDinputStickeredMediaDocument> &&data);
+	explicit MTPinputStickeredMedia(const MTPDinputStickeredMediaPhoto *data);
+	explicit MTPinputStickeredMedia(const MTPDinputStickeredMediaDocument *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5927,7 +5927,7 @@ private:
 };
 typedef MTPBoxed<MTPinputStickeredMedia> MTPInputStickeredMedia;
 
-class MTPgame : private mtpDataOwner {
+class MTPgame : private MTP::internal::TypeDataOwner {
 public:
 	MTPgame();
 	const MTPDgame &c_game() const;
@@ -5940,13 +5940,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPgame(std::shared_ptr<const MTPDgame> &&data);
+	explicit MTPgame(const MTPDgame *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPgame> MTPGame;
 
-class MTPinputGame : private mtpDataOwner {
+class MTPinputGame : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputGame() {
 	}
@@ -5962,8 +5962,8 @@ public:
 
 private:
 	explicit MTPinputGame(mtpTypeId type);
-	explicit MTPinputGame(std::shared_ptr<const MTPDinputGameID> &&data);
-	explicit MTPinputGame(std::shared_ptr<const MTPDinputGameShortName> &&data);
+	explicit MTPinputGame(const MTPDinputGameID *data);
+	explicit MTPinputGame(const MTPDinputGameShortName *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -5971,7 +5971,7 @@ private:
 };
 typedef MTPBoxed<MTPinputGame> MTPInputGame;
 
-class MTPhighScore : private mtpDataOwner {
+class MTPhighScore : private MTP::internal::TypeDataOwner {
 public:
 	MTPhighScore();
 	const MTPDhighScore &c_highScore() const;
@@ -5984,13 +5984,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPhighScore(std::shared_ptr<const MTPDhighScore> &&data);
+	explicit MTPhighScore(const MTPDhighScore *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPhighScore> MTPHighScore;
 
-class MTPmessages_highScores : private mtpDataOwner {
+class MTPmessages_highScores : private MTP::internal::TypeDataOwner {
 public:
 	MTPmessages_highScores();
 	const MTPDmessages_highScores &c_messages_highScores() const;
@@ -6003,13 +6003,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPmessages_highScores(std::shared_ptr<const MTPDmessages_highScores> &&data);
+	explicit MTPmessages_highScores(const MTPDmessages_highScores *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPmessages_highScores> MTPmessages_HighScores;
 
-class MTPrichText : private mtpDataOwner {
+class MTPrichText : private MTP::internal::TypeDataOwner {
 public:
 	MTPrichText() {
 	}
@@ -6032,15 +6032,15 @@ public:
 
 private:
 	explicit MTPrichText(mtpTypeId type);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextPlain> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextBold> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextItalic> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextUnderline> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextStrike> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextFixed> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextUrl> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextEmail> &&data);
-	explicit MTPrichText(std::shared_ptr<const MTPDtextConcat> &&data);
+	explicit MTPrichText(const MTPDtextPlain *data);
+	explicit MTPrichText(const MTPDtextBold *data);
+	explicit MTPrichText(const MTPDtextItalic *data);
+	explicit MTPrichText(const MTPDtextUnderline *data);
+	explicit MTPrichText(const MTPDtextStrike *data);
+	explicit MTPrichText(const MTPDtextFixed *data);
+	explicit MTPrichText(const MTPDtextUrl *data);
+	explicit MTPrichText(const MTPDtextEmail *data);
+	explicit MTPrichText(const MTPDtextConcat *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -6048,7 +6048,7 @@ private:
 };
 typedef MTPBoxed<MTPrichText> MTPRichText;
 
-class MTPpageBlock : private mtpDataOwner {
+class MTPpageBlock : private MTP::internal::TypeDataOwner {
 public:
 	MTPpageBlock() {
 	}
@@ -6081,25 +6081,25 @@ public:
 
 private:
 	explicit MTPpageBlock(mtpTypeId type);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockTitle> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockSubtitle> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockAuthorDate> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockHeader> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockSubheader> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockParagraph> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockPreformatted> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockFooter> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockAnchor> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockList> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockBlockquote> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockPullquote> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockPhoto> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockVideo> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockCover> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockEmbed> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockEmbedPost> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockCollage> &&data);
-	explicit MTPpageBlock(std::shared_ptr<const MTPDpageBlockSlideshow> &&data);
+	explicit MTPpageBlock(const MTPDpageBlockTitle *data);
+	explicit MTPpageBlock(const MTPDpageBlockSubtitle *data);
+	explicit MTPpageBlock(const MTPDpageBlockAuthorDate *data);
+	explicit MTPpageBlock(const MTPDpageBlockHeader *data);
+	explicit MTPpageBlock(const MTPDpageBlockSubheader *data);
+	explicit MTPpageBlock(const MTPDpageBlockParagraph *data);
+	explicit MTPpageBlock(const MTPDpageBlockPreformatted *data);
+	explicit MTPpageBlock(const MTPDpageBlockFooter *data);
+	explicit MTPpageBlock(const MTPDpageBlockAnchor *data);
+	explicit MTPpageBlock(const MTPDpageBlockList *data);
+	explicit MTPpageBlock(const MTPDpageBlockBlockquote *data);
+	explicit MTPpageBlock(const MTPDpageBlockPullquote *data);
+	explicit MTPpageBlock(const MTPDpageBlockPhoto *data);
+	explicit MTPpageBlock(const MTPDpageBlockVideo *data);
+	explicit MTPpageBlock(const MTPDpageBlockCover *data);
+	explicit MTPpageBlock(const MTPDpageBlockEmbed *data);
+	explicit MTPpageBlock(const MTPDpageBlockEmbedPost *data);
+	explicit MTPpageBlock(const MTPDpageBlockCollage *data);
+	explicit MTPpageBlock(const MTPDpageBlockSlideshow *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -6107,7 +6107,7 @@ private:
 };
 typedef MTPBoxed<MTPpageBlock> MTPPageBlock;
 
-class MTPpage : private mtpDataOwner {
+class MTPpage : private MTP::internal::TypeDataOwner {
 public:
 	MTPpage() {
 	}
@@ -6123,8 +6123,8 @@ public:
 
 private:
 	explicit MTPpage(mtpTypeId type);
-	explicit MTPpage(std::shared_ptr<const MTPDpagePart> &&data);
-	explicit MTPpage(std::shared_ptr<const MTPDpageFull> &&data);
+	explicit MTPpage(const MTPDpagePart *data);
+	explicit MTPpage(const MTPDpageFull *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -6132,7 +6132,7 @@ private:
 };
 typedef MTPBoxed<MTPpage> MTPPage;
 
-class MTPinputPhoneCall : private mtpDataOwner {
+class MTPinputPhoneCall : private MTP::internal::TypeDataOwner {
 public:
 	MTPinputPhoneCall();
 	const MTPDinputPhoneCall &c_inputPhoneCall() const;
@@ -6145,13 +6145,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPinputPhoneCall(std::shared_ptr<const MTPDinputPhoneCall> &&data);
+	explicit MTPinputPhoneCall(const MTPDinputPhoneCall *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPinputPhoneCall> MTPInputPhoneCall;
 
-class MTPphoneCall : private mtpDataOwner {
+class MTPphoneCall : private MTP::internal::TypeDataOwner {
 public:
 	MTPphoneCall() {
 	}
@@ -6170,11 +6170,11 @@ public:
 
 private:
 	explicit MTPphoneCall(mtpTypeId type);
-	explicit MTPphoneCall(std::shared_ptr<const MTPDphoneCallEmpty> &&data);
-	explicit MTPphoneCall(std::shared_ptr<const MTPDphoneCallWaiting> &&data);
-	explicit MTPphoneCall(std::shared_ptr<const MTPDphoneCallRequested> &&data);
-	explicit MTPphoneCall(std::shared_ptr<const MTPDphoneCall> &&data);
-	explicit MTPphoneCall(std::shared_ptr<const MTPDphoneCallDiscarded> &&data);
+	explicit MTPphoneCall(const MTPDphoneCallEmpty *data);
+	explicit MTPphoneCall(const MTPDphoneCallWaiting *data);
+	explicit MTPphoneCall(const MTPDphoneCallRequested *data);
+	explicit MTPphoneCall(const MTPDphoneCall *data);
+	explicit MTPphoneCall(const MTPDphoneCallDiscarded *data);
 
 	friend class MTP::internal::TypeCreator;
 
@@ -6182,7 +6182,7 @@ private:
 };
 typedef MTPBoxed<MTPphoneCall> MTPPhoneCall;
 
-class MTPphoneConnection : private mtpDataOwner {
+class MTPphoneConnection : private MTP::internal::TypeDataOwner {
 public:
 	MTPphoneConnection();
 	const MTPDphoneConnection &c_phoneConnection() const;
@@ -6195,13 +6195,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPphoneConnection(std::shared_ptr<const MTPDphoneConnection> &&data);
+	explicit MTPphoneConnection(const MTPDphoneConnection *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPphoneConnection> MTPPhoneConnection;
 
-class MTPphoneCallProtocol : private mtpDataOwner {
+class MTPphoneCallProtocol : private MTP::internal::TypeDataOwner {
 public:
 	MTPphoneCallProtocol();
 	const MTPDphoneCallProtocol &c_phoneCallProtocol() const;
@@ -6214,13 +6214,13 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPphoneCallProtocol(std::shared_ptr<const MTPDphoneCallProtocol> &&data);
+	explicit MTPphoneCallProtocol(const MTPDphoneCallProtocol *data);
 
 	friend class MTP::internal::TypeCreator;
 };
 typedef MTPBoxed<MTPphoneCallProtocol> MTPPhoneCallProtocol;
 
-class MTPphone_phoneCall : private mtpDataOwner {
+class MTPphone_phoneCall : private MTP::internal::TypeDataOwner {
 public:
 	MTPphone_phoneCall();
 	const MTPDphone_phoneCall &c_phone_phoneCall() const;
@@ -6233,7 +6233,7 @@ public:
 	typedef void ResponseType;
 
 private:
-	explicit MTPphone_phoneCall(std::shared_ptr<const MTPDphone_phoneCall> &&data);
+	explicit MTPphone_phoneCall(const MTPDphone_phoneCall *data);
 
 	friend class MTP::internal::TypeCreator;
 };
@@ -6262,7 +6262,7 @@ typedef MTPBoxed<MTPphoneCallDiscardReason> MTPPhoneCallDiscardReason;
 
 // Type constructors with data
 
-class MTPDresPQ : public mtpData {
+class MTPDresPQ : public MTP::internal::TypeData {
 public:
 	MTPDresPQ() = default;
 	MTPDresPQ(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPstring &_pq, const MTPVector<MTPlong> &_server_public_key_fingerprints) : vnonce(_nonce), vserver_nonce(_server_nonce), vpq(_pq), vserver_public_key_fingerprints(_server_public_key_fingerprints) {
@@ -6274,7 +6274,7 @@ public:
 	MTPVector<MTPlong> vserver_public_key_fingerprints;
 };
 
-class MTPDp_q_inner_data : public mtpData {
+class MTPDp_q_inner_data : public MTP::internal::TypeData {
 public:
 	MTPDp_q_inner_data() = default;
 	MTPDp_q_inner_data(const MTPstring &_pq, const MTPstring &_p, const MTPstring &_q, const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint256 &_new_nonce) : vpq(_pq), vp(_p), vq(_q), vnonce(_nonce), vserver_nonce(_server_nonce), vnew_nonce(_new_nonce) {
@@ -6288,7 +6288,7 @@ public:
 	MTPint256 vnew_nonce;
 };
 
-class MTPDserver_DH_params_fail : public mtpData {
+class MTPDserver_DH_params_fail : public MTP::internal::TypeData {
 public:
 	MTPDserver_DH_params_fail() = default;
 	MTPDserver_DH_params_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash) : vnonce(_nonce), vserver_nonce(_server_nonce), vnew_nonce_hash(_new_nonce_hash) {
@@ -6299,7 +6299,7 @@ public:
 	MTPint128 vnew_nonce_hash;
 };
 
-class MTPDserver_DH_params_ok : public mtpData {
+class MTPDserver_DH_params_ok : public MTP::internal::TypeData {
 public:
 	MTPDserver_DH_params_ok() = default;
 	MTPDserver_DH_params_ok(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPstring &_encrypted_answer) : vnonce(_nonce), vserver_nonce(_server_nonce), vencrypted_answer(_encrypted_answer) {
@@ -6310,7 +6310,7 @@ public:
 	MTPstring vencrypted_answer;
 };
 
-class MTPDserver_DH_inner_data : public mtpData {
+class MTPDserver_DH_inner_data : public MTP::internal::TypeData {
 public:
 	MTPDserver_DH_inner_data() = default;
 	MTPDserver_DH_inner_data(const MTPint128 &_nonce, const MTPint128 &_server_nonce, MTPint _g, const MTPstring &_dh_prime, const MTPstring &_g_a, MTPint _server_time) : vnonce(_nonce), vserver_nonce(_server_nonce), vg(_g), vdh_prime(_dh_prime), vg_a(_g_a), vserver_time(_server_time) {
@@ -6324,7 +6324,7 @@ public:
 	MTPint vserver_time;
 };
 
-class MTPDclient_DH_inner_data : public mtpData {
+class MTPDclient_DH_inner_data : public MTP::internal::TypeData {
 public:
 	MTPDclient_DH_inner_data() = default;
 	MTPDclient_DH_inner_data(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPlong &_retry_id, const MTPstring &_g_b) : vnonce(_nonce), vserver_nonce(_server_nonce), vretry_id(_retry_id), vg_b(_g_b) {
@@ -6336,7 +6336,7 @@ public:
 	MTPstring vg_b;
 };
 
-class MTPDdh_gen_ok : public mtpData {
+class MTPDdh_gen_ok : public MTP::internal::TypeData {
 public:
 	MTPDdh_gen_ok() = default;
 	MTPDdh_gen_ok(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash1) : vnonce(_nonce), vserver_nonce(_server_nonce), vnew_nonce_hash1(_new_nonce_hash1) {
@@ -6347,7 +6347,7 @@ public:
 	MTPint128 vnew_nonce_hash1;
 };
 
-class MTPDdh_gen_retry : public mtpData {
+class MTPDdh_gen_retry : public MTP::internal::TypeData {
 public:
 	MTPDdh_gen_retry() = default;
 	MTPDdh_gen_retry(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash2) : vnonce(_nonce), vserver_nonce(_server_nonce), vnew_nonce_hash2(_new_nonce_hash2) {
@@ -6358,7 +6358,7 @@ public:
 	MTPint128 vnew_nonce_hash2;
 };
 
-class MTPDdh_gen_fail : public mtpData {
+class MTPDdh_gen_fail : public MTP::internal::TypeData {
 public:
 	MTPDdh_gen_fail() = default;
 	MTPDdh_gen_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash3) : vnonce(_nonce), vserver_nonce(_server_nonce), vnew_nonce_hash3(_new_nonce_hash3) {
@@ -6369,7 +6369,7 @@ public:
 	MTPint128 vnew_nonce_hash3;
 };
 
-class MTPDmsgs_ack : public mtpData {
+class MTPDmsgs_ack : public MTP::internal::TypeData {
 public:
 	MTPDmsgs_ack() = default;
 	MTPDmsgs_ack(const MTPVector<MTPlong> &_msg_ids) : vmsg_ids(_msg_ids) {
@@ -6378,7 +6378,7 @@ public:
 	MTPVector<MTPlong> vmsg_ids;
 };
 
-class MTPDbad_msg_notification : public mtpData {
+class MTPDbad_msg_notification : public MTP::internal::TypeData {
 public:
 	MTPDbad_msg_notification() = default;
 	MTPDbad_msg_notification(const MTPlong &_bad_msg_id, MTPint _bad_msg_seqno, MTPint _error_code) : vbad_msg_id(_bad_msg_id), vbad_msg_seqno(_bad_msg_seqno), verror_code(_error_code) {
@@ -6389,7 +6389,7 @@ public:
 	MTPint verror_code;
 };
 
-class MTPDbad_server_salt : public mtpData {
+class MTPDbad_server_salt : public MTP::internal::TypeData {
 public:
 	MTPDbad_server_salt() = default;
 	MTPDbad_server_salt(const MTPlong &_bad_msg_id, MTPint _bad_msg_seqno, MTPint _error_code, const MTPlong &_new_server_salt) : vbad_msg_id(_bad_msg_id), vbad_msg_seqno(_bad_msg_seqno), verror_code(_error_code), vnew_server_salt(_new_server_salt) {
@@ -6401,7 +6401,7 @@ public:
 	MTPlong vnew_server_salt;
 };
 
-class MTPDmsgs_state_req : public mtpData {
+class MTPDmsgs_state_req : public MTP::internal::TypeData {
 public:
 	MTPDmsgs_state_req() = default;
 	MTPDmsgs_state_req(const MTPVector<MTPlong> &_msg_ids) : vmsg_ids(_msg_ids) {
@@ -6410,7 +6410,7 @@ public:
 	MTPVector<MTPlong> vmsg_ids;
 };
 
-class MTPDmsgs_state_info : public mtpData {
+class MTPDmsgs_state_info : public MTP::internal::TypeData {
 public:
 	MTPDmsgs_state_info() = default;
 	MTPDmsgs_state_info(const MTPlong &_req_msg_id, const MTPstring &_info) : vreq_msg_id(_req_msg_id), vinfo(_info) {
@@ -6420,7 +6420,7 @@ public:
 	MTPstring vinfo;
 };
 
-class MTPDmsgs_all_info : public mtpData {
+class MTPDmsgs_all_info : public MTP::internal::TypeData {
 public:
 	MTPDmsgs_all_info() = default;
 	MTPDmsgs_all_info(const MTPVector<MTPlong> &_msg_ids, const MTPstring &_info) : vmsg_ids(_msg_ids), vinfo(_info) {
@@ -6430,7 +6430,7 @@ public:
 	MTPstring vinfo;
 };
 
-class MTPDmsg_detailed_info : public mtpData {
+class MTPDmsg_detailed_info : public MTP::internal::TypeData {
 public:
 	MTPDmsg_detailed_info() = default;
 	MTPDmsg_detailed_info(const MTPlong &_msg_id, const MTPlong &_answer_msg_id, MTPint _bytes, MTPint _status) : vmsg_id(_msg_id), vanswer_msg_id(_answer_msg_id), vbytes(_bytes), vstatus(_status) {
@@ -6442,7 +6442,7 @@ public:
 	MTPint vstatus;
 };
 
-class MTPDmsg_new_detailed_info : public mtpData {
+class MTPDmsg_new_detailed_info : public MTP::internal::TypeData {
 public:
 	MTPDmsg_new_detailed_info() = default;
 	MTPDmsg_new_detailed_info(const MTPlong &_answer_msg_id, MTPint _bytes, MTPint _status) : vanswer_msg_id(_answer_msg_id), vbytes(_bytes), vstatus(_status) {
@@ -6453,7 +6453,7 @@ public:
 	MTPint vstatus;
 };
 
-class MTPDmsg_resend_req : public mtpData {
+class MTPDmsg_resend_req : public MTP::internal::TypeData {
 public:
 	MTPDmsg_resend_req() = default;
 	MTPDmsg_resend_req(const MTPVector<MTPlong> &_msg_ids) : vmsg_ids(_msg_ids) {
@@ -6462,7 +6462,7 @@ public:
 	MTPVector<MTPlong> vmsg_ids;
 };
 
-class MTPDrpc_error : public mtpData {
+class MTPDrpc_error : public MTP::internal::TypeData {
 public:
 	MTPDrpc_error() = default;
 	MTPDrpc_error(MTPint _error_code, const MTPstring &_error_message) : verror_code(_error_code), verror_message(_error_message) {
@@ -6472,7 +6472,7 @@ public:
 	MTPstring verror_message;
 };
 
-class MTPDrpc_answer_dropped : public mtpData {
+class MTPDrpc_answer_dropped : public MTP::internal::TypeData {
 public:
 	MTPDrpc_answer_dropped() = default;
 	MTPDrpc_answer_dropped(const MTPlong &_msg_id, MTPint _seq_no, MTPint _bytes) : vmsg_id(_msg_id), vseq_no(_seq_no), vbytes(_bytes) {
@@ -6483,7 +6483,7 @@ public:
 	MTPint vbytes;
 };
 
-class MTPDfuture_salt : public mtpData {
+class MTPDfuture_salt : public MTP::internal::TypeData {
 public:
 	MTPDfuture_salt() = default;
 	MTPDfuture_salt(MTPint _valid_since, MTPint _valid_until, const MTPlong &_salt) : vvalid_since(_valid_since), vvalid_until(_valid_until), vsalt(_salt) {
@@ -6494,7 +6494,7 @@ public:
 	MTPlong vsalt;
 };
 
-class MTPDfuture_salts : public mtpData {
+class MTPDfuture_salts : public MTP::internal::TypeData {
 public:
 	MTPDfuture_salts() = default;
 	MTPDfuture_salts(const MTPlong &_req_msg_id, MTPint _now, const MTPvector<MTPfutureSalt> &_salts) : vreq_msg_id(_req_msg_id), vnow(_now), vsalts(_salts) {
@@ -6505,7 +6505,7 @@ public:
 	MTPvector<MTPfutureSalt> vsalts;
 };
 
-class MTPDpong : public mtpData {
+class MTPDpong : public MTP::internal::TypeData {
 public:
 	MTPDpong() = default;
 	MTPDpong(const MTPlong &_msg_id, const MTPlong &_ping_id) : vmsg_id(_msg_id), vping_id(_ping_id) {
@@ -6515,7 +6515,7 @@ public:
 	MTPlong vping_id;
 };
 
-class MTPDdestroy_session_ok : public mtpData {
+class MTPDdestroy_session_ok : public MTP::internal::TypeData {
 public:
 	MTPDdestroy_session_ok() = default;
 	MTPDdestroy_session_ok(const MTPlong &_session_id) : vsession_id(_session_id) {
@@ -6524,7 +6524,7 @@ public:
 	MTPlong vsession_id;
 };
 
-class MTPDdestroy_session_none : public mtpData {
+class MTPDdestroy_session_none : public MTP::internal::TypeData {
 public:
 	MTPDdestroy_session_none() = default;
 	MTPDdestroy_session_none(const MTPlong &_session_id) : vsession_id(_session_id) {
@@ -6533,7 +6533,7 @@ public:
 	MTPlong vsession_id;
 };
 
-class MTPDnew_session_created : public mtpData {
+class MTPDnew_session_created : public MTP::internal::TypeData {
 public:
 	MTPDnew_session_created() = default;
 	MTPDnew_session_created(const MTPlong &_first_msg_id, const MTPlong &_unique_id, const MTPlong &_server_salt) : vfirst_msg_id(_first_msg_id), vunique_id(_unique_id), vserver_salt(_server_salt) {
@@ -6544,7 +6544,7 @@ public:
 	MTPlong vserver_salt;
 };
 
-class MTPDhttp_wait : public mtpData {
+class MTPDhttp_wait : public MTP::internal::TypeData {
 public:
 	MTPDhttp_wait() = default;
 	MTPDhttp_wait(MTPint _max_delay, MTPint _wait_after, MTPint _max_wait) : vmax_delay(_max_delay), vwait_after(_wait_after), vmax_wait(_max_wait) {
@@ -6555,7 +6555,7 @@ public:
 	MTPint vmax_wait;
 };
 
-class MTPDerror : public mtpData {
+class MTPDerror : public MTP::internal::TypeData {
 public:
 	MTPDerror() = default;
 	MTPDerror(MTPint _code, const MTPstring &_text) : vcode(_code), vtext(_text) {
@@ -6565,7 +6565,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDinputPeerChat : public mtpData {
+class MTPDinputPeerChat : public MTP::internal::TypeData {
 public:
 	MTPDinputPeerChat() = default;
 	MTPDinputPeerChat(MTPint _chat_id) : vchat_id(_chat_id) {
@@ -6574,7 +6574,7 @@ public:
 	MTPint vchat_id;
 };
 
-class MTPDinputPeerUser : public mtpData {
+class MTPDinputPeerUser : public MTP::internal::TypeData {
 public:
 	MTPDinputPeerUser() = default;
 	MTPDinputPeerUser(MTPint _user_id, const MTPlong &_access_hash) : vuser_id(_user_id), vaccess_hash(_access_hash) {
@@ -6584,7 +6584,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputPeerChannel : public mtpData {
+class MTPDinputPeerChannel : public MTP::internal::TypeData {
 public:
 	MTPDinputPeerChannel() = default;
 	MTPDinputPeerChannel(MTPint _channel_id, const MTPlong &_access_hash) : vchannel_id(_channel_id), vaccess_hash(_access_hash) {
@@ -6594,7 +6594,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputUser : public mtpData {
+class MTPDinputUser : public MTP::internal::TypeData {
 public:
 	MTPDinputUser() = default;
 	MTPDinputUser(MTPint _user_id, const MTPlong &_access_hash) : vuser_id(_user_id), vaccess_hash(_access_hash) {
@@ -6604,7 +6604,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputPhoneContact : public mtpData {
+class MTPDinputPhoneContact : public MTP::internal::TypeData {
 public:
 	MTPDinputPhoneContact() = default;
 	MTPDinputPhoneContact(const MTPlong &_client_id, const MTPstring &_phone, const MTPstring &_first_name, const MTPstring &_last_name) : vclient_id(_client_id), vphone(_phone), vfirst_name(_first_name), vlast_name(_last_name) {
@@ -6616,7 +6616,7 @@ public:
 	MTPstring vlast_name;
 };
 
-class MTPDinputFile : public mtpData {
+class MTPDinputFile : public MTP::internal::TypeData {
 public:
 	MTPDinputFile() = default;
 	MTPDinputFile(const MTPlong &_id, MTPint _parts, const MTPstring &_name, const MTPstring &_md5_checksum) : vid(_id), vparts(_parts), vname(_name), vmd5_checksum(_md5_checksum) {
@@ -6628,7 +6628,7 @@ public:
 	MTPstring vmd5_checksum;
 };
 
-class MTPDinputFileBig : public mtpData {
+class MTPDinputFileBig : public MTP::internal::TypeData {
 public:
 	MTPDinputFileBig() = default;
 	MTPDinputFileBig(const MTPlong &_id, MTPint _parts, const MTPstring &_name) : vid(_id), vparts(_parts), vname(_name) {
@@ -6639,7 +6639,7 @@ public:
 	MTPstring vname;
 };
 
-class MTPDinputMediaUploadedPhoto : public mtpData {
+class MTPDinputMediaUploadedPhoto : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_stickers = (1 << 0),
@@ -6660,7 +6660,7 @@ public:
 	MTPVector<MTPInputDocument> vstickers;
 };
 
-class MTPDinputMediaPhoto : public mtpData {
+class MTPDinputMediaPhoto : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaPhoto() = default;
 	MTPDinputMediaPhoto(const MTPInputPhoto &_id, const MTPstring &_caption) : vid(_id), vcaption(_caption) {
@@ -6670,7 +6670,7 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDinputMediaGeoPoint : public mtpData {
+class MTPDinputMediaGeoPoint : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaGeoPoint() = default;
 	MTPDinputMediaGeoPoint(const MTPInputGeoPoint &_geo_point) : vgeo_point(_geo_point) {
@@ -6679,7 +6679,7 @@ public:
 	MTPInputGeoPoint vgeo_point;
 };
 
-class MTPDinputMediaContact : public mtpData {
+class MTPDinputMediaContact : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaContact() = default;
 	MTPDinputMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) : vphone_number(_phone_number), vfirst_name(_first_name), vlast_name(_last_name) {
@@ -6690,7 +6690,7 @@ public:
 	MTPstring vlast_name;
 };
 
-class MTPDinputMediaUploadedDocument : public mtpData {
+class MTPDinputMediaUploadedDocument : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_stickers = (1 << 0),
@@ -6713,7 +6713,7 @@ public:
 	MTPVector<MTPInputDocument> vstickers;
 };
 
-class MTPDinputMediaUploadedThumbDocument : public mtpData {
+class MTPDinputMediaUploadedThumbDocument : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_stickers = (1 << 0),
@@ -6737,7 +6737,7 @@ public:
 	MTPVector<MTPInputDocument> vstickers;
 };
 
-class MTPDinputMediaDocument : public mtpData {
+class MTPDinputMediaDocument : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaDocument() = default;
 	MTPDinputMediaDocument(const MTPInputDocument &_id, const MTPstring &_caption) : vid(_id), vcaption(_caption) {
@@ -6747,7 +6747,7 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDinputMediaVenue : public mtpData {
+class MTPDinputMediaVenue : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaVenue() = default;
 	MTPDinputMediaVenue(const MTPInputGeoPoint &_geo_point, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) : vgeo_point(_geo_point), vtitle(_title), vaddress(_address), vprovider(_provider), vvenue_id(_venue_id) {
@@ -6760,7 +6760,7 @@ public:
 	MTPstring vvenue_id;
 };
 
-class MTPDinputMediaGifExternal : public mtpData {
+class MTPDinputMediaGifExternal : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaGifExternal() = default;
 	MTPDinputMediaGifExternal(const MTPstring &_url, const MTPstring &_q) : vurl(_url), vq(_q) {
@@ -6770,7 +6770,7 @@ public:
 	MTPstring vq;
 };
 
-class MTPDinputMediaPhotoExternal : public mtpData {
+class MTPDinputMediaPhotoExternal : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaPhotoExternal() = default;
 	MTPDinputMediaPhotoExternal(const MTPstring &_url, const MTPstring &_caption) : vurl(_url), vcaption(_caption) {
@@ -6780,7 +6780,7 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDinputMediaDocumentExternal : public mtpData {
+class MTPDinputMediaDocumentExternal : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaDocumentExternal() = default;
 	MTPDinputMediaDocumentExternal(const MTPstring &_url, const MTPstring &_caption) : vurl(_url), vcaption(_caption) {
@@ -6790,7 +6790,7 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDinputMediaGame : public mtpData {
+class MTPDinputMediaGame : public MTP::internal::TypeData {
 public:
 	MTPDinputMediaGame() = default;
 	MTPDinputMediaGame(const MTPInputGame &_id) : vid(_id) {
@@ -6799,7 +6799,7 @@ public:
 	MTPInputGame vid;
 };
 
-class MTPDinputChatUploadedPhoto : public mtpData {
+class MTPDinputChatUploadedPhoto : public MTP::internal::TypeData {
 public:
 	MTPDinputChatUploadedPhoto() = default;
 	MTPDinputChatUploadedPhoto(const MTPInputFile &_file) : vfile(_file) {
@@ -6808,7 +6808,7 @@ public:
 	MTPInputFile vfile;
 };
 
-class MTPDinputChatPhoto : public mtpData {
+class MTPDinputChatPhoto : public MTP::internal::TypeData {
 public:
 	MTPDinputChatPhoto() = default;
 	MTPDinputChatPhoto(const MTPInputPhoto &_id) : vid(_id) {
@@ -6817,7 +6817,7 @@ public:
 	MTPInputPhoto vid;
 };
 
-class MTPDinputGeoPoint : public mtpData {
+class MTPDinputGeoPoint : public MTP::internal::TypeData {
 public:
 	MTPDinputGeoPoint() = default;
 	MTPDinputGeoPoint(const MTPdouble &_lat, const MTPdouble &_long) : vlat(_lat), vlong(_long) {
@@ -6827,7 +6827,7 @@ public:
 	MTPdouble vlong;
 };
 
-class MTPDinputPhoto : public mtpData {
+class MTPDinputPhoto : public MTP::internal::TypeData {
 public:
 	MTPDinputPhoto() = default;
 	MTPDinputPhoto(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -6837,7 +6837,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputFileLocation : public mtpData {
+class MTPDinputFileLocation : public MTP::internal::TypeData {
 public:
 	MTPDinputFileLocation() = default;
 	MTPDinputFileLocation(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) : vvolume_id(_volume_id), vlocal_id(_local_id), vsecret(_secret) {
@@ -6848,7 +6848,7 @@ public:
 	MTPlong vsecret;
 };
 
-class MTPDinputEncryptedFileLocation : public mtpData {
+class MTPDinputEncryptedFileLocation : public MTP::internal::TypeData {
 public:
 	MTPDinputEncryptedFileLocation() = default;
 	MTPDinputEncryptedFileLocation(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -6858,7 +6858,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputDocumentFileLocation : public mtpData {
+class MTPDinputDocumentFileLocation : public MTP::internal::TypeData {
 public:
 	MTPDinputDocumentFileLocation() = default;
 	MTPDinputDocumentFileLocation(const MTPlong &_id, const MTPlong &_access_hash, MTPint _version) : vid(_id), vaccess_hash(_access_hash), vversion(_version) {
@@ -6869,7 +6869,7 @@ public:
 	MTPint vversion;
 };
 
-class MTPDinputAppEvent : public mtpData {
+class MTPDinputAppEvent : public MTP::internal::TypeData {
 public:
 	MTPDinputAppEvent() = default;
 	MTPDinputAppEvent(const MTPdouble &_time, const MTPstring &_type, const MTPlong &_peer, const MTPstring &_data) : vtime(_time), vtype(_type), vpeer(_peer), vdata(_data) {
@@ -6881,7 +6881,7 @@ public:
 	MTPstring vdata;
 };
 
-class MTPDpeerUser : public mtpData {
+class MTPDpeerUser : public MTP::internal::TypeData {
 public:
 	MTPDpeerUser() = default;
 	MTPDpeerUser(MTPint _user_id) : vuser_id(_user_id) {
@@ -6890,7 +6890,7 @@ public:
 	MTPint vuser_id;
 };
 
-class MTPDpeerChat : public mtpData {
+class MTPDpeerChat : public MTP::internal::TypeData {
 public:
 	MTPDpeerChat() = default;
 	MTPDpeerChat(MTPint _chat_id) : vchat_id(_chat_id) {
@@ -6899,7 +6899,7 @@ public:
 	MTPint vchat_id;
 };
 
-class MTPDpeerChannel : public mtpData {
+class MTPDpeerChannel : public MTP::internal::TypeData {
 public:
 	MTPDpeerChannel() = default;
 	MTPDpeerChannel(MTPint _channel_id) : vchannel_id(_channel_id) {
@@ -6908,7 +6908,7 @@ public:
 	MTPint vchannel_id;
 };
 
-class MTPDfileLocationUnavailable : public mtpData {
+class MTPDfileLocationUnavailable : public MTP::internal::TypeData {
 public:
 	MTPDfileLocationUnavailable() = default;
 	MTPDfileLocationUnavailable(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) : vvolume_id(_volume_id), vlocal_id(_local_id), vsecret(_secret) {
@@ -6919,7 +6919,7 @@ public:
 	MTPlong vsecret;
 };
 
-class MTPDfileLocation : public mtpData {
+class MTPDfileLocation : public MTP::internal::TypeData {
 public:
 	MTPDfileLocation() = default;
 	MTPDfileLocation(MTPint _dc_id, const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) : vdc_id(_dc_id), vvolume_id(_volume_id), vlocal_id(_local_id), vsecret(_secret) {
@@ -6931,7 +6931,7 @@ public:
 	MTPlong vsecret;
 };
 
-class MTPDuserEmpty : public mtpData {
+class MTPDuserEmpty : public MTP::internal::TypeData {
 public:
 	MTPDuserEmpty() = default;
 	MTPDuserEmpty(MTPint _id) : vid(_id) {
@@ -6940,7 +6940,7 @@ public:
 	MTPint vid;
 };
 
-class MTPDuser : public mtpData {
+class MTPDuser : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_self = (1 << 10),
@@ -7010,7 +7010,7 @@ public:
 	MTPstring vbot_inline_placeholder;
 };
 
-class MTPDuserProfilePhoto : public mtpData {
+class MTPDuserProfilePhoto : public MTP::internal::TypeData {
 public:
 	MTPDuserProfilePhoto() = default;
 	MTPDuserProfilePhoto(const MTPlong &_photo_id, const MTPFileLocation &_photo_small, const MTPFileLocation &_photo_big) : vphoto_id(_photo_id), vphoto_small(_photo_small), vphoto_big(_photo_big) {
@@ -7021,7 +7021,7 @@ public:
 	MTPFileLocation vphoto_big;
 };
 
-class MTPDuserStatusOnline : public mtpData {
+class MTPDuserStatusOnline : public MTP::internal::TypeData {
 public:
 	MTPDuserStatusOnline() = default;
 	MTPDuserStatusOnline(MTPint _expires) : vexpires(_expires) {
@@ -7030,7 +7030,7 @@ public:
 	MTPint vexpires;
 };
 
-class MTPDuserStatusOffline : public mtpData {
+class MTPDuserStatusOffline : public MTP::internal::TypeData {
 public:
 	MTPDuserStatusOffline() = default;
 	MTPDuserStatusOffline(MTPint _was_online) : vwas_online(_was_online) {
@@ -7039,7 +7039,7 @@ public:
 	MTPint vwas_online;
 };
 
-class MTPDchatEmpty : public mtpData {
+class MTPDchatEmpty : public MTP::internal::TypeData {
 public:
 	MTPDchatEmpty() = default;
 	MTPDchatEmpty(MTPint _id) : vid(_id) {
@@ -7048,7 +7048,7 @@ public:
 	MTPint vid;
 };
 
-class MTPDchat : public mtpData {
+class MTPDchat : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_creator = (1 << 0),
@@ -7086,7 +7086,7 @@ public:
 	MTPInputChannel vmigrated_to;
 };
 
-class MTPDchatForbidden : public mtpData {
+class MTPDchatForbidden : public MTP::internal::TypeData {
 public:
 	MTPDchatForbidden() = default;
 	MTPDchatForbidden(MTPint _id, const MTPstring &_title) : vid(_id), vtitle(_title) {
@@ -7096,7 +7096,7 @@ public:
 	MTPstring vtitle;
 };
 
-class MTPDchannel : public mtpData {
+class MTPDchannel : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_creator = (1 << 0),
@@ -7151,7 +7151,7 @@ public:
 	MTPstring vrestriction_reason;
 };
 
-class MTPDchannelForbidden : public mtpData {
+class MTPDchannelForbidden : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_broadcast = (1 << 5),
@@ -7175,7 +7175,7 @@ public:
 	MTPstring vtitle;
 };
 
-class MTPDchatFull : public mtpData {
+class MTPDchatFull : public MTP::internal::TypeData {
 public:
 	MTPDchatFull() = default;
 	MTPDchatFull(MTPint _id, const MTPChatParticipants &_participants, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite, const MTPVector<MTPBotInfo> &_bot_info) : vid(_id), vparticipants(_participants), vchat_photo(_chat_photo), vnotify_settings(_notify_settings), vexported_invite(_exported_invite), vbot_info(_bot_info) {
@@ -7189,7 +7189,7 @@ public:
 	MTPVector<MTPBotInfo> vbot_info;
 };
 
-class MTPDchannelFull : public mtpData {
+class MTPDchannelFull : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_can_view_participants = (1 << 3),
@@ -7237,7 +7237,7 @@ public:
 	MTPint vpinned_msg_id;
 };
 
-class MTPDchatParticipant : public mtpData {
+class MTPDchatParticipant : public MTP::internal::TypeData {
 public:
 	MTPDchatParticipant() = default;
 	MTPDchatParticipant(MTPint _user_id, MTPint _inviter_id, MTPint _date) : vuser_id(_user_id), vinviter_id(_inviter_id), vdate(_date) {
@@ -7248,7 +7248,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchatParticipantCreator : public mtpData {
+class MTPDchatParticipantCreator : public MTP::internal::TypeData {
 public:
 	MTPDchatParticipantCreator() = default;
 	MTPDchatParticipantCreator(MTPint _user_id) : vuser_id(_user_id) {
@@ -7257,7 +7257,7 @@ public:
 	MTPint vuser_id;
 };
 
-class MTPDchatParticipantAdmin : public mtpData {
+class MTPDchatParticipantAdmin : public MTP::internal::TypeData {
 public:
 	MTPDchatParticipantAdmin() = default;
 	MTPDchatParticipantAdmin(MTPint _user_id, MTPint _inviter_id, MTPint _date) : vuser_id(_user_id), vinviter_id(_inviter_id), vdate(_date) {
@@ -7268,7 +7268,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchatParticipantsForbidden : public mtpData {
+class MTPDchatParticipantsForbidden : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_self_participant = (1 << 0),
@@ -7288,7 +7288,7 @@ public:
 	MTPChatParticipant vself_participant;
 };
 
-class MTPDchatParticipants : public mtpData {
+class MTPDchatParticipants : public MTP::internal::TypeData {
 public:
 	MTPDchatParticipants() = default;
 	MTPDchatParticipants(MTPint _chat_id, const MTPVector<MTPChatParticipant> &_participants, MTPint _version) : vchat_id(_chat_id), vparticipants(_participants), vversion(_version) {
@@ -7299,7 +7299,7 @@ public:
 	MTPint vversion;
 };
 
-class MTPDchatPhoto : public mtpData {
+class MTPDchatPhoto : public MTP::internal::TypeData {
 public:
 	MTPDchatPhoto() = default;
 	MTPDchatPhoto(const MTPFileLocation &_photo_small, const MTPFileLocation &_photo_big) : vphoto_small(_photo_small), vphoto_big(_photo_big) {
@@ -7309,7 +7309,7 @@ public:
 	MTPFileLocation vphoto_big;
 };
 
-class MTPDmessageEmpty : public mtpData {
+class MTPDmessageEmpty : public MTP::internal::TypeData {
 public:
 	MTPDmessageEmpty() = default;
 	MTPDmessageEmpty(MTPint _id) : vid(_id) {
@@ -7318,7 +7318,7 @@ public:
 	MTPint vid;
 };
 
-class MTPDmessage : public mtpData {
+class MTPDmessage : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_out = (1 << 1),
@@ -7376,7 +7376,7 @@ public:
 	MTPint vedit_date;
 };
 
-class MTPDmessageService : public mtpData {
+class MTPDmessageService : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_out = (1 << 1),
@@ -7413,7 +7413,7 @@ public:
 	MTPMessageAction vaction;
 };
 
-class MTPDmessageMediaPhoto : public mtpData {
+class MTPDmessageMediaPhoto : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaPhoto() = default;
 	MTPDmessageMediaPhoto(const MTPPhoto &_photo, const MTPstring &_caption) : vphoto(_photo), vcaption(_caption) {
@@ -7423,7 +7423,7 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDmessageMediaGeo : public mtpData {
+class MTPDmessageMediaGeo : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaGeo() = default;
 	MTPDmessageMediaGeo(const MTPGeoPoint &_geo) : vgeo(_geo) {
@@ -7432,7 +7432,7 @@ public:
 	MTPGeoPoint vgeo;
 };
 
-class MTPDmessageMediaContact : public mtpData {
+class MTPDmessageMediaContact : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaContact() = default;
 	MTPDmessageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name, MTPint _user_id) : vphone_number(_phone_number), vfirst_name(_first_name), vlast_name(_last_name), vuser_id(_user_id) {
@@ -7444,7 +7444,7 @@ public:
 	MTPint vuser_id;
 };
 
-class MTPDmessageMediaDocument : public mtpData {
+class MTPDmessageMediaDocument : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaDocument() = default;
 	MTPDmessageMediaDocument(const MTPDocument &_document, const MTPstring &_caption) : vdocument(_document), vcaption(_caption) {
@@ -7454,7 +7454,7 @@ public:
 	MTPstring vcaption;
 };
 
-class MTPDmessageMediaWebPage : public mtpData {
+class MTPDmessageMediaWebPage : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaWebPage() = default;
 	MTPDmessageMediaWebPage(const MTPWebPage &_webpage) : vwebpage(_webpage) {
@@ -7463,7 +7463,7 @@ public:
 	MTPWebPage vwebpage;
 };
 
-class MTPDmessageMediaVenue : public mtpData {
+class MTPDmessageMediaVenue : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaVenue() = default;
 	MTPDmessageMediaVenue(const MTPGeoPoint &_geo, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) : vgeo(_geo), vtitle(_title), vaddress(_address), vprovider(_provider), vvenue_id(_venue_id) {
@@ -7476,7 +7476,7 @@ public:
 	MTPstring vvenue_id;
 };
 
-class MTPDmessageMediaGame : public mtpData {
+class MTPDmessageMediaGame : public MTP::internal::TypeData {
 public:
 	MTPDmessageMediaGame() = default;
 	MTPDmessageMediaGame(const MTPGame &_game) : vgame(_game) {
@@ -7485,7 +7485,7 @@ public:
 	MTPGame vgame;
 };
 
-class MTPDmessageActionChatCreate : public mtpData {
+class MTPDmessageActionChatCreate : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatCreate() = default;
 	MTPDmessageActionChatCreate(const MTPstring &_title, const MTPVector<MTPint> &_users) : vtitle(_title), vusers(_users) {
@@ -7495,7 +7495,7 @@ public:
 	MTPVector<MTPint> vusers;
 };
 
-class MTPDmessageActionChatEditTitle : public mtpData {
+class MTPDmessageActionChatEditTitle : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatEditTitle() = default;
 	MTPDmessageActionChatEditTitle(const MTPstring &_title) : vtitle(_title) {
@@ -7504,7 +7504,7 @@ public:
 	MTPstring vtitle;
 };
 
-class MTPDmessageActionChatEditPhoto : public mtpData {
+class MTPDmessageActionChatEditPhoto : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatEditPhoto() = default;
 	MTPDmessageActionChatEditPhoto(const MTPPhoto &_photo) : vphoto(_photo) {
@@ -7513,7 +7513,7 @@ public:
 	MTPPhoto vphoto;
 };
 
-class MTPDmessageActionChatAddUser : public mtpData {
+class MTPDmessageActionChatAddUser : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatAddUser() = default;
 	MTPDmessageActionChatAddUser(const MTPVector<MTPint> &_users) : vusers(_users) {
@@ -7522,7 +7522,7 @@ public:
 	MTPVector<MTPint> vusers;
 };
 
-class MTPDmessageActionChatDeleteUser : public mtpData {
+class MTPDmessageActionChatDeleteUser : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatDeleteUser() = default;
 	MTPDmessageActionChatDeleteUser(MTPint _user_id) : vuser_id(_user_id) {
@@ -7531,7 +7531,7 @@ public:
 	MTPint vuser_id;
 };
 
-class MTPDmessageActionChatJoinedByLink : public mtpData {
+class MTPDmessageActionChatJoinedByLink : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatJoinedByLink() = default;
 	MTPDmessageActionChatJoinedByLink(MTPint _inviter_id) : vinviter_id(_inviter_id) {
@@ -7540,7 +7540,7 @@ public:
 	MTPint vinviter_id;
 };
 
-class MTPDmessageActionChannelCreate : public mtpData {
+class MTPDmessageActionChannelCreate : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChannelCreate() = default;
 	MTPDmessageActionChannelCreate(const MTPstring &_title) : vtitle(_title) {
@@ -7549,7 +7549,7 @@ public:
 	MTPstring vtitle;
 };
 
-class MTPDmessageActionChatMigrateTo : public mtpData {
+class MTPDmessageActionChatMigrateTo : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChatMigrateTo() = default;
 	MTPDmessageActionChatMigrateTo(MTPint _channel_id) : vchannel_id(_channel_id) {
@@ -7558,7 +7558,7 @@ public:
 	MTPint vchannel_id;
 };
 
-class MTPDmessageActionChannelMigrateFrom : public mtpData {
+class MTPDmessageActionChannelMigrateFrom : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionChannelMigrateFrom() = default;
 	MTPDmessageActionChannelMigrateFrom(const MTPstring &_title, MTPint _chat_id) : vtitle(_title), vchat_id(_chat_id) {
@@ -7568,7 +7568,7 @@ public:
 	MTPint vchat_id;
 };
 
-class MTPDmessageActionGameScore : public mtpData {
+class MTPDmessageActionGameScore : public MTP::internal::TypeData {
 public:
 	MTPDmessageActionGameScore() = default;
 	MTPDmessageActionGameScore(const MTPlong &_game_id, MTPint _score) : vgame_id(_game_id), vscore(_score) {
@@ -7578,7 +7578,7 @@ public:
 	MTPint vscore;
 };
 
-class MTPDmessageActionPhoneCall : public mtpData {
+class MTPDmessageActionPhoneCall : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reason = (1 << 0),
@@ -7602,7 +7602,7 @@ public:
 	MTPint vduration;
 };
 
-class MTPDdialog : public mtpData {
+class MTPDdialog : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_pinned = (1 << 2),
@@ -7633,7 +7633,7 @@ public:
 	MTPDraftMessage vdraft;
 };
 
-class MTPDphotoEmpty : public mtpData {
+class MTPDphotoEmpty : public MTP::internal::TypeData {
 public:
 	MTPDphotoEmpty() = default;
 	MTPDphotoEmpty(const MTPlong &_id) : vid(_id) {
@@ -7642,7 +7642,7 @@ public:
 	MTPlong vid;
 };
 
-class MTPDphoto : public mtpData {
+class MTPDphoto : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_has_stickers = (1 << 0),
@@ -7664,7 +7664,7 @@ public:
 	MTPVector<MTPPhotoSize> vsizes;
 };
 
-class MTPDphotoSizeEmpty : public mtpData {
+class MTPDphotoSizeEmpty : public MTP::internal::TypeData {
 public:
 	MTPDphotoSizeEmpty() = default;
 	MTPDphotoSizeEmpty(const MTPstring &_type) : vtype(_type) {
@@ -7673,7 +7673,7 @@ public:
 	MTPstring vtype;
 };
 
-class MTPDphotoSize : public mtpData {
+class MTPDphotoSize : public MTP::internal::TypeData {
 public:
 	MTPDphotoSize() = default;
 	MTPDphotoSize(const MTPstring &_type, const MTPFileLocation &_location, MTPint _w, MTPint _h, MTPint _size) : vtype(_type), vlocation(_location), vw(_w), vh(_h), vsize(_size) {
@@ -7686,7 +7686,7 @@ public:
 	MTPint vsize;
 };
 
-class MTPDphotoCachedSize : public mtpData {
+class MTPDphotoCachedSize : public MTP::internal::TypeData {
 public:
 	MTPDphotoCachedSize() = default;
 	MTPDphotoCachedSize(const MTPstring &_type, const MTPFileLocation &_location, MTPint _w, MTPint _h, const MTPbytes &_bytes) : vtype(_type), vlocation(_location), vw(_w), vh(_h), vbytes(_bytes) {
@@ -7699,7 +7699,7 @@ public:
 	MTPbytes vbytes;
 };
 
-class MTPDgeoPoint : public mtpData {
+class MTPDgeoPoint : public MTP::internal::TypeData {
 public:
 	MTPDgeoPoint() = default;
 	MTPDgeoPoint(const MTPdouble &_long, const MTPdouble &_lat) : vlong(_long), vlat(_lat) {
@@ -7709,7 +7709,7 @@ public:
 	MTPdouble vlat;
 };
 
-class MTPDauth_checkedPhone : public mtpData {
+class MTPDauth_checkedPhone : public MTP::internal::TypeData {
 public:
 	MTPDauth_checkedPhone() = default;
 	MTPDauth_checkedPhone(MTPBool _phone_registered) : vphone_registered(_phone_registered) {
@@ -7718,7 +7718,7 @@ public:
 	MTPBool vphone_registered;
 };
 
-class MTPDauth_sentCode : public mtpData {
+class MTPDauth_sentCode : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_phone_registered = (1 << 0),
@@ -7745,7 +7745,7 @@ public:
 	MTPint vtimeout;
 };
 
-class MTPDauth_authorization : public mtpData {
+class MTPDauth_authorization : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_tmp_sessions = (1 << 0),
@@ -7765,7 +7765,7 @@ public:
 	MTPUser vuser;
 };
 
-class MTPDauth_exportedAuthorization : public mtpData {
+class MTPDauth_exportedAuthorization : public MTP::internal::TypeData {
 public:
 	MTPDauth_exportedAuthorization() = default;
 	MTPDauth_exportedAuthorization(MTPint _id, const MTPbytes &_bytes) : vid(_id), vbytes(_bytes) {
@@ -7775,7 +7775,7 @@ public:
 	MTPbytes vbytes;
 };
 
-class MTPDinputNotifyPeer : public mtpData {
+class MTPDinputNotifyPeer : public MTP::internal::TypeData {
 public:
 	MTPDinputNotifyPeer() = default;
 	MTPDinputNotifyPeer(const MTPInputPeer &_peer) : vpeer(_peer) {
@@ -7784,7 +7784,7 @@ public:
 	MTPInputPeer vpeer;
 };
 
-class MTPDinputPeerNotifySettings : public mtpData {
+class MTPDinputPeerNotifySettings : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_show_previews = (1 << 0),
@@ -7807,7 +7807,7 @@ public:
 	MTPstring vsound;
 };
 
-class MTPDpeerNotifySettings : public mtpData {
+class MTPDpeerNotifySettings : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_show_previews = (1 << 0),
@@ -7830,7 +7830,7 @@ public:
 	MTPstring vsound;
 };
 
-class MTPDpeerSettings : public mtpData {
+class MTPDpeerSettings : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_report_spam = (1 << 0),
@@ -7848,7 +7848,7 @@ public:
 	MTPflags<MTPDpeerSettings::Flags> vflags;
 };
 
-class MTPDwallPaper : public mtpData {
+class MTPDwallPaper : public MTP::internal::TypeData {
 public:
 	MTPDwallPaper() = default;
 	MTPDwallPaper(MTPint _id, const MTPstring &_title, const MTPVector<MTPPhotoSize> &_sizes, MTPint _color) : vid(_id), vtitle(_title), vsizes(_sizes), vcolor(_color) {
@@ -7860,7 +7860,7 @@ public:
 	MTPint vcolor;
 };
 
-class MTPDwallPaperSolid : public mtpData {
+class MTPDwallPaperSolid : public MTP::internal::TypeData {
 public:
 	MTPDwallPaperSolid() = default;
 	MTPDwallPaperSolid(MTPint _id, const MTPstring &_title, MTPint _bg_color, MTPint _color) : vid(_id), vtitle(_title), vbg_color(_bg_color), vcolor(_color) {
@@ -7872,7 +7872,7 @@ public:
 	MTPint vcolor;
 };
 
-class MTPDinputReportReasonOther : public mtpData {
+class MTPDinputReportReasonOther : public MTP::internal::TypeData {
 public:
 	MTPDinputReportReasonOther() = default;
 	MTPDinputReportReasonOther(const MTPstring &_text) : vtext(_text) {
@@ -7881,7 +7881,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDuserFull : public mtpData {
+class MTPDuserFull : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_blocked = (1 << 0),
@@ -7915,7 +7915,7 @@ public:
 	MTPint vcommon_chats_count;
 };
 
-class MTPDcontact : public mtpData {
+class MTPDcontact : public MTP::internal::TypeData {
 public:
 	MTPDcontact() = default;
 	MTPDcontact(MTPint _user_id, MTPBool _mutual) : vuser_id(_user_id), vmutual(_mutual) {
@@ -7925,7 +7925,7 @@ public:
 	MTPBool vmutual;
 };
 
-class MTPDimportedContact : public mtpData {
+class MTPDimportedContact : public MTP::internal::TypeData {
 public:
 	MTPDimportedContact() = default;
 	MTPDimportedContact(MTPint _user_id, const MTPlong &_client_id) : vuser_id(_user_id), vclient_id(_client_id) {
@@ -7935,7 +7935,7 @@ public:
 	MTPlong vclient_id;
 };
 
-class MTPDcontactBlocked : public mtpData {
+class MTPDcontactBlocked : public MTP::internal::TypeData {
 public:
 	MTPDcontactBlocked() = default;
 	MTPDcontactBlocked(MTPint _user_id, MTPint _date) : vuser_id(_user_id), vdate(_date) {
@@ -7945,7 +7945,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDcontactStatus : public mtpData {
+class MTPDcontactStatus : public MTP::internal::TypeData {
 public:
 	MTPDcontactStatus() = default;
 	MTPDcontactStatus(MTPint _user_id, const MTPUserStatus &_status) : vuser_id(_user_id), vstatus(_status) {
@@ -7955,7 +7955,7 @@ public:
 	MTPUserStatus vstatus;
 };
 
-class MTPDcontacts_link : public mtpData {
+class MTPDcontacts_link : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_link() = default;
 	MTPDcontacts_link(const MTPContactLink &_my_link, const MTPContactLink &_foreign_link, const MTPUser &_user) : vmy_link(_my_link), vforeign_link(_foreign_link), vuser(_user) {
@@ -7966,7 +7966,7 @@ public:
 	MTPUser vuser;
 };
 
-class MTPDcontacts_contacts : public mtpData {
+class MTPDcontacts_contacts : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_contacts() = default;
 	MTPDcontacts_contacts(const MTPVector<MTPContact> &_contacts, const MTPVector<MTPUser> &_users) : vcontacts(_contacts), vusers(_users) {
@@ -7976,7 +7976,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDcontacts_importedContacts : public mtpData {
+class MTPDcontacts_importedContacts : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_importedContacts() = default;
 	MTPDcontacts_importedContacts(const MTPVector<MTPImportedContact> &_imported, const MTPVector<MTPlong> &_retry_contacts, const MTPVector<MTPUser> &_users) : vimported(_imported), vretry_contacts(_retry_contacts), vusers(_users) {
@@ -7987,7 +7987,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDcontacts_blocked : public mtpData {
+class MTPDcontacts_blocked : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_blocked() = default;
 	MTPDcontacts_blocked(const MTPVector<MTPContactBlocked> &_blocked, const MTPVector<MTPUser> &_users) : vblocked(_blocked), vusers(_users) {
@@ -7997,7 +7997,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDcontacts_blockedSlice : public mtpData {
+class MTPDcontacts_blockedSlice : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_blockedSlice() = default;
 	MTPDcontacts_blockedSlice(MTPint _count, const MTPVector<MTPContactBlocked> &_blocked, const MTPVector<MTPUser> &_users) : vcount(_count), vblocked(_blocked), vusers(_users) {
@@ -8008,7 +8008,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_dialogs : public mtpData {
+class MTPDmessages_dialogs : public MTP::internal::TypeData {
 public:
 	MTPDmessages_dialogs() = default;
 	MTPDmessages_dialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vdialogs(_dialogs), vmessages(_messages), vchats(_chats), vusers(_users) {
@@ -8020,7 +8020,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_dialogsSlice : public mtpData {
+class MTPDmessages_dialogsSlice : public MTP::internal::TypeData {
 public:
 	MTPDmessages_dialogsSlice() = default;
 	MTPDmessages_dialogsSlice(MTPint _count, const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vcount(_count), vdialogs(_dialogs), vmessages(_messages), vchats(_chats), vusers(_users) {
@@ -8033,7 +8033,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_messages : public mtpData {
+class MTPDmessages_messages : public MTP::internal::TypeData {
 public:
 	MTPDmessages_messages() = default;
 	MTPDmessages_messages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vmessages(_messages), vchats(_chats), vusers(_users) {
@@ -8044,7 +8044,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_messagesSlice : public mtpData {
+class MTPDmessages_messagesSlice : public MTP::internal::TypeData {
 public:
 	MTPDmessages_messagesSlice() = default;
 	MTPDmessages_messagesSlice(MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vcount(_count), vmessages(_messages), vchats(_chats), vusers(_users) {
@@ -8056,7 +8056,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_channelMessages : public mtpData {
+class MTPDmessages_channelMessages : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		MAX_FIELD = (1 << 0),
@@ -8076,7 +8076,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_chats : public mtpData {
+class MTPDmessages_chats : public MTP::internal::TypeData {
 public:
 	MTPDmessages_chats() = default;
 	MTPDmessages_chats(const MTPVector<MTPChat> &_chats) : vchats(_chats) {
@@ -8085,7 +8085,7 @@ public:
 	MTPVector<MTPChat> vchats;
 };
 
-class MTPDmessages_chatsSlice : public mtpData {
+class MTPDmessages_chatsSlice : public MTP::internal::TypeData {
 public:
 	MTPDmessages_chatsSlice() = default;
 	MTPDmessages_chatsSlice(MTPint _count, const MTPVector<MTPChat> &_chats) : vcount(_count), vchats(_chats) {
@@ -8095,7 +8095,7 @@ public:
 	MTPVector<MTPChat> vchats;
 };
 
-class MTPDmessages_chatFull : public mtpData {
+class MTPDmessages_chatFull : public MTP::internal::TypeData {
 public:
 	MTPDmessages_chatFull() = default;
 	MTPDmessages_chatFull(const MTPChatFull &_full_chat, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vfull_chat(_full_chat), vchats(_chats), vusers(_users) {
@@ -8106,7 +8106,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessages_affectedHistory : public mtpData {
+class MTPDmessages_affectedHistory : public MTP::internal::TypeData {
 public:
 	MTPDmessages_affectedHistory() = default;
 	MTPDmessages_affectedHistory(MTPint _pts, MTPint _pts_count, MTPint _offset) : vpts(_pts), vpts_count(_pts_count), voffset(_offset) {
@@ -8117,7 +8117,7 @@ public:
 	MTPint voffset;
 };
 
-class MTPDinputMessagesFilterPhoneCalls : public mtpData {
+class MTPDinputMessagesFilterPhoneCalls : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_missed = (1 << 0),
@@ -8135,7 +8135,7 @@ public:
 	MTPflags<MTPDinputMessagesFilterPhoneCalls::Flags> vflags;
 };
 
-class MTPDupdateNewMessage : public mtpData {
+class MTPDupdateNewMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateNewMessage() = default;
 	MTPDupdateNewMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) : vmessage(_message), vpts(_pts), vpts_count(_pts_count) {
@@ -8146,7 +8146,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateMessageID : public mtpData {
+class MTPDupdateMessageID : public MTP::internal::TypeData {
 public:
 	MTPDupdateMessageID() = default;
 	MTPDupdateMessageID(MTPint _id, const MTPlong &_random_id) : vid(_id), vrandom_id(_random_id) {
@@ -8156,7 +8156,7 @@ public:
 	MTPlong vrandom_id;
 };
 
-class MTPDupdateDeleteMessages : public mtpData {
+class MTPDupdateDeleteMessages : public MTP::internal::TypeData {
 public:
 	MTPDupdateDeleteMessages() = default;
 	MTPDupdateDeleteMessages(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) : vmessages(_messages), vpts(_pts), vpts_count(_pts_count) {
@@ -8167,7 +8167,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateUserTyping : public mtpData {
+class MTPDupdateUserTyping : public MTP::internal::TypeData {
 public:
 	MTPDupdateUserTyping() = default;
 	MTPDupdateUserTyping(MTPint _user_id, const MTPSendMessageAction &_action) : vuser_id(_user_id), vaction(_action) {
@@ -8177,7 +8177,7 @@ public:
 	MTPSendMessageAction vaction;
 };
 
-class MTPDupdateChatUserTyping : public mtpData {
+class MTPDupdateChatUserTyping : public MTP::internal::TypeData {
 public:
 	MTPDupdateChatUserTyping() = default;
 	MTPDupdateChatUserTyping(MTPint _chat_id, MTPint _user_id, const MTPSendMessageAction &_action) : vchat_id(_chat_id), vuser_id(_user_id), vaction(_action) {
@@ -8188,7 +8188,7 @@ public:
 	MTPSendMessageAction vaction;
 };
 
-class MTPDupdateChatParticipants : public mtpData {
+class MTPDupdateChatParticipants : public MTP::internal::TypeData {
 public:
 	MTPDupdateChatParticipants() = default;
 	MTPDupdateChatParticipants(const MTPChatParticipants &_participants) : vparticipants(_participants) {
@@ -8197,7 +8197,7 @@ public:
 	MTPChatParticipants vparticipants;
 };
 
-class MTPDupdateUserStatus : public mtpData {
+class MTPDupdateUserStatus : public MTP::internal::TypeData {
 public:
 	MTPDupdateUserStatus() = default;
 	MTPDupdateUserStatus(MTPint _user_id, const MTPUserStatus &_status) : vuser_id(_user_id), vstatus(_status) {
@@ -8207,7 +8207,7 @@ public:
 	MTPUserStatus vstatus;
 };
 
-class MTPDupdateUserName : public mtpData {
+class MTPDupdateUserName : public MTP::internal::TypeData {
 public:
 	MTPDupdateUserName() = default;
 	MTPDupdateUserName(MTPint _user_id, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username) : vuser_id(_user_id), vfirst_name(_first_name), vlast_name(_last_name), vusername(_username) {
@@ -8219,7 +8219,7 @@ public:
 	MTPstring vusername;
 };
 
-class MTPDupdateUserPhoto : public mtpData {
+class MTPDupdateUserPhoto : public MTP::internal::TypeData {
 public:
 	MTPDupdateUserPhoto() = default;
 	MTPDupdateUserPhoto(MTPint _user_id, MTPint _date, const MTPUserProfilePhoto &_photo, MTPBool _previous) : vuser_id(_user_id), vdate(_date), vphoto(_photo), vprevious(_previous) {
@@ -8231,7 +8231,7 @@ public:
 	MTPBool vprevious;
 };
 
-class MTPDupdateContactRegistered : public mtpData {
+class MTPDupdateContactRegistered : public MTP::internal::TypeData {
 public:
 	MTPDupdateContactRegistered() = default;
 	MTPDupdateContactRegistered(MTPint _user_id, MTPint _date) : vuser_id(_user_id), vdate(_date) {
@@ -8241,7 +8241,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDupdateContactLink : public mtpData {
+class MTPDupdateContactLink : public MTP::internal::TypeData {
 public:
 	MTPDupdateContactLink() = default;
 	MTPDupdateContactLink(MTPint _user_id, const MTPContactLink &_my_link, const MTPContactLink &_foreign_link) : vuser_id(_user_id), vmy_link(_my_link), vforeign_link(_foreign_link) {
@@ -8252,7 +8252,7 @@ public:
 	MTPContactLink vforeign_link;
 };
 
-class MTPDupdateNewEncryptedMessage : public mtpData {
+class MTPDupdateNewEncryptedMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateNewEncryptedMessage() = default;
 	MTPDupdateNewEncryptedMessage(const MTPEncryptedMessage &_message, MTPint _qts) : vmessage(_message), vqts(_qts) {
@@ -8262,7 +8262,7 @@ public:
 	MTPint vqts;
 };
 
-class MTPDupdateEncryptedChatTyping : public mtpData {
+class MTPDupdateEncryptedChatTyping : public MTP::internal::TypeData {
 public:
 	MTPDupdateEncryptedChatTyping() = default;
 	MTPDupdateEncryptedChatTyping(MTPint _chat_id) : vchat_id(_chat_id) {
@@ -8271,7 +8271,7 @@ public:
 	MTPint vchat_id;
 };
 
-class MTPDupdateEncryption : public mtpData {
+class MTPDupdateEncryption : public MTP::internal::TypeData {
 public:
 	MTPDupdateEncryption() = default;
 	MTPDupdateEncryption(const MTPEncryptedChat &_chat, MTPint _date) : vchat(_chat), vdate(_date) {
@@ -8281,7 +8281,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDupdateEncryptedMessagesRead : public mtpData {
+class MTPDupdateEncryptedMessagesRead : public MTP::internal::TypeData {
 public:
 	MTPDupdateEncryptedMessagesRead() = default;
 	MTPDupdateEncryptedMessagesRead(MTPint _chat_id, MTPint _max_date, MTPint _date) : vchat_id(_chat_id), vmax_date(_max_date), vdate(_date) {
@@ -8292,7 +8292,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDupdateChatParticipantAdd : public mtpData {
+class MTPDupdateChatParticipantAdd : public MTP::internal::TypeData {
 public:
 	MTPDupdateChatParticipantAdd() = default;
 	MTPDupdateChatParticipantAdd(MTPint _chat_id, MTPint _user_id, MTPint _inviter_id, MTPint _date, MTPint _version) : vchat_id(_chat_id), vuser_id(_user_id), vinviter_id(_inviter_id), vdate(_date), vversion(_version) {
@@ -8305,7 +8305,7 @@ public:
 	MTPint vversion;
 };
 
-class MTPDupdateChatParticipantDelete : public mtpData {
+class MTPDupdateChatParticipantDelete : public MTP::internal::TypeData {
 public:
 	MTPDupdateChatParticipantDelete() = default;
 	MTPDupdateChatParticipantDelete(MTPint _chat_id, MTPint _user_id, MTPint _version) : vchat_id(_chat_id), vuser_id(_user_id), vversion(_version) {
@@ -8316,7 +8316,7 @@ public:
 	MTPint vversion;
 };
 
-class MTPDupdateDcOptions : public mtpData {
+class MTPDupdateDcOptions : public MTP::internal::TypeData {
 public:
 	MTPDupdateDcOptions() = default;
 	MTPDupdateDcOptions(const MTPVector<MTPDcOption> &_dc_options) : vdc_options(_dc_options) {
@@ -8325,7 +8325,7 @@ public:
 	MTPVector<MTPDcOption> vdc_options;
 };
 
-class MTPDupdateUserBlocked : public mtpData {
+class MTPDupdateUserBlocked : public MTP::internal::TypeData {
 public:
 	MTPDupdateUserBlocked() = default;
 	MTPDupdateUserBlocked(MTPint _user_id, MTPBool _blocked) : vuser_id(_user_id), vblocked(_blocked) {
@@ -8335,7 +8335,7 @@ public:
 	MTPBool vblocked;
 };
 
-class MTPDupdateNotifySettings : public mtpData {
+class MTPDupdateNotifySettings : public MTP::internal::TypeData {
 public:
 	MTPDupdateNotifySettings() = default;
 	MTPDupdateNotifySettings(const MTPNotifyPeer &_peer, const MTPPeerNotifySettings &_notify_settings) : vpeer(_peer), vnotify_settings(_notify_settings) {
@@ -8345,7 +8345,7 @@ public:
 	MTPPeerNotifySettings vnotify_settings;
 };
 
-class MTPDupdateServiceNotification : public mtpData {
+class MTPDupdateServiceNotification : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_popup = (1 << 0),
@@ -8371,7 +8371,7 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 };
 
-class MTPDupdatePrivacy : public mtpData {
+class MTPDupdatePrivacy : public MTP::internal::TypeData {
 public:
 	MTPDupdatePrivacy() = default;
 	MTPDupdatePrivacy(const MTPPrivacyKey &_key, const MTPVector<MTPPrivacyRule> &_rules) : vkey(_key), vrules(_rules) {
@@ -8381,7 +8381,7 @@ public:
 	MTPVector<MTPPrivacyRule> vrules;
 };
 
-class MTPDupdateUserPhone : public mtpData {
+class MTPDupdateUserPhone : public MTP::internal::TypeData {
 public:
 	MTPDupdateUserPhone() = default;
 	MTPDupdateUserPhone(MTPint _user_id, const MTPstring &_phone) : vuser_id(_user_id), vphone(_phone) {
@@ -8391,7 +8391,7 @@ public:
 	MTPstring vphone;
 };
 
-class MTPDupdateReadHistoryInbox : public mtpData {
+class MTPDupdateReadHistoryInbox : public MTP::internal::TypeData {
 public:
 	MTPDupdateReadHistoryInbox() = default;
 	MTPDupdateReadHistoryInbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count) : vpeer(_peer), vmax_id(_max_id), vpts(_pts), vpts_count(_pts_count) {
@@ -8403,7 +8403,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateReadHistoryOutbox : public mtpData {
+class MTPDupdateReadHistoryOutbox : public MTP::internal::TypeData {
 public:
 	MTPDupdateReadHistoryOutbox() = default;
 	MTPDupdateReadHistoryOutbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count) : vpeer(_peer), vmax_id(_max_id), vpts(_pts), vpts_count(_pts_count) {
@@ -8415,7 +8415,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateWebPage : public mtpData {
+class MTPDupdateWebPage : public MTP::internal::TypeData {
 public:
 	MTPDupdateWebPage() = default;
 	MTPDupdateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) : vwebpage(_webpage), vpts(_pts), vpts_count(_pts_count) {
@@ -8426,7 +8426,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateReadMessagesContents : public mtpData {
+class MTPDupdateReadMessagesContents : public MTP::internal::TypeData {
 public:
 	MTPDupdateReadMessagesContents() = default;
 	MTPDupdateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) : vmessages(_messages), vpts(_pts), vpts_count(_pts_count) {
@@ -8437,7 +8437,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateChannelTooLong : public mtpData {
+class MTPDupdateChannelTooLong : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_pts = (1 << 0),
@@ -8457,7 +8457,7 @@ public:
 	MTPint vpts;
 };
 
-class MTPDupdateChannel : public mtpData {
+class MTPDupdateChannel : public MTP::internal::TypeData {
 public:
 	MTPDupdateChannel() = default;
 	MTPDupdateChannel(MTPint _channel_id) : vchannel_id(_channel_id) {
@@ -8466,7 +8466,7 @@ public:
 	MTPint vchannel_id;
 };
 
-class MTPDupdateNewChannelMessage : public mtpData {
+class MTPDupdateNewChannelMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateNewChannelMessage() = default;
 	MTPDupdateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) : vmessage(_message), vpts(_pts), vpts_count(_pts_count) {
@@ -8477,7 +8477,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateReadChannelInbox : public mtpData {
+class MTPDupdateReadChannelInbox : public MTP::internal::TypeData {
 public:
 	MTPDupdateReadChannelInbox() = default;
 	MTPDupdateReadChannelInbox(MTPint _channel_id, MTPint _max_id) : vchannel_id(_channel_id), vmax_id(_max_id) {
@@ -8487,7 +8487,7 @@ public:
 	MTPint vmax_id;
 };
 
-class MTPDupdateDeleteChannelMessages : public mtpData {
+class MTPDupdateDeleteChannelMessages : public MTP::internal::TypeData {
 public:
 	MTPDupdateDeleteChannelMessages() = default;
 	MTPDupdateDeleteChannelMessages(MTPint _channel_id, const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) : vchannel_id(_channel_id), vmessages(_messages), vpts(_pts), vpts_count(_pts_count) {
@@ -8499,7 +8499,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateChannelMessageViews : public mtpData {
+class MTPDupdateChannelMessageViews : public MTP::internal::TypeData {
 public:
 	MTPDupdateChannelMessageViews() = default;
 	MTPDupdateChannelMessageViews(MTPint _channel_id, MTPint _id, MTPint _views) : vchannel_id(_channel_id), vid(_id), vviews(_views) {
@@ -8510,7 +8510,7 @@ public:
 	MTPint vviews;
 };
 
-class MTPDupdateChatAdmins : public mtpData {
+class MTPDupdateChatAdmins : public MTP::internal::TypeData {
 public:
 	MTPDupdateChatAdmins() = default;
 	MTPDupdateChatAdmins(MTPint _chat_id, MTPBool _enabled, MTPint _version) : vchat_id(_chat_id), venabled(_enabled), vversion(_version) {
@@ -8521,7 +8521,7 @@ public:
 	MTPint vversion;
 };
 
-class MTPDupdateChatParticipantAdmin : public mtpData {
+class MTPDupdateChatParticipantAdmin : public MTP::internal::TypeData {
 public:
 	MTPDupdateChatParticipantAdmin() = default;
 	MTPDupdateChatParticipantAdmin(MTPint _chat_id, MTPint _user_id, MTPBool _is_admin, MTPint _version) : vchat_id(_chat_id), vuser_id(_user_id), vis_admin(_is_admin), vversion(_version) {
@@ -8533,7 +8533,7 @@ public:
 	MTPint vversion;
 };
 
-class MTPDupdateNewStickerSet : public mtpData {
+class MTPDupdateNewStickerSet : public MTP::internal::TypeData {
 public:
 	MTPDupdateNewStickerSet() = default;
 	MTPDupdateNewStickerSet(const MTPmessages_StickerSet &_stickerset) : vstickerset(_stickerset) {
@@ -8542,7 +8542,7 @@ public:
 	MTPmessages_StickerSet vstickerset;
 };
 
-class MTPDupdateStickerSetsOrder : public mtpData {
+class MTPDupdateStickerSetsOrder : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_masks = (1 << 0),
@@ -8561,7 +8561,7 @@ public:
 	MTPVector<MTPlong> vorder;
 };
 
-class MTPDupdateBotInlineQuery : public mtpData {
+class MTPDupdateBotInlineQuery : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_geo = (1 << 0),
@@ -8584,7 +8584,7 @@ public:
 	MTPstring voffset;
 };
 
-class MTPDupdateBotInlineSend : public mtpData {
+class MTPDupdateBotInlineSend : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_geo = (1 << 0),
@@ -8610,7 +8610,7 @@ public:
 	MTPInputBotInlineMessageID vmsg_id;
 };
 
-class MTPDupdateEditChannelMessage : public mtpData {
+class MTPDupdateEditChannelMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateEditChannelMessage() = default;
 	MTPDupdateEditChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) : vmessage(_message), vpts(_pts), vpts_count(_pts_count) {
@@ -8621,7 +8621,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateChannelPinnedMessage : public mtpData {
+class MTPDupdateChannelPinnedMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateChannelPinnedMessage() = default;
 	MTPDupdateChannelPinnedMessage(MTPint _channel_id, MTPint _id) : vchannel_id(_channel_id), vid(_id) {
@@ -8631,7 +8631,7 @@ public:
 	MTPint vid;
 };
 
-class MTPDupdateBotCallbackQuery : public mtpData {
+class MTPDupdateBotCallbackQuery : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_data = (1 << 0),
@@ -8659,7 +8659,7 @@ public:
 	MTPstring vgame_short_name;
 };
 
-class MTPDupdateEditMessage : public mtpData {
+class MTPDupdateEditMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateEditMessage() = default;
 	MTPDupdateEditMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) : vmessage(_message), vpts(_pts), vpts_count(_pts_count) {
@@ -8670,7 +8670,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdateInlineBotCallbackQuery : public mtpData {
+class MTPDupdateInlineBotCallbackQuery : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_data = (1 << 0),
@@ -8697,7 +8697,7 @@ public:
 	MTPstring vgame_short_name;
 };
 
-class MTPDupdateReadChannelOutbox : public mtpData {
+class MTPDupdateReadChannelOutbox : public MTP::internal::TypeData {
 public:
 	MTPDupdateReadChannelOutbox() = default;
 	MTPDupdateReadChannelOutbox(MTPint _channel_id, MTPint _max_id) : vchannel_id(_channel_id), vmax_id(_max_id) {
@@ -8707,7 +8707,7 @@ public:
 	MTPint vmax_id;
 };
 
-class MTPDupdateDraftMessage : public mtpData {
+class MTPDupdateDraftMessage : public MTP::internal::TypeData {
 public:
 	MTPDupdateDraftMessage() = default;
 	MTPDupdateDraftMessage(const MTPPeer &_peer, const MTPDraftMessage &_draft) : vpeer(_peer), vdraft(_draft) {
@@ -8717,7 +8717,7 @@ public:
 	MTPDraftMessage vdraft;
 };
 
-class MTPDupdateChannelWebPage : public mtpData {
+class MTPDupdateChannelWebPage : public MTP::internal::TypeData {
 public:
 	MTPDupdateChannelWebPage() = default;
 	MTPDupdateChannelWebPage(MTPint _channel_id, const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) : vchannel_id(_channel_id), vwebpage(_webpage), vpts(_pts), vpts_count(_pts_count) {
@@ -8729,7 +8729,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDupdatePhoneCall : public mtpData {
+class MTPDupdatePhoneCall : public MTP::internal::TypeData {
 public:
 	MTPDupdatePhoneCall() = default;
 	MTPDupdatePhoneCall(const MTPPhoneCall &_phone_call) : vphone_call(_phone_call) {
@@ -8738,7 +8738,7 @@ public:
 	MTPPhoneCall vphone_call;
 };
 
-class MTPDupdateDialogPinned : public mtpData {
+class MTPDupdateDialogPinned : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_pinned = (1 << 0),
@@ -8757,7 +8757,7 @@ public:
 	MTPPeer vpeer;
 };
 
-class MTPDupdatePinnedDialogs : public mtpData {
+class MTPDupdatePinnedDialogs : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_order = (1 << 0),
@@ -8776,7 +8776,7 @@ public:
 	MTPVector<MTPPeer> vorder;
 };
 
-class MTPDupdates_state : public mtpData {
+class MTPDupdates_state : public MTP::internal::TypeData {
 public:
 	MTPDupdates_state() = default;
 	MTPDupdates_state(MTPint _pts, MTPint _qts, MTPint _date, MTPint _seq, MTPint _unread_count) : vpts(_pts), vqts(_qts), vdate(_date), vseq(_seq), vunread_count(_unread_count) {
@@ -8789,7 +8789,7 @@ public:
 	MTPint vunread_count;
 };
 
-class MTPDupdates_differenceEmpty : public mtpData {
+class MTPDupdates_differenceEmpty : public MTP::internal::TypeData {
 public:
 	MTPDupdates_differenceEmpty() = default;
 	MTPDupdates_differenceEmpty(MTPint _date, MTPint _seq) : vdate(_date), vseq(_seq) {
@@ -8799,7 +8799,7 @@ public:
 	MTPint vseq;
 };
 
-class MTPDupdates_difference : public mtpData {
+class MTPDupdates_difference : public MTP::internal::TypeData {
 public:
 	MTPDupdates_difference() = default;
 	MTPDupdates_difference(const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPEncryptedMessage> &_new_encrypted_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_state) : vnew_messages(_new_messages), vnew_encrypted_messages(_new_encrypted_messages), vother_updates(_other_updates), vchats(_chats), vusers(_users), vstate(_state) {
@@ -8813,7 +8813,7 @@ public:
 	MTPupdates_State vstate;
 };
 
-class MTPDupdates_differenceSlice : public mtpData {
+class MTPDupdates_differenceSlice : public MTP::internal::TypeData {
 public:
 	MTPDupdates_differenceSlice() = default;
 	MTPDupdates_differenceSlice(const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPEncryptedMessage> &_new_encrypted_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_intermediate_state) : vnew_messages(_new_messages), vnew_encrypted_messages(_new_encrypted_messages), vother_updates(_other_updates), vchats(_chats), vusers(_users), vintermediate_state(_intermediate_state) {
@@ -8827,7 +8827,7 @@ public:
 	MTPupdates_State vintermediate_state;
 };
 
-class MTPDupdates_differenceTooLong : public mtpData {
+class MTPDupdates_differenceTooLong : public MTP::internal::TypeData {
 public:
 	MTPDupdates_differenceTooLong() = default;
 	MTPDupdates_differenceTooLong(MTPint _pts) : vpts(_pts) {
@@ -8836,7 +8836,7 @@ public:
 	MTPint vpts;
 };
 
-class MTPDupdateShortMessage : public mtpData {
+class MTPDupdateShortMessage : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_out = (1 << 1),
@@ -8879,7 +8879,7 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 };
 
-class MTPDupdateShortChatMessage : public mtpData {
+class MTPDupdateShortChatMessage : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_out = (1 << 1),
@@ -8923,7 +8923,7 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 };
 
-class MTPDupdateShort : public mtpData {
+class MTPDupdateShort : public MTP::internal::TypeData {
 public:
 	MTPDupdateShort() = default;
 	MTPDupdateShort(const MTPUpdate &_update, MTPint _date) : vupdate(_update), vdate(_date) {
@@ -8933,7 +8933,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDupdatesCombined : public mtpData {
+class MTPDupdatesCombined : public MTP::internal::TypeData {
 public:
 	MTPDupdatesCombined() = default;
 	MTPDupdatesCombined(const MTPVector<MTPUpdate> &_updates, const MTPVector<MTPUser> &_users, const MTPVector<MTPChat> &_chats, MTPint _date, MTPint _seq_start, MTPint _seq) : vupdates(_updates), vusers(_users), vchats(_chats), vdate(_date), vseq_start(_seq_start), vseq(_seq) {
@@ -8947,7 +8947,7 @@ public:
 	MTPint vseq;
 };
 
-class MTPDupdates : public mtpData {
+class MTPDupdates : public MTP::internal::TypeData {
 public:
 	MTPDupdates() = default;
 	MTPDupdates(const MTPVector<MTPUpdate> &_updates, const MTPVector<MTPUser> &_users, const MTPVector<MTPChat> &_chats, MTPint _date, MTPint _seq) : vupdates(_updates), vusers(_users), vchats(_chats), vdate(_date), vseq(_seq) {
@@ -8960,7 +8960,7 @@ public:
 	MTPint vseq;
 };
 
-class MTPDupdateShortSentMessage : public mtpData {
+class MTPDupdateShortSentMessage : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_out = (1 << 1),
@@ -8989,7 +8989,7 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 };
 
-class MTPDphotos_photos : public mtpData {
+class MTPDphotos_photos : public MTP::internal::TypeData {
 public:
 	MTPDphotos_photos() = default;
 	MTPDphotos_photos(const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPUser> &_users) : vphotos(_photos), vusers(_users) {
@@ -8999,7 +8999,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDphotos_photosSlice : public mtpData {
+class MTPDphotos_photosSlice : public MTP::internal::TypeData {
 public:
 	MTPDphotos_photosSlice() = default;
 	MTPDphotos_photosSlice(MTPint _count, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPUser> &_users) : vcount(_count), vphotos(_photos), vusers(_users) {
@@ -9010,7 +9010,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDphotos_photo : public mtpData {
+class MTPDphotos_photo : public MTP::internal::TypeData {
 public:
 	MTPDphotos_photo() = default;
 	MTPDphotos_photo(const MTPPhoto &_photo, const MTPVector<MTPUser> &_users) : vphoto(_photo), vusers(_users) {
@@ -9020,7 +9020,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDupload_file : public mtpData {
+class MTPDupload_file : public MTP::internal::TypeData {
 public:
 	MTPDupload_file() = default;
 	MTPDupload_file(const MTPstorage_FileType &_type, MTPint _mtime, const MTPbytes &_bytes) : vtype(_type), vmtime(_mtime), vbytes(_bytes) {
@@ -9031,7 +9031,7 @@ public:
 	MTPbytes vbytes;
 };
 
-class MTPDdcOption : public mtpData {
+class MTPDdcOption : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_ipv6 = (1 << 0),
@@ -9057,7 +9057,7 @@ public:
 	MTPint vport;
 };
 
-class MTPDconfig : public mtpData {
+class MTPDconfig : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_phonecalls_enabled = (1 << 1),
@@ -9106,7 +9106,7 @@ public:
 	MTPVector<MTPDisabledFeature> vdisabled_features;
 };
 
-class MTPDnearestDc : public mtpData {
+class MTPDnearestDc : public MTP::internal::TypeData {
 public:
 	MTPDnearestDc() = default;
 	MTPDnearestDc(const MTPstring &_country, MTPint _this_dc, MTPint _nearest_dc) : vcountry(_country), vthis_dc(_this_dc), vnearest_dc(_nearest_dc) {
@@ -9117,7 +9117,7 @@ public:
 	MTPint vnearest_dc;
 };
 
-class MTPDhelp_appUpdate : public mtpData {
+class MTPDhelp_appUpdate : public MTP::internal::TypeData {
 public:
 	MTPDhelp_appUpdate() = default;
 	MTPDhelp_appUpdate(MTPint _id, MTPBool _critical, const MTPstring &_url, const MTPstring &_text) : vid(_id), vcritical(_critical), vurl(_url), vtext(_text) {
@@ -9129,7 +9129,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDhelp_inviteText : public mtpData {
+class MTPDhelp_inviteText : public MTP::internal::TypeData {
 public:
 	MTPDhelp_inviteText() = default;
 	MTPDhelp_inviteText(const MTPstring &_message) : vmessage(_message) {
@@ -9138,7 +9138,7 @@ public:
 	MTPstring vmessage;
 };
 
-class MTPDencryptedChatEmpty : public mtpData {
+class MTPDencryptedChatEmpty : public MTP::internal::TypeData {
 public:
 	MTPDencryptedChatEmpty() = default;
 	MTPDencryptedChatEmpty(MTPint _id) : vid(_id) {
@@ -9147,7 +9147,7 @@ public:
 	MTPint vid;
 };
 
-class MTPDencryptedChatWaiting : public mtpData {
+class MTPDencryptedChatWaiting : public MTP::internal::TypeData {
 public:
 	MTPDencryptedChatWaiting() = default;
 	MTPDencryptedChatWaiting(MTPint _id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vadmin_id(_admin_id), vparticipant_id(_participant_id) {
@@ -9160,7 +9160,7 @@ public:
 	MTPint vparticipant_id;
 };
 
-class MTPDencryptedChatRequested : public mtpData {
+class MTPDencryptedChatRequested : public MTP::internal::TypeData {
 public:
 	MTPDencryptedChatRequested() = default;
 	MTPDencryptedChatRequested(MTPint _id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vadmin_id(_admin_id), vparticipant_id(_participant_id), vg_a(_g_a) {
@@ -9174,7 +9174,7 @@ public:
 	MTPbytes vg_a;
 };
 
-class MTPDencryptedChat : public mtpData {
+class MTPDencryptedChat : public MTP::internal::TypeData {
 public:
 	MTPDencryptedChat() = default;
 	MTPDencryptedChat(MTPint _id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a_or_b, const MTPlong &_key_fingerprint) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vadmin_id(_admin_id), vparticipant_id(_participant_id), vg_a_or_b(_g_a_or_b), vkey_fingerprint(_key_fingerprint) {
@@ -9189,7 +9189,7 @@ public:
 	MTPlong vkey_fingerprint;
 };
 
-class MTPDencryptedChatDiscarded : public mtpData {
+class MTPDencryptedChatDiscarded : public MTP::internal::TypeData {
 public:
 	MTPDencryptedChatDiscarded() = default;
 	MTPDencryptedChatDiscarded(MTPint _id) : vid(_id) {
@@ -9198,7 +9198,7 @@ public:
 	MTPint vid;
 };
 
-class MTPDinputEncryptedChat : public mtpData {
+class MTPDinputEncryptedChat : public MTP::internal::TypeData {
 public:
 	MTPDinputEncryptedChat() = default;
 	MTPDinputEncryptedChat(MTPint _chat_id, const MTPlong &_access_hash) : vchat_id(_chat_id), vaccess_hash(_access_hash) {
@@ -9208,7 +9208,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDencryptedFile : public mtpData {
+class MTPDencryptedFile : public MTP::internal::TypeData {
 public:
 	MTPDencryptedFile() = default;
 	MTPDencryptedFile(const MTPlong &_id, const MTPlong &_access_hash, MTPint _size, MTPint _dc_id, MTPint _key_fingerprint) : vid(_id), vaccess_hash(_access_hash), vsize(_size), vdc_id(_dc_id), vkey_fingerprint(_key_fingerprint) {
@@ -9221,7 +9221,7 @@ public:
 	MTPint vkey_fingerprint;
 };
 
-class MTPDinputEncryptedFileUploaded : public mtpData {
+class MTPDinputEncryptedFileUploaded : public MTP::internal::TypeData {
 public:
 	MTPDinputEncryptedFileUploaded() = default;
 	MTPDinputEncryptedFileUploaded(const MTPlong &_id, MTPint _parts, const MTPstring &_md5_checksum, MTPint _key_fingerprint) : vid(_id), vparts(_parts), vmd5_checksum(_md5_checksum), vkey_fingerprint(_key_fingerprint) {
@@ -9233,7 +9233,7 @@ public:
 	MTPint vkey_fingerprint;
 };
 
-class MTPDinputEncryptedFile : public mtpData {
+class MTPDinputEncryptedFile : public MTP::internal::TypeData {
 public:
 	MTPDinputEncryptedFile() = default;
 	MTPDinputEncryptedFile(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -9243,7 +9243,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputEncryptedFileBigUploaded : public mtpData {
+class MTPDinputEncryptedFileBigUploaded : public MTP::internal::TypeData {
 public:
 	MTPDinputEncryptedFileBigUploaded() = default;
 	MTPDinputEncryptedFileBigUploaded(const MTPlong &_id, MTPint _parts, MTPint _key_fingerprint) : vid(_id), vparts(_parts), vkey_fingerprint(_key_fingerprint) {
@@ -9254,7 +9254,7 @@ public:
 	MTPint vkey_fingerprint;
 };
 
-class MTPDencryptedMessage : public mtpData {
+class MTPDencryptedMessage : public MTP::internal::TypeData {
 public:
 	MTPDencryptedMessage() = default;
 	MTPDencryptedMessage(const MTPlong &_random_id, MTPint _chat_id, MTPint _date, const MTPbytes &_bytes, const MTPEncryptedFile &_file) : vrandom_id(_random_id), vchat_id(_chat_id), vdate(_date), vbytes(_bytes), vfile(_file) {
@@ -9267,7 +9267,7 @@ public:
 	MTPEncryptedFile vfile;
 };
 
-class MTPDencryptedMessageService : public mtpData {
+class MTPDencryptedMessageService : public MTP::internal::TypeData {
 public:
 	MTPDencryptedMessageService() = default;
 	MTPDencryptedMessageService(const MTPlong &_random_id, MTPint _chat_id, MTPint _date, const MTPbytes &_bytes) : vrandom_id(_random_id), vchat_id(_chat_id), vdate(_date), vbytes(_bytes) {
@@ -9279,7 +9279,7 @@ public:
 	MTPbytes vbytes;
 };
 
-class MTPDmessages_dhConfigNotModified : public mtpData {
+class MTPDmessages_dhConfigNotModified : public MTP::internal::TypeData {
 public:
 	MTPDmessages_dhConfigNotModified() = default;
 	MTPDmessages_dhConfigNotModified(const MTPbytes &_random) : vrandom(_random) {
@@ -9288,7 +9288,7 @@ public:
 	MTPbytes vrandom;
 };
 
-class MTPDmessages_dhConfig : public mtpData {
+class MTPDmessages_dhConfig : public MTP::internal::TypeData {
 public:
 	MTPDmessages_dhConfig() = default;
 	MTPDmessages_dhConfig(MTPint _g, const MTPbytes &_p, MTPint _version, const MTPbytes &_random) : vg(_g), vp(_p), vversion(_version), vrandom(_random) {
@@ -9300,7 +9300,7 @@ public:
 	MTPbytes vrandom;
 };
 
-class MTPDmessages_sentEncryptedMessage : public mtpData {
+class MTPDmessages_sentEncryptedMessage : public MTP::internal::TypeData {
 public:
 	MTPDmessages_sentEncryptedMessage() = default;
 	MTPDmessages_sentEncryptedMessage(MTPint _date) : vdate(_date) {
@@ -9309,7 +9309,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDmessages_sentEncryptedFile : public mtpData {
+class MTPDmessages_sentEncryptedFile : public MTP::internal::TypeData {
 public:
 	MTPDmessages_sentEncryptedFile() = default;
 	MTPDmessages_sentEncryptedFile(MTPint _date, const MTPEncryptedFile &_file) : vdate(_date), vfile(_file) {
@@ -9319,7 +9319,7 @@ public:
 	MTPEncryptedFile vfile;
 };
 
-class MTPDinputDocument : public mtpData {
+class MTPDinputDocument : public MTP::internal::TypeData {
 public:
 	MTPDinputDocument() = default;
 	MTPDinputDocument(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -9329,7 +9329,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDdocumentEmpty : public mtpData {
+class MTPDdocumentEmpty : public MTP::internal::TypeData {
 public:
 	MTPDdocumentEmpty() = default;
 	MTPDdocumentEmpty(const MTPlong &_id) : vid(_id) {
@@ -9338,7 +9338,7 @@ public:
 	MTPlong vid;
 };
 
-class MTPDdocument : public mtpData {
+class MTPDdocument : public MTP::internal::TypeData {
 public:
 	MTPDdocument() = default;
 	MTPDdocument(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPstring &_mime_type, MTPint _size, const MTPPhotoSize &_thumb, MTPint _dc_id, MTPint _version, const MTPVector<MTPDocumentAttribute> &_attributes) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vmime_type(_mime_type), vsize(_size), vthumb(_thumb), vdc_id(_dc_id), vversion(_version), vattributes(_attributes) {
@@ -9355,7 +9355,7 @@ public:
 	MTPVector<MTPDocumentAttribute> vattributes;
 };
 
-class MTPDhelp_support : public mtpData {
+class MTPDhelp_support : public MTP::internal::TypeData {
 public:
 	MTPDhelp_support() = default;
 	MTPDhelp_support(const MTPstring &_phone_number, const MTPUser &_user) : vphone_number(_phone_number), vuser(_user) {
@@ -9365,7 +9365,7 @@ public:
 	MTPUser vuser;
 };
 
-class MTPDnotifyPeer : public mtpData {
+class MTPDnotifyPeer : public MTP::internal::TypeData {
 public:
 	MTPDnotifyPeer() = default;
 	MTPDnotifyPeer(const MTPPeer &_peer) : vpeer(_peer) {
@@ -9374,7 +9374,7 @@ public:
 	MTPPeer vpeer;
 };
 
-class MTPDsendMessageUploadVideoAction : public mtpData {
+class MTPDsendMessageUploadVideoAction : public MTP::internal::TypeData {
 public:
 	MTPDsendMessageUploadVideoAction() = default;
 	MTPDsendMessageUploadVideoAction(MTPint _progress) : vprogress(_progress) {
@@ -9383,7 +9383,7 @@ public:
 	MTPint vprogress;
 };
 
-class MTPDsendMessageUploadAudioAction : public mtpData {
+class MTPDsendMessageUploadAudioAction : public MTP::internal::TypeData {
 public:
 	MTPDsendMessageUploadAudioAction() = default;
 	MTPDsendMessageUploadAudioAction(MTPint _progress) : vprogress(_progress) {
@@ -9392,7 +9392,7 @@ public:
 	MTPint vprogress;
 };
 
-class MTPDsendMessageUploadPhotoAction : public mtpData {
+class MTPDsendMessageUploadPhotoAction : public MTP::internal::TypeData {
 public:
 	MTPDsendMessageUploadPhotoAction() = default;
 	MTPDsendMessageUploadPhotoAction(MTPint _progress) : vprogress(_progress) {
@@ -9401,7 +9401,7 @@ public:
 	MTPint vprogress;
 };
 
-class MTPDsendMessageUploadDocumentAction : public mtpData {
+class MTPDsendMessageUploadDocumentAction : public MTP::internal::TypeData {
 public:
 	MTPDsendMessageUploadDocumentAction() = default;
 	MTPDsendMessageUploadDocumentAction(MTPint _progress) : vprogress(_progress) {
@@ -9410,7 +9410,7 @@ public:
 	MTPint vprogress;
 };
 
-class MTPDcontacts_found : public mtpData {
+class MTPDcontacts_found : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_found() = default;
 	MTPDcontacts_found(const MTPVector<MTPPeer> &_results, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vresults(_results), vchats(_chats), vusers(_users) {
@@ -9421,7 +9421,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDinputPrivacyValueAllowUsers : public mtpData {
+class MTPDinputPrivacyValueAllowUsers : public MTP::internal::TypeData {
 public:
 	MTPDinputPrivacyValueAllowUsers() = default;
 	MTPDinputPrivacyValueAllowUsers(const MTPVector<MTPInputUser> &_users) : vusers(_users) {
@@ -9430,7 +9430,7 @@ public:
 	MTPVector<MTPInputUser> vusers;
 };
 
-class MTPDinputPrivacyValueDisallowUsers : public mtpData {
+class MTPDinputPrivacyValueDisallowUsers : public MTP::internal::TypeData {
 public:
 	MTPDinputPrivacyValueDisallowUsers() = default;
 	MTPDinputPrivacyValueDisallowUsers(const MTPVector<MTPInputUser> &_users) : vusers(_users) {
@@ -9439,7 +9439,7 @@ public:
 	MTPVector<MTPInputUser> vusers;
 };
 
-class MTPDprivacyValueAllowUsers : public mtpData {
+class MTPDprivacyValueAllowUsers : public MTP::internal::TypeData {
 public:
 	MTPDprivacyValueAllowUsers() = default;
 	MTPDprivacyValueAllowUsers(const MTPVector<MTPint> &_users) : vusers(_users) {
@@ -9448,7 +9448,7 @@ public:
 	MTPVector<MTPint> vusers;
 };
 
-class MTPDprivacyValueDisallowUsers : public mtpData {
+class MTPDprivacyValueDisallowUsers : public MTP::internal::TypeData {
 public:
 	MTPDprivacyValueDisallowUsers() = default;
 	MTPDprivacyValueDisallowUsers(const MTPVector<MTPint> &_users) : vusers(_users) {
@@ -9457,7 +9457,7 @@ public:
 	MTPVector<MTPint> vusers;
 };
 
-class MTPDaccount_privacyRules : public mtpData {
+class MTPDaccount_privacyRules : public MTP::internal::TypeData {
 public:
 	MTPDaccount_privacyRules() = default;
 	MTPDaccount_privacyRules(const MTPVector<MTPPrivacyRule> &_rules, const MTPVector<MTPUser> &_users) : vrules(_rules), vusers(_users) {
@@ -9467,7 +9467,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDaccountDaysTTL : public mtpData {
+class MTPDaccountDaysTTL : public MTP::internal::TypeData {
 public:
 	MTPDaccountDaysTTL() = default;
 	MTPDaccountDaysTTL(MTPint _days) : vdays(_days) {
@@ -9476,7 +9476,7 @@ public:
 	MTPint vdays;
 };
 
-class MTPDdocumentAttributeImageSize : public mtpData {
+class MTPDdocumentAttributeImageSize : public MTP::internal::TypeData {
 public:
 	MTPDdocumentAttributeImageSize() = default;
 	MTPDdocumentAttributeImageSize(MTPint _w, MTPint _h) : vw(_w), vh(_h) {
@@ -9486,7 +9486,7 @@ public:
 	MTPint vh;
 };
 
-class MTPDdocumentAttributeSticker : public mtpData {
+class MTPDdocumentAttributeSticker : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_mask = (1 << 1),
@@ -9510,7 +9510,7 @@ public:
 	MTPMaskCoords vmask_coords;
 };
 
-class MTPDdocumentAttributeVideo : public mtpData {
+class MTPDdocumentAttributeVideo : public MTP::internal::TypeData {
 public:
 	MTPDdocumentAttributeVideo() = default;
 	MTPDdocumentAttributeVideo(MTPint _duration, MTPint _w, MTPint _h) : vduration(_duration), vw(_w), vh(_h) {
@@ -9521,7 +9521,7 @@ public:
 	MTPint vh;
 };
 
-class MTPDdocumentAttributeAudio : public mtpData {
+class MTPDdocumentAttributeAudio : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_voice = (1 << 10),
@@ -9550,7 +9550,7 @@ public:
 	MTPbytes vwaveform;
 };
 
-class MTPDdocumentAttributeFilename : public mtpData {
+class MTPDdocumentAttributeFilename : public MTP::internal::TypeData {
 public:
 	MTPDdocumentAttributeFilename() = default;
 	MTPDdocumentAttributeFilename(const MTPstring &_file_name) : vfile_name(_file_name) {
@@ -9559,7 +9559,7 @@ public:
 	MTPstring vfile_name;
 };
 
-class MTPDmessages_stickers : public mtpData {
+class MTPDmessages_stickers : public MTP::internal::TypeData {
 public:
 	MTPDmessages_stickers() = default;
 	MTPDmessages_stickers(const MTPstring &_hash, const MTPVector<MTPDocument> &_stickers) : vhash(_hash), vstickers(_stickers) {
@@ -9569,7 +9569,7 @@ public:
 	MTPVector<MTPDocument> vstickers;
 };
 
-class MTPDstickerPack : public mtpData {
+class MTPDstickerPack : public MTP::internal::TypeData {
 public:
 	MTPDstickerPack() = default;
 	MTPDstickerPack(const MTPstring &_emoticon, const MTPVector<MTPlong> &_documents) : vemoticon(_emoticon), vdocuments(_documents) {
@@ -9579,7 +9579,7 @@ public:
 	MTPVector<MTPlong> vdocuments;
 };
 
-class MTPDmessages_allStickers : public mtpData {
+class MTPDmessages_allStickers : public MTP::internal::TypeData {
 public:
 	MTPDmessages_allStickers() = default;
 	MTPDmessages_allStickers(MTPint _hash, const MTPVector<MTPStickerSet> &_sets) : vhash(_hash), vsets(_sets) {
@@ -9589,7 +9589,7 @@ public:
 	MTPVector<MTPStickerSet> vsets;
 };
 
-class MTPDdisabledFeature : public mtpData {
+class MTPDdisabledFeature : public MTP::internal::TypeData {
 public:
 	MTPDdisabledFeature() = default;
 	MTPDdisabledFeature(const MTPstring &_feature, const MTPstring &_description) : vfeature(_feature), vdescription(_description) {
@@ -9599,7 +9599,7 @@ public:
 	MTPstring vdescription;
 };
 
-class MTPDmessages_affectedMessages : public mtpData {
+class MTPDmessages_affectedMessages : public MTP::internal::TypeData {
 public:
 	MTPDmessages_affectedMessages() = default;
 	MTPDmessages_affectedMessages(MTPint _pts, MTPint _pts_count) : vpts(_pts), vpts_count(_pts_count) {
@@ -9609,7 +9609,7 @@ public:
 	MTPint vpts_count;
 };
 
-class MTPDwebPageEmpty : public mtpData {
+class MTPDwebPageEmpty : public MTP::internal::TypeData {
 public:
 	MTPDwebPageEmpty() = default;
 	MTPDwebPageEmpty(const MTPlong &_id) : vid(_id) {
@@ -9618,7 +9618,7 @@ public:
 	MTPlong vid;
 };
 
-class MTPDwebPagePending : public mtpData {
+class MTPDwebPagePending : public MTP::internal::TypeData {
 public:
 	MTPDwebPagePending() = default;
 	MTPDwebPagePending(const MTPlong &_id, MTPint _date) : vid(_id), vdate(_date) {
@@ -9628,7 +9628,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDwebPage : public mtpData {
+class MTPDwebPage : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_type = (1 << 0),
@@ -9688,7 +9688,7 @@ public:
 	MTPPage vcached_page;
 };
 
-class MTPDauthorization : public mtpData {
+class MTPDauthorization : public MTP::internal::TypeData {
 public:
 	MTPDauthorization() = default;
 	MTPDauthorization(const MTPlong &_hash, MTPint _flags, const MTPstring &_device_model, const MTPstring &_platform, const MTPstring &_system_version, MTPint _api_id, const MTPstring &_app_name, const MTPstring &_app_version, MTPint _date_created, MTPint _date_active, const MTPstring &_ip, const MTPstring &_country, const MTPstring &_region) : vhash(_hash), vflags(_flags), vdevice_model(_device_model), vplatform(_platform), vsystem_version(_system_version), vapi_id(_api_id), vapp_name(_app_name), vapp_version(_app_version), vdate_created(_date_created), vdate_active(_date_active), vip(_ip), vcountry(_country), vregion(_region) {
@@ -9709,7 +9709,7 @@ public:
 	MTPstring vregion;
 };
 
-class MTPDaccount_authorizations : public mtpData {
+class MTPDaccount_authorizations : public MTP::internal::TypeData {
 public:
 	MTPDaccount_authorizations() = default;
 	MTPDaccount_authorizations(const MTPVector<MTPAuthorization> &_authorizations) : vauthorizations(_authorizations) {
@@ -9718,7 +9718,7 @@ public:
 	MTPVector<MTPAuthorization> vauthorizations;
 };
 
-class MTPDaccount_noPassword : public mtpData {
+class MTPDaccount_noPassword : public MTP::internal::TypeData {
 public:
 	MTPDaccount_noPassword() = default;
 	MTPDaccount_noPassword(const MTPbytes &_new_salt, const MTPstring &_email_unconfirmed_pattern) : vnew_salt(_new_salt), vemail_unconfirmed_pattern(_email_unconfirmed_pattern) {
@@ -9728,7 +9728,7 @@ public:
 	MTPstring vemail_unconfirmed_pattern;
 };
 
-class MTPDaccount_password : public mtpData {
+class MTPDaccount_password : public MTP::internal::TypeData {
 public:
 	MTPDaccount_password() = default;
 	MTPDaccount_password(const MTPbytes &_current_salt, const MTPbytes &_new_salt, const MTPstring &_hint, MTPBool _has_recovery, const MTPstring &_email_unconfirmed_pattern) : vcurrent_salt(_current_salt), vnew_salt(_new_salt), vhint(_hint), vhas_recovery(_has_recovery), vemail_unconfirmed_pattern(_email_unconfirmed_pattern) {
@@ -9741,7 +9741,7 @@ public:
 	MTPstring vemail_unconfirmed_pattern;
 };
 
-class MTPDaccount_passwordSettings : public mtpData {
+class MTPDaccount_passwordSettings : public MTP::internal::TypeData {
 public:
 	MTPDaccount_passwordSettings() = default;
 	MTPDaccount_passwordSettings(const MTPstring &_email) : vemail(_email) {
@@ -9750,7 +9750,7 @@ public:
 	MTPstring vemail;
 };
 
-class MTPDaccount_passwordInputSettings : public mtpData {
+class MTPDaccount_passwordInputSettings : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_new_salt = (1 << 0),
@@ -9779,7 +9779,7 @@ public:
 	MTPstring vemail;
 };
 
-class MTPDauth_passwordRecovery : public mtpData {
+class MTPDauth_passwordRecovery : public MTP::internal::TypeData {
 public:
 	MTPDauth_passwordRecovery() = default;
 	MTPDauth_passwordRecovery(const MTPstring &_email_pattern) : vemail_pattern(_email_pattern) {
@@ -9788,7 +9788,7 @@ public:
 	MTPstring vemail_pattern;
 };
 
-class MTPDreceivedNotifyMessage : public mtpData {
+class MTPDreceivedNotifyMessage : public MTP::internal::TypeData {
 public:
 	MTPDreceivedNotifyMessage() = default;
 	MTPDreceivedNotifyMessage(MTPint _id, MTPint _flags) : vid(_id), vflags(_flags) {
@@ -9798,7 +9798,7 @@ public:
 	MTPint vflags;
 };
 
-class MTPDchatInviteExported : public mtpData {
+class MTPDchatInviteExported : public MTP::internal::TypeData {
 public:
 	MTPDchatInviteExported() = default;
 	MTPDchatInviteExported(const MTPstring &_link) : vlink(_link) {
@@ -9807,7 +9807,7 @@ public:
 	MTPstring vlink;
 };
 
-class MTPDchatInviteAlready : public mtpData {
+class MTPDchatInviteAlready : public MTP::internal::TypeData {
 public:
 	MTPDchatInviteAlready() = default;
 	MTPDchatInviteAlready(const MTPChat &_chat) : vchat(_chat) {
@@ -9816,7 +9816,7 @@ public:
 	MTPChat vchat;
 };
 
-class MTPDchatInvite : public mtpData {
+class MTPDchatInvite : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_channel = (1 << 0),
@@ -9847,7 +9847,7 @@ public:
 	MTPVector<MTPUser> vparticipants;
 };
 
-class MTPDinputStickerSetID : public mtpData {
+class MTPDinputStickerSetID : public MTP::internal::TypeData {
 public:
 	MTPDinputStickerSetID() = default;
 	MTPDinputStickerSetID(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -9857,7 +9857,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputStickerSetShortName : public mtpData {
+class MTPDinputStickerSetShortName : public MTP::internal::TypeData {
 public:
 	MTPDinputStickerSetShortName() = default;
 	MTPDinputStickerSetShortName(const MTPstring &_short_name) : vshort_name(_short_name) {
@@ -9866,7 +9866,7 @@ public:
 	MTPstring vshort_name;
 };
 
-class MTPDstickerSet : public mtpData {
+class MTPDstickerSet : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_installed = (1 << 0),
@@ -9897,7 +9897,7 @@ public:
 	MTPint vhash;
 };
 
-class MTPDmessages_stickerSet : public mtpData {
+class MTPDmessages_stickerSet : public MTP::internal::TypeData {
 public:
 	MTPDmessages_stickerSet() = default;
 	MTPDmessages_stickerSet(const MTPStickerSet &_set, const MTPVector<MTPStickerPack> &_packs, const MTPVector<MTPDocument> &_documents) : vset(_set), vpacks(_packs), vdocuments(_documents) {
@@ -9908,7 +9908,7 @@ public:
 	MTPVector<MTPDocument> vdocuments;
 };
 
-class MTPDbotCommand : public mtpData {
+class MTPDbotCommand : public MTP::internal::TypeData {
 public:
 	MTPDbotCommand() = default;
 	MTPDbotCommand(const MTPstring &_command, const MTPstring &_description) : vcommand(_command), vdescription(_description) {
@@ -9918,7 +9918,7 @@ public:
 	MTPstring vdescription;
 };
 
-class MTPDbotInfo : public mtpData {
+class MTPDbotInfo : public MTP::internal::TypeData {
 public:
 	MTPDbotInfo() = default;
 	MTPDbotInfo(MTPint _user_id, const MTPstring &_description, const MTPVector<MTPBotCommand> &_commands) : vuser_id(_user_id), vdescription(_description), vcommands(_commands) {
@@ -9929,7 +9929,7 @@ public:
 	MTPVector<MTPBotCommand> vcommands;
 };
 
-class MTPDkeyboardButton : public mtpData {
+class MTPDkeyboardButton : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButton() = default;
 	MTPDkeyboardButton(const MTPstring &_text) : vtext(_text) {
@@ -9938,7 +9938,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDkeyboardButtonUrl : public mtpData {
+class MTPDkeyboardButtonUrl : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButtonUrl() = default;
 	MTPDkeyboardButtonUrl(const MTPstring &_text, const MTPstring &_url) : vtext(_text), vurl(_url) {
@@ -9948,7 +9948,7 @@ public:
 	MTPstring vurl;
 };
 
-class MTPDkeyboardButtonCallback : public mtpData {
+class MTPDkeyboardButtonCallback : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButtonCallback() = default;
 	MTPDkeyboardButtonCallback(const MTPstring &_text, const MTPbytes &_data) : vtext(_text), vdata(_data) {
@@ -9958,7 +9958,7 @@ public:
 	MTPbytes vdata;
 };
 
-class MTPDkeyboardButtonRequestPhone : public mtpData {
+class MTPDkeyboardButtonRequestPhone : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButtonRequestPhone() = default;
 	MTPDkeyboardButtonRequestPhone(const MTPstring &_text) : vtext(_text) {
@@ -9967,7 +9967,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDkeyboardButtonRequestGeoLocation : public mtpData {
+class MTPDkeyboardButtonRequestGeoLocation : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButtonRequestGeoLocation() = default;
 	MTPDkeyboardButtonRequestGeoLocation(const MTPstring &_text) : vtext(_text) {
@@ -9976,7 +9976,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDkeyboardButtonSwitchInline : public mtpData {
+class MTPDkeyboardButtonSwitchInline : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_same_peer = (1 << 0),
@@ -9996,7 +9996,7 @@ public:
 	MTPstring vquery;
 };
 
-class MTPDkeyboardButtonGame : public mtpData {
+class MTPDkeyboardButtonGame : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButtonGame() = default;
 	MTPDkeyboardButtonGame(const MTPstring &_text) : vtext(_text) {
@@ -10005,7 +10005,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDkeyboardButtonRow : public mtpData {
+class MTPDkeyboardButtonRow : public MTP::internal::TypeData {
 public:
 	MTPDkeyboardButtonRow() = default;
 	MTPDkeyboardButtonRow(const MTPVector<MTPKeyboardButton> &_buttons) : vbuttons(_buttons) {
@@ -10014,7 +10014,7 @@ public:
 	MTPVector<MTPKeyboardButton> vbuttons;
 };
 
-class MTPDreplyKeyboardHide : public mtpData {
+class MTPDreplyKeyboardHide : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_selective = (1 << 2),
@@ -10033,7 +10033,7 @@ public:
 	MTPflags<MTPDreplyKeyboardHide::Flags> vflags;
 };
 
-class MTPDreplyKeyboardForceReply : public mtpData {
+class MTPDreplyKeyboardForceReply : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_single_use = (1 << 1),
@@ -10054,7 +10054,7 @@ public:
 	MTPflags<MTPDreplyKeyboardForceReply::Flags> vflags;
 };
 
-class MTPDreplyKeyboardMarkup : public mtpData {
+class MTPDreplyKeyboardMarkup : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_resize = (1 << 0),
@@ -10078,7 +10078,7 @@ public:
 	MTPVector<MTPKeyboardButtonRow> vrows;
 };
 
-class MTPDreplyInlineMarkup : public mtpData {
+class MTPDreplyInlineMarkup : public MTP::internal::TypeData {
 public:
 	MTPDreplyInlineMarkup() = default;
 	MTPDreplyInlineMarkup(const MTPVector<MTPKeyboardButtonRow> &_rows) : vrows(_rows) {
@@ -10087,7 +10087,7 @@ public:
 	MTPVector<MTPKeyboardButtonRow> vrows;
 };
 
-class MTPDhelp_appChangelog : public mtpData {
+class MTPDhelp_appChangelog : public MTP::internal::TypeData {
 public:
 	MTPDhelp_appChangelog() = default;
 	MTPDhelp_appChangelog(const MTPstring &_message, const MTPMessageMedia &_media, const MTPVector<MTPMessageEntity> &_entities) : vmessage(_message), vmedia(_media), ventities(_entities) {
@@ -10098,7 +10098,7 @@ public:
 	MTPVector<MTPMessageEntity> ventities;
 };
 
-class MTPDmessageEntityUnknown : public mtpData {
+class MTPDmessageEntityUnknown : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityUnknown() = default;
 	MTPDmessageEntityUnknown(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10108,7 +10108,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityMention : public mtpData {
+class MTPDmessageEntityMention : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityMention() = default;
 	MTPDmessageEntityMention(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10118,7 +10118,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityHashtag : public mtpData {
+class MTPDmessageEntityHashtag : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityHashtag() = default;
 	MTPDmessageEntityHashtag(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10128,7 +10128,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityBotCommand : public mtpData {
+class MTPDmessageEntityBotCommand : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityBotCommand() = default;
 	MTPDmessageEntityBotCommand(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10138,7 +10138,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityUrl : public mtpData {
+class MTPDmessageEntityUrl : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityUrl() = default;
 	MTPDmessageEntityUrl(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10148,7 +10148,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityEmail : public mtpData {
+class MTPDmessageEntityEmail : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityEmail() = default;
 	MTPDmessageEntityEmail(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10158,7 +10158,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityBold : public mtpData {
+class MTPDmessageEntityBold : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityBold() = default;
 	MTPDmessageEntityBold(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10168,7 +10168,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityItalic : public mtpData {
+class MTPDmessageEntityItalic : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityItalic() = default;
 	MTPDmessageEntityItalic(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10178,7 +10178,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityCode : public mtpData {
+class MTPDmessageEntityCode : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityCode() = default;
 	MTPDmessageEntityCode(MTPint _offset, MTPint _length) : voffset(_offset), vlength(_length) {
@@ -10188,7 +10188,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDmessageEntityPre : public mtpData {
+class MTPDmessageEntityPre : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityPre() = default;
 	MTPDmessageEntityPre(MTPint _offset, MTPint _length, const MTPstring &_language) : voffset(_offset), vlength(_length), vlanguage(_language) {
@@ -10199,7 +10199,7 @@ public:
 	MTPstring vlanguage;
 };
 
-class MTPDmessageEntityTextUrl : public mtpData {
+class MTPDmessageEntityTextUrl : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityTextUrl() = default;
 	MTPDmessageEntityTextUrl(MTPint _offset, MTPint _length, const MTPstring &_url) : voffset(_offset), vlength(_length), vurl(_url) {
@@ -10210,7 +10210,7 @@ public:
 	MTPstring vurl;
 };
 
-class MTPDmessageEntityMentionName : public mtpData {
+class MTPDmessageEntityMentionName : public MTP::internal::TypeData {
 public:
 	MTPDmessageEntityMentionName() = default;
 	MTPDmessageEntityMentionName(MTPint _offset, MTPint _length, MTPint _user_id) : voffset(_offset), vlength(_length), vuser_id(_user_id) {
@@ -10221,7 +10221,7 @@ public:
 	MTPint vuser_id;
 };
 
-class MTPDinputMessageEntityMentionName : public mtpData {
+class MTPDinputMessageEntityMentionName : public MTP::internal::TypeData {
 public:
 	MTPDinputMessageEntityMentionName() = default;
 	MTPDinputMessageEntityMentionName(MTPint _offset, MTPint _length, const MTPInputUser &_user_id) : voffset(_offset), vlength(_length), vuser_id(_user_id) {
@@ -10232,7 +10232,7 @@ public:
 	MTPInputUser vuser_id;
 };
 
-class MTPDinputChannel : public mtpData {
+class MTPDinputChannel : public MTP::internal::TypeData {
 public:
 	MTPDinputChannel() = default;
 	MTPDinputChannel(MTPint _channel_id, const MTPlong &_access_hash) : vchannel_id(_channel_id), vaccess_hash(_access_hash) {
@@ -10242,7 +10242,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDcontacts_resolvedPeer : public mtpData {
+class MTPDcontacts_resolvedPeer : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_resolvedPeer() = default;
 	MTPDcontacts_resolvedPeer(const MTPPeer &_peer, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vpeer(_peer), vchats(_chats), vusers(_users) {
@@ -10253,7 +10253,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDmessageRange : public mtpData {
+class MTPDmessageRange : public MTP::internal::TypeData {
 public:
 	MTPDmessageRange() = default;
 	MTPDmessageRange(MTPint _min_id, MTPint _max_id) : vmin_id(_min_id), vmax_id(_max_id) {
@@ -10263,7 +10263,7 @@ public:
 	MTPint vmax_id;
 };
 
-class MTPDupdates_channelDifferenceEmpty : public mtpData {
+class MTPDupdates_channelDifferenceEmpty : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_final = (1 << 0),
@@ -10286,7 +10286,7 @@ public:
 	MTPint vtimeout;
 };
 
-class MTPDupdates_channelDifferenceTooLong : public mtpData {
+class MTPDupdates_channelDifferenceTooLong : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_final = (1 << 0),
@@ -10316,7 +10316,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDupdates_channelDifference : public mtpData {
+class MTPDupdates_channelDifference : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_final = (1 << 0),
@@ -10343,7 +10343,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDchannelMessagesFilter : public mtpData {
+class MTPDchannelMessagesFilter : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_exclude_new_messages = (1 << 1),
@@ -10363,7 +10363,7 @@ public:
 	MTPVector<MTPMessageRange> vranges;
 };
 
-class MTPDchannelParticipant : public mtpData {
+class MTPDchannelParticipant : public MTP::internal::TypeData {
 public:
 	MTPDchannelParticipant() = default;
 	MTPDchannelParticipant(MTPint _user_id, MTPint _date) : vuser_id(_user_id), vdate(_date) {
@@ -10373,7 +10373,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchannelParticipantSelf : public mtpData {
+class MTPDchannelParticipantSelf : public MTP::internal::TypeData {
 public:
 	MTPDchannelParticipantSelf() = default;
 	MTPDchannelParticipantSelf(MTPint _user_id, MTPint _inviter_id, MTPint _date) : vuser_id(_user_id), vinviter_id(_inviter_id), vdate(_date) {
@@ -10384,7 +10384,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchannelParticipantModerator : public mtpData {
+class MTPDchannelParticipantModerator : public MTP::internal::TypeData {
 public:
 	MTPDchannelParticipantModerator() = default;
 	MTPDchannelParticipantModerator(MTPint _user_id, MTPint _inviter_id, MTPint _date) : vuser_id(_user_id), vinviter_id(_inviter_id), vdate(_date) {
@@ -10395,7 +10395,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchannelParticipantEditor : public mtpData {
+class MTPDchannelParticipantEditor : public MTP::internal::TypeData {
 public:
 	MTPDchannelParticipantEditor() = default;
 	MTPDchannelParticipantEditor(MTPint _user_id, MTPint _inviter_id, MTPint _date) : vuser_id(_user_id), vinviter_id(_inviter_id), vdate(_date) {
@@ -10406,7 +10406,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchannelParticipantKicked : public mtpData {
+class MTPDchannelParticipantKicked : public MTP::internal::TypeData {
 public:
 	MTPDchannelParticipantKicked() = default;
 	MTPDchannelParticipantKicked(MTPint _user_id, MTPint _kicked_by, MTPint _date) : vuser_id(_user_id), vkicked_by(_kicked_by), vdate(_date) {
@@ -10417,7 +10417,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDchannelParticipantCreator : public mtpData {
+class MTPDchannelParticipantCreator : public MTP::internal::TypeData {
 public:
 	MTPDchannelParticipantCreator() = default;
 	MTPDchannelParticipantCreator(MTPint _user_id) : vuser_id(_user_id) {
@@ -10426,7 +10426,7 @@ public:
 	MTPint vuser_id;
 };
 
-class MTPDchannels_channelParticipants : public mtpData {
+class MTPDchannels_channelParticipants : public MTP::internal::TypeData {
 public:
 	MTPDchannels_channelParticipants() = default;
 	MTPDchannels_channelParticipants(MTPint _count, const MTPVector<MTPChannelParticipant> &_participants, const MTPVector<MTPUser> &_users) : vcount(_count), vparticipants(_participants), vusers(_users) {
@@ -10437,7 +10437,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDchannels_channelParticipant : public mtpData {
+class MTPDchannels_channelParticipant : public MTP::internal::TypeData {
 public:
 	MTPDchannels_channelParticipant() = default;
 	MTPDchannels_channelParticipant(const MTPChannelParticipant &_participant, const MTPVector<MTPUser> &_users) : vparticipant(_participant), vusers(_users) {
@@ -10447,7 +10447,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDhelp_termsOfService : public mtpData {
+class MTPDhelp_termsOfService : public MTP::internal::TypeData {
 public:
 	MTPDhelp_termsOfService() = default;
 	MTPDhelp_termsOfService(const MTPstring &_text) : vtext(_text) {
@@ -10456,7 +10456,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDfoundGif : public mtpData {
+class MTPDfoundGif : public MTP::internal::TypeData {
 public:
 	MTPDfoundGif() = default;
 	MTPDfoundGif(const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h) : vurl(_url), vthumb_url(_thumb_url), vcontent_url(_content_url), vcontent_type(_content_type), vw(_w), vh(_h) {
@@ -10470,7 +10470,7 @@ public:
 	MTPint vh;
 };
 
-class MTPDfoundGifCached : public mtpData {
+class MTPDfoundGifCached : public MTP::internal::TypeData {
 public:
 	MTPDfoundGifCached() = default;
 	MTPDfoundGifCached(const MTPstring &_url, const MTPPhoto &_photo, const MTPDocument &_document) : vurl(_url), vphoto(_photo), vdocument(_document) {
@@ -10481,7 +10481,7 @@ public:
 	MTPDocument vdocument;
 };
 
-class MTPDmessages_foundGifs : public mtpData {
+class MTPDmessages_foundGifs : public MTP::internal::TypeData {
 public:
 	MTPDmessages_foundGifs() = default;
 	MTPDmessages_foundGifs(MTPint _next_offset, const MTPVector<MTPFoundGif> &_results) : vnext_offset(_next_offset), vresults(_results) {
@@ -10491,7 +10491,7 @@ public:
 	MTPVector<MTPFoundGif> vresults;
 };
 
-class MTPDmessages_savedGifs : public mtpData {
+class MTPDmessages_savedGifs : public MTP::internal::TypeData {
 public:
 	MTPDmessages_savedGifs() = default;
 	MTPDmessages_savedGifs(MTPint _hash, const MTPVector<MTPDocument> &_gifs) : vhash(_hash), vgifs(_gifs) {
@@ -10501,7 +10501,7 @@ public:
 	MTPVector<MTPDocument> vgifs;
 };
 
-class MTPDinputBotInlineMessageMediaAuto : public mtpData {
+class MTPDinputBotInlineMessageMediaAuto : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10522,7 +10522,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDinputBotInlineMessageText : public mtpData {
+class MTPDinputBotInlineMessageText : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_no_webpage = (1 << 0),
@@ -10548,7 +10548,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDinputBotInlineMessageMediaGeo : public mtpData {
+class MTPDinputBotInlineMessageMediaGeo : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10569,7 +10569,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDinputBotInlineMessageMediaVenue : public mtpData {
+class MTPDinputBotInlineMessageMediaVenue : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10594,7 +10594,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDinputBotInlineMessageMediaContact : public mtpData {
+class MTPDinputBotInlineMessageMediaContact : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10617,7 +10617,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDinputBotInlineMessageGame : public mtpData {
+class MTPDinputBotInlineMessageGame : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10637,7 +10637,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDinputBotInlineResult : public mtpData {
+class MTPDinputBotInlineResult : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_title = (1 << 1),
@@ -10684,7 +10684,7 @@ public:
 	MTPInputBotInlineMessage vsend_message;
 };
 
-class MTPDinputBotInlineResultPhoto : public mtpData {
+class MTPDinputBotInlineResultPhoto : public MTP::internal::TypeData {
 public:
 	MTPDinputBotInlineResultPhoto() = default;
 	MTPDinputBotInlineResultPhoto(const MTPstring &_id, const MTPstring &_type, const MTPInputPhoto &_photo, const MTPInputBotInlineMessage &_send_message) : vid(_id), vtype(_type), vphoto(_photo), vsend_message(_send_message) {
@@ -10696,7 +10696,7 @@ public:
 	MTPInputBotInlineMessage vsend_message;
 };
 
-class MTPDinputBotInlineResultDocument : public mtpData {
+class MTPDinputBotInlineResultDocument : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_title = (1 << 1),
@@ -10723,7 +10723,7 @@ public:
 	MTPInputBotInlineMessage vsend_message;
 };
 
-class MTPDinputBotInlineResultGame : public mtpData {
+class MTPDinputBotInlineResultGame : public MTP::internal::TypeData {
 public:
 	MTPDinputBotInlineResultGame() = default;
 	MTPDinputBotInlineResultGame(const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) : vid(_id), vshort_name(_short_name), vsend_message(_send_message) {
@@ -10734,7 +10734,7 @@ public:
 	MTPInputBotInlineMessage vsend_message;
 };
 
-class MTPDbotInlineMessageMediaAuto : public mtpData {
+class MTPDbotInlineMessageMediaAuto : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10755,7 +10755,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDbotInlineMessageText : public mtpData {
+class MTPDbotInlineMessageText : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_no_webpage = (1 << 0),
@@ -10781,7 +10781,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDbotInlineMessageMediaGeo : public mtpData {
+class MTPDbotInlineMessageMediaGeo : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10802,7 +10802,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDbotInlineMessageMediaVenue : public mtpData {
+class MTPDbotInlineMessageMediaVenue : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10827,7 +10827,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDbotInlineMessageMediaContact : public mtpData {
+class MTPDbotInlineMessageMediaContact : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reply_markup = (1 << 2),
@@ -10850,7 +10850,7 @@ public:
 	MTPReplyMarkup vreply_markup;
 };
 
-class MTPDbotInlineResult : public mtpData {
+class MTPDbotInlineResult : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_title = (1 << 1),
@@ -10897,7 +10897,7 @@ public:
 	MTPBotInlineMessage vsend_message;
 };
 
-class MTPDbotInlineMediaResult : public mtpData {
+class MTPDbotInlineMediaResult : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_photo = (1 << 0),
@@ -10929,7 +10929,7 @@ public:
 	MTPBotInlineMessage vsend_message;
 };
 
-class MTPDmessages_botResults : public mtpData {
+class MTPDmessages_botResults : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_gallery = (1 << 0),
@@ -10957,7 +10957,7 @@ public:
 	MTPint vcache_time;
 };
 
-class MTPDexportedMessageLink : public mtpData {
+class MTPDexportedMessageLink : public MTP::internal::TypeData {
 public:
 	MTPDexportedMessageLink() = default;
 	MTPDexportedMessageLink(const MTPstring &_link) : vlink(_link) {
@@ -10966,7 +10966,7 @@ public:
 	MTPstring vlink;
 };
 
-class MTPDmessageFwdHeader : public mtpData {
+class MTPDmessageFwdHeader : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_from_id = (1 << 0),
@@ -10993,7 +10993,7 @@ public:
 	MTPint vchannel_post;
 };
 
-class MTPDauth_sentCodeTypeApp : public mtpData {
+class MTPDauth_sentCodeTypeApp : public MTP::internal::TypeData {
 public:
 	MTPDauth_sentCodeTypeApp() = default;
 	MTPDauth_sentCodeTypeApp(MTPint _length) : vlength(_length) {
@@ -11002,7 +11002,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDauth_sentCodeTypeSms : public mtpData {
+class MTPDauth_sentCodeTypeSms : public MTP::internal::TypeData {
 public:
 	MTPDauth_sentCodeTypeSms() = default;
 	MTPDauth_sentCodeTypeSms(MTPint _length) : vlength(_length) {
@@ -11011,7 +11011,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDauth_sentCodeTypeCall : public mtpData {
+class MTPDauth_sentCodeTypeCall : public MTP::internal::TypeData {
 public:
 	MTPDauth_sentCodeTypeCall() = default;
 	MTPDauth_sentCodeTypeCall(MTPint _length) : vlength(_length) {
@@ -11020,7 +11020,7 @@ public:
 	MTPint vlength;
 };
 
-class MTPDauth_sentCodeTypeFlashCall : public mtpData {
+class MTPDauth_sentCodeTypeFlashCall : public MTP::internal::TypeData {
 public:
 	MTPDauth_sentCodeTypeFlashCall() = default;
 	MTPDauth_sentCodeTypeFlashCall(const MTPstring &_pattern) : vpattern(_pattern) {
@@ -11029,7 +11029,7 @@ public:
 	MTPstring vpattern;
 };
 
-class MTPDmessages_botCallbackAnswer : public mtpData {
+class MTPDmessages_botCallbackAnswer : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_alert = (1 << 1),
@@ -11057,7 +11057,7 @@ public:
 	MTPint vcache_time;
 };
 
-class MTPDmessages_messageEditData : public mtpData {
+class MTPDmessages_messageEditData : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_caption = (1 << 0),
@@ -11075,7 +11075,7 @@ public:
 	MTPflags<MTPDmessages_messageEditData::Flags> vflags;
 };
 
-class MTPDinputBotInlineMessageID : public mtpData {
+class MTPDinputBotInlineMessageID : public MTP::internal::TypeData {
 public:
 	MTPDinputBotInlineMessageID() = default;
 	MTPDinputBotInlineMessageID(MTPint _dc_id, const MTPlong &_id, const MTPlong &_access_hash) : vdc_id(_dc_id), vid(_id), vaccess_hash(_access_hash) {
@@ -11086,7 +11086,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinlineBotSwitchPM : public mtpData {
+class MTPDinlineBotSwitchPM : public MTP::internal::TypeData {
 public:
 	MTPDinlineBotSwitchPM() = default;
 	MTPDinlineBotSwitchPM(const MTPstring &_text, const MTPstring &_start_param) : vtext(_text), vstart_param(_start_param) {
@@ -11096,7 +11096,7 @@ public:
 	MTPstring vstart_param;
 };
 
-class MTPDmessages_peerDialogs : public mtpData {
+class MTPDmessages_peerDialogs : public MTP::internal::TypeData {
 public:
 	MTPDmessages_peerDialogs() = default;
 	MTPDmessages_peerDialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_state) : vdialogs(_dialogs), vmessages(_messages), vchats(_chats), vusers(_users), vstate(_state) {
@@ -11109,7 +11109,7 @@ public:
 	MTPupdates_State vstate;
 };
 
-class MTPDtopPeer : public mtpData {
+class MTPDtopPeer : public MTP::internal::TypeData {
 public:
 	MTPDtopPeer() = default;
 	MTPDtopPeer(const MTPPeer &_peer, const MTPdouble &_rating) : vpeer(_peer), vrating(_rating) {
@@ -11119,7 +11119,7 @@ public:
 	MTPdouble vrating;
 };
 
-class MTPDtopPeerCategoryPeers : public mtpData {
+class MTPDtopPeerCategoryPeers : public MTP::internal::TypeData {
 public:
 	MTPDtopPeerCategoryPeers() = default;
 	MTPDtopPeerCategoryPeers(const MTPTopPeerCategory &_category, MTPint _count, const MTPVector<MTPTopPeer> &_peers) : vcategory(_category), vcount(_count), vpeers(_peers) {
@@ -11130,7 +11130,7 @@ public:
 	MTPVector<MTPTopPeer> vpeers;
 };
 
-class MTPDcontacts_topPeers : public mtpData {
+class MTPDcontacts_topPeers : public MTP::internal::TypeData {
 public:
 	MTPDcontacts_topPeers() = default;
 	MTPDcontacts_topPeers(const MTPVector<MTPTopPeerCategoryPeers> &_categories, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) : vcategories(_categories), vchats(_chats), vusers(_users) {
@@ -11141,7 +11141,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDdraftMessage : public mtpData {
+class MTPDdraftMessage : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_no_webpage = (1 << 1),
@@ -11168,7 +11168,7 @@ public:
 	MTPint vdate;
 };
 
-class MTPDmessages_featuredStickers : public mtpData {
+class MTPDmessages_featuredStickers : public MTP::internal::TypeData {
 public:
 	MTPDmessages_featuredStickers() = default;
 	MTPDmessages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSetCovered> &_sets, const MTPVector<MTPlong> &_unread) : vhash(_hash), vsets(_sets), vunread(_unread) {
@@ -11179,7 +11179,7 @@ public:
 	MTPVector<MTPlong> vunread;
 };
 
-class MTPDmessages_recentStickers : public mtpData {
+class MTPDmessages_recentStickers : public MTP::internal::TypeData {
 public:
 	MTPDmessages_recentStickers() = default;
 	MTPDmessages_recentStickers(MTPint _hash, const MTPVector<MTPDocument> &_stickers) : vhash(_hash), vstickers(_stickers) {
@@ -11189,7 +11189,7 @@ public:
 	MTPVector<MTPDocument> vstickers;
 };
 
-class MTPDmessages_archivedStickers : public mtpData {
+class MTPDmessages_archivedStickers : public MTP::internal::TypeData {
 public:
 	MTPDmessages_archivedStickers() = default;
 	MTPDmessages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSetCovered> &_sets) : vcount(_count), vsets(_sets) {
@@ -11199,7 +11199,7 @@ public:
 	MTPVector<MTPStickerSetCovered> vsets;
 };
 
-class MTPDmessages_stickerSetInstallResultArchive : public mtpData {
+class MTPDmessages_stickerSetInstallResultArchive : public MTP::internal::TypeData {
 public:
 	MTPDmessages_stickerSetInstallResultArchive() = default;
 	MTPDmessages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSetCovered> &_sets) : vsets(_sets) {
@@ -11208,7 +11208,7 @@ public:
 	MTPVector<MTPStickerSetCovered> vsets;
 };
 
-class MTPDstickerSetCovered : public mtpData {
+class MTPDstickerSetCovered : public MTP::internal::TypeData {
 public:
 	MTPDstickerSetCovered() = default;
 	MTPDstickerSetCovered(const MTPStickerSet &_set, const MTPDocument &_cover) : vset(_set), vcover(_cover) {
@@ -11218,7 +11218,7 @@ public:
 	MTPDocument vcover;
 };
 
-class MTPDstickerSetMultiCovered : public mtpData {
+class MTPDstickerSetMultiCovered : public MTP::internal::TypeData {
 public:
 	MTPDstickerSetMultiCovered() = default;
 	MTPDstickerSetMultiCovered(const MTPStickerSet &_set, const MTPVector<MTPDocument> &_covers) : vset(_set), vcovers(_covers) {
@@ -11228,7 +11228,7 @@ public:
 	MTPVector<MTPDocument> vcovers;
 };
 
-class MTPDmaskCoords : public mtpData {
+class MTPDmaskCoords : public MTP::internal::TypeData {
 public:
 	MTPDmaskCoords() = default;
 	MTPDmaskCoords(MTPint _n, const MTPdouble &_x, const MTPdouble &_y, const MTPdouble &_zoom) : vn(_n), vx(_x), vy(_y), vzoom(_zoom) {
@@ -11240,7 +11240,7 @@ public:
 	MTPdouble vzoom;
 };
 
-class MTPDinputStickeredMediaPhoto : public mtpData {
+class MTPDinputStickeredMediaPhoto : public MTP::internal::TypeData {
 public:
 	MTPDinputStickeredMediaPhoto() = default;
 	MTPDinputStickeredMediaPhoto(const MTPInputPhoto &_id) : vid(_id) {
@@ -11249,7 +11249,7 @@ public:
 	MTPInputPhoto vid;
 };
 
-class MTPDinputStickeredMediaDocument : public mtpData {
+class MTPDinputStickeredMediaDocument : public MTP::internal::TypeData {
 public:
 	MTPDinputStickeredMediaDocument() = default;
 	MTPDinputStickeredMediaDocument(const MTPInputDocument &_id) : vid(_id) {
@@ -11258,7 +11258,7 @@ public:
 	MTPInputDocument vid;
 };
 
-class MTPDgame : public mtpData {
+class MTPDgame : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_document = (1 << 0),
@@ -11283,7 +11283,7 @@ public:
 	MTPDocument vdocument;
 };
 
-class MTPDinputGameID : public mtpData {
+class MTPDinputGameID : public MTP::internal::TypeData {
 public:
 	MTPDinputGameID() = default;
 	MTPDinputGameID(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -11293,7 +11293,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDinputGameShortName : public mtpData {
+class MTPDinputGameShortName : public MTP::internal::TypeData {
 public:
 	MTPDinputGameShortName() = default;
 	MTPDinputGameShortName(const MTPInputUser &_bot_id, const MTPstring &_short_name) : vbot_id(_bot_id), vshort_name(_short_name) {
@@ -11303,7 +11303,7 @@ public:
 	MTPstring vshort_name;
 };
 
-class MTPDhighScore : public mtpData {
+class MTPDhighScore : public MTP::internal::TypeData {
 public:
 	MTPDhighScore() = default;
 	MTPDhighScore(MTPint _pos, MTPint _user_id, MTPint _score) : vpos(_pos), vuser_id(_user_id), vscore(_score) {
@@ -11314,7 +11314,7 @@ public:
 	MTPint vscore;
 };
 
-class MTPDmessages_highScores : public mtpData {
+class MTPDmessages_highScores : public MTP::internal::TypeData {
 public:
 	MTPDmessages_highScores() = default;
 	MTPDmessages_highScores(const MTPVector<MTPHighScore> &_scores, const MTPVector<MTPUser> &_users) : vscores(_scores), vusers(_users) {
@@ -11324,7 +11324,7 @@ public:
 	MTPVector<MTPUser> vusers;
 };
 
-class MTPDtextPlain : public mtpData {
+class MTPDtextPlain : public MTP::internal::TypeData {
 public:
 	MTPDtextPlain() = default;
 	MTPDtextPlain(const MTPstring &_text) : vtext(_text) {
@@ -11333,7 +11333,7 @@ public:
 	MTPstring vtext;
 };
 
-class MTPDtextBold : public mtpData {
+class MTPDtextBold : public MTP::internal::TypeData {
 public:
 	MTPDtextBold() = default;
 	MTPDtextBold(const MTPRichText &_text) : vtext(_text) {
@@ -11342,7 +11342,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDtextItalic : public mtpData {
+class MTPDtextItalic : public MTP::internal::TypeData {
 public:
 	MTPDtextItalic() = default;
 	MTPDtextItalic(const MTPRichText &_text) : vtext(_text) {
@@ -11351,7 +11351,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDtextUnderline : public mtpData {
+class MTPDtextUnderline : public MTP::internal::TypeData {
 public:
 	MTPDtextUnderline() = default;
 	MTPDtextUnderline(const MTPRichText &_text) : vtext(_text) {
@@ -11360,7 +11360,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDtextStrike : public mtpData {
+class MTPDtextStrike : public MTP::internal::TypeData {
 public:
 	MTPDtextStrike() = default;
 	MTPDtextStrike(const MTPRichText &_text) : vtext(_text) {
@@ -11369,7 +11369,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDtextFixed : public mtpData {
+class MTPDtextFixed : public MTP::internal::TypeData {
 public:
 	MTPDtextFixed() = default;
 	MTPDtextFixed(const MTPRichText &_text) : vtext(_text) {
@@ -11378,7 +11378,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDtextUrl : public mtpData {
+class MTPDtextUrl : public MTP::internal::TypeData {
 public:
 	MTPDtextUrl() = default;
 	MTPDtextUrl(const MTPRichText &_text, const MTPstring &_url, const MTPlong &_webpage_id) : vtext(_text), vurl(_url), vwebpage_id(_webpage_id) {
@@ -11389,7 +11389,7 @@ public:
 	MTPlong vwebpage_id;
 };
 
-class MTPDtextEmail : public mtpData {
+class MTPDtextEmail : public MTP::internal::TypeData {
 public:
 	MTPDtextEmail() = default;
 	MTPDtextEmail(const MTPRichText &_text, const MTPstring &_email) : vtext(_text), vemail(_email) {
@@ -11399,7 +11399,7 @@ public:
 	MTPstring vemail;
 };
 
-class MTPDtextConcat : public mtpData {
+class MTPDtextConcat : public MTP::internal::TypeData {
 public:
 	MTPDtextConcat() = default;
 	MTPDtextConcat(const MTPVector<MTPRichText> &_texts) : vtexts(_texts) {
@@ -11408,7 +11408,7 @@ public:
 	MTPVector<MTPRichText> vtexts;
 };
 
-class MTPDpageBlockTitle : public mtpData {
+class MTPDpageBlockTitle : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockTitle() = default;
 	MTPDpageBlockTitle(const MTPRichText &_text) : vtext(_text) {
@@ -11417,7 +11417,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDpageBlockSubtitle : public mtpData {
+class MTPDpageBlockSubtitle : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockSubtitle() = default;
 	MTPDpageBlockSubtitle(const MTPRichText &_text) : vtext(_text) {
@@ -11426,7 +11426,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDpageBlockAuthorDate : public mtpData {
+class MTPDpageBlockAuthorDate : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockAuthorDate() = default;
 	MTPDpageBlockAuthorDate(const MTPRichText &_author, MTPint _published_date) : vauthor(_author), vpublished_date(_published_date) {
@@ -11436,7 +11436,7 @@ public:
 	MTPint vpublished_date;
 };
 
-class MTPDpageBlockHeader : public mtpData {
+class MTPDpageBlockHeader : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockHeader() = default;
 	MTPDpageBlockHeader(const MTPRichText &_text) : vtext(_text) {
@@ -11445,7 +11445,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDpageBlockSubheader : public mtpData {
+class MTPDpageBlockSubheader : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockSubheader() = default;
 	MTPDpageBlockSubheader(const MTPRichText &_text) : vtext(_text) {
@@ -11454,7 +11454,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDpageBlockParagraph : public mtpData {
+class MTPDpageBlockParagraph : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockParagraph() = default;
 	MTPDpageBlockParagraph(const MTPRichText &_text) : vtext(_text) {
@@ -11463,7 +11463,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDpageBlockPreformatted : public mtpData {
+class MTPDpageBlockPreformatted : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockPreformatted() = default;
 	MTPDpageBlockPreformatted(const MTPRichText &_text, const MTPstring &_language) : vtext(_text), vlanguage(_language) {
@@ -11473,7 +11473,7 @@ public:
 	MTPstring vlanguage;
 };
 
-class MTPDpageBlockFooter : public mtpData {
+class MTPDpageBlockFooter : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockFooter() = default;
 	MTPDpageBlockFooter(const MTPRichText &_text) : vtext(_text) {
@@ -11482,7 +11482,7 @@ public:
 	MTPRichText vtext;
 };
 
-class MTPDpageBlockAnchor : public mtpData {
+class MTPDpageBlockAnchor : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockAnchor() = default;
 	MTPDpageBlockAnchor(const MTPstring &_name) : vname(_name) {
@@ -11491,7 +11491,7 @@ public:
 	MTPstring vname;
 };
 
-class MTPDpageBlockList : public mtpData {
+class MTPDpageBlockList : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockList() = default;
 	MTPDpageBlockList(MTPBool _ordered, const MTPVector<MTPRichText> &_items) : vordered(_ordered), vitems(_items) {
@@ -11501,7 +11501,7 @@ public:
 	MTPVector<MTPRichText> vitems;
 };
 
-class MTPDpageBlockBlockquote : public mtpData {
+class MTPDpageBlockBlockquote : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockBlockquote() = default;
 	MTPDpageBlockBlockquote(const MTPRichText &_text, const MTPRichText &_caption) : vtext(_text), vcaption(_caption) {
@@ -11511,7 +11511,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockPullquote : public mtpData {
+class MTPDpageBlockPullquote : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockPullquote() = default;
 	MTPDpageBlockPullquote(const MTPRichText &_text, const MTPRichText &_caption) : vtext(_text), vcaption(_caption) {
@@ -11521,7 +11521,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockPhoto : public mtpData {
+class MTPDpageBlockPhoto : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockPhoto() = default;
 	MTPDpageBlockPhoto(const MTPlong &_photo_id, const MTPRichText &_caption) : vphoto_id(_photo_id), vcaption(_caption) {
@@ -11531,7 +11531,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockVideo : public mtpData {
+class MTPDpageBlockVideo : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_autoplay = (1 << 0),
@@ -11554,7 +11554,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockCover : public mtpData {
+class MTPDpageBlockCover : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockCover() = default;
 	MTPDpageBlockCover(const MTPPageBlock &_cover) : vcover(_cover) {
@@ -11563,7 +11563,7 @@ public:
 	MTPPageBlock vcover;
 };
 
-class MTPDpageBlockEmbed : public mtpData {
+class MTPDpageBlockEmbed : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_full_width = (1 << 0),
@@ -11596,7 +11596,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockEmbedPost : public mtpData {
+class MTPDpageBlockEmbedPost : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockEmbedPost() = default;
 	MTPDpageBlockEmbedPost(const MTPstring &_url, const MTPlong &_webpage_id, const MTPlong &_author_photo_id, const MTPstring &_author, MTPint _date, const MTPVector<MTPPageBlock> &_blocks, const MTPRichText &_caption) : vurl(_url), vwebpage_id(_webpage_id), vauthor_photo_id(_author_photo_id), vauthor(_author), vdate(_date), vblocks(_blocks), vcaption(_caption) {
@@ -11611,7 +11611,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockCollage : public mtpData {
+class MTPDpageBlockCollage : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockCollage() = default;
 	MTPDpageBlockCollage(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) : vitems(_items), vcaption(_caption) {
@@ -11621,7 +11621,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpageBlockSlideshow : public mtpData {
+class MTPDpageBlockSlideshow : public MTP::internal::TypeData {
 public:
 	MTPDpageBlockSlideshow() = default;
 	MTPDpageBlockSlideshow(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) : vitems(_items), vcaption(_caption) {
@@ -11631,7 +11631,7 @@ public:
 	MTPRichText vcaption;
 };
 
-class MTPDpagePart : public mtpData {
+class MTPDpagePart : public MTP::internal::TypeData {
 public:
 	MTPDpagePart() = default;
 	MTPDpagePart(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) : vblocks(_blocks), vphotos(_photos), vvideos(_videos) {
@@ -11642,7 +11642,7 @@ public:
 	MTPVector<MTPDocument> vvideos;
 };
 
-class MTPDpageFull : public mtpData {
+class MTPDpageFull : public MTP::internal::TypeData {
 public:
 	MTPDpageFull() = default;
 	MTPDpageFull(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) : vblocks(_blocks), vphotos(_photos), vvideos(_videos) {
@@ -11653,7 +11653,7 @@ public:
 	MTPVector<MTPDocument> vvideos;
 };
 
-class MTPDinputPhoneCall : public mtpData {
+class MTPDinputPhoneCall : public MTP::internal::TypeData {
 public:
 	MTPDinputPhoneCall() = default;
 	MTPDinputPhoneCall(const MTPlong &_id, const MTPlong &_access_hash) : vid(_id), vaccess_hash(_access_hash) {
@@ -11663,7 +11663,7 @@ public:
 	MTPlong vaccess_hash;
 };
 
-class MTPDphoneCallEmpty : public mtpData {
+class MTPDphoneCallEmpty : public MTP::internal::TypeData {
 public:
 	MTPDphoneCallEmpty() = default;
 	MTPDphoneCallEmpty(const MTPlong &_id) : vid(_id) {
@@ -11672,7 +11672,7 @@ public:
 	MTPlong vid;
 };
 
-class MTPDphoneCallWaiting : public mtpData {
+class MTPDphoneCallWaiting : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_receive_date = (1 << 0),
@@ -11697,7 +11697,7 @@ public:
 	MTPint vreceive_date;
 };
 
-class MTPDphoneCallRequested : public mtpData {
+class MTPDphoneCallRequested : public MTP::internal::TypeData {
 public:
 	MTPDphoneCallRequested() = default;
 	MTPDphoneCallRequested(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a, const MTPPhoneCallProtocol &_protocol) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vadmin_id(_admin_id), vparticipant_id(_participant_id), vg_a(_g_a), vprotocol(_protocol) {
@@ -11712,7 +11712,7 @@ public:
 	MTPPhoneCallProtocol vprotocol;
 };
 
-class MTPDphoneCall : public mtpData {
+class MTPDphoneCall : public MTP::internal::TypeData {
 public:
 	MTPDphoneCall() = default;
 	MTPDphoneCall(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a_or_b, const MTPlong &_key_fingerprint, const MTPPhoneCallProtocol &_protocol, const MTPPhoneConnection &_connection, const MTPVector<MTPPhoneConnection> &_alternative_connections, MTPint _start_date) : vid(_id), vaccess_hash(_access_hash), vdate(_date), vadmin_id(_admin_id), vparticipant_id(_participant_id), vg_a_or_b(_g_a_or_b), vkey_fingerprint(_key_fingerprint), vprotocol(_protocol), vconnection(_connection), valternative_connections(_alternative_connections), vstart_date(_start_date) {
@@ -11731,7 +11731,7 @@ public:
 	MTPint vstart_date;
 };
 
-class MTPDphoneCallDiscarded : public mtpData {
+class MTPDphoneCallDiscarded : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_reason = (1 << 0),
@@ -11755,7 +11755,7 @@ public:
 	MTPint vduration;
 };
 
-class MTPDphoneConnection : public mtpData {
+class MTPDphoneConnection : public MTP::internal::TypeData {
 public:
 	MTPDphoneConnection() = default;
 	MTPDphoneConnection(const MTPlong &_id, const MTPstring &_ip, const MTPstring &_ipv6, MTPint _port, const MTPbytes &_peer_tag) : vid(_id), vip(_ip), vipv6(_ipv6), vport(_port), vpeer_tag(_peer_tag) {
@@ -11768,7 +11768,7 @@ public:
 	MTPbytes vpeer_tag;
 };
 
-class MTPDphoneCallProtocol : public mtpData {
+class MTPDphoneCallProtocol : public MTP::internal::TypeData {
 public:
 	enum class Flag : int32 {
 		f_udp_p2p = (1 << 0),
@@ -11791,7 +11791,7 @@ public:
 	MTPint vmax_layer;
 };
 
-class MTPDphone_phoneCall : public mtpData {
+class MTPDphone_phoneCall : public MTP::internal::TypeData {
 public:
 	MTPDphone_phoneCall() = default;
 	MTPDphone_phoneCall(const MTPPhoneCall &_phone_call, const MTPVector<MTPUser> &_users) : vphone_call(_phone_call), vusers(_users) {
@@ -19479,31 +19479,31 @@ namespace internal {
 class TypeCreator {
 public:
 	inline static MTPresPQ new_resPQ(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPstring &_pq, const MTPVector<MTPlong> &_server_public_key_fingerprints) {
-		return MTPresPQ(std::make_shared<MTPDresPQ>(_nonce, _server_nonce, _pq, _server_public_key_fingerprints));
+		return MTPresPQ(new MTPDresPQ(_nonce, _server_nonce, _pq, _server_public_key_fingerprints));
 	}
 	inline static MTPp_Q_inner_data new_p_q_inner_data(const MTPstring &_pq, const MTPstring &_p, const MTPstring &_q, const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint256 &_new_nonce) {
-		return MTPp_Q_inner_data(std::make_shared<MTPDp_q_inner_data>(_pq, _p, _q, _nonce, _server_nonce, _new_nonce));
+		return MTPp_Q_inner_data(new MTPDp_q_inner_data(_pq, _p, _q, _nonce, _server_nonce, _new_nonce));
 	}
 	inline static MTPserver_DH_Params new_server_DH_params_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash) {
-		return MTPserver_DH_Params(std::make_shared<MTPDserver_DH_params_fail>(_nonce, _server_nonce, _new_nonce_hash));
+		return MTPserver_DH_Params(new MTPDserver_DH_params_fail(_nonce, _server_nonce, _new_nonce_hash));
 	}
 	inline static MTPserver_DH_Params new_server_DH_params_ok(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPstring &_encrypted_answer) {
-		return MTPserver_DH_Params(std::make_shared<MTPDserver_DH_params_ok>(_nonce, _server_nonce, _encrypted_answer));
+		return MTPserver_DH_Params(new MTPDserver_DH_params_ok(_nonce, _server_nonce, _encrypted_answer));
 	}
 	inline static MTPserver_DH_inner_data new_server_DH_inner_data(const MTPint128 &_nonce, const MTPint128 &_server_nonce, MTPint _g, const MTPstring &_dh_prime, const MTPstring &_g_a, MTPint _server_time) {
-		return MTPserver_DH_inner_data(std::make_shared<MTPDserver_DH_inner_data>(_nonce, _server_nonce, _g, _dh_prime, _g_a, _server_time));
+		return MTPserver_DH_inner_data(new MTPDserver_DH_inner_data(_nonce, _server_nonce, _g, _dh_prime, _g_a, _server_time));
 	}
 	inline static MTPclient_DH_Inner_Data new_client_DH_inner_data(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPlong &_retry_id, const MTPstring &_g_b) {
-		return MTPclient_DH_Inner_Data(std::make_shared<MTPDclient_DH_inner_data>(_nonce, _server_nonce, _retry_id, _g_b));
+		return MTPclient_DH_Inner_Data(new MTPDclient_DH_inner_data(_nonce, _server_nonce, _retry_id, _g_b));
 	}
 	inline static MTPset_client_DH_params_answer new_dh_gen_ok(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash1) {
-		return MTPset_client_DH_params_answer(std::make_shared<MTPDdh_gen_ok>(_nonce, _server_nonce, _new_nonce_hash1));
+		return MTPset_client_DH_params_answer(new MTPDdh_gen_ok(_nonce, _server_nonce, _new_nonce_hash1));
 	}
 	inline static MTPset_client_DH_params_answer new_dh_gen_retry(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash2) {
-		return MTPset_client_DH_params_answer(std::make_shared<MTPDdh_gen_retry>(_nonce, _server_nonce, _new_nonce_hash2));
+		return MTPset_client_DH_params_answer(new MTPDdh_gen_retry(_nonce, _server_nonce, _new_nonce_hash2));
 	}
 	inline static MTPset_client_DH_params_answer new_dh_gen_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash3) {
-		return MTPset_client_DH_params_answer(std::make_shared<MTPDdh_gen_fail>(_nonce, _server_nonce, _new_nonce_hash3));
+		return MTPset_client_DH_params_answer(new MTPDdh_gen_fail(_nonce, _server_nonce, _new_nonce_hash3));
 	}
 	inline static MTPdestroyAuthKeyRes new_destroy_auth_key_ok() {
 		return MTPdestroyAuthKeyRes(mtpc_destroy_auth_key_ok);
@@ -19515,34 +19515,34 @@ public:
 		return MTPdestroyAuthKeyRes(mtpc_destroy_auth_key_fail);
 	}
 	inline static MTPmsgsAck new_msgs_ack(const MTPVector<MTPlong> &_msg_ids) {
-		return MTPmsgsAck(std::make_shared<MTPDmsgs_ack>(_msg_ids));
+		return MTPmsgsAck(new MTPDmsgs_ack(_msg_ids));
 	}
 	inline static MTPbadMsgNotification new_bad_msg_notification(const MTPlong &_bad_msg_id, MTPint _bad_msg_seqno, MTPint _error_code) {
-		return MTPbadMsgNotification(std::make_shared<MTPDbad_msg_notification>(_bad_msg_id, _bad_msg_seqno, _error_code));
+		return MTPbadMsgNotification(new MTPDbad_msg_notification(_bad_msg_id, _bad_msg_seqno, _error_code));
 	}
 	inline static MTPbadMsgNotification new_bad_server_salt(const MTPlong &_bad_msg_id, MTPint _bad_msg_seqno, MTPint _error_code, const MTPlong &_new_server_salt) {
-		return MTPbadMsgNotification(std::make_shared<MTPDbad_server_salt>(_bad_msg_id, _bad_msg_seqno, _error_code, _new_server_salt));
+		return MTPbadMsgNotification(new MTPDbad_server_salt(_bad_msg_id, _bad_msg_seqno, _error_code, _new_server_salt));
 	}
 	inline static MTPmsgsStateReq new_msgs_state_req(const MTPVector<MTPlong> &_msg_ids) {
-		return MTPmsgsStateReq(std::make_shared<MTPDmsgs_state_req>(_msg_ids));
+		return MTPmsgsStateReq(new MTPDmsgs_state_req(_msg_ids));
 	}
 	inline static MTPmsgsStateInfo new_msgs_state_info(const MTPlong &_req_msg_id, const MTPstring &_info) {
-		return MTPmsgsStateInfo(std::make_shared<MTPDmsgs_state_info>(_req_msg_id, _info));
+		return MTPmsgsStateInfo(new MTPDmsgs_state_info(_req_msg_id, _info));
 	}
 	inline static MTPmsgsAllInfo new_msgs_all_info(const MTPVector<MTPlong> &_msg_ids, const MTPstring &_info) {
-		return MTPmsgsAllInfo(std::make_shared<MTPDmsgs_all_info>(_msg_ids, _info));
+		return MTPmsgsAllInfo(new MTPDmsgs_all_info(_msg_ids, _info));
 	}
 	inline static MTPmsgDetailedInfo new_msg_detailed_info(const MTPlong &_msg_id, const MTPlong &_answer_msg_id, MTPint _bytes, MTPint _status) {
-		return MTPmsgDetailedInfo(std::make_shared<MTPDmsg_detailed_info>(_msg_id, _answer_msg_id, _bytes, _status));
+		return MTPmsgDetailedInfo(new MTPDmsg_detailed_info(_msg_id, _answer_msg_id, _bytes, _status));
 	}
 	inline static MTPmsgDetailedInfo new_msg_new_detailed_info(const MTPlong &_answer_msg_id, MTPint _bytes, MTPint _status) {
-		return MTPmsgDetailedInfo(std::make_shared<MTPDmsg_new_detailed_info>(_answer_msg_id, _bytes, _status));
+		return MTPmsgDetailedInfo(new MTPDmsg_new_detailed_info(_answer_msg_id, _bytes, _status));
 	}
 	inline static MTPmsgResendReq new_msg_resend_req(const MTPVector<MTPlong> &_msg_ids) {
-		return MTPmsgResendReq(std::make_shared<MTPDmsg_resend_req>(_msg_ids));
+		return MTPmsgResendReq(new MTPDmsg_resend_req(_msg_ids));
 	}
 	inline static MTPrpcError new_rpc_error(MTPint _error_code, const MTPstring &_error_message) {
-		return MTPrpcError(std::make_shared<MTPDrpc_error>(_error_code, _error_message));
+		return MTPrpcError(new MTPDrpc_error(_error_code, _error_message));
 	}
 	inline static MTPrpcDropAnswer new_rpc_answer_unknown() {
 		return MTPrpcDropAnswer(mtpc_rpc_answer_unknown);
@@ -19551,28 +19551,28 @@ public:
 		return MTPrpcDropAnswer(mtpc_rpc_answer_dropped_running);
 	}
 	inline static MTPrpcDropAnswer new_rpc_answer_dropped(const MTPlong &_msg_id, MTPint _seq_no, MTPint _bytes) {
-		return MTPrpcDropAnswer(std::make_shared<MTPDrpc_answer_dropped>(_msg_id, _seq_no, _bytes));
+		return MTPrpcDropAnswer(new MTPDrpc_answer_dropped(_msg_id, _seq_no, _bytes));
 	}
 	inline static MTPfutureSalt new_future_salt(MTPint _valid_since, MTPint _valid_until, const MTPlong &_salt) {
-		return MTPfutureSalt(std::make_shared<MTPDfuture_salt>(_valid_since, _valid_until, _salt));
+		return MTPfutureSalt(new MTPDfuture_salt(_valid_since, _valid_until, _salt));
 	}
 	inline static MTPfutureSalts new_future_salts(const MTPlong &_req_msg_id, MTPint _now, const MTPvector<MTPfutureSalt> &_salts) {
-		return MTPfutureSalts(std::make_shared<MTPDfuture_salts>(_req_msg_id, _now, _salts));
+		return MTPfutureSalts(new MTPDfuture_salts(_req_msg_id, _now, _salts));
 	}
 	inline static MTPpong new_pong(const MTPlong &_msg_id, const MTPlong &_ping_id) {
-		return MTPpong(std::make_shared<MTPDpong>(_msg_id, _ping_id));
+		return MTPpong(new MTPDpong(_msg_id, _ping_id));
 	}
 	inline static MTPdestroySessionRes new_destroy_session_ok(const MTPlong &_session_id) {
-		return MTPdestroySessionRes(std::make_shared<MTPDdestroy_session_ok>(_session_id));
+		return MTPdestroySessionRes(new MTPDdestroy_session_ok(_session_id));
 	}
 	inline static MTPdestroySessionRes new_destroy_session_none(const MTPlong &_session_id) {
-		return MTPdestroySessionRes(std::make_shared<MTPDdestroy_session_none>(_session_id));
+		return MTPdestroySessionRes(new MTPDdestroy_session_none(_session_id));
 	}
 	inline static MTPnewSession new_new_session_created(const MTPlong &_first_msg_id, const MTPlong &_unique_id, const MTPlong &_server_salt) {
-		return MTPnewSession(std::make_shared<MTPDnew_session_created>(_first_msg_id, _unique_id, _server_salt));
+		return MTPnewSession(new MTPDnew_session_created(_first_msg_id, _unique_id, _server_salt));
 	}
 	inline static MTPhttpWait new_http_wait(MTPint _max_delay, MTPint _wait_after, MTPint _max_wait) {
-		return MTPhttpWait(std::make_shared<MTPDhttp_wait>(_max_delay, _wait_after, _max_wait));
+		return MTPhttpWait(new MTPDhttp_wait(_max_delay, _wait_after, _max_wait));
 	}
 	inline static MTPbool new_boolFalse() {
 		return MTPbool(mtpc_boolFalse);
@@ -19584,7 +19584,7 @@ public:
 		return MTPtrue();
 	}
 	inline static MTPerror new_error(MTPint _code, const MTPstring &_text) {
-		return MTPerror(std::make_shared<MTPDerror>(_code, _text));
+		return MTPerror(new MTPDerror(_code, _text));
 	}
 	inline static MTPnull new_null() {
 		return MTPnull();
@@ -19596,13 +19596,13 @@ public:
 		return MTPinputPeer(mtpc_inputPeerSelf);
 	}
 	inline static MTPinputPeer new_inputPeerChat(MTPint _chat_id) {
-		return MTPinputPeer(std::make_shared<MTPDinputPeerChat>(_chat_id));
+		return MTPinputPeer(new MTPDinputPeerChat(_chat_id));
 	}
 	inline static MTPinputPeer new_inputPeerUser(MTPint _user_id, const MTPlong &_access_hash) {
-		return MTPinputPeer(std::make_shared<MTPDinputPeerUser>(_user_id, _access_hash));
+		return MTPinputPeer(new MTPDinputPeerUser(_user_id, _access_hash));
 	}
 	inline static MTPinputPeer new_inputPeerChannel(MTPint _channel_id, const MTPlong &_access_hash) {
-		return MTPinputPeer(std::make_shared<MTPDinputPeerChannel>(_channel_id, _access_hash));
+		return MTPinputPeer(new MTPDinputPeerChannel(_channel_id, _access_hash));
 	}
 	inline static MTPinputUser new_inputUserEmpty() {
 		return MTPinputUser(mtpc_inputUserEmpty);
@@ -19611,97 +19611,97 @@ public:
 		return MTPinputUser(mtpc_inputUserSelf);
 	}
 	inline static MTPinputUser new_inputUser(MTPint _user_id, const MTPlong &_access_hash) {
-		return MTPinputUser(std::make_shared<MTPDinputUser>(_user_id, _access_hash));
+		return MTPinputUser(new MTPDinputUser(_user_id, _access_hash));
 	}
 	inline static MTPinputContact new_inputPhoneContact(const MTPlong &_client_id, const MTPstring &_phone, const MTPstring &_first_name, const MTPstring &_last_name) {
-		return MTPinputContact(std::make_shared<MTPDinputPhoneContact>(_client_id, _phone, _first_name, _last_name));
+		return MTPinputContact(new MTPDinputPhoneContact(_client_id, _phone, _first_name, _last_name));
 	}
 	inline static MTPinputFile new_inputFile(const MTPlong &_id, MTPint _parts, const MTPstring &_name, const MTPstring &_md5_checksum) {
-		return MTPinputFile(std::make_shared<MTPDinputFile>(_id, _parts, _name, _md5_checksum));
+		return MTPinputFile(new MTPDinputFile(_id, _parts, _name, _md5_checksum));
 	}
 	inline static MTPinputFile new_inputFileBig(const MTPlong &_id, MTPint _parts, const MTPstring &_name) {
-		return MTPinputFile(std::make_shared<MTPDinputFileBig>(_id, _parts, _name));
+		return MTPinputFile(new MTPDinputFileBig(_id, _parts, _name));
 	}
 	inline static MTPinputMedia new_inputMediaEmpty() {
 		return MTPinputMedia(mtpc_inputMediaEmpty);
 	}
 	inline static MTPinputMedia new_inputMediaUploadedPhoto(const MTPflags<MTPDinputMediaUploadedPhoto::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaUploadedPhoto>(_flags, _file, _caption, _stickers));
+		return MTPinputMedia(new MTPDinputMediaUploadedPhoto(_flags, _file, _caption, _stickers));
 	}
 	inline static MTPinputMedia new_inputMediaPhoto(const MTPInputPhoto &_id, const MTPstring &_caption) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaPhoto>(_id, _caption));
+		return MTPinputMedia(new MTPDinputMediaPhoto(_id, _caption));
 	}
 	inline static MTPinputMedia new_inputMediaGeoPoint(const MTPInputGeoPoint &_geo_point) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaGeoPoint>(_geo_point));
+		return MTPinputMedia(new MTPDinputMediaGeoPoint(_geo_point));
 	}
 	inline static MTPinputMedia new_inputMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaContact>(_phone_number, _first_name, _last_name));
+		return MTPinputMedia(new MTPDinputMediaContact(_phone_number, _first_name, _last_name));
 	}
 	inline static MTPinputMedia new_inputMediaUploadedDocument(const MTPflags<MTPDinputMediaUploadedDocument::Flags> &_flags, const MTPInputFile &_file, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaUploadedDocument>(_flags, _file, _mime_type, _attributes, _caption, _stickers));
+		return MTPinputMedia(new MTPDinputMediaUploadedDocument(_flags, _file, _mime_type, _attributes, _caption, _stickers));
 	}
 	inline static MTPinputMedia new_inputMediaUploadedThumbDocument(const MTPflags<MTPDinputMediaUploadedThumbDocument::Flags> &_flags, const MTPInputFile &_file, const MTPInputFile &_thumb, const MTPstring &_mime_type, const MTPVector<MTPDocumentAttribute> &_attributes, const MTPstring &_caption, const MTPVector<MTPInputDocument> &_stickers) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaUploadedThumbDocument>(_flags, _file, _thumb, _mime_type, _attributes, _caption, _stickers));
+		return MTPinputMedia(new MTPDinputMediaUploadedThumbDocument(_flags, _file, _thumb, _mime_type, _attributes, _caption, _stickers));
 	}
 	inline static MTPinputMedia new_inputMediaDocument(const MTPInputDocument &_id, const MTPstring &_caption) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaDocument>(_id, _caption));
+		return MTPinputMedia(new MTPDinputMediaDocument(_id, _caption));
 	}
 	inline static MTPinputMedia new_inputMediaVenue(const MTPInputGeoPoint &_geo_point, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaVenue>(_geo_point, _title, _address, _provider, _venue_id));
+		return MTPinputMedia(new MTPDinputMediaVenue(_geo_point, _title, _address, _provider, _venue_id));
 	}
 	inline static MTPinputMedia new_inputMediaGifExternal(const MTPstring &_url, const MTPstring &_q) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaGifExternal>(_url, _q));
+		return MTPinputMedia(new MTPDinputMediaGifExternal(_url, _q));
 	}
 	inline static MTPinputMedia new_inputMediaPhotoExternal(const MTPstring &_url, const MTPstring &_caption) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaPhotoExternal>(_url, _caption));
+		return MTPinputMedia(new MTPDinputMediaPhotoExternal(_url, _caption));
 	}
 	inline static MTPinputMedia new_inputMediaDocumentExternal(const MTPstring &_url, const MTPstring &_caption) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaDocumentExternal>(_url, _caption));
+		return MTPinputMedia(new MTPDinputMediaDocumentExternal(_url, _caption));
 	}
 	inline static MTPinputMedia new_inputMediaGame(const MTPInputGame &_id) {
-		return MTPinputMedia(std::make_shared<MTPDinputMediaGame>(_id));
+		return MTPinputMedia(new MTPDinputMediaGame(_id));
 	}
 	inline static MTPinputChatPhoto new_inputChatPhotoEmpty() {
 		return MTPinputChatPhoto(mtpc_inputChatPhotoEmpty);
 	}
 	inline static MTPinputChatPhoto new_inputChatUploadedPhoto(const MTPInputFile &_file) {
-		return MTPinputChatPhoto(std::make_shared<MTPDinputChatUploadedPhoto>(_file));
+		return MTPinputChatPhoto(new MTPDinputChatUploadedPhoto(_file));
 	}
 	inline static MTPinputChatPhoto new_inputChatPhoto(const MTPInputPhoto &_id) {
-		return MTPinputChatPhoto(std::make_shared<MTPDinputChatPhoto>(_id));
+		return MTPinputChatPhoto(new MTPDinputChatPhoto(_id));
 	}
 	inline static MTPinputGeoPoint new_inputGeoPointEmpty() {
 		return MTPinputGeoPoint(mtpc_inputGeoPointEmpty);
 	}
 	inline static MTPinputGeoPoint new_inputGeoPoint(const MTPdouble &_lat, const MTPdouble &_long) {
-		return MTPinputGeoPoint(std::make_shared<MTPDinputGeoPoint>(_lat, _long));
+		return MTPinputGeoPoint(new MTPDinputGeoPoint(_lat, _long));
 	}
 	inline static MTPinputPhoto new_inputPhotoEmpty() {
 		return MTPinputPhoto(mtpc_inputPhotoEmpty);
 	}
 	inline static MTPinputPhoto new_inputPhoto(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputPhoto(std::make_shared<MTPDinputPhoto>(_id, _access_hash));
+		return MTPinputPhoto(new MTPDinputPhoto(_id, _access_hash));
 	}
 	inline static MTPinputFileLocation new_inputFileLocation(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
-		return MTPinputFileLocation(std::make_shared<MTPDinputFileLocation>(_volume_id, _local_id, _secret));
+		return MTPinputFileLocation(new MTPDinputFileLocation(_volume_id, _local_id, _secret));
 	}
 	inline static MTPinputFileLocation new_inputEncryptedFileLocation(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputFileLocation(std::make_shared<MTPDinputEncryptedFileLocation>(_id, _access_hash));
+		return MTPinputFileLocation(new MTPDinputEncryptedFileLocation(_id, _access_hash));
 	}
 	inline static MTPinputFileLocation new_inputDocumentFileLocation(const MTPlong &_id, const MTPlong &_access_hash, MTPint _version) {
-		return MTPinputFileLocation(std::make_shared<MTPDinputDocumentFileLocation>(_id, _access_hash, _version));
+		return MTPinputFileLocation(new MTPDinputDocumentFileLocation(_id, _access_hash, _version));
 	}
 	inline static MTPinputAppEvent new_inputAppEvent(const MTPdouble &_time, const MTPstring &_type, const MTPlong &_peer, const MTPstring &_data) {
-		return MTPinputAppEvent(std::make_shared<MTPDinputAppEvent>(_time, _type, _peer, _data));
+		return MTPinputAppEvent(new MTPDinputAppEvent(_time, _type, _peer, _data));
 	}
 	inline static MTPpeer new_peerUser(MTPint _user_id) {
-		return MTPpeer(std::make_shared<MTPDpeerUser>(_user_id));
+		return MTPpeer(new MTPDpeerUser(_user_id));
 	}
 	inline static MTPpeer new_peerChat(MTPint _chat_id) {
-		return MTPpeer(std::make_shared<MTPDpeerChat>(_chat_id));
+		return MTPpeer(new MTPDpeerChat(_chat_id));
 	}
 	inline static MTPpeer new_peerChannel(MTPint _channel_id) {
-		return MTPpeer(std::make_shared<MTPDpeerChannel>(_channel_id));
+		return MTPpeer(new MTPDpeerChannel(_channel_id));
 	}
 	inline static MTPstorage_fileType new_storage_fileUnknown() {
 		return MTPstorage_fileType(mtpc_storage_fileUnknown);
@@ -19734,31 +19734,31 @@ public:
 		return MTPstorage_fileType(mtpc_storage_fileWebp);
 	}
 	inline static MTPfileLocation new_fileLocationUnavailable(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
-		return MTPfileLocation(std::make_shared<MTPDfileLocationUnavailable>(_volume_id, _local_id, _secret));
+		return MTPfileLocation(new MTPDfileLocationUnavailable(_volume_id, _local_id, _secret));
 	}
 	inline static MTPfileLocation new_fileLocation(MTPint _dc_id, const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
-		return MTPfileLocation(std::make_shared<MTPDfileLocation>(_dc_id, _volume_id, _local_id, _secret));
+		return MTPfileLocation(new MTPDfileLocation(_dc_id, _volume_id, _local_id, _secret));
 	}
 	inline static MTPuser new_userEmpty(MTPint _id) {
-		return MTPuser(std::make_shared<MTPDuserEmpty>(_id));
+		return MTPuser(new MTPDuserEmpty(_id));
 	}
 	inline static MTPuser new_user(const MTPflags<MTPDuser::Flags> &_flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username, const MTPstring &_phone, const MTPUserProfilePhoto &_photo, const MTPUserStatus &_status, MTPint _bot_info_version, const MTPstring &_restriction_reason, const MTPstring &_bot_inline_placeholder) {
-		return MTPuser(std::make_shared<MTPDuser>(_flags, _id, _access_hash, _first_name, _last_name, _username, _phone, _photo, _status, _bot_info_version, _restriction_reason, _bot_inline_placeholder));
+		return MTPuser(new MTPDuser(_flags, _id, _access_hash, _first_name, _last_name, _username, _phone, _photo, _status, _bot_info_version, _restriction_reason, _bot_inline_placeholder));
 	}
 	inline static MTPuserProfilePhoto new_userProfilePhotoEmpty() {
 		return MTPuserProfilePhoto(mtpc_userProfilePhotoEmpty);
 	}
 	inline static MTPuserProfilePhoto new_userProfilePhoto(const MTPlong &_photo_id, const MTPFileLocation &_photo_small, const MTPFileLocation &_photo_big) {
-		return MTPuserProfilePhoto(std::make_shared<MTPDuserProfilePhoto>(_photo_id, _photo_small, _photo_big));
+		return MTPuserProfilePhoto(new MTPDuserProfilePhoto(_photo_id, _photo_small, _photo_big));
 	}
 	inline static MTPuserStatus new_userStatusEmpty() {
 		return MTPuserStatus(mtpc_userStatusEmpty);
 	}
 	inline static MTPuserStatus new_userStatusOnline(MTPint _expires) {
-		return MTPuserStatus(std::make_shared<MTPDuserStatusOnline>(_expires));
+		return MTPuserStatus(new MTPDuserStatusOnline(_expires));
 	}
 	inline static MTPuserStatus new_userStatusOffline(MTPint _was_online) {
-		return MTPuserStatus(std::make_shared<MTPDuserStatusOffline>(_was_online));
+		return MTPuserStatus(new MTPDuserStatusOffline(_was_online));
 	}
 	inline static MTPuserStatus new_userStatusRecently() {
 		return MTPuserStatus(mtpc_userStatusRecently);
@@ -19770,115 +19770,115 @@ public:
 		return MTPuserStatus(mtpc_userStatusLastMonth);
 	}
 	inline static MTPchat new_chatEmpty(MTPint _id) {
-		return MTPchat(std::make_shared<MTPDchatEmpty>(_id));
+		return MTPchat(new MTPDchatEmpty(_id));
 	}
 	inline static MTPchat new_chat(const MTPflags<MTPDchat::Flags> &_flags, MTPint _id, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, MTPint _date, MTPint _version, const MTPInputChannel &_migrated_to) {
-		return MTPchat(std::make_shared<MTPDchat>(_flags, _id, _title, _photo, _participants_count, _date, _version, _migrated_to));
+		return MTPchat(new MTPDchat(_flags, _id, _title, _photo, _participants_count, _date, _version, _migrated_to));
 	}
 	inline static MTPchat new_chatForbidden(MTPint _id, const MTPstring &_title) {
-		return MTPchat(std::make_shared<MTPDchatForbidden>(_id, _title));
+		return MTPchat(new MTPDchatForbidden(_id, _title));
 	}
 	inline static MTPchat new_channel(const MTPflags<MTPDchannel::Flags> &_flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_username, const MTPChatPhoto &_photo, MTPint _date, MTPint _version, const MTPstring &_restriction_reason) {
-		return MTPchat(std::make_shared<MTPDchannel>(_flags, _id, _access_hash, _title, _username, _photo, _date, _version, _restriction_reason));
+		return MTPchat(new MTPDchannel(_flags, _id, _access_hash, _title, _username, _photo, _date, _version, _restriction_reason));
 	}
 	inline static MTPchat new_channelForbidden(const MTPflags<MTPDchannelForbidden::Flags> &_flags, MTPint _id, const MTPlong &_access_hash, const MTPstring &_title) {
-		return MTPchat(std::make_shared<MTPDchannelForbidden>(_flags, _id, _access_hash, _title));
+		return MTPchat(new MTPDchannelForbidden(_flags, _id, _access_hash, _title));
 	}
 	inline static MTPchatFull new_chatFull(MTPint _id, const MTPChatParticipants &_participants, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite, const MTPVector<MTPBotInfo> &_bot_info) {
-		return MTPchatFull(std::make_shared<MTPDchatFull>(_id, _participants, _chat_photo, _notify_settings, _exported_invite, _bot_info));
+		return MTPchatFull(new MTPDchatFull(_id, _participants, _chat_photo, _notify_settings, _exported_invite, _bot_info));
 	}
 	inline static MTPchatFull new_channelFull(const MTPflags<MTPDchannelFull::Flags> &_flags, MTPint _id, const MTPstring &_about, MTPint _participants_count, MTPint _admins_count, MTPint _kicked_count, MTPint _read_inbox_max_id, MTPint _read_outbox_max_id, MTPint _unread_count, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite, const MTPVector<MTPBotInfo> &_bot_info, MTPint _migrated_from_chat_id, MTPint _migrated_from_max_id, MTPint _pinned_msg_id) {
-		return MTPchatFull(std::make_shared<MTPDchannelFull>(_flags, _id, _about, _participants_count, _admins_count, _kicked_count, _read_inbox_max_id, _read_outbox_max_id, _unread_count, _chat_photo, _notify_settings, _exported_invite, _bot_info, _migrated_from_chat_id, _migrated_from_max_id, _pinned_msg_id));
+		return MTPchatFull(new MTPDchannelFull(_flags, _id, _about, _participants_count, _admins_count, _kicked_count, _read_inbox_max_id, _read_outbox_max_id, _unread_count, _chat_photo, _notify_settings, _exported_invite, _bot_info, _migrated_from_chat_id, _migrated_from_max_id, _pinned_msg_id));
 	}
 	inline static MTPchatParticipant new_chatParticipant(MTPint _user_id, MTPint _inviter_id, MTPint _date) {
-		return MTPchatParticipant(std::make_shared<MTPDchatParticipant>(_user_id, _inviter_id, _date));
+		return MTPchatParticipant(new MTPDchatParticipant(_user_id, _inviter_id, _date));
 	}
 	inline static MTPchatParticipant new_chatParticipantCreator(MTPint _user_id) {
-		return MTPchatParticipant(std::make_shared<MTPDchatParticipantCreator>(_user_id));
+		return MTPchatParticipant(new MTPDchatParticipantCreator(_user_id));
 	}
 	inline static MTPchatParticipant new_chatParticipantAdmin(MTPint _user_id, MTPint _inviter_id, MTPint _date) {
-		return MTPchatParticipant(std::make_shared<MTPDchatParticipantAdmin>(_user_id, _inviter_id, _date));
+		return MTPchatParticipant(new MTPDchatParticipantAdmin(_user_id, _inviter_id, _date));
 	}
 	inline static MTPchatParticipants new_chatParticipantsForbidden(const MTPflags<MTPDchatParticipantsForbidden::Flags> &_flags, MTPint _chat_id, const MTPChatParticipant &_self_participant) {
-		return MTPchatParticipants(std::make_shared<MTPDchatParticipantsForbidden>(_flags, _chat_id, _self_participant));
+		return MTPchatParticipants(new MTPDchatParticipantsForbidden(_flags, _chat_id, _self_participant));
 	}
 	inline static MTPchatParticipants new_chatParticipants(MTPint _chat_id, const MTPVector<MTPChatParticipant> &_participants, MTPint _version) {
-		return MTPchatParticipants(std::make_shared<MTPDchatParticipants>(_chat_id, _participants, _version));
+		return MTPchatParticipants(new MTPDchatParticipants(_chat_id, _participants, _version));
 	}
 	inline static MTPchatPhoto new_chatPhotoEmpty() {
 		return MTPchatPhoto(mtpc_chatPhotoEmpty);
 	}
 	inline static MTPchatPhoto new_chatPhoto(const MTPFileLocation &_photo_small, const MTPFileLocation &_photo_big) {
-		return MTPchatPhoto(std::make_shared<MTPDchatPhoto>(_photo_small, _photo_big));
+		return MTPchatPhoto(new MTPDchatPhoto(_photo_small, _photo_big));
 	}
 	inline static MTPmessage new_messageEmpty(MTPint _id) {
-		return MTPmessage(std::make_shared<MTPDmessageEmpty>(_id));
+		return MTPmessage(new MTPDmessageEmpty(_id));
 	}
 	inline static MTPmessage new_message(const MTPflags<MTPDmessage::Flags> &_flags, MTPint _id, MTPint _from_id, const MTPPeer &_to_id, const MTPMessageFwdHeader &_fwd_from, MTPint _via_bot_id, MTPint _reply_to_msg_id, MTPint _date, const MTPstring &_message, const MTPMessageMedia &_media, const MTPReplyMarkup &_reply_markup, const MTPVector<MTPMessageEntity> &_entities, MTPint _views, MTPint _edit_date) {
-		return MTPmessage(std::make_shared<MTPDmessage>(_flags, _id, _from_id, _to_id, _fwd_from, _via_bot_id, _reply_to_msg_id, _date, _message, _media, _reply_markup, _entities, _views, _edit_date));
+		return MTPmessage(new MTPDmessage(_flags, _id, _from_id, _to_id, _fwd_from, _via_bot_id, _reply_to_msg_id, _date, _message, _media, _reply_markup, _entities, _views, _edit_date));
 	}
 	inline static MTPmessage new_messageService(const MTPflags<MTPDmessageService::Flags> &_flags, MTPint _id, MTPint _from_id, const MTPPeer &_to_id, MTPint _reply_to_msg_id, MTPint _date, const MTPMessageAction &_action) {
-		return MTPmessage(std::make_shared<MTPDmessageService>(_flags, _id, _from_id, _to_id, _reply_to_msg_id, _date, _action));
+		return MTPmessage(new MTPDmessageService(_flags, _id, _from_id, _to_id, _reply_to_msg_id, _date, _action));
 	}
 	inline static MTPmessageMedia new_messageMediaEmpty() {
 		return MTPmessageMedia(mtpc_messageMediaEmpty);
 	}
 	inline static MTPmessageMedia new_messageMediaPhoto(const MTPPhoto &_photo, const MTPstring &_caption) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaPhoto>(_photo, _caption));
+		return MTPmessageMedia(new MTPDmessageMediaPhoto(_photo, _caption));
 	}
 	inline static MTPmessageMedia new_messageMediaGeo(const MTPGeoPoint &_geo) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaGeo>(_geo));
+		return MTPmessageMedia(new MTPDmessageMediaGeo(_geo));
 	}
 	inline static MTPmessageMedia new_messageMediaContact(const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name, MTPint _user_id) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaContact>(_phone_number, _first_name, _last_name, _user_id));
+		return MTPmessageMedia(new MTPDmessageMediaContact(_phone_number, _first_name, _last_name, _user_id));
 	}
 	inline static MTPmessageMedia new_messageMediaUnsupported() {
 		return MTPmessageMedia(mtpc_messageMediaUnsupported);
 	}
 	inline static MTPmessageMedia new_messageMediaDocument(const MTPDocument &_document, const MTPstring &_caption) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaDocument>(_document, _caption));
+		return MTPmessageMedia(new MTPDmessageMediaDocument(_document, _caption));
 	}
 	inline static MTPmessageMedia new_messageMediaWebPage(const MTPWebPage &_webpage) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaWebPage>(_webpage));
+		return MTPmessageMedia(new MTPDmessageMediaWebPage(_webpage));
 	}
 	inline static MTPmessageMedia new_messageMediaVenue(const MTPGeoPoint &_geo, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaVenue>(_geo, _title, _address, _provider, _venue_id));
+		return MTPmessageMedia(new MTPDmessageMediaVenue(_geo, _title, _address, _provider, _venue_id));
 	}
 	inline static MTPmessageMedia new_messageMediaGame(const MTPGame &_game) {
-		return MTPmessageMedia(std::make_shared<MTPDmessageMediaGame>(_game));
+		return MTPmessageMedia(new MTPDmessageMediaGame(_game));
 	}
 	inline static MTPmessageAction new_messageActionEmpty() {
 		return MTPmessageAction(mtpc_messageActionEmpty);
 	}
 	inline static MTPmessageAction new_messageActionChatCreate(const MTPstring &_title, const MTPVector<MTPint> &_users) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatCreate>(_title, _users));
+		return MTPmessageAction(new MTPDmessageActionChatCreate(_title, _users));
 	}
 	inline static MTPmessageAction new_messageActionChatEditTitle(const MTPstring &_title) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatEditTitle>(_title));
+		return MTPmessageAction(new MTPDmessageActionChatEditTitle(_title));
 	}
 	inline static MTPmessageAction new_messageActionChatEditPhoto(const MTPPhoto &_photo) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatEditPhoto>(_photo));
+		return MTPmessageAction(new MTPDmessageActionChatEditPhoto(_photo));
 	}
 	inline static MTPmessageAction new_messageActionChatDeletePhoto() {
 		return MTPmessageAction(mtpc_messageActionChatDeletePhoto);
 	}
 	inline static MTPmessageAction new_messageActionChatAddUser(const MTPVector<MTPint> &_users) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatAddUser>(_users));
+		return MTPmessageAction(new MTPDmessageActionChatAddUser(_users));
 	}
 	inline static MTPmessageAction new_messageActionChatDeleteUser(MTPint _user_id) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatDeleteUser>(_user_id));
+		return MTPmessageAction(new MTPDmessageActionChatDeleteUser(_user_id));
 	}
 	inline static MTPmessageAction new_messageActionChatJoinedByLink(MTPint _inviter_id) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatJoinedByLink>(_inviter_id));
+		return MTPmessageAction(new MTPDmessageActionChatJoinedByLink(_inviter_id));
 	}
 	inline static MTPmessageAction new_messageActionChannelCreate(const MTPstring &_title) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChannelCreate>(_title));
+		return MTPmessageAction(new MTPDmessageActionChannelCreate(_title));
 	}
 	inline static MTPmessageAction new_messageActionChatMigrateTo(MTPint _channel_id) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChatMigrateTo>(_channel_id));
+		return MTPmessageAction(new MTPDmessageActionChatMigrateTo(_channel_id));
 	}
 	inline static MTPmessageAction new_messageActionChannelMigrateFrom(const MTPstring &_title, MTPint _chat_id) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionChannelMigrateFrom>(_title, _chat_id));
+		return MTPmessageAction(new MTPDmessageActionChannelMigrateFrom(_title, _chat_id));
 	}
 	inline static MTPmessageAction new_messageActionPinMessage() {
 		return MTPmessageAction(mtpc_messageActionPinMessage);
@@ -19887,49 +19887,49 @@ public:
 		return MTPmessageAction(mtpc_messageActionHistoryClear);
 	}
 	inline static MTPmessageAction new_messageActionGameScore(const MTPlong &_game_id, MTPint _score) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionGameScore>(_game_id, _score));
+		return MTPmessageAction(new MTPDmessageActionGameScore(_game_id, _score));
 	}
 	inline static MTPmessageAction new_messageActionPhoneCall(const MTPflags<MTPDmessageActionPhoneCall::Flags> &_flags, const MTPlong &_call_id, const MTPPhoneCallDiscardReason &_reason, MTPint _duration) {
-		return MTPmessageAction(std::make_shared<MTPDmessageActionPhoneCall>(_flags, _call_id, _reason, _duration));
+		return MTPmessageAction(new MTPDmessageActionPhoneCall(_flags, _call_id, _reason, _duration));
 	}
 	inline static MTPdialog new_dialog(const MTPflags<MTPDdialog::Flags> &_flags, const MTPPeer &_peer, MTPint _top_message, MTPint _read_inbox_max_id, MTPint _read_outbox_max_id, MTPint _unread_count, const MTPPeerNotifySettings &_notify_settings, MTPint _pts, const MTPDraftMessage &_draft) {
-		return MTPdialog(std::make_shared<MTPDdialog>(_flags, _peer, _top_message, _read_inbox_max_id, _read_outbox_max_id, _unread_count, _notify_settings, _pts, _draft));
+		return MTPdialog(new MTPDdialog(_flags, _peer, _top_message, _read_inbox_max_id, _read_outbox_max_id, _unread_count, _notify_settings, _pts, _draft));
 	}
 	inline static MTPphoto new_photoEmpty(const MTPlong &_id) {
-		return MTPphoto(std::make_shared<MTPDphotoEmpty>(_id));
+		return MTPphoto(new MTPDphotoEmpty(_id));
 	}
 	inline static MTPphoto new_photo(const MTPflags<MTPDphoto::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPVector<MTPPhotoSize> &_sizes) {
-		return MTPphoto(std::make_shared<MTPDphoto>(_flags, _id, _access_hash, _date, _sizes));
+		return MTPphoto(new MTPDphoto(_flags, _id, _access_hash, _date, _sizes));
 	}
 	inline static MTPphotoSize new_photoSizeEmpty(const MTPstring &_type) {
-		return MTPphotoSize(std::make_shared<MTPDphotoSizeEmpty>(_type));
+		return MTPphotoSize(new MTPDphotoSizeEmpty(_type));
 	}
 	inline static MTPphotoSize new_photoSize(const MTPstring &_type, const MTPFileLocation &_location, MTPint _w, MTPint _h, MTPint _size) {
-		return MTPphotoSize(std::make_shared<MTPDphotoSize>(_type, _location, _w, _h, _size));
+		return MTPphotoSize(new MTPDphotoSize(_type, _location, _w, _h, _size));
 	}
 	inline static MTPphotoSize new_photoCachedSize(const MTPstring &_type, const MTPFileLocation &_location, MTPint _w, MTPint _h, const MTPbytes &_bytes) {
-		return MTPphotoSize(std::make_shared<MTPDphotoCachedSize>(_type, _location, _w, _h, _bytes));
+		return MTPphotoSize(new MTPDphotoCachedSize(_type, _location, _w, _h, _bytes));
 	}
 	inline static MTPgeoPoint new_geoPointEmpty() {
 		return MTPgeoPoint(mtpc_geoPointEmpty);
 	}
 	inline static MTPgeoPoint new_geoPoint(const MTPdouble &_long, const MTPdouble &_lat) {
-		return MTPgeoPoint(std::make_shared<MTPDgeoPoint>(_long, _lat));
+		return MTPgeoPoint(new MTPDgeoPoint(_long, _lat));
 	}
 	inline static MTPauth_checkedPhone new_auth_checkedPhone(MTPBool _phone_registered) {
-		return MTPauth_checkedPhone(std::make_shared<MTPDauth_checkedPhone>(_phone_registered));
+		return MTPauth_checkedPhone(new MTPDauth_checkedPhone(_phone_registered));
 	}
 	inline static MTPauth_sentCode new_auth_sentCode(const MTPflags<MTPDauth_sentCode::Flags> &_flags, const MTPauth_SentCodeType &_type, const MTPstring &_phone_code_hash, const MTPauth_CodeType &_next_type, MTPint _timeout) {
-		return MTPauth_sentCode(std::make_shared<MTPDauth_sentCode>(_flags, _type, _phone_code_hash, _next_type, _timeout));
+		return MTPauth_sentCode(new MTPDauth_sentCode(_flags, _type, _phone_code_hash, _next_type, _timeout));
 	}
 	inline static MTPauth_authorization new_auth_authorization(const MTPflags<MTPDauth_authorization::Flags> &_flags, MTPint _tmp_sessions, const MTPUser &_user) {
-		return MTPauth_authorization(std::make_shared<MTPDauth_authorization>(_flags, _tmp_sessions, _user));
+		return MTPauth_authorization(new MTPDauth_authorization(_flags, _tmp_sessions, _user));
 	}
 	inline static MTPauth_exportedAuthorization new_auth_exportedAuthorization(MTPint _id, const MTPbytes &_bytes) {
-		return MTPauth_exportedAuthorization(std::make_shared<MTPDauth_exportedAuthorization>(_id, _bytes));
+		return MTPauth_exportedAuthorization(new MTPDauth_exportedAuthorization(_id, _bytes));
 	}
 	inline static MTPinputNotifyPeer new_inputNotifyPeer(const MTPInputPeer &_peer) {
-		return MTPinputNotifyPeer(std::make_shared<MTPDinputNotifyPeer>(_peer));
+		return MTPinputNotifyPeer(new MTPDinputNotifyPeer(_peer));
 	}
 	inline static MTPinputNotifyPeer new_inputNotifyUsers() {
 		return MTPinputNotifyPeer(mtpc_inputNotifyUsers);
@@ -19947,7 +19947,7 @@ public:
 		return MTPinputPeerNotifyEvents(mtpc_inputPeerNotifyEventsAll);
 	}
 	inline static MTPinputPeerNotifySettings new_inputPeerNotifySettings(const MTPflags<MTPDinputPeerNotifySettings::Flags> &_flags, MTPint _mute_until, const MTPstring &_sound) {
-		return MTPinputPeerNotifySettings(std::make_shared<MTPDinputPeerNotifySettings>(_flags, _mute_until, _sound));
+		return MTPinputPeerNotifySettings(new MTPDinputPeerNotifySettings(_flags, _mute_until, _sound));
 	}
 	inline static MTPpeerNotifyEvents new_peerNotifyEventsEmpty() {
 		return MTPpeerNotifyEvents(mtpc_peerNotifyEventsEmpty);
@@ -19959,16 +19959,16 @@ public:
 		return MTPpeerNotifySettings(mtpc_peerNotifySettingsEmpty);
 	}
 	inline static MTPpeerNotifySettings new_peerNotifySettings(const MTPflags<MTPDpeerNotifySettings::Flags> &_flags, MTPint _mute_until, const MTPstring &_sound) {
-		return MTPpeerNotifySettings(std::make_shared<MTPDpeerNotifySettings>(_flags, _mute_until, _sound));
+		return MTPpeerNotifySettings(new MTPDpeerNotifySettings(_flags, _mute_until, _sound));
 	}
 	inline static MTPpeerSettings new_peerSettings(const MTPflags<MTPDpeerSettings::Flags> &_flags) {
-		return MTPpeerSettings(std::make_shared<MTPDpeerSettings>(_flags));
+		return MTPpeerSettings(new MTPDpeerSettings(_flags));
 	}
 	inline static MTPwallPaper new_wallPaper(MTPint _id, const MTPstring &_title, const MTPVector<MTPPhotoSize> &_sizes, MTPint _color) {
-		return MTPwallPaper(std::make_shared<MTPDwallPaper>(_id, _title, _sizes, _color));
+		return MTPwallPaper(new MTPDwallPaper(_id, _title, _sizes, _color));
 	}
 	inline static MTPwallPaper new_wallPaperSolid(MTPint _id, const MTPstring &_title, MTPint _bg_color, MTPint _color) {
-		return MTPwallPaper(std::make_shared<MTPDwallPaperSolid>(_id, _title, _bg_color, _color));
+		return MTPwallPaper(new MTPDwallPaperSolid(_id, _title, _bg_color, _color));
 	}
 	inline static MTPreportReason new_inputReportReasonSpam() {
 		return MTPreportReason(mtpc_inputReportReasonSpam);
@@ -19980,67 +19980,67 @@ public:
 		return MTPreportReason(mtpc_inputReportReasonPornography);
 	}
 	inline static MTPreportReason new_inputReportReasonOther(const MTPstring &_text) {
-		return MTPreportReason(std::make_shared<MTPDinputReportReasonOther>(_text));
+		return MTPreportReason(new MTPDinputReportReasonOther(_text));
 	}
 	inline static MTPuserFull new_userFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info, MTPint _common_chats_count) {
-		return MTPuserFull(std::make_shared<MTPDuserFull>(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info, _common_chats_count));
+		return MTPuserFull(new MTPDuserFull(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info, _common_chats_count));
 	}
 	inline static MTPcontact new_contact(MTPint _user_id, MTPBool _mutual) {
-		return MTPcontact(std::make_shared<MTPDcontact>(_user_id, _mutual));
+		return MTPcontact(new MTPDcontact(_user_id, _mutual));
 	}
 	inline static MTPimportedContact new_importedContact(MTPint _user_id, const MTPlong &_client_id) {
-		return MTPimportedContact(std::make_shared<MTPDimportedContact>(_user_id, _client_id));
+		return MTPimportedContact(new MTPDimportedContact(_user_id, _client_id));
 	}
 	inline static MTPcontactBlocked new_contactBlocked(MTPint _user_id, MTPint _date) {
-		return MTPcontactBlocked(std::make_shared<MTPDcontactBlocked>(_user_id, _date));
+		return MTPcontactBlocked(new MTPDcontactBlocked(_user_id, _date));
 	}
 	inline static MTPcontactStatus new_contactStatus(MTPint _user_id, const MTPUserStatus &_status) {
-		return MTPcontactStatus(std::make_shared<MTPDcontactStatus>(_user_id, _status));
+		return MTPcontactStatus(new MTPDcontactStatus(_user_id, _status));
 	}
 	inline static MTPcontacts_link new_contacts_link(const MTPContactLink &_my_link, const MTPContactLink &_foreign_link, const MTPUser &_user) {
-		return MTPcontacts_link(std::make_shared<MTPDcontacts_link>(_my_link, _foreign_link, _user));
+		return MTPcontacts_link(new MTPDcontacts_link(_my_link, _foreign_link, _user));
 	}
 	inline static MTPcontacts_contacts new_contacts_contactsNotModified() {
 		return MTPcontacts_contacts(mtpc_contacts_contactsNotModified);
 	}
 	inline static MTPcontacts_contacts new_contacts_contacts(const MTPVector<MTPContact> &_contacts, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_contacts(std::make_shared<MTPDcontacts_contacts>(_contacts, _users));
+		return MTPcontacts_contacts(new MTPDcontacts_contacts(_contacts, _users));
 	}
 	inline static MTPcontacts_importedContacts new_contacts_importedContacts(const MTPVector<MTPImportedContact> &_imported, const MTPVector<MTPlong> &_retry_contacts, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_importedContacts(std::make_shared<MTPDcontacts_importedContacts>(_imported, _retry_contacts, _users));
+		return MTPcontacts_importedContacts(new MTPDcontacts_importedContacts(_imported, _retry_contacts, _users));
 	}
 	inline static MTPcontacts_blocked new_contacts_blocked(const MTPVector<MTPContactBlocked> &_blocked, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_blocked(std::make_shared<MTPDcontacts_blocked>(_blocked, _users));
+		return MTPcontacts_blocked(new MTPDcontacts_blocked(_blocked, _users));
 	}
 	inline static MTPcontacts_blocked new_contacts_blockedSlice(MTPint _count, const MTPVector<MTPContactBlocked> &_blocked, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_blocked(std::make_shared<MTPDcontacts_blockedSlice>(_count, _blocked, _users));
+		return MTPcontacts_blocked(new MTPDcontacts_blockedSlice(_count, _blocked, _users));
 	}
 	inline static MTPmessages_dialogs new_messages_dialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_dialogs(std::make_shared<MTPDmessages_dialogs>(_dialogs, _messages, _chats, _users));
+		return MTPmessages_dialogs(new MTPDmessages_dialogs(_dialogs, _messages, _chats, _users));
 	}
 	inline static MTPmessages_dialogs new_messages_dialogsSlice(MTPint _count, const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_dialogs(std::make_shared<MTPDmessages_dialogsSlice>(_count, _dialogs, _messages, _chats, _users));
+		return MTPmessages_dialogs(new MTPDmessages_dialogsSlice(_count, _dialogs, _messages, _chats, _users));
 	}
 	inline static MTPmessages_messages new_messages_messages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_messages(std::make_shared<MTPDmessages_messages>(_messages, _chats, _users));
+		return MTPmessages_messages(new MTPDmessages_messages(_messages, _chats, _users));
 	}
 	inline static MTPmessages_messages new_messages_messagesSlice(MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_messages(std::make_shared<MTPDmessages_messagesSlice>(_count, _messages, _chats, _users));
+		return MTPmessages_messages(new MTPDmessages_messagesSlice(_count, _messages, _chats, _users));
 	}
 	inline static MTPmessages_messages new_messages_channelMessages(const MTPflags<MTPDmessages_channelMessages::Flags> &_flags, MTPint _pts, MTPint _count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_messages(std::make_shared<MTPDmessages_channelMessages>(_flags, _pts, _count, _messages, _chats, _users));
+		return MTPmessages_messages(new MTPDmessages_channelMessages(_flags, _pts, _count, _messages, _chats, _users));
 	}
 	inline static MTPmessages_chats new_messages_chats(const MTPVector<MTPChat> &_chats) {
-		return MTPmessages_chats(std::make_shared<MTPDmessages_chats>(_chats));
+		return MTPmessages_chats(new MTPDmessages_chats(_chats));
 	}
 	inline static MTPmessages_chats new_messages_chatsSlice(MTPint _count, const MTPVector<MTPChat> &_chats) {
-		return MTPmessages_chats(std::make_shared<MTPDmessages_chatsSlice>(_count, _chats));
+		return MTPmessages_chats(new MTPDmessages_chatsSlice(_count, _chats));
 	}
 	inline static MTPmessages_chatFull new_messages_chatFull(const MTPChatFull &_full_chat, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_chatFull(std::make_shared<MTPDmessages_chatFull>(_full_chat, _chats, _users));
+		return MTPmessages_chatFull(new MTPDmessages_chatFull(_full_chat, _chats, _users));
 	}
 	inline static MTPmessages_affectedHistory new_messages_affectedHistory(MTPint _pts, MTPint _pts_count, MTPint _offset) {
-		return MTPmessages_affectedHistory(std::make_shared<MTPDmessages_affectedHistory>(_pts, _pts_count, _offset));
+		return MTPmessages_affectedHistory(new MTPDmessages_affectedHistory(_pts, _pts_count, _offset));
 	}
 	inline static MTPmessagesFilter new_inputMessagesFilterEmpty() {
 		return MTPmessagesFilter(mtpc_inputMessagesFilterEmpty);
@@ -20076,118 +20076,118 @@ public:
 		return MTPmessagesFilter(mtpc_inputMessagesFilterChatPhotos);
 	}
 	inline static MTPmessagesFilter new_inputMessagesFilterPhoneCalls(const MTPflags<MTPDinputMessagesFilterPhoneCalls::Flags> &_flags) {
-		return MTPmessagesFilter(std::make_shared<MTPDinputMessagesFilterPhoneCalls>(_flags));
+		return MTPmessagesFilter(new MTPDinputMessagesFilterPhoneCalls(_flags));
 	}
 	inline static MTPupdate new_updateNewMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateNewMessage>(_message, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateNewMessage(_message, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateMessageID(MTPint _id, const MTPlong &_random_id) {
-		return MTPupdate(std::make_shared<MTPDupdateMessageID>(_id, _random_id));
+		return MTPupdate(new MTPDupdateMessageID(_id, _random_id));
 	}
 	inline static MTPupdate new_updateDeleteMessages(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateDeleteMessages>(_messages, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateDeleteMessages(_messages, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateUserTyping(MTPint _user_id, const MTPSendMessageAction &_action) {
-		return MTPupdate(std::make_shared<MTPDupdateUserTyping>(_user_id, _action));
+		return MTPupdate(new MTPDupdateUserTyping(_user_id, _action));
 	}
 	inline static MTPupdate new_updateChatUserTyping(MTPint _chat_id, MTPint _user_id, const MTPSendMessageAction &_action) {
-		return MTPupdate(std::make_shared<MTPDupdateChatUserTyping>(_chat_id, _user_id, _action));
+		return MTPupdate(new MTPDupdateChatUserTyping(_chat_id, _user_id, _action));
 	}
 	inline static MTPupdate new_updateChatParticipants(const MTPChatParticipants &_participants) {
-		return MTPupdate(std::make_shared<MTPDupdateChatParticipants>(_participants));
+		return MTPupdate(new MTPDupdateChatParticipants(_participants));
 	}
 	inline static MTPupdate new_updateUserStatus(MTPint _user_id, const MTPUserStatus &_status) {
-		return MTPupdate(std::make_shared<MTPDupdateUserStatus>(_user_id, _status));
+		return MTPupdate(new MTPDupdateUserStatus(_user_id, _status));
 	}
 	inline static MTPupdate new_updateUserName(MTPint _user_id, const MTPstring &_first_name, const MTPstring &_last_name, const MTPstring &_username) {
-		return MTPupdate(std::make_shared<MTPDupdateUserName>(_user_id, _first_name, _last_name, _username));
+		return MTPupdate(new MTPDupdateUserName(_user_id, _first_name, _last_name, _username));
 	}
 	inline static MTPupdate new_updateUserPhoto(MTPint _user_id, MTPint _date, const MTPUserProfilePhoto &_photo, MTPBool _previous) {
-		return MTPupdate(std::make_shared<MTPDupdateUserPhoto>(_user_id, _date, _photo, _previous));
+		return MTPupdate(new MTPDupdateUserPhoto(_user_id, _date, _photo, _previous));
 	}
 	inline static MTPupdate new_updateContactRegistered(MTPint _user_id, MTPint _date) {
-		return MTPupdate(std::make_shared<MTPDupdateContactRegistered>(_user_id, _date));
+		return MTPupdate(new MTPDupdateContactRegistered(_user_id, _date));
 	}
 	inline static MTPupdate new_updateContactLink(MTPint _user_id, const MTPContactLink &_my_link, const MTPContactLink &_foreign_link) {
-		return MTPupdate(std::make_shared<MTPDupdateContactLink>(_user_id, _my_link, _foreign_link));
+		return MTPupdate(new MTPDupdateContactLink(_user_id, _my_link, _foreign_link));
 	}
 	inline static MTPupdate new_updateNewEncryptedMessage(const MTPEncryptedMessage &_message, MTPint _qts) {
-		return MTPupdate(std::make_shared<MTPDupdateNewEncryptedMessage>(_message, _qts));
+		return MTPupdate(new MTPDupdateNewEncryptedMessage(_message, _qts));
 	}
 	inline static MTPupdate new_updateEncryptedChatTyping(MTPint _chat_id) {
-		return MTPupdate(std::make_shared<MTPDupdateEncryptedChatTyping>(_chat_id));
+		return MTPupdate(new MTPDupdateEncryptedChatTyping(_chat_id));
 	}
 	inline static MTPupdate new_updateEncryption(const MTPEncryptedChat &_chat, MTPint _date) {
-		return MTPupdate(std::make_shared<MTPDupdateEncryption>(_chat, _date));
+		return MTPupdate(new MTPDupdateEncryption(_chat, _date));
 	}
 	inline static MTPupdate new_updateEncryptedMessagesRead(MTPint _chat_id, MTPint _max_date, MTPint _date) {
-		return MTPupdate(std::make_shared<MTPDupdateEncryptedMessagesRead>(_chat_id, _max_date, _date));
+		return MTPupdate(new MTPDupdateEncryptedMessagesRead(_chat_id, _max_date, _date));
 	}
 	inline static MTPupdate new_updateChatParticipantAdd(MTPint _chat_id, MTPint _user_id, MTPint _inviter_id, MTPint _date, MTPint _version) {
-		return MTPupdate(std::make_shared<MTPDupdateChatParticipantAdd>(_chat_id, _user_id, _inviter_id, _date, _version));
+		return MTPupdate(new MTPDupdateChatParticipantAdd(_chat_id, _user_id, _inviter_id, _date, _version));
 	}
 	inline static MTPupdate new_updateChatParticipantDelete(MTPint _chat_id, MTPint _user_id, MTPint _version) {
-		return MTPupdate(std::make_shared<MTPDupdateChatParticipantDelete>(_chat_id, _user_id, _version));
+		return MTPupdate(new MTPDupdateChatParticipantDelete(_chat_id, _user_id, _version));
 	}
 	inline static MTPupdate new_updateDcOptions(const MTPVector<MTPDcOption> &_dc_options) {
-		return MTPupdate(std::make_shared<MTPDupdateDcOptions>(_dc_options));
+		return MTPupdate(new MTPDupdateDcOptions(_dc_options));
 	}
 	inline static MTPupdate new_updateUserBlocked(MTPint _user_id, MTPBool _blocked) {
-		return MTPupdate(std::make_shared<MTPDupdateUserBlocked>(_user_id, _blocked));
+		return MTPupdate(new MTPDupdateUserBlocked(_user_id, _blocked));
 	}
 	inline static MTPupdate new_updateNotifySettings(const MTPNotifyPeer &_peer, const MTPPeerNotifySettings &_notify_settings) {
-		return MTPupdate(std::make_shared<MTPDupdateNotifySettings>(_peer, _notify_settings));
+		return MTPupdate(new MTPDupdateNotifySettings(_peer, _notify_settings));
 	}
 	inline static MTPupdate new_updateServiceNotification(const MTPflags<MTPDupdateServiceNotification::Flags> &_flags, MTPint _inbox_date, const MTPstring &_type, const MTPstring &_message, const MTPMessageMedia &_media, const MTPVector<MTPMessageEntity> &_entities) {
-		return MTPupdate(std::make_shared<MTPDupdateServiceNotification>(_flags, _inbox_date, _type, _message, _media, _entities));
+		return MTPupdate(new MTPDupdateServiceNotification(_flags, _inbox_date, _type, _message, _media, _entities));
 	}
 	inline static MTPupdate new_updatePrivacy(const MTPPrivacyKey &_key, const MTPVector<MTPPrivacyRule> &_rules) {
-		return MTPupdate(std::make_shared<MTPDupdatePrivacy>(_key, _rules));
+		return MTPupdate(new MTPDupdatePrivacy(_key, _rules));
 	}
 	inline static MTPupdate new_updateUserPhone(MTPint _user_id, const MTPstring &_phone) {
-		return MTPupdate(std::make_shared<MTPDupdateUserPhone>(_user_id, _phone));
+		return MTPupdate(new MTPDupdateUserPhone(_user_id, _phone));
 	}
 	inline static MTPupdate new_updateReadHistoryInbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateReadHistoryInbox>(_peer, _max_id, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateReadHistoryInbox(_peer, _max_id, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateReadHistoryOutbox(const MTPPeer &_peer, MTPint _max_id, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateReadHistoryOutbox>(_peer, _max_id, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateReadHistoryOutbox(_peer, _max_id, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateWebPage(const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateWebPage>(_webpage, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateWebPage(_webpage, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateReadMessagesContents(const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateReadMessagesContents>(_messages, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateReadMessagesContents(_messages, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateChannelTooLong(const MTPflags<MTPDupdateChannelTooLong::Flags> &_flags, MTPint _channel_id, MTPint _pts) {
-		return MTPupdate(std::make_shared<MTPDupdateChannelTooLong>(_flags, _channel_id, _pts));
+		return MTPupdate(new MTPDupdateChannelTooLong(_flags, _channel_id, _pts));
 	}
 	inline static MTPupdate new_updateChannel(MTPint _channel_id) {
-		return MTPupdate(std::make_shared<MTPDupdateChannel>(_channel_id));
+		return MTPupdate(new MTPDupdateChannel(_channel_id));
 	}
 	inline static MTPupdate new_updateNewChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateNewChannelMessage>(_message, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateNewChannelMessage(_message, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateReadChannelInbox(MTPint _channel_id, MTPint _max_id) {
-		return MTPupdate(std::make_shared<MTPDupdateReadChannelInbox>(_channel_id, _max_id));
+		return MTPupdate(new MTPDupdateReadChannelInbox(_channel_id, _max_id));
 	}
 	inline static MTPupdate new_updateDeleteChannelMessages(MTPint _channel_id, const MTPVector<MTPint> &_messages, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateDeleteChannelMessages>(_channel_id, _messages, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateDeleteChannelMessages(_channel_id, _messages, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateChannelMessageViews(MTPint _channel_id, MTPint _id, MTPint _views) {
-		return MTPupdate(std::make_shared<MTPDupdateChannelMessageViews>(_channel_id, _id, _views));
+		return MTPupdate(new MTPDupdateChannelMessageViews(_channel_id, _id, _views));
 	}
 	inline static MTPupdate new_updateChatAdmins(MTPint _chat_id, MTPBool _enabled, MTPint _version) {
-		return MTPupdate(std::make_shared<MTPDupdateChatAdmins>(_chat_id, _enabled, _version));
+		return MTPupdate(new MTPDupdateChatAdmins(_chat_id, _enabled, _version));
 	}
 	inline static MTPupdate new_updateChatParticipantAdmin(MTPint _chat_id, MTPint _user_id, MTPBool _is_admin, MTPint _version) {
-		return MTPupdate(std::make_shared<MTPDupdateChatParticipantAdmin>(_chat_id, _user_id, _is_admin, _version));
+		return MTPupdate(new MTPDupdateChatParticipantAdmin(_chat_id, _user_id, _is_admin, _version));
 	}
 	inline static MTPupdate new_updateNewStickerSet(const MTPmessages_StickerSet &_stickerset) {
-		return MTPupdate(std::make_shared<MTPDupdateNewStickerSet>(_stickerset));
+		return MTPupdate(new MTPDupdateNewStickerSet(_stickerset));
 	}
 	inline static MTPupdate new_updateStickerSetsOrder(const MTPflags<MTPDupdateStickerSetsOrder::Flags> &_flags, const MTPVector<MTPlong> &_order) {
-		return MTPupdate(std::make_shared<MTPDupdateStickerSetsOrder>(_flags, _order));
+		return MTPupdate(new MTPDupdateStickerSetsOrder(_flags, _order));
 	}
 	inline static MTPupdate new_updateStickerSets() {
 		return MTPupdate(mtpc_updateStickerSets);
@@ -20196,31 +20196,31 @@ public:
 		return MTPupdate(mtpc_updateSavedGifs);
 	}
 	inline static MTPupdate new_updateBotInlineQuery(const MTPflags<MTPDupdateBotInlineQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_offset) {
-		return MTPupdate(std::make_shared<MTPDupdateBotInlineQuery>(_flags, _query_id, _user_id, _query, _geo, _offset));
+		return MTPupdate(new MTPDupdateBotInlineQuery(_flags, _query_id, _user_id, _query, _geo, _offset));
 	}
 	inline static MTPupdate new_updateBotInlineSend(const MTPflags<MTPDupdateBotInlineSend::Flags> &_flags, MTPint _user_id, const MTPstring &_query, const MTPGeoPoint &_geo, const MTPstring &_id, const MTPInputBotInlineMessageID &_msg_id) {
-		return MTPupdate(std::make_shared<MTPDupdateBotInlineSend>(_flags, _user_id, _query, _geo, _id, _msg_id));
+		return MTPupdate(new MTPDupdateBotInlineSend(_flags, _user_id, _query, _geo, _id, _msg_id));
 	}
 	inline static MTPupdate new_updateEditChannelMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateEditChannelMessage>(_message, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateEditChannelMessage(_message, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateChannelPinnedMessage(MTPint _channel_id, MTPint _id) {
-		return MTPupdate(std::make_shared<MTPDupdateChannelPinnedMessage>(_channel_id, _id));
+		return MTPupdate(new MTPDupdateChannelPinnedMessage(_channel_id, _id));
 	}
 	inline static MTPupdate new_updateBotCallbackQuery(const MTPflags<MTPDupdateBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPPeer &_peer, MTPint _msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, const MTPstring &_game_short_name) {
-		return MTPupdate(std::make_shared<MTPDupdateBotCallbackQuery>(_flags, _query_id, _user_id, _peer, _msg_id, _chat_instance, _data, _game_short_name));
+		return MTPupdate(new MTPDupdateBotCallbackQuery(_flags, _query_id, _user_id, _peer, _msg_id, _chat_instance, _data, _game_short_name));
 	}
 	inline static MTPupdate new_updateEditMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateEditMessage>(_message, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateEditMessage(_message, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updateInlineBotCallbackQuery(const MTPflags<MTPDupdateInlineBotCallbackQuery::Flags> &_flags, const MTPlong &_query_id, MTPint _user_id, const MTPInputBotInlineMessageID &_msg_id, const MTPlong &_chat_instance, const MTPbytes &_data, const MTPstring &_game_short_name) {
-		return MTPupdate(std::make_shared<MTPDupdateInlineBotCallbackQuery>(_flags, _query_id, _user_id, _msg_id, _chat_instance, _data, _game_short_name));
+		return MTPupdate(new MTPDupdateInlineBotCallbackQuery(_flags, _query_id, _user_id, _msg_id, _chat_instance, _data, _game_short_name));
 	}
 	inline static MTPupdate new_updateReadChannelOutbox(MTPint _channel_id, MTPint _max_id) {
-		return MTPupdate(std::make_shared<MTPDupdateReadChannelOutbox>(_channel_id, _max_id));
+		return MTPupdate(new MTPDupdateReadChannelOutbox(_channel_id, _max_id));
 	}
 	inline static MTPupdate new_updateDraftMessage(const MTPPeer &_peer, const MTPDraftMessage &_draft) {
-		return MTPupdate(std::make_shared<MTPDupdateDraftMessage>(_peer, _draft));
+		return MTPupdate(new MTPDupdateDraftMessage(_peer, _draft));
 	}
 	inline static MTPupdate new_updateReadFeaturedStickers() {
 		return MTPupdate(mtpc_updateReadFeaturedStickers);
@@ -20235,154 +20235,154 @@ public:
 		return MTPupdate(mtpc_updatePtsChanged);
 	}
 	inline static MTPupdate new_updateChannelWebPage(MTPint _channel_id, const MTPWebPage &_webpage, MTPint _pts, MTPint _pts_count) {
-		return MTPupdate(std::make_shared<MTPDupdateChannelWebPage>(_channel_id, _webpage, _pts, _pts_count));
+		return MTPupdate(new MTPDupdateChannelWebPage(_channel_id, _webpage, _pts, _pts_count));
 	}
 	inline static MTPupdate new_updatePhoneCall(const MTPPhoneCall &_phone_call) {
-		return MTPupdate(std::make_shared<MTPDupdatePhoneCall>(_phone_call));
+		return MTPupdate(new MTPDupdatePhoneCall(_phone_call));
 	}
 	inline static MTPupdate new_updateDialogPinned(const MTPflags<MTPDupdateDialogPinned::Flags> &_flags, const MTPPeer &_peer) {
-		return MTPupdate(std::make_shared<MTPDupdateDialogPinned>(_flags, _peer));
+		return MTPupdate(new MTPDupdateDialogPinned(_flags, _peer));
 	}
 	inline static MTPupdate new_updatePinnedDialogs(const MTPflags<MTPDupdatePinnedDialogs::Flags> &_flags, const MTPVector<MTPPeer> &_order) {
-		return MTPupdate(std::make_shared<MTPDupdatePinnedDialogs>(_flags, _order));
+		return MTPupdate(new MTPDupdatePinnedDialogs(_flags, _order));
 	}
 	inline static MTPupdates_state new_updates_state(MTPint _pts, MTPint _qts, MTPint _date, MTPint _seq, MTPint _unread_count) {
-		return MTPupdates_state(std::make_shared<MTPDupdates_state>(_pts, _qts, _date, _seq, _unread_count));
+		return MTPupdates_state(new MTPDupdates_state(_pts, _qts, _date, _seq, _unread_count));
 	}
 	inline static MTPupdates_difference new_updates_differenceEmpty(MTPint _date, MTPint _seq) {
-		return MTPupdates_difference(std::make_shared<MTPDupdates_differenceEmpty>(_date, _seq));
+		return MTPupdates_difference(new MTPDupdates_differenceEmpty(_date, _seq));
 	}
 	inline static MTPupdates_difference new_updates_difference(const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPEncryptedMessage> &_new_encrypted_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_state) {
-		return MTPupdates_difference(std::make_shared<MTPDupdates_difference>(_new_messages, _new_encrypted_messages, _other_updates, _chats, _users, _state));
+		return MTPupdates_difference(new MTPDupdates_difference(_new_messages, _new_encrypted_messages, _other_updates, _chats, _users, _state));
 	}
 	inline static MTPupdates_difference new_updates_differenceSlice(const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPEncryptedMessage> &_new_encrypted_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_intermediate_state) {
-		return MTPupdates_difference(std::make_shared<MTPDupdates_differenceSlice>(_new_messages, _new_encrypted_messages, _other_updates, _chats, _users, _intermediate_state));
+		return MTPupdates_difference(new MTPDupdates_differenceSlice(_new_messages, _new_encrypted_messages, _other_updates, _chats, _users, _intermediate_state));
 	}
 	inline static MTPupdates_difference new_updates_differenceTooLong(MTPint _pts) {
-		return MTPupdates_difference(std::make_shared<MTPDupdates_differenceTooLong>(_pts));
+		return MTPupdates_difference(new MTPDupdates_differenceTooLong(_pts));
 	}
 	inline static MTPupdates new_updatesTooLong() {
 		return MTPupdates(mtpc_updatesTooLong);
 	}
 	inline static MTPupdates new_updateShortMessage(const MTPflags<MTPDupdateShortMessage::Flags> &_flags, MTPint _id, MTPint _user_id, const MTPstring &_message, MTPint _pts, MTPint _pts_count, MTPint _date, const MTPMessageFwdHeader &_fwd_from, MTPint _via_bot_id, MTPint _reply_to_msg_id, const MTPVector<MTPMessageEntity> &_entities) {
-		return MTPupdates(std::make_shared<MTPDupdateShortMessage>(_flags, _id, _user_id, _message, _pts, _pts_count, _date, _fwd_from, _via_bot_id, _reply_to_msg_id, _entities));
+		return MTPupdates(new MTPDupdateShortMessage(_flags, _id, _user_id, _message, _pts, _pts_count, _date, _fwd_from, _via_bot_id, _reply_to_msg_id, _entities));
 	}
 	inline static MTPupdates new_updateShortChatMessage(const MTPflags<MTPDupdateShortChatMessage::Flags> &_flags, MTPint _id, MTPint _from_id, MTPint _chat_id, const MTPstring &_message, MTPint _pts, MTPint _pts_count, MTPint _date, const MTPMessageFwdHeader &_fwd_from, MTPint _via_bot_id, MTPint _reply_to_msg_id, const MTPVector<MTPMessageEntity> &_entities) {
-		return MTPupdates(std::make_shared<MTPDupdateShortChatMessage>(_flags, _id, _from_id, _chat_id, _message, _pts, _pts_count, _date, _fwd_from, _via_bot_id, _reply_to_msg_id, _entities));
+		return MTPupdates(new MTPDupdateShortChatMessage(_flags, _id, _from_id, _chat_id, _message, _pts, _pts_count, _date, _fwd_from, _via_bot_id, _reply_to_msg_id, _entities));
 	}
 	inline static MTPupdates new_updateShort(const MTPUpdate &_update, MTPint _date) {
-		return MTPupdates(std::make_shared<MTPDupdateShort>(_update, _date));
+		return MTPupdates(new MTPDupdateShort(_update, _date));
 	}
 	inline static MTPupdates new_updatesCombined(const MTPVector<MTPUpdate> &_updates, const MTPVector<MTPUser> &_users, const MTPVector<MTPChat> &_chats, MTPint _date, MTPint _seq_start, MTPint _seq) {
-		return MTPupdates(std::make_shared<MTPDupdatesCombined>(_updates, _users, _chats, _date, _seq_start, _seq));
+		return MTPupdates(new MTPDupdatesCombined(_updates, _users, _chats, _date, _seq_start, _seq));
 	}
 	inline static MTPupdates new_updates(const MTPVector<MTPUpdate> &_updates, const MTPVector<MTPUser> &_users, const MTPVector<MTPChat> &_chats, MTPint _date, MTPint _seq) {
-		return MTPupdates(std::make_shared<MTPDupdates>(_updates, _users, _chats, _date, _seq));
+		return MTPupdates(new MTPDupdates(_updates, _users, _chats, _date, _seq));
 	}
 	inline static MTPupdates new_updateShortSentMessage(const MTPflags<MTPDupdateShortSentMessage::Flags> &_flags, MTPint _id, MTPint _pts, MTPint _pts_count, MTPint _date, const MTPMessageMedia &_media, const MTPVector<MTPMessageEntity> &_entities) {
-		return MTPupdates(std::make_shared<MTPDupdateShortSentMessage>(_flags, _id, _pts, _pts_count, _date, _media, _entities));
+		return MTPupdates(new MTPDupdateShortSentMessage(_flags, _id, _pts, _pts_count, _date, _media, _entities));
 	}
 	inline static MTPphotos_photos new_photos_photos(const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPUser> &_users) {
-		return MTPphotos_photos(std::make_shared<MTPDphotos_photos>(_photos, _users));
+		return MTPphotos_photos(new MTPDphotos_photos(_photos, _users));
 	}
 	inline static MTPphotos_photos new_photos_photosSlice(MTPint _count, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPUser> &_users) {
-		return MTPphotos_photos(std::make_shared<MTPDphotos_photosSlice>(_count, _photos, _users));
+		return MTPphotos_photos(new MTPDphotos_photosSlice(_count, _photos, _users));
 	}
 	inline static MTPphotos_photo new_photos_photo(const MTPPhoto &_photo, const MTPVector<MTPUser> &_users) {
-		return MTPphotos_photo(std::make_shared<MTPDphotos_photo>(_photo, _users));
+		return MTPphotos_photo(new MTPDphotos_photo(_photo, _users));
 	}
 	inline static MTPupload_file new_upload_file(const MTPstorage_FileType &_type, MTPint _mtime, const MTPbytes &_bytes) {
-		return MTPupload_file(std::make_shared<MTPDupload_file>(_type, _mtime, _bytes));
+		return MTPupload_file(new MTPDupload_file(_type, _mtime, _bytes));
 	}
 	inline static MTPdcOption new_dcOption(const MTPflags<MTPDdcOption::Flags> &_flags, MTPint _id, const MTPstring &_ip_address, MTPint _port) {
-		return MTPdcOption(std::make_shared<MTPDdcOption>(_flags, _id, _ip_address, _port));
+		return MTPdcOption(new MTPDdcOption(_flags, _id, _ip_address, _port));
 	}
 	inline static MTPconfig new_config(const MTPflags<MTPDconfig::Flags> &_flags, MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, MTPint _saved_gifs_limit, MTPint _edit_time_limit, MTPint _rating_e_decay, MTPint _stickers_recent_limit, MTPint _tmp_sessions, MTPint _pinned_dialogs_count_max, MTPint _call_receive_timeout_ms, MTPint _call_ring_timeout_ms, MTPint _call_connect_timeout_ms, MTPint _call_packet_timeout_ms, const MTPVector<MTPDisabledFeature> &_disabled_features) {
-		return MTPconfig(std::make_shared<MTPDconfig>(_flags, _date, _expires, _test_mode, _this_dc, _dc_options, _chat_size_max, _megagroup_size_max, _forwarded_count_max, _online_update_period_ms, _offline_blur_timeout_ms, _offline_idle_timeout_ms, _online_cloud_timeout_ms, _notify_cloud_delay_ms, _notify_default_delay_ms, _chat_big_size, _push_chat_period_ms, _push_chat_limit, _saved_gifs_limit, _edit_time_limit, _rating_e_decay, _stickers_recent_limit, _tmp_sessions, _pinned_dialogs_count_max, _call_receive_timeout_ms, _call_ring_timeout_ms, _call_connect_timeout_ms, _call_packet_timeout_ms, _disabled_features));
+		return MTPconfig(new MTPDconfig(_flags, _date, _expires, _test_mode, _this_dc, _dc_options, _chat_size_max, _megagroup_size_max, _forwarded_count_max, _online_update_period_ms, _offline_blur_timeout_ms, _offline_idle_timeout_ms, _online_cloud_timeout_ms, _notify_cloud_delay_ms, _notify_default_delay_ms, _chat_big_size, _push_chat_period_ms, _push_chat_limit, _saved_gifs_limit, _edit_time_limit, _rating_e_decay, _stickers_recent_limit, _tmp_sessions, _pinned_dialogs_count_max, _call_receive_timeout_ms, _call_ring_timeout_ms, _call_connect_timeout_ms, _call_packet_timeout_ms, _disabled_features));
 	}
 	inline static MTPnearestDc new_nearestDc(const MTPstring &_country, MTPint _this_dc, MTPint _nearest_dc) {
-		return MTPnearestDc(std::make_shared<MTPDnearestDc>(_country, _this_dc, _nearest_dc));
+		return MTPnearestDc(new MTPDnearestDc(_country, _this_dc, _nearest_dc));
 	}
 	inline static MTPhelp_appUpdate new_help_appUpdate(MTPint _id, MTPBool _critical, const MTPstring &_url, const MTPstring &_text) {
-		return MTPhelp_appUpdate(std::make_shared<MTPDhelp_appUpdate>(_id, _critical, _url, _text));
+		return MTPhelp_appUpdate(new MTPDhelp_appUpdate(_id, _critical, _url, _text));
 	}
 	inline static MTPhelp_appUpdate new_help_noAppUpdate() {
 		return MTPhelp_appUpdate(mtpc_help_noAppUpdate);
 	}
 	inline static MTPhelp_inviteText new_help_inviteText(const MTPstring &_message) {
-		return MTPhelp_inviteText(std::make_shared<MTPDhelp_inviteText>(_message));
+		return MTPhelp_inviteText(new MTPDhelp_inviteText(_message));
 	}
 	inline static MTPencryptedChat new_encryptedChatEmpty(MTPint _id) {
-		return MTPencryptedChat(std::make_shared<MTPDencryptedChatEmpty>(_id));
+		return MTPencryptedChat(new MTPDencryptedChatEmpty(_id));
 	}
 	inline static MTPencryptedChat new_encryptedChatWaiting(MTPint _id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id) {
-		return MTPencryptedChat(std::make_shared<MTPDencryptedChatWaiting>(_id, _access_hash, _date, _admin_id, _participant_id));
+		return MTPencryptedChat(new MTPDencryptedChatWaiting(_id, _access_hash, _date, _admin_id, _participant_id));
 	}
 	inline static MTPencryptedChat new_encryptedChatRequested(MTPint _id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a) {
-		return MTPencryptedChat(std::make_shared<MTPDencryptedChatRequested>(_id, _access_hash, _date, _admin_id, _participant_id, _g_a));
+		return MTPencryptedChat(new MTPDencryptedChatRequested(_id, _access_hash, _date, _admin_id, _participant_id, _g_a));
 	}
 	inline static MTPencryptedChat new_encryptedChat(MTPint _id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a_or_b, const MTPlong &_key_fingerprint) {
-		return MTPencryptedChat(std::make_shared<MTPDencryptedChat>(_id, _access_hash, _date, _admin_id, _participant_id, _g_a_or_b, _key_fingerprint));
+		return MTPencryptedChat(new MTPDencryptedChat(_id, _access_hash, _date, _admin_id, _participant_id, _g_a_or_b, _key_fingerprint));
 	}
 	inline static MTPencryptedChat new_encryptedChatDiscarded(MTPint _id) {
-		return MTPencryptedChat(std::make_shared<MTPDencryptedChatDiscarded>(_id));
+		return MTPencryptedChat(new MTPDencryptedChatDiscarded(_id));
 	}
 	inline static MTPinputEncryptedChat new_inputEncryptedChat(MTPint _chat_id, const MTPlong &_access_hash) {
-		return MTPinputEncryptedChat(std::make_shared<MTPDinputEncryptedChat>(_chat_id, _access_hash));
+		return MTPinputEncryptedChat(new MTPDinputEncryptedChat(_chat_id, _access_hash));
 	}
 	inline static MTPencryptedFile new_encryptedFileEmpty() {
 		return MTPencryptedFile(mtpc_encryptedFileEmpty);
 	}
 	inline static MTPencryptedFile new_encryptedFile(const MTPlong &_id, const MTPlong &_access_hash, MTPint _size, MTPint _dc_id, MTPint _key_fingerprint) {
-		return MTPencryptedFile(std::make_shared<MTPDencryptedFile>(_id, _access_hash, _size, _dc_id, _key_fingerprint));
+		return MTPencryptedFile(new MTPDencryptedFile(_id, _access_hash, _size, _dc_id, _key_fingerprint));
 	}
 	inline static MTPinputEncryptedFile new_inputEncryptedFileEmpty() {
 		return MTPinputEncryptedFile(mtpc_inputEncryptedFileEmpty);
 	}
 	inline static MTPinputEncryptedFile new_inputEncryptedFileUploaded(const MTPlong &_id, MTPint _parts, const MTPstring &_md5_checksum, MTPint _key_fingerprint) {
-		return MTPinputEncryptedFile(std::make_shared<MTPDinputEncryptedFileUploaded>(_id, _parts, _md5_checksum, _key_fingerprint));
+		return MTPinputEncryptedFile(new MTPDinputEncryptedFileUploaded(_id, _parts, _md5_checksum, _key_fingerprint));
 	}
 	inline static MTPinputEncryptedFile new_inputEncryptedFile(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputEncryptedFile(std::make_shared<MTPDinputEncryptedFile>(_id, _access_hash));
+		return MTPinputEncryptedFile(new MTPDinputEncryptedFile(_id, _access_hash));
 	}
 	inline static MTPinputEncryptedFile new_inputEncryptedFileBigUploaded(const MTPlong &_id, MTPint _parts, MTPint _key_fingerprint) {
-		return MTPinputEncryptedFile(std::make_shared<MTPDinputEncryptedFileBigUploaded>(_id, _parts, _key_fingerprint));
+		return MTPinputEncryptedFile(new MTPDinputEncryptedFileBigUploaded(_id, _parts, _key_fingerprint));
 	}
 	inline static MTPencryptedMessage new_encryptedMessage(const MTPlong &_random_id, MTPint _chat_id, MTPint _date, const MTPbytes &_bytes, const MTPEncryptedFile &_file) {
-		return MTPencryptedMessage(std::make_shared<MTPDencryptedMessage>(_random_id, _chat_id, _date, _bytes, _file));
+		return MTPencryptedMessage(new MTPDencryptedMessage(_random_id, _chat_id, _date, _bytes, _file));
 	}
 	inline static MTPencryptedMessage new_encryptedMessageService(const MTPlong &_random_id, MTPint _chat_id, MTPint _date, const MTPbytes &_bytes) {
-		return MTPencryptedMessage(std::make_shared<MTPDencryptedMessageService>(_random_id, _chat_id, _date, _bytes));
+		return MTPencryptedMessage(new MTPDencryptedMessageService(_random_id, _chat_id, _date, _bytes));
 	}
 	inline static MTPmessages_dhConfig new_messages_dhConfigNotModified(const MTPbytes &_random) {
-		return MTPmessages_dhConfig(std::make_shared<MTPDmessages_dhConfigNotModified>(_random));
+		return MTPmessages_dhConfig(new MTPDmessages_dhConfigNotModified(_random));
 	}
 	inline static MTPmessages_dhConfig new_messages_dhConfig(MTPint _g, const MTPbytes &_p, MTPint _version, const MTPbytes &_random) {
-		return MTPmessages_dhConfig(std::make_shared<MTPDmessages_dhConfig>(_g, _p, _version, _random));
+		return MTPmessages_dhConfig(new MTPDmessages_dhConfig(_g, _p, _version, _random));
 	}
 	inline static MTPmessages_sentEncryptedMessage new_messages_sentEncryptedMessage(MTPint _date) {
-		return MTPmessages_sentEncryptedMessage(std::make_shared<MTPDmessages_sentEncryptedMessage>(_date));
+		return MTPmessages_sentEncryptedMessage(new MTPDmessages_sentEncryptedMessage(_date));
 	}
 	inline static MTPmessages_sentEncryptedMessage new_messages_sentEncryptedFile(MTPint _date, const MTPEncryptedFile &_file) {
-		return MTPmessages_sentEncryptedMessage(std::make_shared<MTPDmessages_sentEncryptedFile>(_date, _file));
+		return MTPmessages_sentEncryptedMessage(new MTPDmessages_sentEncryptedFile(_date, _file));
 	}
 	inline static MTPinputDocument new_inputDocumentEmpty() {
 		return MTPinputDocument(mtpc_inputDocumentEmpty);
 	}
 	inline static MTPinputDocument new_inputDocument(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputDocument(std::make_shared<MTPDinputDocument>(_id, _access_hash));
+		return MTPinputDocument(new MTPDinputDocument(_id, _access_hash));
 	}
 	inline static MTPdocument new_documentEmpty(const MTPlong &_id) {
-		return MTPdocument(std::make_shared<MTPDdocumentEmpty>(_id));
+		return MTPdocument(new MTPDdocumentEmpty(_id));
 	}
 	inline static MTPdocument new_document(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, const MTPstring &_mime_type, MTPint _size, const MTPPhotoSize &_thumb, MTPint _dc_id, MTPint _version, const MTPVector<MTPDocumentAttribute> &_attributes) {
-		return MTPdocument(std::make_shared<MTPDdocument>(_id, _access_hash, _date, _mime_type, _size, _thumb, _dc_id, _version, _attributes));
+		return MTPdocument(new MTPDdocument(_id, _access_hash, _date, _mime_type, _size, _thumb, _dc_id, _version, _attributes));
 	}
 	inline static MTPhelp_support new_help_support(const MTPstring &_phone_number, const MTPUser &_user) {
-		return MTPhelp_support(std::make_shared<MTPDhelp_support>(_phone_number, _user));
+		return MTPhelp_support(new MTPDhelp_support(_phone_number, _user));
 	}
 	inline static MTPnotifyPeer new_notifyPeer(const MTPPeer &_peer) {
-		return MTPnotifyPeer(std::make_shared<MTPDnotifyPeer>(_peer));
+		return MTPnotifyPeer(new MTPDnotifyPeer(_peer));
 	}
 	inline static MTPnotifyPeer new_notifyUsers() {
 		return MTPnotifyPeer(mtpc_notifyUsers);
@@ -20403,19 +20403,19 @@ public:
 		return MTPsendMessageAction(mtpc_sendMessageRecordVideoAction);
 	}
 	inline static MTPsendMessageAction new_sendMessageUploadVideoAction(MTPint _progress) {
-		return MTPsendMessageAction(std::make_shared<MTPDsendMessageUploadVideoAction>(_progress));
+		return MTPsendMessageAction(new MTPDsendMessageUploadVideoAction(_progress));
 	}
 	inline static MTPsendMessageAction new_sendMessageRecordAudioAction() {
 		return MTPsendMessageAction(mtpc_sendMessageRecordAudioAction);
 	}
 	inline static MTPsendMessageAction new_sendMessageUploadAudioAction(MTPint _progress) {
-		return MTPsendMessageAction(std::make_shared<MTPDsendMessageUploadAudioAction>(_progress));
+		return MTPsendMessageAction(new MTPDsendMessageUploadAudioAction(_progress));
 	}
 	inline static MTPsendMessageAction new_sendMessageUploadPhotoAction(MTPint _progress) {
-		return MTPsendMessageAction(std::make_shared<MTPDsendMessageUploadPhotoAction>(_progress));
+		return MTPsendMessageAction(new MTPDsendMessageUploadPhotoAction(_progress));
 	}
 	inline static MTPsendMessageAction new_sendMessageUploadDocumentAction(MTPint _progress) {
-		return MTPsendMessageAction(std::make_shared<MTPDsendMessageUploadDocumentAction>(_progress));
+		return MTPsendMessageAction(new MTPDsendMessageUploadDocumentAction(_progress));
 	}
 	inline static MTPsendMessageAction new_sendMessageGeoLocationAction() {
 		return MTPsendMessageAction(mtpc_sendMessageGeoLocationAction);
@@ -20427,7 +20427,7 @@ public:
 		return MTPsendMessageAction(mtpc_sendMessageGamePlayAction);
 	}
 	inline static MTPcontacts_found new_contacts_found(const MTPVector<MTPPeer> &_results, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_found(std::make_shared<MTPDcontacts_found>(_results, _chats, _users));
+		return MTPcontacts_found(new MTPDcontacts_found(_results, _chats, _users));
 	}
 	inline static MTPinputPrivacyKey new_inputPrivacyKeyStatusTimestamp() {
 		return MTPinputPrivacyKey(mtpc_inputPrivacyKeyStatusTimestamp);
@@ -20454,7 +20454,7 @@ public:
 		return MTPinputPrivacyRule(mtpc_inputPrivacyValueAllowAll);
 	}
 	inline static MTPinputPrivacyRule new_inputPrivacyValueAllowUsers(const MTPVector<MTPInputUser> &_users) {
-		return MTPinputPrivacyRule(std::make_shared<MTPDinputPrivacyValueAllowUsers>(_users));
+		return MTPinputPrivacyRule(new MTPDinputPrivacyValueAllowUsers(_users));
 	}
 	inline static MTPinputPrivacyRule new_inputPrivacyValueDisallowContacts() {
 		return MTPinputPrivacyRule(mtpc_inputPrivacyValueDisallowContacts);
@@ -20463,7 +20463,7 @@ public:
 		return MTPinputPrivacyRule(mtpc_inputPrivacyValueDisallowAll);
 	}
 	inline static MTPinputPrivacyRule new_inputPrivacyValueDisallowUsers(const MTPVector<MTPInputUser> &_users) {
-		return MTPinputPrivacyRule(std::make_shared<MTPDinputPrivacyValueDisallowUsers>(_users));
+		return MTPinputPrivacyRule(new MTPDinputPrivacyValueDisallowUsers(_users));
 	}
 	inline static MTPprivacyRule new_privacyValueAllowContacts() {
 		return MTPprivacyRule(mtpc_privacyValueAllowContacts);
@@ -20472,7 +20472,7 @@ public:
 		return MTPprivacyRule(mtpc_privacyValueAllowAll);
 	}
 	inline static MTPprivacyRule new_privacyValueAllowUsers(const MTPVector<MTPint> &_users) {
-		return MTPprivacyRule(std::make_shared<MTPDprivacyValueAllowUsers>(_users));
+		return MTPprivacyRule(new MTPDprivacyValueAllowUsers(_users));
 	}
 	inline static MTPprivacyRule new_privacyValueDisallowContacts() {
 		return MTPprivacyRule(mtpc_privacyValueDisallowContacts);
@@ -20481,31 +20481,31 @@ public:
 		return MTPprivacyRule(mtpc_privacyValueDisallowAll);
 	}
 	inline static MTPprivacyRule new_privacyValueDisallowUsers(const MTPVector<MTPint> &_users) {
-		return MTPprivacyRule(std::make_shared<MTPDprivacyValueDisallowUsers>(_users));
+		return MTPprivacyRule(new MTPDprivacyValueDisallowUsers(_users));
 	}
 	inline static MTPaccount_privacyRules new_account_privacyRules(const MTPVector<MTPPrivacyRule> &_rules, const MTPVector<MTPUser> &_users) {
-		return MTPaccount_privacyRules(std::make_shared<MTPDaccount_privacyRules>(_rules, _users));
+		return MTPaccount_privacyRules(new MTPDaccount_privacyRules(_rules, _users));
 	}
 	inline static MTPaccountDaysTTL new_accountDaysTTL(MTPint _days) {
-		return MTPaccountDaysTTL(std::make_shared<MTPDaccountDaysTTL>(_days));
+		return MTPaccountDaysTTL(new MTPDaccountDaysTTL(_days));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeImageSize(MTPint _w, MTPint _h) {
-		return MTPdocumentAttribute(std::make_shared<MTPDdocumentAttributeImageSize>(_w, _h));
+		return MTPdocumentAttribute(new MTPDdocumentAttributeImageSize(_w, _h));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeAnimated() {
 		return MTPdocumentAttribute(mtpc_documentAttributeAnimated);
 	}
 	inline static MTPdocumentAttribute new_documentAttributeSticker(const MTPflags<MTPDdocumentAttributeSticker::Flags> &_flags, const MTPstring &_alt, const MTPInputStickerSet &_stickerset, const MTPMaskCoords &_mask_coords) {
-		return MTPdocumentAttribute(std::make_shared<MTPDdocumentAttributeSticker>(_flags, _alt, _stickerset, _mask_coords));
+		return MTPdocumentAttribute(new MTPDdocumentAttributeSticker(_flags, _alt, _stickerset, _mask_coords));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeVideo(MTPint _duration, MTPint _w, MTPint _h) {
-		return MTPdocumentAttribute(std::make_shared<MTPDdocumentAttributeVideo>(_duration, _w, _h));
+		return MTPdocumentAttribute(new MTPDdocumentAttributeVideo(_duration, _w, _h));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeAudio(const MTPflags<MTPDdocumentAttributeAudio::Flags> &_flags, MTPint _duration, const MTPstring &_title, const MTPstring &_performer, const MTPbytes &_waveform) {
-		return MTPdocumentAttribute(std::make_shared<MTPDdocumentAttributeAudio>(_flags, _duration, _title, _performer, _waveform));
+		return MTPdocumentAttribute(new MTPDdocumentAttributeAudio(_flags, _duration, _title, _performer, _waveform));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeFilename(const MTPstring &_file_name) {
-		return MTPdocumentAttribute(std::make_shared<MTPDdocumentAttributeFilename>(_file_name));
+		return MTPdocumentAttribute(new MTPDdocumentAttributeFilename(_file_name));
 	}
 	inline static MTPdocumentAttribute new_documentAttributeHasStickers() {
 		return MTPdocumentAttribute(mtpc_documentAttributeHasStickers);
@@ -20514,22 +20514,22 @@ public:
 		return MTPmessages_stickers(mtpc_messages_stickersNotModified);
 	}
 	inline static MTPmessages_stickers new_messages_stickers(const MTPstring &_hash, const MTPVector<MTPDocument> &_stickers) {
-		return MTPmessages_stickers(std::make_shared<MTPDmessages_stickers>(_hash, _stickers));
+		return MTPmessages_stickers(new MTPDmessages_stickers(_hash, _stickers));
 	}
 	inline static MTPstickerPack new_stickerPack(const MTPstring &_emoticon, const MTPVector<MTPlong> &_documents) {
-		return MTPstickerPack(std::make_shared<MTPDstickerPack>(_emoticon, _documents));
+		return MTPstickerPack(new MTPDstickerPack(_emoticon, _documents));
 	}
 	inline static MTPmessages_allStickers new_messages_allStickersNotModified() {
 		return MTPmessages_allStickers(mtpc_messages_allStickersNotModified);
 	}
 	inline static MTPmessages_allStickers new_messages_allStickers(MTPint _hash, const MTPVector<MTPStickerSet> &_sets) {
-		return MTPmessages_allStickers(std::make_shared<MTPDmessages_allStickers>(_hash, _sets));
+		return MTPmessages_allStickers(new MTPDmessages_allStickers(_hash, _sets));
 	}
 	inline static MTPdisabledFeature new_disabledFeature(const MTPstring &_feature, const MTPstring &_description) {
-		return MTPdisabledFeature(std::make_shared<MTPDdisabledFeature>(_feature, _description));
+		return MTPdisabledFeature(new MTPDdisabledFeature(_feature, _description));
 	}
 	inline static MTPmessages_affectedMessages new_messages_affectedMessages(MTPint _pts, MTPint _pts_count) {
-		return MTPmessages_affectedMessages(std::make_shared<MTPDmessages_affectedMessages>(_pts, _pts_count));
+		return MTPmessages_affectedMessages(new MTPDmessages_affectedMessages(_pts, _pts_count));
 	}
 	inline static MTPcontactLink new_contactLinkUnknown() {
 		return MTPcontactLink(mtpc_contactLinkUnknown);
@@ -20544,199 +20544,199 @@ public:
 		return MTPcontactLink(mtpc_contactLinkContact);
 	}
 	inline static MTPwebPage new_webPageEmpty(const MTPlong &_id) {
-		return MTPwebPage(std::make_shared<MTPDwebPageEmpty>(_id));
+		return MTPwebPage(new MTPDwebPageEmpty(_id));
 	}
 	inline static MTPwebPage new_webPagePending(const MTPlong &_id, MTPint _date) {
-		return MTPwebPage(std::make_shared<MTPDwebPagePending>(_id, _date));
+		return MTPwebPage(new MTPDwebPagePending(_id, _date));
 	}
 	inline static MTPwebPage new_webPage(const MTPflags<MTPDwebPage::Flags> &_flags, const MTPlong &_id, const MTPstring &_url, const MTPstring &_display_url, MTPint _hash, const MTPstring &_type, const MTPstring &_site_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPstring &_embed_url, const MTPstring &_embed_type, MTPint _embed_width, MTPint _embed_height, MTPint _duration, const MTPstring &_author, const MTPDocument &_document, const MTPPage &_cached_page) {
-		return MTPwebPage(std::make_shared<MTPDwebPage>(_flags, _id, _url, _display_url, _hash, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document, _cached_page));
+		return MTPwebPage(new MTPDwebPage(_flags, _id, _url, _display_url, _hash, _type, _site_name, _title, _description, _photo, _embed_url, _embed_type, _embed_width, _embed_height, _duration, _author, _document, _cached_page));
 	}
 	inline static MTPwebPage new_webPageNotModified() {
 		return MTPwebPage(mtpc_webPageNotModified);
 	}
 	inline static MTPauthorization new_authorization(const MTPlong &_hash, MTPint _flags, const MTPstring &_device_model, const MTPstring &_platform, const MTPstring &_system_version, MTPint _api_id, const MTPstring &_app_name, const MTPstring &_app_version, MTPint _date_created, MTPint _date_active, const MTPstring &_ip, const MTPstring &_country, const MTPstring &_region) {
-		return MTPauthorization(std::make_shared<MTPDauthorization>(_hash, _flags, _device_model, _platform, _system_version, _api_id, _app_name, _app_version, _date_created, _date_active, _ip, _country, _region));
+		return MTPauthorization(new MTPDauthorization(_hash, _flags, _device_model, _platform, _system_version, _api_id, _app_name, _app_version, _date_created, _date_active, _ip, _country, _region));
 	}
 	inline static MTPaccount_authorizations new_account_authorizations(const MTPVector<MTPAuthorization> &_authorizations) {
-		return MTPaccount_authorizations(std::make_shared<MTPDaccount_authorizations>(_authorizations));
+		return MTPaccount_authorizations(new MTPDaccount_authorizations(_authorizations));
 	}
 	inline static MTPaccount_password new_account_noPassword(const MTPbytes &_new_salt, const MTPstring &_email_unconfirmed_pattern) {
-		return MTPaccount_password(std::make_shared<MTPDaccount_noPassword>(_new_salt, _email_unconfirmed_pattern));
+		return MTPaccount_password(new MTPDaccount_noPassword(_new_salt, _email_unconfirmed_pattern));
 	}
 	inline static MTPaccount_password new_account_password(const MTPbytes &_current_salt, const MTPbytes &_new_salt, const MTPstring &_hint, MTPBool _has_recovery, const MTPstring &_email_unconfirmed_pattern) {
-		return MTPaccount_password(std::make_shared<MTPDaccount_password>(_current_salt, _new_salt, _hint, _has_recovery, _email_unconfirmed_pattern));
+		return MTPaccount_password(new MTPDaccount_password(_current_salt, _new_salt, _hint, _has_recovery, _email_unconfirmed_pattern));
 	}
 	inline static MTPaccount_passwordSettings new_account_passwordSettings(const MTPstring &_email) {
-		return MTPaccount_passwordSettings(std::make_shared<MTPDaccount_passwordSettings>(_email));
+		return MTPaccount_passwordSettings(new MTPDaccount_passwordSettings(_email));
 	}
 	inline static MTPaccount_passwordInputSettings new_account_passwordInputSettings(const MTPflags<MTPDaccount_passwordInputSettings::Flags> &_flags, const MTPbytes &_new_salt, const MTPbytes &_new_password_hash, const MTPstring &_hint, const MTPstring &_email) {
-		return MTPaccount_passwordInputSettings(std::make_shared<MTPDaccount_passwordInputSettings>(_flags, _new_salt, _new_password_hash, _hint, _email));
+		return MTPaccount_passwordInputSettings(new MTPDaccount_passwordInputSettings(_flags, _new_salt, _new_password_hash, _hint, _email));
 	}
 	inline static MTPauth_passwordRecovery new_auth_passwordRecovery(const MTPstring &_email_pattern) {
-		return MTPauth_passwordRecovery(std::make_shared<MTPDauth_passwordRecovery>(_email_pattern));
+		return MTPauth_passwordRecovery(new MTPDauth_passwordRecovery(_email_pattern));
 	}
 	inline static MTPreceivedNotifyMessage new_receivedNotifyMessage(MTPint _id, MTPint _flags) {
-		return MTPreceivedNotifyMessage(std::make_shared<MTPDreceivedNotifyMessage>(_id, _flags));
+		return MTPreceivedNotifyMessage(new MTPDreceivedNotifyMessage(_id, _flags));
 	}
 	inline static MTPexportedChatInvite new_chatInviteEmpty() {
 		return MTPexportedChatInvite(mtpc_chatInviteEmpty);
 	}
 	inline static MTPexportedChatInvite new_chatInviteExported(const MTPstring &_link) {
-		return MTPexportedChatInvite(std::make_shared<MTPDchatInviteExported>(_link));
+		return MTPexportedChatInvite(new MTPDchatInviteExported(_link));
 	}
 	inline static MTPchatInvite new_chatInviteAlready(const MTPChat &_chat) {
-		return MTPchatInvite(std::make_shared<MTPDchatInviteAlready>(_chat));
+		return MTPchatInvite(new MTPDchatInviteAlready(_chat));
 	}
 	inline static MTPchatInvite new_chatInvite(const MTPflags<MTPDchatInvite::Flags> &_flags, const MTPstring &_title, const MTPChatPhoto &_photo, MTPint _participants_count, const MTPVector<MTPUser> &_participants) {
-		return MTPchatInvite(std::make_shared<MTPDchatInvite>(_flags, _title, _photo, _participants_count, _participants));
+		return MTPchatInvite(new MTPDchatInvite(_flags, _title, _photo, _participants_count, _participants));
 	}
 	inline static MTPinputStickerSet new_inputStickerSetEmpty() {
 		return MTPinputStickerSet(mtpc_inputStickerSetEmpty);
 	}
 	inline static MTPinputStickerSet new_inputStickerSetID(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputStickerSet(std::make_shared<MTPDinputStickerSetID>(_id, _access_hash));
+		return MTPinputStickerSet(new MTPDinputStickerSetID(_id, _access_hash));
 	}
 	inline static MTPinputStickerSet new_inputStickerSetShortName(const MTPstring &_short_name) {
-		return MTPinputStickerSet(std::make_shared<MTPDinputStickerSetShortName>(_short_name));
+		return MTPinputStickerSet(new MTPDinputStickerSetShortName(_short_name));
 	}
 	inline static MTPstickerSet new_stickerSet(const MTPflags<MTPDstickerSet::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name, MTPint _count, MTPint _hash) {
-		return MTPstickerSet(std::make_shared<MTPDstickerSet>(_flags, _id, _access_hash, _title, _short_name, _count, _hash));
+		return MTPstickerSet(new MTPDstickerSet(_flags, _id, _access_hash, _title, _short_name, _count, _hash));
 	}
 	inline static MTPmessages_stickerSet new_messages_stickerSet(const MTPStickerSet &_set, const MTPVector<MTPStickerPack> &_packs, const MTPVector<MTPDocument> &_documents) {
-		return MTPmessages_stickerSet(std::make_shared<MTPDmessages_stickerSet>(_set, _packs, _documents));
+		return MTPmessages_stickerSet(new MTPDmessages_stickerSet(_set, _packs, _documents));
 	}
 	inline static MTPbotCommand new_botCommand(const MTPstring &_command, const MTPstring &_description) {
-		return MTPbotCommand(std::make_shared<MTPDbotCommand>(_command, _description));
+		return MTPbotCommand(new MTPDbotCommand(_command, _description));
 	}
 	inline static MTPbotInfo new_botInfo(MTPint _user_id, const MTPstring &_description, const MTPVector<MTPBotCommand> &_commands) {
-		return MTPbotInfo(std::make_shared<MTPDbotInfo>(_user_id, _description, _commands));
+		return MTPbotInfo(new MTPDbotInfo(_user_id, _description, _commands));
 	}
 	inline static MTPkeyboardButton new_keyboardButton(const MTPstring &_text) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButton>(_text));
+		return MTPkeyboardButton(new MTPDkeyboardButton(_text));
 	}
 	inline static MTPkeyboardButton new_keyboardButtonUrl(const MTPstring &_text, const MTPstring &_url) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButtonUrl>(_text, _url));
+		return MTPkeyboardButton(new MTPDkeyboardButtonUrl(_text, _url));
 	}
 	inline static MTPkeyboardButton new_keyboardButtonCallback(const MTPstring &_text, const MTPbytes &_data) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButtonCallback>(_text, _data));
+		return MTPkeyboardButton(new MTPDkeyboardButtonCallback(_text, _data));
 	}
 	inline static MTPkeyboardButton new_keyboardButtonRequestPhone(const MTPstring &_text) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButtonRequestPhone>(_text));
+		return MTPkeyboardButton(new MTPDkeyboardButtonRequestPhone(_text));
 	}
 	inline static MTPkeyboardButton new_keyboardButtonRequestGeoLocation(const MTPstring &_text) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButtonRequestGeoLocation>(_text));
+		return MTPkeyboardButton(new MTPDkeyboardButtonRequestGeoLocation(_text));
 	}
 	inline static MTPkeyboardButton new_keyboardButtonSwitchInline(const MTPflags<MTPDkeyboardButtonSwitchInline::Flags> &_flags, const MTPstring &_text, const MTPstring &_query) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButtonSwitchInline>(_flags, _text, _query));
+		return MTPkeyboardButton(new MTPDkeyboardButtonSwitchInline(_flags, _text, _query));
 	}
 	inline static MTPkeyboardButton new_keyboardButtonGame(const MTPstring &_text) {
-		return MTPkeyboardButton(std::make_shared<MTPDkeyboardButtonGame>(_text));
+		return MTPkeyboardButton(new MTPDkeyboardButtonGame(_text));
 	}
 	inline static MTPkeyboardButtonRow new_keyboardButtonRow(const MTPVector<MTPKeyboardButton> &_buttons) {
-		return MTPkeyboardButtonRow(std::make_shared<MTPDkeyboardButtonRow>(_buttons));
+		return MTPkeyboardButtonRow(new MTPDkeyboardButtonRow(_buttons));
 	}
 	inline static MTPreplyMarkup new_replyKeyboardHide(const MTPflags<MTPDreplyKeyboardHide::Flags> &_flags) {
-		return MTPreplyMarkup(std::make_shared<MTPDreplyKeyboardHide>(_flags));
+		return MTPreplyMarkup(new MTPDreplyKeyboardHide(_flags));
 	}
 	inline static MTPreplyMarkup new_replyKeyboardForceReply(const MTPflags<MTPDreplyKeyboardForceReply::Flags> &_flags) {
-		return MTPreplyMarkup(std::make_shared<MTPDreplyKeyboardForceReply>(_flags));
+		return MTPreplyMarkup(new MTPDreplyKeyboardForceReply(_flags));
 	}
 	inline static MTPreplyMarkup new_replyKeyboardMarkup(const MTPflags<MTPDreplyKeyboardMarkup::Flags> &_flags, const MTPVector<MTPKeyboardButtonRow> &_rows) {
-		return MTPreplyMarkup(std::make_shared<MTPDreplyKeyboardMarkup>(_flags, _rows));
+		return MTPreplyMarkup(new MTPDreplyKeyboardMarkup(_flags, _rows));
 	}
 	inline static MTPreplyMarkup new_replyInlineMarkup(const MTPVector<MTPKeyboardButtonRow> &_rows) {
-		return MTPreplyMarkup(std::make_shared<MTPDreplyInlineMarkup>(_rows));
+		return MTPreplyMarkup(new MTPDreplyInlineMarkup(_rows));
 	}
 	inline static MTPhelp_appChangelog new_help_appChangelogEmpty() {
 		return MTPhelp_appChangelog(mtpc_help_appChangelogEmpty);
 	}
 	inline static MTPhelp_appChangelog new_help_appChangelog(const MTPstring &_message, const MTPMessageMedia &_media, const MTPVector<MTPMessageEntity> &_entities) {
-		return MTPhelp_appChangelog(std::make_shared<MTPDhelp_appChangelog>(_message, _media, _entities));
+		return MTPhelp_appChangelog(new MTPDhelp_appChangelog(_message, _media, _entities));
 	}
 	inline static MTPmessageEntity new_messageEntityUnknown(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityUnknown>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityUnknown(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityMention(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityMention>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityMention(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityHashtag(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityHashtag>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityHashtag(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityBotCommand(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityBotCommand>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityBotCommand(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityUrl(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityUrl>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityUrl(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityEmail(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityEmail>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityEmail(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityBold(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityBold>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityBold(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityItalic(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityItalic>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityItalic(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityCode(MTPint _offset, MTPint _length) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityCode>(_offset, _length));
+		return MTPmessageEntity(new MTPDmessageEntityCode(_offset, _length));
 	}
 	inline static MTPmessageEntity new_messageEntityPre(MTPint _offset, MTPint _length, const MTPstring &_language) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityPre>(_offset, _length, _language));
+		return MTPmessageEntity(new MTPDmessageEntityPre(_offset, _length, _language));
 	}
 	inline static MTPmessageEntity new_messageEntityTextUrl(MTPint _offset, MTPint _length, const MTPstring &_url) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityTextUrl>(_offset, _length, _url));
+		return MTPmessageEntity(new MTPDmessageEntityTextUrl(_offset, _length, _url));
 	}
 	inline static MTPmessageEntity new_messageEntityMentionName(MTPint _offset, MTPint _length, MTPint _user_id) {
-		return MTPmessageEntity(std::make_shared<MTPDmessageEntityMentionName>(_offset, _length, _user_id));
+		return MTPmessageEntity(new MTPDmessageEntityMentionName(_offset, _length, _user_id));
 	}
 	inline static MTPmessageEntity new_inputMessageEntityMentionName(MTPint _offset, MTPint _length, const MTPInputUser &_user_id) {
-		return MTPmessageEntity(std::make_shared<MTPDinputMessageEntityMentionName>(_offset, _length, _user_id));
+		return MTPmessageEntity(new MTPDinputMessageEntityMentionName(_offset, _length, _user_id));
 	}
 	inline static MTPinputChannel new_inputChannelEmpty() {
 		return MTPinputChannel(mtpc_inputChannelEmpty);
 	}
 	inline static MTPinputChannel new_inputChannel(MTPint _channel_id, const MTPlong &_access_hash) {
-		return MTPinputChannel(std::make_shared<MTPDinputChannel>(_channel_id, _access_hash));
+		return MTPinputChannel(new MTPDinputChannel(_channel_id, _access_hash));
 	}
 	inline static MTPcontacts_resolvedPeer new_contacts_resolvedPeer(const MTPPeer &_peer, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_resolvedPeer(std::make_shared<MTPDcontacts_resolvedPeer>(_peer, _chats, _users));
+		return MTPcontacts_resolvedPeer(new MTPDcontacts_resolvedPeer(_peer, _chats, _users));
 	}
 	inline static MTPmessageRange new_messageRange(MTPint _min_id, MTPint _max_id) {
-		return MTPmessageRange(std::make_shared<MTPDmessageRange>(_min_id, _max_id));
+		return MTPmessageRange(new MTPDmessageRange(_min_id, _max_id));
 	}
 	inline static MTPupdates_channelDifference new_updates_channelDifferenceEmpty(const MTPflags<MTPDupdates_channelDifferenceEmpty::Flags> &_flags, MTPint _pts, MTPint _timeout) {
-		return MTPupdates_channelDifference(std::make_shared<MTPDupdates_channelDifferenceEmpty>(_flags, _pts, _timeout));
+		return MTPupdates_channelDifference(new MTPDupdates_channelDifferenceEmpty(_flags, _pts, _timeout));
 	}
 	inline static MTPupdates_channelDifference new_updates_channelDifferenceTooLong(const MTPflags<MTPDupdates_channelDifferenceTooLong::Flags> &_flags, MTPint _pts, MTPint _timeout, MTPint _top_message, MTPint _read_inbox_max_id, MTPint _read_outbox_max_id, MTPint _unread_count, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPupdates_channelDifference(std::make_shared<MTPDupdates_channelDifferenceTooLong>(_flags, _pts, _timeout, _top_message, _read_inbox_max_id, _read_outbox_max_id, _unread_count, _messages, _chats, _users));
+		return MTPupdates_channelDifference(new MTPDupdates_channelDifferenceTooLong(_flags, _pts, _timeout, _top_message, _read_inbox_max_id, _read_outbox_max_id, _unread_count, _messages, _chats, _users));
 	}
 	inline static MTPupdates_channelDifference new_updates_channelDifference(const MTPflags<MTPDupdates_channelDifference::Flags> &_flags, MTPint _pts, MTPint _timeout, const MTPVector<MTPMessage> &_new_messages, const MTPVector<MTPUpdate> &_other_updates, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPupdates_channelDifference(std::make_shared<MTPDupdates_channelDifference>(_flags, _pts, _timeout, _new_messages, _other_updates, _chats, _users));
+		return MTPupdates_channelDifference(new MTPDupdates_channelDifference(_flags, _pts, _timeout, _new_messages, _other_updates, _chats, _users));
 	}
 	inline static MTPchannelMessagesFilter new_channelMessagesFilterEmpty() {
 		return MTPchannelMessagesFilter(mtpc_channelMessagesFilterEmpty);
 	}
 	inline static MTPchannelMessagesFilter new_channelMessagesFilter(const MTPflags<MTPDchannelMessagesFilter::Flags> &_flags, const MTPVector<MTPMessageRange> &_ranges) {
-		return MTPchannelMessagesFilter(std::make_shared<MTPDchannelMessagesFilter>(_flags, _ranges));
+		return MTPchannelMessagesFilter(new MTPDchannelMessagesFilter(_flags, _ranges));
 	}
 	inline static MTPchannelParticipant new_channelParticipant(MTPint _user_id, MTPint _date) {
-		return MTPchannelParticipant(std::make_shared<MTPDchannelParticipant>(_user_id, _date));
+		return MTPchannelParticipant(new MTPDchannelParticipant(_user_id, _date));
 	}
 	inline static MTPchannelParticipant new_channelParticipantSelf(MTPint _user_id, MTPint _inviter_id, MTPint _date) {
-		return MTPchannelParticipant(std::make_shared<MTPDchannelParticipantSelf>(_user_id, _inviter_id, _date));
+		return MTPchannelParticipant(new MTPDchannelParticipantSelf(_user_id, _inviter_id, _date));
 	}
 	inline static MTPchannelParticipant new_channelParticipantModerator(MTPint _user_id, MTPint _inviter_id, MTPint _date) {
-		return MTPchannelParticipant(std::make_shared<MTPDchannelParticipantModerator>(_user_id, _inviter_id, _date));
+		return MTPchannelParticipant(new MTPDchannelParticipantModerator(_user_id, _inviter_id, _date));
 	}
 	inline static MTPchannelParticipant new_channelParticipantEditor(MTPint _user_id, MTPint _inviter_id, MTPint _date) {
-		return MTPchannelParticipant(std::make_shared<MTPDchannelParticipantEditor>(_user_id, _inviter_id, _date));
+		return MTPchannelParticipant(new MTPDchannelParticipantEditor(_user_id, _inviter_id, _date));
 	}
 	inline static MTPchannelParticipant new_channelParticipantKicked(MTPint _user_id, MTPint _kicked_by, MTPint _date) {
-		return MTPchannelParticipant(std::make_shared<MTPDchannelParticipantKicked>(_user_id, _kicked_by, _date));
+		return MTPchannelParticipant(new MTPDchannelParticipantKicked(_user_id, _kicked_by, _date));
 	}
 	inline static MTPchannelParticipant new_channelParticipantCreator(MTPint _user_id) {
-		return MTPchannelParticipant(std::make_shared<MTPDchannelParticipantCreator>(_user_id));
+		return MTPchannelParticipant(new MTPDchannelParticipantCreator(_user_id));
 	}
 	inline static MTPchannelParticipantsFilter new_channelParticipantsRecent() {
 		return MTPchannelParticipantsFilter(mtpc_channelParticipantsRecent);
@@ -20760,88 +20760,88 @@ public:
 		return MTPchannelParticipantRole(mtpc_channelRoleEditor);
 	}
 	inline static MTPchannels_channelParticipants new_channels_channelParticipants(MTPint _count, const MTPVector<MTPChannelParticipant> &_participants, const MTPVector<MTPUser> &_users) {
-		return MTPchannels_channelParticipants(std::make_shared<MTPDchannels_channelParticipants>(_count, _participants, _users));
+		return MTPchannels_channelParticipants(new MTPDchannels_channelParticipants(_count, _participants, _users));
 	}
 	inline static MTPchannels_channelParticipant new_channels_channelParticipant(const MTPChannelParticipant &_participant, const MTPVector<MTPUser> &_users) {
-		return MTPchannels_channelParticipant(std::make_shared<MTPDchannels_channelParticipant>(_participant, _users));
+		return MTPchannels_channelParticipant(new MTPDchannels_channelParticipant(_participant, _users));
 	}
 	inline static MTPhelp_termsOfService new_help_termsOfService(const MTPstring &_text) {
-		return MTPhelp_termsOfService(std::make_shared<MTPDhelp_termsOfService>(_text));
+		return MTPhelp_termsOfService(new MTPDhelp_termsOfService(_text));
 	}
 	inline static MTPfoundGif new_foundGif(const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h) {
-		return MTPfoundGif(std::make_shared<MTPDfoundGif>(_url, _thumb_url, _content_url, _content_type, _w, _h));
+		return MTPfoundGif(new MTPDfoundGif(_url, _thumb_url, _content_url, _content_type, _w, _h));
 	}
 	inline static MTPfoundGif new_foundGifCached(const MTPstring &_url, const MTPPhoto &_photo, const MTPDocument &_document) {
-		return MTPfoundGif(std::make_shared<MTPDfoundGifCached>(_url, _photo, _document));
+		return MTPfoundGif(new MTPDfoundGifCached(_url, _photo, _document));
 	}
 	inline static MTPmessages_foundGifs new_messages_foundGifs(MTPint _next_offset, const MTPVector<MTPFoundGif> &_results) {
-		return MTPmessages_foundGifs(std::make_shared<MTPDmessages_foundGifs>(_next_offset, _results));
+		return MTPmessages_foundGifs(new MTPDmessages_foundGifs(_next_offset, _results));
 	}
 	inline static MTPmessages_savedGifs new_messages_savedGifsNotModified() {
 		return MTPmessages_savedGifs(mtpc_messages_savedGifsNotModified);
 	}
 	inline static MTPmessages_savedGifs new_messages_savedGifs(MTPint _hash, const MTPVector<MTPDocument> &_gifs) {
-		return MTPmessages_savedGifs(std::make_shared<MTPDmessages_savedGifs>(_hash, _gifs));
+		return MTPmessages_savedGifs(new MTPDmessages_savedGifs(_hash, _gifs));
 	}
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaAuto(const MTPflags<MTPDinputBotInlineMessageMediaAuto::Flags> &_flags, const MTPstring &_caption, const MTPReplyMarkup &_reply_markup) {
-		return MTPinputBotInlineMessage(std::make_shared<MTPDinputBotInlineMessageMediaAuto>(_flags, _caption, _reply_markup));
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaAuto(_flags, _caption, _reply_markup));
 	}
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageText(const MTPflags<MTPDinputBotInlineMessageText::Flags> &_flags, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities, const MTPReplyMarkup &_reply_markup) {
-		return MTPinputBotInlineMessage(std::make_shared<MTPDinputBotInlineMessageText>(_flags, _message, _entities, _reply_markup));
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageText(_flags, _message, _entities, _reply_markup));
 	}
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaGeo(const MTPflags<MTPDinputBotInlineMessageMediaGeo::Flags> &_flags, const MTPInputGeoPoint &_geo_point, const MTPReplyMarkup &_reply_markup) {
-		return MTPinputBotInlineMessage(std::make_shared<MTPDinputBotInlineMessageMediaGeo>(_flags, _geo_point, _reply_markup));
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaGeo(_flags, _geo_point, _reply_markup));
 	}
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaVenue(const MTPflags<MTPDinputBotInlineMessageMediaVenue::Flags> &_flags, const MTPInputGeoPoint &_geo_point, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id, const MTPReplyMarkup &_reply_markup) {
-		return MTPinputBotInlineMessage(std::make_shared<MTPDinputBotInlineMessageMediaVenue>(_flags, _geo_point, _title, _address, _provider, _venue_id, _reply_markup));
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaVenue(_flags, _geo_point, _title, _address, _provider, _venue_id, _reply_markup));
 	}
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageMediaContact(const MTPflags<MTPDinputBotInlineMessageMediaContact::Flags> &_flags, const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name, const MTPReplyMarkup &_reply_markup) {
-		return MTPinputBotInlineMessage(std::make_shared<MTPDinputBotInlineMessageMediaContact>(_flags, _phone_number, _first_name, _last_name, _reply_markup));
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageMediaContact(_flags, _phone_number, _first_name, _last_name, _reply_markup));
 	}
 	inline static MTPinputBotInlineMessage new_inputBotInlineMessageGame(const MTPflags<MTPDinputBotInlineMessageGame::Flags> &_flags, const MTPReplyMarkup &_reply_markup) {
-		return MTPinputBotInlineMessage(std::make_shared<MTPDinputBotInlineMessageGame>(_flags, _reply_markup));
+		return MTPinputBotInlineMessage(new MTPDinputBotInlineMessageGame(_flags, _reply_markup));
 	}
 	inline static MTPinputBotInlineResult new_inputBotInlineResult(const MTPflags<MTPDinputBotInlineResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration, const MTPInputBotInlineMessage &_send_message) {
-		return MTPinputBotInlineResult(std::make_shared<MTPDinputBotInlineResult>(_flags, _id, _type, _title, _description, _url, _thumb_url, _content_url, _content_type, _w, _h, _duration, _send_message));
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResult(_flags, _id, _type, _title, _description, _url, _thumb_url, _content_url, _content_type, _w, _h, _duration, _send_message));
 	}
 	inline static MTPinputBotInlineResult new_inputBotInlineResultPhoto(const MTPstring &_id, const MTPstring &_type, const MTPInputPhoto &_photo, const MTPInputBotInlineMessage &_send_message) {
-		return MTPinputBotInlineResult(std::make_shared<MTPDinputBotInlineResultPhoto>(_id, _type, _photo, _send_message));
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResultPhoto(_id, _type, _photo, _send_message));
 	}
 	inline static MTPinputBotInlineResult new_inputBotInlineResultDocument(const MTPflags<MTPDinputBotInlineResultDocument::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPInputDocument &_document, const MTPInputBotInlineMessage &_send_message) {
-		return MTPinputBotInlineResult(std::make_shared<MTPDinputBotInlineResultDocument>(_flags, _id, _type, _title, _description, _document, _send_message));
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResultDocument(_flags, _id, _type, _title, _description, _document, _send_message));
 	}
 	inline static MTPinputBotInlineResult new_inputBotInlineResultGame(const MTPstring &_id, const MTPstring &_short_name, const MTPInputBotInlineMessage &_send_message) {
-		return MTPinputBotInlineResult(std::make_shared<MTPDinputBotInlineResultGame>(_id, _short_name, _send_message));
+		return MTPinputBotInlineResult(new MTPDinputBotInlineResultGame(_id, _short_name, _send_message));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageMediaAuto(const MTPflags<MTPDbotInlineMessageMediaAuto::Flags> &_flags, const MTPstring &_caption, const MTPReplyMarkup &_reply_markup) {
-		return MTPbotInlineMessage(std::make_shared<MTPDbotInlineMessageMediaAuto>(_flags, _caption, _reply_markup));
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaAuto(_flags, _caption, _reply_markup));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageText(const MTPflags<MTPDbotInlineMessageText::Flags> &_flags, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities, const MTPReplyMarkup &_reply_markup) {
-		return MTPbotInlineMessage(std::make_shared<MTPDbotInlineMessageText>(_flags, _message, _entities, _reply_markup));
+		return MTPbotInlineMessage(new MTPDbotInlineMessageText(_flags, _message, _entities, _reply_markup));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageMediaGeo(const MTPflags<MTPDbotInlineMessageMediaGeo::Flags> &_flags, const MTPGeoPoint &_geo, const MTPReplyMarkup &_reply_markup) {
-		return MTPbotInlineMessage(std::make_shared<MTPDbotInlineMessageMediaGeo>(_flags, _geo, _reply_markup));
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaGeo(_flags, _geo, _reply_markup));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageMediaVenue(const MTPflags<MTPDbotInlineMessageMediaVenue::Flags> &_flags, const MTPGeoPoint &_geo, const MTPstring &_title, const MTPstring &_address, const MTPstring &_provider, const MTPstring &_venue_id, const MTPReplyMarkup &_reply_markup) {
-		return MTPbotInlineMessage(std::make_shared<MTPDbotInlineMessageMediaVenue>(_flags, _geo, _title, _address, _provider, _venue_id, _reply_markup));
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaVenue(_flags, _geo, _title, _address, _provider, _venue_id, _reply_markup));
 	}
 	inline static MTPbotInlineMessage new_botInlineMessageMediaContact(const MTPflags<MTPDbotInlineMessageMediaContact::Flags> &_flags, const MTPstring &_phone_number, const MTPstring &_first_name, const MTPstring &_last_name, const MTPReplyMarkup &_reply_markup) {
-		return MTPbotInlineMessage(std::make_shared<MTPDbotInlineMessageMediaContact>(_flags, _phone_number, _first_name, _last_name, _reply_markup));
+		return MTPbotInlineMessage(new MTPDbotInlineMessageMediaContact(_flags, _phone_number, _first_name, _last_name, _reply_markup));
 	}
 	inline static MTPbotInlineResult new_botInlineResult(const MTPflags<MTPDbotInlineResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration, const MTPBotInlineMessage &_send_message) {
-		return MTPbotInlineResult(std::make_shared<MTPDbotInlineResult>(_flags, _id, _type, _title, _description, _url, _thumb_url, _content_url, _content_type, _w, _h, _duration, _send_message));
+		return MTPbotInlineResult(new MTPDbotInlineResult(_flags, _id, _type, _title, _description, _url, _thumb_url, _content_url, _content_type, _w, _h, _duration, _send_message));
 	}
 	inline static MTPbotInlineResult new_botInlineMediaResult(const MTPflags<MTPDbotInlineMediaResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPPhoto &_photo, const MTPDocument &_document, const MTPstring &_title, const MTPstring &_description, const MTPBotInlineMessage &_send_message) {
-		return MTPbotInlineResult(std::make_shared<MTPDbotInlineMediaResult>(_flags, _id, _type, _photo, _document, _title, _description, _send_message));
+		return MTPbotInlineResult(new MTPDbotInlineMediaResult(_flags, _id, _type, _photo, _document, _title, _description, _send_message));
 	}
 	inline static MTPmessages_botResults new_messages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results, MTPint _cache_time) {
-		return MTPmessages_botResults(std::make_shared<MTPDmessages_botResults>(_flags, _query_id, _next_offset, _switch_pm, _results, _cache_time));
+		return MTPmessages_botResults(new MTPDmessages_botResults(_flags, _query_id, _next_offset, _switch_pm, _results, _cache_time));
 	}
 	inline static MTPexportedMessageLink new_exportedMessageLink(const MTPstring &_link) {
-		return MTPexportedMessageLink(std::make_shared<MTPDexportedMessageLink>(_link));
+		return MTPexportedMessageLink(new MTPDexportedMessageLink(_link));
 	}
 	inline static MTPmessageFwdHeader new_messageFwdHeader(const MTPflags<MTPDmessageFwdHeader::Flags> &_flags, MTPint _from_id, MTPint _date, MTPint _channel_id, MTPint _channel_post) {
-		return MTPmessageFwdHeader(std::make_shared<MTPDmessageFwdHeader>(_flags, _from_id, _date, _channel_id, _channel_post));
+		return MTPmessageFwdHeader(new MTPDmessageFwdHeader(_flags, _from_id, _date, _channel_id, _channel_post));
 	}
 	inline static MTPauth_codeType new_auth_codeTypeSms() {
 		return MTPauth_codeType(mtpc_auth_codeTypeSms);
@@ -20853,34 +20853,34 @@ public:
 		return MTPauth_codeType(mtpc_auth_codeTypeFlashCall);
 	}
 	inline static MTPauth_sentCodeType new_auth_sentCodeTypeApp(MTPint _length) {
-		return MTPauth_sentCodeType(std::make_shared<MTPDauth_sentCodeTypeApp>(_length));
+		return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeApp(_length));
 	}
 	inline static MTPauth_sentCodeType new_auth_sentCodeTypeSms(MTPint _length) {
-		return MTPauth_sentCodeType(std::make_shared<MTPDauth_sentCodeTypeSms>(_length));
+		return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeSms(_length));
 	}
 	inline static MTPauth_sentCodeType new_auth_sentCodeTypeCall(MTPint _length) {
-		return MTPauth_sentCodeType(std::make_shared<MTPDauth_sentCodeTypeCall>(_length));
+		return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeCall(_length));
 	}
 	inline static MTPauth_sentCodeType new_auth_sentCodeTypeFlashCall(const MTPstring &_pattern) {
-		return MTPauth_sentCodeType(std::make_shared<MTPDauth_sentCodeTypeFlashCall>(_pattern));
+		return MTPauth_sentCodeType(new MTPDauth_sentCodeTypeFlashCall(_pattern));
 	}
 	inline static MTPmessages_botCallbackAnswer new_messages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) {
-		return MTPmessages_botCallbackAnswer(std::make_shared<MTPDmessages_botCallbackAnswer>(_flags, _message, _url, _cache_time));
+		return MTPmessages_botCallbackAnswer(new MTPDmessages_botCallbackAnswer(_flags, _message, _url, _cache_time));
 	}
 	inline static MTPmessages_messageEditData new_messages_messageEditData(const MTPflags<MTPDmessages_messageEditData::Flags> &_flags) {
-		return MTPmessages_messageEditData(std::make_shared<MTPDmessages_messageEditData>(_flags));
+		return MTPmessages_messageEditData(new MTPDmessages_messageEditData(_flags));
 	}
 	inline static MTPinputBotInlineMessageID new_inputBotInlineMessageID(MTPint _dc_id, const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputBotInlineMessageID(std::make_shared<MTPDinputBotInlineMessageID>(_dc_id, _id, _access_hash));
+		return MTPinputBotInlineMessageID(new MTPDinputBotInlineMessageID(_dc_id, _id, _access_hash));
 	}
 	inline static MTPinlineBotSwitchPM new_inlineBotSwitchPM(const MTPstring &_text, const MTPstring &_start_param) {
-		return MTPinlineBotSwitchPM(std::make_shared<MTPDinlineBotSwitchPM>(_text, _start_param));
+		return MTPinlineBotSwitchPM(new MTPDinlineBotSwitchPM(_text, _start_param));
 	}
 	inline static MTPmessages_peerDialogs new_messages_peerDialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_state) {
-		return MTPmessages_peerDialogs(std::make_shared<MTPDmessages_peerDialogs>(_dialogs, _messages, _chats, _users, _state));
+		return MTPmessages_peerDialogs(new MTPDmessages_peerDialogs(_dialogs, _messages, _chats, _users, _state));
 	}
 	inline static MTPtopPeer new_topPeer(const MTPPeer &_peer, const MTPdouble &_rating) {
-		return MTPtopPeer(std::make_shared<MTPDtopPeer>(_peer, _rating));
+		return MTPtopPeer(new MTPDtopPeer(_peer, _rating));
 	}
 	inline static MTPtopPeerCategory new_topPeerCategoryBotsPM() {
 		return MTPtopPeerCategory(mtpc_topPeerCategoryBotsPM);
@@ -20898,196 +20898,196 @@ public:
 		return MTPtopPeerCategory(mtpc_topPeerCategoryChannels);
 	}
 	inline static MTPtopPeerCategoryPeers new_topPeerCategoryPeers(const MTPTopPeerCategory &_category, MTPint _count, const MTPVector<MTPTopPeer> &_peers) {
-		return MTPtopPeerCategoryPeers(std::make_shared<MTPDtopPeerCategoryPeers>(_category, _count, _peers));
+		return MTPtopPeerCategoryPeers(new MTPDtopPeerCategoryPeers(_category, _count, _peers));
 	}
 	inline static MTPcontacts_topPeers new_contacts_topPeersNotModified() {
 		return MTPcontacts_topPeers(mtpc_contacts_topPeersNotModified);
 	}
 	inline static MTPcontacts_topPeers new_contacts_topPeers(const MTPVector<MTPTopPeerCategoryPeers> &_categories, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
-		return MTPcontacts_topPeers(std::make_shared<MTPDcontacts_topPeers>(_categories, _chats, _users));
+		return MTPcontacts_topPeers(new MTPDcontacts_topPeers(_categories, _chats, _users));
 	}
 	inline static MTPdraftMessage new_draftMessageEmpty() {
 		return MTPdraftMessage(mtpc_draftMessageEmpty);
 	}
 	inline static MTPdraftMessage new_draftMessage(const MTPflags<MTPDdraftMessage::Flags> &_flags, MTPint _reply_to_msg_id, const MTPstring &_message, const MTPVector<MTPMessageEntity> &_entities, MTPint _date) {
-		return MTPdraftMessage(std::make_shared<MTPDdraftMessage>(_flags, _reply_to_msg_id, _message, _entities, _date));
+		return MTPdraftMessage(new MTPDdraftMessage(_flags, _reply_to_msg_id, _message, _entities, _date));
 	}
 	inline static MTPmessages_featuredStickers new_messages_featuredStickersNotModified() {
 		return MTPmessages_featuredStickers(mtpc_messages_featuredStickersNotModified);
 	}
 	inline static MTPmessages_featuredStickers new_messages_featuredStickers(MTPint _hash, const MTPVector<MTPStickerSetCovered> &_sets, const MTPVector<MTPlong> &_unread) {
-		return MTPmessages_featuredStickers(std::make_shared<MTPDmessages_featuredStickers>(_hash, _sets, _unread));
+		return MTPmessages_featuredStickers(new MTPDmessages_featuredStickers(_hash, _sets, _unread));
 	}
 	inline static MTPmessages_recentStickers new_messages_recentStickersNotModified() {
 		return MTPmessages_recentStickers(mtpc_messages_recentStickersNotModified);
 	}
 	inline static MTPmessages_recentStickers new_messages_recentStickers(MTPint _hash, const MTPVector<MTPDocument> &_stickers) {
-		return MTPmessages_recentStickers(std::make_shared<MTPDmessages_recentStickers>(_hash, _stickers));
+		return MTPmessages_recentStickers(new MTPDmessages_recentStickers(_hash, _stickers));
 	}
 	inline static MTPmessages_archivedStickers new_messages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSetCovered> &_sets) {
-		return MTPmessages_archivedStickers(std::make_shared<MTPDmessages_archivedStickers>(_count, _sets));
+		return MTPmessages_archivedStickers(new MTPDmessages_archivedStickers(_count, _sets));
 	}
 	inline static MTPmessages_stickerSetInstallResult new_messages_stickerSetInstallResultSuccess() {
 		return MTPmessages_stickerSetInstallResult(mtpc_messages_stickerSetInstallResultSuccess);
 	}
 	inline static MTPmessages_stickerSetInstallResult new_messages_stickerSetInstallResultArchive(const MTPVector<MTPStickerSetCovered> &_sets) {
-		return MTPmessages_stickerSetInstallResult(std::make_shared<MTPDmessages_stickerSetInstallResultArchive>(_sets));
+		return MTPmessages_stickerSetInstallResult(new MTPDmessages_stickerSetInstallResultArchive(_sets));
 	}
 	inline static MTPstickerSetCovered new_stickerSetCovered(const MTPStickerSet &_set, const MTPDocument &_cover) {
-		return MTPstickerSetCovered(std::make_shared<MTPDstickerSetCovered>(_set, _cover));
+		return MTPstickerSetCovered(new MTPDstickerSetCovered(_set, _cover));
 	}
 	inline static MTPstickerSetCovered new_stickerSetMultiCovered(const MTPStickerSet &_set, const MTPVector<MTPDocument> &_covers) {
-		return MTPstickerSetCovered(std::make_shared<MTPDstickerSetMultiCovered>(_set, _covers));
+		return MTPstickerSetCovered(new MTPDstickerSetMultiCovered(_set, _covers));
 	}
 	inline static MTPmaskCoords new_maskCoords(MTPint _n, const MTPdouble &_x, const MTPdouble &_y, const MTPdouble &_zoom) {
-		return MTPmaskCoords(std::make_shared<MTPDmaskCoords>(_n, _x, _y, _zoom));
+		return MTPmaskCoords(new MTPDmaskCoords(_n, _x, _y, _zoom));
 	}
 	inline static MTPinputStickeredMedia new_inputStickeredMediaPhoto(const MTPInputPhoto &_id) {
-		return MTPinputStickeredMedia(std::make_shared<MTPDinputStickeredMediaPhoto>(_id));
+		return MTPinputStickeredMedia(new MTPDinputStickeredMediaPhoto(_id));
 	}
 	inline static MTPinputStickeredMedia new_inputStickeredMediaDocument(const MTPInputDocument &_id) {
-		return MTPinputStickeredMedia(std::make_shared<MTPDinputStickeredMediaDocument>(_id));
+		return MTPinputStickeredMedia(new MTPDinputStickeredMediaDocument(_id));
 	}
 	inline static MTPgame new_game(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPDocument &_document) {
-		return MTPgame(std::make_shared<MTPDgame>(_flags, _id, _access_hash, _short_name, _title, _description, _photo, _document));
+		return MTPgame(new MTPDgame(_flags, _id, _access_hash, _short_name, _title, _description, _photo, _document));
 	}
 	inline static MTPinputGame new_inputGameID(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputGame(std::make_shared<MTPDinputGameID>(_id, _access_hash));
+		return MTPinputGame(new MTPDinputGameID(_id, _access_hash));
 	}
 	inline static MTPinputGame new_inputGameShortName(const MTPInputUser &_bot_id, const MTPstring &_short_name) {
-		return MTPinputGame(std::make_shared<MTPDinputGameShortName>(_bot_id, _short_name));
+		return MTPinputGame(new MTPDinputGameShortName(_bot_id, _short_name));
 	}
 	inline static MTPhighScore new_highScore(MTPint _pos, MTPint _user_id, MTPint _score) {
-		return MTPhighScore(std::make_shared<MTPDhighScore>(_pos, _user_id, _score));
+		return MTPhighScore(new MTPDhighScore(_pos, _user_id, _score));
 	}
 	inline static MTPmessages_highScores new_messages_highScores(const MTPVector<MTPHighScore> &_scores, const MTPVector<MTPUser> &_users) {
-		return MTPmessages_highScores(std::make_shared<MTPDmessages_highScores>(_scores, _users));
+		return MTPmessages_highScores(new MTPDmessages_highScores(_scores, _users));
 	}
 	inline static MTPrichText new_textEmpty() {
 		return MTPrichText(mtpc_textEmpty);
 	}
 	inline static MTPrichText new_textPlain(const MTPstring &_text) {
-		return MTPrichText(std::make_shared<MTPDtextPlain>(_text));
+		return MTPrichText(new MTPDtextPlain(_text));
 	}
 	inline static MTPrichText new_textBold(const MTPRichText &_text) {
-		return MTPrichText(std::make_shared<MTPDtextBold>(_text));
+		return MTPrichText(new MTPDtextBold(_text));
 	}
 	inline static MTPrichText new_textItalic(const MTPRichText &_text) {
-		return MTPrichText(std::make_shared<MTPDtextItalic>(_text));
+		return MTPrichText(new MTPDtextItalic(_text));
 	}
 	inline static MTPrichText new_textUnderline(const MTPRichText &_text) {
-		return MTPrichText(std::make_shared<MTPDtextUnderline>(_text));
+		return MTPrichText(new MTPDtextUnderline(_text));
 	}
 	inline static MTPrichText new_textStrike(const MTPRichText &_text) {
-		return MTPrichText(std::make_shared<MTPDtextStrike>(_text));
+		return MTPrichText(new MTPDtextStrike(_text));
 	}
 	inline static MTPrichText new_textFixed(const MTPRichText &_text) {
-		return MTPrichText(std::make_shared<MTPDtextFixed>(_text));
+		return MTPrichText(new MTPDtextFixed(_text));
 	}
 	inline static MTPrichText new_textUrl(const MTPRichText &_text, const MTPstring &_url, const MTPlong &_webpage_id) {
-		return MTPrichText(std::make_shared<MTPDtextUrl>(_text, _url, _webpage_id));
+		return MTPrichText(new MTPDtextUrl(_text, _url, _webpage_id));
 	}
 	inline static MTPrichText new_textEmail(const MTPRichText &_text, const MTPstring &_email) {
-		return MTPrichText(std::make_shared<MTPDtextEmail>(_text, _email));
+		return MTPrichText(new MTPDtextEmail(_text, _email));
 	}
 	inline static MTPrichText new_textConcat(const MTPVector<MTPRichText> &_texts) {
-		return MTPrichText(std::make_shared<MTPDtextConcat>(_texts));
+		return MTPrichText(new MTPDtextConcat(_texts));
 	}
 	inline static MTPpageBlock new_pageBlockUnsupported() {
 		return MTPpageBlock(mtpc_pageBlockUnsupported);
 	}
 	inline static MTPpageBlock new_pageBlockTitle(const MTPRichText &_text) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockTitle>(_text));
+		return MTPpageBlock(new MTPDpageBlockTitle(_text));
 	}
 	inline static MTPpageBlock new_pageBlockSubtitle(const MTPRichText &_text) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockSubtitle>(_text));
+		return MTPpageBlock(new MTPDpageBlockSubtitle(_text));
 	}
 	inline static MTPpageBlock new_pageBlockAuthorDate(const MTPRichText &_author, MTPint _published_date) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockAuthorDate>(_author, _published_date));
+		return MTPpageBlock(new MTPDpageBlockAuthorDate(_author, _published_date));
 	}
 	inline static MTPpageBlock new_pageBlockHeader(const MTPRichText &_text) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockHeader>(_text));
+		return MTPpageBlock(new MTPDpageBlockHeader(_text));
 	}
 	inline static MTPpageBlock new_pageBlockSubheader(const MTPRichText &_text) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockSubheader>(_text));
+		return MTPpageBlock(new MTPDpageBlockSubheader(_text));
 	}
 	inline static MTPpageBlock new_pageBlockParagraph(const MTPRichText &_text) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockParagraph>(_text));
+		return MTPpageBlock(new MTPDpageBlockParagraph(_text));
 	}
 	inline static MTPpageBlock new_pageBlockPreformatted(const MTPRichText &_text, const MTPstring &_language) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockPreformatted>(_text, _language));
+		return MTPpageBlock(new MTPDpageBlockPreformatted(_text, _language));
 	}
 	inline static MTPpageBlock new_pageBlockFooter(const MTPRichText &_text) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockFooter>(_text));
+		return MTPpageBlock(new MTPDpageBlockFooter(_text));
 	}
 	inline static MTPpageBlock new_pageBlockDivider() {
 		return MTPpageBlock(mtpc_pageBlockDivider);
 	}
 	inline static MTPpageBlock new_pageBlockAnchor(const MTPstring &_name) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockAnchor>(_name));
+		return MTPpageBlock(new MTPDpageBlockAnchor(_name));
 	}
 	inline static MTPpageBlock new_pageBlockList(MTPBool _ordered, const MTPVector<MTPRichText> &_items) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockList>(_ordered, _items));
+		return MTPpageBlock(new MTPDpageBlockList(_ordered, _items));
 	}
 	inline static MTPpageBlock new_pageBlockBlockquote(const MTPRichText &_text, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockBlockquote>(_text, _caption));
+		return MTPpageBlock(new MTPDpageBlockBlockquote(_text, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockPullquote(const MTPRichText &_text, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockPullquote>(_text, _caption));
+		return MTPpageBlock(new MTPDpageBlockPullquote(_text, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockPhoto(const MTPlong &_photo_id, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockPhoto>(_photo_id, _caption));
+		return MTPpageBlock(new MTPDpageBlockPhoto(_photo_id, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockVideo(const MTPflags<MTPDpageBlockVideo::Flags> &_flags, const MTPlong &_video_id, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockVideo>(_flags, _video_id, _caption));
+		return MTPpageBlock(new MTPDpageBlockVideo(_flags, _video_id, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockCover(const MTPPageBlock &_cover) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockCover>(_cover));
+		return MTPpageBlock(new MTPDpageBlockCover(_cover));
 	}
 	inline static MTPpageBlock new_pageBlockEmbed(const MTPflags<MTPDpageBlockEmbed::Flags> &_flags, const MTPstring &_url, const MTPstring &_html, const MTPlong &_poster_photo_id, MTPint _w, MTPint _h, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockEmbed>(_flags, _url, _html, _poster_photo_id, _w, _h, _caption));
+		return MTPpageBlock(new MTPDpageBlockEmbed(_flags, _url, _html, _poster_photo_id, _w, _h, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockEmbedPost(const MTPstring &_url, const MTPlong &_webpage_id, const MTPlong &_author_photo_id, const MTPstring &_author, MTPint _date, const MTPVector<MTPPageBlock> &_blocks, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockEmbedPost>(_url, _webpage_id, _author_photo_id, _author, _date, _blocks, _caption));
+		return MTPpageBlock(new MTPDpageBlockEmbedPost(_url, _webpage_id, _author_photo_id, _author, _date, _blocks, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockCollage(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockCollage>(_items, _caption));
+		return MTPpageBlock(new MTPDpageBlockCollage(_items, _caption));
 	}
 	inline static MTPpageBlock new_pageBlockSlideshow(const MTPVector<MTPPageBlock> &_items, const MTPRichText &_caption) {
-		return MTPpageBlock(std::make_shared<MTPDpageBlockSlideshow>(_items, _caption));
+		return MTPpageBlock(new MTPDpageBlockSlideshow(_items, _caption));
 	}
 	inline static MTPpage new_pagePart(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
-		return MTPpage(std::make_shared<MTPDpagePart>(_blocks, _photos, _videos));
+		return MTPpage(new MTPDpagePart(_blocks, _photos, _videos));
 	}
 	inline static MTPpage new_pageFull(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
-		return MTPpage(std::make_shared<MTPDpageFull>(_blocks, _photos, _videos));
+		return MTPpage(new MTPDpageFull(_blocks, _photos, _videos));
 	}
 	inline static MTPinputPhoneCall new_inputPhoneCall(const MTPlong &_id, const MTPlong &_access_hash) {
-		return MTPinputPhoneCall(std::make_shared<MTPDinputPhoneCall>(_id, _access_hash));
+		return MTPinputPhoneCall(new MTPDinputPhoneCall(_id, _access_hash));
 	}
 	inline static MTPphoneCall new_phoneCallEmpty(const MTPlong &_id) {
-		return MTPphoneCall(std::make_shared<MTPDphoneCallEmpty>(_id));
+		return MTPphoneCall(new MTPDphoneCallEmpty(_id));
 	}
 	inline static MTPphoneCall new_phoneCallWaiting(const MTPflags<MTPDphoneCallWaiting::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPPhoneCallProtocol &_protocol, MTPint _receive_date) {
-		return MTPphoneCall(std::make_shared<MTPDphoneCallWaiting>(_flags, _id, _access_hash, _date, _admin_id, _participant_id, _protocol, _receive_date));
+		return MTPphoneCall(new MTPDphoneCallWaiting(_flags, _id, _access_hash, _date, _admin_id, _participant_id, _protocol, _receive_date));
 	}
 	inline static MTPphoneCall new_phoneCallRequested(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a, const MTPPhoneCallProtocol &_protocol) {
-		return MTPphoneCall(std::make_shared<MTPDphoneCallRequested>(_id, _access_hash, _date, _admin_id, _participant_id, _g_a, _protocol));
+		return MTPphoneCall(new MTPDphoneCallRequested(_id, _access_hash, _date, _admin_id, _participant_id, _g_a, _protocol));
 	}
 	inline static MTPphoneCall new_phoneCall(const MTPlong &_id, const MTPlong &_access_hash, MTPint _date, MTPint _admin_id, MTPint _participant_id, const MTPbytes &_g_a_or_b, const MTPlong &_key_fingerprint, const MTPPhoneCallProtocol &_protocol, const MTPPhoneConnection &_connection, const MTPVector<MTPPhoneConnection> &_alternative_connections, MTPint _start_date) {
-		return MTPphoneCall(std::make_shared<MTPDphoneCall>(_id, _access_hash, _date, _admin_id, _participant_id, _g_a_or_b, _key_fingerprint, _protocol, _connection, _alternative_connections, _start_date));
+		return MTPphoneCall(new MTPDphoneCall(_id, _access_hash, _date, _admin_id, _participant_id, _g_a_or_b, _key_fingerprint, _protocol, _connection, _alternative_connections, _start_date));
 	}
 	inline static MTPphoneCall new_phoneCallDiscarded(const MTPflags<MTPDphoneCallDiscarded::Flags> &_flags, const MTPlong &_id, const MTPPhoneCallDiscardReason &_reason, MTPint _duration) {
-		return MTPphoneCall(std::make_shared<MTPDphoneCallDiscarded>(_flags, _id, _reason, _duration));
+		return MTPphoneCall(new MTPDphoneCallDiscarded(_flags, _id, _reason, _duration));
 	}
 	inline static MTPphoneConnection new_phoneConnection(const MTPlong &_id, const MTPstring &_ip, const MTPstring &_ipv6, MTPint _port, const MTPbytes &_peer_tag) {
-		return MTPphoneConnection(std::make_shared<MTPDphoneConnection>(_id, _ip, _ipv6, _port, _peer_tag));
+		return MTPphoneConnection(new MTPDphoneConnection(_id, _ip, _ipv6, _port, _peer_tag));
 	}
 	inline static MTPphoneCallProtocol new_phoneCallProtocol(const MTPflags<MTPDphoneCallProtocol::Flags> &_flags, MTPint _min_layer, MTPint _max_layer) {
-		return MTPphoneCallProtocol(std::make_shared<MTPDphoneCallProtocol>(_flags, _min_layer, _max_layer));
+		return MTPphoneCallProtocol(new MTPDphoneCallProtocol(_flags, _min_layer, _max_layer));
 	}
 	inline static MTPphone_phoneCall new_phone_phoneCall(const MTPPhoneCall &_phone_call, const MTPVector<MTPUser> &_users) {
-		return MTPphone_phoneCall(std::make_shared<MTPDphone_phoneCall>(_phone_call, _users));
+		return MTPphone_phoneCall(new MTPDphone_phoneCall(_phone_call, _users));
 	}
 	inline static MTPphoneCallDiscardReason new_phoneCallDiscardReasonMissed() {
 		return MTPphoneCallDiscardReason(mtpc_phoneCallDiscardReasonMissed);
@@ -21108,7 +21108,7 @@ public:
 
 // Inline methods definition
 
-inline MTPresPQ::MTPresPQ() : mtpDataOwner(std::make_shared<MTPDresPQ>()) {
+inline MTPresPQ::MTPresPQ() : TypeDataOwner(new MTPDresPQ()) {
 }
 
 inline uint32 MTPresPQ::innerLength() const {
@@ -21121,12 +21121,12 @@ inline mtpTypeId MTPresPQ::type() const {
 inline void MTPresPQ::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_resPQ) throw mtpErrorUnexpected(cons, "MTPresPQ");
 
-	auto v = std::make_shared<MTPDresPQ>();
+	auto v = new MTPDresPQ();
+	setData(v);
 	v->vnonce.read(from, end);
 	v->vserver_nonce.read(from, end);
 	v->vpq.read(from, end);
 	v->vserver_public_key_fingerprints.read(from, end);
-	data = std::move(v);
 }
 inline void MTPresPQ::write(mtpBuffer &to) const {
 	auto &v = c_resPQ();
@@ -21136,16 +21136,15 @@ inline void MTPresPQ::write(mtpBuffer &to) const {
 	v.vserver_public_key_fingerprints.write(to);
 }
 inline const MTPDresPQ &MTPresPQ::c_resPQ() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDresPQ&>(*data);
+	return queryData<MTPDresPQ>();
 }
-inline MTPresPQ::MTPresPQ(std::shared_ptr<const MTPDresPQ> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPresPQ::MTPresPQ(const MTPDresPQ *data) : TypeDataOwner(data) {
 }
 inline MTPresPQ MTP_resPQ(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPstring &_pq, const MTPVector<MTPlong> &_server_public_key_fingerprints) {
 	return MTP::internal::TypeCreator::new_resPQ(_nonce, _server_nonce, _pq, _server_public_key_fingerprints);
 }
 
-inline MTPp_Q_inner_data::MTPp_Q_inner_data() : mtpDataOwner(std::make_shared<MTPDp_q_inner_data>()) {
+inline MTPp_Q_inner_data::MTPp_Q_inner_data() : TypeDataOwner(new MTPDp_q_inner_data()) {
 }
 
 inline uint32 MTPp_Q_inner_data::innerLength() const {
@@ -21158,14 +21157,14 @@ inline mtpTypeId MTPp_Q_inner_data::type() const {
 inline void MTPp_Q_inner_data::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_p_q_inner_data) throw mtpErrorUnexpected(cons, "MTPp_Q_inner_data");
 
-	auto v = std::make_shared<MTPDp_q_inner_data>();
+	auto v = new MTPDp_q_inner_data();
+	setData(v);
 	v->vpq.read(from, end);
 	v->vp.read(from, end);
 	v->vq.read(from, end);
 	v->vnonce.read(from, end);
 	v->vserver_nonce.read(from, end);
 	v->vnew_nonce.read(from, end);
-	data = std::move(v);
 }
 inline void MTPp_Q_inner_data::write(mtpBuffer &to) const {
 	auto &v = c_p_q_inner_data();
@@ -21177,10 +21176,9 @@ inline void MTPp_Q_inner_data::write(mtpBuffer &to) const {
 	v.vnew_nonce.write(to);
 }
 inline const MTPDp_q_inner_data &MTPp_Q_inner_data::c_p_q_inner_data() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDp_q_inner_data&>(*data);
+	return queryData<MTPDp_q_inner_data>();
 }
-inline MTPp_Q_inner_data::MTPp_Q_inner_data(std::shared_ptr<const MTPDp_q_inner_data> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPp_Q_inner_data::MTPp_Q_inner_data(const MTPDp_q_inner_data *data) : TypeDataOwner(data) {
 }
 inline MTPp_Q_inner_data MTP_p_q_inner_data(const MTPstring &_pq, const MTPstring &_p, const MTPstring &_q, const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint256 &_new_nonce) {
 	return MTP::internal::TypeCreator::new_p_q_inner_data(_pq, _p, _q, _nonce, _server_nonce, _new_nonce);
@@ -21204,21 +21202,20 @@ inline mtpTypeId MTPserver_DH_Params::type() const {
 	return _type;
 }
 inline void MTPserver_DH_Params::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_server_DH_params_fail: _type = cons; {
-			auto v = std::make_shared<MTPDserver_DH_params_fail>();
+			auto v = new MTPDserver_DH_params_fail();
+			setData(v);
 			v->vnonce.read(from, end);
 			v->vserver_nonce.read(from, end);
 			v->vnew_nonce_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_server_DH_params_ok: _type = cons; {
-			auto v = std::make_shared<MTPDserver_DH_params_ok>();
+			auto v = new MTPDserver_DH_params_ok();
+			setData(v);
 			v->vnonce.read(from, end);
 			v->vserver_nonce.read(from, end);
 			v->vencrypted_answer.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPserver_DH_Params");
 	}
@@ -21241,22 +21238,22 @@ inline void MTPserver_DH_Params::write(mtpBuffer &to) const {
 }
 inline MTPserver_DH_Params::MTPserver_DH_Params(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_server_DH_params_fail: data = std::make_shared<MTPDserver_DH_params_fail>(); break;
-		case mtpc_server_DH_params_ok: data = std::make_shared<MTPDserver_DH_params_ok>(); break;
+		case mtpc_server_DH_params_fail: setData(new MTPDserver_DH_params_fail()); break;
+		case mtpc_server_DH_params_ok: setData(new MTPDserver_DH_params_ok()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPserver_DH_Params");
 	}
 }
 inline const MTPDserver_DH_params_fail &MTPserver_DH_Params::c_server_DH_params_fail() const {
-	t_assert(data != nullptr && _type == mtpc_server_DH_params_fail);
-	return static_cast<const MTPDserver_DH_params_fail&>(*data);
+	t_assert(_type == mtpc_server_DH_params_fail);
+	return queryData<MTPDserver_DH_params_fail>();
 }
-inline MTPserver_DH_Params::MTPserver_DH_Params(std::shared_ptr<const MTPDserver_DH_params_fail> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_server_DH_params_fail) {
+inline MTPserver_DH_Params::MTPserver_DH_Params(const MTPDserver_DH_params_fail *data) : TypeDataOwner(data), _type(mtpc_server_DH_params_fail) {
 }
 inline const MTPDserver_DH_params_ok &MTPserver_DH_Params::c_server_DH_params_ok() const {
-	t_assert(data != nullptr && _type == mtpc_server_DH_params_ok);
-	return static_cast<const MTPDserver_DH_params_ok&>(*data);
+	t_assert(_type == mtpc_server_DH_params_ok);
+	return queryData<MTPDserver_DH_params_ok>();
 }
-inline MTPserver_DH_Params::MTPserver_DH_Params(std::shared_ptr<const MTPDserver_DH_params_ok> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_server_DH_params_ok) {
+inline MTPserver_DH_Params::MTPserver_DH_Params(const MTPDserver_DH_params_ok *data) : TypeDataOwner(data), _type(mtpc_server_DH_params_ok) {
 }
 inline MTPserver_DH_Params MTP_server_DH_params_fail(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash) {
 	return MTP::internal::TypeCreator::new_server_DH_params_fail(_nonce, _server_nonce, _new_nonce_hash);
@@ -21265,7 +21262,7 @@ inline MTPserver_DH_Params MTP_server_DH_params_ok(const MTPint128 &_nonce, cons
 	return MTP::internal::TypeCreator::new_server_DH_params_ok(_nonce, _server_nonce, _encrypted_answer);
 }
 
-inline MTPserver_DH_inner_data::MTPserver_DH_inner_data() : mtpDataOwner(std::make_shared<MTPDserver_DH_inner_data>()) {
+inline MTPserver_DH_inner_data::MTPserver_DH_inner_data() : TypeDataOwner(new MTPDserver_DH_inner_data()) {
 }
 
 inline uint32 MTPserver_DH_inner_data::innerLength() const {
@@ -21278,14 +21275,14 @@ inline mtpTypeId MTPserver_DH_inner_data::type() const {
 inline void MTPserver_DH_inner_data::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_server_DH_inner_data) throw mtpErrorUnexpected(cons, "MTPserver_DH_inner_data");
 
-	auto v = std::make_shared<MTPDserver_DH_inner_data>();
+	auto v = new MTPDserver_DH_inner_data();
+	setData(v);
 	v->vnonce.read(from, end);
 	v->vserver_nonce.read(from, end);
 	v->vg.read(from, end);
 	v->vdh_prime.read(from, end);
 	v->vg_a.read(from, end);
 	v->vserver_time.read(from, end);
-	data = std::move(v);
 }
 inline void MTPserver_DH_inner_data::write(mtpBuffer &to) const {
 	auto &v = c_server_DH_inner_data();
@@ -21297,16 +21294,15 @@ inline void MTPserver_DH_inner_data::write(mtpBuffer &to) const {
 	v.vserver_time.write(to);
 }
 inline const MTPDserver_DH_inner_data &MTPserver_DH_inner_data::c_server_DH_inner_data() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDserver_DH_inner_data&>(*data);
+	return queryData<MTPDserver_DH_inner_data>();
 }
-inline MTPserver_DH_inner_data::MTPserver_DH_inner_data(std::shared_ptr<const MTPDserver_DH_inner_data> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPserver_DH_inner_data::MTPserver_DH_inner_data(const MTPDserver_DH_inner_data *data) : TypeDataOwner(data) {
 }
 inline MTPserver_DH_inner_data MTP_server_DH_inner_data(const MTPint128 &_nonce, const MTPint128 &_server_nonce, MTPint _g, const MTPstring &_dh_prime, const MTPstring &_g_a, MTPint _server_time) {
 	return MTP::internal::TypeCreator::new_server_DH_inner_data(_nonce, _server_nonce, _g, _dh_prime, _g_a, _server_time);
 }
 
-inline MTPclient_DH_Inner_Data::MTPclient_DH_Inner_Data() : mtpDataOwner(std::make_shared<MTPDclient_DH_inner_data>()) {
+inline MTPclient_DH_Inner_Data::MTPclient_DH_Inner_Data() : TypeDataOwner(new MTPDclient_DH_inner_data()) {
 }
 
 inline uint32 MTPclient_DH_Inner_Data::innerLength() const {
@@ -21319,12 +21315,12 @@ inline mtpTypeId MTPclient_DH_Inner_Data::type() const {
 inline void MTPclient_DH_Inner_Data::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_client_DH_inner_data) throw mtpErrorUnexpected(cons, "MTPclient_DH_Inner_Data");
 
-	auto v = std::make_shared<MTPDclient_DH_inner_data>();
+	auto v = new MTPDclient_DH_inner_data();
+	setData(v);
 	v->vnonce.read(from, end);
 	v->vserver_nonce.read(from, end);
 	v->vretry_id.read(from, end);
 	v->vg_b.read(from, end);
-	data = std::move(v);
 }
 inline void MTPclient_DH_Inner_Data::write(mtpBuffer &to) const {
 	auto &v = c_client_DH_inner_data();
@@ -21334,10 +21330,9 @@ inline void MTPclient_DH_Inner_Data::write(mtpBuffer &to) const {
 	v.vg_b.write(to);
 }
 inline const MTPDclient_DH_inner_data &MTPclient_DH_Inner_Data::c_client_DH_inner_data() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDclient_DH_inner_data&>(*data);
+	return queryData<MTPDclient_DH_inner_data>();
 }
-inline MTPclient_DH_Inner_Data::MTPclient_DH_Inner_Data(std::shared_ptr<const MTPDclient_DH_inner_data> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPclient_DH_Inner_Data::MTPclient_DH_Inner_Data(const MTPDclient_DH_inner_data *data) : TypeDataOwner(data) {
 }
 inline MTPclient_DH_Inner_Data MTP_client_DH_inner_data(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPlong &_retry_id, const MTPstring &_g_b) {
 	return MTP::internal::TypeCreator::new_client_DH_inner_data(_nonce, _server_nonce, _retry_id, _g_b);
@@ -21365,28 +21360,27 @@ inline mtpTypeId MTPset_client_DH_params_answer::type() const {
 	return _type;
 }
 inline void MTPset_client_DH_params_answer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_dh_gen_ok: _type = cons; {
-			auto v = std::make_shared<MTPDdh_gen_ok>();
+			auto v = new MTPDdh_gen_ok();
+			setData(v);
 			v->vnonce.read(from, end);
 			v->vserver_nonce.read(from, end);
 			v->vnew_nonce_hash1.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_dh_gen_retry: _type = cons; {
-			auto v = std::make_shared<MTPDdh_gen_retry>();
+			auto v = new MTPDdh_gen_retry();
+			setData(v);
 			v->vnonce.read(from, end);
 			v->vserver_nonce.read(from, end);
 			v->vnew_nonce_hash2.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_dh_gen_fail: _type = cons; {
-			auto v = std::make_shared<MTPDdh_gen_fail>();
+			auto v = new MTPDdh_gen_fail();
+			setData(v);
 			v->vnonce.read(from, end);
 			v->vserver_nonce.read(from, end);
 			v->vnew_nonce_hash3.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPset_client_DH_params_answer");
 	}
@@ -21415,29 +21409,29 @@ inline void MTPset_client_DH_params_answer::write(mtpBuffer &to) const {
 }
 inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_dh_gen_ok: data = std::make_shared<MTPDdh_gen_ok>(); break;
-		case mtpc_dh_gen_retry: data = std::make_shared<MTPDdh_gen_retry>(); break;
-		case mtpc_dh_gen_fail: data = std::make_shared<MTPDdh_gen_fail>(); break;
+		case mtpc_dh_gen_ok: setData(new MTPDdh_gen_ok()); break;
+		case mtpc_dh_gen_retry: setData(new MTPDdh_gen_retry()); break;
+		case mtpc_dh_gen_fail: setData(new MTPDdh_gen_fail()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPset_client_DH_params_answer");
 	}
 }
 inline const MTPDdh_gen_ok &MTPset_client_DH_params_answer::c_dh_gen_ok() const {
-	t_assert(data != nullptr && _type == mtpc_dh_gen_ok);
-	return static_cast<const MTPDdh_gen_ok&>(*data);
+	t_assert(_type == mtpc_dh_gen_ok);
+	return queryData<MTPDdh_gen_ok>();
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(std::shared_ptr<const MTPDdh_gen_ok> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_dh_gen_ok) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(const MTPDdh_gen_ok *data) : TypeDataOwner(data), _type(mtpc_dh_gen_ok) {
 }
 inline const MTPDdh_gen_retry &MTPset_client_DH_params_answer::c_dh_gen_retry() const {
-	t_assert(data != nullptr && _type == mtpc_dh_gen_retry);
-	return static_cast<const MTPDdh_gen_retry&>(*data);
+	t_assert(_type == mtpc_dh_gen_retry);
+	return queryData<MTPDdh_gen_retry>();
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(std::shared_ptr<const MTPDdh_gen_retry> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_dh_gen_retry) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(const MTPDdh_gen_retry *data) : TypeDataOwner(data), _type(mtpc_dh_gen_retry) {
 }
 inline const MTPDdh_gen_fail &MTPset_client_DH_params_answer::c_dh_gen_fail() const {
-	t_assert(data != nullptr && _type == mtpc_dh_gen_fail);
-	return static_cast<const MTPDdh_gen_fail&>(*data);
+	t_assert(_type == mtpc_dh_gen_fail);
+	return queryData<MTPDdh_gen_fail>();
 }
-inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(std::shared_ptr<const MTPDdh_gen_fail> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_dh_gen_fail) {
+inline MTPset_client_DH_params_answer::MTPset_client_DH_params_answer(const MTPDdh_gen_fail *data) : TypeDataOwner(data), _type(mtpc_dh_gen_fail) {
 }
 inline MTPset_client_DH_params_answer MTP_dh_gen_ok(const MTPint128 &_nonce, const MTPint128 &_server_nonce, const MTPint128 &_new_nonce_hash1) {
 	return MTP::internal::TypeCreator::new_dh_gen_ok(_nonce, _server_nonce, _new_nonce_hash1);
@@ -21484,7 +21478,7 @@ inline MTPdestroyAuthKeyRes MTP_destroy_auth_key_fail() {
 	return MTP::internal::TypeCreator::new_destroy_auth_key_fail();
 }
 
-inline MTPmsgsAck::MTPmsgsAck() : mtpDataOwner(std::make_shared<MTPDmsgs_ack>()) {
+inline MTPmsgsAck::MTPmsgsAck() : TypeDataOwner(new MTPDmsgs_ack()) {
 }
 
 inline uint32 MTPmsgsAck::innerLength() const {
@@ -21497,19 +21491,18 @@ inline mtpTypeId MTPmsgsAck::type() const {
 inline void MTPmsgsAck::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_msgs_ack) throw mtpErrorUnexpected(cons, "MTPmsgsAck");
 
-	auto v = std::make_shared<MTPDmsgs_ack>();
+	auto v = new MTPDmsgs_ack();
+	setData(v);
 	v->vmsg_ids.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmsgsAck::write(mtpBuffer &to) const {
 	auto &v = c_msgs_ack();
 	v.vmsg_ids.write(to);
 }
 inline const MTPDmsgs_ack &MTPmsgsAck::c_msgs_ack() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmsgs_ack&>(*data);
+	return queryData<MTPDmsgs_ack>();
 }
-inline MTPmsgsAck::MTPmsgsAck(std::shared_ptr<const MTPDmsgs_ack> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmsgsAck::MTPmsgsAck(const MTPDmsgs_ack *data) : TypeDataOwner(data) {
 }
 inline MTPmsgsAck MTP_msgs_ack(const MTPVector<MTPlong> &_msg_ids) {
 	return MTP::internal::TypeCreator::new_msgs_ack(_msg_ids);
@@ -21533,22 +21526,21 @@ inline mtpTypeId MTPbadMsgNotification::type() const {
 	return _type;
 }
 inline void MTPbadMsgNotification::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_bad_msg_notification: _type = cons; {
-			auto v = std::make_shared<MTPDbad_msg_notification>();
+			auto v = new MTPDbad_msg_notification();
+			setData(v);
 			v->vbad_msg_id.read(from, end);
 			v->vbad_msg_seqno.read(from, end);
 			v->verror_code.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_bad_server_salt: _type = cons; {
-			auto v = std::make_shared<MTPDbad_server_salt>();
+			auto v = new MTPDbad_server_salt();
+			setData(v);
 			v->vbad_msg_id.read(from, end);
 			v->vbad_msg_seqno.read(from, end);
 			v->verror_code.read(from, end);
 			v->vnew_server_salt.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPbadMsgNotification");
 	}
@@ -21572,22 +21564,22 @@ inline void MTPbadMsgNotification::write(mtpBuffer &to) const {
 }
 inline MTPbadMsgNotification::MTPbadMsgNotification(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_bad_msg_notification: data = std::make_shared<MTPDbad_msg_notification>(); break;
-		case mtpc_bad_server_salt: data = std::make_shared<MTPDbad_server_salt>(); break;
+		case mtpc_bad_msg_notification: setData(new MTPDbad_msg_notification()); break;
+		case mtpc_bad_server_salt: setData(new MTPDbad_server_salt()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPbadMsgNotification");
 	}
 }
 inline const MTPDbad_msg_notification &MTPbadMsgNotification::c_bad_msg_notification() const {
-	t_assert(data != nullptr && _type == mtpc_bad_msg_notification);
-	return static_cast<const MTPDbad_msg_notification&>(*data);
+	t_assert(_type == mtpc_bad_msg_notification);
+	return queryData<MTPDbad_msg_notification>();
 }
-inline MTPbadMsgNotification::MTPbadMsgNotification(std::shared_ptr<const MTPDbad_msg_notification> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_bad_msg_notification) {
+inline MTPbadMsgNotification::MTPbadMsgNotification(const MTPDbad_msg_notification *data) : TypeDataOwner(data), _type(mtpc_bad_msg_notification) {
 }
 inline const MTPDbad_server_salt &MTPbadMsgNotification::c_bad_server_salt() const {
-	t_assert(data != nullptr && _type == mtpc_bad_server_salt);
-	return static_cast<const MTPDbad_server_salt&>(*data);
+	t_assert(_type == mtpc_bad_server_salt);
+	return queryData<MTPDbad_server_salt>();
 }
-inline MTPbadMsgNotification::MTPbadMsgNotification(std::shared_ptr<const MTPDbad_server_salt> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_bad_server_salt) {
+inline MTPbadMsgNotification::MTPbadMsgNotification(const MTPDbad_server_salt *data) : TypeDataOwner(data), _type(mtpc_bad_server_salt) {
 }
 inline MTPbadMsgNotification MTP_bad_msg_notification(const MTPlong &_bad_msg_id, MTPint _bad_msg_seqno, MTPint _error_code) {
 	return MTP::internal::TypeCreator::new_bad_msg_notification(_bad_msg_id, _bad_msg_seqno, _error_code);
@@ -21596,7 +21588,7 @@ inline MTPbadMsgNotification MTP_bad_server_salt(const MTPlong &_bad_msg_id, MTP
 	return MTP::internal::TypeCreator::new_bad_server_salt(_bad_msg_id, _bad_msg_seqno, _error_code, _new_server_salt);
 }
 
-inline MTPmsgsStateReq::MTPmsgsStateReq() : mtpDataOwner(std::make_shared<MTPDmsgs_state_req>()) {
+inline MTPmsgsStateReq::MTPmsgsStateReq() : TypeDataOwner(new MTPDmsgs_state_req()) {
 }
 
 inline uint32 MTPmsgsStateReq::innerLength() const {
@@ -21609,25 +21601,24 @@ inline mtpTypeId MTPmsgsStateReq::type() const {
 inline void MTPmsgsStateReq::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_msgs_state_req) throw mtpErrorUnexpected(cons, "MTPmsgsStateReq");
 
-	auto v = std::make_shared<MTPDmsgs_state_req>();
+	auto v = new MTPDmsgs_state_req();
+	setData(v);
 	v->vmsg_ids.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmsgsStateReq::write(mtpBuffer &to) const {
 	auto &v = c_msgs_state_req();
 	v.vmsg_ids.write(to);
 }
 inline const MTPDmsgs_state_req &MTPmsgsStateReq::c_msgs_state_req() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmsgs_state_req&>(*data);
+	return queryData<MTPDmsgs_state_req>();
 }
-inline MTPmsgsStateReq::MTPmsgsStateReq(std::shared_ptr<const MTPDmsgs_state_req> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmsgsStateReq::MTPmsgsStateReq(const MTPDmsgs_state_req *data) : TypeDataOwner(data) {
 }
 inline MTPmsgsStateReq MTP_msgs_state_req(const MTPVector<MTPlong> &_msg_ids) {
 	return MTP::internal::TypeCreator::new_msgs_state_req(_msg_ids);
 }
 
-inline MTPmsgsStateInfo::MTPmsgsStateInfo() : mtpDataOwner(std::make_shared<MTPDmsgs_state_info>()) {
+inline MTPmsgsStateInfo::MTPmsgsStateInfo() : TypeDataOwner(new MTPDmsgs_state_info()) {
 }
 
 inline uint32 MTPmsgsStateInfo::innerLength() const {
@@ -21640,10 +21631,10 @@ inline mtpTypeId MTPmsgsStateInfo::type() const {
 inline void MTPmsgsStateInfo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_msgs_state_info) throw mtpErrorUnexpected(cons, "MTPmsgsStateInfo");
 
-	auto v = std::make_shared<MTPDmsgs_state_info>();
+	auto v = new MTPDmsgs_state_info();
+	setData(v);
 	v->vreq_msg_id.read(from, end);
 	v->vinfo.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmsgsStateInfo::write(mtpBuffer &to) const {
 	auto &v = c_msgs_state_info();
@@ -21651,16 +21642,15 @@ inline void MTPmsgsStateInfo::write(mtpBuffer &to) const {
 	v.vinfo.write(to);
 }
 inline const MTPDmsgs_state_info &MTPmsgsStateInfo::c_msgs_state_info() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmsgs_state_info&>(*data);
+	return queryData<MTPDmsgs_state_info>();
 }
-inline MTPmsgsStateInfo::MTPmsgsStateInfo(std::shared_ptr<const MTPDmsgs_state_info> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmsgsStateInfo::MTPmsgsStateInfo(const MTPDmsgs_state_info *data) : TypeDataOwner(data) {
 }
 inline MTPmsgsStateInfo MTP_msgs_state_info(const MTPlong &_req_msg_id, const MTPstring &_info) {
 	return MTP::internal::TypeCreator::new_msgs_state_info(_req_msg_id, _info);
 }
 
-inline MTPmsgsAllInfo::MTPmsgsAllInfo() : mtpDataOwner(std::make_shared<MTPDmsgs_all_info>()) {
+inline MTPmsgsAllInfo::MTPmsgsAllInfo() : TypeDataOwner(new MTPDmsgs_all_info()) {
 }
 
 inline uint32 MTPmsgsAllInfo::innerLength() const {
@@ -21673,10 +21663,10 @@ inline mtpTypeId MTPmsgsAllInfo::type() const {
 inline void MTPmsgsAllInfo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_msgs_all_info) throw mtpErrorUnexpected(cons, "MTPmsgsAllInfo");
 
-	auto v = std::make_shared<MTPDmsgs_all_info>();
+	auto v = new MTPDmsgs_all_info();
+	setData(v);
 	v->vmsg_ids.read(from, end);
 	v->vinfo.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmsgsAllInfo::write(mtpBuffer &to) const {
 	auto &v = c_msgs_all_info();
@@ -21684,10 +21674,9 @@ inline void MTPmsgsAllInfo::write(mtpBuffer &to) const {
 	v.vinfo.write(to);
 }
 inline const MTPDmsgs_all_info &MTPmsgsAllInfo::c_msgs_all_info() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmsgs_all_info&>(*data);
+	return queryData<MTPDmsgs_all_info>();
 }
-inline MTPmsgsAllInfo::MTPmsgsAllInfo(std::shared_ptr<const MTPDmsgs_all_info> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmsgsAllInfo::MTPmsgsAllInfo(const MTPDmsgs_all_info *data) : TypeDataOwner(data) {
 }
 inline MTPmsgsAllInfo MTP_msgs_all_info(const MTPVector<MTPlong> &_msg_ids, const MTPstring &_info) {
 	return MTP::internal::TypeCreator::new_msgs_all_info(_msg_ids, _info);
@@ -21711,22 +21700,21 @@ inline mtpTypeId MTPmsgDetailedInfo::type() const {
 	return _type;
 }
 inline void MTPmsgDetailedInfo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_msg_detailed_info: _type = cons; {
-			auto v = std::make_shared<MTPDmsg_detailed_info>();
+			auto v = new MTPDmsg_detailed_info();
+			setData(v);
 			v->vmsg_id.read(from, end);
 			v->vanswer_msg_id.read(from, end);
 			v->vbytes.read(from, end);
 			v->vstatus.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_msg_new_detailed_info: _type = cons; {
-			auto v = std::make_shared<MTPDmsg_new_detailed_info>();
+			auto v = new MTPDmsg_new_detailed_info();
+			setData(v);
 			v->vanswer_msg_id.read(from, end);
 			v->vbytes.read(from, end);
 			v->vstatus.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmsgDetailedInfo");
 	}
@@ -21750,22 +21738,22 @@ inline void MTPmsgDetailedInfo::write(mtpBuffer &to) const {
 }
 inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_msg_detailed_info: data = std::make_shared<MTPDmsg_detailed_info>(); break;
-		case mtpc_msg_new_detailed_info: data = std::make_shared<MTPDmsg_new_detailed_info>(); break;
+		case mtpc_msg_detailed_info: setData(new MTPDmsg_detailed_info()); break;
+		case mtpc_msg_new_detailed_info: setData(new MTPDmsg_new_detailed_info()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmsgDetailedInfo");
 	}
 }
 inline const MTPDmsg_detailed_info &MTPmsgDetailedInfo::c_msg_detailed_info() const {
-	t_assert(data != nullptr && _type == mtpc_msg_detailed_info);
-	return static_cast<const MTPDmsg_detailed_info&>(*data);
+	t_assert(_type == mtpc_msg_detailed_info);
+	return queryData<MTPDmsg_detailed_info>();
 }
-inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(std::shared_ptr<const MTPDmsg_detailed_info> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_msg_detailed_info) {
+inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(const MTPDmsg_detailed_info *data) : TypeDataOwner(data), _type(mtpc_msg_detailed_info) {
 }
 inline const MTPDmsg_new_detailed_info &MTPmsgDetailedInfo::c_msg_new_detailed_info() const {
-	t_assert(data != nullptr && _type == mtpc_msg_new_detailed_info);
-	return static_cast<const MTPDmsg_new_detailed_info&>(*data);
+	t_assert(_type == mtpc_msg_new_detailed_info);
+	return queryData<MTPDmsg_new_detailed_info>();
 }
-inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(std::shared_ptr<const MTPDmsg_new_detailed_info> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_msg_new_detailed_info) {
+inline MTPmsgDetailedInfo::MTPmsgDetailedInfo(const MTPDmsg_new_detailed_info *data) : TypeDataOwner(data), _type(mtpc_msg_new_detailed_info) {
 }
 inline MTPmsgDetailedInfo MTP_msg_detailed_info(const MTPlong &_msg_id, const MTPlong &_answer_msg_id, MTPint _bytes, MTPint _status) {
 	return MTP::internal::TypeCreator::new_msg_detailed_info(_msg_id, _answer_msg_id, _bytes, _status);
@@ -21774,7 +21762,7 @@ inline MTPmsgDetailedInfo MTP_msg_new_detailed_info(const MTPlong &_answer_msg_i
 	return MTP::internal::TypeCreator::new_msg_new_detailed_info(_answer_msg_id, _bytes, _status);
 }
 
-inline MTPmsgResendReq::MTPmsgResendReq() : mtpDataOwner(std::make_shared<MTPDmsg_resend_req>()) {
+inline MTPmsgResendReq::MTPmsgResendReq() : TypeDataOwner(new MTPDmsg_resend_req()) {
 }
 
 inline uint32 MTPmsgResendReq::innerLength() const {
@@ -21787,25 +21775,24 @@ inline mtpTypeId MTPmsgResendReq::type() const {
 inline void MTPmsgResendReq::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_msg_resend_req) throw mtpErrorUnexpected(cons, "MTPmsgResendReq");
 
-	auto v = std::make_shared<MTPDmsg_resend_req>();
+	auto v = new MTPDmsg_resend_req();
+	setData(v);
 	v->vmsg_ids.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmsgResendReq::write(mtpBuffer &to) const {
 	auto &v = c_msg_resend_req();
 	v.vmsg_ids.write(to);
 }
 inline const MTPDmsg_resend_req &MTPmsgResendReq::c_msg_resend_req() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmsg_resend_req&>(*data);
+	return queryData<MTPDmsg_resend_req>();
 }
-inline MTPmsgResendReq::MTPmsgResendReq(std::shared_ptr<const MTPDmsg_resend_req> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmsgResendReq::MTPmsgResendReq(const MTPDmsg_resend_req *data) : TypeDataOwner(data) {
 }
 inline MTPmsgResendReq MTP_msg_resend_req(const MTPVector<MTPlong> &_msg_ids) {
 	return MTP::internal::TypeCreator::new_msg_resend_req(_msg_ids);
 }
 
-inline MTPrpcError::MTPrpcError() : mtpDataOwner(std::make_shared<MTPDrpc_error>()) {
+inline MTPrpcError::MTPrpcError() : TypeDataOwner(new MTPDrpc_error()) {
 }
 
 inline uint32 MTPrpcError::innerLength() const {
@@ -21818,10 +21805,10 @@ inline mtpTypeId MTPrpcError::type() const {
 inline void MTPrpcError::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_rpc_error) throw mtpErrorUnexpected(cons, "MTPrpcError");
 
-	auto v = std::make_shared<MTPDrpc_error>();
+	auto v = new MTPDrpc_error();
+	setData(v);
 	v->verror_code.read(from, end);
 	v->verror_message.read(from, end);
-	data = std::move(v);
 }
 inline void MTPrpcError::write(mtpBuffer &to) const {
 	auto &v = c_rpc_error();
@@ -21829,10 +21816,9 @@ inline void MTPrpcError::write(mtpBuffer &to) const {
 	v.verror_message.write(to);
 }
 inline const MTPDrpc_error &MTPrpcError::c_rpc_error() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDrpc_error&>(*data);
+	return queryData<MTPDrpc_error>();
 }
-inline MTPrpcError::MTPrpcError(std::shared_ptr<const MTPDrpc_error> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPrpcError::MTPrpcError(const MTPDrpc_error *data) : TypeDataOwner(data) {
 }
 inline MTPrpcError MTP_rpc_error(MTPint _error_code, const MTPstring &_error_message) {
 	return MTP::internal::TypeCreator::new_rpc_error(_error_code, _error_message);
@@ -21852,16 +21838,15 @@ inline mtpTypeId MTPrpcDropAnswer::type() const {
 	return _type;
 }
 inline void MTPrpcDropAnswer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_rpc_answer_unknown: _type = cons; break;
 		case mtpc_rpc_answer_dropped_running: _type = cons; break;
 		case mtpc_rpc_answer_dropped: _type = cons; {
-			auto v = std::make_shared<MTPDrpc_answer_dropped>();
+			auto v = new MTPDrpc_answer_dropped();
+			setData(v);
 			v->vmsg_id.read(from, end);
 			v->vseq_no.read(from, end);
 			v->vbytes.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPrpcDropAnswer");
 	}
@@ -21880,15 +21865,15 @@ inline MTPrpcDropAnswer::MTPrpcDropAnswer(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_rpc_answer_unknown: break;
 		case mtpc_rpc_answer_dropped_running: break;
-		case mtpc_rpc_answer_dropped: data = std::make_shared<MTPDrpc_answer_dropped>(); break;
+		case mtpc_rpc_answer_dropped: setData(new MTPDrpc_answer_dropped()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPrpcDropAnswer");
 	}
 }
 inline const MTPDrpc_answer_dropped &MTPrpcDropAnswer::c_rpc_answer_dropped() const {
-	t_assert(data != nullptr && _type == mtpc_rpc_answer_dropped);
-	return static_cast<const MTPDrpc_answer_dropped&>(*data);
+	t_assert(_type == mtpc_rpc_answer_dropped);
+	return queryData<MTPDrpc_answer_dropped>();
 }
-inline MTPrpcDropAnswer::MTPrpcDropAnswer(std::shared_ptr<const MTPDrpc_answer_dropped> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_rpc_answer_dropped) {
+inline MTPrpcDropAnswer::MTPrpcDropAnswer(const MTPDrpc_answer_dropped *data) : TypeDataOwner(data), _type(mtpc_rpc_answer_dropped) {
 }
 inline MTPrpcDropAnswer MTP_rpc_answer_unknown() {
 	return MTP::internal::TypeCreator::new_rpc_answer_unknown();
@@ -21900,7 +21885,7 @@ inline MTPrpcDropAnswer MTP_rpc_answer_dropped(const MTPlong &_msg_id, MTPint _s
 	return MTP::internal::TypeCreator::new_rpc_answer_dropped(_msg_id, _seq_no, _bytes);
 }
 
-inline MTPfutureSalt::MTPfutureSalt() : mtpDataOwner(std::make_shared<MTPDfuture_salt>()) {
+inline MTPfutureSalt::MTPfutureSalt() : TypeDataOwner(new MTPDfuture_salt()) {
 }
 
 inline uint32 MTPfutureSalt::innerLength() const {
@@ -21913,11 +21898,11 @@ inline mtpTypeId MTPfutureSalt::type() const {
 inline void MTPfutureSalt::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_future_salt) throw mtpErrorUnexpected(cons, "MTPfutureSalt");
 
-	auto v = std::make_shared<MTPDfuture_salt>();
+	auto v = new MTPDfuture_salt();
+	setData(v);
 	v->vvalid_since.read(from, end);
 	v->vvalid_until.read(from, end);
 	v->vsalt.read(from, end);
-	data = std::move(v);
 }
 inline void MTPfutureSalt::write(mtpBuffer &to) const {
 	auto &v = c_future_salt();
@@ -21926,16 +21911,15 @@ inline void MTPfutureSalt::write(mtpBuffer &to) const {
 	v.vsalt.write(to);
 }
 inline const MTPDfuture_salt &MTPfutureSalt::c_future_salt() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDfuture_salt&>(*data);
+	return queryData<MTPDfuture_salt>();
 }
-inline MTPfutureSalt::MTPfutureSalt(std::shared_ptr<const MTPDfuture_salt> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPfutureSalt::MTPfutureSalt(const MTPDfuture_salt *data) : TypeDataOwner(data) {
 }
 inline MTPfutureSalt MTP_future_salt(MTPint _valid_since, MTPint _valid_until, const MTPlong &_salt) {
 	return MTP::internal::TypeCreator::new_future_salt(_valid_since, _valid_until, _salt);
 }
 
-inline MTPfutureSalts::MTPfutureSalts() : mtpDataOwner(std::make_shared<MTPDfuture_salts>()) {
+inline MTPfutureSalts::MTPfutureSalts() : TypeDataOwner(new MTPDfuture_salts()) {
 }
 
 inline uint32 MTPfutureSalts::innerLength() const {
@@ -21948,11 +21932,11 @@ inline mtpTypeId MTPfutureSalts::type() const {
 inline void MTPfutureSalts::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_future_salts) throw mtpErrorUnexpected(cons, "MTPfutureSalts");
 
-	auto v = std::make_shared<MTPDfuture_salts>();
+	auto v = new MTPDfuture_salts();
+	setData(v);
 	v->vreq_msg_id.read(from, end);
 	v->vnow.read(from, end);
 	v->vsalts.read(from, end);
-	data = std::move(v);
 }
 inline void MTPfutureSalts::write(mtpBuffer &to) const {
 	auto &v = c_future_salts();
@@ -21961,16 +21945,15 @@ inline void MTPfutureSalts::write(mtpBuffer &to) const {
 	v.vsalts.write(to);
 }
 inline const MTPDfuture_salts &MTPfutureSalts::c_future_salts() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDfuture_salts&>(*data);
+	return queryData<MTPDfuture_salts>();
 }
-inline MTPfutureSalts::MTPfutureSalts(std::shared_ptr<const MTPDfuture_salts> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPfutureSalts::MTPfutureSalts(const MTPDfuture_salts *data) : TypeDataOwner(data) {
 }
 inline MTPfutureSalts MTP_future_salts(const MTPlong &_req_msg_id, MTPint _now, const MTPvector<MTPfutureSalt> &_salts) {
 	return MTP::internal::TypeCreator::new_future_salts(_req_msg_id, _now, _salts);
 }
 
-inline MTPpong::MTPpong() : mtpDataOwner(std::make_shared<MTPDpong>()) {
+inline MTPpong::MTPpong() : TypeDataOwner(new MTPDpong()) {
 }
 
 inline uint32 MTPpong::innerLength() const {
@@ -21983,10 +21966,10 @@ inline mtpTypeId MTPpong::type() const {
 inline void MTPpong::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_pong) throw mtpErrorUnexpected(cons, "MTPpong");
 
-	auto v = std::make_shared<MTPDpong>();
+	auto v = new MTPDpong();
+	setData(v);
 	v->vmsg_id.read(from, end);
 	v->vping_id.read(from, end);
-	data = std::move(v);
 }
 inline void MTPpong::write(mtpBuffer &to) const {
 	auto &v = c_pong();
@@ -21994,10 +21977,9 @@ inline void MTPpong::write(mtpBuffer &to) const {
 	v.vping_id.write(to);
 }
 inline const MTPDpong &MTPpong::c_pong() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDpong&>(*data);
+	return queryData<MTPDpong>();
 }
-inline MTPpong::MTPpong(std::shared_ptr<const MTPDpong> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPpong::MTPpong(const MTPDpong *data) : TypeDataOwner(data) {
 }
 inline MTPpong MTP_pong(const MTPlong &_msg_id, const MTPlong &_ping_id) {
 	return MTP::internal::TypeCreator::new_pong(_msg_id, _ping_id);
@@ -22021,17 +22003,16 @@ inline mtpTypeId MTPdestroySessionRes::type() const {
 	return _type;
 }
 inline void MTPdestroySessionRes::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_destroy_session_ok: _type = cons; {
-			auto v = std::make_shared<MTPDdestroy_session_ok>();
+			auto v = new MTPDdestroy_session_ok();
+			setData(v);
 			v->vsession_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_destroy_session_none: _type = cons; {
-			auto v = std::make_shared<MTPDdestroy_session_none>();
+			auto v = new MTPDdestroy_session_none();
+			setData(v);
 			v->vsession_id.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPdestroySessionRes");
 	}
@@ -22050,22 +22031,22 @@ inline void MTPdestroySessionRes::write(mtpBuffer &to) const {
 }
 inline MTPdestroySessionRes::MTPdestroySessionRes(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_destroy_session_ok: data = std::make_shared<MTPDdestroy_session_ok>(); break;
-		case mtpc_destroy_session_none: data = std::make_shared<MTPDdestroy_session_none>(); break;
+		case mtpc_destroy_session_ok: setData(new MTPDdestroy_session_ok()); break;
+		case mtpc_destroy_session_none: setData(new MTPDdestroy_session_none()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPdestroySessionRes");
 	}
 }
 inline const MTPDdestroy_session_ok &MTPdestroySessionRes::c_destroy_session_ok() const {
-	t_assert(data != nullptr && _type == mtpc_destroy_session_ok);
-	return static_cast<const MTPDdestroy_session_ok&>(*data);
+	t_assert(_type == mtpc_destroy_session_ok);
+	return queryData<MTPDdestroy_session_ok>();
 }
-inline MTPdestroySessionRes::MTPdestroySessionRes(std::shared_ptr<const MTPDdestroy_session_ok> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_destroy_session_ok) {
+inline MTPdestroySessionRes::MTPdestroySessionRes(const MTPDdestroy_session_ok *data) : TypeDataOwner(data), _type(mtpc_destroy_session_ok) {
 }
 inline const MTPDdestroy_session_none &MTPdestroySessionRes::c_destroy_session_none() const {
-	t_assert(data != nullptr && _type == mtpc_destroy_session_none);
-	return static_cast<const MTPDdestroy_session_none&>(*data);
+	t_assert(_type == mtpc_destroy_session_none);
+	return queryData<MTPDdestroy_session_none>();
 }
-inline MTPdestroySessionRes::MTPdestroySessionRes(std::shared_ptr<const MTPDdestroy_session_none> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_destroy_session_none) {
+inline MTPdestroySessionRes::MTPdestroySessionRes(const MTPDdestroy_session_none *data) : TypeDataOwner(data), _type(mtpc_destroy_session_none) {
 }
 inline MTPdestroySessionRes MTP_destroy_session_ok(const MTPlong &_session_id) {
 	return MTP::internal::TypeCreator::new_destroy_session_ok(_session_id);
@@ -22074,7 +22055,7 @@ inline MTPdestroySessionRes MTP_destroy_session_none(const MTPlong &_session_id)
 	return MTP::internal::TypeCreator::new_destroy_session_none(_session_id);
 }
 
-inline MTPnewSession::MTPnewSession() : mtpDataOwner(std::make_shared<MTPDnew_session_created>()) {
+inline MTPnewSession::MTPnewSession() : TypeDataOwner(new MTPDnew_session_created()) {
 }
 
 inline uint32 MTPnewSession::innerLength() const {
@@ -22087,11 +22068,11 @@ inline mtpTypeId MTPnewSession::type() const {
 inline void MTPnewSession::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_new_session_created) throw mtpErrorUnexpected(cons, "MTPnewSession");
 
-	auto v = std::make_shared<MTPDnew_session_created>();
+	auto v = new MTPDnew_session_created();
+	setData(v);
 	v->vfirst_msg_id.read(from, end);
 	v->vunique_id.read(from, end);
 	v->vserver_salt.read(from, end);
-	data = std::move(v);
 }
 inline void MTPnewSession::write(mtpBuffer &to) const {
 	auto &v = c_new_session_created();
@@ -22100,16 +22081,15 @@ inline void MTPnewSession::write(mtpBuffer &to) const {
 	v.vserver_salt.write(to);
 }
 inline const MTPDnew_session_created &MTPnewSession::c_new_session_created() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDnew_session_created&>(*data);
+	return queryData<MTPDnew_session_created>();
 }
-inline MTPnewSession::MTPnewSession(std::shared_ptr<const MTPDnew_session_created> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPnewSession::MTPnewSession(const MTPDnew_session_created *data) : TypeDataOwner(data) {
 }
 inline MTPnewSession MTP_new_session_created(const MTPlong &_first_msg_id, const MTPlong &_unique_id, const MTPlong &_server_salt) {
 	return MTP::internal::TypeCreator::new_new_session_created(_first_msg_id, _unique_id, _server_salt);
 }
 
-inline MTPhttpWait::MTPhttpWait() : mtpDataOwner(std::make_shared<MTPDhttp_wait>()) {
+inline MTPhttpWait::MTPhttpWait() : TypeDataOwner(new MTPDhttp_wait()) {
 }
 
 inline uint32 MTPhttpWait::innerLength() const {
@@ -22122,11 +22102,11 @@ inline mtpTypeId MTPhttpWait::type() const {
 inline void MTPhttpWait::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_http_wait) throw mtpErrorUnexpected(cons, "MTPhttpWait");
 
-	auto v = std::make_shared<MTPDhttp_wait>();
+	auto v = new MTPDhttp_wait();
+	setData(v);
 	v->vmax_delay.read(from, end);
 	v->vwait_after.read(from, end);
 	v->vmax_wait.read(from, end);
-	data = std::move(v);
 }
 inline void MTPhttpWait::write(mtpBuffer &to) const {
 	auto &v = c_http_wait();
@@ -22135,10 +22115,9 @@ inline void MTPhttpWait::write(mtpBuffer &to) const {
 	v.vmax_wait.write(to);
 }
 inline const MTPDhttp_wait &MTPhttpWait::c_http_wait() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDhttp_wait&>(*data);
+	return queryData<MTPDhttp_wait>();
 }
-inline MTPhttpWait::MTPhttpWait(std::shared_ptr<const MTPDhttp_wait> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPhttpWait::MTPhttpWait(const MTPDhttp_wait *data) : TypeDataOwner(data) {
 }
 inline MTPhttpWait MTP_http_wait(MTPint _max_delay, MTPint _wait_after, MTPint _max_wait) {
 	return MTP::internal::TypeCreator::new_http_wait(_max_delay, _wait_after, _max_wait);
@@ -22188,7 +22167,7 @@ inline MTPtrue MTP_true() {
 	return MTP::internal::TypeCreator::new_true();
 }
 
-inline MTPerror::MTPerror() : mtpDataOwner(std::make_shared<MTPDerror>()) {
+inline MTPerror::MTPerror() : TypeDataOwner(new MTPDerror()) {
 }
 
 inline uint32 MTPerror::innerLength() const {
@@ -22201,10 +22180,10 @@ inline mtpTypeId MTPerror::type() const {
 inline void MTPerror::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_error) throw mtpErrorUnexpected(cons, "MTPerror");
 
-	auto v = std::make_shared<MTPDerror>();
+	auto v = new MTPDerror();
+	setData(v);
 	v->vcode.read(from, end);
 	v->vtext.read(from, end);
-	data = std::move(v);
 }
 inline void MTPerror::write(mtpBuffer &to) const {
 	auto &v = c_error();
@@ -22212,10 +22191,9 @@ inline void MTPerror::write(mtpBuffer &to) const {
 	v.vtext.write(to);
 }
 inline const MTPDerror &MTPerror::c_error() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDerror&>(*data);
+	return queryData<MTPDerror>();
 }
-inline MTPerror::MTPerror(std::shared_ptr<const MTPDerror> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPerror::MTPerror(const MTPDerror *data) : TypeDataOwner(data) {
 }
 inline MTPerror MTP_error(MTPint _code, const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_error(_code, _text);
@@ -22257,26 +22235,25 @@ inline mtpTypeId MTPinputPeer::type() const {
 	return _type;
 }
 inline void MTPinputPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputPeerEmpty: _type = cons; break;
 		case mtpc_inputPeerSelf: _type = cons; break;
 		case mtpc_inputPeerChat: _type = cons; {
-			auto v = std::make_shared<MTPDinputPeerChat>();
+			auto v = new MTPDinputPeerChat();
+			setData(v);
 			v->vchat_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputPeerUser: _type = cons; {
-			auto v = std::make_shared<MTPDinputPeerUser>();
+			auto v = new MTPDinputPeerUser();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputPeerChannel: _type = cons; {
-			auto v = std::make_shared<MTPDinputPeerChannel>();
+			auto v = new MTPDinputPeerChannel();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputPeer");
 	}
@@ -22303,29 +22280,29 @@ inline MTPinputPeer::MTPinputPeer(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputPeerEmpty: break;
 		case mtpc_inputPeerSelf: break;
-		case mtpc_inputPeerChat: data = std::make_shared<MTPDinputPeerChat>(); break;
-		case mtpc_inputPeerUser: data = std::make_shared<MTPDinputPeerUser>(); break;
-		case mtpc_inputPeerChannel: data = std::make_shared<MTPDinputPeerChannel>(); break;
+		case mtpc_inputPeerChat: setData(new MTPDinputPeerChat()); break;
+		case mtpc_inputPeerUser: setData(new MTPDinputPeerUser()); break;
+		case mtpc_inputPeerChannel: setData(new MTPDinputPeerChannel()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputPeer");
 	}
 }
 inline const MTPDinputPeerChat &MTPinputPeer::c_inputPeerChat() const {
-	t_assert(data != nullptr && _type == mtpc_inputPeerChat);
-	return static_cast<const MTPDinputPeerChat&>(*data);
+	t_assert(_type == mtpc_inputPeerChat);
+	return queryData<MTPDinputPeerChat>();
 }
-inline MTPinputPeer::MTPinputPeer(std::shared_ptr<const MTPDinputPeerChat> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputPeerChat) {
+inline MTPinputPeer::MTPinputPeer(const MTPDinputPeerChat *data) : TypeDataOwner(data), _type(mtpc_inputPeerChat) {
 }
 inline const MTPDinputPeerUser &MTPinputPeer::c_inputPeerUser() const {
-	t_assert(data != nullptr && _type == mtpc_inputPeerUser);
-	return static_cast<const MTPDinputPeerUser&>(*data);
+	t_assert(_type == mtpc_inputPeerUser);
+	return queryData<MTPDinputPeerUser>();
 }
-inline MTPinputPeer::MTPinputPeer(std::shared_ptr<const MTPDinputPeerUser> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputPeerUser) {
+inline MTPinputPeer::MTPinputPeer(const MTPDinputPeerUser *data) : TypeDataOwner(data), _type(mtpc_inputPeerUser) {
 }
 inline const MTPDinputPeerChannel &MTPinputPeer::c_inputPeerChannel() const {
-	t_assert(data != nullptr && _type == mtpc_inputPeerChannel);
-	return static_cast<const MTPDinputPeerChannel&>(*data);
+	t_assert(_type == mtpc_inputPeerChannel);
+	return queryData<MTPDinputPeerChannel>();
 }
-inline MTPinputPeer::MTPinputPeer(std::shared_ptr<const MTPDinputPeerChannel> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputPeerChannel) {
+inline MTPinputPeer::MTPinputPeer(const MTPDinputPeerChannel *data) : TypeDataOwner(data), _type(mtpc_inputPeerChannel) {
 }
 inline MTPinputPeer MTP_inputPeerEmpty() {
 	return MTP::internal::TypeCreator::new_inputPeerEmpty();
@@ -22357,15 +22334,14 @@ inline mtpTypeId MTPinputUser::type() const {
 	return _type;
 }
 inline void MTPinputUser::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputUserEmpty: _type = cons; break;
 		case mtpc_inputUserSelf: _type = cons; break;
 		case mtpc_inputUser: _type = cons; {
-			auto v = std::make_shared<MTPDinputUser>();
+			auto v = new MTPDinputUser();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputUser");
 	}
@@ -22383,15 +22359,15 @@ inline MTPinputUser::MTPinputUser(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputUserEmpty: break;
 		case mtpc_inputUserSelf: break;
-		case mtpc_inputUser: data = std::make_shared<MTPDinputUser>(); break;
+		case mtpc_inputUser: setData(new MTPDinputUser()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputUser");
 	}
 }
 inline const MTPDinputUser &MTPinputUser::c_inputUser() const {
-	t_assert(data != nullptr && _type == mtpc_inputUser);
-	return static_cast<const MTPDinputUser&>(*data);
+	t_assert(_type == mtpc_inputUser);
+	return queryData<MTPDinputUser>();
 }
-inline MTPinputUser::MTPinputUser(std::shared_ptr<const MTPDinputUser> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputUser) {
+inline MTPinputUser::MTPinputUser(const MTPDinputUser *data) : TypeDataOwner(data), _type(mtpc_inputUser) {
 }
 inline MTPinputUser MTP_inputUserEmpty() {
 	return MTP::internal::TypeCreator::new_inputUserEmpty();
@@ -22403,7 +22379,7 @@ inline MTPinputUser MTP_inputUser(MTPint _user_id, const MTPlong &_access_hash) 
 	return MTP::internal::TypeCreator::new_inputUser(_user_id, _access_hash);
 }
 
-inline MTPinputContact::MTPinputContact() : mtpDataOwner(std::make_shared<MTPDinputPhoneContact>()) {
+inline MTPinputContact::MTPinputContact() : TypeDataOwner(new MTPDinputPhoneContact()) {
 }
 
 inline uint32 MTPinputContact::innerLength() const {
@@ -22416,12 +22392,12 @@ inline mtpTypeId MTPinputContact::type() const {
 inline void MTPinputContact::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inputPhoneContact) throw mtpErrorUnexpected(cons, "MTPinputContact");
 
-	auto v = std::make_shared<MTPDinputPhoneContact>();
+	auto v = new MTPDinputPhoneContact();
+	setData(v);
 	v->vclient_id.read(from, end);
 	v->vphone.read(from, end);
 	v->vfirst_name.read(from, end);
 	v->vlast_name.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinputContact::write(mtpBuffer &to) const {
 	auto &v = c_inputPhoneContact();
@@ -22431,10 +22407,9 @@ inline void MTPinputContact::write(mtpBuffer &to) const {
 	v.vlast_name.write(to);
 }
 inline const MTPDinputPhoneContact &MTPinputContact::c_inputPhoneContact() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinputPhoneContact&>(*data);
+	return queryData<MTPDinputPhoneContact>();
 }
-inline MTPinputContact::MTPinputContact(std::shared_ptr<const MTPDinputPhoneContact> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinputContact::MTPinputContact(const MTPDinputPhoneContact *data) : TypeDataOwner(data) {
 }
 inline MTPinputContact MTP_inputPhoneContact(const MTPlong &_client_id, const MTPstring &_phone, const MTPstring &_first_name, const MTPstring &_last_name) {
 	return MTP::internal::TypeCreator::new_inputPhoneContact(_client_id, _phone, _first_name, _last_name);
@@ -22458,22 +22433,21 @@ inline mtpTypeId MTPinputFile::type() const {
 	return _type;
 }
 inline void MTPinputFile::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputFile: _type = cons; {
-			auto v = std::make_shared<MTPDinputFile>();
+			auto v = new MTPDinputFile();
+			setData(v);
 			v->vid.read(from, end);
 			v->vparts.read(from, end);
 			v->vname.read(from, end);
 			v->vmd5_checksum.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputFileBig: _type = cons; {
-			auto v = std::make_shared<MTPDinputFileBig>();
+			auto v = new MTPDinputFileBig();
+			setData(v);
 			v->vid.read(from, end);
 			v->vparts.read(from, end);
 			v->vname.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputFile");
 	}
@@ -22497,22 +22471,22 @@ inline void MTPinputFile::write(mtpBuffer &to) const {
 }
 inline MTPinputFile::MTPinputFile(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputFile: data = std::make_shared<MTPDinputFile>(); break;
-		case mtpc_inputFileBig: data = std::make_shared<MTPDinputFileBig>(); break;
+		case mtpc_inputFile: setData(new MTPDinputFile()); break;
+		case mtpc_inputFileBig: setData(new MTPDinputFileBig()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputFile");
 	}
 }
 inline const MTPDinputFile &MTPinputFile::c_inputFile() const {
-	t_assert(data != nullptr && _type == mtpc_inputFile);
-	return static_cast<const MTPDinputFile&>(*data);
+	t_assert(_type == mtpc_inputFile);
+	return queryData<MTPDinputFile>();
 }
-inline MTPinputFile::MTPinputFile(std::shared_ptr<const MTPDinputFile> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputFile) {
+inline MTPinputFile::MTPinputFile(const MTPDinputFile *data) : TypeDataOwner(data), _type(mtpc_inputFile) {
 }
 inline const MTPDinputFileBig &MTPinputFile::c_inputFileBig() const {
-	t_assert(data != nullptr && _type == mtpc_inputFileBig);
-	return static_cast<const MTPDinputFileBig&>(*data);
+	t_assert(_type == mtpc_inputFileBig);
+	return queryData<MTPDinputFileBig>();
 }
-inline MTPinputFile::MTPinputFile(std::shared_ptr<const MTPDinputFileBig> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputFileBig) {
+inline MTPinputFile::MTPinputFile(const MTPDinputFileBig *data) : TypeDataOwner(data), _type(mtpc_inputFileBig) {
 }
 inline MTPinputFile MTP_inputFile(const MTPlong &_id, MTPint _parts, const MTPstring &_name, const MTPstring &_md5_checksum) {
 	return MTP::internal::TypeCreator::new_inputFile(_id, _parts, _name, _md5_checksum);
@@ -22579,47 +22553,47 @@ inline mtpTypeId MTPinputMedia::type() const {
 	return _type;
 }
 inline void MTPinputMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputMediaEmpty: _type = cons; break;
 		case mtpc_inputMediaUploadedPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaUploadedPhoto>();
+			auto v = new MTPDinputMediaUploadedPhoto();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vfile.read(from, end);
 			v->vcaption.read(from, end);
 			if (v->has_stickers()) { v->vstickers.read(from, end); } else { v->vstickers = MTPVector<MTPInputDocument>(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaPhoto>();
+			auto v = new MTPDinputMediaPhoto();
+			setData(v);
 			v->vid.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaGeoPoint: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaGeoPoint>();
+			auto v = new MTPDinputMediaGeoPoint();
+			setData(v);
 			v->vgeo_point.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaContact: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaContact>();
+			auto v = new MTPDinputMediaContact();
+			setData(v);
 			v->vphone_number.read(from, end);
 			v->vfirst_name.read(from, end);
 			v->vlast_name.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaUploadedDocument: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaUploadedDocument>();
+			auto v = new MTPDinputMediaUploadedDocument();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vfile.read(from, end);
 			v->vmime_type.read(from, end);
 			v->vattributes.read(from, end);
 			v->vcaption.read(from, end);
 			if (v->has_stickers()) { v->vstickers.read(from, end); } else { v->vstickers = MTPVector<MTPInputDocument>(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaUploadedThumbDocument: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaUploadedThumbDocument>();
+			auto v = new MTPDinputMediaUploadedThumbDocument();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vfile.read(from, end);
 			v->vthumb.read(from, end);
@@ -22627,45 +22601,44 @@ inline void MTPinputMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 			v->vattributes.read(from, end);
 			v->vcaption.read(from, end);
 			if (v->has_stickers()) { v->vstickers.read(from, end); } else { v->vstickers = MTPVector<MTPInputDocument>(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaDocument: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaDocument>();
+			auto v = new MTPDinputMediaDocument();
+			setData(v);
 			v->vid.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaVenue: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaVenue>();
+			auto v = new MTPDinputMediaVenue();
+			setData(v);
 			v->vgeo_point.read(from, end);
 			v->vtitle.read(from, end);
 			v->vaddress.read(from, end);
 			v->vprovider.read(from, end);
 			v->vvenue_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaGifExternal: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaGifExternal>();
+			auto v = new MTPDinputMediaGifExternal();
+			setData(v);
 			v->vurl.read(from, end);
 			v->vq.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaPhotoExternal: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaPhotoExternal>();
+			auto v = new MTPDinputMediaPhotoExternal();
+			setData(v);
 			v->vurl.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaDocumentExternal: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaDocumentExternal>();
+			auto v = new MTPDinputMediaDocumentExternal();
+			setData(v);
 			v->vurl.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMediaGame: _type = cons; {
-			auto v = std::make_shared<MTPDinputMediaGame>();
+			auto v = new MTPDinputMediaGame();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputMedia");
 	}
@@ -22750,92 +22723,92 @@ inline void MTPinputMedia::write(mtpBuffer &to) const {
 inline MTPinputMedia::MTPinputMedia(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputMediaEmpty: break;
-		case mtpc_inputMediaUploadedPhoto: data = std::make_shared<MTPDinputMediaUploadedPhoto>(); break;
-		case mtpc_inputMediaPhoto: data = std::make_shared<MTPDinputMediaPhoto>(); break;
-		case mtpc_inputMediaGeoPoint: data = std::make_shared<MTPDinputMediaGeoPoint>(); break;
-		case mtpc_inputMediaContact: data = std::make_shared<MTPDinputMediaContact>(); break;
-		case mtpc_inputMediaUploadedDocument: data = std::make_shared<MTPDinputMediaUploadedDocument>(); break;
-		case mtpc_inputMediaUploadedThumbDocument: data = std::make_shared<MTPDinputMediaUploadedThumbDocument>(); break;
-		case mtpc_inputMediaDocument: data = std::make_shared<MTPDinputMediaDocument>(); break;
-		case mtpc_inputMediaVenue: data = std::make_shared<MTPDinputMediaVenue>(); break;
-		case mtpc_inputMediaGifExternal: data = std::make_shared<MTPDinputMediaGifExternal>(); break;
-		case mtpc_inputMediaPhotoExternal: data = std::make_shared<MTPDinputMediaPhotoExternal>(); break;
-		case mtpc_inputMediaDocumentExternal: data = std::make_shared<MTPDinputMediaDocumentExternal>(); break;
-		case mtpc_inputMediaGame: data = std::make_shared<MTPDinputMediaGame>(); break;
+		case mtpc_inputMediaUploadedPhoto: setData(new MTPDinputMediaUploadedPhoto()); break;
+		case mtpc_inputMediaPhoto: setData(new MTPDinputMediaPhoto()); break;
+		case mtpc_inputMediaGeoPoint: setData(new MTPDinputMediaGeoPoint()); break;
+		case mtpc_inputMediaContact: setData(new MTPDinputMediaContact()); break;
+		case mtpc_inputMediaUploadedDocument: setData(new MTPDinputMediaUploadedDocument()); break;
+		case mtpc_inputMediaUploadedThumbDocument: setData(new MTPDinputMediaUploadedThumbDocument()); break;
+		case mtpc_inputMediaDocument: setData(new MTPDinputMediaDocument()); break;
+		case mtpc_inputMediaVenue: setData(new MTPDinputMediaVenue()); break;
+		case mtpc_inputMediaGifExternal: setData(new MTPDinputMediaGifExternal()); break;
+		case mtpc_inputMediaPhotoExternal: setData(new MTPDinputMediaPhotoExternal()); break;
+		case mtpc_inputMediaDocumentExternal: setData(new MTPDinputMediaDocumentExternal()); break;
+		case mtpc_inputMediaGame: setData(new MTPDinputMediaGame()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputMedia");
 	}
 }
 inline const MTPDinputMediaUploadedPhoto &MTPinputMedia::c_inputMediaUploadedPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaUploadedPhoto);
-	return static_cast<const MTPDinputMediaUploadedPhoto&>(*data);
+	t_assert(_type == mtpc_inputMediaUploadedPhoto);
+	return queryData<MTPDinputMediaUploadedPhoto>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaUploadedPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaUploadedPhoto) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaUploadedPhoto *data) : TypeDataOwner(data), _type(mtpc_inputMediaUploadedPhoto) {
 }
 inline const MTPDinputMediaPhoto &MTPinputMedia::c_inputMediaPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaPhoto);
-	return static_cast<const MTPDinputMediaPhoto&>(*data);
+	t_assert(_type == mtpc_inputMediaPhoto);
+	return queryData<MTPDinputMediaPhoto>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaPhoto) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaPhoto *data) : TypeDataOwner(data), _type(mtpc_inputMediaPhoto) {
 }
 inline const MTPDinputMediaGeoPoint &MTPinputMedia::c_inputMediaGeoPoint() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaGeoPoint);
-	return static_cast<const MTPDinputMediaGeoPoint&>(*data);
+	t_assert(_type == mtpc_inputMediaGeoPoint);
+	return queryData<MTPDinputMediaGeoPoint>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaGeoPoint> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaGeoPoint) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaGeoPoint *data) : TypeDataOwner(data), _type(mtpc_inputMediaGeoPoint) {
 }
 inline const MTPDinputMediaContact &MTPinputMedia::c_inputMediaContact() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaContact);
-	return static_cast<const MTPDinputMediaContact&>(*data);
+	t_assert(_type == mtpc_inputMediaContact);
+	return queryData<MTPDinputMediaContact>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaContact> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaContact) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaContact *data) : TypeDataOwner(data), _type(mtpc_inputMediaContact) {
 }
 inline const MTPDinputMediaUploadedDocument &MTPinputMedia::c_inputMediaUploadedDocument() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaUploadedDocument);
-	return static_cast<const MTPDinputMediaUploadedDocument&>(*data);
+	t_assert(_type == mtpc_inputMediaUploadedDocument);
+	return queryData<MTPDinputMediaUploadedDocument>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaUploadedDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaUploadedDocument) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaUploadedDocument *data) : TypeDataOwner(data), _type(mtpc_inputMediaUploadedDocument) {
 }
 inline const MTPDinputMediaUploadedThumbDocument &MTPinputMedia::c_inputMediaUploadedThumbDocument() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaUploadedThumbDocument);
-	return static_cast<const MTPDinputMediaUploadedThumbDocument&>(*data);
+	t_assert(_type == mtpc_inputMediaUploadedThumbDocument);
+	return queryData<MTPDinputMediaUploadedThumbDocument>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaUploadedThumbDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaUploadedThumbDocument) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaUploadedThumbDocument *data) : TypeDataOwner(data), _type(mtpc_inputMediaUploadedThumbDocument) {
 }
 inline const MTPDinputMediaDocument &MTPinputMedia::c_inputMediaDocument() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaDocument);
-	return static_cast<const MTPDinputMediaDocument&>(*data);
+	t_assert(_type == mtpc_inputMediaDocument);
+	return queryData<MTPDinputMediaDocument>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaDocument) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaDocument *data) : TypeDataOwner(data), _type(mtpc_inputMediaDocument) {
 }
 inline const MTPDinputMediaVenue &MTPinputMedia::c_inputMediaVenue() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaVenue);
-	return static_cast<const MTPDinputMediaVenue&>(*data);
+	t_assert(_type == mtpc_inputMediaVenue);
+	return queryData<MTPDinputMediaVenue>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaVenue> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaVenue) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaVenue *data) : TypeDataOwner(data), _type(mtpc_inputMediaVenue) {
 }
 inline const MTPDinputMediaGifExternal &MTPinputMedia::c_inputMediaGifExternal() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaGifExternal);
-	return static_cast<const MTPDinputMediaGifExternal&>(*data);
+	t_assert(_type == mtpc_inputMediaGifExternal);
+	return queryData<MTPDinputMediaGifExternal>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaGifExternal> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaGifExternal) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaGifExternal *data) : TypeDataOwner(data), _type(mtpc_inputMediaGifExternal) {
 }
 inline const MTPDinputMediaPhotoExternal &MTPinputMedia::c_inputMediaPhotoExternal() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaPhotoExternal);
-	return static_cast<const MTPDinputMediaPhotoExternal&>(*data);
+	t_assert(_type == mtpc_inputMediaPhotoExternal);
+	return queryData<MTPDinputMediaPhotoExternal>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaPhotoExternal> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaPhotoExternal) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaPhotoExternal *data) : TypeDataOwner(data), _type(mtpc_inputMediaPhotoExternal) {
 }
 inline const MTPDinputMediaDocumentExternal &MTPinputMedia::c_inputMediaDocumentExternal() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaDocumentExternal);
-	return static_cast<const MTPDinputMediaDocumentExternal&>(*data);
+	t_assert(_type == mtpc_inputMediaDocumentExternal);
+	return queryData<MTPDinputMediaDocumentExternal>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaDocumentExternal> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaDocumentExternal) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaDocumentExternal *data) : TypeDataOwner(data), _type(mtpc_inputMediaDocumentExternal) {
 }
 inline const MTPDinputMediaGame &MTPinputMedia::c_inputMediaGame() const {
-	t_assert(data != nullptr && _type == mtpc_inputMediaGame);
-	return static_cast<const MTPDinputMediaGame&>(*data);
+	t_assert(_type == mtpc_inputMediaGame);
+	return queryData<MTPDinputMediaGame>();
 }
-inline MTPinputMedia::MTPinputMedia(std::shared_ptr<const MTPDinputMediaGame> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMediaGame) {
+inline MTPinputMedia::MTPinputMedia(const MTPDinputMediaGame *data) : TypeDataOwner(data), _type(mtpc_inputMediaGame) {
 }
 inline MTPinputMedia MTP_inputMediaEmpty() {
 	return MTP::internal::TypeCreator::new_inputMediaEmpty();
@@ -22898,18 +22871,17 @@ inline mtpTypeId MTPinputChatPhoto::type() const {
 	return _type;
 }
 inline void MTPinputChatPhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputChatPhotoEmpty: _type = cons; break;
 		case mtpc_inputChatUploadedPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputChatUploadedPhoto>();
+			auto v = new MTPDinputChatUploadedPhoto();
+			setData(v);
 			v->vfile.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputChatPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputChatPhoto>();
+			auto v = new MTPDinputChatPhoto();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputChatPhoto");
 	}
@@ -22929,22 +22901,22 @@ inline void MTPinputChatPhoto::write(mtpBuffer &to) const {
 inline MTPinputChatPhoto::MTPinputChatPhoto(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputChatPhotoEmpty: break;
-		case mtpc_inputChatUploadedPhoto: data = std::make_shared<MTPDinputChatUploadedPhoto>(); break;
-		case mtpc_inputChatPhoto: data = std::make_shared<MTPDinputChatPhoto>(); break;
+		case mtpc_inputChatUploadedPhoto: setData(new MTPDinputChatUploadedPhoto()); break;
+		case mtpc_inputChatPhoto: setData(new MTPDinputChatPhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputChatPhoto");
 	}
 }
 inline const MTPDinputChatUploadedPhoto &MTPinputChatPhoto::c_inputChatUploadedPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputChatUploadedPhoto);
-	return static_cast<const MTPDinputChatUploadedPhoto&>(*data);
+	t_assert(_type == mtpc_inputChatUploadedPhoto);
+	return queryData<MTPDinputChatUploadedPhoto>();
 }
-inline MTPinputChatPhoto::MTPinputChatPhoto(std::shared_ptr<const MTPDinputChatUploadedPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputChatUploadedPhoto) {
+inline MTPinputChatPhoto::MTPinputChatPhoto(const MTPDinputChatUploadedPhoto *data) : TypeDataOwner(data), _type(mtpc_inputChatUploadedPhoto) {
 }
 inline const MTPDinputChatPhoto &MTPinputChatPhoto::c_inputChatPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputChatPhoto);
-	return static_cast<const MTPDinputChatPhoto&>(*data);
+	t_assert(_type == mtpc_inputChatPhoto);
+	return queryData<MTPDinputChatPhoto>();
 }
-inline MTPinputChatPhoto::MTPinputChatPhoto(std::shared_ptr<const MTPDinputChatPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputChatPhoto) {
+inline MTPinputChatPhoto::MTPinputChatPhoto(const MTPDinputChatPhoto *data) : TypeDataOwner(data), _type(mtpc_inputChatPhoto) {
 }
 inline MTPinputChatPhoto MTP_inputChatPhotoEmpty() {
 	return MTP::internal::TypeCreator::new_inputChatPhotoEmpty();
@@ -22970,14 +22942,13 @@ inline mtpTypeId MTPinputGeoPoint::type() const {
 	return _type;
 }
 inline void MTPinputGeoPoint::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputGeoPointEmpty: _type = cons; break;
 		case mtpc_inputGeoPoint: _type = cons; {
-			auto v = std::make_shared<MTPDinputGeoPoint>();
+			auto v = new MTPDinputGeoPoint();
+			setData(v);
 			v->vlat.read(from, end);
 			v->vlong.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputGeoPoint");
 	}
@@ -22994,15 +22965,15 @@ inline void MTPinputGeoPoint::write(mtpBuffer &to) const {
 inline MTPinputGeoPoint::MTPinputGeoPoint(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputGeoPointEmpty: break;
-		case mtpc_inputGeoPoint: data = std::make_shared<MTPDinputGeoPoint>(); break;
+		case mtpc_inputGeoPoint: setData(new MTPDinputGeoPoint()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputGeoPoint");
 	}
 }
 inline const MTPDinputGeoPoint &MTPinputGeoPoint::c_inputGeoPoint() const {
-	t_assert(data != nullptr && _type == mtpc_inputGeoPoint);
-	return static_cast<const MTPDinputGeoPoint&>(*data);
+	t_assert(_type == mtpc_inputGeoPoint);
+	return queryData<MTPDinputGeoPoint>();
 }
-inline MTPinputGeoPoint::MTPinputGeoPoint(std::shared_ptr<const MTPDinputGeoPoint> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputGeoPoint) {
+inline MTPinputGeoPoint::MTPinputGeoPoint(const MTPDinputGeoPoint *data) : TypeDataOwner(data), _type(mtpc_inputGeoPoint) {
 }
 inline MTPinputGeoPoint MTP_inputGeoPointEmpty() {
 	return MTP::internal::TypeCreator::new_inputGeoPointEmpty();
@@ -23025,14 +22996,13 @@ inline mtpTypeId MTPinputPhoto::type() const {
 	return _type;
 }
 inline void MTPinputPhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputPhotoEmpty: _type = cons; break;
 		case mtpc_inputPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputPhoto>();
+			auto v = new MTPDinputPhoto();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputPhoto");
 	}
@@ -23049,15 +23019,15 @@ inline void MTPinputPhoto::write(mtpBuffer &to) const {
 inline MTPinputPhoto::MTPinputPhoto(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputPhotoEmpty: break;
-		case mtpc_inputPhoto: data = std::make_shared<MTPDinputPhoto>(); break;
+		case mtpc_inputPhoto: setData(new MTPDinputPhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputPhoto");
 	}
 }
 inline const MTPDinputPhoto &MTPinputPhoto::c_inputPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputPhoto);
-	return static_cast<const MTPDinputPhoto&>(*data);
+	t_assert(_type == mtpc_inputPhoto);
+	return queryData<MTPDinputPhoto>();
 }
-inline MTPinputPhoto::MTPinputPhoto(std::shared_ptr<const MTPDinputPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputPhoto) {
+inline MTPinputPhoto::MTPinputPhoto(const MTPDinputPhoto *data) : TypeDataOwner(data), _type(mtpc_inputPhoto) {
 }
 inline MTPinputPhoto MTP_inputPhotoEmpty() {
 	return MTP::internal::TypeCreator::new_inputPhotoEmpty();
@@ -23088,27 +23058,26 @@ inline mtpTypeId MTPinputFileLocation::type() const {
 	return _type;
 }
 inline void MTPinputFileLocation::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputFileLocation: _type = cons; {
-			auto v = std::make_shared<MTPDinputFileLocation>();
+			auto v = new MTPDinputFileLocation();
+			setData(v);
 			v->vvolume_id.read(from, end);
 			v->vlocal_id.read(from, end);
 			v->vsecret.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputEncryptedFileLocation: _type = cons; {
-			auto v = std::make_shared<MTPDinputEncryptedFileLocation>();
+			auto v = new MTPDinputEncryptedFileLocation();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputDocumentFileLocation: _type = cons; {
-			auto v = std::make_shared<MTPDinputDocumentFileLocation>();
+			auto v = new MTPDinputDocumentFileLocation();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vversion.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputFileLocation");
 	}
@@ -23136,29 +23105,29 @@ inline void MTPinputFileLocation::write(mtpBuffer &to) const {
 }
 inline MTPinputFileLocation::MTPinputFileLocation(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputFileLocation: data = std::make_shared<MTPDinputFileLocation>(); break;
-		case mtpc_inputEncryptedFileLocation: data = std::make_shared<MTPDinputEncryptedFileLocation>(); break;
-		case mtpc_inputDocumentFileLocation: data = std::make_shared<MTPDinputDocumentFileLocation>(); break;
+		case mtpc_inputFileLocation: setData(new MTPDinputFileLocation()); break;
+		case mtpc_inputEncryptedFileLocation: setData(new MTPDinputEncryptedFileLocation()); break;
+		case mtpc_inputDocumentFileLocation: setData(new MTPDinputDocumentFileLocation()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputFileLocation");
 	}
 }
 inline const MTPDinputFileLocation &MTPinputFileLocation::c_inputFileLocation() const {
-	t_assert(data != nullptr && _type == mtpc_inputFileLocation);
-	return static_cast<const MTPDinputFileLocation&>(*data);
+	t_assert(_type == mtpc_inputFileLocation);
+	return queryData<MTPDinputFileLocation>();
 }
-inline MTPinputFileLocation::MTPinputFileLocation(std::shared_ptr<const MTPDinputFileLocation> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputFileLocation) {
+inline MTPinputFileLocation::MTPinputFileLocation(const MTPDinputFileLocation *data) : TypeDataOwner(data), _type(mtpc_inputFileLocation) {
 }
 inline const MTPDinputEncryptedFileLocation &MTPinputFileLocation::c_inputEncryptedFileLocation() const {
-	t_assert(data != nullptr && _type == mtpc_inputEncryptedFileLocation);
-	return static_cast<const MTPDinputEncryptedFileLocation&>(*data);
+	t_assert(_type == mtpc_inputEncryptedFileLocation);
+	return queryData<MTPDinputEncryptedFileLocation>();
 }
-inline MTPinputFileLocation::MTPinputFileLocation(std::shared_ptr<const MTPDinputEncryptedFileLocation> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputEncryptedFileLocation) {
+inline MTPinputFileLocation::MTPinputFileLocation(const MTPDinputEncryptedFileLocation *data) : TypeDataOwner(data), _type(mtpc_inputEncryptedFileLocation) {
 }
 inline const MTPDinputDocumentFileLocation &MTPinputFileLocation::c_inputDocumentFileLocation() const {
-	t_assert(data != nullptr && _type == mtpc_inputDocumentFileLocation);
-	return static_cast<const MTPDinputDocumentFileLocation&>(*data);
+	t_assert(_type == mtpc_inputDocumentFileLocation);
+	return queryData<MTPDinputDocumentFileLocation>();
 }
-inline MTPinputFileLocation::MTPinputFileLocation(std::shared_ptr<const MTPDinputDocumentFileLocation> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputDocumentFileLocation) {
+inline MTPinputFileLocation::MTPinputFileLocation(const MTPDinputDocumentFileLocation *data) : TypeDataOwner(data), _type(mtpc_inputDocumentFileLocation) {
 }
 inline MTPinputFileLocation MTP_inputFileLocation(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
 	return MTP::internal::TypeCreator::new_inputFileLocation(_volume_id, _local_id, _secret);
@@ -23170,7 +23139,7 @@ inline MTPinputFileLocation MTP_inputDocumentFileLocation(const MTPlong &_id, co
 	return MTP::internal::TypeCreator::new_inputDocumentFileLocation(_id, _access_hash, _version);
 }
 
-inline MTPinputAppEvent::MTPinputAppEvent() : mtpDataOwner(std::make_shared<MTPDinputAppEvent>()) {
+inline MTPinputAppEvent::MTPinputAppEvent() : TypeDataOwner(new MTPDinputAppEvent()) {
 }
 
 inline uint32 MTPinputAppEvent::innerLength() const {
@@ -23183,12 +23152,12 @@ inline mtpTypeId MTPinputAppEvent::type() const {
 inline void MTPinputAppEvent::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inputAppEvent) throw mtpErrorUnexpected(cons, "MTPinputAppEvent");
 
-	auto v = std::make_shared<MTPDinputAppEvent>();
+	auto v = new MTPDinputAppEvent();
+	setData(v);
 	v->vtime.read(from, end);
 	v->vtype.read(from, end);
 	v->vpeer.read(from, end);
 	v->vdata.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinputAppEvent::write(mtpBuffer &to) const {
 	auto &v = c_inputAppEvent();
@@ -23198,10 +23167,9 @@ inline void MTPinputAppEvent::write(mtpBuffer &to) const {
 	v.vdata.write(to);
 }
 inline const MTPDinputAppEvent &MTPinputAppEvent::c_inputAppEvent() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinputAppEvent&>(*data);
+	return queryData<MTPDinputAppEvent>();
 }
-inline MTPinputAppEvent::MTPinputAppEvent(std::shared_ptr<const MTPDinputAppEvent> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinputAppEvent::MTPinputAppEvent(const MTPDinputAppEvent *data) : TypeDataOwner(data) {
 }
 inline MTPinputAppEvent MTP_inputAppEvent(const MTPdouble &_time, const MTPstring &_type, const MTPlong &_peer, const MTPstring &_data) {
 	return MTP::internal::TypeCreator::new_inputAppEvent(_time, _type, _peer, _data);
@@ -23229,22 +23197,21 @@ inline mtpTypeId MTPpeer::type() const {
 	return _type;
 }
 inline void MTPpeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_peerUser: _type = cons; {
-			auto v = std::make_shared<MTPDpeerUser>();
+			auto v = new MTPDpeerUser();
+			setData(v);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_peerChat: _type = cons; {
-			auto v = std::make_shared<MTPDpeerChat>();
+			auto v = new MTPDpeerChat();
+			setData(v);
 			v->vchat_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_peerChannel: _type = cons; {
-			auto v = std::make_shared<MTPDpeerChannel>();
+			auto v = new MTPDpeerChannel();
+			setData(v);
 			v->vchannel_id.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPpeer");
 	}
@@ -23267,29 +23234,29 @@ inline void MTPpeer::write(mtpBuffer &to) const {
 }
 inline MTPpeer::MTPpeer(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_peerUser: data = std::make_shared<MTPDpeerUser>(); break;
-		case mtpc_peerChat: data = std::make_shared<MTPDpeerChat>(); break;
-		case mtpc_peerChannel: data = std::make_shared<MTPDpeerChannel>(); break;
+		case mtpc_peerUser: setData(new MTPDpeerUser()); break;
+		case mtpc_peerChat: setData(new MTPDpeerChat()); break;
+		case mtpc_peerChannel: setData(new MTPDpeerChannel()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpeer");
 	}
 }
 inline const MTPDpeerUser &MTPpeer::c_peerUser() const {
-	t_assert(data != nullptr && _type == mtpc_peerUser);
-	return static_cast<const MTPDpeerUser&>(*data);
+	t_assert(_type == mtpc_peerUser);
+	return queryData<MTPDpeerUser>();
 }
-inline MTPpeer::MTPpeer(std::shared_ptr<const MTPDpeerUser> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_peerUser) {
+inline MTPpeer::MTPpeer(const MTPDpeerUser *data) : TypeDataOwner(data), _type(mtpc_peerUser) {
 }
 inline const MTPDpeerChat &MTPpeer::c_peerChat() const {
-	t_assert(data != nullptr && _type == mtpc_peerChat);
-	return static_cast<const MTPDpeerChat&>(*data);
+	t_assert(_type == mtpc_peerChat);
+	return queryData<MTPDpeerChat>();
 }
-inline MTPpeer::MTPpeer(std::shared_ptr<const MTPDpeerChat> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_peerChat) {
+inline MTPpeer::MTPpeer(const MTPDpeerChat *data) : TypeDataOwner(data), _type(mtpc_peerChat) {
 }
 inline const MTPDpeerChannel &MTPpeer::c_peerChannel() const {
-	t_assert(data != nullptr && _type == mtpc_peerChannel);
-	return static_cast<const MTPDpeerChannel&>(*data);
+	t_assert(_type == mtpc_peerChannel);
+	return queryData<MTPDpeerChannel>();
 }
-inline MTPpeer::MTPpeer(std::shared_ptr<const MTPDpeerChannel> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_peerChannel) {
+inline MTPpeer::MTPpeer(const MTPDpeerChannel *data) : TypeDataOwner(data), _type(mtpc_peerChannel) {
 }
 inline MTPpeer MTP_peerUser(MTPint _user_id) {
 	return MTP::internal::TypeCreator::new_peerUser(_user_id);
@@ -23389,22 +23356,21 @@ inline mtpTypeId MTPfileLocation::type() const {
 	return _type;
 }
 inline void MTPfileLocation::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_fileLocationUnavailable: _type = cons; {
-			auto v = std::make_shared<MTPDfileLocationUnavailable>();
+			auto v = new MTPDfileLocationUnavailable();
+			setData(v);
 			v->vvolume_id.read(from, end);
 			v->vlocal_id.read(from, end);
 			v->vsecret.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_fileLocation: _type = cons; {
-			auto v = std::make_shared<MTPDfileLocation>();
+			auto v = new MTPDfileLocation();
+			setData(v);
 			v->vdc_id.read(from, end);
 			v->vvolume_id.read(from, end);
 			v->vlocal_id.read(from, end);
 			v->vsecret.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPfileLocation");
 	}
@@ -23428,22 +23394,22 @@ inline void MTPfileLocation::write(mtpBuffer &to) const {
 }
 inline MTPfileLocation::MTPfileLocation(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_fileLocationUnavailable: data = std::make_shared<MTPDfileLocationUnavailable>(); break;
-		case mtpc_fileLocation: data = std::make_shared<MTPDfileLocation>(); break;
+		case mtpc_fileLocationUnavailable: setData(new MTPDfileLocationUnavailable()); break;
+		case mtpc_fileLocation: setData(new MTPDfileLocation()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPfileLocation");
 	}
 }
 inline const MTPDfileLocationUnavailable &MTPfileLocation::c_fileLocationUnavailable() const {
-	t_assert(data != nullptr && _type == mtpc_fileLocationUnavailable);
-	return static_cast<const MTPDfileLocationUnavailable&>(*data);
+	t_assert(_type == mtpc_fileLocationUnavailable);
+	return queryData<MTPDfileLocationUnavailable>();
 }
-inline MTPfileLocation::MTPfileLocation(std::shared_ptr<const MTPDfileLocationUnavailable> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_fileLocationUnavailable) {
+inline MTPfileLocation::MTPfileLocation(const MTPDfileLocationUnavailable *data) : TypeDataOwner(data), _type(mtpc_fileLocationUnavailable) {
 }
 inline const MTPDfileLocation &MTPfileLocation::c_fileLocation() const {
-	t_assert(data != nullptr && _type == mtpc_fileLocation);
-	return static_cast<const MTPDfileLocation&>(*data);
+	t_assert(_type == mtpc_fileLocation);
+	return queryData<MTPDfileLocation>();
 }
-inline MTPfileLocation::MTPfileLocation(std::shared_ptr<const MTPDfileLocation> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_fileLocation) {
+inline MTPfileLocation::MTPfileLocation(const MTPDfileLocation *data) : TypeDataOwner(data), _type(mtpc_fileLocation) {
 }
 inline MTPfileLocation MTP_fileLocationUnavailable(const MTPlong &_volume_id, MTPint _local_id, const MTPlong &_secret) {
 	return MTP::internal::TypeCreator::new_fileLocationUnavailable(_volume_id, _local_id, _secret);
@@ -23470,15 +23436,15 @@ inline mtpTypeId MTPuser::type() const {
 	return _type;
 }
 inline void MTPuser::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_userEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDuserEmpty>();
+			auto v = new MTPDuserEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_user: _type = cons; {
-			auto v = std::make_shared<MTPDuser>();
+			auto v = new MTPDuser();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			if (v->has_access_hash()) { v->vaccess_hash.read(from, end); } else { v->vaccess_hash = MTPlong(); }
@@ -23491,7 +23457,6 @@ inline void MTPuser::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			if (v->has_bot_info_version()) { v->vbot_info_version.read(from, end); } else { v->vbot_info_version = MTPint(); }
 			if (v->has_restriction_reason()) { v->vrestriction_reason.read(from, end); } else { v->vrestriction_reason = MTPstring(); }
 			if (v->has_bot_inline_placeholder()) { v->vbot_inline_placeholder.read(from, end); } else { v->vbot_inline_placeholder = MTPstring(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPuser");
 	}
@@ -23521,22 +23486,22 @@ inline void MTPuser::write(mtpBuffer &to) const {
 }
 inline MTPuser::MTPuser(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_userEmpty: data = std::make_shared<MTPDuserEmpty>(); break;
-		case mtpc_user: data = std::make_shared<MTPDuser>(); break;
+		case mtpc_userEmpty: setData(new MTPDuserEmpty()); break;
+		case mtpc_user: setData(new MTPDuser()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPuser");
 	}
 }
 inline const MTPDuserEmpty &MTPuser::c_userEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_userEmpty);
-	return static_cast<const MTPDuserEmpty&>(*data);
+	t_assert(_type == mtpc_userEmpty);
+	return queryData<MTPDuserEmpty>();
 }
-inline MTPuser::MTPuser(std::shared_ptr<const MTPDuserEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_userEmpty) {
+inline MTPuser::MTPuser(const MTPDuserEmpty *data) : TypeDataOwner(data), _type(mtpc_userEmpty) {
 }
 inline const MTPDuser &MTPuser::c_user() const {
-	t_assert(data != nullptr && _type == mtpc_user);
-	return static_cast<const MTPDuser&>(*data);
+	t_assert(_type == mtpc_user);
+	return queryData<MTPDuser>();
 }
-inline MTPuser::MTPuser(std::shared_ptr<const MTPDuser> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_user) {
+inline MTPuser::MTPuser(const MTPDuser *data) : TypeDataOwner(data), _type(mtpc_user) {
 }
 inline MTPuser MTP_userEmpty(MTPint _id) {
 	return MTP::internal::TypeCreator::new_userEmpty(_id);
@@ -23560,15 +23525,14 @@ inline mtpTypeId MTPuserProfilePhoto::type() const {
 	return _type;
 }
 inline void MTPuserProfilePhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_userProfilePhotoEmpty: _type = cons; break;
 		case mtpc_userProfilePhoto: _type = cons; {
-			auto v = std::make_shared<MTPDuserProfilePhoto>();
+			auto v = new MTPDuserProfilePhoto();
+			setData(v);
 			v->vphoto_id.read(from, end);
 			v->vphoto_small.read(from, end);
 			v->vphoto_big.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPuserProfilePhoto");
 	}
@@ -23586,15 +23550,15 @@ inline void MTPuserProfilePhoto::write(mtpBuffer &to) const {
 inline MTPuserProfilePhoto::MTPuserProfilePhoto(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_userProfilePhotoEmpty: break;
-		case mtpc_userProfilePhoto: data = std::make_shared<MTPDuserProfilePhoto>(); break;
+		case mtpc_userProfilePhoto: setData(new MTPDuserProfilePhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPuserProfilePhoto");
 	}
 }
 inline const MTPDuserProfilePhoto &MTPuserProfilePhoto::c_userProfilePhoto() const {
-	t_assert(data != nullptr && _type == mtpc_userProfilePhoto);
-	return static_cast<const MTPDuserProfilePhoto&>(*data);
+	t_assert(_type == mtpc_userProfilePhoto);
+	return queryData<MTPDuserProfilePhoto>();
 }
-inline MTPuserProfilePhoto::MTPuserProfilePhoto(std::shared_ptr<const MTPDuserProfilePhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_userProfilePhoto) {
+inline MTPuserProfilePhoto::MTPuserProfilePhoto(const MTPDuserProfilePhoto *data) : TypeDataOwner(data), _type(mtpc_userProfilePhoto) {
 }
 inline MTPuserProfilePhoto MTP_userProfilePhotoEmpty() {
 	return MTP::internal::TypeCreator::new_userProfilePhotoEmpty();
@@ -23621,18 +23585,17 @@ inline mtpTypeId MTPuserStatus::type() const {
 	return _type;
 }
 inline void MTPuserStatus::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_userStatusEmpty: _type = cons; break;
 		case mtpc_userStatusOnline: _type = cons; {
-			auto v = std::make_shared<MTPDuserStatusOnline>();
+			auto v = new MTPDuserStatusOnline();
+			setData(v);
 			v->vexpires.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_userStatusOffline: _type = cons; {
-			auto v = std::make_shared<MTPDuserStatusOffline>();
+			auto v = new MTPDuserStatusOffline();
+			setData(v);
 			v->vwas_online.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_userStatusRecently: _type = cons; break;
 		case mtpc_userStatusLastWeek: _type = cons; break;
@@ -23655,8 +23618,8 @@ inline void MTPuserStatus::write(mtpBuffer &to) const {
 inline MTPuserStatus::MTPuserStatus(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_userStatusEmpty: break;
-		case mtpc_userStatusOnline: data = std::make_shared<MTPDuserStatusOnline>(); break;
-		case mtpc_userStatusOffline: data = std::make_shared<MTPDuserStatusOffline>(); break;
+		case mtpc_userStatusOnline: setData(new MTPDuserStatusOnline()); break;
+		case mtpc_userStatusOffline: setData(new MTPDuserStatusOffline()); break;
 		case mtpc_userStatusRecently: break;
 		case mtpc_userStatusLastWeek: break;
 		case mtpc_userStatusLastMonth: break;
@@ -23664,16 +23627,16 @@ inline MTPuserStatus::MTPuserStatus(mtpTypeId type) : _type(type) {
 	}
 }
 inline const MTPDuserStatusOnline &MTPuserStatus::c_userStatusOnline() const {
-	t_assert(data != nullptr && _type == mtpc_userStatusOnline);
-	return static_cast<const MTPDuserStatusOnline&>(*data);
+	t_assert(_type == mtpc_userStatusOnline);
+	return queryData<MTPDuserStatusOnline>();
 }
-inline MTPuserStatus::MTPuserStatus(std::shared_ptr<const MTPDuserStatusOnline> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_userStatusOnline) {
+inline MTPuserStatus::MTPuserStatus(const MTPDuserStatusOnline *data) : TypeDataOwner(data), _type(mtpc_userStatusOnline) {
 }
 inline const MTPDuserStatusOffline &MTPuserStatus::c_userStatusOffline() const {
-	t_assert(data != nullptr && _type == mtpc_userStatusOffline);
-	return static_cast<const MTPDuserStatusOffline&>(*data);
+	t_assert(_type == mtpc_userStatusOffline);
+	return queryData<MTPDuserStatusOffline>();
 }
-inline MTPuserStatus::MTPuserStatus(std::shared_ptr<const MTPDuserStatusOffline> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_userStatusOffline) {
+inline MTPuserStatus::MTPuserStatus(const MTPDuserStatusOffline *data) : TypeDataOwner(data), _type(mtpc_userStatusOffline) {
 }
 inline MTPuserStatus MTP_userStatusEmpty() {
 	return MTP::internal::TypeCreator::new_userStatusEmpty();
@@ -23724,15 +23687,15 @@ inline mtpTypeId MTPchat::type() const {
 	return _type;
 }
 inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDchatEmpty>();
+			auto v = new MTPDchatEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_chat: _type = cons; {
-			auto v = std::make_shared<MTPDchat>();
+			auto v = new MTPDchat();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vtitle.read(from, end);
@@ -23741,16 +23704,16 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			v->vdate.read(from, end);
 			v->vversion.read(from, end);
 			if (v->has_migrated_to()) { v->vmigrated_to.read(from, end); } else { v->vmigrated_to = MTPInputChannel(); }
-			data = std::move(v);
 		} break;
 		case mtpc_chatForbidden: _type = cons; {
-			auto v = std::make_shared<MTPDchatForbidden>();
+			auto v = new MTPDchatForbidden();
+			setData(v);
 			v->vid.read(from, end);
 			v->vtitle.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channel: _type = cons; {
-			auto v = std::make_shared<MTPDchannel>();
+			auto v = new MTPDchannel();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			if (v->has_access_hash()) { v->vaccess_hash.read(from, end); } else { v->vaccess_hash = MTPlong(); }
@@ -23760,15 +23723,14 @@ inline void MTPchat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 			v->vdate.read(from, end);
 			v->vversion.read(from, end);
 			if (v->has_restriction_reason()) { v->vrestriction_reason.read(from, end); } else { v->vrestriction_reason = MTPstring(); }
-			data = std::move(v);
 		} break;
 		case mtpc_channelForbidden: _type = cons; {
-			auto v = std::make_shared<MTPDchannelForbidden>();
+			auto v = new MTPDchannelForbidden();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vtitle.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchat");
 	}
@@ -23818,43 +23780,43 @@ inline void MTPchat::write(mtpBuffer &to) const {
 }
 inline MTPchat::MTPchat(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_chatEmpty: data = std::make_shared<MTPDchatEmpty>(); break;
-		case mtpc_chat: data = std::make_shared<MTPDchat>(); break;
-		case mtpc_chatForbidden: data = std::make_shared<MTPDchatForbidden>(); break;
-		case mtpc_channel: data = std::make_shared<MTPDchannel>(); break;
-		case mtpc_channelForbidden: data = std::make_shared<MTPDchannelForbidden>(); break;
+		case mtpc_chatEmpty: setData(new MTPDchatEmpty()); break;
+		case mtpc_chat: setData(new MTPDchat()); break;
+		case mtpc_chatForbidden: setData(new MTPDchatForbidden()); break;
+		case mtpc_channel: setData(new MTPDchannel()); break;
+		case mtpc_channelForbidden: setData(new MTPDchannelForbidden()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchat");
 	}
 }
 inline const MTPDchatEmpty &MTPchat::c_chatEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_chatEmpty);
-	return static_cast<const MTPDchatEmpty&>(*data);
+	t_assert(_type == mtpc_chatEmpty);
+	return queryData<MTPDchatEmpty>();
 }
-inline MTPchat::MTPchat(std::shared_ptr<const MTPDchatEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatEmpty) {
+inline MTPchat::MTPchat(const MTPDchatEmpty *data) : TypeDataOwner(data), _type(mtpc_chatEmpty) {
 }
 inline const MTPDchat &MTPchat::c_chat() const {
-	t_assert(data != nullptr && _type == mtpc_chat);
-	return static_cast<const MTPDchat&>(*data);
+	t_assert(_type == mtpc_chat);
+	return queryData<MTPDchat>();
 }
-inline MTPchat::MTPchat(std::shared_ptr<const MTPDchat> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chat) {
+inline MTPchat::MTPchat(const MTPDchat *data) : TypeDataOwner(data), _type(mtpc_chat) {
 }
 inline const MTPDchatForbidden &MTPchat::c_chatForbidden() const {
-	t_assert(data != nullptr && _type == mtpc_chatForbidden);
-	return static_cast<const MTPDchatForbidden&>(*data);
+	t_assert(_type == mtpc_chatForbidden);
+	return queryData<MTPDchatForbidden>();
 }
-inline MTPchat::MTPchat(std::shared_ptr<const MTPDchatForbidden> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatForbidden) {
+inline MTPchat::MTPchat(const MTPDchatForbidden *data) : TypeDataOwner(data), _type(mtpc_chatForbidden) {
 }
 inline const MTPDchannel &MTPchat::c_channel() const {
-	t_assert(data != nullptr && _type == mtpc_channel);
-	return static_cast<const MTPDchannel&>(*data);
+	t_assert(_type == mtpc_channel);
+	return queryData<MTPDchannel>();
 }
-inline MTPchat::MTPchat(std::shared_ptr<const MTPDchannel> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channel) {
+inline MTPchat::MTPchat(const MTPDchannel *data) : TypeDataOwner(data), _type(mtpc_channel) {
 }
 inline const MTPDchannelForbidden &MTPchat::c_channelForbidden() const {
-	t_assert(data != nullptr && _type == mtpc_channelForbidden);
-	return static_cast<const MTPDchannelForbidden&>(*data);
+	t_assert(_type == mtpc_channelForbidden);
+	return queryData<MTPDchannelForbidden>();
 }
-inline MTPchat::MTPchat(std::shared_ptr<const MTPDchannelForbidden> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelForbidden) {
+inline MTPchat::MTPchat(const MTPDchannelForbidden *data) : TypeDataOwner(data), _type(mtpc_channelForbidden) {
 }
 inline MTPchat MTP_chatEmpty(MTPint _id) {
 	return MTP::internal::TypeCreator::new_chatEmpty(_id);
@@ -23893,20 +23855,20 @@ inline mtpTypeId MTPchatFull::type() const {
 	return _type;
 }
 inline void MTPchatFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatFull: _type = cons; {
-			auto v = std::make_shared<MTPDchatFull>();
+			auto v = new MTPDchatFull();
+			setData(v);
 			v->vid.read(from, end);
 			v->vparticipants.read(from, end);
 			v->vchat_photo.read(from, end);
 			v->vnotify_settings.read(from, end);
 			v->vexported_invite.read(from, end);
 			v->vbot_info.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channelFull: _type = cons; {
-			auto v = std::make_shared<MTPDchannelFull>();
+			auto v = new MTPDchannelFull();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vabout.read(from, end);
@@ -23923,7 +23885,6 @@ inline void MTPchatFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTyp
 			if (v->has_migrated_from_chat_id()) { v->vmigrated_from_chat_id.read(from, end); } else { v->vmigrated_from_chat_id = MTPint(); }
 			if (v->has_migrated_from_max_id()) { v->vmigrated_from_max_id.read(from, end); } else { v->vmigrated_from_max_id = MTPint(); }
 			if (v->has_pinned_msg_id()) { v->vpinned_msg_id.read(from, end); } else { v->vpinned_msg_id = MTPint(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatFull");
 	}
@@ -23962,22 +23923,22 @@ inline void MTPchatFull::write(mtpBuffer &to) const {
 }
 inline MTPchatFull::MTPchatFull(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_chatFull: data = std::make_shared<MTPDchatFull>(); break;
-		case mtpc_channelFull: data = std::make_shared<MTPDchannelFull>(); break;
+		case mtpc_chatFull: setData(new MTPDchatFull()); break;
+		case mtpc_channelFull: setData(new MTPDchannelFull()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatFull");
 	}
 }
 inline const MTPDchatFull &MTPchatFull::c_chatFull() const {
-	t_assert(data != nullptr && _type == mtpc_chatFull);
-	return static_cast<const MTPDchatFull&>(*data);
+	t_assert(_type == mtpc_chatFull);
+	return queryData<MTPDchatFull>();
 }
-inline MTPchatFull::MTPchatFull(std::shared_ptr<const MTPDchatFull> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatFull) {
+inline MTPchatFull::MTPchatFull(const MTPDchatFull *data) : TypeDataOwner(data), _type(mtpc_chatFull) {
 }
 inline const MTPDchannelFull &MTPchatFull::c_channelFull() const {
-	t_assert(data != nullptr && _type == mtpc_channelFull);
-	return static_cast<const MTPDchannelFull&>(*data);
+	t_assert(_type == mtpc_channelFull);
+	return queryData<MTPDchannelFull>();
 }
-inline MTPchatFull::MTPchatFull(std::shared_ptr<const MTPDchannelFull> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelFull) {
+inline MTPchatFull::MTPchatFull(const MTPDchannelFull *data) : TypeDataOwner(data), _type(mtpc_channelFull) {
 }
 inline MTPchatFull MTP_chatFull(MTPint _id, const MTPChatParticipants &_participants, const MTPPhoto &_chat_photo, const MTPPeerNotifySettings &_notify_settings, const MTPExportedChatInvite &_exported_invite, const MTPVector<MTPBotInfo> &_bot_info) {
 	return MTP::internal::TypeCreator::new_chatFull(_id, _participants, _chat_photo, _notify_settings, _exported_invite, _bot_info);
@@ -24009,26 +23970,25 @@ inline mtpTypeId MTPchatParticipant::type() const {
 	return _type;
 }
 inline void MTPchatParticipant::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatParticipant: _type = cons; {
-			auto v = std::make_shared<MTPDchatParticipant>();
+			auto v = new MTPDchatParticipant();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vinviter_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_chatParticipantCreator: _type = cons; {
-			auto v = std::make_shared<MTPDchatParticipantCreator>();
+			auto v = new MTPDchatParticipantCreator();
+			setData(v);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_chatParticipantAdmin: _type = cons; {
-			auto v = std::make_shared<MTPDchatParticipantAdmin>();
+			auto v = new MTPDchatParticipantAdmin();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vinviter_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatParticipant");
 	}
@@ -24055,29 +24015,29 @@ inline void MTPchatParticipant::write(mtpBuffer &to) const {
 }
 inline MTPchatParticipant::MTPchatParticipant(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_chatParticipant: data = std::make_shared<MTPDchatParticipant>(); break;
-		case mtpc_chatParticipantCreator: data = std::make_shared<MTPDchatParticipantCreator>(); break;
-		case mtpc_chatParticipantAdmin: data = std::make_shared<MTPDchatParticipantAdmin>(); break;
+		case mtpc_chatParticipant: setData(new MTPDchatParticipant()); break;
+		case mtpc_chatParticipantCreator: setData(new MTPDchatParticipantCreator()); break;
+		case mtpc_chatParticipantAdmin: setData(new MTPDchatParticipantAdmin()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatParticipant");
 	}
 }
 inline const MTPDchatParticipant &MTPchatParticipant::c_chatParticipant() const {
-	t_assert(data != nullptr && _type == mtpc_chatParticipant);
-	return static_cast<const MTPDchatParticipant&>(*data);
+	t_assert(_type == mtpc_chatParticipant);
+	return queryData<MTPDchatParticipant>();
 }
-inline MTPchatParticipant::MTPchatParticipant(std::shared_ptr<const MTPDchatParticipant> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatParticipant) {
+inline MTPchatParticipant::MTPchatParticipant(const MTPDchatParticipant *data) : TypeDataOwner(data), _type(mtpc_chatParticipant) {
 }
 inline const MTPDchatParticipantCreator &MTPchatParticipant::c_chatParticipantCreator() const {
-	t_assert(data != nullptr && _type == mtpc_chatParticipantCreator);
-	return static_cast<const MTPDchatParticipantCreator&>(*data);
+	t_assert(_type == mtpc_chatParticipantCreator);
+	return queryData<MTPDchatParticipantCreator>();
 }
-inline MTPchatParticipant::MTPchatParticipant(std::shared_ptr<const MTPDchatParticipantCreator> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatParticipantCreator) {
+inline MTPchatParticipant::MTPchatParticipant(const MTPDchatParticipantCreator *data) : TypeDataOwner(data), _type(mtpc_chatParticipantCreator) {
 }
 inline const MTPDchatParticipantAdmin &MTPchatParticipant::c_chatParticipantAdmin() const {
-	t_assert(data != nullptr && _type == mtpc_chatParticipantAdmin);
-	return static_cast<const MTPDchatParticipantAdmin&>(*data);
+	t_assert(_type == mtpc_chatParticipantAdmin);
+	return queryData<MTPDchatParticipantAdmin>();
 }
-inline MTPchatParticipant::MTPchatParticipant(std::shared_ptr<const MTPDchatParticipantAdmin> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatParticipantAdmin) {
+inline MTPchatParticipant::MTPchatParticipant(const MTPDchatParticipantAdmin *data) : TypeDataOwner(data), _type(mtpc_chatParticipantAdmin) {
 }
 inline MTPchatParticipant MTP_chatParticipant(MTPint _user_id, MTPint _inviter_id, MTPint _date) {
 	return MTP::internal::TypeCreator::new_chatParticipant(_user_id, _inviter_id, _date);
@@ -24107,21 +24067,20 @@ inline mtpTypeId MTPchatParticipants::type() const {
 	return _type;
 }
 inline void MTPchatParticipants::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatParticipantsForbidden: _type = cons; {
-			auto v = std::make_shared<MTPDchatParticipantsForbidden>();
+			auto v = new MTPDchatParticipantsForbidden();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vchat_id.read(from, end);
 			if (v->has_self_participant()) { v->vself_participant.read(from, end); } else { v->vself_participant = MTPChatParticipant(); }
-			data = std::move(v);
 		} break;
 		case mtpc_chatParticipants: _type = cons; {
-			auto v = std::make_shared<MTPDchatParticipants>();
+			auto v = new MTPDchatParticipants();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->vparticipants.read(from, end);
 			v->vversion.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatParticipants");
 	}
@@ -24144,22 +24103,22 @@ inline void MTPchatParticipants::write(mtpBuffer &to) const {
 }
 inline MTPchatParticipants::MTPchatParticipants(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_chatParticipantsForbidden: data = std::make_shared<MTPDchatParticipantsForbidden>(); break;
-		case mtpc_chatParticipants: data = std::make_shared<MTPDchatParticipants>(); break;
+		case mtpc_chatParticipantsForbidden: setData(new MTPDchatParticipantsForbidden()); break;
+		case mtpc_chatParticipants: setData(new MTPDchatParticipants()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatParticipants");
 	}
 }
 inline const MTPDchatParticipantsForbidden &MTPchatParticipants::c_chatParticipantsForbidden() const {
-	t_assert(data != nullptr && _type == mtpc_chatParticipantsForbidden);
-	return static_cast<const MTPDchatParticipantsForbidden&>(*data);
+	t_assert(_type == mtpc_chatParticipantsForbidden);
+	return queryData<MTPDchatParticipantsForbidden>();
 }
-inline MTPchatParticipants::MTPchatParticipants(std::shared_ptr<const MTPDchatParticipantsForbidden> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatParticipantsForbidden) {
+inline MTPchatParticipants::MTPchatParticipants(const MTPDchatParticipantsForbidden *data) : TypeDataOwner(data), _type(mtpc_chatParticipantsForbidden) {
 }
 inline const MTPDchatParticipants &MTPchatParticipants::c_chatParticipants() const {
-	t_assert(data != nullptr && _type == mtpc_chatParticipants);
-	return static_cast<const MTPDchatParticipants&>(*data);
+	t_assert(_type == mtpc_chatParticipants);
+	return queryData<MTPDchatParticipants>();
 }
-inline MTPchatParticipants::MTPchatParticipants(std::shared_ptr<const MTPDchatParticipants> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatParticipants) {
+inline MTPchatParticipants::MTPchatParticipants(const MTPDchatParticipants *data) : TypeDataOwner(data), _type(mtpc_chatParticipants) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDchatParticipantsForbidden::Flags)
 inline MTPchatParticipants MTP_chatParticipantsForbidden(const MTPflags<MTPDchatParticipantsForbidden::Flags> &_flags, MTPint _chat_id, const MTPChatParticipant &_self_participant) {
@@ -24183,14 +24142,13 @@ inline mtpTypeId MTPchatPhoto::type() const {
 	return _type;
 }
 inline void MTPchatPhoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatPhotoEmpty: _type = cons; break;
 		case mtpc_chatPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDchatPhoto>();
+			auto v = new MTPDchatPhoto();
+			setData(v);
 			v->vphoto_small.read(from, end);
 			v->vphoto_big.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatPhoto");
 	}
@@ -24207,15 +24165,15 @@ inline void MTPchatPhoto::write(mtpBuffer &to) const {
 inline MTPchatPhoto::MTPchatPhoto(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_chatPhotoEmpty: break;
-		case mtpc_chatPhoto: data = std::make_shared<MTPDchatPhoto>(); break;
+		case mtpc_chatPhoto: setData(new MTPDchatPhoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatPhoto");
 	}
 }
 inline const MTPDchatPhoto &MTPchatPhoto::c_chatPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_chatPhoto);
-	return static_cast<const MTPDchatPhoto&>(*data);
+	t_assert(_type == mtpc_chatPhoto);
+	return queryData<MTPDchatPhoto>();
 }
-inline MTPchatPhoto::MTPchatPhoto(std::shared_ptr<const MTPDchatPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatPhoto) {
+inline MTPchatPhoto::MTPchatPhoto(const MTPDchatPhoto *data) : TypeDataOwner(data), _type(mtpc_chatPhoto) {
 }
 inline MTPchatPhoto MTP_chatPhotoEmpty() {
 	return MTP::internal::TypeCreator::new_chatPhotoEmpty();
@@ -24246,15 +24204,15 @@ inline mtpTypeId MTPmessage::type() const {
 	return _type;
 }
 inline void MTPmessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messageEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEmpty>();
+			auto v = new MTPDmessageEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_message: _type = cons; {
-			auto v = std::make_shared<MTPDmessage>();
+			auto v = new MTPDmessage();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			if (v->has_from_id()) { v->vfrom_id.read(from, end); } else { v->vfrom_id = MTPint(); }
@@ -24269,10 +24227,10 @@ inline void MTPmessage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
 			if (v->has_views()) { v->vviews.read(from, end); } else { v->vviews = MTPint(); }
 			if (v->has_edit_date()) { v->vedit_date.read(from, end); } else { v->vedit_date = MTPint(); }
-			data = std::move(v);
 		} break;
 		case mtpc_messageService: _type = cons; {
-			auto v = std::make_shared<MTPDmessageService>();
+			auto v = new MTPDmessageService();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			if (v->has_from_id()) { v->vfrom_id.read(from, end); } else { v->vfrom_id = MTPint(); }
@@ -24280,7 +24238,6 @@ inline void MTPmessage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v->has_reply_to_msg_id()) { v->vreply_to_msg_id.read(from, end); } else { v->vreply_to_msg_id = MTPint(); }
 			v->vdate.read(from, end);
 			v->vaction.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessage");
 	}
@@ -24322,29 +24279,29 @@ inline void MTPmessage::write(mtpBuffer &to) const {
 }
 inline MTPmessage::MTPmessage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messageEmpty: data = std::make_shared<MTPDmessageEmpty>(); break;
-		case mtpc_message: data = std::make_shared<MTPDmessage>(); break;
-		case mtpc_messageService: data = std::make_shared<MTPDmessageService>(); break;
+		case mtpc_messageEmpty: setData(new MTPDmessageEmpty()); break;
+		case mtpc_message: setData(new MTPDmessage()); break;
+		case mtpc_messageService: setData(new MTPDmessageService()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessage");
 	}
 }
 inline const MTPDmessageEmpty &MTPmessage::c_messageEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_messageEmpty);
-	return static_cast<const MTPDmessageEmpty&>(*data);
+	t_assert(_type == mtpc_messageEmpty);
+	return queryData<MTPDmessageEmpty>();
 }
-inline MTPmessage::MTPmessage(std::shared_ptr<const MTPDmessageEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEmpty) {
+inline MTPmessage::MTPmessage(const MTPDmessageEmpty *data) : TypeDataOwner(data), _type(mtpc_messageEmpty) {
 }
 inline const MTPDmessage &MTPmessage::c_message() const {
-	t_assert(data != nullptr && _type == mtpc_message);
-	return static_cast<const MTPDmessage&>(*data);
+	t_assert(_type == mtpc_message);
+	return queryData<MTPDmessage>();
 }
-inline MTPmessage::MTPmessage(std::shared_ptr<const MTPDmessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_message) {
+inline MTPmessage::MTPmessage(const MTPDmessage *data) : TypeDataOwner(data), _type(mtpc_message) {
 }
 inline const MTPDmessageService &MTPmessage::c_messageService() const {
-	t_assert(data != nullptr && _type == mtpc_messageService);
-	return static_cast<const MTPDmessageService&>(*data);
+	t_assert(_type == mtpc_messageService);
+	return queryData<MTPDmessageService>();
 }
-inline MTPmessage::MTPmessage(std::shared_ptr<const MTPDmessageService> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageService) {
+inline MTPmessage::MTPmessage(const MTPDmessageService *data) : TypeDataOwner(data), _type(mtpc_messageService) {
 }
 inline MTPmessage MTP_messageEmpty(MTPint _id) {
 	return MTP::internal::TypeCreator::new_messageEmpty(_id);
@@ -24396,53 +24353,52 @@ inline mtpTypeId MTPmessageMedia::type() const {
 	return _type;
 }
 inline void MTPmessageMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messageMediaEmpty: _type = cons; break;
 		case mtpc_messageMediaPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaPhoto>();
+			auto v = new MTPDmessageMediaPhoto();
+			setData(v);
 			v->vphoto.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageMediaGeo: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaGeo>();
+			auto v = new MTPDmessageMediaGeo();
+			setData(v);
 			v->vgeo.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageMediaContact: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaContact>();
+			auto v = new MTPDmessageMediaContact();
+			setData(v);
 			v->vphone_number.read(from, end);
 			v->vfirst_name.read(from, end);
 			v->vlast_name.read(from, end);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageMediaUnsupported: _type = cons; break;
 		case mtpc_messageMediaDocument: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaDocument>();
+			auto v = new MTPDmessageMediaDocument();
+			setData(v);
 			v->vdocument.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageMediaWebPage: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaWebPage>();
+			auto v = new MTPDmessageMediaWebPage();
+			setData(v);
 			v->vwebpage.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageMediaVenue: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaVenue>();
+			auto v = new MTPDmessageMediaVenue();
+			setData(v);
 			v->vgeo.read(from, end);
 			v->vtitle.read(from, end);
 			v->vaddress.read(from, end);
 			v->vprovider.read(from, end);
 			v->vvenue_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageMediaGame: _type = cons; {
-			auto v = std::make_shared<MTPDmessageMediaGame>();
+			auto v = new MTPDmessageMediaGame();
+			setData(v);
 			v->vgame.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessageMedia");
 	}
@@ -24491,58 +24447,58 @@ inline void MTPmessageMedia::write(mtpBuffer &to) const {
 inline MTPmessageMedia::MTPmessageMedia(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messageMediaEmpty: break;
-		case mtpc_messageMediaPhoto: data = std::make_shared<MTPDmessageMediaPhoto>(); break;
-		case mtpc_messageMediaGeo: data = std::make_shared<MTPDmessageMediaGeo>(); break;
-		case mtpc_messageMediaContact: data = std::make_shared<MTPDmessageMediaContact>(); break;
+		case mtpc_messageMediaPhoto: setData(new MTPDmessageMediaPhoto()); break;
+		case mtpc_messageMediaGeo: setData(new MTPDmessageMediaGeo()); break;
+		case mtpc_messageMediaContact: setData(new MTPDmessageMediaContact()); break;
 		case mtpc_messageMediaUnsupported: break;
-		case mtpc_messageMediaDocument: data = std::make_shared<MTPDmessageMediaDocument>(); break;
-		case mtpc_messageMediaWebPage: data = std::make_shared<MTPDmessageMediaWebPage>(); break;
-		case mtpc_messageMediaVenue: data = std::make_shared<MTPDmessageMediaVenue>(); break;
-		case mtpc_messageMediaGame: data = std::make_shared<MTPDmessageMediaGame>(); break;
+		case mtpc_messageMediaDocument: setData(new MTPDmessageMediaDocument()); break;
+		case mtpc_messageMediaWebPage: setData(new MTPDmessageMediaWebPage()); break;
+		case mtpc_messageMediaVenue: setData(new MTPDmessageMediaVenue()); break;
+		case mtpc_messageMediaGame: setData(new MTPDmessageMediaGame()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessageMedia");
 	}
 }
 inline const MTPDmessageMediaPhoto &MTPmessageMedia::c_messageMediaPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaPhoto);
-	return static_cast<const MTPDmessageMediaPhoto&>(*data);
+	t_assert(_type == mtpc_messageMediaPhoto);
+	return queryData<MTPDmessageMediaPhoto>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaPhoto) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaPhoto *data) : TypeDataOwner(data), _type(mtpc_messageMediaPhoto) {
 }
 inline const MTPDmessageMediaGeo &MTPmessageMedia::c_messageMediaGeo() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaGeo);
-	return static_cast<const MTPDmessageMediaGeo&>(*data);
+	t_assert(_type == mtpc_messageMediaGeo);
+	return queryData<MTPDmessageMediaGeo>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaGeo> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaGeo) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaGeo *data) : TypeDataOwner(data), _type(mtpc_messageMediaGeo) {
 }
 inline const MTPDmessageMediaContact &MTPmessageMedia::c_messageMediaContact() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaContact);
-	return static_cast<const MTPDmessageMediaContact&>(*data);
+	t_assert(_type == mtpc_messageMediaContact);
+	return queryData<MTPDmessageMediaContact>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaContact> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaContact) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaContact *data) : TypeDataOwner(data), _type(mtpc_messageMediaContact) {
 }
 inline const MTPDmessageMediaDocument &MTPmessageMedia::c_messageMediaDocument() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaDocument);
-	return static_cast<const MTPDmessageMediaDocument&>(*data);
+	t_assert(_type == mtpc_messageMediaDocument);
+	return queryData<MTPDmessageMediaDocument>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaDocument) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaDocument *data) : TypeDataOwner(data), _type(mtpc_messageMediaDocument) {
 }
 inline const MTPDmessageMediaWebPage &MTPmessageMedia::c_messageMediaWebPage() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaWebPage);
-	return static_cast<const MTPDmessageMediaWebPage&>(*data);
+	t_assert(_type == mtpc_messageMediaWebPage);
+	return queryData<MTPDmessageMediaWebPage>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaWebPage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaWebPage) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaWebPage *data) : TypeDataOwner(data), _type(mtpc_messageMediaWebPage) {
 }
 inline const MTPDmessageMediaVenue &MTPmessageMedia::c_messageMediaVenue() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaVenue);
-	return static_cast<const MTPDmessageMediaVenue&>(*data);
+	t_assert(_type == mtpc_messageMediaVenue);
+	return queryData<MTPDmessageMediaVenue>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaVenue> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaVenue) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaVenue *data) : TypeDataOwner(data), _type(mtpc_messageMediaVenue) {
 }
 inline const MTPDmessageMediaGame &MTPmessageMedia::c_messageMediaGame() const {
-	t_assert(data != nullptr && _type == mtpc_messageMediaGame);
-	return static_cast<const MTPDmessageMediaGame&>(*data);
+	t_assert(_type == mtpc_messageMediaGame);
+	return queryData<MTPDmessageMediaGame>();
 }
-inline MTPmessageMedia::MTPmessageMedia(std::shared_ptr<const MTPDmessageMediaGame> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageMediaGame) {
+inline MTPmessageMedia::MTPmessageMedia(const MTPDmessageMediaGame *data) : TypeDataOwner(data), _type(mtpc_messageMediaGame) {
 }
 inline MTPmessageMedia MTP_messageMediaEmpty() {
 	return MTP::internal::TypeCreator::new_messageMediaEmpty();
@@ -24626,72 +24582,71 @@ inline mtpTypeId MTPmessageAction::type() const {
 	return _type;
 }
 inline void MTPmessageAction::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messageActionEmpty: _type = cons; break;
 		case mtpc_messageActionChatCreate: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatCreate>();
+			auto v = new MTPDmessageActionChatCreate();
+			setData(v);
 			v->vtitle.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChatEditTitle: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatEditTitle>();
+			auto v = new MTPDmessageActionChatEditTitle();
+			setData(v);
 			v->vtitle.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChatEditPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatEditPhoto>();
+			auto v = new MTPDmessageActionChatEditPhoto();
+			setData(v);
 			v->vphoto.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChatDeletePhoto: _type = cons; break;
 		case mtpc_messageActionChatAddUser: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatAddUser>();
+			auto v = new MTPDmessageActionChatAddUser();
+			setData(v);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChatDeleteUser: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatDeleteUser>();
+			auto v = new MTPDmessageActionChatDeleteUser();
+			setData(v);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChatJoinedByLink: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatJoinedByLink>();
+			auto v = new MTPDmessageActionChatJoinedByLink();
+			setData(v);
 			v->vinviter_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChannelCreate: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChannelCreate>();
+			auto v = new MTPDmessageActionChannelCreate();
+			setData(v);
 			v->vtitle.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChatMigrateTo: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChatMigrateTo>();
+			auto v = new MTPDmessageActionChatMigrateTo();
+			setData(v);
 			v->vchannel_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionChannelMigrateFrom: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionChannelMigrateFrom>();
+			auto v = new MTPDmessageActionChannelMigrateFrom();
+			setData(v);
 			v->vtitle.read(from, end);
 			v->vchat_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionPinMessage: _type = cons; break;
 		case mtpc_messageActionHistoryClear: _type = cons; break;
 		case mtpc_messageActionGameScore: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionGameScore>();
+			auto v = new MTPDmessageActionGameScore();
+			setData(v);
 			v->vgame_id.read(from, end);
 			v->vscore.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageActionPhoneCall: _type = cons; {
-			auto v = std::make_shared<MTPDmessageActionPhoneCall>();
+			auto v = new MTPDmessageActionPhoneCall();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vcall_id.read(from, end);
 			if (v->has_reason()) { v->vreason.read(from, end); } else { v->vreason = MTPPhoneCallDiscardReason(); }
 			if (v->has_duration()) { v->vduration.read(from, end); } else { v->vduration = MTPint(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessageAction");
 	}
@@ -24753,88 +24708,88 @@ inline void MTPmessageAction::write(mtpBuffer &to) const {
 inline MTPmessageAction::MTPmessageAction(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messageActionEmpty: break;
-		case mtpc_messageActionChatCreate: data = std::make_shared<MTPDmessageActionChatCreate>(); break;
-		case mtpc_messageActionChatEditTitle: data = std::make_shared<MTPDmessageActionChatEditTitle>(); break;
-		case mtpc_messageActionChatEditPhoto: data = std::make_shared<MTPDmessageActionChatEditPhoto>(); break;
+		case mtpc_messageActionChatCreate: setData(new MTPDmessageActionChatCreate()); break;
+		case mtpc_messageActionChatEditTitle: setData(new MTPDmessageActionChatEditTitle()); break;
+		case mtpc_messageActionChatEditPhoto: setData(new MTPDmessageActionChatEditPhoto()); break;
 		case mtpc_messageActionChatDeletePhoto: break;
-		case mtpc_messageActionChatAddUser: data = std::make_shared<MTPDmessageActionChatAddUser>(); break;
-		case mtpc_messageActionChatDeleteUser: data = std::make_shared<MTPDmessageActionChatDeleteUser>(); break;
-		case mtpc_messageActionChatJoinedByLink: data = std::make_shared<MTPDmessageActionChatJoinedByLink>(); break;
-		case mtpc_messageActionChannelCreate: data = std::make_shared<MTPDmessageActionChannelCreate>(); break;
-		case mtpc_messageActionChatMigrateTo: data = std::make_shared<MTPDmessageActionChatMigrateTo>(); break;
-		case mtpc_messageActionChannelMigrateFrom: data = std::make_shared<MTPDmessageActionChannelMigrateFrom>(); break;
+		case mtpc_messageActionChatAddUser: setData(new MTPDmessageActionChatAddUser()); break;
+		case mtpc_messageActionChatDeleteUser: setData(new MTPDmessageActionChatDeleteUser()); break;
+		case mtpc_messageActionChatJoinedByLink: setData(new MTPDmessageActionChatJoinedByLink()); break;
+		case mtpc_messageActionChannelCreate: setData(new MTPDmessageActionChannelCreate()); break;
+		case mtpc_messageActionChatMigrateTo: setData(new MTPDmessageActionChatMigrateTo()); break;
+		case mtpc_messageActionChannelMigrateFrom: setData(new MTPDmessageActionChannelMigrateFrom()); break;
 		case mtpc_messageActionPinMessage: break;
 		case mtpc_messageActionHistoryClear: break;
-		case mtpc_messageActionGameScore: data = std::make_shared<MTPDmessageActionGameScore>(); break;
-		case mtpc_messageActionPhoneCall: data = std::make_shared<MTPDmessageActionPhoneCall>(); break;
+		case mtpc_messageActionGameScore: setData(new MTPDmessageActionGameScore()); break;
+		case mtpc_messageActionPhoneCall: setData(new MTPDmessageActionPhoneCall()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessageAction");
 	}
 }
 inline const MTPDmessageActionChatCreate &MTPmessageAction::c_messageActionChatCreate() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatCreate);
-	return static_cast<const MTPDmessageActionChatCreate&>(*data);
+	t_assert(_type == mtpc_messageActionChatCreate);
+	return queryData<MTPDmessageActionChatCreate>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatCreate> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatCreate) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatCreate *data) : TypeDataOwner(data), _type(mtpc_messageActionChatCreate) {
 }
 inline const MTPDmessageActionChatEditTitle &MTPmessageAction::c_messageActionChatEditTitle() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatEditTitle);
-	return static_cast<const MTPDmessageActionChatEditTitle&>(*data);
+	t_assert(_type == mtpc_messageActionChatEditTitle);
+	return queryData<MTPDmessageActionChatEditTitle>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatEditTitle> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatEditTitle) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatEditTitle *data) : TypeDataOwner(data), _type(mtpc_messageActionChatEditTitle) {
 }
 inline const MTPDmessageActionChatEditPhoto &MTPmessageAction::c_messageActionChatEditPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatEditPhoto);
-	return static_cast<const MTPDmessageActionChatEditPhoto&>(*data);
+	t_assert(_type == mtpc_messageActionChatEditPhoto);
+	return queryData<MTPDmessageActionChatEditPhoto>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatEditPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatEditPhoto) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatEditPhoto *data) : TypeDataOwner(data), _type(mtpc_messageActionChatEditPhoto) {
 }
 inline const MTPDmessageActionChatAddUser &MTPmessageAction::c_messageActionChatAddUser() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatAddUser);
-	return static_cast<const MTPDmessageActionChatAddUser&>(*data);
+	t_assert(_type == mtpc_messageActionChatAddUser);
+	return queryData<MTPDmessageActionChatAddUser>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatAddUser> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatAddUser) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatAddUser *data) : TypeDataOwner(data), _type(mtpc_messageActionChatAddUser) {
 }
 inline const MTPDmessageActionChatDeleteUser &MTPmessageAction::c_messageActionChatDeleteUser() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatDeleteUser);
-	return static_cast<const MTPDmessageActionChatDeleteUser&>(*data);
+	t_assert(_type == mtpc_messageActionChatDeleteUser);
+	return queryData<MTPDmessageActionChatDeleteUser>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatDeleteUser> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatDeleteUser) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatDeleteUser *data) : TypeDataOwner(data), _type(mtpc_messageActionChatDeleteUser) {
 }
 inline const MTPDmessageActionChatJoinedByLink &MTPmessageAction::c_messageActionChatJoinedByLink() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatJoinedByLink);
-	return static_cast<const MTPDmessageActionChatJoinedByLink&>(*data);
+	t_assert(_type == mtpc_messageActionChatJoinedByLink);
+	return queryData<MTPDmessageActionChatJoinedByLink>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatJoinedByLink> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatJoinedByLink) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatJoinedByLink *data) : TypeDataOwner(data), _type(mtpc_messageActionChatJoinedByLink) {
 }
 inline const MTPDmessageActionChannelCreate &MTPmessageAction::c_messageActionChannelCreate() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChannelCreate);
-	return static_cast<const MTPDmessageActionChannelCreate&>(*data);
+	t_assert(_type == mtpc_messageActionChannelCreate);
+	return queryData<MTPDmessageActionChannelCreate>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChannelCreate> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChannelCreate) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChannelCreate *data) : TypeDataOwner(data), _type(mtpc_messageActionChannelCreate) {
 }
 inline const MTPDmessageActionChatMigrateTo &MTPmessageAction::c_messageActionChatMigrateTo() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChatMigrateTo);
-	return static_cast<const MTPDmessageActionChatMigrateTo&>(*data);
+	t_assert(_type == mtpc_messageActionChatMigrateTo);
+	return queryData<MTPDmessageActionChatMigrateTo>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChatMigrateTo> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChatMigrateTo) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChatMigrateTo *data) : TypeDataOwner(data), _type(mtpc_messageActionChatMigrateTo) {
 }
 inline const MTPDmessageActionChannelMigrateFrom &MTPmessageAction::c_messageActionChannelMigrateFrom() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionChannelMigrateFrom);
-	return static_cast<const MTPDmessageActionChannelMigrateFrom&>(*data);
+	t_assert(_type == mtpc_messageActionChannelMigrateFrom);
+	return queryData<MTPDmessageActionChannelMigrateFrom>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionChannelMigrateFrom> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionChannelMigrateFrom) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionChannelMigrateFrom *data) : TypeDataOwner(data), _type(mtpc_messageActionChannelMigrateFrom) {
 }
 inline const MTPDmessageActionGameScore &MTPmessageAction::c_messageActionGameScore() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionGameScore);
-	return static_cast<const MTPDmessageActionGameScore&>(*data);
+	t_assert(_type == mtpc_messageActionGameScore);
+	return queryData<MTPDmessageActionGameScore>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionGameScore> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionGameScore) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionGameScore *data) : TypeDataOwner(data), _type(mtpc_messageActionGameScore) {
 }
 inline const MTPDmessageActionPhoneCall &MTPmessageAction::c_messageActionPhoneCall() const {
-	t_assert(data != nullptr && _type == mtpc_messageActionPhoneCall);
-	return static_cast<const MTPDmessageActionPhoneCall&>(*data);
+	t_assert(_type == mtpc_messageActionPhoneCall);
+	return queryData<MTPDmessageActionPhoneCall>();
 }
-inline MTPmessageAction::MTPmessageAction(std::shared_ptr<const MTPDmessageActionPhoneCall> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageActionPhoneCall) {
+inline MTPmessageAction::MTPmessageAction(const MTPDmessageActionPhoneCall *data) : TypeDataOwner(data), _type(mtpc_messageActionPhoneCall) {
 }
 inline MTPmessageAction MTP_messageActionEmpty() {
 	return MTP::internal::TypeCreator::new_messageActionEmpty();
@@ -24883,7 +24838,7 @@ inline MTPmessageAction MTP_messageActionPhoneCall(const MTPflags<MTPDmessageAct
 	return MTP::internal::TypeCreator::new_messageActionPhoneCall(_flags, _call_id, _reason, _duration);
 }
 
-inline MTPdialog::MTPdialog() : mtpDataOwner(std::make_shared<MTPDdialog>()) {
+inline MTPdialog::MTPdialog() : TypeDataOwner(new MTPDdialog()) {
 }
 
 inline uint32 MTPdialog::innerLength() const {
@@ -24896,7 +24851,8 @@ inline mtpTypeId MTPdialog::type() const {
 inline void MTPdialog::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_dialog) throw mtpErrorUnexpected(cons, "MTPdialog");
 
-	auto v = std::make_shared<MTPDdialog>();
+	auto v = new MTPDdialog();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vpeer.read(from, end);
 	v->vtop_message.read(from, end);
@@ -24906,7 +24862,6 @@ inline void MTPdialog::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 	v->vnotify_settings.read(from, end);
 	if (v->has_pts()) { v->vpts.read(from, end); } else { v->vpts = MTPint(); }
 	if (v->has_draft()) { v->vdraft.read(from, end); } else { v->vdraft = MTPDraftMessage(); }
-	data = std::move(v);
 }
 inline void MTPdialog::write(mtpBuffer &to) const {
 	auto &v = c_dialog();
@@ -24921,10 +24876,9 @@ inline void MTPdialog::write(mtpBuffer &to) const {
 	if (v.has_draft()) v.vdraft.write(to);
 }
 inline const MTPDdialog &MTPdialog::c_dialog() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDdialog&>(*data);
+	return queryData<MTPDdialog>();
 }
-inline MTPdialog::MTPdialog(std::shared_ptr<const MTPDdialog> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPdialog::MTPdialog(const MTPDdialog *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDdialog::Flags)
 inline MTPdialog MTP_dialog(const MTPflags<MTPDdialog::Flags> &_flags, const MTPPeer &_peer, MTPint _top_message, MTPint _read_inbox_max_id, MTPint _read_outbox_max_id, MTPint _unread_count, const MTPPeerNotifySettings &_notify_settings, MTPint _pts, const MTPDraftMessage &_draft) {
@@ -24949,21 +24903,20 @@ inline mtpTypeId MTPphoto::type() const {
 	return _type;
 }
 inline void MTPphoto::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_photoEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDphotoEmpty>();
+			auto v = new MTPDphotoEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_photo: _type = cons; {
-			auto v = std::make_shared<MTPDphoto>();
+			auto v = new MTPDphoto();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
 			v->vsizes.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPphoto");
 	}
@@ -24986,22 +24939,22 @@ inline void MTPphoto::write(mtpBuffer &to) const {
 }
 inline MTPphoto::MTPphoto(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_photoEmpty: data = std::make_shared<MTPDphotoEmpty>(); break;
-		case mtpc_photo: data = std::make_shared<MTPDphoto>(); break;
+		case mtpc_photoEmpty: setData(new MTPDphotoEmpty()); break;
+		case mtpc_photo: setData(new MTPDphoto()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPphoto");
 	}
 }
 inline const MTPDphotoEmpty &MTPphoto::c_photoEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_photoEmpty);
-	return static_cast<const MTPDphotoEmpty&>(*data);
+	t_assert(_type == mtpc_photoEmpty);
+	return queryData<MTPDphotoEmpty>();
 }
-inline MTPphoto::MTPphoto(std::shared_ptr<const MTPDphotoEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photoEmpty) {
+inline MTPphoto::MTPphoto(const MTPDphotoEmpty *data) : TypeDataOwner(data), _type(mtpc_photoEmpty) {
 }
 inline const MTPDphoto &MTPphoto::c_photo() const {
-	t_assert(data != nullptr && _type == mtpc_photo);
-	return static_cast<const MTPDphoto&>(*data);
+	t_assert(_type == mtpc_photo);
+	return queryData<MTPDphoto>();
 }
-inline MTPphoto::MTPphoto(std::shared_ptr<const MTPDphoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photo) {
+inline MTPphoto::MTPphoto(const MTPDphoto *data) : TypeDataOwner(data), _type(mtpc_photo) {
 }
 inline MTPphoto MTP_photoEmpty(const MTPlong &_id) {
 	return MTP::internal::TypeCreator::new_photoEmpty(_id);
@@ -25033,30 +24986,29 @@ inline mtpTypeId MTPphotoSize::type() const {
 	return _type;
 }
 inline void MTPphotoSize::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_photoSizeEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDphotoSizeEmpty>();
+			auto v = new MTPDphotoSizeEmpty();
+			setData(v);
 			v->vtype.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_photoSize: _type = cons; {
-			auto v = std::make_shared<MTPDphotoSize>();
+			auto v = new MTPDphotoSize();
+			setData(v);
 			v->vtype.read(from, end);
 			v->vlocation.read(from, end);
 			v->vw.read(from, end);
 			v->vh.read(from, end);
 			v->vsize.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_photoCachedSize: _type = cons; {
-			auto v = std::make_shared<MTPDphotoCachedSize>();
+			auto v = new MTPDphotoCachedSize();
+			setData(v);
 			v->vtype.read(from, end);
 			v->vlocation.read(from, end);
 			v->vw.read(from, end);
 			v->vh.read(from, end);
 			v->vbytes.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPphotoSize");
 	}
@@ -25087,29 +25039,29 @@ inline void MTPphotoSize::write(mtpBuffer &to) const {
 }
 inline MTPphotoSize::MTPphotoSize(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_photoSizeEmpty: data = std::make_shared<MTPDphotoSizeEmpty>(); break;
-		case mtpc_photoSize: data = std::make_shared<MTPDphotoSize>(); break;
-		case mtpc_photoCachedSize: data = std::make_shared<MTPDphotoCachedSize>(); break;
+		case mtpc_photoSizeEmpty: setData(new MTPDphotoSizeEmpty()); break;
+		case mtpc_photoSize: setData(new MTPDphotoSize()); break;
+		case mtpc_photoCachedSize: setData(new MTPDphotoCachedSize()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPphotoSize");
 	}
 }
 inline const MTPDphotoSizeEmpty &MTPphotoSize::c_photoSizeEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_photoSizeEmpty);
-	return static_cast<const MTPDphotoSizeEmpty&>(*data);
+	t_assert(_type == mtpc_photoSizeEmpty);
+	return queryData<MTPDphotoSizeEmpty>();
 }
-inline MTPphotoSize::MTPphotoSize(std::shared_ptr<const MTPDphotoSizeEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photoSizeEmpty) {
+inline MTPphotoSize::MTPphotoSize(const MTPDphotoSizeEmpty *data) : TypeDataOwner(data), _type(mtpc_photoSizeEmpty) {
 }
 inline const MTPDphotoSize &MTPphotoSize::c_photoSize() const {
-	t_assert(data != nullptr && _type == mtpc_photoSize);
-	return static_cast<const MTPDphotoSize&>(*data);
+	t_assert(_type == mtpc_photoSize);
+	return queryData<MTPDphotoSize>();
 }
-inline MTPphotoSize::MTPphotoSize(std::shared_ptr<const MTPDphotoSize> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photoSize) {
+inline MTPphotoSize::MTPphotoSize(const MTPDphotoSize *data) : TypeDataOwner(data), _type(mtpc_photoSize) {
 }
 inline const MTPDphotoCachedSize &MTPphotoSize::c_photoCachedSize() const {
-	t_assert(data != nullptr && _type == mtpc_photoCachedSize);
-	return static_cast<const MTPDphotoCachedSize&>(*data);
+	t_assert(_type == mtpc_photoCachedSize);
+	return queryData<MTPDphotoCachedSize>();
 }
-inline MTPphotoSize::MTPphotoSize(std::shared_ptr<const MTPDphotoCachedSize> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photoCachedSize) {
+inline MTPphotoSize::MTPphotoSize(const MTPDphotoCachedSize *data) : TypeDataOwner(data), _type(mtpc_photoCachedSize) {
 }
 inline MTPphotoSize MTP_photoSizeEmpty(const MTPstring &_type) {
 	return MTP::internal::TypeCreator::new_photoSizeEmpty(_type);
@@ -25135,14 +25087,13 @@ inline mtpTypeId MTPgeoPoint::type() const {
 	return _type;
 }
 inline void MTPgeoPoint::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_geoPointEmpty: _type = cons; break;
 		case mtpc_geoPoint: _type = cons; {
-			auto v = std::make_shared<MTPDgeoPoint>();
+			auto v = new MTPDgeoPoint();
+			setData(v);
 			v->vlong.read(from, end);
 			v->vlat.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPgeoPoint");
 	}
@@ -25159,15 +25110,15 @@ inline void MTPgeoPoint::write(mtpBuffer &to) const {
 inline MTPgeoPoint::MTPgeoPoint(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_geoPointEmpty: break;
-		case mtpc_geoPoint: data = std::make_shared<MTPDgeoPoint>(); break;
+		case mtpc_geoPoint: setData(new MTPDgeoPoint()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPgeoPoint");
 	}
 }
 inline const MTPDgeoPoint &MTPgeoPoint::c_geoPoint() const {
-	t_assert(data != nullptr && _type == mtpc_geoPoint);
-	return static_cast<const MTPDgeoPoint&>(*data);
+	t_assert(_type == mtpc_geoPoint);
+	return queryData<MTPDgeoPoint>();
 }
-inline MTPgeoPoint::MTPgeoPoint(std::shared_ptr<const MTPDgeoPoint> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_geoPoint) {
+inline MTPgeoPoint::MTPgeoPoint(const MTPDgeoPoint *data) : TypeDataOwner(data), _type(mtpc_geoPoint) {
 }
 inline MTPgeoPoint MTP_geoPointEmpty() {
 	return MTP::internal::TypeCreator::new_geoPointEmpty();
@@ -25176,7 +25127,7 @@ inline MTPgeoPoint MTP_geoPoint(const MTPdouble &_long, const MTPdouble &_lat) {
 	return MTP::internal::TypeCreator::new_geoPoint(_long, _lat);
 }
 
-inline MTPauth_checkedPhone::MTPauth_checkedPhone() : mtpDataOwner(std::make_shared<MTPDauth_checkedPhone>()) {
+inline MTPauth_checkedPhone::MTPauth_checkedPhone() : TypeDataOwner(new MTPDauth_checkedPhone()) {
 }
 
 inline uint32 MTPauth_checkedPhone::innerLength() const {
@@ -25189,25 +25140,24 @@ inline mtpTypeId MTPauth_checkedPhone::type() const {
 inline void MTPauth_checkedPhone::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_auth_checkedPhone) throw mtpErrorUnexpected(cons, "MTPauth_checkedPhone");
 
-	auto v = std::make_shared<MTPDauth_checkedPhone>();
+	auto v = new MTPDauth_checkedPhone();
+	setData(v);
 	v->vphone_registered.read(from, end);
-	data = std::move(v);
 }
 inline void MTPauth_checkedPhone::write(mtpBuffer &to) const {
 	auto &v = c_auth_checkedPhone();
 	v.vphone_registered.write(to);
 }
 inline const MTPDauth_checkedPhone &MTPauth_checkedPhone::c_auth_checkedPhone() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDauth_checkedPhone&>(*data);
+	return queryData<MTPDauth_checkedPhone>();
 }
-inline MTPauth_checkedPhone::MTPauth_checkedPhone(std::shared_ptr<const MTPDauth_checkedPhone> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPauth_checkedPhone::MTPauth_checkedPhone(const MTPDauth_checkedPhone *data) : TypeDataOwner(data) {
 }
 inline MTPauth_checkedPhone MTP_auth_checkedPhone(MTPBool _phone_registered) {
 	return MTP::internal::TypeCreator::new_auth_checkedPhone(_phone_registered);
 }
 
-inline MTPauth_sentCode::MTPauth_sentCode() : mtpDataOwner(std::make_shared<MTPDauth_sentCode>()) {
+inline MTPauth_sentCode::MTPauth_sentCode() : TypeDataOwner(new MTPDauth_sentCode()) {
 }
 
 inline uint32 MTPauth_sentCode::innerLength() const {
@@ -25220,13 +25170,13 @@ inline mtpTypeId MTPauth_sentCode::type() const {
 inline void MTPauth_sentCode::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_auth_sentCode) throw mtpErrorUnexpected(cons, "MTPauth_sentCode");
 
-	auto v = std::make_shared<MTPDauth_sentCode>();
+	auto v = new MTPDauth_sentCode();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vtype.read(from, end);
 	v->vphone_code_hash.read(from, end);
 	if (v->has_next_type()) { v->vnext_type.read(from, end); } else { v->vnext_type = MTPauth_CodeType(); }
 	if (v->has_timeout()) { v->vtimeout.read(from, end); } else { v->vtimeout = MTPint(); }
-	data = std::move(v);
 }
 inline void MTPauth_sentCode::write(mtpBuffer &to) const {
 	auto &v = c_auth_sentCode();
@@ -25237,17 +25187,16 @@ inline void MTPauth_sentCode::write(mtpBuffer &to) const {
 	if (v.has_timeout()) v.vtimeout.write(to);
 }
 inline const MTPDauth_sentCode &MTPauth_sentCode::c_auth_sentCode() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDauth_sentCode&>(*data);
+	return queryData<MTPDauth_sentCode>();
 }
-inline MTPauth_sentCode::MTPauth_sentCode(std::shared_ptr<const MTPDauth_sentCode> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPauth_sentCode::MTPauth_sentCode(const MTPDauth_sentCode *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDauth_sentCode::Flags)
 inline MTPauth_sentCode MTP_auth_sentCode(const MTPflags<MTPDauth_sentCode::Flags> &_flags, const MTPauth_SentCodeType &_type, const MTPstring &_phone_code_hash, const MTPauth_CodeType &_next_type, MTPint _timeout) {
 	return MTP::internal::TypeCreator::new_auth_sentCode(_flags, _type, _phone_code_hash, _next_type, _timeout);
 }
 
-inline MTPauth_authorization::MTPauth_authorization() : mtpDataOwner(std::make_shared<MTPDauth_authorization>()) {
+inline MTPauth_authorization::MTPauth_authorization() : TypeDataOwner(new MTPDauth_authorization()) {
 }
 
 inline uint32 MTPauth_authorization::innerLength() const {
@@ -25260,11 +25209,11 @@ inline mtpTypeId MTPauth_authorization::type() const {
 inline void MTPauth_authorization::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_auth_authorization) throw mtpErrorUnexpected(cons, "MTPauth_authorization");
 
-	auto v = std::make_shared<MTPDauth_authorization>();
+	auto v = new MTPDauth_authorization();
+	setData(v);
 	v->vflags.read(from, end);
 	if (v->has_tmp_sessions()) { v->vtmp_sessions.read(from, end); } else { v->vtmp_sessions = MTPint(); }
 	v->vuser.read(from, end);
-	data = std::move(v);
 }
 inline void MTPauth_authorization::write(mtpBuffer &to) const {
 	auto &v = c_auth_authorization();
@@ -25273,17 +25222,16 @@ inline void MTPauth_authorization::write(mtpBuffer &to) const {
 	v.vuser.write(to);
 }
 inline const MTPDauth_authorization &MTPauth_authorization::c_auth_authorization() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDauth_authorization&>(*data);
+	return queryData<MTPDauth_authorization>();
 }
-inline MTPauth_authorization::MTPauth_authorization(std::shared_ptr<const MTPDauth_authorization> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPauth_authorization::MTPauth_authorization(const MTPDauth_authorization *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDauth_authorization::Flags)
 inline MTPauth_authorization MTP_auth_authorization(const MTPflags<MTPDauth_authorization::Flags> &_flags, MTPint _tmp_sessions, const MTPUser &_user) {
 	return MTP::internal::TypeCreator::new_auth_authorization(_flags, _tmp_sessions, _user);
 }
 
-inline MTPauth_exportedAuthorization::MTPauth_exportedAuthorization() : mtpDataOwner(std::make_shared<MTPDauth_exportedAuthorization>()) {
+inline MTPauth_exportedAuthorization::MTPauth_exportedAuthorization() : TypeDataOwner(new MTPDauth_exportedAuthorization()) {
 }
 
 inline uint32 MTPauth_exportedAuthorization::innerLength() const {
@@ -25296,10 +25244,10 @@ inline mtpTypeId MTPauth_exportedAuthorization::type() const {
 inline void MTPauth_exportedAuthorization::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_auth_exportedAuthorization) throw mtpErrorUnexpected(cons, "MTPauth_exportedAuthorization");
 
-	auto v = std::make_shared<MTPDauth_exportedAuthorization>();
+	auto v = new MTPDauth_exportedAuthorization();
+	setData(v);
 	v->vid.read(from, end);
 	v->vbytes.read(from, end);
-	data = std::move(v);
 }
 inline void MTPauth_exportedAuthorization::write(mtpBuffer &to) const {
 	auto &v = c_auth_exportedAuthorization();
@@ -25307,10 +25255,9 @@ inline void MTPauth_exportedAuthorization::write(mtpBuffer &to) const {
 	v.vbytes.write(to);
 }
 inline const MTPDauth_exportedAuthorization &MTPauth_exportedAuthorization::c_auth_exportedAuthorization() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDauth_exportedAuthorization&>(*data);
+	return queryData<MTPDauth_exportedAuthorization>();
 }
-inline MTPauth_exportedAuthorization::MTPauth_exportedAuthorization(std::shared_ptr<const MTPDauth_exportedAuthorization> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPauth_exportedAuthorization::MTPauth_exportedAuthorization(const MTPDauth_exportedAuthorization *data) : TypeDataOwner(data) {
 }
 inline MTPauth_exportedAuthorization MTP_auth_exportedAuthorization(MTPint _id, const MTPbytes &_bytes) {
 	return MTP::internal::TypeCreator::new_auth_exportedAuthorization(_id, _bytes);
@@ -25330,12 +25277,11 @@ inline mtpTypeId MTPinputNotifyPeer::type() const {
 	return _type;
 }
 inline void MTPinputNotifyPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputNotifyPeer: _type = cons; {
-			auto v = std::make_shared<MTPDinputNotifyPeer>();
+			auto v = new MTPDinputNotifyPeer();
+			setData(v);
 			v->vpeer.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputNotifyUsers: _type = cons; break;
 		case mtpc_inputNotifyChats: _type = cons; break;
@@ -25353,7 +25299,7 @@ inline void MTPinputNotifyPeer::write(mtpBuffer &to) const {
 }
 inline MTPinputNotifyPeer::MTPinputNotifyPeer(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputNotifyPeer: data = std::make_shared<MTPDinputNotifyPeer>(); break;
+		case mtpc_inputNotifyPeer: setData(new MTPDinputNotifyPeer()); break;
 		case mtpc_inputNotifyUsers: break;
 		case mtpc_inputNotifyChats: break;
 		case mtpc_inputNotifyAll: break;
@@ -25361,10 +25307,10 @@ inline MTPinputNotifyPeer::MTPinputNotifyPeer(mtpTypeId type) : _type(type) {
 	}
 }
 inline const MTPDinputNotifyPeer &MTPinputNotifyPeer::c_inputNotifyPeer() const {
-	t_assert(data != nullptr && _type == mtpc_inputNotifyPeer);
-	return static_cast<const MTPDinputNotifyPeer&>(*data);
+	t_assert(_type == mtpc_inputNotifyPeer);
+	return queryData<MTPDinputNotifyPeer>();
 }
-inline MTPinputNotifyPeer::MTPinputNotifyPeer(std::shared_ptr<const MTPDinputNotifyPeer> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputNotifyPeer) {
+inline MTPinputNotifyPeer::MTPinputNotifyPeer(const MTPDinputNotifyPeer *data) : TypeDataOwner(data), _type(mtpc_inputNotifyPeer) {
 }
 inline MTPinputNotifyPeer MTP_inputNotifyPeer(const MTPInputPeer &_peer) {
 	return MTP::internal::TypeCreator::new_inputNotifyPeer(_peer);
@@ -25409,7 +25355,7 @@ inline MTPinputPeerNotifyEvents MTP_inputPeerNotifyEventsAll() {
 	return MTP::internal::TypeCreator::new_inputPeerNotifyEventsAll();
 }
 
-inline MTPinputPeerNotifySettings::MTPinputPeerNotifySettings() : mtpDataOwner(std::make_shared<MTPDinputPeerNotifySettings>()) {
+inline MTPinputPeerNotifySettings::MTPinputPeerNotifySettings() : TypeDataOwner(new MTPDinputPeerNotifySettings()) {
 }
 
 inline uint32 MTPinputPeerNotifySettings::innerLength() const {
@@ -25422,11 +25368,11 @@ inline mtpTypeId MTPinputPeerNotifySettings::type() const {
 inline void MTPinputPeerNotifySettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inputPeerNotifySettings) throw mtpErrorUnexpected(cons, "MTPinputPeerNotifySettings");
 
-	auto v = std::make_shared<MTPDinputPeerNotifySettings>();
+	auto v = new MTPDinputPeerNotifySettings();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vmute_until.read(from, end);
 	v->vsound.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinputPeerNotifySettings::write(mtpBuffer &to) const {
 	auto &v = c_inputPeerNotifySettings();
@@ -25435,10 +25381,9 @@ inline void MTPinputPeerNotifySettings::write(mtpBuffer &to) const {
 	v.vsound.write(to);
 }
 inline const MTPDinputPeerNotifySettings &MTPinputPeerNotifySettings::c_inputPeerNotifySettings() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinputPeerNotifySettings&>(*data);
+	return queryData<MTPDinputPeerNotifySettings>();
 }
-inline MTPinputPeerNotifySettings::MTPinputPeerNotifySettings(std::shared_ptr<const MTPDinputPeerNotifySettings> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinputPeerNotifySettings::MTPinputPeerNotifySettings(const MTPDinputPeerNotifySettings *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputPeerNotifySettings::Flags)
 inline MTPinputPeerNotifySettings MTP_inputPeerNotifySettings(const MTPflags<MTPDinputPeerNotifySettings::Flags> &_flags, MTPint _mute_until, const MTPstring &_sound) {
@@ -25489,15 +25434,14 @@ inline mtpTypeId MTPpeerNotifySettings::type() const {
 	return _type;
 }
 inline void MTPpeerNotifySettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_peerNotifySettingsEmpty: _type = cons; break;
 		case mtpc_peerNotifySettings: _type = cons; {
-			auto v = std::make_shared<MTPDpeerNotifySettings>();
+			auto v = new MTPDpeerNotifySettings();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vmute_until.read(from, end);
 			v->vsound.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPpeerNotifySettings");
 	}
@@ -25515,15 +25459,15 @@ inline void MTPpeerNotifySettings::write(mtpBuffer &to) const {
 inline MTPpeerNotifySettings::MTPpeerNotifySettings(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_peerNotifySettingsEmpty: break;
-		case mtpc_peerNotifySettings: data = std::make_shared<MTPDpeerNotifySettings>(); break;
+		case mtpc_peerNotifySettings: setData(new MTPDpeerNotifySettings()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpeerNotifySettings");
 	}
 }
 inline const MTPDpeerNotifySettings &MTPpeerNotifySettings::c_peerNotifySettings() const {
-	t_assert(data != nullptr && _type == mtpc_peerNotifySettings);
-	return static_cast<const MTPDpeerNotifySettings&>(*data);
+	t_assert(_type == mtpc_peerNotifySettings);
+	return queryData<MTPDpeerNotifySettings>();
 }
-inline MTPpeerNotifySettings::MTPpeerNotifySettings(std::shared_ptr<const MTPDpeerNotifySettings> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_peerNotifySettings) {
+inline MTPpeerNotifySettings::MTPpeerNotifySettings(const MTPDpeerNotifySettings *data) : TypeDataOwner(data), _type(mtpc_peerNotifySettings) {
 }
 inline MTPpeerNotifySettings MTP_peerNotifySettingsEmpty() {
 	return MTP::internal::TypeCreator::new_peerNotifySettingsEmpty();
@@ -25533,7 +25477,7 @@ inline MTPpeerNotifySettings MTP_peerNotifySettings(const MTPflags<MTPDpeerNotif
 	return MTP::internal::TypeCreator::new_peerNotifySettings(_flags, _mute_until, _sound);
 }
 
-inline MTPpeerSettings::MTPpeerSettings() : mtpDataOwner(std::make_shared<MTPDpeerSettings>()) {
+inline MTPpeerSettings::MTPpeerSettings() : TypeDataOwner(new MTPDpeerSettings()) {
 }
 
 inline uint32 MTPpeerSettings::innerLength() const {
@@ -25546,19 +25490,18 @@ inline mtpTypeId MTPpeerSettings::type() const {
 inline void MTPpeerSettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_peerSettings) throw mtpErrorUnexpected(cons, "MTPpeerSettings");
 
-	auto v = std::make_shared<MTPDpeerSettings>();
+	auto v = new MTPDpeerSettings();
+	setData(v);
 	v->vflags.read(from, end);
-	data = std::move(v);
 }
 inline void MTPpeerSettings::write(mtpBuffer &to) const {
 	auto &v = c_peerSettings();
 	v.vflags.write(to);
 }
 inline const MTPDpeerSettings &MTPpeerSettings::c_peerSettings() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDpeerSettings&>(*data);
+	return queryData<MTPDpeerSettings>();
 }
-inline MTPpeerSettings::MTPpeerSettings(std::shared_ptr<const MTPDpeerSettings> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPpeerSettings::MTPpeerSettings(const MTPDpeerSettings *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDpeerSettings::Flags)
 inline MTPpeerSettings MTP_peerSettings(const MTPflags<MTPDpeerSettings::Flags> &_flags) {
@@ -25583,23 +25526,22 @@ inline mtpTypeId MTPwallPaper::type() const {
 	return _type;
 }
 inline void MTPwallPaper::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_wallPaper: _type = cons; {
-			auto v = std::make_shared<MTPDwallPaper>();
+			auto v = new MTPDwallPaper();
+			setData(v);
 			v->vid.read(from, end);
 			v->vtitle.read(from, end);
 			v->vsizes.read(from, end);
 			v->vcolor.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_wallPaperSolid: _type = cons; {
-			auto v = std::make_shared<MTPDwallPaperSolid>();
+			auto v = new MTPDwallPaperSolid();
+			setData(v);
 			v->vid.read(from, end);
 			v->vtitle.read(from, end);
 			v->vbg_color.read(from, end);
 			v->vcolor.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPwallPaper");
 	}
@@ -25624,22 +25566,22 @@ inline void MTPwallPaper::write(mtpBuffer &to) const {
 }
 inline MTPwallPaper::MTPwallPaper(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_wallPaper: data = std::make_shared<MTPDwallPaper>(); break;
-		case mtpc_wallPaperSolid: data = std::make_shared<MTPDwallPaperSolid>(); break;
+		case mtpc_wallPaper: setData(new MTPDwallPaper()); break;
+		case mtpc_wallPaperSolid: setData(new MTPDwallPaperSolid()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPwallPaper");
 	}
 }
 inline const MTPDwallPaper &MTPwallPaper::c_wallPaper() const {
-	t_assert(data != nullptr && _type == mtpc_wallPaper);
-	return static_cast<const MTPDwallPaper&>(*data);
+	t_assert(_type == mtpc_wallPaper);
+	return queryData<MTPDwallPaper>();
 }
-inline MTPwallPaper::MTPwallPaper(std::shared_ptr<const MTPDwallPaper> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_wallPaper) {
+inline MTPwallPaper::MTPwallPaper(const MTPDwallPaper *data) : TypeDataOwner(data), _type(mtpc_wallPaper) {
 }
 inline const MTPDwallPaperSolid &MTPwallPaper::c_wallPaperSolid() const {
-	t_assert(data != nullptr && _type == mtpc_wallPaperSolid);
-	return static_cast<const MTPDwallPaperSolid&>(*data);
+	t_assert(_type == mtpc_wallPaperSolid);
+	return queryData<MTPDwallPaperSolid>();
 }
-inline MTPwallPaper::MTPwallPaper(std::shared_ptr<const MTPDwallPaperSolid> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_wallPaperSolid) {
+inline MTPwallPaper::MTPwallPaper(const MTPDwallPaperSolid *data) : TypeDataOwner(data), _type(mtpc_wallPaperSolid) {
 }
 inline MTPwallPaper MTP_wallPaper(MTPint _id, const MTPstring &_title, const MTPVector<MTPPhotoSize> &_sizes, MTPint _color) {
 	return MTP::internal::TypeCreator::new_wallPaper(_id, _title, _sizes, _color);
@@ -25662,15 +25604,14 @@ inline mtpTypeId MTPreportReason::type() const {
 	return _type;
 }
 inline void MTPreportReason::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputReportReasonSpam: _type = cons; break;
 		case mtpc_inputReportReasonViolence: _type = cons; break;
 		case mtpc_inputReportReasonPornography: _type = cons; break;
 		case mtpc_inputReportReasonOther: _type = cons; {
-			auto v = std::make_shared<MTPDinputReportReasonOther>();
+			auto v = new MTPDinputReportReasonOther();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPreportReason");
 	}
@@ -25688,15 +25629,15 @@ inline MTPreportReason::MTPreportReason(mtpTypeId type) : _type(type) {
 		case mtpc_inputReportReasonSpam: break;
 		case mtpc_inputReportReasonViolence: break;
 		case mtpc_inputReportReasonPornography: break;
-		case mtpc_inputReportReasonOther: data = std::make_shared<MTPDinputReportReasonOther>(); break;
+		case mtpc_inputReportReasonOther: setData(new MTPDinputReportReasonOther()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPreportReason");
 	}
 }
 inline const MTPDinputReportReasonOther &MTPreportReason::c_inputReportReasonOther() const {
-	t_assert(data != nullptr && _type == mtpc_inputReportReasonOther);
-	return static_cast<const MTPDinputReportReasonOther&>(*data);
+	t_assert(_type == mtpc_inputReportReasonOther);
+	return queryData<MTPDinputReportReasonOther>();
 }
-inline MTPreportReason::MTPreportReason(std::shared_ptr<const MTPDinputReportReasonOther> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputReportReasonOther) {
+inline MTPreportReason::MTPreportReason(const MTPDinputReportReasonOther *data) : TypeDataOwner(data), _type(mtpc_inputReportReasonOther) {
 }
 inline MTPreportReason MTP_inputReportReasonSpam() {
 	return MTP::internal::TypeCreator::new_inputReportReasonSpam();
@@ -25711,7 +25652,7 @@ inline MTPreportReason MTP_inputReportReasonOther(const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_inputReportReasonOther(_text);
 }
 
-inline MTPuserFull::MTPuserFull() : mtpDataOwner(std::make_shared<MTPDuserFull>()) {
+inline MTPuserFull::MTPuserFull() : TypeDataOwner(new MTPDuserFull()) {
 }
 
 inline uint32 MTPuserFull::innerLength() const {
@@ -25724,7 +25665,8 @@ inline mtpTypeId MTPuserFull::type() const {
 inline void MTPuserFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_userFull) throw mtpErrorUnexpected(cons, "MTPuserFull");
 
-	auto v = std::make_shared<MTPDuserFull>();
+	auto v = new MTPDuserFull();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vuser.read(from, end);
 	if (v->has_about()) { v->vabout.read(from, end); } else { v->vabout = MTPstring(); }
@@ -25733,7 +25675,6 @@ inline void MTPuserFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTyp
 	v->vnotify_settings.read(from, end);
 	if (v->has_bot_info()) { v->vbot_info.read(from, end); } else { v->vbot_info = MTPBotInfo(); }
 	v->vcommon_chats_count.read(from, end);
-	data = std::move(v);
 }
 inline void MTPuserFull::write(mtpBuffer &to) const {
 	auto &v = c_userFull();
@@ -25747,17 +25688,16 @@ inline void MTPuserFull::write(mtpBuffer &to) const {
 	v.vcommon_chats_count.write(to);
 }
 inline const MTPDuserFull &MTPuserFull::c_userFull() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDuserFull&>(*data);
+	return queryData<MTPDuserFull>();
 }
-inline MTPuserFull::MTPuserFull(std::shared_ptr<const MTPDuserFull> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPuserFull::MTPuserFull(const MTPDuserFull *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDuserFull::Flags)
 inline MTPuserFull MTP_userFull(const MTPflags<MTPDuserFull::Flags> &_flags, const MTPUser &_user, const MTPstring &_about, const MTPcontacts_Link &_link, const MTPPhoto &_profile_photo, const MTPPeerNotifySettings &_notify_settings, const MTPBotInfo &_bot_info, MTPint _common_chats_count) {
 	return MTP::internal::TypeCreator::new_userFull(_flags, _user, _about, _link, _profile_photo, _notify_settings, _bot_info, _common_chats_count);
 }
 
-inline MTPcontact::MTPcontact() : mtpDataOwner(std::make_shared<MTPDcontact>()) {
+inline MTPcontact::MTPcontact() : TypeDataOwner(new MTPDcontact()) {
 }
 
 inline uint32 MTPcontact::innerLength() const {
@@ -25770,10 +25710,10 @@ inline mtpTypeId MTPcontact::type() const {
 inline void MTPcontact::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contact) throw mtpErrorUnexpected(cons, "MTPcontact");
 
-	auto v = std::make_shared<MTPDcontact>();
+	auto v = new MTPDcontact();
+	setData(v);
 	v->vuser_id.read(from, end);
 	v->vmutual.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontact::write(mtpBuffer &to) const {
 	auto &v = c_contact();
@@ -25781,16 +25721,15 @@ inline void MTPcontact::write(mtpBuffer &to) const {
 	v.vmutual.write(to);
 }
 inline const MTPDcontact &MTPcontact::c_contact() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontact&>(*data);
+	return queryData<MTPDcontact>();
 }
-inline MTPcontact::MTPcontact(std::shared_ptr<const MTPDcontact> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontact::MTPcontact(const MTPDcontact *data) : TypeDataOwner(data) {
 }
 inline MTPcontact MTP_contact(MTPint _user_id, MTPBool _mutual) {
 	return MTP::internal::TypeCreator::new_contact(_user_id, _mutual);
 }
 
-inline MTPimportedContact::MTPimportedContact() : mtpDataOwner(std::make_shared<MTPDimportedContact>()) {
+inline MTPimportedContact::MTPimportedContact() : TypeDataOwner(new MTPDimportedContact()) {
 }
 
 inline uint32 MTPimportedContact::innerLength() const {
@@ -25803,10 +25742,10 @@ inline mtpTypeId MTPimportedContact::type() const {
 inline void MTPimportedContact::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_importedContact) throw mtpErrorUnexpected(cons, "MTPimportedContact");
 
-	auto v = std::make_shared<MTPDimportedContact>();
+	auto v = new MTPDimportedContact();
+	setData(v);
 	v->vuser_id.read(from, end);
 	v->vclient_id.read(from, end);
-	data = std::move(v);
 }
 inline void MTPimportedContact::write(mtpBuffer &to) const {
 	auto &v = c_importedContact();
@@ -25814,16 +25753,15 @@ inline void MTPimportedContact::write(mtpBuffer &to) const {
 	v.vclient_id.write(to);
 }
 inline const MTPDimportedContact &MTPimportedContact::c_importedContact() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDimportedContact&>(*data);
+	return queryData<MTPDimportedContact>();
 }
-inline MTPimportedContact::MTPimportedContact(std::shared_ptr<const MTPDimportedContact> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPimportedContact::MTPimportedContact(const MTPDimportedContact *data) : TypeDataOwner(data) {
 }
 inline MTPimportedContact MTP_importedContact(MTPint _user_id, const MTPlong &_client_id) {
 	return MTP::internal::TypeCreator::new_importedContact(_user_id, _client_id);
 }
 
-inline MTPcontactBlocked::MTPcontactBlocked() : mtpDataOwner(std::make_shared<MTPDcontactBlocked>()) {
+inline MTPcontactBlocked::MTPcontactBlocked() : TypeDataOwner(new MTPDcontactBlocked()) {
 }
 
 inline uint32 MTPcontactBlocked::innerLength() const {
@@ -25836,10 +25774,10 @@ inline mtpTypeId MTPcontactBlocked::type() const {
 inline void MTPcontactBlocked::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contactBlocked) throw mtpErrorUnexpected(cons, "MTPcontactBlocked");
 
-	auto v = std::make_shared<MTPDcontactBlocked>();
+	auto v = new MTPDcontactBlocked();
+	setData(v);
 	v->vuser_id.read(from, end);
 	v->vdate.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontactBlocked::write(mtpBuffer &to) const {
 	auto &v = c_contactBlocked();
@@ -25847,16 +25785,15 @@ inline void MTPcontactBlocked::write(mtpBuffer &to) const {
 	v.vdate.write(to);
 }
 inline const MTPDcontactBlocked &MTPcontactBlocked::c_contactBlocked() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontactBlocked&>(*data);
+	return queryData<MTPDcontactBlocked>();
 }
-inline MTPcontactBlocked::MTPcontactBlocked(std::shared_ptr<const MTPDcontactBlocked> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontactBlocked::MTPcontactBlocked(const MTPDcontactBlocked *data) : TypeDataOwner(data) {
 }
 inline MTPcontactBlocked MTP_contactBlocked(MTPint _user_id, MTPint _date) {
 	return MTP::internal::TypeCreator::new_contactBlocked(_user_id, _date);
 }
 
-inline MTPcontactStatus::MTPcontactStatus() : mtpDataOwner(std::make_shared<MTPDcontactStatus>()) {
+inline MTPcontactStatus::MTPcontactStatus() : TypeDataOwner(new MTPDcontactStatus()) {
 }
 
 inline uint32 MTPcontactStatus::innerLength() const {
@@ -25869,10 +25806,10 @@ inline mtpTypeId MTPcontactStatus::type() const {
 inline void MTPcontactStatus::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contactStatus) throw mtpErrorUnexpected(cons, "MTPcontactStatus");
 
-	auto v = std::make_shared<MTPDcontactStatus>();
+	auto v = new MTPDcontactStatus();
+	setData(v);
 	v->vuser_id.read(from, end);
 	v->vstatus.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontactStatus::write(mtpBuffer &to) const {
 	auto &v = c_contactStatus();
@@ -25880,16 +25817,15 @@ inline void MTPcontactStatus::write(mtpBuffer &to) const {
 	v.vstatus.write(to);
 }
 inline const MTPDcontactStatus &MTPcontactStatus::c_contactStatus() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontactStatus&>(*data);
+	return queryData<MTPDcontactStatus>();
 }
-inline MTPcontactStatus::MTPcontactStatus(std::shared_ptr<const MTPDcontactStatus> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontactStatus::MTPcontactStatus(const MTPDcontactStatus *data) : TypeDataOwner(data) {
 }
 inline MTPcontactStatus MTP_contactStatus(MTPint _user_id, const MTPUserStatus &_status) {
 	return MTP::internal::TypeCreator::new_contactStatus(_user_id, _status);
 }
 
-inline MTPcontacts_link::MTPcontacts_link() : mtpDataOwner(std::make_shared<MTPDcontacts_link>()) {
+inline MTPcontacts_link::MTPcontacts_link() : TypeDataOwner(new MTPDcontacts_link()) {
 }
 
 inline uint32 MTPcontacts_link::innerLength() const {
@@ -25902,11 +25838,11 @@ inline mtpTypeId MTPcontacts_link::type() const {
 inline void MTPcontacts_link::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contacts_link) throw mtpErrorUnexpected(cons, "MTPcontacts_link");
 
-	auto v = std::make_shared<MTPDcontacts_link>();
+	auto v = new MTPDcontacts_link();
+	setData(v);
 	v->vmy_link.read(from, end);
 	v->vforeign_link.read(from, end);
 	v->vuser.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontacts_link::write(mtpBuffer &to) const {
 	auto &v = c_contacts_link();
@@ -25915,10 +25851,9 @@ inline void MTPcontacts_link::write(mtpBuffer &to) const {
 	v.vuser.write(to);
 }
 inline const MTPDcontacts_link &MTPcontacts_link::c_contacts_link() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontacts_link&>(*data);
+	return queryData<MTPDcontacts_link>();
 }
-inline MTPcontacts_link::MTPcontacts_link(std::shared_ptr<const MTPDcontacts_link> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontacts_link::MTPcontacts_link(const MTPDcontacts_link *data) : TypeDataOwner(data) {
 }
 inline MTPcontacts_link MTP_contacts_link(const MTPContactLink &_my_link, const MTPContactLink &_foreign_link, const MTPUser &_user) {
 	return MTP::internal::TypeCreator::new_contacts_link(_my_link, _foreign_link, _user);
@@ -25938,14 +25873,13 @@ inline mtpTypeId MTPcontacts_contacts::type() const {
 	return _type;
 }
 inline void MTPcontacts_contacts::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_contacts_contactsNotModified: _type = cons; break;
 		case mtpc_contacts_contacts: _type = cons; {
-			auto v = std::make_shared<MTPDcontacts_contacts>();
+			auto v = new MTPDcontacts_contacts();
+			setData(v);
 			v->vcontacts.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPcontacts_contacts");
 	}
@@ -25962,15 +25896,15 @@ inline void MTPcontacts_contacts::write(mtpBuffer &to) const {
 inline MTPcontacts_contacts::MTPcontacts_contacts(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_contacts_contactsNotModified: break;
-		case mtpc_contacts_contacts: data = std::make_shared<MTPDcontacts_contacts>(); break;
+		case mtpc_contacts_contacts: setData(new MTPDcontacts_contacts()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_contacts");
 	}
 }
 inline const MTPDcontacts_contacts &MTPcontacts_contacts::c_contacts_contacts() const {
-	t_assert(data != nullptr && _type == mtpc_contacts_contacts);
-	return static_cast<const MTPDcontacts_contacts&>(*data);
+	t_assert(_type == mtpc_contacts_contacts);
+	return queryData<MTPDcontacts_contacts>();
 }
-inline MTPcontacts_contacts::MTPcontacts_contacts(std::shared_ptr<const MTPDcontacts_contacts> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_contacts_contacts) {
+inline MTPcontacts_contacts::MTPcontacts_contacts(const MTPDcontacts_contacts *data) : TypeDataOwner(data), _type(mtpc_contacts_contacts) {
 }
 inline MTPcontacts_contacts MTP_contacts_contactsNotModified() {
 	return MTP::internal::TypeCreator::new_contacts_contactsNotModified();
@@ -25979,7 +25913,7 @@ inline MTPcontacts_contacts MTP_contacts_contacts(const MTPVector<MTPContact> &_
 	return MTP::internal::TypeCreator::new_contacts_contacts(_contacts, _users);
 }
 
-inline MTPcontacts_importedContacts::MTPcontacts_importedContacts() : mtpDataOwner(std::make_shared<MTPDcontacts_importedContacts>()) {
+inline MTPcontacts_importedContacts::MTPcontacts_importedContacts() : TypeDataOwner(new MTPDcontacts_importedContacts()) {
 }
 
 inline uint32 MTPcontacts_importedContacts::innerLength() const {
@@ -25992,11 +25926,11 @@ inline mtpTypeId MTPcontacts_importedContacts::type() const {
 inline void MTPcontacts_importedContacts::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contacts_importedContacts) throw mtpErrorUnexpected(cons, "MTPcontacts_importedContacts");
 
-	auto v = std::make_shared<MTPDcontacts_importedContacts>();
+	auto v = new MTPDcontacts_importedContacts();
+	setData(v);
 	v->vimported.read(from, end);
 	v->vretry_contacts.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontacts_importedContacts::write(mtpBuffer &to) const {
 	auto &v = c_contacts_importedContacts();
@@ -26005,10 +25939,9 @@ inline void MTPcontacts_importedContacts::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDcontacts_importedContacts &MTPcontacts_importedContacts::c_contacts_importedContacts() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontacts_importedContacts&>(*data);
+	return queryData<MTPDcontacts_importedContacts>();
 }
-inline MTPcontacts_importedContacts::MTPcontacts_importedContacts(std::shared_ptr<const MTPDcontacts_importedContacts> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontacts_importedContacts::MTPcontacts_importedContacts(const MTPDcontacts_importedContacts *data) : TypeDataOwner(data) {
 }
 inline MTPcontacts_importedContacts MTP_contacts_importedContacts(const MTPVector<MTPImportedContact> &_imported, const MTPVector<MTPlong> &_retry_contacts, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_contacts_importedContacts(_imported, _retry_contacts, _users);
@@ -26032,20 +25965,19 @@ inline mtpTypeId MTPcontacts_blocked::type() const {
 	return _type;
 }
 inline void MTPcontacts_blocked::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_contacts_blocked: _type = cons; {
-			auto v = std::make_shared<MTPDcontacts_blocked>();
+			auto v = new MTPDcontacts_blocked();
+			setData(v);
 			v->vblocked.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_contacts_blockedSlice: _type = cons; {
-			auto v = std::make_shared<MTPDcontacts_blockedSlice>();
+			auto v = new MTPDcontacts_blockedSlice();
+			setData(v);
 			v->vcount.read(from, end);
 			v->vblocked.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPcontacts_blocked");
 	}
@@ -26067,22 +25999,22 @@ inline void MTPcontacts_blocked::write(mtpBuffer &to) const {
 }
 inline MTPcontacts_blocked::MTPcontacts_blocked(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_contacts_blocked: data = std::make_shared<MTPDcontacts_blocked>(); break;
-		case mtpc_contacts_blockedSlice: data = std::make_shared<MTPDcontacts_blockedSlice>(); break;
+		case mtpc_contacts_blocked: setData(new MTPDcontacts_blocked()); break;
+		case mtpc_contacts_blockedSlice: setData(new MTPDcontacts_blockedSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_blocked");
 	}
 }
 inline const MTPDcontacts_blocked &MTPcontacts_blocked::c_contacts_blocked() const {
-	t_assert(data != nullptr && _type == mtpc_contacts_blocked);
-	return static_cast<const MTPDcontacts_blocked&>(*data);
+	t_assert(_type == mtpc_contacts_blocked);
+	return queryData<MTPDcontacts_blocked>();
 }
-inline MTPcontacts_blocked::MTPcontacts_blocked(std::shared_ptr<const MTPDcontacts_blocked> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_contacts_blocked) {
+inline MTPcontacts_blocked::MTPcontacts_blocked(const MTPDcontacts_blocked *data) : TypeDataOwner(data), _type(mtpc_contacts_blocked) {
 }
 inline const MTPDcontacts_blockedSlice &MTPcontacts_blocked::c_contacts_blockedSlice() const {
-	t_assert(data != nullptr && _type == mtpc_contacts_blockedSlice);
-	return static_cast<const MTPDcontacts_blockedSlice&>(*data);
+	t_assert(_type == mtpc_contacts_blockedSlice);
+	return queryData<MTPDcontacts_blockedSlice>();
 }
-inline MTPcontacts_blocked::MTPcontacts_blocked(std::shared_ptr<const MTPDcontacts_blockedSlice> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_contacts_blockedSlice) {
+inline MTPcontacts_blocked::MTPcontacts_blocked(const MTPDcontacts_blockedSlice *data) : TypeDataOwner(data), _type(mtpc_contacts_blockedSlice) {
 }
 inline MTPcontacts_blocked MTP_contacts_blocked(const MTPVector<MTPContactBlocked> &_blocked, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_contacts_blocked(_blocked, _users);
@@ -26109,24 +26041,23 @@ inline mtpTypeId MTPmessages_dialogs::type() const {
 	return _type;
 }
 inline void MTPmessages_dialogs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_dialogs: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_dialogs>();
+			auto v = new MTPDmessages_dialogs();
+			setData(v);
 			v->vdialogs.read(from, end);
 			v->vmessages.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messages_dialogsSlice: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_dialogsSlice>();
+			auto v = new MTPDmessages_dialogsSlice();
+			setData(v);
 			v->vcount.read(from, end);
 			v->vdialogs.read(from, end);
 			v->vmessages.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_dialogs");
 	}
@@ -26152,22 +26083,22 @@ inline void MTPmessages_dialogs::write(mtpBuffer &to) const {
 }
 inline MTPmessages_dialogs::MTPmessages_dialogs(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messages_dialogs: data = std::make_shared<MTPDmessages_dialogs>(); break;
-		case mtpc_messages_dialogsSlice: data = std::make_shared<MTPDmessages_dialogsSlice>(); break;
+		case mtpc_messages_dialogs: setData(new MTPDmessages_dialogs()); break;
+		case mtpc_messages_dialogsSlice: setData(new MTPDmessages_dialogsSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_dialogs");
 	}
 }
 inline const MTPDmessages_dialogs &MTPmessages_dialogs::c_messages_dialogs() const {
-	t_assert(data != nullptr && _type == mtpc_messages_dialogs);
-	return static_cast<const MTPDmessages_dialogs&>(*data);
+	t_assert(_type == mtpc_messages_dialogs);
+	return queryData<MTPDmessages_dialogs>();
 }
-inline MTPmessages_dialogs::MTPmessages_dialogs(std::shared_ptr<const MTPDmessages_dialogs> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_dialogs) {
+inline MTPmessages_dialogs::MTPmessages_dialogs(const MTPDmessages_dialogs *data) : TypeDataOwner(data), _type(mtpc_messages_dialogs) {
 }
 inline const MTPDmessages_dialogsSlice &MTPmessages_dialogs::c_messages_dialogsSlice() const {
-	t_assert(data != nullptr && _type == mtpc_messages_dialogsSlice);
-	return static_cast<const MTPDmessages_dialogsSlice&>(*data);
+	t_assert(_type == mtpc_messages_dialogsSlice);
+	return queryData<MTPDmessages_dialogsSlice>();
 }
-inline MTPmessages_dialogs::MTPmessages_dialogs(std::shared_ptr<const MTPDmessages_dialogsSlice> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_dialogsSlice) {
+inline MTPmessages_dialogs::MTPmessages_dialogs(const MTPDmessages_dialogsSlice *data) : TypeDataOwner(data), _type(mtpc_messages_dialogsSlice) {
 }
 inline MTPmessages_dialogs MTP_messages_dialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_messages_dialogs(_dialogs, _messages, _chats, _users);
@@ -26198,32 +26129,31 @@ inline mtpTypeId MTPmessages_messages::type() const {
 	return _type;
 }
 inline void MTPmessages_messages::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_messages: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_messages>();
+			auto v = new MTPDmessages_messages();
+			setData(v);
 			v->vmessages.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messages_messagesSlice: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_messagesSlice>();
+			auto v = new MTPDmessages_messagesSlice();
+			setData(v);
 			v->vcount.read(from, end);
 			v->vmessages.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messages_channelMessages: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_channelMessages>();
+			auto v = new MTPDmessages_channelMessages();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vpts.read(from, end);
 			v->vcount.read(from, end);
 			v->vmessages.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_messages");
 	}
@@ -26256,29 +26186,29 @@ inline void MTPmessages_messages::write(mtpBuffer &to) const {
 }
 inline MTPmessages_messages::MTPmessages_messages(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messages_messages: data = std::make_shared<MTPDmessages_messages>(); break;
-		case mtpc_messages_messagesSlice: data = std::make_shared<MTPDmessages_messagesSlice>(); break;
-		case mtpc_messages_channelMessages: data = std::make_shared<MTPDmessages_channelMessages>(); break;
+		case mtpc_messages_messages: setData(new MTPDmessages_messages()); break;
+		case mtpc_messages_messagesSlice: setData(new MTPDmessages_messagesSlice()); break;
+		case mtpc_messages_channelMessages: setData(new MTPDmessages_channelMessages()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_messages");
 	}
 }
 inline const MTPDmessages_messages &MTPmessages_messages::c_messages_messages() const {
-	t_assert(data != nullptr && _type == mtpc_messages_messages);
-	return static_cast<const MTPDmessages_messages&>(*data);
+	t_assert(_type == mtpc_messages_messages);
+	return queryData<MTPDmessages_messages>();
 }
-inline MTPmessages_messages::MTPmessages_messages(std::shared_ptr<const MTPDmessages_messages> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_messages) {
+inline MTPmessages_messages::MTPmessages_messages(const MTPDmessages_messages *data) : TypeDataOwner(data), _type(mtpc_messages_messages) {
 }
 inline const MTPDmessages_messagesSlice &MTPmessages_messages::c_messages_messagesSlice() const {
-	t_assert(data != nullptr && _type == mtpc_messages_messagesSlice);
-	return static_cast<const MTPDmessages_messagesSlice&>(*data);
+	t_assert(_type == mtpc_messages_messagesSlice);
+	return queryData<MTPDmessages_messagesSlice>();
 }
-inline MTPmessages_messages::MTPmessages_messages(std::shared_ptr<const MTPDmessages_messagesSlice> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_messagesSlice) {
+inline MTPmessages_messages::MTPmessages_messages(const MTPDmessages_messagesSlice *data) : TypeDataOwner(data), _type(mtpc_messages_messagesSlice) {
 }
 inline const MTPDmessages_channelMessages &MTPmessages_messages::c_messages_channelMessages() const {
-	t_assert(data != nullptr && _type == mtpc_messages_channelMessages);
-	return static_cast<const MTPDmessages_channelMessages&>(*data);
+	t_assert(_type == mtpc_messages_channelMessages);
+	return queryData<MTPDmessages_channelMessages>();
 }
-inline MTPmessages_messages::MTPmessages_messages(std::shared_ptr<const MTPDmessages_channelMessages> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_channelMessages) {
+inline MTPmessages_messages::MTPmessages_messages(const MTPDmessages_channelMessages *data) : TypeDataOwner(data), _type(mtpc_messages_channelMessages) {
 }
 inline MTPmessages_messages MTP_messages_messages(const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_messages_messages(_messages, _chats, _users);
@@ -26308,18 +26238,17 @@ inline mtpTypeId MTPmessages_chats::type() const {
 	return _type;
 }
 inline void MTPmessages_chats::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_chats: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_chats>();
+			auto v = new MTPDmessages_chats();
+			setData(v);
 			v->vchats.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messages_chatsSlice: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_chatsSlice>();
+			auto v = new MTPDmessages_chatsSlice();
+			setData(v);
 			v->vcount.read(from, end);
 			v->vchats.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_chats");
 	}
@@ -26339,22 +26268,22 @@ inline void MTPmessages_chats::write(mtpBuffer &to) const {
 }
 inline MTPmessages_chats::MTPmessages_chats(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messages_chats: data = std::make_shared<MTPDmessages_chats>(); break;
-		case mtpc_messages_chatsSlice: data = std::make_shared<MTPDmessages_chatsSlice>(); break;
+		case mtpc_messages_chats: setData(new MTPDmessages_chats()); break;
+		case mtpc_messages_chatsSlice: setData(new MTPDmessages_chatsSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_chats");
 	}
 }
 inline const MTPDmessages_chats &MTPmessages_chats::c_messages_chats() const {
-	t_assert(data != nullptr && _type == mtpc_messages_chats);
-	return static_cast<const MTPDmessages_chats&>(*data);
+	t_assert(_type == mtpc_messages_chats);
+	return queryData<MTPDmessages_chats>();
 }
-inline MTPmessages_chats::MTPmessages_chats(std::shared_ptr<const MTPDmessages_chats> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_chats) {
+inline MTPmessages_chats::MTPmessages_chats(const MTPDmessages_chats *data) : TypeDataOwner(data), _type(mtpc_messages_chats) {
 }
 inline const MTPDmessages_chatsSlice &MTPmessages_chats::c_messages_chatsSlice() const {
-	t_assert(data != nullptr && _type == mtpc_messages_chatsSlice);
-	return static_cast<const MTPDmessages_chatsSlice&>(*data);
+	t_assert(_type == mtpc_messages_chatsSlice);
+	return queryData<MTPDmessages_chatsSlice>();
 }
-inline MTPmessages_chats::MTPmessages_chats(std::shared_ptr<const MTPDmessages_chatsSlice> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_chatsSlice) {
+inline MTPmessages_chats::MTPmessages_chats(const MTPDmessages_chatsSlice *data) : TypeDataOwner(data), _type(mtpc_messages_chatsSlice) {
 }
 inline MTPmessages_chats MTP_messages_chats(const MTPVector<MTPChat> &_chats) {
 	return MTP::internal::TypeCreator::new_messages_chats(_chats);
@@ -26363,7 +26292,7 @@ inline MTPmessages_chats MTP_messages_chatsSlice(MTPint _count, const MTPVector<
 	return MTP::internal::TypeCreator::new_messages_chatsSlice(_count, _chats);
 }
 
-inline MTPmessages_chatFull::MTPmessages_chatFull() : mtpDataOwner(std::make_shared<MTPDmessages_chatFull>()) {
+inline MTPmessages_chatFull::MTPmessages_chatFull() : TypeDataOwner(new MTPDmessages_chatFull()) {
 }
 
 inline uint32 MTPmessages_chatFull::innerLength() const {
@@ -26376,11 +26305,11 @@ inline mtpTypeId MTPmessages_chatFull::type() const {
 inline void MTPmessages_chatFull::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_chatFull) throw mtpErrorUnexpected(cons, "MTPmessages_chatFull");
 
-	auto v = std::make_shared<MTPDmessages_chatFull>();
+	auto v = new MTPDmessages_chatFull();
+	setData(v);
 	v->vfull_chat.read(from, end);
 	v->vchats.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_chatFull::write(mtpBuffer &to) const {
 	auto &v = c_messages_chatFull();
@@ -26389,16 +26318,15 @@ inline void MTPmessages_chatFull::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDmessages_chatFull &MTPmessages_chatFull::c_messages_chatFull() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_chatFull&>(*data);
+	return queryData<MTPDmessages_chatFull>();
 }
-inline MTPmessages_chatFull::MTPmessages_chatFull(std::shared_ptr<const MTPDmessages_chatFull> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_chatFull::MTPmessages_chatFull(const MTPDmessages_chatFull *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_chatFull MTP_messages_chatFull(const MTPChatFull &_full_chat, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_messages_chatFull(_full_chat, _chats, _users);
 }
 
-inline MTPmessages_affectedHistory::MTPmessages_affectedHistory() : mtpDataOwner(std::make_shared<MTPDmessages_affectedHistory>()) {
+inline MTPmessages_affectedHistory::MTPmessages_affectedHistory() : TypeDataOwner(new MTPDmessages_affectedHistory()) {
 }
 
 inline uint32 MTPmessages_affectedHistory::innerLength() const {
@@ -26411,11 +26339,11 @@ inline mtpTypeId MTPmessages_affectedHistory::type() const {
 inline void MTPmessages_affectedHistory::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_affectedHistory) throw mtpErrorUnexpected(cons, "MTPmessages_affectedHistory");
 
-	auto v = std::make_shared<MTPDmessages_affectedHistory>();
+	auto v = new MTPDmessages_affectedHistory();
+	setData(v);
 	v->vpts.read(from, end);
 	v->vpts_count.read(from, end);
 	v->voffset.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_affectedHistory::write(mtpBuffer &to) const {
 	auto &v = c_messages_affectedHistory();
@@ -26424,10 +26352,9 @@ inline void MTPmessages_affectedHistory::write(mtpBuffer &to) const {
 	v.voffset.write(to);
 }
 inline const MTPDmessages_affectedHistory &MTPmessages_affectedHistory::c_messages_affectedHistory() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_affectedHistory&>(*data);
+	return queryData<MTPDmessages_affectedHistory>();
 }
-inline MTPmessages_affectedHistory::MTPmessages_affectedHistory(std::shared_ptr<const MTPDmessages_affectedHistory> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_affectedHistory::MTPmessages_affectedHistory(const MTPDmessages_affectedHistory *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_affectedHistory MTP_messages_affectedHistory(MTPint _pts, MTPint _pts_count, MTPint _offset) {
 	return MTP::internal::TypeCreator::new_messages_affectedHistory(_pts, _pts_count, _offset);
@@ -26447,7 +26374,6 @@ inline mtpTypeId MTPmessagesFilter::type() const {
 	return _type;
 }
 inline void MTPmessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputMessagesFilterEmpty: _type = cons; break;
 		case mtpc_inputMessagesFilterPhotos: _type = cons; break;
@@ -26461,9 +26387,9 @@ inline void MTPmessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, 
 		case mtpc_inputMessagesFilterMusic: _type = cons; break;
 		case mtpc_inputMessagesFilterChatPhotos: _type = cons; break;
 		case mtpc_inputMessagesFilterPhoneCalls: _type = cons; {
-			auto v = std::make_shared<MTPDinputMessagesFilterPhoneCalls>();
+			auto v = new MTPDinputMessagesFilterPhoneCalls();
+			setData(v);
 			v->vflags.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessagesFilter");
 	}
@@ -26489,15 +26415,15 @@ inline MTPmessagesFilter::MTPmessagesFilter(mtpTypeId type) : _type(type) {
 		case mtpc_inputMessagesFilterVoice: break;
 		case mtpc_inputMessagesFilterMusic: break;
 		case mtpc_inputMessagesFilterChatPhotos: break;
-		case mtpc_inputMessagesFilterPhoneCalls: data = std::make_shared<MTPDinputMessagesFilterPhoneCalls>(); break;
+		case mtpc_inputMessagesFilterPhoneCalls: setData(new MTPDinputMessagesFilterPhoneCalls()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessagesFilter");
 	}
 }
 inline const MTPDinputMessagesFilterPhoneCalls &MTPmessagesFilter::c_inputMessagesFilterPhoneCalls() const {
-	t_assert(data != nullptr && _type == mtpc_inputMessagesFilterPhoneCalls);
-	return static_cast<const MTPDinputMessagesFilterPhoneCalls&>(*data);
+	t_assert(_type == mtpc_inputMessagesFilterPhoneCalls);
+	return queryData<MTPDinputMessagesFilterPhoneCalls>();
 }
-inline MTPmessagesFilter::MTPmessagesFilter(std::shared_ptr<const MTPDinputMessagesFilterPhoneCalls> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMessagesFilterPhoneCalls) {
+inline MTPmessagesFilter::MTPmessagesFilter(const MTPDinputMessagesFilterPhoneCalls *data) : TypeDataOwner(data), _type(mtpc_inputMessagesFilterPhoneCalls) {
 }
 inline MTPmessagesFilter MTP_inputMessagesFilterEmpty() {
 	return MTP::internal::TypeCreator::new_inputMessagesFilterEmpty();
@@ -26747,293 +26673,293 @@ inline mtpTypeId MTPupdate::type() const {
 	return _type;
 }
 inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_updateNewMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateNewMessage>();
+			auto v = new MTPDupdateNewMessage();
+			setData(v);
 			v->vmessage.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateMessageID: _type = cons; {
-			auto v = std::make_shared<MTPDupdateMessageID>();
+			auto v = new MTPDupdateMessageID();
+			setData(v);
 			v->vid.read(from, end);
 			v->vrandom_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateDeleteMessages: _type = cons; {
-			auto v = std::make_shared<MTPDupdateDeleteMessages>();
+			auto v = new MTPDupdateDeleteMessages();
+			setData(v);
 			v->vmessages.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateUserTyping: _type = cons; {
-			auto v = std::make_shared<MTPDupdateUserTyping>();
+			auto v = new MTPDupdateUserTyping();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vaction.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChatUserTyping: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChatUserTyping>();
+			auto v = new MTPDupdateChatUserTyping();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->vuser_id.read(from, end);
 			v->vaction.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChatParticipants: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChatParticipants>();
+			auto v = new MTPDupdateChatParticipants();
+			setData(v);
 			v->vparticipants.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateUserStatus: _type = cons; {
-			auto v = std::make_shared<MTPDupdateUserStatus>();
+			auto v = new MTPDupdateUserStatus();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vstatus.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateUserName: _type = cons; {
-			auto v = std::make_shared<MTPDupdateUserName>();
+			auto v = new MTPDupdateUserName();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vfirst_name.read(from, end);
 			v->vlast_name.read(from, end);
 			v->vusername.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateUserPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDupdateUserPhoto>();
+			auto v = new MTPDupdateUserPhoto();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vdate.read(from, end);
 			v->vphoto.read(from, end);
 			v->vprevious.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateContactRegistered: _type = cons; {
-			auto v = std::make_shared<MTPDupdateContactRegistered>();
+			auto v = new MTPDupdateContactRegistered();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateContactLink: _type = cons; {
-			auto v = std::make_shared<MTPDupdateContactLink>();
+			auto v = new MTPDupdateContactLink();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vmy_link.read(from, end);
 			v->vforeign_link.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateNewEncryptedMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateNewEncryptedMessage>();
+			auto v = new MTPDupdateNewEncryptedMessage();
+			setData(v);
 			v->vmessage.read(from, end);
 			v->vqts.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateEncryptedChatTyping: _type = cons; {
-			auto v = std::make_shared<MTPDupdateEncryptedChatTyping>();
+			auto v = new MTPDupdateEncryptedChatTyping();
+			setData(v);
 			v->vchat_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateEncryption: _type = cons; {
-			auto v = std::make_shared<MTPDupdateEncryption>();
+			auto v = new MTPDupdateEncryption();
+			setData(v);
 			v->vchat.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateEncryptedMessagesRead: _type = cons; {
-			auto v = std::make_shared<MTPDupdateEncryptedMessagesRead>();
+			auto v = new MTPDupdateEncryptedMessagesRead();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->vmax_date.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChatParticipantAdd: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChatParticipantAdd>();
+			auto v = new MTPDupdateChatParticipantAdd();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->vuser_id.read(from, end);
 			v->vinviter_id.read(from, end);
 			v->vdate.read(from, end);
 			v->vversion.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChatParticipantDelete: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChatParticipantDelete>();
+			auto v = new MTPDupdateChatParticipantDelete();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->vuser_id.read(from, end);
 			v->vversion.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateDcOptions: _type = cons; {
-			auto v = std::make_shared<MTPDupdateDcOptions>();
+			auto v = new MTPDupdateDcOptions();
+			setData(v);
 			v->vdc_options.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateUserBlocked: _type = cons; {
-			auto v = std::make_shared<MTPDupdateUserBlocked>();
+			auto v = new MTPDupdateUserBlocked();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vblocked.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateNotifySettings: _type = cons; {
-			auto v = std::make_shared<MTPDupdateNotifySettings>();
+			auto v = new MTPDupdateNotifySettings();
+			setData(v);
 			v->vpeer.read(from, end);
 			v->vnotify_settings.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateServiceNotification: _type = cons; {
-			auto v = std::make_shared<MTPDupdateServiceNotification>();
+			auto v = new MTPDupdateServiceNotification();
+			setData(v);
 			v->vflags.read(from, end);
 			if (v->has_inbox_date()) { v->vinbox_date.read(from, end); } else { v->vinbox_date = MTPint(); }
 			v->vtype.read(from, end);
 			v->vmessage.read(from, end);
 			v->vmedia.read(from, end);
 			v->ventities.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updatePrivacy: _type = cons; {
-			auto v = std::make_shared<MTPDupdatePrivacy>();
+			auto v = new MTPDupdatePrivacy();
+			setData(v);
 			v->vkey.read(from, end);
 			v->vrules.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateUserPhone: _type = cons; {
-			auto v = std::make_shared<MTPDupdateUserPhone>();
+			auto v = new MTPDupdateUserPhone();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vphone.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateReadHistoryInbox: _type = cons; {
-			auto v = std::make_shared<MTPDupdateReadHistoryInbox>();
+			auto v = new MTPDupdateReadHistoryInbox();
+			setData(v);
 			v->vpeer.read(from, end);
 			v->vmax_id.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateReadHistoryOutbox: _type = cons; {
-			auto v = std::make_shared<MTPDupdateReadHistoryOutbox>();
+			auto v = new MTPDupdateReadHistoryOutbox();
+			setData(v);
 			v->vpeer.read(from, end);
 			v->vmax_id.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateWebPage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateWebPage>();
+			auto v = new MTPDupdateWebPage();
+			setData(v);
 			v->vwebpage.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateReadMessagesContents: _type = cons; {
-			auto v = std::make_shared<MTPDupdateReadMessagesContents>();
+			auto v = new MTPDupdateReadMessagesContents();
+			setData(v);
 			v->vmessages.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChannelTooLong: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChannelTooLong>();
+			auto v = new MTPDupdateChannelTooLong();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vchannel_id.read(from, end);
 			if (v->has_pts()) { v->vpts.read(from, end); } else { v->vpts = MTPint(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updateChannel: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChannel>();
+			auto v = new MTPDupdateChannel();
+			setData(v);
 			v->vchannel_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateNewChannelMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateNewChannelMessage>();
+			auto v = new MTPDupdateNewChannelMessage();
+			setData(v);
 			v->vmessage.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateReadChannelInbox: _type = cons; {
-			auto v = std::make_shared<MTPDupdateReadChannelInbox>();
+			auto v = new MTPDupdateReadChannelInbox();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vmax_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateDeleteChannelMessages: _type = cons; {
-			auto v = std::make_shared<MTPDupdateDeleteChannelMessages>();
+			auto v = new MTPDupdateDeleteChannelMessages();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vmessages.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChannelMessageViews: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChannelMessageViews>();
+			auto v = new MTPDupdateChannelMessageViews();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vid.read(from, end);
 			v->vviews.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChatAdmins: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChatAdmins>();
+			auto v = new MTPDupdateChatAdmins();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->venabled.read(from, end);
 			v->vversion.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChatParticipantAdmin: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChatParticipantAdmin>();
+			auto v = new MTPDupdateChatParticipantAdmin();
+			setData(v);
 			v->vchat_id.read(from, end);
 			v->vuser_id.read(from, end);
 			v->vis_admin.read(from, end);
 			v->vversion.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateNewStickerSet: _type = cons; {
-			auto v = std::make_shared<MTPDupdateNewStickerSet>();
+			auto v = new MTPDupdateNewStickerSet();
+			setData(v);
 			v->vstickerset.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateStickerSetsOrder: _type = cons; {
-			auto v = std::make_shared<MTPDupdateStickerSetsOrder>();
+			auto v = new MTPDupdateStickerSetsOrder();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vorder.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateStickerSets: _type = cons; break;
 		case mtpc_updateSavedGifs: _type = cons; break;
 		case mtpc_updateBotInlineQuery: _type = cons; {
-			auto v = std::make_shared<MTPDupdateBotInlineQuery>();
+			auto v = new MTPDupdateBotInlineQuery();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vquery_id.read(from, end);
 			v->vuser_id.read(from, end);
 			v->vquery.read(from, end);
 			if (v->has_geo()) { v->vgeo.read(from, end); } else { v->vgeo = MTPGeoPoint(); }
 			v->voffset.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateBotInlineSend: _type = cons; {
-			auto v = std::make_shared<MTPDupdateBotInlineSend>();
+			auto v = new MTPDupdateBotInlineSend();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vuser_id.read(from, end);
 			v->vquery.read(from, end);
 			if (v->has_geo()) { v->vgeo.read(from, end); } else { v->vgeo = MTPGeoPoint(); }
 			v->vid.read(from, end);
 			if (v->has_msg_id()) { v->vmsg_id.read(from, end); } else { v->vmsg_id = MTPInputBotInlineMessageID(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updateEditChannelMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateEditChannelMessage>();
+			auto v = new MTPDupdateEditChannelMessage();
+			setData(v);
 			v->vmessage.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateChannelPinnedMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChannelPinnedMessage>();
+			auto v = new MTPDupdateChannelPinnedMessage();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateBotCallbackQuery: _type = cons; {
-			auto v = std::make_shared<MTPDupdateBotCallbackQuery>();
+			auto v = new MTPDupdateBotCallbackQuery();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vquery_id.read(from, end);
 			v->vuser_id.read(from, end);
@@ -27042,17 +26968,17 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v->vchat_instance.read(from, end);
 			if (v->has_data()) { v->vdata.read(from, end); } else { v->vdata = MTPbytes(); }
 			if (v->has_game_short_name()) { v->vgame_short_name.read(from, end); } else { v->vgame_short_name = MTPstring(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updateEditMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateEditMessage>();
+			auto v = new MTPDupdateEditMessage();
+			setData(v);
 			v->vmessage.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateInlineBotCallbackQuery: _type = cons; {
-			auto v = std::make_shared<MTPDupdateInlineBotCallbackQuery>();
+			auto v = new MTPDupdateInlineBotCallbackQuery();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vquery_id.read(from, end);
 			v->vuser_id.read(from, end);
@@ -27060,48 +26986,47 @@ inline void MTPupdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 			v->vchat_instance.read(from, end);
 			if (v->has_data()) { v->vdata.read(from, end); } else { v->vdata = MTPbytes(); }
 			if (v->has_game_short_name()) { v->vgame_short_name.read(from, end); } else { v->vgame_short_name = MTPstring(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updateReadChannelOutbox: _type = cons; {
-			auto v = std::make_shared<MTPDupdateReadChannelOutbox>();
+			auto v = new MTPDupdateReadChannelOutbox();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vmax_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateDraftMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateDraftMessage>();
+			auto v = new MTPDupdateDraftMessage();
+			setData(v);
 			v->vpeer.read(from, end);
 			v->vdraft.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateReadFeaturedStickers: _type = cons; break;
 		case mtpc_updateRecentStickers: _type = cons; break;
 		case mtpc_updateConfig: _type = cons; break;
 		case mtpc_updatePtsChanged: _type = cons; break;
 		case mtpc_updateChannelWebPage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateChannelWebPage>();
+			auto v = new MTPDupdateChannelWebPage();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vwebpage.read(from, end);
 			v->vpts.read(from, end);
 			v->vpts_count.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updatePhoneCall: _type = cons; {
-			auto v = std::make_shared<MTPDupdatePhoneCall>();
+			auto v = new MTPDupdatePhoneCall();
+			setData(v);
 			v->vphone_call.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateDialogPinned: _type = cons; {
-			auto v = std::make_shared<MTPDupdateDialogPinned>();
+			auto v = new MTPDupdateDialogPinned();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vpeer.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updatePinnedDialogs: _type = cons; {
-			auto v = std::make_shared<MTPDupdatePinnedDialogs>();
+			auto v = new MTPDupdatePinnedDialogs();
+			setData(v);
 			v->vflags.read(from, end);
 			if (v->has_order()) { v->vorder.read(from, end); } else { v->vorder = MTPVector<MTPPeer>(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdate");
 	}
@@ -27410,364 +27335,364 @@ inline void MTPupdate::write(mtpBuffer &to) const {
 }
 inline MTPupdate::MTPupdate(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_updateNewMessage: data = std::make_shared<MTPDupdateNewMessage>(); break;
-		case mtpc_updateMessageID: data = std::make_shared<MTPDupdateMessageID>(); break;
-		case mtpc_updateDeleteMessages: data = std::make_shared<MTPDupdateDeleteMessages>(); break;
-		case mtpc_updateUserTyping: data = std::make_shared<MTPDupdateUserTyping>(); break;
-		case mtpc_updateChatUserTyping: data = std::make_shared<MTPDupdateChatUserTyping>(); break;
-		case mtpc_updateChatParticipants: data = std::make_shared<MTPDupdateChatParticipants>(); break;
-		case mtpc_updateUserStatus: data = std::make_shared<MTPDupdateUserStatus>(); break;
-		case mtpc_updateUserName: data = std::make_shared<MTPDupdateUserName>(); break;
-		case mtpc_updateUserPhoto: data = std::make_shared<MTPDupdateUserPhoto>(); break;
-		case mtpc_updateContactRegistered: data = std::make_shared<MTPDupdateContactRegistered>(); break;
-		case mtpc_updateContactLink: data = std::make_shared<MTPDupdateContactLink>(); break;
-		case mtpc_updateNewEncryptedMessage: data = std::make_shared<MTPDupdateNewEncryptedMessage>(); break;
-		case mtpc_updateEncryptedChatTyping: data = std::make_shared<MTPDupdateEncryptedChatTyping>(); break;
-		case mtpc_updateEncryption: data = std::make_shared<MTPDupdateEncryption>(); break;
-		case mtpc_updateEncryptedMessagesRead: data = std::make_shared<MTPDupdateEncryptedMessagesRead>(); break;
-		case mtpc_updateChatParticipantAdd: data = std::make_shared<MTPDupdateChatParticipantAdd>(); break;
-		case mtpc_updateChatParticipantDelete: data = std::make_shared<MTPDupdateChatParticipantDelete>(); break;
-		case mtpc_updateDcOptions: data = std::make_shared<MTPDupdateDcOptions>(); break;
-		case mtpc_updateUserBlocked: data = std::make_shared<MTPDupdateUserBlocked>(); break;
-		case mtpc_updateNotifySettings: data = std::make_shared<MTPDupdateNotifySettings>(); break;
-		case mtpc_updateServiceNotification: data = std::make_shared<MTPDupdateServiceNotification>(); break;
-		case mtpc_updatePrivacy: data = std::make_shared<MTPDupdatePrivacy>(); break;
-		case mtpc_updateUserPhone: data = std::make_shared<MTPDupdateUserPhone>(); break;
-		case mtpc_updateReadHistoryInbox: data = std::make_shared<MTPDupdateReadHistoryInbox>(); break;
-		case mtpc_updateReadHistoryOutbox: data = std::make_shared<MTPDupdateReadHistoryOutbox>(); break;
-		case mtpc_updateWebPage: data = std::make_shared<MTPDupdateWebPage>(); break;
-		case mtpc_updateReadMessagesContents: data = std::make_shared<MTPDupdateReadMessagesContents>(); break;
-		case mtpc_updateChannelTooLong: data = std::make_shared<MTPDupdateChannelTooLong>(); break;
-		case mtpc_updateChannel: data = std::make_shared<MTPDupdateChannel>(); break;
-		case mtpc_updateNewChannelMessage: data = std::make_shared<MTPDupdateNewChannelMessage>(); break;
-		case mtpc_updateReadChannelInbox: data = std::make_shared<MTPDupdateReadChannelInbox>(); break;
-		case mtpc_updateDeleteChannelMessages: data = std::make_shared<MTPDupdateDeleteChannelMessages>(); break;
-		case mtpc_updateChannelMessageViews: data = std::make_shared<MTPDupdateChannelMessageViews>(); break;
-		case mtpc_updateChatAdmins: data = std::make_shared<MTPDupdateChatAdmins>(); break;
-		case mtpc_updateChatParticipantAdmin: data = std::make_shared<MTPDupdateChatParticipantAdmin>(); break;
-		case mtpc_updateNewStickerSet: data = std::make_shared<MTPDupdateNewStickerSet>(); break;
-		case mtpc_updateStickerSetsOrder: data = std::make_shared<MTPDupdateStickerSetsOrder>(); break;
+		case mtpc_updateNewMessage: setData(new MTPDupdateNewMessage()); break;
+		case mtpc_updateMessageID: setData(new MTPDupdateMessageID()); break;
+		case mtpc_updateDeleteMessages: setData(new MTPDupdateDeleteMessages()); break;
+		case mtpc_updateUserTyping: setData(new MTPDupdateUserTyping()); break;
+		case mtpc_updateChatUserTyping: setData(new MTPDupdateChatUserTyping()); break;
+		case mtpc_updateChatParticipants: setData(new MTPDupdateChatParticipants()); break;
+		case mtpc_updateUserStatus: setData(new MTPDupdateUserStatus()); break;
+		case mtpc_updateUserName: setData(new MTPDupdateUserName()); break;
+		case mtpc_updateUserPhoto: setData(new MTPDupdateUserPhoto()); break;
+		case mtpc_updateContactRegistered: setData(new MTPDupdateContactRegistered()); break;
+		case mtpc_updateContactLink: setData(new MTPDupdateContactLink()); break;
+		case mtpc_updateNewEncryptedMessage: setData(new MTPDupdateNewEncryptedMessage()); break;
+		case mtpc_updateEncryptedChatTyping: setData(new MTPDupdateEncryptedChatTyping()); break;
+		case mtpc_updateEncryption: setData(new MTPDupdateEncryption()); break;
+		case mtpc_updateEncryptedMessagesRead: setData(new MTPDupdateEncryptedMessagesRead()); break;
+		case mtpc_updateChatParticipantAdd: setData(new MTPDupdateChatParticipantAdd()); break;
+		case mtpc_updateChatParticipantDelete: setData(new MTPDupdateChatParticipantDelete()); break;
+		case mtpc_updateDcOptions: setData(new MTPDupdateDcOptions()); break;
+		case mtpc_updateUserBlocked: setData(new MTPDupdateUserBlocked()); break;
+		case mtpc_updateNotifySettings: setData(new MTPDupdateNotifySettings()); break;
+		case mtpc_updateServiceNotification: setData(new MTPDupdateServiceNotification()); break;
+		case mtpc_updatePrivacy: setData(new MTPDupdatePrivacy()); break;
+		case mtpc_updateUserPhone: setData(new MTPDupdateUserPhone()); break;
+		case mtpc_updateReadHistoryInbox: setData(new MTPDupdateReadHistoryInbox()); break;
+		case mtpc_updateReadHistoryOutbox: setData(new MTPDupdateReadHistoryOutbox()); break;
+		case mtpc_updateWebPage: setData(new MTPDupdateWebPage()); break;
+		case mtpc_updateReadMessagesContents: setData(new MTPDupdateReadMessagesContents()); break;
+		case mtpc_updateChannelTooLong: setData(new MTPDupdateChannelTooLong()); break;
+		case mtpc_updateChannel: setData(new MTPDupdateChannel()); break;
+		case mtpc_updateNewChannelMessage: setData(new MTPDupdateNewChannelMessage()); break;
+		case mtpc_updateReadChannelInbox: setData(new MTPDupdateReadChannelInbox()); break;
+		case mtpc_updateDeleteChannelMessages: setData(new MTPDupdateDeleteChannelMessages()); break;
+		case mtpc_updateChannelMessageViews: setData(new MTPDupdateChannelMessageViews()); break;
+		case mtpc_updateChatAdmins: setData(new MTPDupdateChatAdmins()); break;
+		case mtpc_updateChatParticipantAdmin: setData(new MTPDupdateChatParticipantAdmin()); break;
+		case mtpc_updateNewStickerSet: setData(new MTPDupdateNewStickerSet()); break;
+		case mtpc_updateStickerSetsOrder: setData(new MTPDupdateStickerSetsOrder()); break;
 		case mtpc_updateStickerSets: break;
 		case mtpc_updateSavedGifs: break;
-		case mtpc_updateBotInlineQuery: data = std::make_shared<MTPDupdateBotInlineQuery>(); break;
-		case mtpc_updateBotInlineSend: data = std::make_shared<MTPDupdateBotInlineSend>(); break;
-		case mtpc_updateEditChannelMessage: data = std::make_shared<MTPDupdateEditChannelMessage>(); break;
-		case mtpc_updateChannelPinnedMessage: data = std::make_shared<MTPDupdateChannelPinnedMessage>(); break;
-		case mtpc_updateBotCallbackQuery: data = std::make_shared<MTPDupdateBotCallbackQuery>(); break;
-		case mtpc_updateEditMessage: data = std::make_shared<MTPDupdateEditMessage>(); break;
-		case mtpc_updateInlineBotCallbackQuery: data = std::make_shared<MTPDupdateInlineBotCallbackQuery>(); break;
-		case mtpc_updateReadChannelOutbox: data = std::make_shared<MTPDupdateReadChannelOutbox>(); break;
-		case mtpc_updateDraftMessage: data = std::make_shared<MTPDupdateDraftMessage>(); break;
+		case mtpc_updateBotInlineQuery: setData(new MTPDupdateBotInlineQuery()); break;
+		case mtpc_updateBotInlineSend: setData(new MTPDupdateBotInlineSend()); break;
+		case mtpc_updateEditChannelMessage: setData(new MTPDupdateEditChannelMessage()); break;
+		case mtpc_updateChannelPinnedMessage: setData(new MTPDupdateChannelPinnedMessage()); break;
+		case mtpc_updateBotCallbackQuery: setData(new MTPDupdateBotCallbackQuery()); break;
+		case mtpc_updateEditMessage: setData(new MTPDupdateEditMessage()); break;
+		case mtpc_updateInlineBotCallbackQuery: setData(new MTPDupdateInlineBotCallbackQuery()); break;
+		case mtpc_updateReadChannelOutbox: setData(new MTPDupdateReadChannelOutbox()); break;
+		case mtpc_updateDraftMessage: setData(new MTPDupdateDraftMessage()); break;
 		case mtpc_updateReadFeaturedStickers: break;
 		case mtpc_updateRecentStickers: break;
 		case mtpc_updateConfig: break;
 		case mtpc_updatePtsChanged: break;
-		case mtpc_updateChannelWebPage: data = std::make_shared<MTPDupdateChannelWebPage>(); break;
-		case mtpc_updatePhoneCall: data = std::make_shared<MTPDupdatePhoneCall>(); break;
-		case mtpc_updateDialogPinned: data = std::make_shared<MTPDupdateDialogPinned>(); break;
-		case mtpc_updatePinnedDialogs: data = std::make_shared<MTPDupdatePinnedDialogs>(); break;
+		case mtpc_updateChannelWebPage: setData(new MTPDupdateChannelWebPage()); break;
+		case mtpc_updatePhoneCall: setData(new MTPDupdatePhoneCall()); break;
+		case mtpc_updateDialogPinned: setData(new MTPDupdateDialogPinned()); break;
+		case mtpc_updatePinnedDialogs: setData(new MTPDupdatePinnedDialogs()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdate");
 	}
 }
 inline const MTPDupdateNewMessage &MTPupdate::c_updateNewMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateNewMessage);
-	return static_cast<const MTPDupdateNewMessage&>(*data);
+	t_assert(_type == mtpc_updateNewMessage);
+	return queryData<MTPDupdateNewMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateNewMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateNewMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateNewMessage *data) : TypeDataOwner(data), _type(mtpc_updateNewMessage) {
 }
 inline const MTPDupdateMessageID &MTPupdate::c_updateMessageID() const {
-	t_assert(data != nullptr && _type == mtpc_updateMessageID);
-	return static_cast<const MTPDupdateMessageID&>(*data);
+	t_assert(_type == mtpc_updateMessageID);
+	return queryData<MTPDupdateMessageID>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateMessageID> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateMessageID) {
+inline MTPupdate::MTPupdate(const MTPDupdateMessageID *data) : TypeDataOwner(data), _type(mtpc_updateMessageID) {
 }
 inline const MTPDupdateDeleteMessages &MTPupdate::c_updateDeleteMessages() const {
-	t_assert(data != nullptr && _type == mtpc_updateDeleteMessages);
-	return static_cast<const MTPDupdateDeleteMessages&>(*data);
+	t_assert(_type == mtpc_updateDeleteMessages);
+	return queryData<MTPDupdateDeleteMessages>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateDeleteMessages> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateDeleteMessages) {
+inline MTPupdate::MTPupdate(const MTPDupdateDeleteMessages *data) : TypeDataOwner(data), _type(mtpc_updateDeleteMessages) {
 }
 inline const MTPDupdateUserTyping &MTPupdate::c_updateUserTyping() const {
-	t_assert(data != nullptr && _type == mtpc_updateUserTyping);
-	return static_cast<const MTPDupdateUserTyping&>(*data);
+	t_assert(_type == mtpc_updateUserTyping);
+	return queryData<MTPDupdateUserTyping>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateUserTyping> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateUserTyping) {
+inline MTPupdate::MTPupdate(const MTPDupdateUserTyping *data) : TypeDataOwner(data), _type(mtpc_updateUserTyping) {
 }
 inline const MTPDupdateChatUserTyping &MTPupdate::c_updateChatUserTyping() const {
-	t_assert(data != nullptr && _type == mtpc_updateChatUserTyping);
-	return static_cast<const MTPDupdateChatUserTyping&>(*data);
+	t_assert(_type == mtpc_updateChatUserTyping);
+	return queryData<MTPDupdateChatUserTyping>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChatUserTyping> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChatUserTyping) {
+inline MTPupdate::MTPupdate(const MTPDupdateChatUserTyping *data) : TypeDataOwner(data), _type(mtpc_updateChatUserTyping) {
 }
 inline const MTPDupdateChatParticipants &MTPupdate::c_updateChatParticipants() const {
-	t_assert(data != nullptr && _type == mtpc_updateChatParticipants);
-	return static_cast<const MTPDupdateChatParticipants&>(*data);
+	t_assert(_type == mtpc_updateChatParticipants);
+	return queryData<MTPDupdateChatParticipants>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChatParticipants> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChatParticipants) {
+inline MTPupdate::MTPupdate(const MTPDupdateChatParticipants *data) : TypeDataOwner(data), _type(mtpc_updateChatParticipants) {
 }
 inline const MTPDupdateUserStatus &MTPupdate::c_updateUserStatus() const {
-	t_assert(data != nullptr && _type == mtpc_updateUserStatus);
-	return static_cast<const MTPDupdateUserStatus&>(*data);
+	t_assert(_type == mtpc_updateUserStatus);
+	return queryData<MTPDupdateUserStatus>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateUserStatus> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateUserStatus) {
+inline MTPupdate::MTPupdate(const MTPDupdateUserStatus *data) : TypeDataOwner(data), _type(mtpc_updateUserStatus) {
 }
 inline const MTPDupdateUserName &MTPupdate::c_updateUserName() const {
-	t_assert(data != nullptr && _type == mtpc_updateUserName);
-	return static_cast<const MTPDupdateUserName&>(*data);
+	t_assert(_type == mtpc_updateUserName);
+	return queryData<MTPDupdateUserName>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateUserName> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateUserName) {
+inline MTPupdate::MTPupdate(const MTPDupdateUserName *data) : TypeDataOwner(data), _type(mtpc_updateUserName) {
 }
 inline const MTPDupdateUserPhoto &MTPupdate::c_updateUserPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_updateUserPhoto);
-	return static_cast<const MTPDupdateUserPhoto&>(*data);
+	t_assert(_type == mtpc_updateUserPhoto);
+	return queryData<MTPDupdateUserPhoto>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateUserPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateUserPhoto) {
+inline MTPupdate::MTPupdate(const MTPDupdateUserPhoto *data) : TypeDataOwner(data), _type(mtpc_updateUserPhoto) {
 }
 inline const MTPDupdateContactRegistered &MTPupdate::c_updateContactRegistered() const {
-	t_assert(data != nullptr && _type == mtpc_updateContactRegistered);
-	return static_cast<const MTPDupdateContactRegistered&>(*data);
+	t_assert(_type == mtpc_updateContactRegistered);
+	return queryData<MTPDupdateContactRegistered>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateContactRegistered> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateContactRegistered) {
+inline MTPupdate::MTPupdate(const MTPDupdateContactRegistered *data) : TypeDataOwner(data), _type(mtpc_updateContactRegistered) {
 }
 inline const MTPDupdateContactLink &MTPupdate::c_updateContactLink() const {
-	t_assert(data != nullptr && _type == mtpc_updateContactLink);
-	return static_cast<const MTPDupdateContactLink&>(*data);
+	t_assert(_type == mtpc_updateContactLink);
+	return queryData<MTPDupdateContactLink>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateContactLink> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateContactLink) {
+inline MTPupdate::MTPupdate(const MTPDupdateContactLink *data) : TypeDataOwner(data), _type(mtpc_updateContactLink) {
 }
 inline const MTPDupdateNewEncryptedMessage &MTPupdate::c_updateNewEncryptedMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateNewEncryptedMessage);
-	return static_cast<const MTPDupdateNewEncryptedMessage&>(*data);
+	t_assert(_type == mtpc_updateNewEncryptedMessage);
+	return queryData<MTPDupdateNewEncryptedMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateNewEncryptedMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateNewEncryptedMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateNewEncryptedMessage *data) : TypeDataOwner(data), _type(mtpc_updateNewEncryptedMessage) {
 }
 inline const MTPDupdateEncryptedChatTyping &MTPupdate::c_updateEncryptedChatTyping() const {
-	t_assert(data != nullptr && _type == mtpc_updateEncryptedChatTyping);
-	return static_cast<const MTPDupdateEncryptedChatTyping&>(*data);
+	t_assert(_type == mtpc_updateEncryptedChatTyping);
+	return queryData<MTPDupdateEncryptedChatTyping>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateEncryptedChatTyping> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateEncryptedChatTyping) {
+inline MTPupdate::MTPupdate(const MTPDupdateEncryptedChatTyping *data) : TypeDataOwner(data), _type(mtpc_updateEncryptedChatTyping) {
 }
 inline const MTPDupdateEncryption &MTPupdate::c_updateEncryption() const {
-	t_assert(data != nullptr && _type == mtpc_updateEncryption);
-	return static_cast<const MTPDupdateEncryption&>(*data);
+	t_assert(_type == mtpc_updateEncryption);
+	return queryData<MTPDupdateEncryption>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateEncryption> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateEncryption) {
+inline MTPupdate::MTPupdate(const MTPDupdateEncryption *data) : TypeDataOwner(data), _type(mtpc_updateEncryption) {
 }
 inline const MTPDupdateEncryptedMessagesRead &MTPupdate::c_updateEncryptedMessagesRead() const {
-	t_assert(data != nullptr && _type == mtpc_updateEncryptedMessagesRead);
-	return static_cast<const MTPDupdateEncryptedMessagesRead&>(*data);
+	t_assert(_type == mtpc_updateEncryptedMessagesRead);
+	return queryData<MTPDupdateEncryptedMessagesRead>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateEncryptedMessagesRead> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateEncryptedMessagesRead) {
+inline MTPupdate::MTPupdate(const MTPDupdateEncryptedMessagesRead *data) : TypeDataOwner(data), _type(mtpc_updateEncryptedMessagesRead) {
 }
 inline const MTPDupdateChatParticipantAdd &MTPupdate::c_updateChatParticipantAdd() const {
-	t_assert(data != nullptr && _type == mtpc_updateChatParticipantAdd);
-	return static_cast<const MTPDupdateChatParticipantAdd&>(*data);
+	t_assert(_type == mtpc_updateChatParticipantAdd);
+	return queryData<MTPDupdateChatParticipantAdd>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChatParticipantAdd> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChatParticipantAdd) {
+inline MTPupdate::MTPupdate(const MTPDupdateChatParticipantAdd *data) : TypeDataOwner(data), _type(mtpc_updateChatParticipantAdd) {
 }
 inline const MTPDupdateChatParticipantDelete &MTPupdate::c_updateChatParticipantDelete() const {
-	t_assert(data != nullptr && _type == mtpc_updateChatParticipantDelete);
-	return static_cast<const MTPDupdateChatParticipantDelete&>(*data);
+	t_assert(_type == mtpc_updateChatParticipantDelete);
+	return queryData<MTPDupdateChatParticipantDelete>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChatParticipantDelete> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChatParticipantDelete) {
+inline MTPupdate::MTPupdate(const MTPDupdateChatParticipantDelete *data) : TypeDataOwner(data), _type(mtpc_updateChatParticipantDelete) {
 }
 inline const MTPDupdateDcOptions &MTPupdate::c_updateDcOptions() const {
-	t_assert(data != nullptr && _type == mtpc_updateDcOptions);
-	return static_cast<const MTPDupdateDcOptions&>(*data);
+	t_assert(_type == mtpc_updateDcOptions);
+	return queryData<MTPDupdateDcOptions>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateDcOptions> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateDcOptions) {
+inline MTPupdate::MTPupdate(const MTPDupdateDcOptions *data) : TypeDataOwner(data), _type(mtpc_updateDcOptions) {
 }
 inline const MTPDupdateUserBlocked &MTPupdate::c_updateUserBlocked() const {
-	t_assert(data != nullptr && _type == mtpc_updateUserBlocked);
-	return static_cast<const MTPDupdateUserBlocked&>(*data);
+	t_assert(_type == mtpc_updateUserBlocked);
+	return queryData<MTPDupdateUserBlocked>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateUserBlocked> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateUserBlocked) {
+inline MTPupdate::MTPupdate(const MTPDupdateUserBlocked *data) : TypeDataOwner(data), _type(mtpc_updateUserBlocked) {
 }
 inline const MTPDupdateNotifySettings &MTPupdate::c_updateNotifySettings() const {
-	t_assert(data != nullptr && _type == mtpc_updateNotifySettings);
-	return static_cast<const MTPDupdateNotifySettings&>(*data);
+	t_assert(_type == mtpc_updateNotifySettings);
+	return queryData<MTPDupdateNotifySettings>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateNotifySettings> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateNotifySettings) {
+inline MTPupdate::MTPupdate(const MTPDupdateNotifySettings *data) : TypeDataOwner(data), _type(mtpc_updateNotifySettings) {
 }
 inline const MTPDupdateServiceNotification &MTPupdate::c_updateServiceNotification() const {
-	t_assert(data != nullptr && _type == mtpc_updateServiceNotification);
-	return static_cast<const MTPDupdateServiceNotification&>(*data);
+	t_assert(_type == mtpc_updateServiceNotification);
+	return queryData<MTPDupdateServiceNotification>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateServiceNotification> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateServiceNotification) {
+inline MTPupdate::MTPupdate(const MTPDupdateServiceNotification *data) : TypeDataOwner(data), _type(mtpc_updateServiceNotification) {
 }
 inline const MTPDupdatePrivacy &MTPupdate::c_updatePrivacy() const {
-	t_assert(data != nullptr && _type == mtpc_updatePrivacy);
-	return static_cast<const MTPDupdatePrivacy&>(*data);
+	t_assert(_type == mtpc_updatePrivacy);
+	return queryData<MTPDupdatePrivacy>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdatePrivacy> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updatePrivacy) {
+inline MTPupdate::MTPupdate(const MTPDupdatePrivacy *data) : TypeDataOwner(data), _type(mtpc_updatePrivacy) {
 }
 inline const MTPDupdateUserPhone &MTPupdate::c_updateUserPhone() const {
-	t_assert(data != nullptr && _type == mtpc_updateUserPhone);
-	return static_cast<const MTPDupdateUserPhone&>(*data);
+	t_assert(_type == mtpc_updateUserPhone);
+	return queryData<MTPDupdateUserPhone>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateUserPhone> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateUserPhone) {
+inline MTPupdate::MTPupdate(const MTPDupdateUserPhone *data) : TypeDataOwner(data), _type(mtpc_updateUserPhone) {
 }
 inline const MTPDupdateReadHistoryInbox &MTPupdate::c_updateReadHistoryInbox() const {
-	t_assert(data != nullptr && _type == mtpc_updateReadHistoryInbox);
-	return static_cast<const MTPDupdateReadHistoryInbox&>(*data);
+	t_assert(_type == mtpc_updateReadHistoryInbox);
+	return queryData<MTPDupdateReadHistoryInbox>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateReadHistoryInbox> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateReadHistoryInbox) {
+inline MTPupdate::MTPupdate(const MTPDupdateReadHistoryInbox *data) : TypeDataOwner(data), _type(mtpc_updateReadHistoryInbox) {
 }
 inline const MTPDupdateReadHistoryOutbox &MTPupdate::c_updateReadHistoryOutbox() const {
-	t_assert(data != nullptr && _type == mtpc_updateReadHistoryOutbox);
-	return static_cast<const MTPDupdateReadHistoryOutbox&>(*data);
+	t_assert(_type == mtpc_updateReadHistoryOutbox);
+	return queryData<MTPDupdateReadHistoryOutbox>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateReadHistoryOutbox> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateReadHistoryOutbox) {
+inline MTPupdate::MTPupdate(const MTPDupdateReadHistoryOutbox *data) : TypeDataOwner(data), _type(mtpc_updateReadHistoryOutbox) {
 }
 inline const MTPDupdateWebPage &MTPupdate::c_updateWebPage() const {
-	t_assert(data != nullptr && _type == mtpc_updateWebPage);
-	return static_cast<const MTPDupdateWebPage&>(*data);
+	t_assert(_type == mtpc_updateWebPage);
+	return queryData<MTPDupdateWebPage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateWebPage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateWebPage) {
+inline MTPupdate::MTPupdate(const MTPDupdateWebPage *data) : TypeDataOwner(data), _type(mtpc_updateWebPage) {
 }
 inline const MTPDupdateReadMessagesContents &MTPupdate::c_updateReadMessagesContents() const {
-	t_assert(data != nullptr && _type == mtpc_updateReadMessagesContents);
-	return static_cast<const MTPDupdateReadMessagesContents&>(*data);
+	t_assert(_type == mtpc_updateReadMessagesContents);
+	return queryData<MTPDupdateReadMessagesContents>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateReadMessagesContents> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateReadMessagesContents) {
+inline MTPupdate::MTPupdate(const MTPDupdateReadMessagesContents *data) : TypeDataOwner(data), _type(mtpc_updateReadMessagesContents) {
 }
 inline const MTPDupdateChannelTooLong &MTPupdate::c_updateChannelTooLong() const {
-	t_assert(data != nullptr && _type == mtpc_updateChannelTooLong);
-	return static_cast<const MTPDupdateChannelTooLong&>(*data);
+	t_assert(_type == mtpc_updateChannelTooLong);
+	return queryData<MTPDupdateChannelTooLong>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChannelTooLong> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChannelTooLong) {
+inline MTPupdate::MTPupdate(const MTPDupdateChannelTooLong *data) : TypeDataOwner(data), _type(mtpc_updateChannelTooLong) {
 }
 inline const MTPDupdateChannel &MTPupdate::c_updateChannel() const {
-	t_assert(data != nullptr && _type == mtpc_updateChannel);
-	return static_cast<const MTPDupdateChannel&>(*data);
+	t_assert(_type == mtpc_updateChannel);
+	return queryData<MTPDupdateChannel>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChannel> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChannel) {
+inline MTPupdate::MTPupdate(const MTPDupdateChannel *data) : TypeDataOwner(data), _type(mtpc_updateChannel) {
 }
 inline const MTPDupdateNewChannelMessage &MTPupdate::c_updateNewChannelMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateNewChannelMessage);
-	return static_cast<const MTPDupdateNewChannelMessage&>(*data);
+	t_assert(_type == mtpc_updateNewChannelMessage);
+	return queryData<MTPDupdateNewChannelMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateNewChannelMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateNewChannelMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateNewChannelMessage *data) : TypeDataOwner(data), _type(mtpc_updateNewChannelMessage) {
 }
 inline const MTPDupdateReadChannelInbox &MTPupdate::c_updateReadChannelInbox() const {
-	t_assert(data != nullptr && _type == mtpc_updateReadChannelInbox);
-	return static_cast<const MTPDupdateReadChannelInbox&>(*data);
+	t_assert(_type == mtpc_updateReadChannelInbox);
+	return queryData<MTPDupdateReadChannelInbox>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateReadChannelInbox> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateReadChannelInbox) {
+inline MTPupdate::MTPupdate(const MTPDupdateReadChannelInbox *data) : TypeDataOwner(data), _type(mtpc_updateReadChannelInbox) {
 }
 inline const MTPDupdateDeleteChannelMessages &MTPupdate::c_updateDeleteChannelMessages() const {
-	t_assert(data != nullptr && _type == mtpc_updateDeleteChannelMessages);
-	return static_cast<const MTPDupdateDeleteChannelMessages&>(*data);
+	t_assert(_type == mtpc_updateDeleteChannelMessages);
+	return queryData<MTPDupdateDeleteChannelMessages>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateDeleteChannelMessages> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateDeleteChannelMessages) {
+inline MTPupdate::MTPupdate(const MTPDupdateDeleteChannelMessages *data) : TypeDataOwner(data), _type(mtpc_updateDeleteChannelMessages) {
 }
 inline const MTPDupdateChannelMessageViews &MTPupdate::c_updateChannelMessageViews() const {
-	t_assert(data != nullptr && _type == mtpc_updateChannelMessageViews);
-	return static_cast<const MTPDupdateChannelMessageViews&>(*data);
+	t_assert(_type == mtpc_updateChannelMessageViews);
+	return queryData<MTPDupdateChannelMessageViews>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChannelMessageViews> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChannelMessageViews) {
+inline MTPupdate::MTPupdate(const MTPDupdateChannelMessageViews *data) : TypeDataOwner(data), _type(mtpc_updateChannelMessageViews) {
 }
 inline const MTPDupdateChatAdmins &MTPupdate::c_updateChatAdmins() const {
-	t_assert(data != nullptr && _type == mtpc_updateChatAdmins);
-	return static_cast<const MTPDupdateChatAdmins&>(*data);
+	t_assert(_type == mtpc_updateChatAdmins);
+	return queryData<MTPDupdateChatAdmins>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChatAdmins> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChatAdmins) {
+inline MTPupdate::MTPupdate(const MTPDupdateChatAdmins *data) : TypeDataOwner(data), _type(mtpc_updateChatAdmins) {
 }
 inline const MTPDupdateChatParticipantAdmin &MTPupdate::c_updateChatParticipantAdmin() const {
-	t_assert(data != nullptr && _type == mtpc_updateChatParticipantAdmin);
-	return static_cast<const MTPDupdateChatParticipantAdmin&>(*data);
+	t_assert(_type == mtpc_updateChatParticipantAdmin);
+	return queryData<MTPDupdateChatParticipantAdmin>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChatParticipantAdmin> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChatParticipantAdmin) {
+inline MTPupdate::MTPupdate(const MTPDupdateChatParticipantAdmin *data) : TypeDataOwner(data), _type(mtpc_updateChatParticipantAdmin) {
 }
 inline const MTPDupdateNewStickerSet &MTPupdate::c_updateNewStickerSet() const {
-	t_assert(data != nullptr && _type == mtpc_updateNewStickerSet);
-	return static_cast<const MTPDupdateNewStickerSet&>(*data);
+	t_assert(_type == mtpc_updateNewStickerSet);
+	return queryData<MTPDupdateNewStickerSet>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateNewStickerSet> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateNewStickerSet) {
+inline MTPupdate::MTPupdate(const MTPDupdateNewStickerSet *data) : TypeDataOwner(data), _type(mtpc_updateNewStickerSet) {
 }
 inline const MTPDupdateStickerSetsOrder &MTPupdate::c_updateStickerSetsOrder() const {
-	t_assert(data != nullptr && _type == mtpc_updateStickerSetsOrder);
-	return static_cast<const MTPDupdateStickerSetsOrder&>(*data);
+	t_assert(_type == mtpc_updateStickerSetsOrder);
+	return queryData<MTPDupdateStickerSetsOrder>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateStickerSetsOrder> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateStickerSetsOrder) {
+inline MTPupdate::MTPupdate(const MTPDupdateStickerSetsOrder *data) : TypeDataOwner(data), _type(mtpc_updateStickerSetsOrder) {
 }
 inline const MTPDupdateBotInlineQuery &MTPupdate::c_updateBotInlineQuery() const {
-	t_assert(data != nullptr && _type == mtpc_updateBotInlineQuery);
-	return static_cast<const MTPDupdateBotInlineQuery&>(*data);
+	t_assert(_type == mtpc_updateBotInlineQuery);
+	return queryData<MTPDupdateBotInlineQuery>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateBotInlineQuery> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateBotInlineQuery) {
+inline MTPupdate::MTPupdate(const MTPDupdateBotInlineQuery *data) : TypeDataOwner(data), _type(mtpc_updateBotInlineQuery) {
 }
 inline const MTPDupdateBotInlineSend &MTPupdate::c_updateBotInlineSend() const {
-	t_assert(data != nullptr && _type == mtpc_updateBotInlineSend);
-	return static_cast<const MTPDupdateBotInlineSend&>(*data);
+	t_assert(_type == mtpc_updateBotInlineSend);
+	return queryData<MTPDupdateBotInlineSend>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateBotInlineSend> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateBotInlineSend) {
+inline MTPupdate::MTPupdate(const MTPDupdateBotInlineSend *data) : TypeDataOwner(data), _type(mtpc_updateBotInlineSend) {
 }
 inline const MTPDupdateEditChannelMessage &MTPupdate::c_updateEditChannelMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateEditChannelMessage);
-	return static_cast<const MTPDupdateEditChannelMessage&>(*data);
+	t_assert(_type == mtpc_updateEditChannelMessage);
+	return queryData<MTPDupdateEditChannelMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateEditChannelMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateEditChannelMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateEditChannelMessage *data) : TypeDataOwner(data), _type(mtpc_updateEditChannelMessage) {
 }
 inline const MTPDupdateChannelPinnedMessage &MTPupdate::c_updateChannelPinnedMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateChannelPinnedMessage);
-	return static_cast<const MTPDupdateChannelPinnedMessage&>(*data);
+	t_assert(_type == mtpc_updateChannelPinnedMessage);
+	return queryData<MTPDupdateChannelPinnedMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChannelPinnedMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChannelPinnedMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateChannelPinnedMessage *data) : TypeDataOwner(data), _type(mtpc_updateChannelPinnedMessage) {
 }
 inline const MTPDupdateBotCallbackQuery &MTPupdate::c_updateBotCallbackQuery() const {
-	t_assert(data != nullptr && _type == mtpc_updateBotCallbackQuery);
-	return static_cast<const MTPDupdateBotCallbackQuery&>(*data);
+	t_assert(_type == mtpc_updateBotCallbackQuery);
+	return queryData<MTPDupdateBotCallbackQuery>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateBotCallbackQuery> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateBotCallbackQuery) {
+inline MTPupdate::MTPupdate(const MTPDupdateBotCallbackQuery *data) : TypeDataOwner(data), _type(mtpc_updateBotCallbackQuery) {
 }
 inline const MTPDupdateEditMessage &MTPupdate::c_updateEditMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateEditMessage);
-	return static_cast<const MTPDupdateEditMessage&>(*data);
+	t_assert(_type == mtpc_updateEditMessage);
+	return queryData<MTPDupdateEditMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateEditMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateEditMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateEditMessage *data) : TypeDataOwner(data), _type(mtpc_updateEditMessage) {
 }
 inline const MTPDupdateInlineBotCallbackQuery &MTPupdate::c_updateInlineBotCallbackQuery() const {
-	t_assert(data != nullptr && _type == mtpc_updateInlineBotCallbackQuery);
-	return static_cast<const MTPDupdateInlineBotCallbackQuery&>(*data);
+	t_assert(_type == mtpc_updateInlineBotCallbackQuery);
+	return queryData<MTPDupdateInlineBotCallbackQuery>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateInlineBotCallbackQuery> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateInlineBotCallbackQuery) {
+inline MTPupdate::MTPupdate(const MTPDupdateInlineBotCallbackQuery *data) : TypeDataOwner(data), _type(mtpc_updateInlineBotCallbackQuery) {
 }
 inline const MTPDupdateReadChannelOutbox &MTPupdate::c_updateReadChannelOutbox() const {
-	t_assert(data != nullptr && _type == mtpc_updateReadChannelOutbox);
-	return static_cast<const MTPDupdateReadChannelOutbox&>(*data);
+	t_assert(_type == mtpc_updateReadChannelOutbox);
+	return queryData<MTPDupdateReadChannelOutbox>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateReadChannelOutbox> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateReadChannelOutbox) {
+inline MTPupdate::MTPupdate(const MTPDupdateReadChannelOutbox *data) : TypeDataOwner(data), _type(mtpc_updateReadChannelOutbox) {
 }
 inline const MTPDupdateDraftMessage &MTPupdate::c_updateDraftMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateDraftMessage);
-	return static_cast<const MTPDupdateDraftMessage&>(*data);
+	t_assert(_type == mtpc_updateDraftMessage);
+	return queryData<MTPDupdateDraftMessage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateDraftMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateDraftMessage) {
+inline MTPupdate::MTPupdate(const MTPDupdateDraftMessage *data) : TypeDataOwner(data), _type(mtpc_updateDraftMessage) {
 }
 inline const MTPDupdateChannelWebPage &MTPupdate::c_updateChannelWebPage() const {
-	t_assert(data != nullptr && _type == mtpc_updateChannelWebPage);
-	return static_cast<const MTPDupdateChannelWebPage&>(*data);
+	t_assert(_type == mtpc_updateChannelWebPage);
+	return queryData<MTPDupdateChannelWebPage>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateChannelWebPage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateChannelWebPage) {
+inline MTPupdate::MTPupdate(const MTPDupdateChannelWebPage *data) : TypeDataOwner(data), _type(mtpc_updateChannelWebPage) {
 }
 inline const MTPDupdatePhoneCall &MTPupdate::c_updatePhoneCall() const {
-	t_assert(data != nullptr && _type == mtpc_updatePhoneCall);
-	return static_cast<const MTPDupdatePhoneCall&>(*data);
+	t_assert(_type == mtpc_updatePhoneCall);
+	return queryData<MTPDupdatePhoneCall>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdatePhoneCall> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updatePhoneCall) {
+inline MTPupdate::MTPupdate(const MTPDupdatePhoneCall *data) : TypeDataOwner(data), _type(mtpc_updatePhoneCall) {
 }
 inline const MTPDupdateDialogPinned &MTPupdate::c_updateDialogPinned() const {
-	t_assert(data != nullptr && _type == mtpc_updateDialogPinned);
-	return static_cast<const MTPDupdateDialogPinned&>(*data);
+	t_assert(_type == mtpc_updateDialogPinned);
+	return queryData<MTPDupdateDialogPinned>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdateDialogPinned> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateDialogPinned) {
+inline MTPupdate::MTPupdate(const MTPDupdateDialogPinned *data) : TypeDataOwner(data), _type(mtpc_updateDialogPinned) {
 }
 inline const MTPDupdatePinnedDialogs &MTPupdate::c_updatePinnedDialogs() const {
-	t_assert(data != nullptr && _type == mtpc_updatePinnedDialogs);
-	return static_cast<const MTPDupdatePinnedDialogs&>(*data);
+	t_assert(_type == mtpc_updatePinnedDialogs);
+	return queryData<MTPDupdatePinnedDialogs>();
 }
-inline MTPupdate::MTPupdate(std::shared_ptr<const MTPDupdatePinnedDialogs> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updatePinnedDialogs) {
+inline MTPupdate::MTPupdate(const MTPDupdatePinnedDialogs *data) : TypeDataOwner(data), _type(mtpc_updatePinnedDialogs) {
 }
 inline MTPupdate MTP_updateNewMessage(const MTPMessage &_message, MTPint _pts, MTPint _pts_count) {
 	return MTP::internal::TypeCreator::new_updateNewMessage(_message, _pts, _pts_count);
@@ -27947,7 +27872,7 @@ inline MTPupdate MTP_updatePinnedDialogs(const MTPflags<MTPDupdatePinnedDialogs:
 	return MTP::internal::TypeCreator::new_updatePinnedDialogs(_flags, _order);
 }
 
-inline MTPupdates_state::MTPupdates_state() : mtpDataOwner(std::make_shared<MTPDupdates_state>()) {
+inline MTPupdates_state::MTPupdates_state() : TypeDataOwner(new MTPDupdates_state()) {
 }
 
 inline uint32 MTPupdates_state::innerLength() const {
@@ -27960,13 +27885,13 @@ inline mtpTypeId MTPupdates_state::type() const {
 inline void MTPupdates_state::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_updates_state) throw mtpErrorUnexpected(cons, "MTPupdates_state");
 
-	auto v = std::make_shared<MTPDupdates_state>();
+	auto v = new MTPDupdates_state();
+	setData(v);
 	v->vpts.read(from, end);
 	v->vqts.read(from, end);
 	v->vdate.read(from, end);
 	v->vseq.read(from, end);
 	v->vunread_count.read(from, end);
-	data = std::move(v);
 }
 inline void MTPupdates_state::write(mtpBuffer &to) const {
 	auto &v = c_updates_state();
@@ -27977,10 +27902,9 @@ inline void MTPupdates_state::write(mtpBuffer &to) const {
 	v.vunread_count.write(to);
 }
 inline const MTPDupdates_state &MTPupdates_state::c_updates_state() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDupdates_state&>(*data);
+	return queryData<MTPDupdates_state>();
 }
-inline MTPupdates_state::MTPupdates_state(std::shared_ptr<const MTPDupdates_state> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPupdates_state::MTPupdates_state(const MTPDupdates_state *data) : TypeDataOwner(data) {
 }
 inline MTPupdates_state MTP_updates_state(MTPint _pts, MTPint _qts, MTPint _date, MTPint _seq, MTPint _unread_count) {
 	return MTP::internal::TypeCreator::new_updates_state(_pts, _qts, _date, _seq, _unread_count);
@@ -28012,38 +27936,37 @@ inline mtpTypeId MTPupdates_difference::type() const {
 	return _type;
 }
 inline void MTPupdates_difference::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_updates_differenceEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_differenceEmpty>();
+			auto v = new MTPDupdates_differenceEmpty();
+			setData(v);
 			v->vdate.read(from, end);
 			v->vseq.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updates_difference: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_difference>();
+			auto v = new MTPDupdates_difference();
+			setData(v);
 			v->vnew_messages.read(from, end);
 			v->vnew_encrypted_messages.read(from, end);
 			v->vother_updates.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
 			v->vstate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updates_differenceSlice: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_differenceSlice>();
+			auto v = new MTPDupdates_differenceSlice();
+			setData(v);
 			v->vnew_messages.read(from, end);
 			v->vnew_encrypted_messages.read(from, end);
 			v->vother_updates.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
 			v->vintermediate_state.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updates_differenceTooLong: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_differenceTooLong>();
+			auto v = new MTPDupdates_differenceTooLong();
+			setData(v);
 			v->vpts.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdates_difference");
 	}
@@ -28081,36 +28004,36 @@ inline void MTPupdates_difference::write(mtpBuffer &to) const {
 }
 inline MTPupdates_difference::MTPupdates_difference(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_updates_differenceEmpty: data = std::make_shared<MTPDupdates_differenceEmpty>(); break;
-		case mtpc_updates_difference: data = std::make_shared<MTPDupdates_difference>(); break;
-		case mtpc_updates_differenceSlice: data = std::make_shared<MTPDupdates_differenceSlice>(); break;
-		case mtpc_updates_differenceTooLong: data = std::make_shared<MTPDupdates_differenceTooLong>(); break;
+		case mtpc_updates_differenceEmpty: setData(new MTPDupdates_differenceEmpty()); break;
+		case mtpc_updates_difference: setData(new MTPDupdates_difference()); break;
+		case mtpc_updates_differenceSlice: setData(new MTPDupdates_differenceSlice()); break;
+		case mtpc_updates_differenceTooLong: setData(new MTPDupdates_differenceTooLong()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdates_difference");
 	}
 }
 inline const MTPDupdates_differenceEmpty &MTPupdates_difference::c_updates_differenceEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_updates_differenceEmpty);
-	return static_cast<const MTPDupdates_differenceEmpty&>(*data);
+	t_assert(_type == mtpc_updates_differenceEmpty);
+	return queryData<MTPDupdates_differenceEmpty>();
 }
-inline MTPupdates_difference::MTPupdates_difference(std::shared_ptr<const MTPDupdates_differenceEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_differenceEmpty) {
+inline MTPupdates_difference::MTPupdates_difference(const MTPDupdates_differenceEmpty *data) : TypeDataOwner(data), _type(mtpc_updates_differenceEmpty) {
 }
 inline const MTPDupdates_difference &MTPupdates_difference::c_updates_difference() const {
-	t_assert(data != nullptr && _type == mtpc_updates_difference);
-	return static_cast<const MTPDupdates_difference&>(*data);
+	t_assert(_type == mtpc_updates_difference);
+	return queryData<MTPDupdates_difference>();
 }
-inline MTPupdates_difference::MTPupdates_difference(std::shared_ptr<const MTPDupdates_difference> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_difference) {
+inline MTPupdates_difference::MTPupdates_difference(const MTPDupdates_difference *data) : TypeDataOwner(data), _type(mtpc_updates_difference) {
 }
 inline const MTPDupdates_differenceSlice &MTPupdates_difference::c_updates_differenceSlice() const {
-	t_assert(data != nullptr && _type == mtpc_updates_differenceSlice);
-	return static_cast<const MTPDupdates_differenceSlice&>(*data);
+	t_assert(_type == mtpc_updates_differenceSlice);
+	return queryData<MTPDupdates_differenceSlice>();
 }
-inline MTPupdates_difference::MTPupdates_difference(std::shared_ptr<const MTPDupdates_differenceSlice> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_differenceSlice) {
+inline MTPupdates_difference::MTPupdates_difference(const MTPDupdates_differenceSlice *data) : TypeDataOwner(data), _type(mtpc_updates_differenceSlice) {
 }
 inline const MTPDupdates_differenceTooLong &MTPupdates_difference::c_updates_differenceTooLong() const {
-	t_assert(data != nullptr && _type == mtpc_updates_differenceTooLong);
-	return static_cast<const MTPDupdates_differenceTooLong&>(*data);
+	t_assert(_type == mtpc_updates_differenceTooLong);
+	return queryData<MTPDupdates_differenceTooLong>();
 }
-inline MTPupdates_difference::MTPupdates_difference(std::shared_ptr<const MTPDupdates_differenceTooLong> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_differenceTooLong) {
+inline MTPupdates_difference::MTPupdates_difference(const MTPDupdates_differenceTooLong *data) : TypeDataOwner(data), _type(mtpc_updates_differenceTooLong) {
 }
 inline MTPupdates_difference MTP_updates_differenceEmpty(MTPint _date, MTPint _seq) {
 	return MTP::internal::TypeCreator::new_updates_differenceEmpty(_date, _seq);
@@ -28159,11 +28082,11 @@ inline mtpTypeId MTPupdates::type() const {
 	return _type;
 }
 inline void MTPupdates::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_updatesTooLong: _type = cons; break;
 		case mtpc_updateShortMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateShortMessage>();
+			auto v = new MTPDupdateShortMessage();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vuser_id.read(from, end);
@@ -28175,10 +28098,10 @@ inline void MTPupdates::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v->has_via_bot_id()) { v->vvia_bot_id.read(from, end); } else { v->vvia_bot_id = MTPint(); }
 			if (v->has_reply_to_msg_id()) { v->vreply_to_msg_id.read(from, end); } else { v->vreply_to_msg_id = MTPint(); }
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updateShortChatMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateShortChatMessage>();
+			auto v = new MTPDupdateShortChatMessage();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vfrom_id.read(from, end);
@@ -28191,35 +28114,35 @@ inline void MTPupdates::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v->has_via_bot_id()) { v->vvia_bot_id.read(from, end); } else { v->vvia_bot_id = MTPint(); }
 			if (v->has_reply_to_msg_id()) { v->vreply_to_msg_id.read(from, end); } else { v->vreply_to_msg_id = MTPint(); }
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updateShort: _type = cons; {
-			auto v = std::make_shared<MTPDupdateShort>();
+			auto v = new MTPDupdateShort();
+			setData(v);
 			v->vupdate.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updatesCombined: _type = cons; {
-			auto v = std::make_shared<MTPDupdatesCombined>();
+			auto v = new MTPDupdatesCombined();
+			setData(v);
 			v->vupdates.read(from, end);
 			v->vusers.read(from, end);
 			v->vchats.read(from, end);
 			v->vdate.read(from, end);
 			v->vseq_start.read(from, end);
 			v->vseq.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updates: _type = cons; {
-			auto v = std::make_shared<MTPDupdates>();
+			auto v = new MTPDupdates();
+			setData(v);
 			v->vupdates.read(from, end);
 			v->vusers.read(from, end);
 			v->vchats.read(from, end);
 			v->vdate.read(from, end);
 			v->vseq.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updateShortSentMessage: _type = cons; {
-			auto v = std::make_shared<MTPDupdateShortSentMessage>();
+			auto v = new MTPDupdateShortSentMessage();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vpts.read(from, end);
@@ -28227,7 +28150,6 @@ inline void MTPupdates::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			v->vdate.read(from, end);
 			if (v->has_media()) { v->vmedia.read(from, end); } else { v->vmedia = MTPMessageMedia(); }
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdates");
 	}
@@ -28300,50 +28222,50 @@ inline void MTPupdates::write(mtpBuffer &to) const {
 inline MTPupdates::MTPupdates(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_updatesTooLong: break;
-		case mtpc_updateShortMessage: data = std::make_shared<MTPDupdateShortMessage>(); break;
-		case mtpc_updateShortChatMessage: data = std::make_shared<MTPDupdateShortChatMessage>(); break;
-		case mtpc_updateShort: data = std::make_shared<MTPDupdateShort>(); break;
-		case mtpc_updatesCombined: data = std::make_shared<MTPDupdatesCombined>(); break;
-		case mtpc_updates: data = std::make_shared<MTPDupdates>(); break;
-		case mtpc_updateShortSentMessage: data = std::make_shared<MTPDupdateShortSentMessage>(); break;
+		case mtpc_updateShortMessage: setData(new MTPDupdateShortMessage()); break;
+		case mtpc_updateShortChatMessage: setData(new MTPDupdateShortChatMessage()); break;
+		case mtpc_updateShort: setData(new MTPDupdateShort()); break;
+		case mtpc_updatesCombined: setData(new MTPDupdatesCombined()); break;
+		case mtpc_updates: setData(new MTPDupdates()); break;
+		case mtpc_updateShortSentMessage: setData(new MTPDupdateShortSentMessage()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdates");
 	}
 }
 inline const MTPDupdateShortMessage &MTPupdates::c_updateShortMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateShortMessage);
-	return static_cast<const MTPDupdateShortMessage&>(*data);
+	t_assert(_type == mtpc_updateShortMessage);
+	return queryData<MTPDupdateShortMessage>();
 }
-inline MTPupdates::MTPupdates(std::shared_ptr<const MTPDupdateShortMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateShortMessage) {
+inline MTPupdates::MTPupdates(const MTPDupdateShortMessage *data) : TypeDataOwner(data), _type(mtpc_updateShortMessage) {
 }
 inline const MTPDupdateShortChatMessage &MTPupdates::c_updateShortChatMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateShortChatMessage);
-	return static_cast<const MTPDupdateShortChatMessage&>(*data);
+	t_assert(_type == mtpc_updateShortChatMessage);
+	return queryData<MTPDupdateShortChatMessage>();
 }
-inline MTPupdates::MTPupdates(std::shared_ptr<const MTPDupdateShortChatMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateShortChatMessage) {
+inline MTPupdates::MTPupdates(const MTPDupdateShortChatMessage *data) : TypeDataOwner(data), _type(mtpc_updateShortChatMessage) {
 }
 inline const MTPDupdateShort &MTPupdates::c_updateShort() const {
-	t_assert(data != nullptr && _type == mtpc_updateShort);
-	return static_cast<const MTPDupdateShort&>(*data);
+	t_assert(_type == mtpc_updateShort);
+	return queryData<MTPDupdateShort>();
 }
-inline MTPupdates::MTPupdates(std::shared_ptr<const MTPDupdateShort> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateShort) {
+inline MTPupdates::MTPupdates(const MTPDupdateShort *data) : TypeDataOwner(data), _type(mtpc_updateShort) {
 }
 inline const MTPDupdatesCombined &MTPupdates::c_updatesCombined() const {
-	t_assert(data != nullptr && _type == mtpc_updatesCombined);
-	return static_cast<const MTPDupdatesCombined&>(*data);
+	t_assert(_type == mtpc_updatesCombined);
+	return queryData<MTPDupdatesCombined>();
 }
-inline MTPupdates::MTPupdates(std::shared_ptr<const MTPDupdatesCombined> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updatesCombined) {
+inline MTPupdates::MTPupdates(const MTPDupdatesCombined *data) : TypeDataOwner(data), _type(mtpc_updatesCombined) {
 }
 inline const MTPDupdates &MTPupdates::c_updates() const {
-	t_assert(data != nullptr && _type == mtpc_updates);
-	return static_cast<const MTPDupdates&>(*data);
+	t_assert(_type == mtpc_updates);
+	return queryData<MTPDupdates>();
 }
-inline MTPupdates::MTPupdates(std::shared_ptr<const MTPDupdates> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates) {
+inline MTPupdates::MTPupdates(const MTPDupdates *data) : TypeDataOwner(data), _type(mtpc_updates) {
 }
 inline const MTPDupdateShortSentMessage &MTPupdates::c_updateShortSentMessage() const {
-	t_assert(data != nullptr && _type == mtpc_updateShortSentMessage);
-	return static_cast<const MTPDupdateShortSentMessage&>(*data);
+	t_assert(_type == mtpc_updateShortSentMessage);
+	return queryData<MTPDupdateShortSentMessage>();
 }
-inline MTPupdates::MTPupdates(std::shared_ptr<const MTPDupdateShortSentMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updateShortSentMessage) {
+inline MTPupdates::MTPupdates(const MTPDupdateShortSentMessage *data) : TypeDataOwner(data), _type(mtpc_updateShortSentMessage) {
 }
 inline MTPupdates MTP_updatesTooLong() {
 	return MTP::internal::TypeCreator::new_updatesTooLong();
@@ -28388,20 +28310,19 @@ inline mtpTypeId MTPphotos_photos::type() const {
 	return _type;
 }
 inline void MTPphotos_photos::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_photos_photos: _type = cons; {
-			auto v = std::make_shared<MTPDphotos_photos>();
+			auto v = new MTPDphotos_photos();
+			setData(v);
 			v->vphotos.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_photos_photosSlice: _type = cons; {
-			auto v = std::make_shared<MTPDphotos_photosSlice>();
+			auto v = new MTPDphotos_photosSlice();
+			setData(v);
 			v->vcount.read(from, end);
 			v->vphotos.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPphotos_photos");
 	}
@@ -28423,22 +28344,22 @@ inline void MTPphotos_photos::write(mtpBuffer &to) const {
 }
 inline MTPphotos_photos::MTPphotos_photos(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_photos_photos: data = std::make_shared<MTPDphotos_photos>(); break;
-		case mtpc_photos_photosSlice: data = std::make_shared<MTPDphotos_photosSlice>(); break;
+		case mtpc_photos_photos: setData(new MTPDphotos_photos()); break;
+		case mtpc_photos_photosSlice: setData(new MTPDphotos_photosSlice()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPphotos_photos");
 	}
 }
 inline const MTPDphotos_photos &MTPphotos_photos::c_photos_photos() const {
-	t_assert(data != nullptr && _type == mtpc_photos_photos);
-	return static_cast<const MTPDphotos_photos&>(*data);
+	t_assert(_type == mtpc_photos_photos);
+	return queryData<MTPDphotos_photos>();
 }
-inline MTPphotos_photos::MTPphotos_photos(std::shared_ptr<const MTPDphotos_photos> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photos_photos) {
+inline MTPphotos_photos::MTPphotos_photos(const MTPDphotos_photos *data) : TypeDataOwner(data), _type(mtpc_photos_photos) {
 }
 inline const MTPDphotos_photosSlice &MTPphotos_photos::c_photos_photosSlice() const {
-	t_assert(data != nullptr && _type == mtpc_photos_photosSlice);
-	return static_cast<const MTPDphotos_photosSlice&>(*data);
+	t_assert(_type == mtpc_photos_photosSlice);
+	return queryData<MTPDphotos_photosSlice>();
 }
-inline MTPphotos_photos::MTPphotos_photos(std::shared_ptr<const MTPDphotos_photosSlice> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_photos_photosSlice) {
+inline MTPphotos_photos::MTPphotos_photos(const MTPDphotos_photosSlice *data) : TypeDataOwner(data), _type(mtpc_photos_photosSlice) {
 }
 inline MTPphotos_photos MTP_photos_photos(const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_photos_photos(_photos, _users);
@@ -28447,7 +28368,7 @@ inline MTPphotos_photos MTP_photos_photosSlice(MTPint _count, const MTPVector<MT
 	return MTP::internal::TypeCreator::new_photos_photosSlice(_count, _photos, _users);
 }
 
-inline MTPphotos_photo::MTPphotos_photo() : mtpDataOwner(std::make_shared<MTPDphotos_photo>()) {
+inline MTPphotos_photo::MTPphotos_photo() : TypeDataOwner(new MTPDphotos_photo()) {
 }
 
 inline uint32 MTPphotos_photo::innerLength() const {
@@ -28460,10 +28381,10 @@ inline mtpTypeId MTPphotos_photo::type() const {
 inline void MTPphotos_photo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_photos_photo) throw mtpErrorUnexpected(cons, "MTPphotos_photo");
 
-	auto v = std::make_shared<MTPDphotos_photo>();
+	auto v = new MTPDphotos_photo();
+	setData(v);
 	v->vphoto.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPphotos_photo::write(mtpBuffer &to) const {
 	auto &v = c_photos_photo();
@@ -28471,16 +28392,15 @@ inline void MTPphotos_photo::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDphotos_photo &MTPphotos_photo::c_photos_photo() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDphotos_photo&>(*data);
+	return queryData<MTPDphotos_photo>();
 }
-inline MTPphotos_photo::MTPphotos_photo(std::shared_ptr<const MTPDphotos_photo> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPphotos_photo::MTPphotos_photo(const MTPDphotos_photo *data) : TypeDataOwner(data) {
 }
 inline MTPphotos_photo MTP_photos_photo(const MTPPhoto &_photo, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_photos_photo(_photo, _users);
 }
 
-inline MTPupload_file::MTPupload_file() : mtpDataOwner(std::make_shared<MTPDupload_file>()) {
+inline MTPupload_file::MTPupload_file() : TypeDataOwner(new MTPDupload_file()) {
 }
 
 inline uint32 MTPupload_file::innerLength() const {
@@ -28493,11 +28413,11 @@ inline mtpTypeId MTPupload_file::type() const {
 inline void MTPupload_file::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_upload_file) throw mtpErrorUnexpected(cons, "MTPupload_file");
 
-	auto v = std::make_shared<MTPDupload_file>();
+	auto v = new MTPDupload_file();
+	setData(v);
 	v->vtype.read(from, end);
 	v->vmtime.read(from, end);
 	v->vbytes.read(from, end);
-	data = std::move(v);
 }
 inline void MTPupload_file::write(mtpBuffer &to) const {
 	auto &v = c_upload_file();
@@ -28506,16 +28426,15 @@ inline void MTPupload_file::write(mtpBuffer &to) const {
 	v.vbytes.write(to);
 }
 inline const MTPDupload_file &MTPupload_file::c_upload_file() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDupload_file&>(*data);
+	return queryData<MTPDupload_file>();
 }
-inline MTPupload_file::MTPupload_file(std::shared_ptr<const MTPDupload_file> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPupload_file::MTPupload_file(const MTPDupload_file *data) : TypeDataOwner(data) {
 }
 inline MTPupload_file MTP_upload_file(const MTPstorage_FileType &_type, MTPint _mtime, const MTPbytes &_bytes) {
 	return MTP::internal::TypeCreator::new_upload_file(_type, _mtime, _bytes);
 }
 
-inline MTPdcOption::MTPdcOption() : mtpDataOwner(std::make_shared<MTPDdcOption>()) {
+inline MTPdcOption::MTPdcOption() : TypeDataOwner(new MTPDdcOption()) {
 }
 
 inline uint32 MTPdcOption::innerLength() const {
@@ -28528,12 +28447,12 @@ inline mtpTypeId MTPdcOption::type() const {
 inline void MTPdcOption::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_dcOption) throw mtpErrorUnexpected(cons, "MTPdcOption");
 
-	auto v = std::make_shared<MTPDdcOption>();
+	auto v = new MTPDdcOption();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vid.read(from, end);
 	v->vip_address.read(from, end);
 	v->vport.read(from, end);
-	data = std::move(v);
 }
 inline void MTPdcOption::write(mtpBuffer &to) const {
 	auto &v = c_dcOption();
@@ -28543,17 +28462,16 @@ inline void MTPdcOption::write(mtpBuffer &to) const {
 	v.vport.write(to);
 }
 inline const MTPDdcOption &MTPdcOption::c_dcOption() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDdcOption&>(*data);
+	return queryData<MTPDdcOption>();
 }
-inline MTPdcOption::MTPdcOption(std::shared_ptr<const MTPDdcOption> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPdcOption::MTPdcOption(const MTPDdcOption *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDdcOption::Flags)
 inline MTPdcOption MTP_dcOption(const MTPflags<MTPDdcOption::Flags> &_flags, MTPint _id, const MTPstring &_ip_address, MTPint _port) {
 	return MTP::internal::TypeCreator::new_dcOption(_flags, _id, _ip_address, _port);
 }
 
-inline MTPconfig::MTPconfig() : mtpDataOwner(std::make_shared<MTPDconfig>()) {
+inline MTPconfig::MTPconfig() : TypeDataOwner(new MTPDconfig()) {
 }
 
 inline uint32 MTPconfig::innerLength() const {
@@ -28566,7 +28484,8 @@ inline mtpTypeId MTPconfig::type() const {
 inline void MTPconfig::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_config) throw mtpErrorUnexpected(cons, "MTPconfig");
 
-	auto v = std::make_shared<MTPDconfig>();
+	auto v = new MTPDconfig();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vdate.read(from, end);
 	v->vexpires.read(from, end);
@@ -28596,7 +28515,6 @@ inline void MTPconfig::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeI
 	v->vcall_connect_timeout_ms.read(from, end);
 	v->vcall_packet_timeout_ms.read(from, end);
 	v->vdisabled_features.read(from, end);
-	data = std::move(v);
 }
 inline void MTPconfig::write(mtpBuffer &to) const {
 	auto &v = c_config();
@@ -28631,17 +28549,16 @@ inline void MTPconfig::write(mtpBuffer &to) const {
 	v.vdisabled_features.write(to);
 }
 inline const MTPDconfig &MTPconfig::c_config() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDconfig&>(*data);
+	return queryData<MTPDconfig>();
 }
-inline MTPconfig::MTPconfig(std::shared_ptr<const MTPDconfig> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPconfig::MTPconfig(const MTPDconfig *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDconfig::Flags)
 inline MTPconfig MTP_config(const MTPflags<MTPDconfig::Flags> &_flags, MTPint _date, MTPint _expires, MTPBool _test_mode, MTPint _this_dc, const MTPVector<MTPDcOption> &_dc_options, MTPint _chat_size_max, MTPint _megagroup_size_max, MTPint _forwarded_count_max, MTPint _online_update_period_ms, MTPint _offline_blur_timeout_ms, MTPint _offline_idle_timeout_ms, MTPint _online_cloud_timeout_ms, MTPint _notify_cloud_delay_ms, MTPint _notify_default_delay_ms, MTPint _chat_big_size, MTPint _push_chat_period_ms, MTPint _push_chat_limit, MTPint _saved_gifs_limit, MTPint _edit_time_limit, MTPint _rating_e_decay, MTPint _stickers_recent_limit, MTPint _tmp_sessions, MTPint _pinned_dialogs_count_max, MTPint _call_receive_timeout_ms, MTPint _call_ring_timeout_ms, MTPint _call_connect_timeout_ms, MTPint _call_packet_timeout_ms, const MTPVector<MTPDisabledFeature> &_disabled_features) {
 	return MTP::internal::TypeCreator::new_config(_flags, _date, _expires, _test_mode, _this_dc, _dc_options, _chat_size_max, _megagroup_size_max, _forwarded_count_max, _online_update_period_ms, _offline_blur_timeout_ms, _offline_idle_timeout_ms, _online_cloud_timeout_ms, _notify_cloud_delay_ms, _notify_default_delay_ms, _chat_big_size, _push_chat_period_ms, _push_chat_limit, _saved_gifs_limit, _edit_time_limit, _rating_e_decay, _stickers_recent_limit, _tmp_sessions, _pinned_dialogs_count_max, _call_receive_timeout_ms, _call_ring_timeout_ms, _call_connect_timeout_ms, _call_packet_timeout_ms, _disabled_features);
 }
 
-inline MTPnearestDc::MTPnearestDc() : mtpDataOwner(std::make_shared<MTPDnearestDc>()) {
+inline MTPnearestDc::MTPnearestDc() : TypeDataOwner(new MTPDnearestDc()) {
 }
 
 inline uint32 MTPnearestDc::innerLength() const {
@@ -28654,11 +28571,11 @@ inline mtpTypeId MTPnearestDc::type() const {
 inline void MTPnearestDc::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_nearestDc) throw mtpErrorUnexpected(cons, "MTPnearestDc");
 
-	auto v = std::make_shared<MTPDnearestDc>();
+	auto v = new MTPDnearestDc();
+	setData(v);
 	v->vcountry.read(from, end);
 	v->vthis_dc.read(from, end);
 	v->vnearest_dc.read(from, end);
-	data = std::move(v);
 }
 inline void MTPnearestDc::write(mtpBuffer &to) const {
 	auto &v = c_nearestDc();
@@ -28667,10 +28584,9 @@ inline void MTPnearestDc::write(mtpBuffer &to) const {
 	v.vnearest_dc.write(to);
 }
 inline const MTPDnearestDc &MTPnearestDc::c_nearestDc() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDnearestDc&>(*data);
+	return queryData<MTPDnearestDc>();
 }
-inline MTPnearestDc::MTPnearestDc(std::shared_ptr<const MTPDnearestDc> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPnearestDc::MTPnearestDc(const MTPDnearestDc *data) : TypeDataOwner(data) {
 }
 inline MTPnearestDc MTP_nearestDc(const MTPstring &_country, MTPint _this_dc, MTPint _nearest_dc) {
 	return MTP::internal::TypeCreator::new_nearestDc(_country, _this_dc, _nearest_dc);
@@ -28690,15 +28606,14 @@ inline mtpTypeId MTPhelp_appUpdate::type() const {
 	return _type;
 }
 inline void MTPhelp_appUpdate::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_help_appUpdate: _type = cons; {
-			auto v = std::make_shared<MTPDhelp_appUpdate>();
+			auto v = new MTPDhelp_appUpdate();
+			setData(v);
 			v->vid.read(from, end);
 			v->vcritical.read(from, end);
 			v->vurl.read(from, end);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_help_noAppUpdate: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPhelp_appUpdate");
@@ -28717,16 +28632,16 @@ inline void MTPhelp_appUpdate::write(mtpBuffer &to) const {
 }
 inline MTPhelp_appUpdate::MTPhelp_appUpdate(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_help_appUpdate: data = std::make_shared<MTPDhelp_appUpdate>(); break;
+		case mtpc_help_appUpdate: setData(new MTPDhelp_appUpdate()); break;
 		case mtpc_help_noAppUpdate: break;
 		default: throw mtpErrorBadTypeId(type, "MTPhelp_appUpdate");
 	}
 }
 inline const MTPDhelp_appUpdate &MTPhelp_appUpdate::c_help_appUpdate() const {
-	t_assert(data != nullptr && _type == mtpc_help_appUpdate);
-	return static_cast<const MTPDhelp_appUpdate&>(*data);
+	t_assert(_type == mtpc_help_appUpdate);
+	return queryData<MTPDhelp_appUpdate>();
 }
-inline MTPhelp_appUpdate::MTPhelp_appUpdate(std::shared_ptr<const MTPDhelp_appUpdate> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_help_appUpdate) {
+inline MTPhelp_appUpdate::MTPhelp_appUpdate(const MTPDhelp_appUpdate *data) : TypeDataOwner(data), _type(mtpc_help_appUpdate) {
 }
 inline MTPhelp_appUpdate MTP_help_appUpdate(MTPint _id, MTPBool _critical, const MTPstring &_url, const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_help_appUpdate(_id, _critical, _url, _text);
@@ -28735,7 +28650,7 @@ inline MTPhelp_appUpdate MTP_help_noAppUpdate() {
 	return MTP::internal::TypeCreator::new_help_noAppUpdate();
 }
 
-inline MTPhelp_inviteText::MTPhelp_inviteText() : mtpDataOwner(std::make_shared<MTPDhelp_inviteText>()) {
+inline MTPhelp_inviteText::MTPhelp_inviteText() : TypeDataOwner(new MTPDhelp_inviteText()) {
 }
 
 inline uint32 MTPhelp_inviteText::innerLength() const {
@@ -28748,19 +28663,18 @@ inline mtpTypeId MTPhelp_inviteText::type() const {
 inline void MTPhelp_inviteText::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_help_inviteText) throw mtpErrorUnexpected(cons, "MTPhelp_inviteText");
 
-	auto v = std::make_shared<MTPDhelp_inviteText>();
+	auto v = new MTPDhelp_inviteText();
+	setData(v);
 	v->vmessage.read(from, end);
-	data = std::move(v);
 }
 inline void MTPhelp_inviteText::write(mtpBuffer &to) const {
 	auto &v = c_help_inviteText();
 	v.vmessage.write(to);
 }
 inline const MTPDhelp_inviteText &MTPhelp_inviteText::c_help_inviteText() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDhelp_inviteText&>(*data);
+	return queryData<MTPDhelp_inviteText>();
 }
-inline MTPhelp_inviteText::MTPhelp_inviteText(std::shared_ptr<const MTPDhelp_inviteText> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPhelp_inviteText::MTPhelp_inviteText(const MTPDhelp_inviteText *data) : TypeDataOwner(data) {
 }
 inline MTPhelp_inviteText MTP_help_inviteText(const MTPstring &_message) {
 	return MTP::internal::TypeCreator::new_help_inviteText(_message);
@@ -28796,34 +28710,34 @@ inline mtpTypeId MTPencryptedChat::type() const {
 	return _type;
 }
 inline void MTPencryptedChat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_encryptedChatEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedChatEmpty>();
+			auto v = new MTPDencryptedChatEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_encryptedChatWaiting: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedChatWaiting>();
+			auto v = new MTPDencryptedChatWaiting();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
 			v->vadmin_id.read(from, end);
 			v->vparticipant_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_encryptedChatRequested: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedChatRequested>();
+			auto v = new MTPDencryptedChatRequested();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
 			v->vadmin_id.read(from, end);
 			v->vparticipant_id.read(from, end);
 			v->vg_a.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_encryptedChat: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedChat>();
+			auto v = new MTPDencryptedChat();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
@@ -28831,12 +28745,11 @@ inline void MTPencryptedChat::read(const mtpPrime *&from, const mtpPrime *end, m
 			v->vparticipant_id.read(from, end);
 			v->vg_a_or_b.read(from, end);
 			v->vkey_fingerprint.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_encryptedChatDiscarded: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedChatDiscarded>();
+			auto v = new MTPDencryptedChatDiscarded();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPencryptedChat");
 	}
@@ -28882,43 +28795,43 @@ inline void MTPencryptedChat::write(mtpBuffer &to) const {
 }
 inline MTPencryptedChat::MTPencryptedChat(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_encryptedChatEmpty: data = std::make_shared<MTPDencryptedChatEmpty>(); break;
-		case mtpc_encryptedChatWaiting: data = std::make_shared<MTPDencryptedChatWaiting>(); break;
-		case mtpc_encryptedChatRequested: data = std::make_shared<MTPDencryptedChatRequested>(); break;
-		case mtpc_encryptedChat: data = std::make_shared<MTPDencryptedChat>(); break;
-		case mtpc_encryptedChatDiscarded: data = std::make_shared<MTPDencryptedChatDiscarded>(); break;
+		case mtpc_encryptedChatEmpty: setData(new MTPDencryptedChatEmpty()); break;
+		case mtpc_encryptedChatWaiting: setData(new MTPDencryptedChatWaiting()); break;
+		case mtpc_encryptedChatRequested: setData(new MTPDencryptedChatRequested()); break;
+		case mtpc_encryptedChat: setData(new MTPDencryptedChat()); break;
+		case mtpc_encryptedChatDiscarded: setData(new MTPDencryptedChatDiscarded()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPencryptedChat");
 	}
 }
 inline const MTPDencryptedChatEmpty &MTPencryptedChat::c_encryptedChatEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedChatEmpty);
-	return static_cast<const MTPDencryptedChatEmpty&>(*data);
+	t_assert(_type == mtpc_encryptedChatEmpty);
+	return queryData<MTPDencryptedChatEmpty>();
 }
-inline MTPencryptedChat::MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedChatEmpty) {
+inline MTPencryptedChat::MTPencryptedChat(const MTPDencryptedChatEmpty *data) : TypeDataOwner(data), _type(mtpc_encryptedChatEmpty) {
 }
 inline const MTPDencryptedChatWaiting &MTPencryptedChat::c_encryptedChatWaiting() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedChatWaiting);
-	return static_cast<const MTPDencryptedChatWaiting&>(*data);
+	t_assert(_type == mtpc_encryptedChatWaiting);
+	return queryData<MTPDencryptedChatWaiting>();
 }
-inline MTPencryptedChat::MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatWaiting> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedChatWaiting) {
+inline MTPencryptedChat::MTPencryptedChat(const MTPDencryptedChatWaiting *data) : TypeDataOwner(data), _type(mtpc_encryptedChatWaiting) {
 }
 inline const MTPDencryptedChatRequested &MTPencryptedChat::c_encryptedChatRequested() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedChatRequested);
-	return static_cast<const MTPDencryptedChatRequested&>(*data);
+	t_assert(_type == mtpc_encryptedChatRequested);
+	return queryData<MTPDencryptedChatRequested>();
 }
-inline MTPencryptedChat::MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatRequested> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedChatRequested) {
+inline MTPencryptedChat::MTPencryptedChat(const MTPDencryptedChatRequested *data) : TypeDataOwner(data), _type(mtpc_encryptedChatRequested) {
 }
 inline const MTPDencryptedChat &MTPencryptedChat::c_encryptedChat() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedChat);
-	return static_cast<const MTPDencryptedChat&>(*data);
+	t_assert(_type == mtpc_encryptedChat);
+	return queryData<MTPDencryptedChat>();
 }
-inline MTPencryptedChat::MTPencryptedChat(std::shared_ptr<const MTPDencryptedChat> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedChat) {
+inline MTPencryptedChat::MTPencryptedChat(const MTPDencryptedChat *data) : TypeDataOwner(data), _type(mtpc_encryptedChat) {
 }
 inline const MTPDencryptedChatDiscarded &MTPencryptedChat::c_encryptedChatDiscarded() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedChatDiscarded);
-	return static_cast<const MTPDencryptedChatDiscarded&>(*data);
+	t_assert(_type == mtpc_encryptedChatDiscarded);
+	return queryData<MTPDencryptedChatDiscarded>();
 }
-inline MTPencryptedChat::MTPencryptedChat(std::shared_ptr<const MTPDencryptedChatDiscarded> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedChatDiscarded) {
+inline MTPencryptedChat::MTPencryptedChat(const MTPDencryptedChatDiscarded *data) : TypeDataOwner(data), _type(mtpc_encryptedChatDiscarded) {
 }
 inline MTPencryptedChat MTP_encryptedChatEmpty(MTPint _id) {
 	return MTP::internal::TypeCreator::new_encryptedChatEmpty(_id);
@@ -28936,7 +28849,7 @@ inline MTPencryptedChat MTP_encryptedChatDiscarded(MTPint _id) {
 	return MTP::internal::TypeCreator::new_encryptedChatDiscarded(_id);
 }
 
-inline MTPinputEncryptedChat::MTPinputEncryptedChat() : mtpDataOwner(std::make_shared<MTPDinputEncryptedChat>()) {
+inline MTPinputEncryptedChat::MTPinputEncryptedChat() : TypeDataOwner(new MTPDinputEncryptedChat()) {
 }
 
 inline uint32 MTPinputEncryptedChat::innerLength() const {
@@ -28949,10 +28862,10 @@ inline mtpTypeId MTPinputEncryptedChat::type() const {
 inline void MTPinputEncryptedChat::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inputEncryptedChat) throw mtpErrorUnexpected(cons, "MTPinputEncryptedChat");
 
-	auto v = std::make_shared<MTPDinputEncryptedChat>();
+	auto v = new MTPDinputEncryptedChat();
+	setData(v);
 	v->vchat_id.read(from, end);
 	v->vaccess_hash.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinputEncryptedChat::write(mtpBuffer &to) const {
 	auto &v = c_inputEncryptedChat();
@@ -28960,10 +28873,9 @@ inline void MTPinputEncryptedChat::write(mtpBuffer &to) const {
 	v.vaccess_hash.write(to);
 }
 inline const MTPDinputEncryptedChat &MTPinputEncryptedChat::c_inputEncryptedChat() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinputEncryptedChat&>(*data);
+	return queryData<MTPDinputEncryptedChat>();
 }
-inline MTPinputEncryptedChat::MTPinputEncryptedChat(std::shared_ptr<const MTPDinputEncryptedChat> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinputEncryptedChat::MTPinputEncryptedChat(const MTPDinputEncryptedChat *data) : TypeDataOwner(data) {
 }
 inline MTPinputEncryptedChat MTP_inputEncryptedChat(MTPint _chat_id, const MTPlong &_access_hash) {
 	return MTP::internal::TypeCreator::new_inputEncryptedChat(_chat_id, _access_hash);
@@ -28983,17 +28895,16 @@ inline mtpTypeId MTPencryptedFile::type() const {
 	return _type;
 }
 inline void MTPencryptedFile::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_encryptedFileEmpty: _type = cons; break;
 		case mtpc_encryptedFile: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedFile>();
+			auto v = new MTPDencryptedFile();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vsize.read(from, end);
 			v->vdc_id.read(from, end);
 			v->vkey_fingerprint.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPencryptedFile");
 	}
@@ -29013,15 +28924,15 @@ inline void MTPencryptedFile::write(mtpBuffer &to) const {
 inline MTPencryptedFile::MTPencryptedFile(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_encryptedFileEmpty: break;
-		case mtpc_encryptedFile: data = std::make_shared<MTPDencryptedFile>(); break;
+		case mtpc_encryptedFile: setData(new MTPDencryptedFile()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPencryptedFile");
 	}
 }
 inline const MTPDencryptedFile &MTPencryptedFile::c_encryptedFile() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedFile);
-	return static_cast<const MTPDencryptedFile&>(*data);
+	t_assert(_type == mtpc_encryptedFile);
+	return queryData<MTPDencryptedFile>();
 }
-inline MTPencryptedFile::MTPencryptedFile(std::shared_ptr<const MTPDencryptedFile> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedFile) {
+inline MTPencryptedFile::MTPencryptedFile(const MTPDencryptedFile *data) : TypeDataOwner(data), _type(mtpc_encryptedFile) {
 }
 inline MTPencryptedFile MTP_encryptedFileEmpty() {
 	return MTP::internal::TypeCreator::new_encryptedFileEmpty();
@@ -29052,29 +28963,28 @@ inline mtpTypeId MTPinputEncryptedFile::type() const {
 	return _type;
 }
 inline void MTPinputEncryptedFile::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputEncryptedFileEmpty: _type = cons; break;
 		case mtpc_inputEncryptedFileUploaded: _type = cons; {
-			auto v = std::make_shared<MTPDinputEncryptedFileUploaded>();
+			auto v = new MTPDinputEncryptedFileUploaded();
+			setData(v);
 			v->vid.read(from, end);
 			v->vparts.read(from, end);
 			v->vmd5_checksum.read(from, end);
 			v->vkey_fingerprint.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputEncryptedFile: _type = cons; {
-			auto v = std::make_shared<MTPDinputEncryptedFile>();
+			auto v = new MTPDinputEncryptedFile();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputEncryptedFileBigUploaded: _type = cons; {
-			auto v = std::make_shared<MTPDinputEncryptedFileBigUploaded>();
+			auto v = new MTPDinputEncryptedFileBigUploaded();
+			setData(v);
 			v->vid.read(from, end);
 			v->vparts.read(from, end);
 			v->vkey_fingerprint.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputEncryptedFile");
 	}
@@ -29104,29 +29014,29 @@ inline void MTPinputEncryptedFile::write(mtpBuffer &to) const {
 inline MTPinputEncryptedFile::MTPinputEncryptedFile(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputEncryptedFileEmpty: break;
-		case mtpc_inputEncryptedFileUploaded: data = std::make_shared<MTPDinputEncryptedFileUploaded>(); break;
-		case mtpc_inputEncryptedFile: data = std::make_shared<MTPDinputEncryptedFile>(); break;
-		case mtpc_inputEncryptedFileBigUploaded: data = std::make_shared<MTPDinputEncryptedFileBigUploaded>(); break;
+		case mtpc_inputEncryptedFileUploaded: setData(new MTPDinputEncryptedFileUploaded()); break;
+		case mtpc_inputEncryptedFile: setData(new MTPDinputEncryptedFile()); break;
+		case mtpc_inputEncryptedFileBigUploaded: setData(new MTPDinputEncryptedFileBigUploaded()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputEncryptedFile");
 	}
 }
 inline const MTPDinputEncryptedFileUploaded &MTPinputEncryptedFile::c_inputEncryptedFileUploaded() const {
-	t_assert(data != nullptr && _type == mtpc_inputEncryptedFileUploaded);
-	return static_cast<const MTPDinputEncryptedFileUploaded&>(*data);
+	t_assert(_type == mtpc_inputEncryptedFileUploaded);
+	return queryData<MTPDinputEncryptedFileUploaded>();
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(std::shared_ptr<const MTPDinputEncryptedFileUploaded> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputEncryptedFileUploaded) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(const MTPDinputEncryptedFileUploaded *data) : TypeDataOwner(data), _type(mtpc_inputEncryptedFileUploaded) {
 }
 inline const MTPDinputEncryptedFile &MTPinputEncryptedFile::c_inputEncryptedFile() const {
-	t_assert(data != nullptr && _type == mtpc_inputEncryptedFile);
-	return static_cast<const MTPDinputEncryptedFile&>(*data);
+	t_assert(_type == mtpc_inputEncryptedFile);
+	return queryData<MTPDinputEncryptedFile>();
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(std::shared_ptr<const MTPDinputEncryptedFile> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputEncryptedFile) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(const MTPDinputEncryptedFile *data) : TypeDataOwner(data), _type(mtpc_inputEncryptedFile) {
 }
 inline const MTPDinputEncryptedFileBigUploaded &MTPinputEncryptedFile::c_inputEncryptedFileBigUploaded() const {
-	t_assert(data != nullptr && _type == mtpc_inputEncryptedFileBigUploaded);
-	return static_cast<const MTPDinputEncryptedFileBigUploaded&>(*data);
+	t_assert(_type == mtpc_inputEncryptedFileBigUploaded);
+	return queryData<MTPDinputEncryptedFileBigUploaded>();
 }
-inline MTPinputEncryptedFile::MTPinputEncryptedFile(std::shared_ptr<const MTPDinputEncryptedFileBigUploaded> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputEncryptedFileBigUploaded) {
+inline MTPinputEncryptedFile::MTPinputEncryptedFile(const MTPDinputEncryptedFileBigUploaded *data) : TypeDataOwner(data), _type(mtpc_inputEncryptedFileBigUploaded) {
 }
 inline MTPinputEncryptedFile MTP_inputEncryptedFileEmpty() {
 	return MTP::internal::TypeCreator::new_inputEncryptedFileEmpty();
@@ -29159,24 +29069,23 @@ inline mtpTypeId MTPencryptedMessage::type() const {
 	return _type;
 }
 inline void MTPencryptedMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_encryptedMessage: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedMessage>();
+			auto v = new MTPDencryptedMessage();
+			setData(v);
 			v->vrandom_id.read(from, end);
 			v->vchat_id.read(from, end);
 			v->vdate.read(from, end);
 			v->vbytes.read(from, end);
 			v->vfile.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_encryptedMessageService: _type = cons; {
-			auto v = std::make_shared<MTPDencryptedMessageService>();
+			auto v = new MTPDencryptedMessageService();
+			setData(v);
 			v->vrandom_id.read(from, end);
 			v->vchat_id.read(from, end);
 			v->vdate.read(from, end);
 			v->vbytes.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPencryptedMessage");
 	}
@@ -29202,22 +29111,22 @@ inline void MTPencryptedMessage::write(mtpBuffer &to) const {
 }
 inline MTPencryptedMessage::MTPencryptedMessage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_encryptedMessage: data = std::make_shared<MTPDencryptedMessage>(); break;
-		case mtpc_encryptedMessageService: data = std::make_shared<MTPDencryptedMessageService>(); break;
+		case mtpc_encryptedMessage: setData(new MTPDencryptedMessage()); break;
+		case mtpc_encryptedMessageService: setData(new MTPDencryptedMessageService()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPencryptedMessage");
 	}
 }
 inline const MTPDencryptedMessage &MTPencryptedMessage::c_encryptedMessage() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedMessage);
-	return static_cast<const MTPDencryptedMessage&>(*data);
+	t_assert(_type == mtpc_encryptedMessage);
+	return queryData<MTPDencryptedMessage>();
 }
-inline MTPencryptedMessage::MTPencryptedMessage(std::shared_ptr<const MTPDencryptedMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedMessage) {
+inline MTPencryptedMessage::MTPencryptedMessage(const MTPDencryptedMessage *data) : TypeDataOwner(data), _type(mtpc_encryptedMessage) {
 }
 inline const MTPDencryptedMessageService &MTPencryptedMessage::c_encryptedMessageService() const {
-	t_assert(data != nullptr && _type == mtpc_encryptedMessageService);
-	return static_cast<const MTPDencryptedMessageService&>(*data);
+	t_assert(_type == mtpc_encryptedMessageService);
+	return queryData<MTPDencryptedMessageService>();
 }
-inline MTPencryptedMessage::MTPencryptedMessage(std::shared_ptr<const MTPDencryptedMessageService> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_encryptedMessageService) {
+inline MTPencryptedMessage::MTPencryptedMessage(const MTPDencryptedMessageService *data) : TypeDataOwner(data), _type(mtpc_encryptedMessageService) {
 }
 inline MTPencryptedMessage MTP_encryptedMessage(const MTPlong &_random_id, MTPint _chat_id, MTPint _date, const MTPbytes &_bytes, const MTPEncryptedFile &_file) {
 	return MTP::internal::TypeCreator::new_encryptedMessage(_random_id, _chat_id, _date, _bytes, _file);
@@ -29244,20 +29153,19 @@ inline mtpTypeId MTPmessages_dhConfig::type() const {
 	return _type;
 }
 inline void MTPmessages_dhConfig::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_dhConfigNotModified: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_dhConfigNotModified>();
+			auto v = new MTPDmessages_dhConfigNotModified();
+			setData(v);
 			v->vrandom.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messages_dhConfig: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_dhConfig>();
+			auto v = new MTPDmessages_dhConfig();
+			setData(v);
 			v->vg.read(from, end);
 			v->vp.read(from, end);
 			v->vversion.read(from, end);
 			v->vrandom.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_dhConfig");
 	}
@@ -29279,22 +29187,22 @@ inline void MTPmessages_dhConfig::write(mtpBuffer &to) const {
 }
 inline MTPmessages_dhConfig::MTPmessages_dhConfig(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messages_dhConfigNotModified: data = std::make_shared<MTPDmessages_dhConfigNotModified>(); break;
-		case mtpc_messages_dhConfig: data = std::make_shared<MTPDmessages_dhConfig>(); break;
+		case mtpc_messages_dhConfigNotModified: setData(new MTPDmessages_dhConfigNotModified()); break;
+		case mtpc_messages_dhConfig: setData(new MTPDmessages_dhConfig()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_dhConfig");
 	}
 }
 inline const MTPDmessages_dhConfigNotModified &MTPmessages_dhConfig::c_messages_dhConfigNotModified() const {
-	t_assert(data != nullptr && _type == mtpc_messages_dhConfigNotModified);
-	return static_cast<const MTPDmessages_dhConfigNotModified&>(*data);
+	t_assert(_type == mtpc_messages_dhConfigNotModified);
+	return queryData<MTPDmessages_dhConfigNotModified>();
 }
-inline MTPmessages_dhConfig::MTPmessages_dhConfig(std::shared_ptr<const MTPDmessages_dhConfigNotModified> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_dhConfigNotModified) {
+inline MTPmessages_dhConfig::MTPmessages_dhConfig(const MTPDmessages_dhConfigNotModified *data) : TypeDataOwner(data), _type(mtpc_messages_dhConfigNotModified) {
 }
 inline const MTPDmessages_dhConfig &MTPmessages_dhConfig::c_messages_dhConfig() const {
-	t_assert(data != nullptr && _type == mtpc_messages_dhConfig);
-	return static_cast<const MTPDmessages_dhConfig&>(*data);
+	t_assert(_type == mtpc_messages_dhConfig);
+	return queryData<MTPDmessages_dhConfig>();
 }
-inline MTPmessages_dhConfig::MTPmessages_dhConfig(std::shared_ptr<const MTPDmessages_dhConfig> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_dhConfig) {
+inline MTPmessages_dhConfig::MTPmessages_dhConfig(const MTPDmessages_dhConfig *data) : TypeDataOwner(data), _type(mtpc_messages_dhConfig) {
 }
 inline MTPmessages_dhConfig MTP_messages_dhConfigNotModified(const MTPbytes &_random) {
 	return MTP::internal::TypeCreator::new_messages_dhConfigNotModified(_random);
@@ -29321,18 +29229,17 @@ inline mtpTypeId MTPmessages_sentEncryptedMessage::type() const {
 	return _type;
 }
 inline void MTPmessages_sentEncryptedMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_sentEncryptedMessage: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_sentEncryptedMessage>();
+			auto v = new MTPDmessages_sentEncryptedMessage();
+			setData(v);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messages_sentEncryptedFile: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_sentEncryptedFile>();
+			auto v = new MTPDmessages_sentEncryptedFile();
+			setData(v);
 			v->vdate.read(from, end);
 			v->vfile.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_sentEncryptedMessage");
 	}
@@ -29352,22 +29259,22 @@ inline void MTPmessages_sentEncryptedMessage::write(mtpBuffer &to) const {
 }
 inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messages_sentEncryptedMessage: data = std::make_shared<MTPDmessages_sentEncryptedMessage>(); break;
-		case mtpc_messages_sentEncryptedFile: data = std::make_shared<MTPDmessages_sentEncryptedFile>(); break;
+		case mtpc_messages_sentEncryptedMessage: setData(new MTPDmessages_sentEncryptedMessage()); break;
+		case mtpc_messages_sentEncryptedFile: setData(new MTPDmessages_sentEncryptedFile()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_sentEncryptedMessage");
 	}
 }
 inline const MTPDmessages_sentEncryptedMessage &MTPmessages_sentEncryptedMessage::c_messages_sentEncryptedMessage() const {
-	t_assert(data != nullptr && _type == mtpc_messages_sentEncryptedMessage);
-	return static_cast<const MTPDmessages_sentEncryptedMessage&>(*data);
+	t_assert(_type == mtpc_messages_sentEncryptedMessage);
+	return queryData<MTPDmessages_sentEncryptedMessage>();
 }
-inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(std::shared_ptr<const MTPDmessages_sentEncryptedMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_sentEncryptedMessage) {
+inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(const MTPDmessages_sentEncryptedMessage *data) : TypeDataOwner(data), _type(mtpc_messages_sentEncryptedMessage) {
 }
 inline const MTPDmessages_sentEncryptedFile &MTPmessages_sentEncryptedMessage::c_messages_sentEncryptedFile() const {
-	t_assert(data != nullptr && _type == mtpc_messages_sentEncryptedFile);
-	return static_cast<const MTPDmessages_sentEncryptedFile&>(*data);
+	t_assert(_type == mtpc_messages_sentEncryptedFile);
+	return queryData<MTPDmessages_sentEncryptedFile>();
 }
-inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(std::shared_ptr<const MTPDmessages_sentEncryptedFile> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_sentEncryptedFile) {
+inline MTPmessages_sentEncryptedMessage::MTPmessages_sentEncryptedMessage(const MTPDmessages_sentEncryptedFile *data) : TypeDataOwner(data), _type(mtpc_messages_sentEncryptedFile) {
 }
 inline MTPmessages_sentEncryptedMessage MTP_messages_sentEncryptedMessage(MTPint _date) {
 	return MTP::internal::TypeCreator::new_messages_sentEncryptedMessage(_date);
@@ -29390,14 +29297,13 @@ inline mtpTypeId MTPinputDocument::type() const {
 	return _type;
 }
 inline void MTPinputDocument::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputDocumentEmpty: _type = cons; break;
 		case mtpc_inputDocument: _type = cons; {
-			auto v = std::make_shared<MTPDinputDocument>();
+			auto v = new MTPDinputDocument();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputDocument");
 	}
@@ -29414,15 +29320,15 @@ inline void MTPinputDocument::write(mtpBuffer &to) const {
 inline MTPinputDocument::MTPinputDocument(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputDocumentEmpty: break;
-		case mtpc_inputDocument: data = std::make_shared<MTPDinputDocument>(); break;
+		case mtpc_inputDocument: setData(new MTPDinputDocument()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputDocument");
 	}
 }
 inline const MTPDinputDocument &MTPinputDocument::c_inputDocument() const {
-	t_assert(data != nullptr && _type == mtpc_inputDocument);
-	return static_cast<const MTPDinputDocument&>(*data);
+	t_assert(_type == mtpc_inputDocument);
+	return queryData<MTPDinputDocument>();
 }
-inline MTPinputDocument::MTPinputDocument(std::shared_ptr<const MTPDinputDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputDocument) {
+inline MTPinputDocument::MTPinputDocument(const MTPDinputDocument *data) : TypeDataOwner(data), _type(mtpc_inputDocument) {
 }
 inline MTPinputDocument MTP_inputDocumentEmpty() {
 	return MTP::internal::TypeCreator::new_inputDocumentEmpty();
@@ -29449,15 +29355,15 @@ inline mtpTypeId MTPdocument::type() const {
 	return _type;
 }
 inline void MTPdocument::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_documentEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDdocumentEmpty>();
+			auto v = new MTPDdocumentEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_document: _type = cons; {
-			auto v = std::make_shared<MTPDdocument>();
+			auto v = new MTPDdocument();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
@@ -29467,7 +29373,6 @@ inline void MTPdocument::read(const mtpPrime *&from, const mtpPrime *end, mtpTyp
 			v->vdc_id.read(from, end);
 			v->vversion.read(from, end);
 			v->vattributes.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPdocument");
 	}
@@ -29494,22 +29399,22 @@ inline void MTPdocument::write(mtpBuffer &to) const {
 }
 inline MTPdocument::MTPdocument(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_documentEmpty: data = std::make_shared<MTPDdocumentEmpty>(); break;
-		case mtpc_document: data = std::make_shared<MTPDdocument>(); break;
+		case mtpc_documentEmpty: setData(new MTPDdocumentEmpty()); break;
+		case mtpc_document: setData(new MTPDdocument()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPdocument");
 	}
 }
 inline const MTPDdocumentEmpty &MTPdocument::c_documentEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_documentEmpty);
-	return static_cast<const MTPDdocumentEmpty&>(*data);
+	t_assert(_type == mtpc_documentEmpty);
+	return queryData<MTPDdocumentEmpty>();
 }
-inline MTPdocument::MTPdocument(std::shared_ptr<const MTPDdocumentEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_documentEmpty) {
+inline MTPdocument::MTPdocument(const MTPDdocumentEmpty *data) : TypeDataOwner(data), _type(mtpc_documentEmpty) {
 }
 inline const MTPDdocument &MTPdocument::c_document() const {
-	t_assert(data != nullptr && _type == mtpc_document);
-	return static_cast<const MTPDdocument&>(*data);
+	t_assert(_type == mtpc_document);
+	return queryData<MTPDdocument>();
 }
-inline MTPdocument::MTPdocument(std::shared_ptr<const MTPDdocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_document) {
+inline MTPdocument::MTPdocument(const MTPDdocument *data) : TypeDataOwner(data), _type(mtpc_document) {
 }
 inline MTPdocument MTP_documentEmpty(const MTPlong &_id) {
 	return MTP::internal::TypeCreator::new_documentEmpty(_id);
@@ -29518,7 +29423,7 @@ inline MTPdocument MTP_document(const MTPlong &_id, const MTPlong &_access_hash,
 	return MTP::internal::TypeCreator::new_document(_id, _access_hash, _date, _mime_type, _size, _thumb, _dc_id, _version, _attributes);
 }
 
-inline MTPhelp_support::MTPhelp_support() : mtpDataOwner(std::make_shared<MTPDhelp_support>()) {
+inline MTPhelp_support::MTPhelp_support() : TypeDataOwner(new MTPDhelp_support()) {
 }
 
 inline uint32 MTPhelp_support::innerLength() const {
@@ -29531,10 +29436,10 @@ inline mtpTypeId MTPhelp_support::type() const {
 inline void MTPhelp_support::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_help_support) throw mtpErrorUnexpected(cons, "MTPhelp_support");
 
-	auto v = std::make_shared<MTPDhelp_support>();
+	auto v = new MTPDhelp_support();
+	setData(v);
 	v->vphone_number.read(from, end);
 	v->vuser.read(from, end);
-	data = std::move(v);
 }
 inline void MTPhelp_support::write(mtpBuffer &to) const {
 	auto &v = c_help_support();
@@ -29542,10 +29447,9 @@ inline void MTPhelp_support::write(mtpBuffer &to) const {
 	v.vuser.write(to);
 }
 inline const MTPDhelp_support &MTPhelp_support::c_help_support() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDhelp_support&>(*data);
+	return queryData<MTPDhelp_support>();
 }
-inline MTPhelp_support::MTPhelp_support(std::shared_ptr<const MTPDhelp_support> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPhelp_support::MTPhelp_support(const MTPDhelp_support *data) : TypeDataOwner(data) {
 }
 inline MTPhelp_support MTP_help_support(const MTPstring &_phone_number, const MTPUser &_user) {
 	return MTP::internal::TypeCreator::new_help_support(_phone_number, _user);
@@ -29565,12 +29469,11 @@ inline mtpTypeId MTPnotifyPeer::type() const {
 	return _type;
 }
 inline void MTPnotifyPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_notifyPeer: _type = cons; {
-			auto v = std::make_shared<MTPDnotifyPeer>();
+			auto v = new MTPDnotifyPeer();
+			setData(v);
 			v->vpeer.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_notifyUsers: _type = cons; break;
 		case mtpc_notifyChats: _type = cons; break;
@@ -29588,7 +29491,7 @@ inline void MTPnotifyPeer::write(mtpBuffer &to) const {
 }
 inline MTPnotifyPeer::MTPnotifyPeer(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_notifyPeer: data = std::make_shared<MTPDnotifyPeer>(); break;
+		case mtpc_notifyPeer: setData(new MTPDnotifyPeer()); break;
 		case mtpc_notifyUsers: break;
 		case mtpc_notifyChats: break;
 		case mtpc_notifyAll: break;
@@ -29596,10 +29499,10 @@ inline MTPnotifyPeer::MTPnotifyPeer(mtpTypeId type) : _type(type) {
 	}
 }
 inline const MTPDnotifyPeer &MTPnotifyPeer::c_notifyPeer() const {
-	t_assert(data != nullptr && _type == mtpc_notifyPeer);
-	return static_cast<const MTPDnotifyPeer&>(*data);
+	t_assert(_type == mtpc_notifyPeer);
+	return queryData<MTPDnotifyPeer>();
 }
-inline MTPnotifyPeer::MTPnotifyPeer(std::shared_ptr<const MTPDnotifyPeer> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_notifyPeer) {
+inline MTPnotifyPeer::MTPnotifyPeer(const MTPDnotifyPeer *data) : TypeDataOwner(data), _type(mtpc_notifyPeer) {
 }
 inline MTPnotifyPeer MTP_notifyPeer(const MTPPeer &_peer) {
 	return MTP::internal::TypeCreator::new_notifyPeer(_peer);
@@ -29640,31 +29543,30 @@ inline mtpTypeId MTPsendMessageAction::type() const {
 	return _type;
 }
 inline void MTPsendMessageAction::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_sendMessageTypingAction: _type = cons; break;
 		case mtpc_sendMessageCancelAction: _type = cons; break;
 		case mtpc_sendMessageRecordVideoAction: _type = cons; break;
 		case mtpc_sendMessageUploadVideoAction: _type = cons; {
-			auto v = std::make_shared<MTPDsendMessageUploadVideoAction>();
+			auto v = new MTPDsendMessageUploadVideoAction();
+			setData(v);
 			v->vprogress.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_sendMessageRecordAudioAction: _type = cons; break;
 		case mtpc_sendMessageUploadAudioAction: _type = cons; {
-			auto v = std::make_shared<MTPDsendMessageUploadAudioAction>();
+			auto v = new MTPDsendMessageUploadAudioAction();
+			setData(v);
 			v->vprogress.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_sendMessageUploadPhotoAction: _type = cons; {
-			auto v = std::make_shared<MTPDsendMessageUploadPhotoAction>();
+			auto v = new MTPDsendMessageUploadPhotoAction();
+			setData(v);
 			v->vprogress.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_sendMessageUploadDocumentAction: _type = cons; {
-			auto v = std::make_shared<MTPDsendMessageUploadDocumentAction>();
+			auto v = new MTPDsendMessageUploadDocumentAction();
+			setData(v);
 			v->vprogress.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_sendMessageGeoLocationAction: _type = cons; break;
 		case mtpc_sendMessageChooseContactAction: _type = cons; break;
@@ -29697,11 +29599,11 @@ inline MTPsendMessageAction::MTPsendMessageAction(mtpTypeId type) : _type(type) 
 		case mtpc_sendMessageTypingAction: break;
 		case mtpc_sendMessageCancelAction: break;
 		case mtpc_sendMessageRecordVideoAction: break;
-		case mtpc_sendMessageUploadVideoAction: data = std::make_shared<MTPDsendMessageUploadVideoAction>(); break;
+		case mtpc_sendMessageUploadVideoAction: setData(new MTPDsendMessageUploadVideoAction()); break;
 		case mtpc_sendMessageRecordAudioAction: break;
-		case mtpc_sendMessageUploadAudioAction: data = std::make_shared<MTPDsendMessageUploadAudioAction>(); break;
-		case mtpc_sendMessageUploadPhotoAction: data = std::make_shared<MTPDsendMessageUploadPhotoAction>(); break;
-		case mtpc_sendMessageUploadDocumentAction: data = std::make_shared<MTPDsendMessageUploadDocumentAction>(); break;
+		case mtpc_sendMessageUploadAudioAction: setData(new MTPDsendMessageUploadAudioAction()); break;
+		case mtpc_sendMessageUploadPhotoAction: setData(new MTPDsendMessageUploadPhotoAction()); break;
+		case mtpc_sendMessageUploadDocumentAction: setData(new MTPDsendMessageUploadDocumentAction()); break;
 		case mtpc_sendMessageGeoLocationAction: break;
 		case mtpc_sendMessageChooseContactAction: break;
 		case mtpc_sendMessageGamePlayAction: break;
@@ -29709,28 +29611,28 @@ inline MTPsendMessageAction::MTPsendMessageAction(mtpTypeId type) : _type(type) 
 	}
 }
 inline const MTPDsendMessageUploadVideoAction &MTPsendMessageAction::c_sendMessageUploadVideoAction() const {
-	t_assert(data != nullptr && _type == mtpc_sendMessageUploadVideoAction);
-	return static_cast<const MTPDsendMessageUploadVideoAction&>(*data);
+	t_assert(_type == mtpc_sendMessageUploadVideoAction);
+	return queryData<MTPDsendMessageUploadVideoAction>();
 }
-inline MTPsendMessageAction::MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadVideoAction> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_sendMessageUploadVideoAction) {
+inline MTPsendMessageAction::MTPsendMessageAction(const MTPDsendMessageUploadVideoAction *data) : TypeDataOwner(data), _type(mtpc_sendMessageUploadVideoAction) {
 }
 inline const MTPDsendMessageUploadAudioAction &MTPsendMessageAction::c_sendMessageUploadAudioAction() const {
-	t_assert(data != nullptr && _type == mtpc_sendMessageUploadAudioAction);
-	return static_cast<const MTPDsendMessageUploadAudioAction&>(*data);
+	t_assert(_type == mtpc_sendMessageUploadAudioAction);
+	return queryData<MTPDsendMessageUploadAudioAction>();
 }
-inline MTPsendMessageAction::MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadAudioAction> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_sendMessageUploadAudioAction) {
+inline MTPsendMessageAction::MTPsendMessageAction(const MTPDsendMessageUploadAudioAction *data) : TypeDataOwner(data), _type(mtpc_sendMessageUploadAudioAction) {
 }
 inline const MTPDsendMessageUploadPhotoAction &MTPsendMessageAction::c_sendMessageUploadPhotoAction() const {
-	t_assert(data != nullptr && _type == mtpc_sendMessageUploadPhotoAction);
-	return static_cast<const MTPDsendMessageUploadPhotoAction&>(*data);
+	t_assert(_type == mtpc_sendMessageUploadPhotoAction);
+	return queryData<MTPDsendMessageUploadPhotoAction>();
 }
-inline MTPsendMessageAction::MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadPhotoAction> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_sendMessageUploadPhotoAction) {
+inline MTPsendMessageAction::MTPsendMessageAction(const MTPDsendMessageUploadPhotoAction *data) : TypeDataOwner(data), _type(mtpc_sendMessageUploadPhotoAction) {
 }
 inline const MTPDsendMessageUploadDocumentAction &MTPsendMessageAction::c_sendMessageUploadDocumentAction() const {
-	t_assert(data != nullptr && _type == mtpc_sendMessageUploadDocumentAction);
-	return static_cast<const MTPDsendMessageUploadDocumentAction&>(*data);
+	t_assert(_type == mtpc_sendMessageUploadDocumentAction);
+	return queryData<MTPDsendMessageUploadDocumentAction>();
 }
-inline MTPsendMessageAction::MTPsendMessageAction(std::shared_ptr<const MTPDsendMessageUploadDocumentAction> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_sendMessageUploadDocumentAction) {
+inline MTPsendMessageAction::MTPsendMessageAction(const MTPDsendMessageUploadDocumentAction *data) : TypeDataOwner(data), _type(mtpc_sendMessageUploadDocumentAction) {
 }
 inline MTPsendMessageAction MTP_sendMessageTypingAction() {
 	return MTP::internal::TypeCreator::new_sendMessageTypingAction();
@@ -29766,7 +29668,7 @@ inline MTPsendMessageAction MTP_sendMessageGamePlayAction() {
 	return MTP::internal::TypeCreator::new_sendMessageGamePlayAction();
 }
 
-inline MTPcontacts_found::MTPcontacts_found() : mtpDataOwner(std::make_shared<MTPDcontacts_found>()) {
+inline MTPcontacts_found::MTPcontacts_found() : TypeDataOwner(new MTPDcontacts_found()) {
 }
 
 inline uint32 MTPcontacts_found::innerLength() const {
@@ -29779,11 +29681,11 @@ inline mtpTypeId MTPcontacts_found::type() const {
 inline void MTPcontacts_found::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contacts_found) throw mtpErrorUnexpected(cons, "MTPcontacts_found");
 
-	auto v = std::make_shared<MTPDcontacts_found>();
+	auto v = new MTPDcontacts_found();
+	setData(v);
 	v->vresults.read(from, end);
 	v->vchats.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontacts_found::write(mtpBuffer &to) const {
 	auto &v = c_contacts_found();
@@ -29792,10 +29694,9 @@ inline void MTPcontacts_found::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDcontacts_found &MTPcontacts_found::c_contacts_found() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontacts_found&>(*data);
+	return queryData<MTPDcontacts_found>();
 }
-inline MTPcontacts_found::MTPcontacts_found(std::shared_ptr<const MTPDcontacts_found> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontacts_found::MTPcontacts_found(const MTPDcontacts_found *data) : TypeDataOwner(data) {
 }
 inline MTPcontacts_found MTP_contacts_found(const MTPVector<MTPPeer> &_results, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_contacts_found(_results, _chats, _users);
@@ -29889,21 +29790,20 @@ inline mtpTypeId MTPinputPrivacyRule::type() const {
 	return _type;
 }
 inline void MTPinputPrivacyRule::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputPrivacyValueAllowContacts: _type = cons; break;
 		case mtpc_inputPrivacyValueAllowAll: _type = cons; break;
 		case mtpc_inputPrivacyValueAllowUsers: _type = cons; {
-			auto v = std::make_shared<MTPDinputPrivacyValueAllowUsers>();
+			auto v = new MTPDinputPrivacyValueAllowUsers();
+			setData(v);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputPrivacyValueDisallowContacts: _type = cons; break;
 		case mtpc_inputPrivacyValueDisallowAll: _type = cons; break;
 		case mtpc_inputPrivacyValueDisallowUsers: _type = cons; {
-			auto v = std::make_shared<MTPDinputPrivacyValueDisallowUsers>();
+			auto v = new MTPDinputPrivacyValueDisallowUsers();
+			setData(v);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputPrivacyRule");
 	}
@@ -29924,24 +29824,24 @@ inline MTPinputPrivacyRule::MTPinputPrivacyRule(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputPrivacyValueAllowContacts: break;
 		case mtpc_inputPrivacyValueAllowAll: break;
-		case mtpc_inputPrivacyValueAllowUsers: data = std::make_shared<MTPDinputPrivacyValueAllowUsers>(); break;
+		case mtpc_inputPrivacyValueAllowUsers: setData(new MTPDinputPrivacyValueAllowUsers()); break;
 		case mtpc_inputPrivacyValueDisallowContacts: break;
 		case mtpc_inputPrivacyValueDisallowAll: break;
-		case mtpc_inputPrivacyValueDisallowUsers: data = std::make_shared<MTPDinputPrivacyValueDisallowUsers>(); break;
+		case mtpc_inputPrivacyValueDisallowUsers: setData(new MTPDinputPrivacyValueDisallowUsers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputPrivacyRule");
 	}
 }
 inline const MTPDinputPrivacyValueAllowUsers &MTPinputPrivacyRule::c_inputPrivacyValueAllowUsers() const {
-	t_assert(data != nullptr && _type == mtpc_inputPrivacyValueAllowUsers);
-	return static_cast<const MTPDinputPrivacyValueAllowUsers&>(*data);
+	t_assert(_type == mtpc_inputPrivacyValueAllowUsers);
+	return queryData<MTPDinputPrivacyValueAllowUsers>();
 }
-inline MTPinputPrivacyRule::MTPinputPrivacyRule(std::shared_ptr<const MTPDinputPrivacyValueAllowUsers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputPrivacyValueAllowUsers) {
+inline MTPinputPrivacyRule::MTPinputPrivacyRule(const MTPDinputPrivacyValueAllowUsers *data) : TypeDataOwner(data), _type(mtpc_inputPrivacyValueAllowUsers) {
 }
 inline const MTPDinputPrivacyValueDisallowUsers &MTPinputPrivacyRule::c_inputPrivacyValueDisallowUsers() const {
-	t_assert(data != nullptr && _type == mtpc_inputPrivacyValueDisallowUsers);
-	return static_cast<const MTPDinputPrivacyValueDisallowUsers&>(*data);
+	t_assert(_type == mtpc_inputPrivacyValueDisallowUsers);
+	return queryData<MTPDinputPrivacyValueDisallowUsers>();
 }
-inline MTPinputPrivacyRule::MTPinputPrivacyRule(std::shared_ptr<const MTPDinputPrivacyValueDisallowUsers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputPrivacyValueDisallowUsers) {
+inline MTPinputPrivacyRule::MTPinputPrivacyRule(const MTPDinputPrivacyValueDisallowUsers *data) : TypeDataOwner(data), _type(mtpc_inputPrivacyValueDisallowUsers) {
 }
 inline MTPinputPrivacyRule MTP_inputPrivacyValueAllowContacts() {
 	return MTP::internal::TypeCreator::new_inputPrivacyValueAllowContacts();
@@ -29980,21 +29880,20 @@ inline mtpTypeId MTPprivacyRule::type() const {
 	return _type;
 }
 inline void MTPprivacyRule::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_privacyValueAllowContacts: _type = cons; break;
 		case mtpc_privacyValueAllowAll: _type = cons; break;
 		case mtpc_privacyValueAllowUsers: _type = cons; {
-			auto v = std::make_shared<MTPDprivacyValueAllowUsers>();
+			auto v = new MTPDprivacyValueAllowUsers();
+			setData(v);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_privacyValueDisallowContacts: _type = cons; break;
 		case mtpc_privacyValueDisallowAll: _type = cons; break;
 		case mtpc_privacyValueDisallowUsers: _type = cons; {
-			auto v = std::make_shared<MTPDprivacyValueDisallowUsers>();
+			auto v = new MTPDprivacyValueDisallowUsers();
+			setData(v);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPprivacyRule");
 	}
@@ -30015,24 +29914,24 @@ inline MTPprivacyRule::MTPprivacyRule(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_privacyValueAllowContacts: break;
 		case mtpc_privacyValueAllowAll: break;
-		case mtpc_privacyValueAllowUsers: data = std::make_shared<MTPDprivacyValueAllowUsers>(); break;
+		case mtpc_privacyValueAllowUsers: setData(new MTPDprivacyValueAllowUsers()); break;
 		case mtpc_privacyValueDisallowContacts: break;
 		case mtpc_privacyValueDisallowAll: break;
-		case mtpc_privacyValueDisallowUsers: data = std::make_shared<MTPDprivacyValueDisallowUsers>(); break;
+		case mtpc_privacyValueDisallowUsers: setData(new MTPDprivacyValueDisallowUsers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPprivacyRule");
 	}
 }
 inline const MTPDprivacyValueAllowUsers &MTPprivacyRule::c_privacyValueAllowUsers() const {
-	t_assert(data != nullptr && _type == mtpc_privacyValueAllowUsers);
-	return static_cast<const MTPDprivacyValueAllowUsers&>(*data);
+	t_assert(_type == mtpc_privacyValueAllowUsers);
+	return queryData<MTPDprivacyValueAllowUsers>();
 }
-inline MTPprivacyRule::MTPprivacyRule(std::shared_ptr<const MTPDprivacyValueAllowUsers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_privacyValueAllowUsers) {
+inline MTPprivacyRule::MTPprivacyRule(const MTPDprivacyValueAllowUsers *data) : TypeDataOwner(data), _type(mtpc_privacyValueAllowUsers) {
 }
 inline const MTPDprivacyValueDisallowUsers &MTPprivacyRule::c_privacyValueDisallowUsers() const {
-	t_assert(data != nullptr && _type == mtpc_privacyValueDisallowUsers);
-	return static_cast<const MTPDprivacyValueDisallowUsers&>(*data);
+	t_assert(_type == mtpc_privacyValueDisallowUsers);
+	return queryData<MTPDprivacyValueDisallowUsers>();
 }
-inline MTPprivacyRule::MTPprivacyRule(std::shared_ptr<const MTPDprivacyValueDisallowUsers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_privacyValueDisallowUsers) {
+inline MTPprivacyRule::MTPprivacyRule(const MTPDprivacyValueDisallowUsers *data) : TypeDataOwner(data), _type(mtpc_privacyValueDisallowUsers) {
 }
 inline MTPprivacyRule MTP_privacyValueAllowContacts() {
 	return MTP::internal::TypeCreator::new_privacyValueAllowContacts();
@@ -30053,7 +29952,7 @@ inline MTPprivacyRule MTP_privacyValueDisallowUsers(const MTPVector<MTPint> &_us
 	return MTP::internal::TypeCreator::new_privacyValueDisallowUsers(_users);
 }
 
-inline MTPaccount_privacyRules::MTPaccount_privacyRules() : mtpDataOwner(std::make_shared<MTPDaccount_privacyRules>()) {
+inline MTPaccount_privacyRules::MTPaccount_privacyRules() : TypeDataOwner(new MTPDaccount_privacyRules()) {
 }
 
 inline uint32 MTPaccount_privacyRules::innerLength() const {
@@ -30066,10 +29965,10 @@ inline mtpTypeId MTPaccount_privacyRules::type() const {
 inline void MTPaccount_privacyRules::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_account_privacyRules) throw mtpErrorUnexpected(cons, "MTPaccount_privacyRules");
 
-	auto v = std::make_shared<MTPDaccount_privacyRules>();
+	auto v = new MTPDaccount_privacyRules();
+	setData(v);
 	v->vrules.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPaccount_privacyRules::write(mtpBuffer &to) const {
 	auto &v = c_account_privacyRules();
@@ -30077,16 +29976,15 @@ inline void MTPaccount_privacyRules::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDaccount_privacyRules &MTPaccount_privacyRules::c_account_privacyRules() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDaccount_privacyRules&>(*data);
+	return queryData<MTPDaccount_privacyRules>();
 }
-inline MTPaccount_privacyRules::MTPaccount_privacyRules(std::shared_ptr<const MTPDaccount_privacyRules> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPaccount_privacyRules::MTPaccount_privacyRules(const MTPDaccount_privacyRules *data) : TypeDataOwner(data) {
 }
 inline MTPaccount_privacyRules MTP_account_privacyRules(const MTPVector<MTPPrivacyRule> &_rules, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_account_privacyRules(_rules, _users);
 }
 
-inline MTPaccountDaysTTL::MTPaccountDaysTTL() : mtpDataOwner(std::make_shared<MTPDaccountDaysTTL>()) {
+inline MTPaccountDaysTTL::MTPaccountDaysTTL() : TypeDataOwner(new MTPDaccountDaysTTL()) {
 }
 
 inline uint32 MTPaccountDaysTTL::innerLength() const {
@@ -30099,19 +29997,18 @@ inline mtpTypeId MTPaccountDaysTTL::type() const {
 inline void MTPaccountDaysTTL::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_accountDaysTTL) throw mtpErrorUnexpected(cons, "MTPaccountDaysTTL");
 
-	auto v = std::make_shared<MTPDaccountDaysTTL>();
+	auto v = new MTPDaccountDaysTTL();
+	setData(v);
 	v->vdays.read(from, end);
-	data = std::move(v);
 }
 inline void MTPaccountDaysTTL::write(mtpBuffer &to) const {
 	auto &v = c_accountDaysTTL();
 	v.vdays.write(to);
 }
 inline const MTPDaccountDaysTTL &MTPaccountDaysTTL::c_accountDaysTTL() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDaccountDaysTTL&>(*data);
+	return queryData<MTPDaccountDaysTTL>();
 }
-inline MTPaccountDaysTTL::MTPaccountDaysTTL(std::shared_ptr<const MTPDaccountDaysTTL> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPaccountDaysTTL::MTPaccountDaysTTL(const MTPDaccountDaysTTL *data) : TypeDataOwner(data) {
 }
 inline MTPaccountDaysTTL MTP_accountDaysTTL(MTPint _days) {
 	return MTP::internal::TypeCreator::new_accountDaysTTL(_days);
@@ -30147,43 +30044,42 @@ inline mtpTypeId MTPdocumentAttribute::type() const {
 	return _type;
 }
 inline void MTPdocumentAttribute::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_documentAttributeImageSize: _type = cons; {
-			auto v = std::make_shared<MTPDdocumentAttributeImageSize>();
+			auto v = new MTPDdocumentAttributeImageSize();
+			setData(v);
 			v->vw.read(from, end);
 			v->vh.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_documentAttributeAnimated: _type = cons; break;
 		case mtpc_documentAttributeSticker: _type = cons; {
-			auto v = std::make_shared<MTPDdocumentAttributeSticker>();
+			auto v = new MTPDdocumentAttributeSticker();
+			setData(v);
 			v->vflags.read(from, end);
 			v->valt.read(from, end);
 			v->vstickerset.read(from, end);
 			if (v->has_mask_coords()) { v->vmask_coords.read(from, end); } else { v->vmask_coords = MTPMaskCoords(); }
-			data = std::move(v);
 		} break;
 		case mtpc_documentAttributeVideo: _type = cons; {
-			auto v = std::make_shared<MTPDdocumentAttributeVideo>();
+			auto v = new MTPDdocumentAttributeVideo();
+			setData(v);
 			v->vduration.read(from, end);
 			v->vw.read(from, end);
 			v->vh.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_documentAttributeAudio: _type = cons; {
-			auto v = std::make_shared<MTPDdocumentAttributeAudio>();
+			auto v = new MTPDdocumentAttributeAudio();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vduration.read(from, end);
 			if (v->has_title()) { v->vtitle.read(from, end); } else { v->vtitle = MTPstring(); }
 			if (v->has_performer()) { v->vperformer.read(from, end); } else { v->vperformer = MTPstring(); }
 			if (v->has_waveform()) { v->vwaveform.read(from, end); } else { v->vwaveform = MTPbytes(); }
-			data = std::move(v);
 		} break;
 		case mtpc_documentAttributeFilename: _type = cons; {
-			auto v = std::make_shared<MTPDdocumentAttributeFilename>();
+			auto v = new MTPDdocumentAttributeFilename();
+			setData(v);
 			v->vfile_name.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_documentAttributeHasStickers: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPdocumentAttribute");
@@ -30225,45 +30121,45 @@ inline void MTPdocumentAttribute::write(mtpBuffer &to) const {
 }
 inline MTPdocumentAttribute::MTPdocumentAttribute(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_documentAttributeImageSize: data = std::make_shared<MTPDdocumentAttributeImageSize>(); break;
+		case mtpc_documentAttributeImageSize: setData(new MTPDdocumentAttributeImageSize()); break;
 		case mtpc_documentAttributeAnimated: break;
-		case mtpc_documentAttributeSticker: data = std::make_shared<MTPDdocumentAttributeSticker>(); break;
-		case mtpc_documentAttributeVideo: data = std::make_shared<MTPDdocumentAttributeVideo>(); break;
-		case mtpc_documentAttributeAudio: data = std::make_shared<MTPDdocumentAttributeAudio>(); break;
-		case mtpc_documentAttributeFilename: data = std::make_shared<MTPDdocumentAttributeFilename>(); break;
+		case mtpc_documentAttributeSticker: setData(new MTPDdocumentAttributeSticker()); break;
+		case mtpc_documentAttributeVideo: setData(new MTPDdocumentAttributeVideo()); break;
+		case mtpc_documentAttributeAudio: setData(new MTPDdocumentAttributeAudio()); break;
+		case mtpc_documentAttributeFilename: setData(new MTPDdocumentAttributeFilename()); break;
 		case mtpc_documentAttributeHasStickers: break;
 		default: throw mtpErrorBadTypeId(type, "MTPdocumentAttribute");
 	}
 }
 inline const MTPDdocumentAttributeImageSize &MTPdocumentAttribute::c_documentAttributeImageSize() const {
-	t_assert(data != nullptr && _type == mtpc_documentAttributeImageSize);
-	return static_cast<const MTPDdocumentAttributeImageSize&>(*data);
+	t_assert(_type == mtpc_documentAttributeImageSize);
+	return queryData<MTPDdocumentAttributeImageSize>();
 }
-inline MTPdocumentAttribute::MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeImageSize> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_documentAttributeImageSize) {
+inline MTPdocumentAttribute::MTPdocumentAttribute(const MTPDdocumentAttributeImageSize *data) : TypeDataOwner(data), _type(mtpc_documentAttributeImageSize) {
 }
 inline const MTPDdocumentAttributeSticker &MTPdocumentAttribute::c_documentAttributeSticker() const {
-	t_assert(data != nullptr && _type == mtpc_documentAttributeSticker);
-	return static_cast<const MTPDdocumentAttributeSticker&>(*data);
+	t_assert(_type == mtpc_documentAttributeSticker);
+	return queryData<MTPDdocumentAttributeSticker>();
 }
-inline MTPdocumentAttribute::MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeSticker> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_documentAttributeSticker) {
+inline MTPdocumentAttribute::MTPdocumentAttribute(const MTPDdocumentAttributeSticker *data) : TypeDataOwner(data), _type(mtpc_documentAttributeSticker) {
 }
 inline const MTPDdocumentAttributeVideo &MTPdocumentAttribute::c_documentAttributeVideo() const {
-	t_assert(data != nullptr && _type == mtpc_documentAttributeVideo);
-	return static_cast<const MTPDdocumentAttributeVideo&>(*data);
+	t_assert(_type == mtpc_documentAttributeVideo);
+	return queryData<MTPDdocumentAttributeVideo>();
 }
-inline MTPdocumentAttribute::MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeVideo> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_documentAttributeVideo) {
+inline MTPdocumentAttribute::MTPdocumentAttribute(const MTPDdocumentAttributeVideo *data) : TypeDataOwner(data), _type(mtpc_documentAttributeVideo) {
 }
 inline const MTPDdocumentAttributeAudio &MTPdocumentAttribute::c_documentAttributeAudio() const {
-	t_assert(data != nullptr && _type == mtpc_documentAttributeAudio);
-	return static_cast<const MTPDdocumentAttributeAudio&>(*data);
+	t_assert(_type == mtpc_documentAttributeAudio);
+	return queryData<MTPDdocumentAttributeAudio>();
 }
-inline MTPdocumentAttribute::MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeAudio> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_documentAttributeAudio) {
+inline MTPdocumentAttribute::MTPdocumentAttribute(const MTPDdocumentAttributeAudio *data) : TypeDataOwner(data), _type(mtpc_documentAttributeAudio) {
 }
 inline const MTPDdocumentAttributeFilename &MTPdocumentAttribute::c_documentAttributeFilename() const {
-	t_assert(data != nullptr && _type == mtpc_documentAttributeFilename);
-	return static_cast<const MTPDdocumentAttributeFilename&>(*data);
+	t_assert(_type == mtpc_documentAttributeFilename);
+	return queryData<MTPDdocumentAttributeFilename>();
 }
-inline MTPdocumentAttribute::MTPdocumentAttribute(std::shared_ptr<const MTPDdocumentAttributeFilename> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_documentAttributeFilename) {
+inline MTPdocumentAttribute::MTPdocumentAttribute(const MTPDdocumentAttributeFilename *data) : TypeDataOwner(data), _type(mtpc_documentAttributeFilename) {
 }
 inline MTPdocumentAttribute MTP_documentAttributeImageSize(MTPint _w, MTPint _h) {
 	return MTP::internal::TypeCreator::new_documentAttributeImageSize(_w, _h);
@@ -30303,14 +30199,13 @@ inline mtpTypeId MTPmessages_stickers::type() const {
 	return _type;
 }
 inline void MTPmessages_stickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_stickersNotModified: _type = cons; break;
 		case mtpc_messages_stickers: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_stickers>();
+			auto v = new MTPDmessages_stickers();
+			setData(v);
 			v->vhash.read(from, end);
 			v->vstickers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_stickers");
 	}
@@ -30327,15 +30222,15 @@ inline void MTPmessages_stickers::write(mtpBuffer &to) const {
 inline MTPmessages_stickers::MTPmessages_stickers(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messages_stickersNotModified: break;
-		case mtpc_messages_stickers: data = std::make_shared<MTPDmessages_stickers>(); break;
+		case mtpc_messages_stickers: setData(new MTPDmessages_stickers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_stickers");
 	}
 }
 inline const MTPDmessages_stickers &MTPmessages_stickers::c_messages_stickers() const {
-	t_assert(data != nullptr && _type == mtpc_messages_stickers);
-	return static_cast<const MTPDmessages_stickers&>(*data);
+	t_assert(_type == mtpc_messages_stickers);
+	return queryData<MTPDmessages_stickers>();
 }
-inline MTPmessages_stickers::MTPmessages_stickers(std::shared_ptr<const MTPDmessages_stickers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_stickers) {
+inline MTPmessages_stickers::MTPmessages_stickers(const MTPDmessages_stickers *data) : TypeDataOwner(data), _type(mtpc_messages_stickers) {
 }
 inline MTPmessages_stickers MTP_messages_stickersNotModified() {
 	return MTP::internal::TypeCreator::new_messages_stickersNotModified();
@@ -30344,7 +30239,7 @@ inline MTPmessages_stickers MTP_messages_stickers(const MTPstring &_hash, const 
 	return MTP::internal::TypeCreator::new_messages_stickers(_hash, _stickers);
 }
 
-inline MTPstickerPack::MTPstickerPack() : mtpDataOwner(std::make_shared<MTPDstickerPack>()) {
+inline MTPstickerPack::MTPstickerPack() : TypeDataOwner(new MTPDstickerPack()) {
 }
 
 inline uint32 MTPstickerPack::innerLength() const {
@@ -30357,10 +30252,10 @@ inline mtpTypeId MTPstickerPack::type() const {
 inline void MTPstickerPack::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_stickerPack) throw mtpErrorUnexpected(cons, "MTPstickerPack");
 
-	auto v = std::make_shared<MTPDstickerPack>();
+	auto v = new MTPDstickerPack();
+	setData(v);
 	v->vemoticon.read(from, end);
 	v->vdocuments.read(from, end);
-	data = std::move(v);
 }
 inline void MTPstickerPack::write(mtpBuffer &to) const {
 	auto &v = c_stickerPack();
@@ -30368,10 +30263,9 @@ inline void MTPstickerPack::write(mtpBuffer &to) const {
 	v.vdocuments.write(to);
 }
 inline const MTPDstickerPack &MTPstickerPack::c_stickerPack() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDstickerPack&>(*data);
+	return queryData<MTPDstickerPack>();
 }
-inline MTPstickerPack::MTPstickerPack(std::shared_ptr<const MTPDstickerPack> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPstickerPack::MTPstickerPack(const MTPDstickerPack *data) : TypeDataOwner(data) {
 }
 inline MTPstickerPack MTP_stickerPack(const MTPstring &_emoticon, const MTPVector<MTPlong> &_documents) {
 	return MTP::internal::TypeCreator::new_stickerPack(_emoticon, _documents);
@@ -30391,14 +30285,13 @@ inline mtpTypeId MTPmessages_allStickers::type() const {
 	return _type;
 }
 inline void MTPmessages_allStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_allStickersNotModified: _type = cons; break;
 		case mtpc_messages_allStickers: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_allStickers>();
+			auto v = new MTPDmessages_allStickers();
+			setData(v);
 			v->vhash.read(from, end);
 			v->vsets.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_allStickers");
 	}
@@ -30415,15 +30308,15 @@ inline void MTPmessages_allStickers::write(mtpBuffer &to) const {
 inline MTPmessages_allStickers::MTPmessages_allStickers(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messages_allStickersNotModified: break;
-		case mtpc_messages_allStickers: data = std::make_shared<MTPDmessages_allStickers>(); break;
+		case mtpc_messages_allStickers: setData(new MTPDmessages_allStickers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_allStickers");
 	}
 }
 inline const MTPDmessages_allStickers &MTPmessages_allStickers::c_messages_allStickers() const {
-	t_assert(data != nullptr && _type == mtpc_messages_allStickers);
-	return static_cast<const MTPDmessages_allStickers&>(*data);
+	t_assert(_type == mtpc_messages_allStickers);
+	return queryData<MTPDmessages_allStickers>();
 }
-inline MTPmessages_allStickers::MTPmessages_allStickers(std::shared_ptr<const MTPDmessages_allStickers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_allStickers) {
+inline MTPmessages_allStickers::MTPmessages_allStickers(const MTPDmessages_allStickers *data) : TypeDataOwner(data), _type(mtpc_messages_allStickers) {
 }
 inline MTPmessages_allStickers MTP_messages_allStickersNotModified() {
 	return MTP::internal::TypeCreator::new_messages_allStickersNotModified();
@@ -30432,7 +30325,7 @@ inline MTPmessages_allStickers MTP_messages_allStickers(MTPint _hash, const MTPV
 	return MTP::internal::TypeCreator::new_messages_allStickers(_hash, _sets);
 }
 
-inline MTPdisabledFeature::MTPdisabledFeature() : mtpDataOwner(std::make_shared<MTPDdisabledFeature>()) {
+inline MTPdisabledFeature::MTPdisabledFeature() : TypeDataOwner(new MTPDdisabledFeature()) {
 }
 
 inline uint32 MTPdisabledFeature::innerLength() const {
@@ -30445,10 +30338,10 @@ inline mtpTypeId MTPdisabledFeature::type() const {
 inline void MTPdisabledFeature::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_disabledFeature) throw mtpErrorUnexpected(cons, "MTPdisabledFeature");
 
-	auto v = std::make_shared<MTPDdisabledFeature>();
+	auto v = new MTPDdisabledFeature();
+	setData(v);
 	v->vfeature.read(from, end);
 	v->vdescription.read(from, end);
-	data = std::move(v);
 }
 inline void MTPdisabledFeature::write(mtpBuffer &to) const {
 	auto &v = c_disabledFeature();
@@ -30456,16 +30349,15 @@ inline void MTPdisabledFeature::write(mtpBuffer &to) const {
 	v.vdescription.write(to);
 }
 inline const MTPDdisabledFeature &MTPdisabledFeature::c_disabledFeature() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDdisabledFeature&>(*data);
+	return queryData<MTPDdisabledFeature>();
 }
-inline MTPdisabledFeature::MTPdisabledFeature(std::shared_ptr<const MTPDdisabledFeature> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPdisabledFeature::MTPdisabledFeature(const MTPDdisabledFeature *data) : TypeDataOwner(data) {
 }
 inline MTPdisabledFeature MTP_disabledFeature(const MTPstring &_feature, const MTPstring &_description) {
 	return MTP::internal::TypeCreator::new_disabledFeature(_feature, _description);
 }
 
-inline MTPmessages_affectedMessages::MTPmessages_affectedMessages() : mtpDataOwner(std::make_shared<MTPDmessages_affectedMessages>()) {
+inline MTPmessages_affectedMessages::MTPmessages_affectedMessages() : TypeDataOwner(new MTPDmessages_affectedMessages()) {
 }
 
 inline uint32 MTPmessages_affectedMessages::innerLength() const {
@@ -30478,10 +30370,10 @@ inline mtpTypeId MTPmessages_affectedMessages::type() const {
 inline void MTPmessages_affectedMessages::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_affectedMessages) throw mtpErrorUnexpected(cons, "MTPmessages_affectedMessages");
 
-	auto v = std::make_shared<MTPDmessages_affectedMessages>();
+	auto v = new MTPDmessages_affectedMessages();
+	setData(v);
 	v->vpts.read(from, end);
 	v->vpts_count.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_affectedMessages::write(mtpBuffer &to) const {
 	auto &v = c_messages_affectedMessages();
@@ -30489,10 +30381,9 @@ inline void MTPmessages_affectedMessages::write(mtpBuffer &to) const {
 	v.vpts_count.write(to);
 }
 inline const MTPDmessages_affectedMessages &MTPmessages_affectedMessages::c_messages_affectedMessages() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_affectedMessages&>(*data);
+	return queryData<MTPDmessages_affectedMessages>();
 }
-inline MTPmessages_affectedMessages::MTPmessages_affectedMessages(std::shared_ptr<const MTPDmessages_affectedMessages> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_affectedMessages::MTPmessages_affectedMessages(const MTPDmessages_affectedMessages *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_affectedMessages MTP_messages_affectedMessages(MTPint _pts, MTPint _pts_count) {
 	return MTP::internal::TypeCreator::new_messages_affectedMessages(_pts, _pts_count);
@@ -30560,21 +30451,21 @@ inline mtpTypeId MTPwebPage::type() const {
 	return _type;
 }
 inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_webPageEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDwebPageEmpty>();
+			auto v = new MTPDwebPageEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_webPagePending: _type = cons; {
-			auto v = std::make_shared<MTPDwebPagePending>();
+			auto v = new MTPDwebPagePending();
+			setData(v);
 			v->vid.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_webPage: _type = cons; {
-			auto v = std::make_shared<MTPDwebPage>();
+			auto v = new MTPDwebPage();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vurl.read(from, end);
@@ -30593,7 +30484,6 @@ inline void MTPwebPage::read(const mtpPrime *&from, const mtpPrime *end, mtpType
 			if (v->has_author()) { v->vauthor.read(from, end); } else { v->vauthor = MTPstring(); }
 			if (v->has_document()) { v->vdocument.read(from, end); } else { v->vdocument = MTPDocument(); }
 			if (v->has_cached_page()) { v->vcached_page.read(from, end); } else { v->vcached_page = MTPPage(); }
-			data = std::move(v);
 		} break;
 		case mtpc_webPageNotModified: _type = cons; break;
 		default: throw mtpErrorUnexpected(cons, "MTPwebPage");
@@ -30635,30 +30525,30 @@ inline void MTPwebPage::write(mtpBuffer &to) const {
 }
 inline MTPwebPage::MTPwebPage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_webPageEmpty: data = std::make_shared<MTPDwebPageEmpty>(); break;
-		case mtpc_webPagePending: data = std::make_shared<MTPDwebPagePending>(); break;
-		case mtpc_webPage: data = std::make_shared<MTPDwebPage>(); break;
+		case mtpc_webPageEmpty: setData(new MTPDwebPageEmpty()); break;
+		case mtpc_webPagePending: setData(new MTPDwebPagePending()); break;
+		case mtpc_webPage: setData(new MTPDwebPage()); break;
 		case mtpc_webPageNotModified: break;
 		default: throw mtpErrorBadTypeId(type, "MTPwebPage");
 	}
 }
 inline const MTPDwebPageEmpty &MTPwebPage::c_webPageEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_webPageEmpty);
-	return static_cast<const MTPDwebPageEmpty&>(*data);
+	t_assert(_type == mtpc_webPageEmpty);
+	return queryData<MTPDwebPageEmpty>();
 }
-inline MTPwebPage::MTPwebPage(std::shared_ptr<const MTPDwebPageEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_webPageEmpty) {
+inline MTPwebPage::MTPwebPage(const MTPDwebPageEmpty *data) : TypeDataOwner(data), _type(mtpc_webPageEmpty) {
 }
 inline const MTPDwebPagePending &MTPwebPage::c_webPagePending() const {
-	t_assert(data != nullptr && _type == mtpc_webPagePending);
-	return static_cast<const MTPDwebPagePending&>(*data);
+	t_assert(_type == mtpc_webPagePending);
+	return queryData<MTPDwebPagePending>();
 }
-inline MTPwebPage::MTPwebPage(std::shared_ptr<const MTPDwebPagePending> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_webPagePending) {
+inline MTPwebPage::MTPwebPage(const MTPDwebPagePending *data) : TypeDataOwner(data), _type(mtpc_webPagePending) {
 }
 inline const MTPDwebPage &MTPwebPage::c_webPage() const {
-	t_assert(data != nullptr && _type == mtpc_webPage);
-	return static_cast<const MTPDwebPage&>(*data);
+	t_assert(_type == mtpc_webPage);
+	return queryData<MTPDwebPage>();
 }
-inline MTPwebPage::MTPwebPage(std::shared_ptr<const MTPDwebPage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_webPage) {
+inline MTPwebPage::MTPwebPage(const MTPDwebPage *data) : TypeDataOwner(data), _type(mtpc_webPage) {
 }
 inline MTPwebPage MTP_webPageEmpty(const MTPlong &_id) {
 	return MTP::internal::TypeCreator::new_webPageEmpty(_id);
@@ -30674,7 +30564,7 @@ inline MTPwebPage MTP_webPageNotModified() {
 	return MTP::internal::TypeCreator::new_webPageNotModified();
 }
 
-inline MTPauthorization::MTPauthorization() : mtpDataOwner(std::make_shared<MTPDauthorization>()) {
+inline MTPauthorization::MTPauthorization() : TypeDataOwner(new MTPDauthorization()) {
 }
 
 inline uint32 MTPauthorization::innerLength() const {
@@ -30687,7 +30577,8 @@ inline mtpTypeId MTPauthorization::type() const {
 inline void MTPauthorization::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_authorization) throw mtpErrorUnexpected(cons, "MTPauthorization");
 
-	auto v = std::make_shared<MTPDauthorization>();
+	auto v = new MTPDauthorization();
+	setData(v);
 	v->vhash.read(from, end);
 	v->vflags.read(from, end);
 	v->vdevice_model.read(from, end);
@@ -30701,7 +30592,6 @@ inline void MTPauthorization::read(const mtpPrime *&from, const mtpPrime *end, m
 	v->vip.read(from, end);
 	v->vcountry.read(from, end);
 	v->vregion.read(from, end);
-	data = std::move(v);
 }
 inline void MTPauthorization::write(mtpBuffer &to) const {
 	auto &v = c_authorization();
@@ -30720,16 +30610,15 @@ inline void MTPauthorization::write(mtpBuffer &to) const {
 	v.vregion.write(to);
 }
 inline const MTPDauthorization &MTPauthorization::c_authorization() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDauthorization&>(*data);
+	return queryData<MTPDauthorization>();
 }
-inline MTPauthorization::MTPauthorization(std::shared_ptr<const MTPDauthorization> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPauthorization::MTPauthorization(const MTPDauthorization *data) : TypeDataOwner(data) {
 }
 inline MTPauthorization MTP_authorization(const MTPlong &_hash, MTPint _flags, const MTPstring &_device_model, const MTPstring &_platform, const MTPstring &_system_version, MTPint _api_id, const MTPstring &_app_name, const MTPstring &_app_version, MTPint _date_created, MTPint _date_active, const MTPstring &_ip, const MTPstring &_country, const MTPstring &_region) {
 	return MTP::internal::TypeCreator::new_authorization(_hash, _flags, _device_model, _platform, _system_version, _api_id, _app_name, _app_version, _date_created, _date_active, _ip, _country, _region);
 }
 
-inline MTPaccount_authorizations::MTPaccount_authorizations() : mtpDataOwner(std::make_shared<MTPDaccount_authorizations>()) {
+inline MTPaccount_authorizations::MTPaccount_authorizations() : TypeDataOwner(new MTPDaccount_authorizations()) {
 }
 
 inline uint32 MTPaccount_authorizations::innerLength() const {
@@ -30742,19 +30631,18 @@ inline mtpTypeId MTPaccount_authorizations::type() const {
 inline void MTPaccount_authorizations::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_account_authorizations) throw mtpErrorUnexpected(cons, "MTPaccount_authorizations");
 
-	auto v = std::make_shared<MTPDaccount_authorizations>();
+	auto v = new MTPDaccount_authorizations();
+	setData(v);
 	v->vauthorizations.read(from, end);
-	data = std::move(v);
 }
 inline void MTPaccount_authorizations::write(mtpBuffer &to) const {
 	auto &v = c_account_authorizations();
 	v.vauthorizations.write(to);
 }
 inline const MTPDaccount_authorizations &MTPaccount_authorizations::c_account_authorizations() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDaccount_authorizations&>(*data);
+	return queryData<MTPDaccount_authorizations>();
 }
-inline MTPaccount_authorizations::MTPaccount_authorizations(std::shared_ptr<const MTPDaccount_authorizations> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPaccount_authorizations::MTPaccount_authorizations(const MTPDaccount_authorizations *data) : TypeDataOwner(data) {
 }
 inline MTPaccount_authorizations MTP_account_authorizations(const MTPVector<MTPAuthorization> &_authorizations) {
 	return MTP::internal::TypeCreator::new_account_authorizations(_authorizations);
@@ -30778,22 +30666,21 @@ inline mtpTypeId MTPaccount_password::type() const {
 	return _type;
 }
 inline void MTPaccount_password::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_account_noPassword: _type = cons; {
-			auto v = std::make_shared<MTPDaccount_noPassword>();
+			auto v = new MTPDaccount_noPassword();
+			setData(v);
 			v->vnew_salt.read(from, end);
 			v->vemail_unconfirmed_pattern.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_account_password: _type = cons; {
-			auto v = std::make_shared<MTPDaccount_password>();
+			auto v = new MTPDaccount_password();
+			setData(v);
 			v->vcurrent_salt.read(from, end);
 			v->vnew_salt.read(from, end);
 			v->vhint.read(from, end);
 			v->vhas_recovery.read(from, end);
 			v->vemail_unconfirmed_pattern.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPaccount_password");
 	}
@@ -30817,22 +30704,22 @@ inline void MTPaccount_password::write(mtpBuffer &to) const {
 }
 inline MTPaccount_password::MTPaccount_password(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_account_noPassword: data = std::make_shared<MTPDaccount_noPassword>(); break;
-		case mtpc_account_password: data = std::make_shared<MTPDaccount_password>(); break;
+		case mtpc_account_noPassword: setData(new MTPDaccount_noPassword()); break;
+		case mtpc_account_password: setData(new MTPDaccount_password()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPaccount_password");
 	}
 }
 inline const MTPDaccount_noPassword &MTPaccount_password::c_account_noPassword() const {
-	t_assert(data != nullptr && _type == mtpc_account_noPassword);
-	return static_cast<const MTPDaccount_noPassword&>(*data);
+	t_assert(_type == mtpc_account_noPassword);
+	return queryData<MTPDaccount_noPassword>();
 }
-inline MTPaccount_password::MTPaccount_password(std::shared_ptr<const MTPDaccount_noPassword> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_account_noPassword) {
+inline MTPaccount_password::MTPaccount_password(const MTPDaccount_noPassword *data) : TypeDataOwner(data), _type(mtpc_account_noPassword) {
 }
 inline const MTPDaccount_password &MTPaccount_password::c_account_password() const {
-	t_assert(data != nullptr && _type == mtpc_account_password);
-	return static_cast<const MTPDaccount_password&>(*data);
+	t_assert(_type == mtpc_account_password);
+	return queryData<MTPDaccount_password>();
 }
-inline MTPaccount_password::MTPaccount_password(std::shared_ptr<const MTPDaccount_password> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_account_password) {
+inline MTPaccount_password::MTPaccount_password(const MTPDaccount_password *data) : TypeDataOwner(data), _type(mtpc_account_password) {
 }
 inline MTPaccount_password MTP_account_noPassword(const MTPbytes &_new_salt, const MTPstring &_email_unconfirmed_pattern) {
 	return MTP::internal::TypeCreator::new_account_noPassword(_new_salt, _email_unconfirmed_pattern);
@@ -30841,7 +30728,7 @@ inline MTPaccount_password MTP_account_password(const MTPbytes &_current_salt, c
 	return MTP::internal::TypeCreator::new_account_password(_current_salt, _new_salt, _hint, _has_recovery, _email_unconfirmed_pattern);
 }
 
-inline MTPaccount_passwordSettings::MTPaccount_passwordSettings() : mtpDataOwner(std::make_shared<MTPDaccount_passwordSettings>()) {
+inline MTPaccount_passwordSettings::MTPaccount_passwordSettings() : TypeDataOwner(new MTPDaccount_passwordSettings()) {
 }
 
 inline uint32 MTPaccount_passwordSettings::innerLength() const {
@@ -30854,25 +30741,24 @@ inline mtpTypeId MTPaccount_passwordSettings::type() const {
 inline void MTPaccount_passwordSettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_account_passwordSettings) throw mtpErrorUnexpected(cons, "MTPaccount_passwordSettings");
 
-	auto v = std::make_shared<MTPDaccount_passwordSettings>();
+	auto v = new MTPDaccount_passwordSettings();
+	setData(v);
 	v->vemail.read(from, end);
-	data = std::move(v);
 }
 inline void MTPaccount_passwordSettings::write(mtpBuffer &to) const {
 	auto &v = c_account_passwordSettings();
 	v.vemail.write(to);
 }
 inline const MTPDaccount_passwordSettings &MTPaccount_passwordSettings::c_account_passwordSettings() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDaccount_passwordSettings&>(*data);
+	return queryData<MTPDaccount_passwordSettings>();
 }
-inline MTPaccount_passwordSettings::MTPaccount_passwordSettings(std::shared_ptr<const MTPDaccount_passwordSettings> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPaccount_passwordSettings::MTPaccount_passwordSettings(const MTPDaccount_passwordSettings *data) : TypeDataOwner(data) {
 }
 inline MTPaccount_passwordSettings MTP_account_passwordSettings(const MTPstring &_email) {
 	return MTP::internal::TypeCreator::new_account_passwordSettings(_email);
 }
 
-inline MTPaccount_passwordInputSettings::MTPaccount_passwordInputSettings() : mtpDataOwner(std::make_shared<MTPDaccount_passwordInputSettings>()) {
+inline MTPaccount_passwordInputSettings::MTPaccount_passwordInputSettings() : TypeDataOwner(new MTPDaccount_passwordInputSettings()) {
 }
 
 inline uint32 MTPaccount_passwordInputSettings::innerLength() const {
@@ -30885,13 +30771,13 @@ inline mtpTypeId MTPaccount_passwordInputSettings::type() const {
 inline void MTPaccount_passwordInputSettings::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_account_passwordInputSettings) throw mtpErrorUnexpected(cons, "MTPaccount_passwordInputSettings");
 
-	auto v = std::make_shared<MTPDaccount_passwordInputSettings>();
+	auto v = new MTPDaccount_passwordInputSettings();
+	setData(v);
 	v->vflags.read(from, end);
 	if (v->has_new_salt()) { v->vnew_salt.read(from, end); } else { v->vnew_salt = MTPbytes(); }
 	if (v->has_new_password_hash()) { v->vnew_password_hash.read(from, end); } else { v->vnew_password_hash = MTPbytes(); }
 	if (v->has_hint()) { v->vhint.read(from, end); } else { v->vhint = MTPstring(); }
 	if (v->has_email()) { v->vemail.read(from, end); } else { v->vemail = MTPstring(); }
-	data = std::move(v);
 }
 inline void MTPaccount_passwordInputSettings::write(mtpBuffer &to) const {
 	auto &v = c_account_passwordInputSettings();
@@ -30902,17 +30788,16 @@ inline void MTPaccount_passwordInputSettings::write(mtpBuffer &to) const {
 	if (v.has_email()) v.vemail.write(to);
 }
 inline const MTPDaccount_passwordInputSettings &MTPaccount_passwordInputSettings::c_account_passwordInputSettings() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDaccount_passwordInputSettings&>(*data);
+	return queryData<MTPDaccount_passwordInputSettings>();
 }
-inline MTPaccount_passwordInputSettings::MTPaccount_passwordInputSettings(std::shared_ptr<const MTPDaccount_passwordInputSettings> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPaccount_passwordInputSettings::MTPaccount_passwordInputSettings(const MTPDaccount_passwordInputSettings *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDaccount_passwordInputSettings::Flags)
 inline MTPaccount_passwordInputSettings MTP_account_passwordInputSettings(const MTPflags<MTPDaccount_passwordInputSettings::Flags> &_flags, const MTPbytes &_new_salt, const MTPbytes &_new_password_hash, const MTPstring &_hint, const MTPstring &_email) {
 	return MTP::internal::TypeCreator::new_account_passwordInputSettings(_flags, _new_salt, _new_password_hash, _hint, _email);
 }
 
-inline MTPauth_passwordRecovery::MTPauth_passwordRecovery() : mtpDataOwner(std::make_shared<MTPDauth_passwordRecovery>()) {
+inline MTPauth_passwordRecovery::MTPauth_passwordRecovery() : TypeDataOwner(new MTPDauth_passwordRecovery()) {
 }
 
 inline uint32 MTPauth_passwordRecovery::innerLength() const {
@@ -30925,25 +30810,24 @@ inline mtpTypeId MTPauth_passwordRecovery::type() const {
 inline void MTPauth_passwordRecovery::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_auth_passwordRecovery) throw mtpErrorUnexpected(cons, "MTPauth_passwordRecovery");
 
-	auto v = std::make_shared<MTPDauth_passwordRecovery>();
+	auto v = new MTPDauth_passwordRecovery();
+	setData(v);
 	v->vemail_pattern.read(from, end);
-	data = std::move(v);
 }
 inline void MTPauth_passwordRecovery::write(mtpBuffer &to) const {
 	auto &v = c_auth_passwordRecovery();
 	v.vemail_pattern.write(to);
 }
 inline const MTPDauth_passwordRecovery &MTPauth_passwordRecovery::c_auth_passwordRecovery() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDauth_passwordRecovery&>(*data);
+	return queryData<MTPDauth_passwordRecovery>();
 }
-inline MTPauth_passwordRecovery::MTPauth_passwordRecovery(std::shared_ptr<const MTPDauth_passwordRecovery> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPauth_passwordRecovery::MTPauth_passwordRecovery(const MTPDauth_passwordRecovery *data) : TypeDataOwner(data) {
 }
 inline MTPauth_passwordRecovery MTP_auth_passwordRecovery(const MTPstring &_email_pattern) {
 	return MTP::internal::TypeCreator::new_auth_passwordRecovery(_email_pattern);
 }
 
-inline MTPreceivedNotifyMessage::MTPreceivedNotifyMessage() : mtpDataOwner(std::make_shared<MTPDreceivedNotifyMessage>()) {
+inline MTPreceivedNotifyMessage::MTPreceivedNotifyMessage() : TypeDataOwner(new MTPDreceivedNotifyMessage()) {
 }
 
 inline uint32 MTPreceivedNotifyMessage::innerLength() const {
@@ -30956,10 +30840,10 @@ inline mtpTypeId MTPreceivedNotifyMessage::type() const {
 inline void MTPreceivedNotifyMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_receivedNotifyMessage) throw mtpErrorUnexpected(cons, "MTPreceivedNotifyMessage");
 
-	auto v = std::make_shared<MTPDreceivedNotifyMessage>();
+	auto v = new MTPDreceivedNotifyMessage();
+	setData(v);
 	v->vid.read(from, end);
 	v->vflags.read(from, end);
-	data = std::move(v);
 }
 inline void MTPreceivedNotifyMessage::write(mtpBuffer &to) const {
 	auto &v = c_receivedNotifyMessage();
@@ -30967,10 +30851,9 @@ inline void MTPreceivedNotifyMessage::write(mtpBuffer &to) const {
 	v.vflags.write(to);
 }
 inline const MTPDreceivedNotifyMessage &MTPreceivedNotifyMessage::c_receivedNotifyMessage() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDreceivedNotifyMessage&>(*data);
+	return queryData<MTPDreceivedNotifyMessage>();
 }
-inline MTPreceivedNotifyMessage::MTPreceivedNotifyMessage(std::shared_ptr<const MTPDreceivedNotifyMessage> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPreceivedNotifyMessage::MTPreceivedNotifyMessage(const MTPDreceivedNotifyMessage *data) : TypeDataOwner(data) {
 }
 inline MTPreceivedNotifyMessage MTP_receivedNotifyMessage(MTPint _id, MTPint _flags) {
 	return MTP::internal::TypeCreator::new_receivedNotifyMessage(_id, _flags);
@@ -30990,13 +30873,12 @@ inline mtpTypeId MTPexportedChatInvite::type() const {
 	return _type;
 }
 inline void MTPexportedChatInvite::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatInviteEmpty: _type = cons; break;
 		case mtpc_chatInviteExported: _type = cons; {
-			auto v = std::make_shared<MTPDchatInviteExported>();
+			auto v = new MTPDchatInviteExported();
+			setData(v);
 			v->vlink.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPexportedChatInvite");
 	}
@@ -31012,15 +30894,15 @@ inline void MTPexportedChatInvite::write(mtpBuffer &to) const {
 inline MTPexportedChatInvite::MTPexportedChatInvite(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_chatInviteEmpty: break;
-		case mtpc_chatInviteExported: data = std::make_shared<MTPDchatInviteExported>(); break;
+		case mtpc_chatInviteExported: setData(new MTPDchatInviteExported()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPexportedChatInvite");
 	}
 }
 inline const MTPDchatInviteExported &MTPexportedChatInvite::c_chatInviteExported() const {
-	t_assert(data != nullptr && _type == mtpc_chatInviteExported);
-	return static_cast<const MTPDchatInviteExported&>(*data);
+	t_assert(_type == mtpc_chatInviteExported);
+	return queryData<MTPDchatInviteExported>();
 }
-inline MTPexportedChatInvite::MTPexportedChatInvite(std::shared_ptr<const MTPDchatInviteExported> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatInviteExported) {
+inline MTPexportedChatInvite::MTPexportedChatInvite(const MTPDchatInviteExported *data) : TypeDataOwner(data), _type(mtpc_chatInviteExported) {
 }
 inline MTPexportedChatInvite MTP_chatInviteEmpty() {
 	return MTP::internal::TypeCreator::new_chatInviteEmpty();
@@ -31047,21 +30929,20 @@ inline mtpTypeId MTPchatInvite::type() const {
 	return _type;
 }
 inline void MTPchatInvite::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_chatInviteAlready: _type = cons; {
-			auto v = std::make_shared<MTPDchatInviteAlready>();
+			auto v = new MTPDchatInviteAlready();
+			setData(v);
 			v->vchat.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_chatInvite: _type = cons; {
-			auto v = std::make_shared<MTPDchatInvite>();
+			auto v = new MTPDchatInvite();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vtitle.read(from, end);
 			v->vphoto.read(from, end);
 			v->vparticipants_count.read(from, end);
 			if (v->has_participants()) { v->vparticipants.read(from, end); } else { v->vparticipants = MTPVector<MTPUser>(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchatInvite");
 	}
@@ -31084,22 +30965,22 @@ inline void MTPchatInvite::write(mtpBuffer &to) const {
 }
 inline MTPchatInvite::MTPchatInvite(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_chatInviteAlready: data = std::make_shared<MTPDchatInviteAlready>(); break;
-		case mtpc_chatInvite: data = std::make_shared<MTPDchatInvite>(); break;
+		case mtpc_chatInviteAlready: setData(new MTPDchatInviteAlready()); break;
+		case mtpc_chatInvite: setData(new MTPDchatInvite()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchatInvite");
 	}
 }
 inline const MTPDchatInviteAlready &MTPchatInvite::c_chatInviteAlready() const {
-	t_assert(data != nullptr && _type == mtpc_chatInviteAlready);
-	return static_cast<const MTPDchatInviteAlready&>(*data);
+	t_assert(_type == mtpc_chatInviteAlready);
+	return queryData<MTPDchatInviteAlready>();
 }
-inline MTPchatInvite::MTPchatInvite(std::shared_ptr<const MTPDchatInviteAlready> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatInviteAlready) {
+inline MTPchatInvite::MTPchatInvite(const MTPDchatInviteAlready *data) : TypeDataOwner(data), _type(mtpc_chatInviteAlready) {
 }
 inline const MTPDchatInvite &MTPchatInvite::c_chatInvite() const {
-	t_assert(data != nullptr && _type == mtpc_chatInvite);
-	return static_cast<const MTPDchatInvite&>(*data);
+	t_assert(_type == mtpc_chatInvite);
+	return queryData<MTPDchatInvite>();
 }
-inline MTPchatInvite::MTPchatInvite(std::shared_ptr<const MTPDchatInvite> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_chatInvite) {
+inline MTPchatInvite::MTPchatInvite(const MTPDchatInvite *data) : TypeDataOwner(data), _type(mtpc_chatInvite) {
 }
 inline MTPchatInvite MTP_chatInviteAlready(const MTPChat &_chat) {
 	return MTP::internal::TypeCreator::new_chatInviteAlready(_chat);
@@ -31127,19 +31008,18 @@ inline mtpTypeId MTPinputStickerSet::type() const {
 	return _type;
 }
 inline void MTPinputStickerSet::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputStickerSetEmpty: _type = cons; break;
 		case mtpc_inputStickerSetID: _type = cons; {
-			auto v = std::make_shared<MTPDinputStickerSetID>();
+			auto v = new MTPDinputStickerSetID();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputStickerSetShortName: _type = cons; {
-			auto v = std::make_shared<MTPDinputStickerSetShortName>();
+			auto v = new MTPDinputStickerSetShortName();
+			setData(v);
 			v->vshort_name.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputStickerSet");
 	}
@@ -31160,22 +31040,22 @@ inline void MTPinputStickerSet::write(mtpBuffer &to) const {
 inline MTPinputStickerSet::MTPinputStickerSet(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputStickerSetEmpty: break;
-		case mtpc_inputStickerSetID: data = std::make_shared<MTPDinputStickerSetID>(); break;
-		case mtpc_inputStickerSetShortName: data = std::make_shared<MTPDinputStickerSetShortName>(); break;
+		case mtpc_inputStickerSetID: setData(new MTPDinputStickerSetID()); break;
+		case mtpc_inputStickerSetShortName: setData(new MTPDinputStickerSetShortName()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputStickerSet");
 	}
 }
 inline const MTPDinputStickerSetID &MTPinputStickerSet::c_inputStickerSetID() const {
-	t_assert(data != nullptr && _type == mtpc_inputStickerSetID);
-	return static_cast<const MTPDinputStickerSetID&>(*data);
+	t_assert(_type == mtpc_inputStickerSetID);
+	return queryData<MTPDinputStickerSetID>();
 }
-inline MTPinputStickerSet::MTPinputStickerSet(std::shared_ptr<const MTPDinputStickerSetID> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputStickerSetID) {
+inline MTPinputStickerSet::MTPinputStickerSet(const MTPDinputStickerSetID *data) : TypeDataOwner(data), _type(mtpc_inputStickerSetID) {
 }
 inline const MTPDinputStickerSetShortName &MTPinputStickerSet::c_inputStickerSetShortName() const {
-	t_assert(data != nullptr && _type == mtpc_inputStickerSetShortName);
-	return static_cast<const MTPDinputStickerSetShortName&>(*data);
+	t_assert(_type == mtpc_inputStickerSetShortName);
+	return queryData<MTPDinputStickerSetShortName>();
 }
-inline MTPinputStickerSet::MTPinputStickerSet(std::shared_ptr<const MTPDinputStickerSetShortName> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputStickerSetShortName) {
+inline MTPinputStickerSet::MTPinputStickerSet(const MTPDinputStickerSetShortName *data) : TypeDataOwner(data), _type(mtpc_inputStickerSetShortName) {
 }
 inline MTPinputStickerSet MTP_inputStickerSetEmpty() {
 	return MTP::internal::TypeCreator::new_inputStickerSetEmpty();
@@ -31187,7 +31067,7 @@ inline MTPinputStickerSet MTP_inputStickerSetShortName(const MTPstring &_short_n
 	return MTP::internal::TypeCreator::new_inputStickerSetShortName(_short_name);
 }
 
-inline MTPstickerSet::MTPstickerSet() : mtpDataOwner(std::make_shared<MTPDstickerSet>()) {
+inline MTPstickerSet::MTPstickerSet() : TypeDataOwner(new MTPDstickerSet()) {
 }
 
 inline uint32 MTPstickerSet::innerLength() const {
@@ -31200,7 +31080,8 @@ inline mtpTypeId MTPstickerSet::type() const {
 inline void MTPstickerSet::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_stickerSet) throw mtpErrorUnexpected(cons, "MTPstickerSet");
 
-	auto v = std::make_shared<MTPDstickerSet>();
+	auto v = new MTPDstickerSet();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vid.read(from, end);
 	v->vaccess_hash.read(from, end);
@@ -31208,7 +31089,6 @@ inline void MTPstickerSet::read(const mtpPrime *&from, const mtpPrime *end, mtpT
 	v->vshort_name.read(from, end);
 	v->vcount.read(from, end);
 	v->vhash.read(from, end);
-	data = std::move(v);
 }
 inline void MTPstickerSet::write(mtpBuffer &to) const {
 	auto &v = c_stickerSet();
@@ -31221,17 +31101,16 @@ inline void MTPstickerSet::write(mtpBuffer &to) const {
 	v.vhash.write(to);
 }
 inline const MTPDstickerSet &MTPstickerSet::c_stickerSet() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDstickerSet&>(*data);
+	return queryData<MTPDstickerSet>();
 }
-inline MTPstickerSet::MTPstickerSet(std::shared_ptr<const MTPDstickerSet> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPstickerSet::MTPstickerSet(const MTPDstickerSet *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDstickerSet::Flags)
 inline MTPstickerSet MTP_stickerSet(const MTPflags<MTPDstickerSet::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_title, const MTPstring &_short_name, MTPint _count, MTPint _hash) {
 	return MTP::internal::TypeCreator::new_stickerSet(_flags, _id, _access_hash, _title, _short_name, _count, _hash);
 }
 
-inline MTPmessages_stickerSet::MTPmessages_stickerSet() : mtpDataOwner(std::make_shared<MTPDmessages_stickerSet>()) {
+inline MTPmessages_stickerSet::MTPmessages_stickerSet() : TypeDataOwner(new MTPDmessages_stickerSet()) {
 }
 
 inline uint32 MTPmessages_stickerSet::innerLength() const {
@@ -31244,11 +31123,11 @@ inline mtpTypeId MTPmessages_stickerSet::type() const {
 inline void MTPmessages_stickerSet::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_stickerSet) throw mtpErrorUnexpected(cons, "MTPmessages_stickerSet");
 
-	auto v = std::make_shared<MTPDmessages_stickerSet>();
+	auto v = new MTPDmessages_stickerSet();
+	setData(v);
 	v->vset.read(from, end);
 	v->vpacks.read(from, end);
 	v->vdocuments.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_stickerSet::write(mtpBuffer &to) const {
 	auto &v = c_messages_stickerSet();
@@ -31257,16 +31136,15 @@ inline void MTPmessages_stickerSet::write(mtpBuffer &to) const {
 	v.vdocuments.write(to);
 }
 inline const MTPDmessages_stickerSet &MTPmessages_stickerSet::c_messages_stickerSet() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_stickerSet&>(*data);
+	return queryData<MTPDmessages_stickerSet>();
 }
-inline MTPmessages_stickerSet::MTPmessages_stickerSet(std::shared_ptr<const MTPDmessages_stickerSet> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_stickerSet::MTPmessages_stickerSet(const MTPDmessages_stickerSet *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_stickerSet MTP_messages_stickerSet(const MTPStickerSet &_set, const MTPVector<MTPStickerPack> &_packs, const MTPVector<MTPDocument> &_documents) {
 	return MTP::internal::TypeCreator::new_messages_stickerSet(_set, _packs, _documents);
 }
 
-inline MTPbotCommand::MTPbotCommand() : mtpDataOwner(std::make_shared<MTPDbotCommand>()) {
+inline MTPbotCommand::MTPbotCommand() : TypeDataOwner(new MTPDbotCommand()) {
 }
 
 inline uint32 MTPbotCommand::innerLength() const {
@@ -31279,10 +31157,10 @@ inline mtpTypeId MTPbotCommand::type() const {
 inline void MTPbotCommand::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_botCommand) throw mtpErrorUnexpected(cons, "MTPbotCommand");
 
-	auto v = std::make_shared<MTPDbotCommand>();
+	auto v = new MTPDbotCommand();
+	setData(v);
 	v->vcommand.read(from, end);
 	v->vdescription.read(from, end);
-	data = std::move(v);
 }
 inline void MTPbotCommand::write(mtpBuffer &to) const {
 	auto &v = c_botCommand();
@@ -31290,16 +31168,15 @@ inline void MTPbotCommand::write(mtpBuffer &to) const {
 	v.vdescription.write(to);
 }
 inline const MTPDbotCommand &MTPbotCommand::c_botCommand() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDbotCommand&>(*data);
+	return queryData<MTPDbotCommand>();
 }
-inline MTPbotCommand::MTPbotCommand(std::shared_ptr<const MTPDbotCommand> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPbotCommand::MTPbotCommand(const MTPDbotCommand *data) : TypeDataOwner(data) {
 }
 inline MTPbotCommand MTP_botCommand(const MTPstring &_command, const MTPstring &_description) {
 	return MTP::internal::TypeCreator::new_botCommand(_command, _description);
 }
 
-inline MTPbotInfo::MTPbotInfo() : mtpDataOwner(std::make_shared<MTPDbotInfo>()) {
+inline MTPbotInfo::MTPbotInfo() : TypeDataOwner(new MTPDbotInfo()) {
 }
 
 inline uint32 MTPbotInfo::innerLength() const {
@@ -31312,11 +31189,11 @@ inline mtpTypeId MTPbotInfo::type() const {
 inline void MTPbotInfo::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_botInfo) throw mtpErrorUnexpected(cons, "MTPbotInfo");
 
-	auto v = std::make_shared<MTPDbotInfo>();
+	auto v = new MTPDbotInfo();
+	setData(v);
 	v->vuser_id.read(from, end);
 	v->vdescription.read(from, end);
 	v->vcommands.read(from, end);
-	data = std::move(v);
 }
 inline void MTPbotInfo::write(mtpBuffer &to) const {
 	auto &v = c_botInfo();
@@ -31325,10 +31202,9 @@ inline void MTPbotInfo::write(mtpBuffer &to) const {
 	v.vcommands.write(to);
 }
 inline const MTPDbotInfo &MTPbotInfo::c_botInfo() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDbotInfo&>(*data);
+	return queryData<MTPDbotInfo>();
 }
-inline MTPbotInfo::MTPbotInfo(std::shared_ptr<const MTPDbotInfo> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPbotInfo::MTPbotInfo(const MTPDbotInfo *data) : TypeDataOwner(data) {
 }
 inline MTPbotInfo MTP_botInfo(MTPint _user_id, const MTPstring &_description, const MTPVector<MTPBotCommand> &_commands) {
 	return MTP::internal::TypeCreator::new_botInfo(_user_id, _description, _commands);
@@ -31372,46 +31248,45 @@ inline mtpTypeId MTPkeyboardButton::type() const {
 	return _type;
 }
 inline void MTPkeyboardButton::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_keyboardButton: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButton>();
+			auto v = new MTPDkeyboardButton();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_keyboardButtonUrl: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButtonUrl>();
+			auto v = new MTPDkeyboardButtonUrl();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vurl.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_keyboardButtonCallback: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButtonCallback>();
+			auto v = new MTPDkeyboardButtonCallback();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vdata.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_keyboardButtonRequestPhone: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButtonRequestPhone>();
+			auto v = new MTPDkeyboardButtonRequestPhone();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_keyboardButtonRequestGeoLocation: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButtonRequestGeoLocation>();
+			auto v = new MTPDkeyboardButtonRequestGeoLocation();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_keyboardButtonSwitchInline: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButtonSwitchInline>();
+			auto v = new MTPDkeyboardButtonSwitchInline();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vtext.read(from, end);
 			v->vquery.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_keyboardButtonGame: _type = cons; {
-			auto v = std::make_shared<MTPDkeyboardButtonGame>();
+			auto v = new MTPDkeyboardButtonGame();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPkeyboardButton");
 	}
@@ -31454,57 +31329,57 @@ inline void MTPkeyboardButton::write(mtpBuffer &to) const {
 }
 inline MTPkeyboardButton::MTPkeyboardButton(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_keyboardButton: data = std::make_shared<MTPDkeyboardButton>(); break;
-		case mtpc_keyboardButtonUrl: data = std::make_shared<MTPDkeyboardButtonUrl>(); break;
-		case mtpc_keyboardButtonCallback: data = std::make_shared<MTPDkeyboardButtonCallback>(); break;
-		case mtpc_keyboardButtonRequestPhone: data = std::make_shared<MTPDkeyboardButtonRequestPhone>(); break;
-		case mtpc_keyboardButtonRequestGeoLocation: data = std::make_shared<MTPDkeyboardButtonRequestGeoLocation>(); break;
-		case mtpc_keyboardButtonSwitchInline: data = std::make_shared<MTPDkeyboardButtonSwitchInline>(); break;
-		case mtpc_keyboardButtonGame: data = std::make_shared<MTPDkeyboardButtonGame>(); break;
+		case mtpc_keyboardButton: setData(new MTPDkeyboardButton()); break;
+		case mtpc_keyboardButtonUrl: setData(new MTPDkeyboardButtonUrl()); break;
+		case mtpc_keyboardButtonCallback: setData(new MTPDkeyboardButtonCallback()); break;
+		case mtpc_keyboardButtonRequestPhone: setData(new MTPDkeyboardButtonRequestPhone()); break;
+		case mtpc_keyboardButtonRequestGeoLocation: setData(new MTPDkeyboardButtonRequestGeoLocation()); break;
+		case mtpc_keyboardButtonSwitchInline: setData(new MTPDkeyboardButtonSwitchInline()); break;
+		case mtpc_keyboardButtonGame: setData(new MTPDkeyboardButtonGame()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPkeyboardButton");
 	}
 }
 inline const MTPDkeyboardButton &MTPkeyboardButton::c_keyboardButton() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButton);
-	return static_cast<const MTPDkeyboardButton&>(*data);
+	t_assert(_type == mtpc_keyboardButton);
+	return queryData<MTPDkeyboardButton>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButton> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButton) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButton *data) : TypeDataOwner(data), _type(mtpc_keyboardButton) {
 }
 inline const MTPDkeyboardButtonUrl &MTPkeyboardButton::c_keyboardButtonUrl() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButtonUrl);
-	return static_cast<const MTPDkeyboardButtonUrl&>(*data);
+	t_assert(_type == mtpc_keyboardButtonUrl);
+	return queryData<MTPDkeyboardButtonUrl>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonUrl> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButtonUrl) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButtonUrl *data) : TypeDataOwner(data), _type(mtpc_keyboardButtonUrl) {
 }
 inline const MTPDkeyboardButtonCallback &MTPkeyboardButton::c_keyboardButtonCallback() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButtonCallback);
-	return static_cast<const MTPDkeyboardButtonCallback&>(*data);
+	t_assert(_type == mtpc_keyboardButtonCallback);
+	return queryData<MTPDkeyboardButtonCallback>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonCallback> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButtonCallback) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButtonCallback *data) : TypeDataOwner(data), _type(mtpc_keyboardButtonCallback) {
 }
 inline const MTPDkeyboardButtonRequestPhone &MTPkeyboardButton::c_keyboardButtonRequestPhone() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButtonRequestPhone);
-	return static_cast<const MTPDkeyboardButtonRequestPhone&>(*data);
+	t_assert(_type == mtpc_keyboardButtonRequestPhone);
+	return queryData<MTPDkeyboardButtonRequestPhone>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonRequestPhone> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButtonRequestPhone) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButtonRequestPhone *data) : TypeDataOwner(data), _type(mtpc_keyboardButtonRequestPhone) {
 }
 inline const MTPDkeyboardButtonRequestGeoLocation &MTPkeyboardButton::c_keyboardButtonRequestGeoLocation() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButtonRequestGeoLocation);
-	return static_cast<const MTPDkeyboardButtonRequestGeoLocation&>(*data);
+	t_assert(_type == mtpc_keyboardButtonRequestGeoLocation);
+	return queryData<MTPDkeyboardButtonRequestGeoLocation>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonRequestGeoLocation> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButtonRequestGeoLocation) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButtonRequestGeoLocation *data) : TypeDataOwner(data), _type(mtpc_keyboardButtonRequestGeoLocation) {
 }
 inline const MTPDkeyboardButtonSwitchInline &MTPkeyboardButton::c_keyboardButtonSwitchInline() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButtonSwitchInline);
-	return static_cast<const MTPDkeyboardButtonSwitchInline&>(*data);
+	t_assert(_type == mtpc_keyboardButtonSwitchInline);
+	return queryData<MTPDkeyboardButtonSwitchInline>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonSwitchInline> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButtonSwitchInline) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButtonSwitchInline *data) : TypeDataOwner(data), _type(mtpc_keyboardButtonSwitchInline) {
 }
 inline const MTPDkeyboardButtonGame &MTPkeyboardButton::c_keyboardButtonGame() const {
-	t_assert(data != nullptr && _type == mtpc_keyboardButtonGame);
-	return static_cast<const MTPDkeyboardButtonGame&>(*data);
+	t_assert(_type == mtpc_keyboardButtonGame);
+	return queryData<MTPDkeyboardButtonGame>();
 }
-inline MTPkeyboardButton::MTPkeyboardButton(std::shared_ptr<const MTPDkeyboardButtonGame> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_keyboardButtonGame) {
+inline MTPkeyboardButton::MTPkeyboardButton(const MTPDkeyboardButtonGame *data) : TypeDataOwner(data), _type(mtpc_keyboardButtonGame) {
 }
 inline MTPkeyboardButton MTP_keyboardButton(const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_keyboardButton(_text);
@@ -31529,7 +31404,7 @@ inline MTPkeyboardButton MTP_keyboardButtonGame(const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_keyboardButtonGame(_text);
 }
 
-inline MTPkeyboardButtonRow::MTPkeyboardButtonRow() : mtpDataOwner(std::make_shared<MTPDkeyboardButtonRow>()) {
+inline MTPkeyboardButtonRow::MTPkeyboardButtonRow() : TypeDataOwner(new MTPDkeyboardButtonRow()) {
 }
 
 inline uint32 MTPkeyboardButtonRow::innerLength() const {
@@ -31542,19 +31417,18 @@ inline mtpTypeId MTPkeyboardButtonRow::type() const {
 inline void MTPkeyboardButtonRow::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_keyboardButtonRow) throw mtpErrorUnexpected(cons, "MTPkeyboardButtonRow");
 
-	auto v = std::make_shared<MTPDkeyboardButtonRow>();
+	auto v = new MTPDkeyboardButtonRow();
+	setData(v);
 	v->vbuttons.read(from, end);
-	data = std::move(v);
 }
 inline void MTPkeyboardButtonRow::write(mtpBuffer &to) const {
 	auto &v = c_keyboardButtonRow();
 	v.vbuttons.write(to);
 }
 inline const MTPDkeyboardButtonRow &MTPkeyboardButtonRow::c_keyboardButtonRow() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDkeyboardButtonRow&>(*data);
+	return queryData<MTPDkeyboardButtonRow>();
 }
-inline MTPkeyboardButtonRow::MTPkeyboardButtonRow(std::shared_ptr<const MTPDkeyboardButtonRow> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPkeyboardButtonRow::MTPkeyboardButtonRow(const MTPDkeyboardButtonRow *data) : TypeDataOwner(data) {
 }
 inline MTPkeyboardButtonRow MTP_keyboardButtonRow(const MTPVector<MTPKeyboardButton> &_buttons) {
 	return MTP::internal::TypeCreator::new_keyboardButtonRow(_buttons);
@@ -31586,28 +31460,27 @@ inline mtpTypeId MTPreplyMarkup::type() const {
 	return _type;
 }
 inline void MTPreplyMarkup::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_replyKeyboardHide: _type = cons; {
-			auto v = std::make_shared<MTPDreplyKeyboardHide>();
+			auto v = new MTPDreplyKeyboardHide();
+			setData(v);
 			v->vflags.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_replyKeyboardForceReply: _type = cons; {
-			auto v = std::make_shared<MTPDreplyKeyboardForceReply>();
+			auto v = new MTPDreplyKeyboardForceReply();
+			setData(v);
 			v->vflags.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_replyKeyboardMarkup: _type = cons; {
-			auto v = std::make_shared<MTPDreplyKeyboardMarkup>();
+			auto v = new MTPDreplyKeyboardMarkup();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vrows.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_replyInlineMarkup: _type = cons; {
-			auto v = std::make_shared<MTPDreplyInlineMarkup>();
+			auto v = new MTPDreplyInlineMarkup();
+			setData(v);
 			v->vrows.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPreplyMarkup");
 	}
@@ -31635,36 +31508,36 @@ inline void MTPreplyMarkup::write(mtpBuffer &to) const {
 }
 inline MTPreplyMarkup::MTPreplyMarkup(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_replyKeyboardHide: data = std::make_shared<MTPDreplyKeyboardHide>(); break;
-		case mtpc_replyKeyboardForceReply: data = std::make_shared<MTPDreplyKeyboardForceReply>(); break;
-		case mtpc_replyKeyboardMarkup: data = std::make_shared<MTPDreplyKeyboardMarkup>(); break;
-		case mtpc_replyInlineMarkup: data = std::make_shared<MTPDreplyInlineMarkup>(); break;
+		case mtpc_replyKeyboardHide: setData(new MTPDreplyKeyboardHide()); break;
+		case mtpc_replyKeyboardForceReply: setData(new MTPDreplyKeyboardForceReply()); break;
+		case mtpc_replyKeyboardMarkup: setData(new MTPDreplyKeyboardMarkup()); break;
+		case mtpc_replyInlineMarkup: setData(new MTPDreplyInlineMarkup()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPreplyMarkup");
 	}
 }
 inline const MTPDreplyKeyboardHide &MTPreplyMarkup::c_replyKeyboardHide() const {
-	t_assert(data != nullptr && _type == mtpc_replyKeyboardHide);
-	return static_cast<const MTPDreplyKeyboardHide&>(*data);
+	t_assert(_type == mtpc_replyKeyboardHide);
+	return queryData<MTPDreplyKeyboardHide>();
 }
-inline MTPreplyMarkup::MTPreplyMarkup(std::shared_ptr<const MTPDreplyKeyboardHide> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_replyKeyboardHide) {
+inline MTPreplyMarkup::MTPreplyMarkup(const MTPDreplyKeyboardHide *data) : TypeDataOwner(data), _type(mtpc_replyKeyboardHide) {
 }
 inline const MTPDreplyKeyboardForceReply &MTPreplyMarkup::c_replyKeyboardForceReply() const {
-	t_assert(data != nullptr && _type == mtpc_replyKeyboardForceReply);
-	return static_cast<const MTPDreplyKeyboardForceReply&>(*data);
+	t_assert(_type == mtpc_replyKeyboardForceReply);
+	return queryData<MTPDreplyKeyboardForceReply>();
 }
-inline MTPreplyMarkup::MTPreplyMarkup(std::shared_ptr<const MTPDreplyKeyboardForceReply> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_replyKeyboardForceReply) {
+inline MTPreplyMarkup::MTPreplyMarkup(const MTPDreplyKeyboardForceReply *data) : TypeDataOwner(data), _type(mtpc_replyKeyboardForceReply) {
 }
 inline const MTPDreplyKeyboardMarkup &MTPreplyMarkup::c_replyKeyboardMarkup() const {
-	t_assert(data != nullptr && _type == mtpc_replyKeyboardMarkup);
-	return static_cast<const MTPDreplyKeyboardMarkup&>(*data);
+	t_assert(_type == mtpc_replyKeyboardMarkup);
+	return queryData<MTPDreplyKeyboardMarkup>();
 }
-inline MTPreplyMarkup::MTPreplyMarkup(std::shared_ptr<const MTPDreplyKeyboardMarkup> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_replyKeyboardMarkup) {
+inline MTPreplyMarkup::MTPreplyMarkup(const MTPDreplyKeyboardMarkup *data) : TypeDataOwner(data), _type(mtpc_replyKeyboardMarkup) {
 }
 inline const MTPDreplyInlineMarkup &MTPreplyMarkup::c_replyInlineMarkup() const {
-	t_assert(data != nullptr && _type == mtpc_replyInlineMarkup);
-	return static_cast<const MTPDreplyInlineMarkup&>(*data);
+	t_assert(_type == mtpc_replyInlineMarkup);
+	return queryData<MTPDreplyInlineMarkup>();
 }
-inline MTPreplyMarkup::MTPreplyMarkup(std::shared_ptr<const MTPDreplyInlineMarkup> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_replyInlineMarkup) {
+inline MTPreplyMarkup::MTPreplyMarkup(const MTPDreplyInlineMarkup *data) : TypeDataOwner(data), _type(mtpc_replyInlineMarkup) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDreplyKeyboardHide::Flags)
 inline MTPreplyMarkup MTP_replyKeyboardHide(const MTPflags<MTPDreplyKeyboardHide::Flags> &_flags) {
@@ -31696,15 +31569,14 @@ inline mtpTypeId MTPhelp_appChangelog::type() const {
 	return _type;
 }
 inline void MTPhelp_appChangelog::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_help_appChangelogEmpty: _type = cons; break;
 		case mtpc_help_appChangelog: _type = cons; {
-			auto v = std::make_shared<MTPDhelp_appChangelog>();
+			auto v = new MTPDhelp_appChangelog();
+			setData(v);
 			v->vmessage.read(from, end);
 			v->vmedia.read(from, end);
 			v->ventities.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPhelp_appChangelog");
 	}
@@ -31722,15 +31594,15 @@ inline void MTPhelp_appChangelog::write(mtpBuffer &to) const {
 inline MTPhelp_appChangelog::MTPhelp_appChangelog(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_help_appChangelogEmpty: break;
-		case mtpc_help_appChangelog: data = std::make_shared<MTPDhelp_appChangelog>(); break;
+		case mtpc_help_appChangelog: setData(new MTPDhelp_appChangelog()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPhelp_appChangelog");
 	}
 }
 inline const MTPDhelp_appChangelog &MTPhelp_appChangelog::c_help_appChangelog() const {
-	t_assert(data != nullptr && _type == mtpc_help_appChangelog);
-	return static_cast<const MTPDhelp_appChangelog&>(*data);
+	t_assert(_type == mtpc_help_appChangelog);
+	return queryData<MTPDhelp_appChangelog>();
 }
-inline MTPhelp_appChangelog::MTPhelp_appChangelog(std::shared_ptr<const MTPDhelp_appChangelog> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_help_appChangelog) {
+inline MTPhelp_appChangelog::MTPhelp_appChangelog(const MTPDhelp_appChangelog *data) : TypeDataOwner(data), _type(mtpc_help_appChangelog) {
 }
 inline MTPhelp_appChangelog MTP_help_appChangelogEmpty() {
 	return MTP::internal::TypeCreator::new_help_appChangelogEmpty();
@@ -31801,89 +31673,88 @@ inline mtpTypeId MTPmessageEntity::type() const {
 	return _type;
 }
 inline void MTPmessageEntity::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messageEntityUnknown: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityUnknown>();
+			auto v = new MTPDmessageEntityUnknown();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityMention: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityMention>();
+			auto v = new MTPDmessageEntityMention();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityHashtag: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityHashtag>();
+			auto v = new MTPDmessageEntityHashtag();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityBotCommand: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityBotCommand>();
+			auto v = new MTPDmessageEntityBotCommand();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityUrl: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityUrl>();
+			auto v = new MTPDmessageEntityUrl();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityEmail: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityEmail>();
+			auto v = new MTPDmessageEntityEmail();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityBold: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityBold>();
+			auto v = new MTPDmessageEntityBold();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityItalic: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityItalic>();
+			auto v = new MTPDmessageEntityItalic();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityCode: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityCode>();
+			auto v = new MTPDmessageEntityCode();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityPre: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityPre>();
+			auto v = new MTPDmessageEntityPre();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
 			v->vlanguage.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityTextUrl: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityTextUrl>();
+			auto v = new MTPDmessageEntityTextUrl();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
 			v->vurl.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_messageEntityMentionName: _type = cons; {
-			auto v = std::make_shared<MTPDmessageEntityMentionName>();
+			auto v = new MTPDmessageEntityMentionName();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputMessageEntityMentionName: _type = cons; {
-			auto v = std::make_shared<MTPDinputMessageEntityMentionName>();
+			auto v = new MTPDinputMessageEntityMentionName();
+			setData(v);
 			v->voffset.read(from, end);
 			v->vlength.read(from, end);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessageEntity");
 	}
@@ -31963,99 +31834,99 @@ inline void MTPmessageEntity::write(mtpBuffer &to) const {
 }
 inline MTPmessageEntity::MTPmessageEntity(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_messageEntityUnknown: data = std::make_shared<MTPDmessageEntityUnknown>(); break;
-		case mtpc_messageEntityMention: data = std::make_shared<MTPDmessageEntityMention>(); break;
-		case mtpc_messageEntityHashtag: data = std::make_shared<MTPDmessageEntityHashtag>(); break;
-		case mtpc_messageEntityBotCommand: data = std::make_shared<MTPDmessageEntityBotCommand>(); break;
-		case mtpc_messageEntityUrl: data = std::make_shared<MTPDmessageEntityUrl>(); break;
-		case mtpc_messageEntityEmail: data = std::make_shared<MTPDmessageEntityEmail>(); break;
-		case mtpc_messageEntityBold: data = std::make_shared<MTPDmessageEntityBold>(); break;
-		case mtpc_messageEntityItalic: data = std::make_shared<MTPDmessageEntityItalic>(); break;
-		case mtpc_messageEntityCode: data = std::make_shared<MTPDmessageEntityCode>(); break;
-		case mtpc_messageEntityPre: data = std::make_shared<MTPDmessageEntityPre>(); break;
-		case mtpc_messageEntityTextUrl: data = std::make_shared<MTPDmessageEntityTextUrl>(); break;
-		case mtpc_messageEntityMentionName: data = std::make_shared<MTPDmessageEntityMentionName>(); break;
-		case mtpc_inputMessageEntityMentionName: data = std::make_shared<MTPDinputMessageEntityMentionName>(); break;
+		case mtpc_messageEntityUnknown: setData(new MTPDmessageEntityUnknown()); break;
+		case mtpc_messageEntityMention: setData(new MTPDmessageEntityMention()); break;
+		case mtpc_messageEntityHashtag: setData(new MTPDmessageEntityHashtag()); break;
+		case mtpc_messageEntityBotCommand: setData(new MTPDmessageEntityBotCommand()); break;
+		case mtpc_messageEntityUrl: setData(new MTPDmessageEntityUrl()); break;
+		case mtpc_messageEntityEmail: setData(new MTPDmessageEntityEmail()); break;
+		case mtpc_messageEntityBold: setData(new MTPDmessageEntityBold()); break;
+		case mtpc_messageEntityItalic: setData(new MTPDmessageEntityItalic()); break;
+		case mtpc_messageEntityCode: setData(new MTPDmessageEntityCode()); break;
+		case mtpc_messageEntityPre: setData(new MTPDmessageEntityPre()); break;
+		case mtpc_messageEntityTextUrl: setData(new MTPDmessageEntityTextUrl()); break;
+		case mtpc_messageEntityMentionName: setData(new MTPDmessageEntityMentionName()); break;
+		case mtpc_inputMessageEntityMentionName: setData(new MTPDinputMessageEntityMentionName()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessageEntity");
 	}
 }
 inline const MTPDmessageEntityUnknown &MTPmessageEntity::c_messageEntityUnknown() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityUnknown);
-	return static_cast<const MTPDmessageEntityUnknown&>(*data);
+	t_assert(_type == mtpc_messageEntityUnknown);
+	return queryData<MTPDmessageEntityUnknown>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityUnknown> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityUnknown) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityUnknown *data) : TypeDataOwner(data), _type(mtpc_messageEntityUnknown) {
 }
 inline const MTPDmessageEntityMention &MTPmessageEntity::c_messageEntityMention() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityMention);
-	return static_cast<const MTPDmessageEntityMention&>(*data);
+	t_assert(_type == mtpc_messageEntityMention);
+	return queryData<MTPDmessageEntityMention>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityMention> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityMention) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityMention *data) : TypeDataOwner(data), _type(mtpc_messageEntityMention) {
 }
 inline const MTPDmessageEntityHashtag &MTPmessageEntity::c_messageEntityHashtag() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityHashtag);
-	return static_cast<const MTPDmessageEntityHashtag&>(*data);
+	t_assert(_type == mtpc_messageEntityHashtag);
+	return queryData<MTPDmessageEntityHashtag>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityHashtag> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityHashtag) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityHashtag *data) : TypeDataOwner(data), _type(mtpc_messageEntityHashtag) {
 }
 inline const MTPDmessageEntityBotCommand &MTPmessageEntity::c_messageEntityBotCommand() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityBotCommand);
-	return static_cast<const MTPDmessageEntityBotCommand&>(*data);
+	t_assert(_type == mtpc_messageEntityBotCommand);
+	return queryData<MTPDmessageEntityBotCommand>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityBotCommand> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityBotCommand) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityBotCommand *data) : TypeDataOwner(data), _type(mtpc_messageEntityBotCommand) {
 }
 inline const MTPDmessageEntityUrl &MTPmessageEntity::c_messageEntityUrl() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityUrl);
-	return static_cast<const MTPDmessageEntityUrl&>(*data);
+	t_assert(_type == mtpc_messageEntityUrl);
+	return queryData<MTPDmessageEntityUrl>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityUrl> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityUrl) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityUrl *data) : TypeDataOwner(data), _type(mtpc_messageEntityUrl) {
 }
 inline const MTPDmessageEntityEmail &MTPmessageEntity::c_messageEntityEmail() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityEmail);
-	return static_cast<const MTPDmessageEntityEmail&>(*data);
+	t_assert(_type == mtpc_messageEntityEmail);
+	return queryData<MTPDmessageEntityEmail>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityEmail> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityEmail) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityEmail *data) : TypeDataOwner(data), _type(mtpc_messageEntityEmail) {
 }
 inline const MTPDmessageEntityBold &MTPmessageEntity::c_messageEntityBold() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityBold);
-	return static_cast<const MTPDmessageEntityBold&>(*data);
+	t_assert(_type == mtpc_messageEntityBold);
+	return queryData<MTPDmessageEntityBold>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityBold> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityBold) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityBold *data) : TypeDataOwner(data), _type(mtpc_messageEntityBold) {
 }
 inline const MTPDmessageEntityItalic &MTPmessageEntity::c_messageEntityItalic() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityItalic);
-	return static_cast<const MTPDmessageEntityItalic&>(*data);
+	t_assert(_type == mtpc_messageEntityItalic);
+	return queryData<MTPDmessageEntityItalic>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityItalic> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityItalic) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityItalic *data) : TypeDataOwner(data), _type(mtpc_messageEntityItalic) {
 }
 inline const MTPDmessageEntityCode &MTPmessageEntity::c_messageEntityCode() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityCode);
-	return static_cast<const MTPDmessageEntityCode&>(*data);
+	t_assert(_type == mtpc_messageEntityCode);
+	return queryData<MTPDmessageEntityCode>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityCode> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityCode) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityCode *data) : TypeDataOwner(data), _type(mtpc_messageEntityCode) {
 }
 inline const MTPDmessageEntityPre &MTPmessageEntity::c_messageEntityPre() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityPre);
-	return static_cast<const MTPDmessageEntityPre&>(*data);
+	t_assert(_type == mtpc_messageEntityPre);
+	return queryData<MTPDmessageEntityPre>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityPre> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityPre) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityPre *data) : TypeDataOwner(data), _type(mtpc_messageEntityPre) {
 }
 inline const MTPDmessageEntityTextUrl &MTPmessageEntity::c_messageEntityTextUrl() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityTextUrl);
-	return static_cast<const MTPDmessageEntityTextUrl&>(*data);
+	t_assert(_type == mtpc_messageEntityTextUrl);
+	return queryData<MTPDmessageEntityTextUrl>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityTextUrl> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityTextUrl) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityTextUrl *data) : TypeDataOwner(data), _type(mtpc_messageEntityTextUrl) {
 }
 inline const MTPDmessageEntityMentionName &MTPmessageEntity::c_messageEntityMentionName() const {
-	t_assert(data != nullptr && _type == mtpc_messageEntityMentionName);
-	return static_cast<const MTPDmessageEntityMentionName&>(*data);
+	t_assert(_type == mtpc_messageEntityMentionName);
+	return queryData<MTPDmessageEntityMentionName>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDmessageEntityMentionName> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messageEntityMentionName) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDmessageEntityMentionName *data) : TypeDataOwner(data), _type(mtpc_messageEntityMentionName) {
 }
 inline const MTPDinputMessageEntityMentionName &MTPmessageEntity::c_inputMessageEntityMentionName() const {
-	t_assert(data != nullptr && _type == mtpc_inputMessageEntityMentionName);
-	return static_cast<const MTPDinputMessageEntityMentionName&>(*data);
+	t_assert(_type == mtpc_inputMessageEntityMentionName);
+	return queryData<MTPDinputMessageEntityMentionName>();
 }
-inline MTPmessageEntity::MTPmessageEntity(std::shared_ptr<const MTPDinputMessageEntityMentionName> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputMessageEntityMentionName) {
+inline MTPmessageEntity::MTPmessageEntity(const MTPDinputMessageEntityMentionName *data) : TypeDataOwner(data), _type(mtpc_inputMessageEntityMentionName) {
 }
 inline MTPmessageEntity MTP_messageEntityUnknown(MTPint _offset, MTPint _length) {
 	return MTP::internal::TypeCreator::new_messageEntityUnknown(_offset, _length);
@@ -32111,14 +31982,13 @@ inline mtpTypeId MTPinputChannel::type() const {
 	return _type;
 }
 inline void MTPinputChannel::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputChannelEmpty: _type = cons; break;
 		case mtpc_inputChannel: _type = cons; {
-			auto v = std::make_shared<MTPDinputChannel>();
+			auto v = new MTPDinputChannel();
+			setData(v);
 			v->vchannel_id.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputChannel");
 	}
@@ -32135,15 +32005,15 @@ inline void MTPinputChannel::write(mtpBuffer &to) const {
 inline MTPinputChannel::MTPinputChannel(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_inputChannelEmpty: break;
-		case mtpc_inputChannel: data = std::make_shared<MTPDinputChannel>(); break;
+		case mtpc_inputChannel: setData(new MTPDinputChannel()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputChannel");
 	}
 }
 inline const MTPDinputChannel &MTPinputChannel::c_inputChannel() const {
-	t_assert(data != nullptr && _type == mtpc_inputChannel);
-	return static_cast<const MTPDinputChannel&>(*data);
+	t_assert(_type == mtpc_inputChannel);
+	return queryData<MTPDinputChannel>();
 }
-inline MTPinputChannel::MTPinputChannel(std::shared_ptr<const MTPDinputChannel> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputChannel) {
+inline MTPinputChannel::MTPinputChannel(const MTPDinputChannel *data) : TypeDataOwner(data), _type(mtpc_inputChannel) {
 }
 inline MTPinputChannel MTP_inputChannelEmpty() {
 	return MTP::internal::TypeCreator::new_inputChannelEmpty();
@@ -32152,7 +32022,7 @@ inline MTPinputChannel MTP_inputChannel(MTPint _channel_id, const MTPlong &_acce
 	return MTP::internal::TypeCreator::new_inputChannel(_channel_id, _access_hash);
 }
 
-inline MTPcontacts_resolvedPeer::MTPcontacts_resolvedPeer() : mtpDataOwner(std::make_shared<MTPDcontacts_resolvedPeer>()) {
+inline MTPcontacts_resolvedPeer::MTPcontacts_resolvedPeer() : TypeDataOwner(new MTPDcontacts_resolvedPeer()) {
 }
 
 inline uint32 MTPcontacts_resolvedPeer::innerLength() const {
@@ -32165,11 +32035,11 @@ inline mtpTypeId MTPcontacts_resolvedPeer::type() const {
 inline void MTPcontacts_resolvedPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_contacts_resolvedPeer) throw mtpErrorUnexpected(cons, "MTPcontacts_resolvedPeer");
 
-	auto v = std::make_shared<MTPDcontacts_resolvedPeer>();
+	auto v = new MTPDcontacts_resolvedPeer();
+	setData(v);
 	v->vpeer.read(from, end);
 	v->vchats.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPcontacts_resolvedPeer::write(mtpBuffer &to) const {
 	auto &v = c_contacts_resolvedPeer();
@@ -32178,16 +32048,15 @@ inline void MTPcontacts_resolvedPeer::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDcontacts_resolvedPeer &MTPcontacts_resolvedPeer::c_contacts_resolvedPeer() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDcontacts_resolvedPeer&>(*data);
+	return queryData<MTPDcontacts_resolvedPeer>();
 }
-inline MTPcontacts_resolvedPeer::MTPcontacts_resolvedPeer(std::shared_ptr<const MTPDcontacts_resolvedPeer> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPcontacts_resolvedPeer::MTPcontacts_resolvedPeer(const MTPDcontacts_resolvedPeer *data) : TypeDataOwner(data) {
 }
 inline MTPcontacts_resolvedPeer MTP_contacts_resolvedPeer(const MTPPeer &_peer, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_contacts_resolvedPeer(_peer, _chats, _users);
 }
 
-inline MTPmessageRange::MTPmessageRange() : mtpDataOwner(std::make_shared<MTPDmessageRange>()) {
+inline MTPmessageRange::MTPmessageRange() : TypeDataOwner(new MTPDmessageRange()) {
 }
 
 inline uint32 MTPmessageRange::innerLength() const {
@@ -32200,10 +32069,10 @@ inline mtpTypeId MTPmessageRange::type() const {
 inline void MTPmessageRange::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messageRange) throw mtpErrorUnexpected(cons, "MTPmessageRange");
 
-	auto v = std::make_shared<MTPDmessageRange>();
+	auto v = new MTPDmessageRange();
+	setData(v);
 	v->vmin_id.read(from, end);
 	v->vmax_id.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessageRange::write(mtpBuffer &to) const {
 	auto &v = c_messageRange();
@@ -32211,10 +32080,9 @@ inline void MTPmessageRange::write(mtpBuffer &to) const {
 	v.vmax_id.write(to);
 }
 inline const MTPDmessageRange &MTPmessageRange::c_messageRange() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessageRange&>(*data);
+	return queryData<MTPDmessageRange>();
 }
-inline MTPmessageRange::MTPmessageRange(std::shared_ptr<const MTPDmessageRange> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessageRange::MTPmessageRange(const MTPDmessageRange *data) : TypeDataOwner(data) {
 }
 inline MTPmessageRange MTP_messageRange(MTPint _min_id, MTPint _max_id) {
 	return MTP::internal::TypeCreator::new_messageRange(_min_id, _max_id);
@@ -32242,17 +32110,17 @@ inline mtpTypeId MTPupdates_channelDifference::type() const {
 	return _type;
 }
 inline void MTPupdates_channelDifference::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_updates_channelDifferenceEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_channelDifferenceEmpty>();
+			auto v = new MTPDupdates_channelDifferenceEmpty();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vpts.read(from, end);
 			if (v->has_timeout()) { v->vtimeout.read(from, end); } else { v->vtimeout = MTPint(); }
-			data = std::move(v);
 		} break;
 		case mtpc_updates_channelDifferenceTooLong: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_channelDifferenceTooLong>();
+			auto v = new MTPDupdates_channelDifferenceTooLong();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vpts.read(from, end);
 			if (v->has_timeout()) { v->vtimeout.read(from, end); } else { v->vtimeout = MTPint(); }
@@ -32263,10 +32131,10 @@ inline void MTPupdates_channelDifference::read(const mtpPrime *&from, const mtpP
 			v->vmessages.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_updates_channelDifference: _type = cons; {
-			auto v = std::make_shared<MTPDupdates_channelDifference>();
+			auto v = new MTPDupdates_channelDifference();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vpts.read(from, end);
 			if (v->has_timeout()) { v->vtimeout.read(from, end); } else { v->vtimeout = MTPint(); }
@@ -32274,7 +32142,6 @@ inline void MTPupdates_channelDifference::read(const mtpPrime *&from, const mtpP
 			v->vother_updates.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPupdates_channelDifference");
 	}
@@ -32314,29 +32181,29 @@ inline void MTPupdates_channelDifference::write(mtpBuffer &to) const {
 }
 inline MTPupdates_channelDifference::MTPupdates_channelDifference(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_updates_channelDifferenceEmpty: data = std::make_shared<MTPDupdates_channelDifferenceEmpty>(); break;
-		case mtpc_updates_channelDifferenceTooLong: data = std::make_shared<MTPDupdates_channelDifferenceTooLong>(); break;
-		case mtpc_updates_channelDifference: data = std::make_shared<MTPDupdates_channelDifference>(); break;
+		case mtpc_updates_channelDifferenceEmpty: setData(new MTPDupdates_channelDifferenceEmpty()); break;
+		case mtpc_updates_channelDifferenceTooLong: setData(new MTPDupdates_channelDifferenceTooLong()); break;
+		case mtpc_updates_channelDifference: setData(new MTPDupdates_channelDifference()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPupdates_channelDifference");
 	}
 }
 inline const MTPDupdates_channelDifferenceEmpty &MTPupdates_channelDifference::c_updates_channelDifferenceEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_updates_channelDifferenceEmpty);
-	return static_cast<const MTPDupdates_channelDifferenceEmpty&>(*data);
+	t_assert(_type == mtpc_updates_channelDifferenceEmpty);
+	return queryData<MTPDupdates_channelDifferenceEmpty>();
 }
-inline MTPupdates_channelDifference::MTPupdates_channelDifference(std::shared_ptr<const MTPDupdates_channelDifferenceEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_channelDifferenceEmpty) {
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(const MTPDupdates_channelDifferenceEmpty *data) : TypeDataOwner(data), _type(mtpc_updates_channelDifferenceEmpty) {
 }
 inline const MTPDupdates_channelDifferenceTooLong &MTPupdates_channelDifference::c_updates_channelDifferenceTooLong() const {
-	t_assert(data != nullptr && _type == mtpc_updates_channelDifferenceTooLong);
-	return static_cast<const MTPDupdates_channelDifferenceTooLong&>(*data);
+	t_assert(_type == mtpc_updates_channelDifferenceTooLong);
+	return queryData<MTPDupdates_channelDifferenceTooLong>();
 }
-inline MTPupdates_channelDifference::MTPupdates_channelDifference(std::shared_ptr<const MTPDupdates_channelDifferenceTooLong> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_channelDifferenceTooLong) {
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(const MTPDupdates_channelDifferenceTooLong *data) : TypeDataOwner(data), _type(mtpc_updates_channelDifferenceTooLong) {
 }
 inline const MTPDupdates_channelDifference &MTPupdates_channelDifference::c_updates_channelDifference() const {
-	t_assert(data != nullptr && _type == mtpc_updates_channelDifference);
-	return static_cast<const MTPDupdates_channelDifference&>(*data);
+	t_assert(_type == mtpc_updates_channelDifference);
+	return queryData<MTPDupdates_channelDifference>();
 }
-inline MTPupdates_channelDifference::MTPupdates_channelDifference(std::shared_ptr<const MTPDupdates_channelDifference> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_updates_channelDifference) {
+inline MTPupdates_channelDifference::MTPupdates_channelDifference(const MTPDupdates_channelDifference *data) : TypeDataOwner(data), _type(mtpc_updates_channelDifference) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDupdates_channelDifferenceEmpty::Flags)
 inline MTPupdates_channelDifference MTP_updates_channelDifferenceEmpty(const MTPflags<MTPDupdates_channelDifferenceEmpty::Flags> &_flags, MTPint _pts, MTPint _timeout) {
@@ -32365,14 +32232,13 @@ inline mtpTypeId MTPchannelMessagesFilter::type() const {
 	return _type;
 }
 inline void MTPchannelMessagesFilter::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_channelMessagesFilterEmpty: _type = cons; break;
 		case mtpc_channelMessagesFilter: _type = cons; {
-			auto v = std::make_shared<MTPDchannelMessagesFilter>();
+			auto v = new MTPDchannelMessagesFilter();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vranges.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchannelMessagesFilter");
 	}
@@ -32389,15 +32255,15 @@ inline void MTPchannelMessagesFilter::write(mtpBuffer &to) const {
 inline MTPchannelMessagesFilter::MTPchannelMessagesFilter(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_channelMessagesFilterEmpty: break;
-		case mtpc_channelMessagesFilter: data = std::make_shared<MTPDchannelMessagesFilter>(); break;
+		case mtpc_channelMessagesFilter: setData(new MTPDchannelMessagesFilter()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchannelMessagesFilter");
 	}
 }
 inline const MTPDchannelMessagesFilter &MTPchannelMessagesFilter::c_channelMessagesFilter() const {
-	t_assert(data != nullptr && _type == mtpc_channelMessagesFilter);
-	return static_cast<const MTPDchannelMessagesFilter&>(*data);
+	t_assert(_type == mtpc_channelMessagesFilter);
+	return queryData<MTPDchannelMessagesFilter>();
 }
-inline MTPchannelMessagesFilter::MTPchannelMessagesFilter(std::shared_ptr<const MTPDchannelMessagesFilter> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelMessagesFilter) {
+inline MTPchannelMessagesFilter::MTPchannelMessagesFilter(const MTPDchannelMessagesFilter *data) : TypeDataOwner(data), _type(mtpc_channelMessagesFilter) {
 }
 inline MTPchannelMessagesFilter MTP_channelMessagesFilterEmpty() {
 	return MTP::internal::TypeCreator::new_channelMessagesFilterEmpty();
@@ -32441,46 +32307,45 @@ inline mtpTypeId MTPchannelParticipant::type() const {
 	return _type;
 }
 inline void MTPchannelParticipant::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_channelParticipant: _type = cons; {
-			auto v = std::make_shared<MTPDchannelParticipant>();
+			auto v = new MTPDchannelParticipant();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channelParticipantSelf: _type = cons; {
-			auto v = std::make_shared<MTPDchannelParticipantSelf>();
+			auto v = new MTPDchannelParticipantSelf();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vinviter_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channelParticipantModerator: _type = cons; {
-			auto v = std::make_shared<MTPDchannelParticipantModerator>();
+			auto v = new MTPDchannelParticipantModerator();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vinviter_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channelParticipantEditor: _type = cons; {
-			auto v = std::make_shared<MTPDchannelParticipantEditor>();
+			auto v = new MTPDchannelParticipantEditor();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vinviter_id.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channelParticipantKicked: _type = cons; {
-			auto v = std::make_shared<MTPDchannelParticipantKicked>();
+			auto v = new MTPDchannelParticipantKicked();
+			setData(v);
 			v->vuser_id.read(from, end);
 			v->vkicked_by.read(from, end);
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_channelParticipantCreator: _type = cons; {
-			auto v = std::make_shared<MTPDchannelParticipantCreator>();
+			auto v = new MTPDchannelParticipantCreator();
+			setData(v);
 			v->vuser_id.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPchannelParticipant");
 	}
@@ -32524,50 +32389,50 @@ inline void MTPchannelParticipant::write(mtpBuffer &to) const {
 }
 inline MTPchannelParticipant::MTPchannelParticipant(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_channelParticipant: data = std::make_shared<MTPDchannelParticipant>(); break;
-		case mtpc_channelParticipantSelf: data = std::make_shared<MTPDchannelParticipantSelf>(); break;
-		case mtpc_channelParticipantModerator: data = std::make_shared<MTPDchannelParticipantModerator>(); break;
-		case mtpc_channelParticipantEditor: data = std::make_shared<MTPDchannelParticipantEditor>(); break;
-		case mtpc_channelParticipantKicked: data = std::make_shared<MTPDchannelParticipantKicked>(); break;
-		case mtpc_channelParticipantCreator: data = std::make_shared<MTPDchannelParticipantCreator>(); break;
+		case mtpc_channelParticipant: setData(new MTPDchannelParticipant()); break;
+		case mtpc_channelParticipantSelf: setData(new MTPDchannelParticipantSelf()); break;
+		case mtpc_channelParticipantModerator: setData(new MTPDchannelParticipantModerator()); break;
+		case mtpc_channelParticipantEditor: setData(new MTPDchannelParticipantEditor()); break;
+		case mtpc_channelParticipantKicked: setData(new MTPDchannelParticipantKicked()); break;
+		case mtpc_channelParticipantCreator: setData(new MTPDchannelParticipantCreator()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPchannelParticipant");
 	}
 }
 inline const MTPDchannelParticipant &MTPchannelParticipant::c_channelParticipant() const {
-	t_assert(data != nullptr && _type == mtpc_channelParticipant);
-	return static_cast<const MTPDchannelParticipant&>(*data);
+	t_assert(_type == mtpc_channelParticipant);
+	return queryData<MTPDchannelParticipant>();
 }
-inline MTPchannelParticipant::MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipant> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelParticipant) {
+inline MTPchannelParticipant::MTPchannelParticipant(const MTPDchannelParticipant *data) : TypeDataOwner(data), _type(mtpc_channelParticipant) {
 }
 inline const MTPDchannelParticipantSelf &MTPchannelParticipant::c_channelParticipantSelf() const {
-	t_assert(data != nullptr && _type == mtpc_channelParticipantSelf);
-	return static_cast<const MTPDchannelParticipantSelf&>(*data);
+	t_assert(_type == mtpc_channelParticipantSelf);
+	return queryData<MTPDchannelParticipantSelf>();
 }
-inline MTPchannelParticipant::MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantSelf> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelParticipantSelf) {
+inline MTPchannelParticipant::MTPchannelParticipant(const MTPDchannelParticipantSelf *data) : TypeDataOwner(data), _type(mtpc_channelParticipantSelf) {
 }
 inline const MTPDchannelParticipantModerator &MTPchannelParticipant::c_channelParticipantModerator() const {
-	t_assert(data != nullptr && _type == mtpc_channelParticipantModerator);
-	return static_cast<const MTPDchannelParticipantModerator&>(*data);
+	t_assert(_type == mtpc_channelParticipantModerator);
+	return queryData<MTPDchannelParticipantModerator>();
 }
-inline MTPchannelParticipant::MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantModerator> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelParticipantModerator) {
+inline MTPchannelParticipant::MTPchannelParticipant(const MTPDchannelParticipantModerator *data) : TypeDataOwner(data), _type(mtpc_channelParticipantModerator) {
 }
 inline const MTPDchannelParticipantEditor &MTPchannelParticipant::c_channelParticipantEditor() const {
-	t_assert(data != nullptr && _type == mtpc_channelParticipantEditor);
-	return static_cast<const MTPDchannelParticipantEditor&>(*data);
+	t_assert(_type == mtpc_channelParticipantEditor);
+	return queryData<MTPDchannelParticipantEditor>();
 }
-inline MTPchannelParticipant::MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantEditor> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelParticipantEditor) {
+inline MTPchannelParticipant::MTPchannelParticipant(const MTPDchannelParticipantEditor *data) : TypeDataOwner(data), _type(mtpc_channelParticipantEditor) {
 }
 inline const MTPDchannelParticipantKicked &MTPchannelParticipant::c_channelParticipantKicked() const {
-	t_assert(data != nullptr && _type == mtpc_channelParticipantKicked);
-	return static_cast<const MTPDchannelParticipantKicked&>(*data);
+	t_assert(_type == mtpc_channelParticipantKicked);
+	return queryData<MTPDchannelParticipantKicked>();
 }
-inline MTPchannelParticipant::MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantKicked> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelParticipantKicked) {
+inline MTPchannelParticipant::MTPchannelParticipant(const MTPDchannelParticipantKicked *data) : TypeDataOwner(data), _type(mtpc_channelParticipantKicked) {
 }
 inline const MTPDchannelParticipantCreator &MTPchannelParticipant::c_channelParticipantCreator() const {
-	t_assert(data != nullptr && _type == mtpc_channelParticipantCreator);
-	return static_cast<const MTPDchannelParticipantCreator&>(*data);
+	t_assert(_type == mtpc_channelParticipantCreator);
+	return queryData<MTPDchannelParticipantCreator>();
 }
-inline MTPchannelParticipant::MTPchannelParticipant(std::shared_ptr<const MTPDchannelParticipantCreator> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_channelParticipantCreator) {
+inline MTPchannelParticipant::MTPchannelParticipant(const MTPDchannelParticipantCreator *data) : TypeDataOwner(data), _type(mtpc_channelParticipantCreator) {
 }
 inline MTPchannelParticipant MTP_channelParticipant(MTPint _user_id, MTPint _date) {
 	return MTP::internal::TypeCreator::new_channelParticipant(_user_id, _date);
@@ -32663,7 +32528,7 @@ inline MTPchannelParticipantRole MTP_channelRoleEditor() {
 	return MTP::internal::TypeCreator::new_channelRoleEditor();
 }
 
-inline MTPchannels_channelParticipants::MTPchannels_channelParticipants() : mtpDataOwner(std::make_shared<MTPDchannels_channelParticipants>()) {
+inline MTPchannels_channelParticipants::MTPchannels_channelParticipants() : TypeDataOwner(new MTPDchannels_channelParticipants()) {
 }
 
 inline uint32 MTPchannels_channelParticipants::innerLength() const {
@@ -32676,11 +32541,11 @@ inline mtpTypeId MTPchannels_channelParticipants::type() const {
 inline void MTPchannels_channelParticipants::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_channels_channelParticipants) throw mtpErrorUnexpected(cons, "MTPchannels_channelParticipants");
 
-	auto v = std::make_shared<MTPDchannels_channelParticipants>();
+	auto v = new MTPDchannels_channelParticipants();
+	setData(v);
 	v->vcount.read(from, end);
 	v->vparticipants.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPchannels_channelParticipants::write(mtpBuffer &to) const {
 	auto &v = c_channels_channelParticipants();
@@ -32689,16 +32554,15 @@ inline void MTPchannels_channelParticipants::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDchannels_channelParticipants &MTPchannels_channelParticipants::c_channels_channelParticipants() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDchannels_channelParticipants&>(*data);
+	return queryData<MTPDchannels_channelParticipants>();
 }
-inline MTPchannels_channelParticipants::MTPchannels_channelParticipants(std::shared_ptr<const MTPDchannels_channelParticipants> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPchannels_channelParticipants::MTPchannels_channelParticipants(const MTPDchannels_channelParticipants *data) : TypeDataOwner(data) {
 }
 inline MTPchannels_channelParticipants MTP_channels_channelParticipants(MTPint _count, const MTPVector<MTPChannelParticipant> &_participants, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_channels_channelParticipants(_count, _participants, _users);
 }
 
-inline MTPchannels_channelParticipant::MTPchannels_channelParticipant() : mtpDataOwner(std::make_shared<MTPDchannels_channelParticipant>()) {
+inline MTPchannels_channelParticipant::MTPchannels_channelParticipant() : TypeDataOwner(new MTPDchannels_channelParticipant()) {
 }
 
 inline uint32 MTPchannels_channelParticipant::innerLength() const {
@@ -32711,10 +32575,10 @@ inline mtpTypeId MTPchannels_channelParticipant::type() const {
 inline void MTPchannels_channelParticipant::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_channels_channelParticipant) throw mtpErrorUnexpected(cons, "MTPchannels_channelParticipant");
 
-	auto v = std::make_shared<MTPDchannels_channelParticipant>();
+	auto v = new MTPDchannels_channelParticipant();
+	setData(v);
 	v->vparticipant.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPchannels_channelParticipant::write(mtpBuffer &to) const {
 	auto &v = c_channels_channelParticipant();
@@ -32722,16 +32586,15 @@ inline void MTPchannels_channelParticipant::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDchannels_channelParticipant &MTPchannels_channelParticipant::c_channels_channelParticipant() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDchannels_channelParticipant&>(*data);
+	return queryData<MTPDchannels_channelParticipant>();
 }
-inline MTPchannels_channelParticipant::MTPchannels_channelParticipant(std::shared_ptr<const MTPDchannels_channelParticipant> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPchannels_channelParticipant::MTPchannels_channelParticipant(const MTPDchannels_channelParticipant *data) : TypeDataOwner(data) {
 }
 inline MTPchannels_channelParticipant MTP_channels_channelParticipant(const MTPChannelParticipant &_participant, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_channels_channelParticipant(_participant, _users);
 }
 
-inline MTPhelp_termsOfService::MTPhelp_termsOfService() : mtpDataOwner(std::make_shared<MTPDhelp_termsOfService>()) {
+inline MTPhelp_termsOfService::MTPhelp_termsOfService() : TypeDataOwner(new MTPDhelp_termsOfService()) {
 }
 
 inline uint32 MTPhelp_termsOfService::innerLength() const {
@@ -32744,19 +32607,18 @@ inline mtpTypeId MTPhelp_termsOfService::type() const {
 inline void MTPhelp_termsOfService::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_help_termsOfService) throw mtpErrorUnexpected(cons, "MTPhelp_termsOfService");
 
-	auto v = std::make_shared<MTPDhelp_termsOfService>();
+	auto v = new MTPDhelp_termsOfService();
+	setData(v);
 	v->vtext.read(from, end);
-	data = std::move(v);
 }
 inline void MTPhelp_termsOfService::write(mtpBuffer &to) const {
 	auto &v = c_help_termsOfService();
 	v.vtext.write(to);
 }
 inline const MTPDhelp_termsOfService &MTPhelp_termsOfService::c_help_termsOfService() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDhelp_termsOfService&>(*data);
+	return queryData<MTPDhelp_termsOfService>();
 }
-inline MTPhelp_termsOfService::MTPhelp_termsOfService(std::shared_ptr<const MTPDhelp_termsOfService> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPhelp_termsOfService::MTPhelp_termsOfService(const MTPDhelp_termsOfService *data) : TypeDataOwner(data) {
 }
 inline MTPhelp_termsOfService MTP_help_termsOfService(const MTPstring &_text) {
 	return MTP::internal::TypeCreator::new_help_termsOfService(_text);
@@ -32780,24 +32642,23 @@ inline mtpTypeId MTPfoundGif::type() const {
 	return _type;
 }
 inline void MTPfoundGif::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_foundGif: _type = cons; {
-			auto v = std::make_shared<MTPDfoundGif>();
+			auto v = new MTPDfoundGif();
+			setData(v);
 			v->vurl.read(from, end);
 			v->vthumb_url.read(from, end);
 			v->vcontent_url.read(from, end);
 			v->vcontent_type.read(from, end);
 			v->vw.read(from, end);
 			v->vh.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_foundGifCached: _type = cons; {
-			auto v = std::make_shared<MTPDfoundGifCached>();
+			auto v = new MTPDfoundGifCached();
+			setData(v);
 			v->vurl.read(from, end);
 			v->vphoto.read(from, end);
 			v->vdocument.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPfoundGif");
 	}
@@ -32823,22 +32684,22 @@ inline void MTPfoundGif::write(mtpBuffer &to) const {
 }
 inline MTPfoundGif::MTPfoundGif(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_foundGif: data = std::make_shared<MTPDfoundGif>(); break;
-		case mtpc_foundGifCached: data = std::make_shared<MTPDfoundGifCached>(); break;
+		case mtpc_foundGif: setData(new MTPDfoundGif()); break;
+		case mtpc_foundGifCached: setData(new MTPDfoundGifCached()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPfoundGif");
 	}
 }
 inline const MTPDfoundGif &MTPfoundGif::c_foundGif() const {
-	t_assert(data != nullptr && _type == mtpc_foundGif);
-	return static_cast<const MTPDfoundGif&>(*data);
+	t_assert(_type == mtpc_foundGif);
+	return queryData<MTPDfoundGif>();
 }
-inline MTPfoundGif::MTPfoundGif(std::shared_ptr<const MTPDfoundGif> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_foundGif) {
+inline MTPfoundGif::MTPfoundGif(const MTPDfoundGif *data) : TypeDataOwner(data), _type(mtpc_foundGif) {
 }
 inline const MTPDfoundGifCached &MTPfoundGif::c_foundGifCached() const {
-	t_assert(data != nullptr && _type == mtpc_foundGifCached);
-	return static_cast<const MTPDfoundGifCached&>(*data);
+	t_assert(_type == mtpc_foundGifCached);
+	return queryData<MTPDfoundGifCached>();
 }
-inline MTPfoundGif::MTPfoundGif(std::shared_ptr<const MTPDfoundGifCached> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_foundGifCached) {
+inline MTPfoundGif::MTPfoundGif(const MTPDfoundGifCached *data) : TypeDataOwner(data), _type(mtpc_foundGifCached) {
 }
 inline MTPfoundGif MTP_foundGif(const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h) {
 	return MTP::internal::TypeCreator::new_foundGif(_url, _thumb_url, _content_url, _content_type, _w, _h);
@@ -32847,7 +32708,7 @@ inline MTPfoundGif MTP_foundGifCached(const MTPstring &_url, const MTPPhoto &_ph
 	return MTP::internal::TypeCreator::new_foundGifCached(_url, _photo, _document);
 }
 
-inline MTPmessages_foundGifs::MTPmessages_foundGifs() : mtpDataOwner(std::make_shared<MTPDmessages_foundGifs>()) {
+inline MTPmessages_foundGifs::MTPmessages_foundGifs() : TypeDataOwner(new MTPDmessages_foundGifs()) {
 }
 
 inline uint32 MTPmessages_foundGifs::innerLength() const {
@@ -32860,10 +32721,10 @@ inline mtpTypeId MTPmessages_foundGifs::type() const {
 inline void MTPmessages_foundGifs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_foundGifs) throw mtpErrorUnexpected(cons, "MTPmessages_foundGifs");
 
-	auto v = std::make_shared<MTPDmessages_foundGifs>();
+	auto v = new MTPDmessages_foundGifs();
+	setData(v);
 	v->vnext_offset.read(from, end);
 	v->vresults.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_foundGifs::write(mtpBuffer &to) const {
 	auto &v = c_messages_foundGifs();
@@ -32871,10 +32732,9 @@ inline void MTPmessages_foundGifs::write(mtpBuffer &to) const {
 	v.vresults.write(to);
 }
 inline const MTPDmessages_foundGifs &MTPmessages_foundGifs::c_messages_foundGifs() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_foundGifs&>(*data);
+	return queryData<MTPDmessages_foundGifs>();
 }
-inline MTPmessages_foundGifs::MTPmessages_foundGifs(std::shared_ptr<const MTPDmessages_foundGifs> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_foundGifs::MTPmessages_foundGifs(const MTPDmessages_foundGifs *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_foundGifs MTP_messages_foundGifs(MTPint _next_offset, const MTPVector<MTPFoundGif> &_results) {
 	return MTP::internal::TypeCreator::new_messages_foundGifs(_next_offset, _results);
@@ -32894,14 +32754,13 @@ inline mtpTypeId MTPmessages_savedGifs::type() const {
 	return _type;
 }
 inline void MTPmessages_savedGifs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_savedGifsNotModified: _type = cons; break;
 		case mtpc_messages_savedGifs: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_savedGifs>();
+			auto v = new MTPDmessages_savedGifs();
+			setData(v);
 			v->vhash.read(from, end);
 			v->vgifs.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_savedGifs");
 	}
@@ -32918,15 +32777,15 @@ inline void MTPmessages_savedGifs::write(mtpBuffer &to) const {
 inline MTPmessages_savedGifs::MTPmessages_savedGifs(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messages_savedGifsNotModified: break;
-		case mtpc_messages_savedGifs: data = std::make_shared<MTPDmessages_savedGifs>(); break;
+		case mtpc_messages_savedGifs: setData(new MTPDmessages_savedGifs()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_savedGifs");
 	}
 }
 inline const MTPDmessages_savedGifs &MTPmessages_savedGifs::c_messages_savedGifs() const {
-	t_assert(data != nullptr && _type == mtpc_messages_savedGifs);
-	return static_cast<const MTPDmessages_savedGifs&>(*data);
+	t_assert(_type == mtpc_messages_savedGifs);
+	return queryData<MTPDmessages_savedGifs>();
 }
-inline MTPmessages_savedGifs::MTPmessages_savedGifs(std::shared_ptr<const MTPDmessages_savedGifs> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_savedGifs) {
+inline MTPmessages_savedGifs::MTPmessages_savedGifs(const MTPDmessages_savedGifs *data) : TypeDataOwner(data), _type(mtpc_messages_savedGifs) {
 }
 inline MTPmessages_savedGifs MTP_messages_savedGifsNotModified() {
 	return MTP::internal::TypeCreator::new_messages_savedGifsNotModified();
@@ -32969,32 +32828,32 @@ inline mtpTypeId MTPinputBotInlineMessage::type() const {
 	return _type;
 }
 inline void MTPinputBotInlineMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputBotInlineMessageMediaAuto: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineMessageMediaAuto>();
+			auto v = new MTPDinputBotInlineMessageMediaAuto();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vcaption.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineMessageText: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineMessageText>();
+			auto v = new MTPDinputBotInlineMessageText();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vmessage.read(from, end);
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineMessageMediaGeo: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineMessageMediaGeo>();
+			auto v = new MTPDinputBotInlineMessageMediaGeo();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vgeo_point.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineMessageMediaVenue: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineMessageMediaVenue>();
+			auto v = new MTPDinputBotInlineMessageMediaVenue();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vgeo_point.read(from, end);
 			v->vtitle.read(from, end);
@@ -33002,22 +32861,21 @@ inline void MTPinputBotInlineMessage::read(const mtpPrime *&from, const mtpPrime
 			v->vprovider.read(from, end);
 			v->vvenue_id.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineMessageMediaContact: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineMessageMediaContact>();
+			auto v = new MTPDinputBotInlineMessageMediaContact();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vphone_number.read(from, end);
 			v->vfirst_name.read(from, end);
 			v->vlast_name.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineMessageGame: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineMessageGame>();
+			auto v = new MTPDinputBotInlineMessageGame();
+			setData(v);
 			v->vflags.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputBotInlineMessage");
 	}
@@ -33070,50 +32928,50 @@ inline void MTPinputBotInlineMessage::write(mtpBuffer &to) const {
 }
 inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputBotInlineMessageMediaAuto: data = std::make_shared<MTPDinputBotInlineMessageMediaAuto>(); break;
-		case mtpc_inputBotInlineMessageText: data = std::make_shared<MTPDinputBotInlineMessageText>(); break;
-		case mtpc_inputBotInlineMessageMediaGeo: data = std::make_shared<MTPDinputBotInlineMessageMediaGeo>(); break;
-		case mtpc_inputBotInlineMessageMediaVenue: data = std::make_shared<MTPDinputBotInlineMessageMediaVenue>(); break;
-		case mtpc_inputBotInlineMessageMediaContact: data = std::make_shared<MTPDinputBotInlineMessageMediaContact>(); break;
-		case mtpc_inputBotInlineMessageGame: data = std::make_shared<MTPDinputBotInlineMessageGame>(); break;
+		case mtpc_inputBotInlineMessageMediaAuto: setData(new MTPDinputBotInlineMessageMediaAuto()); break;
+		case mtpc_inputBotInlineMessageText: setData(new MTPDinputBotInlineMessageText()); break;
+		case mtpc_inputBotInlineMessageMediaGeo: setData(new MTPDinputBotInlineMessageMediaGeo()); break;
+		case mtpc_inputBotInlineMessageMediaVenue: setData(new MTPDinputBotInlineMessageMediaVenue()); break;
+		case mtpc_inputBotInlineMessageMediaContact: setData(new MTPDinputBotInlineMessageMediaContact()); break;
+		case mtpc_inputBotInlineMessageGame: setData(new MTPDinputBotInlineMessageGame()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputBotInlineMessage");
 	}
 }
 inline const MTPDinputBotInlineMessageMediaAuto &MTPinputBotInlineMessage::c_inputBotInlineMessageMediaAuto() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaAuto);
-	return static_cast<const MTPDinputBotInlineMessageMediaAuto&>(*data);
+	t_assert(_type == mtpc_inputBotInlineMessageMediaAuto);
+	return queryData<MTPDinputBotInlineMessageMediaAuto>();
 }
-inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaAuto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineMessageMediaAuto) {
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaAuto *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineMessageMediaAuto) {
 }
 inline const MTPDinputBotInlineMessageText &MTPinputBotInlineMessage::c_inputBotInlineMessageText() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageText);
-	return static_cast<const MTPDinputBotInlineMessageText&>(*data);
+	t_assert(_type == mtpc_inputBotInlineMessageText);
+	return queryData<MTPDinputBotInlineMessageText>();
 }
-inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageText> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineMessageText) {
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(const MTPDinputBotInlineMessageText *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineMessageText) {
 }
 inline const MTPDinputBotInlineMessageMediaGeo &MTPinputBotInlineMessage::c_inputBotInlineMessageMediaGeo() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaGeo);
-	return static_cast<const MTPDinputBotInlineMessageMediaGeo&>(*data);
+	t_assert(_type == mtpc_inputBotInlineMessageMediaGeo);
+	return queryData<MTPDinputBotInlineMessageMediaGeo>();
 }
-inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaGeo> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineMessageMediaGeo) {
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaGeo *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineMessageMediaGeo) {
 }
 inline const MTPDinputBotInlineMessageMediaVenue &MTPinputBotInlineMessage::c_inputBotInlineMessageMediaVenue() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaVenue);
-	return static_cast<const MTPDinputBotInlineMessageMediaVenue&>(*data);
+	t_assert(_type == mtpc_inputBotInlineMessageMediaVenue);
+	return queryData<MTPDinputBotInlineMessageMediaVenue>();
 }
-inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaVenue> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineMessageMediaVenue) {
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaVenue *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineMessageMediaVenue) {
 }
 inline const MTPDinputBotInlineMessageMediaContact &MTPinputBotInlineMessage::c_inputBotInlineMessageMediaContact() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageMediaContact);
-	return static_cast<const MTPDinputBotInlineMessageMediaContact&>(*data);
+	t_assert(_type == mtpc_inputBotInlineMessageMediaContact);
+	return queryData<MTPDinputBotInlineMessageMediaContact>();
 }
-inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageMediaContact> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineMessageMediaContact) {
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(const MTPDinputBotInlineMessageMediaContact *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineMessageMediaContact) {
 }
 inline const MTPDinputBotInlineMessageGame &MTPinputBotInlineMessage::c_inputBotInlineMessageGame() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineMessageGame);
-	return static_cast<const MTPDinputBotInlineMessageGame&>(*data);
+	t_assert(_type == mtpc_inputBotInlineMessageGame);
+	return queryData<MTPDinputBotInlineMessageGame>();
 }
-inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(std::shared_ptr<const MTPDinputBotInlineMessageGame> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineMessageGame) {
+inline MTPinputBotInlineMessage::MTPinputBotInlineMessage(const MTPDinputBotInlineMessageGame *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineMessageGame) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputBotInlineMessageMediaAuto::Flags)
 inline MTPinputBotInlineMessage MTP_inputBotInlineMessageMediaAuto(const MTPflags<MTPDinputBotInlineMessageMediaAuto::Flags> &_flags, const MTPstring &_caption, const MTPReplyMarkup &_reply_markup) {
@@ -33166,10 +33024,10 @@ inline mtpTypeId MTPinputBotInlineResult::type() const {
 	return _type;
 }
 inline void MTPinputBotInlineResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputBotInlineResult: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineResult>();
+			auto v = new MTPDinputBotInlineResult();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vtype.read(from, end);
@@ -33183,18 +33041,18 @@ inline void MTPinputBotInlineResult::read(const mtpPrime *&from, const mtpPrime 
 			if (v->has_h()) { v->vh.read(from, end); } else { v->vh = MTPint(); }
 			if (v->has_duration()) { v->vduration.read(from, end); } else { v->vduration = MTPint(); }
 			v->vsend_message.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineResultPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineResultPhoto>();
+			auto v = new MTPDinputBotInlineResultPhoto();
+			setData(v);
 			v->vid.read(from, end);
 			v->vtype.read(from, end);
 			v->vphoto.read(from, end);
 			v->vsend_message.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineResultDocument: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineResultDocument>();
+			auto v = new MTPDinputBotInlineResultDocument();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vtype.read(from, end);
@@ -33202,14 +33060,13 @@ inline void MTPinputBotInlineResult::read(const mtpPrime *&from, const mtpPrime 
 			if (v->has_description()) { v->vdescription.read(from, end); } else { v->vdescription = MTPstring(); }
 			v->vdocument.read(from, end);
 			v->vsend_message.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputBotInlineResultGame: _type = cons; {
-			auto v = std::make_shared<MTPDinputBotInlineResultGame>();
+			auto v = new MTPDinputBotInlineResultGame();
+			setData(v);
 			v->vid.read(from, end);
 			v->vshort_name.read(from, end);
 			v->vsend_message.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputBotInlineResult");
 	}
@@ -33259,36 +33116,36 @@ inline void MTPinputBotInlineResult::write(mtpBuffer &to) const {
 }
 inline MTPinputBotInlineResult::MTPinputBotInlineResult(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputBotInlineResult: data = std::make_shared<MTPDinputBotInlineResult>(); break;
-		case mtpc_inputBotInlineResultPhoto: data = std::make_shared<MTPDinputBotInlineResultPhoto>(); break;
-		case mtpc_inputBotInlineResultDocument: data = std::make_shared<MTPDinputBotInlineResultDocument>(); break;
-		case mtpc_inputBotInlineResultGame: data = std::make_shared<MTPDinputBotInlineResultGame>(); break;
+		case mtpc_inputBotInlineResult: setData(new MTPDinputBotInlineResult()); break;
+		case mtpc_inputBotInlineResultPhoto: setData(new MTPDinputBotInlineResultPhoto()); break;
+		case mtpc_inputBotInlineResultDocument: setData(new MTPDinputBotInlineResultDocument()); break;
+		case mtpc_inputBotInlineResultGame: setData(new MTPDinputBotInlineResultGame()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputBotInlineResult");
 	}
 }
 inline const MTPDinputBotInlineResult &MTPinputBotInlineResult::c_inputBotInlineResult() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineResult);
-	return static_cast<const MTPDinputBotInlineResult&>(*data);
+	t_assert(_type == mtpc_inputBotInlineResult);
+	return queryData<MTPDinputBotInlineResult>();
 }
-inline MTPinputBotInlineResult::MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResult> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineResult) {
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(const MTPDinputBotInlineResult *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineResult) {
 }
 inline const MTPDinputBotInlineResultPhoto &MTPinputBotInlineResult::c_inputBotInlineResultPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineResultPhoto);
-	return static_cast<const MTPDinputBotInlineResultPhoto&>(*data);
+	t_assert(_type == mtpc_inputBotInlineResultPhoto);
+	return queryData<MTPDinputBotInlineResultPhoto>();
 }
-inline MTPinputBotInlineResult::MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResultPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineResultPhoto) {
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(const MTPDinputBotInlineResultPhoto *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineResultPhoto) {
 }
 inline const MTPDinputBotInlineResultDocument &MTPinputBotInlineResult::c_inputBotInlineResultDocument() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineResultDocument);
-	return static_cast<const MTPDinputBotInlineResultDocument&>(*data);
+	t_assert(_type == mtpc_inputBotInlineResultDocument);
+	return queryData<MTPDinputBotInlineResultDocument>();
 }
-inline MTPinputBotInlineResult::MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResultDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineResultDocument) {
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(const MTPDinputBotInlineResultDocument *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineResultDocument) {
 }
 inline const MTPDinputBotInlineResultGame &MTPinputBotInlineResult::c_inputBotInlineResultGame() const {
-	t_assert(data != nullptr && _type == mtpc_inputBotInlineResultGame);
-	return static_cast<const MTPDinputBotInlineResultGame&>(*data);
+	t_assert(_type == mtpc_inputBotInlineResultGame);
+	return queryData<MTPDinputBotInlineResultGame>();
 }
-inline MTPinputBotInlineResult::MTPinputBotInlineResult(std::shared_ptr<const MTPDinputBotInlineResultGame> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputBotInlineResultGame) {
+inline MTPinputBotInlineResult::MTPinputBotInlineResult(const MTPDinputBotInlineResultGame *data) : TypeDataOwner(data), _type(mtpc_inputBotInlineResultGame) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDinputBotInlineResult::Flags)
 inline MTPinputBotInlineResult MTP_inputBotInlineResult(const MTPflags<MTPDinputBotInlineResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration, const MTPInputBotInlineMessage &_send_message) {
@@ -33335,32 +33192,32 @@ inline mtpTypeId MTPbotInlineMessage::type() const {
 	return _type;
 }
 inline void MTPbotInlineMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_botInlineMessageMediaAuto: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineMessageMediaAuto>();
+			auto v = new MTPDbotInlineMessageMediaAuto();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vcaption.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_botInlineMessageText: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineMessageText>();
+			auto v = new MTPDbotInlineMessageText();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vmessage.read(from, end);
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_botInlineMessageMediaGeo: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineMessageMediaGeo>();
+			auto v = new MTPDbotInlineMessageMediaGeo();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vgeo.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_botInlineMessageMediaVenue: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineMessageMediaVenue>();
+			auto v = new MTPDbotInlineMessageMediaVenue();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vgeo.read(from, end);
 			v->vtitle.read(from, end);
@@ -33368,16 +33225,15 @@ inline void MTPbotInlineMessage::read(const mtpPrime *&from, const mtpPrime *end
 			v->vprovider.read(from, end);
 			v->vvenue_id.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		case mtpc_botInlineMessageMediaContact: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineMessageMediaContact>();
+			auto v = new MTPDbotInlineMessageMediaContact();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vphone_number.read(from, end);
 			v->vfirst_name.read(from, end);
 			v->vlast_name.read(from, end);
 			if (v->has_reply_markup()) { v->vreply_markup.read(from, end); } else { v->vreply_markup = MTPReplyMarkup(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPbotInlineMessage");
 	}
@@ -33425,43 +33281,43 @@ inline void MTPbotInlineMessage::write(mtpBuffer &to) const {
 }
 inline MTPbotInlineMessage::MTPbotInlineMessage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_botInlineMessageMediaAuto: data = std::make_shared<MTPDbotInlineMessageMediaAuto>(); break;
-		case mtpc_botInlineMessageText: data = std::make_shared<MTPDbotInlineMessageText>(); break;
-		case mtpc_botInlineMessageMediaGeo: data = std::make_shared<MTPDbotInlineMessageMediaGeo>(); break;
-		case mtpc_botInlineMessageMediaVenue: data = std::make_shared<MTPDbotInlineMessageMediaVenue>(); break;
-		case mtpc_botInlineMessageMediaContact: data = std::make_shared<MTPDbotInlineMessageMediaContact>(); break;
+		case mtpc_botInlineMessageMediaAuto: setData(new MTPDbotInlineMessageMediaAuto()); break;
+		case mtpc_botInlineMessageText: setData(new MTPDbotInlineMessageText()); break;
+		case mtpc_botInlineMessageMediaGeo: setData(new MTPDbotInlineMessageMediaGeo()); break;
+		case mtpc_botInlineMessageMediaVenue: setData(new MTPDbotInlineMessageMediaVenue()); break;
+		case mtpc_botInlineMessageMediaContact: setData(new MTPDbotInlineMessageMediaContact()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPbotInlineMessage");
 	}
 }
 inline const MTPDbotInlineMessageMediaAuto &MTPbotInlineMessage::c_botInlineMessageMediaAuto() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaAuto);
-	return static_cast<const MTPDbotInlineMessageMediaAuto&>(*data);
+	t_assert(_type == mtpc_botInlineMessageMediaAuto);
+	return queryData<MTPDbotInlineMessageMediaAuto>();
 }
-inline MTPbotInlineMessage::MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaAuto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineMessageMediaAuto) {
+inline MTPbotInlineMessage::MTPbotInlineMessage(const MTPDbotInlineMessageMediaAuto *data) : TypeDataOwner(data), _type(mtpc_botInlineMessageMediaAuto) {
 }
 inline const MTPDbotInlineMessageText &MTPbotInlineMessage::c_botInlineMessageText() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineMessageText);
-	return static_cast<const MTPDbotInlineMessageText&>(*data);
+	t_assert(_type == mtpc_botInlineMessageText);
+	return queryData<MTPDbotInlineMessageText>();
 }
-inline MTPbotInlineMessage::MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageText> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineMessageText) {
+inline MTPbotInlineMessage::MTPbotInlineMessage(const MTPDbotInlineMessageText *data) : TypeDataOwner(data), _type(mtpc_botInlineMessageText) {
 }
 inline const MTPDbotInlineMessageMediaGeo &MTPbotInlineMessage::c_botInlineMessageMediaGeo() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaGeo);
-	return static_cast<const MTPDbotInlineMessageMediaGeo&>(*data);
+	t_assert(_type == mtpc_botInlineMessageMediaGeo);
+	return queryData<MTPDbotInlineMessageMediaGeo>();
 }
-inline MTPbotInlineMessage::MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaGeo> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineMessageMediaGeo) {
+inline MTPbotInlineMessage::MTPbotInlineMessage(const MTPDbotInlineMessageMediaGeo *data) : TypeDataOwner(data), _type(mtpc_botInlineMessageMediaGeo) {
 }
 inline const MTPDbotInlineMessageMediaVenue &MTPbotInlineMessage::c_botInlineMessageMediaVenue() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaVenue);
-	return static_cast<const MTPDbotInlineMessageMediaVenue&>(*data);
+	t_assert(_type == mtpc_botInlineMessageMediaVenue);
+	return queryData<MTPDbotInlineMessageMediaVenue>();
 }
-inline MTPbotInlineMessage::MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaVenue> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineMessageMediaVenue) {
+inline MTPbotInlineMessage::MTPbotInlineMessage(const MTPDbotInlineMessageMediaVenue *data) : TypeDataOwner(data), _type(mtpc_botInlineMessageMediaVenue) {
 }
 inline const MTPDbotInlineMessageMediaContact &MTPbotInlineMessage::c_botInlineMessageMediaContact() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineMessageMediaContact);
-	return static_cast<const MTPDbotInlineMessageMediaContact&>(*data);
+	t_assert(_type == mtpc_botInlineMessageMediaContact);
+	return queryData<MTPDbotInlineMessageMediaContact>();
 }
-inline MTPbotInlineMessage::MTPbotInlineMessage(std::shared_ptr<const MTPDbotInlineMessageMediaContact> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineMessageMediaContact) {
+inline MTPbotInlineMessage::MTPbotInlineMessage(const MTPDbotInlineMessageMediaContact *data) : TypeDataOwner(data), _type(mtpc_botInlineMessageMediaContact) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDbotInlineMessageMediaAuto::Flags)
 inline MTPbotInlineMessage MTP_botInlineMessageMediaAuto(const MTPflags<MTPDbotInlineMessageMediaAuto::Flags> &_flags, const MTPstring &_caption, const MTPReplyMarkup &_reply_markup) {
@@ -33502,10 +33358,10 @@ inline mtpTypeId MTPbotInlineResult::type() const {
 	return _type;
 }
 inline void MTPbotInlineResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_botInlineResult: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineResult>();
+			auto v = new MTPDbotInlineResult();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vtype.read(from, end);
@@ -33519,10 +33375,10 @@ inline void MTPbotInlineResult::read(const mtpPrime *&from, const mtpPrime *end,
 			if (v->has_h()) { v->vh.read(from, end); } else { v->vh = MTPint(); }
 			if (v->has_duration()) { v->vduration.read(from, end); } else { v->vduration = MTPint(); }
 			v->vsend_message.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_botInlineMediaResult: _type = cons; {
-			auto v = std::make_shared<MTPDbotInlineMediaResult>();
+			auto v = new MTPDbotInlineMediaResult();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vtype.read(from, end);
@@ -33531,7 +33387,6 @@ inline void MTPbotInlineResult::read(const mtpPrime *&from, const mtpPrime *end,
 			if (v->has_title()) { v->vtitle.read(from, end); } else { v->vtitle = MTPstring(); }
 			if (v->has_description()) { v->vdescription.read(from, end); } else { v->vdescription = MTPstring(); }
 			v->vsend_message.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPbotInlineResult");
 	}
@@ -33569,22 +33424,22 @@ inline void MTPbotInlineResult::write(mtpBuffer &to) const {
 }
 inline MTPbotInlineResult::MTPbotInlineResult(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_botInlineResult: data = std::make_shared<MTPDbotInlineResult>(); break;
-		case mtpc_botInlineMediaResult: data = std::make_shared<MTPDbotInlineMediaResult>(); break;
+		case mtpc_botInlineResult: setData(new MTPDbotInlineResult()); break;
+		case mtpc_botInlineMediaResult: setData(new MTPDbotInlineMediaResult()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPbotInlineResult");
 	}
 }
 inline const MTPDbotInlineResult &MTPbotInlineResult::c_botInlineResult() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineResult);
-	return static_cast<const MTPDbotInlineResult&>(*data);
+	t_assert(_type == mtpc_botInlineResult);
+	return queryData<MTPDbotInlineResult>();
 }
-inline MTPbotInlineResult::MTPbotInlineResult(std::shared_ptr<const MTPDbotInlineResult> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineResult) {
+inline MTPbotInlineResult::MTPbotInlineResult(const MTPDbotInlineResult *data) : TypeDataOwner(data), _type(mtpc_botInlineResult) {
 }
 inline const MTPDbotInlineMediaResult &MTPbotInlineResult::c_botInlineMediaResult() const {
-	t_assert(data != nullptr && _type == mtpc_botInlineMediaResult);
-	return static_cast<const MTPDbotInlineMediaResult&>(*data);
+	t_assert(_type == mtpc_botInlineMediaResult);
+	return queryData<MTPDbotInlineMediaResult>();
 }
-inline MTPbotInlineResult::MTPbotInlineResult(std::shared_ptr<const MTPDbotInlineMediaResult> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_botInlineMediaResult) {
+inline MTPbotInlineResult::MTPbotInlineResult(const MTPDbotInlineMediaResult *data) : TypeDataOwner(data), _type(mtpc_botInlineMediaResult) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDbotInlineResult::Flags)
 inline MTPbotInlineResult MTP_botInlineResult(const MTPflags<MTPDbotInlineResult::Flags> &_flags, const MTPstring &_id, const MTPstring &_type, const MTPstring &_title, const MTPstring &_description, const MTPstring &_url, const MTPstring &_thumb_url, const MTPstring &_content_url, const MTPstring &_content_type, MTPint _w, MTPint _h, MTPint _duration, const MTPBotInlineMessage &_send_message) {
@@ -33595,7 +33450,7 @@ inline MTPbotInlineResult MTP_botInlineMediaResult(const MTPflags<MTPDbotInlineM
 	return MTP::internal::TypeCreator::new_botInlineMediaResult(_flags, _id, _type, _photo, _document, _title, _description, _send_message);
 }
 
-inline MTPmessages_botResults::MTPmessages_botResults() : mtpDataOwner(std::make_shared<MTPDmessages_botResults>()) {
+inline MTPmessages_botResults::MTPmessages_botResults() : TypeDataOwner(new MTPDmessages_botResults()) {
 }
 
 inline uint32 MTPmessages_botResults::innerLength() const {
@@ -33608,14 +33463,14 @@ inline mtpTypeId MTPmessages_botResults::type() const {
 inline void MTPmessages_botResults::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_botResults) throw mtpErrorUnexpected(cons, "MTPmessages_botResults");
 
-	auto v = std::make_shared<MTPDmessages_botResults>();
+	auto v = new MTPDmessages_botResults();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vquery_id.read(from, end);
 	if (v->has_next_offset()) { v->vnext_offset.read(from, end); } else { v->vnext_offset = MTPstring(); }
 	if (v->has_switch_pm()) { v->vswitch_pm.read(from, end); } else { v->vswitch_pm = MTPInlineBotSwitchPM(); }
 	v->vresults.read(from, end);
 	v->vcache_time.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_botResults::write(mtpBuffer &to) const {
 	auto &v = c_messages_botResults();
@@ -33627,17 +33482,16 @@ inline void MTPmessages_botResults::write(mtpBuffer &to) const {
 	v.vcache_time.write(to);
 }
 inline const MTPDmessages_botResults &MTPmessages_botResults::c_messages_botResults() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_botResults&>(*data);
+	return queryData<MTPDmessages_botResults>();
 }
-inline MTPmessages_botResults::MTPmessages_botResults(std::shared_ptr<const MTPDmessages_botResults> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_botResults::MTPmessages_botResults(const MTPDmessages_botResults *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDmessages_botResults::Flags)
 inline MTPmessages_botResults MTP_messages_botResults(const MTPflags<MTPDmessages_botResults::Flags> &_flags, const MTPlong &_query_id, const MTPstring &_next_offset, const MTPInlineBotSwitchPM &_switch_pm, const MTPVector<MTPBotInlineResult> &_results, MTPint _cache_time) {
 	return MTP::internal::TypeCreator::new_messages_botResults(_flags, _query_id, _next_offset, _switch_pm, _results, _cache_time);
 }
 
-inline MTPexportedMessageLink::MTPexportedMessageLink() : mtpDataOwner(std::make_shared<MTPDexportedMessageLink>()) {
+inline MTPexportedMessageLink::MTPexportedMessageLink() : TypeDataOwner(new MTPDexportedMessageLink()) {
 }
 
 inline uint32 MTPexportedMessageLink::innerLength() const {
@@ -33650,25 +33504,24 @@ inline mtpTypeId MTPexportedMessageLink::type() const {
 inline void MTPexportedMessageLink::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_exportedMessageLink) throw mtpErrorUnexpected(cons, "MTPexportedMessageLink");
 
-	auto v = std::make_shared<MTPDexportedMessageLink>();
+	auto v = new MTPDexportedMessageLink();
+	setData(v);
 	v->vlink.read(from, end);
-	data = std::move(v);
 }
 inline void MTPexportedMessageLink::write(mtpBuffer &to) const {
 	auto &v = c_exportedMessageLink();
 	v.vlink.write(to);
 }
 inline const MTPDexportedMessageLink &MTPexportedMessageLink::c_exportedMessageLink() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDexportedMessageLink&>(*data);
+	return queryData<MTPDexportedMessageLink>();
 }
-inline MTPexportedMessageLink::MTPexportedMessageLink(std::shared_ptr<const MTPDexportedMessageLink> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPexportedMessageLink::MTPexportedMessageLink(const MTPDexportedMessageLink *data) : TypeDataOwner(data) {
 }
 inline MTPexportedMessageLink MTP_exportedMessageLink(const MTPstring &_link) {
 	return MTP::internal::TypeCreator::new_exportedMessageLink(_link);
 }
 
-inline MTPmessageFwdHeader::MTPmessageFwdHeader() : mtpDataOwner(std::make_shared<MTPDmessageFwdHeader>()) {
+inline MTPmessageFwdHeader::MTPmessageFwdHeader() : TypeDataOwner(new MTPDmessageFwdHeader()) {
 }
 
 inline uint32 MTPmessageFwdHeader::innerLength() const {
@@ -33681,13 +33534,13 @@ inline mtpTypeId MTPmessageFwdHeader::type() const {
 inline void MTPmessageFwdHeader::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messageFwdHeader) throw mtpErrorUnexpected(cons, "MTPmessageFwdHeader");
 
-	auto v = std::make_shared<MTPDmessageFwdHeader>();
+	auto v = new MTPDmessageFwdHeader();
+	setData(v);
 	v->vflags.read(from, end);
 	if (v->has_from_id()) { v->vfrom_id.read(from, end); } else { v->vfrom_id = MTPint(); }
 	v->vdate.read(from, end);
 	if (v->has_channel_id()) { v->vchannel_id.read(from, end); } else { v->vchannel_id = MTPint(); }
 	if (v->has_channel_post()) { v->vchannel_post.read(from, end); } else { v->vchannel_post = MTPint(); }
-	data = std::move(v);
 }
 inline void MTPmessageFwdHeader::write(mtpBuffer &to) const {
 	auto &v = c_messageFwdHeader();
@@ -33698,10 +33551,9 @@ inline void MTPmessageFwdHeader::write(mtpBuffer &to) const {
 	if (v.has_channel_post()) v.vchannel_post.write(to);
 }
 inline const MTPDmessageFwdHeader &MTPmessageFwdHeader::c_messageFwdHeader() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessageFwdHeader&>(*data);
+	return queryData<MTPDmessageFwdHeader>();
 }
-inline MTPmessageFwdHeader::MTPmessageFwdHeader(std::shared_ptr<const MTPDmessageFwdHeader> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessageFwdHeader::MTPmessageFwdHeader(const MTPDmessageFwdHeader *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDmessageFwdHeader::Flags)
 inline MTPmessageFwdHeader MTP_messageFwdHeader(const MTPflags<MTPDmessageFwdHeader::Flags> &_flags, MTPint _from_id, MTPint _date, MTPint _channel_id, MTPint _channel_post) {
@@ -33769,27 +33621,26 @@ inline mtpTypeId MTPauth_sentCodeType::type() const {
 	return _type;
 }
 inline void MTPauth_sentCodeType::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_auth_sentCodeTypeApp: _type = cons; {
-			auto v = std::make_shared<MTPDauth_sentCodeTypeApp>();
+			auto v = new MTPDauth_sentCodeTypeApp();
+			setData(v);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_auth_sentCodeTypeSms: _type = cons; {
-			auto v = std::make_shared<MTPDauth_sentCodeTypeSms>();
+			auto v = new MTPDauth_sentCodeTypeSms();
+			setData(v);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_auth_sentCodeTypeCall: _type = cons; {
-			auto v = std::make_shared<MTPDauth_sentCodeTypeCall>();
+			auto v = new MTPDauth_sentCodeTypeCall();
+			setData(v);
 			v->vlength.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_auth_sentCodeTypeFlashCall: _type = cons; {
-			auto v = std::make_shared<MTPDauth_sentCodeTypeFlashCall>();
+			auto v = new MTPDauth_sentCodeTypeFlashCall();
+			setData(v);
 			v->vpattern.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPauth_sentCodeType");
 	}
@@ -33816,36 +33667,36 @@ inline void MTPauth_sentCodeType::write(mtpBuffer &to) const {
 }
 inline MTPauth_sentCodeType::MTPauth_sentCodeType(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_auth_sentCodeTypeApp: data = std::make_shared<MTPDauth_sentCodeTypeApp>(); break;
-		case mtpc_auth_sentCodeTypeSms: data = std::make_shared<MTPDauth_sentCodeTypeSms>(); break;
-		case mtpc_auth_sentCodeTypeCall: data = std::make_shared<MTPDauth_sentCodeTypeCall>(); break;
-		case mtpc_auth_sentCodeTypeFlashCall: data = std::make_shared<MTPDauth_sentCodeTypeFlashCall>(); break;
+		case mtpc_auth_sentCodeTypeApp: setData(new MTPDauth_sentCodeTypeApp()); break;
+		case mtpc_auth_sentCodeTypeSms: setData(new MTPDauth_sentCodeTypeSms()); break;
+		case mtpc_auth_sentCodeTypeCall: setData(new MTPDauth_sentCodeTypeCall()); break;
+		case mtpc_auth_sentCodeTypeFlashCall: setData(new MTPDauth_sentCodeTypeFlashCall()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPauth_sentCodeType");
 	}
 }
 inline const MTPDauth_sentCodeTypeApp &MTPauth_sentCodeType::c_auth_sentCodeTypeApp() const {
-	t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeApp);
-	return static_cast<const MTPDauth_sentCodeTypeApp&>(*data);
+	t_assert(_type == mtpc_auth_sentCodeTypeApp);
+	return queryData<MTPDauth_sentCodeTypeApp>();
 }
-inline MTPauth_sentCodeType::MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeApp> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_auth_sentCodeTypeApp) {
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(const MTPDauth_sentCodeTypeApp *data) : TypeDataOwner(data), _type(mtpc_auth_sentCodeTypeApp) {
 }
 inline const MTPDauth_sentCodeTypeSms &MTPauth_sentCodeType::c_auth_sentCodeTypeSms() const {
-	t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeSms);
-	return static_cast<const MTPDauth_sentCodeTypeSms&>(*data);
+	t_assert(_type == mtpc_auth_sentCodeTypeSms);
+	return queryData<MTPDauth_sentCodeTypeSms>();
 }
-inline MTPauth_sentCodeType::MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeSms> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_auth_sentCodeTypeSms) {
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(const MTPDauth_sentCodeTypeSms *data) : TypeDataOwner(data), _type(mtpc_auth_sentCodeTypeSms) {
 }
 inline const MTPDauth_sentCodeTypeCall &MTPauth_sentCodeType::c_auth_sentCodeTypeCall() const {
-	t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeCall);
-	return static_cast<const MTPDauth_sentCodeTypeCall&>(*data);
+	t_assert(_type == mtpc_auth_sentCodeTypeCall);
+	return queryData<MTPDauth_sentCodeTypeCall>();
 }
-inline MTPauth_sentCodeType::MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeCall> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_auth_sentCodeTypeCall) {
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(const MTPDauth_sentCodeTypeCall *data) : TypeDataOwner(data), _type(mtpc_auth_sentCodeTypeCall) {
 }
 inline const MTPDauth_sentCodeTypeFlashCall &MTPauth_sentCodeType::c_auth_sentCodeTypeFlashCall() const {
-	t_assert(data != nullptr && _type == mtpc_auth_sentCodeTypeFlashCall);
-	return static_cast<const MTPDauth_sentCodeTypeFlashCall&>(*data);
+	t_assert(_type == mtpc_auth_sentCodeTypeFlashCall);
+	return queryData<MTPDauth_sentCodeTypeFlashCall>();
 }
-inline MTPauth_sentCodeType::MTPauth_sentCodeType(std::shared_ptr<const MTPDauth_sentCodeTypeFlashCall> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_auth_sentCodeTypeFlashCall) {
+inline MTPauth_sentCodeType::MTPauth_sentCodeType(const MTPDauth_sentCodeTypeFlashCall *data) : TypeDataOwner(data), _type(mtpc_auth_sentCodeTypeFlashCall) {
 }
 inline MTPauth_sentCodeType MTP_auth_sentCodeTypeApp(MTPint _length) {
 	return MTP::internal::TypeCreator::new_auth_sentCodeTypeApp(_length);
@@ -33860,7 +33711,7 @@ inline MTPauth_sentCodeType MTP_auth_sentCodeTypeFlashCall(const MTPstring &_pat
 	return MTP::internal::TypeCreator::new_auth_sentCodeTypeFlashCall(_pattern);
 }
 
-inline MTPmessages_botCallbackAnswer::MTPmessages_botCallbackAnswer() : mtpDataOwner(std::make_shared<MTPDmessages_botCallbackAnswer>()) {
+inline MTPmessages_botCallbackAnswer::MTPmessages_botCallbackAnswer() : TypeDataOwner(new MTPDmessages_botCallbackAnswer()) {
 }
 
 inline uint32 MTPmessages_botCallbackAnswer::innerLength() const {
@@ -33873,12 +33724,12 @@ inline mtpTypeId MTPmessages_botCallbackAnswer::type() const {
 inline void MTPmessages_botCallbackAnswer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_botCallbackAnswer) throw mtpErrorUnexpected(cons, "MTPmessages_botCallbackAnswer");
 
-	auto v = std::make_shared<MTPDmessages_botCallbackAnswer>();
+	auto v = new MTPDmessages_botCallbackAnswer();
+	setData(v);
 	v->vflags.read(from, end);
 	if (v->has_message()) { v->vmessage.read(from, end); } else { v->vmessage = MTPstring(); }
 	if (v->has_url()) { v->vurl.read(from, end); } else { v->vurl = MTPstring(); }
 	v->vcache_time.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_botCallbackAnswer::write(mtpBuffer &to) const {
 	auto &v = c_messages_botCallbackAnswer();
@@ -33888,17 +33739,16 @@ inline void MTPmessages_botCallbackAnswer::write(mtpBuffer &to) const {
 	v.vcache_time.write(to);
 }
 inline const MTPDmessages_botCallbackAnswer &MTPmessages_botCallbackAnswer::c_messages_botCallbackAnswer() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_botCallbackAnswer&>(*data);
+	return queryData<MTPDmessages_botCallbackAnswer>();
 }
-inline MTPmessages_botCallbackAnswer::MTPmessages_botCallbackAnswer(std::shared_ptr<const MTPDmessages_botCallbackAnswer> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_botCallbackAnswer::MTPmessages_botCallbackAnswer(const MTPDmessages_botCallbackAnswer *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDmessages_botCallbackAnswer::Flags)
 inline MTPmessages_botCallbackAnswer MTP_messages_botCallbackAnswer(const MTPflags<MTPDmessages_botCallbackAnswer::Flags> &_flags, const MTPstring &_message, const MTPstring &_url, MTPint _cache_time) {
 	return MTP::internal::TypeCreator::new_messages_botCallbackAnswer(_flags, _message, _url, _cache_time);
 }
 
-inline MTPmessages_messageEditData::MTPmessages_messageEditData() : mtpDataOwner(std::make_shared<MTPDmessages_messageEditData>()) {
+inline MTPmessages_messageEditData::MTPmessages_messageEditData() : TypeDataOwner(new MTPDmessages_messageEditData()) {
 }
 
 inline uint32 MTPmessages_messageEditData::innerLength() const {
@@ -33911,26 +33761,25 @@ inline mtpTypeId MTPmessages_messageEditData::type() const {
 inline void MTPmessages_messageEditData::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_messageEditData) throw mtpErrorUnexpected(cons, "MTPmessages_messageEditData");
 
-	auto v = std::make_shared<MTPDmessages_messageEditData>();
+	auto v = new MTPDmessages_messageEditData();
+	setData(v);
 	v->vflags.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_messageEditData::write(mtpBuffer &to) const {
 	auto &v = c_messages_messageEditData();
 	v.vflags.write(to);
 }
 inline const MTPDmessages_messageEditData &MTPmessages_messageEditData::c_messages_messageEditData() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_messageEditData&>(*data);
+	return queryData<MTPDmessages_messageEditData>();
 }
-inline MTPmessages_messageEditData::MTPmessages_messageEditData(std::shared_ptr<const MTPDmessages_messageEditData> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_messageEditData::MTPmessages_messageEditData(const MTPDmessages_messageEditData *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDmessages_messageEditData::Flags)
 inline MTPmessages_messageEditData MTP_messages_messageEditData(const MTPflags<MTPDmessages_messageEditData::Flags> &_flags) {
 	return MTP::internal::TypeCreator::new_messages_messageEditData(_flags);
 }
 
-inline MTPinputBotInlineMessageID::MTPinputBotInlineMessageID() : mtpDataOwner(std::make_shared<MTPDinputBotInlineMessageID>()) {
+inline MTPinputBotInlineMessageID::MTPinputBotInlineMessageID() : TypeDataOwner(new MTPDinputBotInlineMessageID()) {
 }
 
 inline uint32 MTPinputBotInlineMessageID::innerLength() const {
@@ -33943,11 +33792,11 @@ inline mtpTypeId MTPinputBotInlineMessageID::type() const {
 inline void MTPinputBotInlineMessageID::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inputBotInlineMessageID) throw mtpErrorUnexpected(cons, "MTPinputBotInlineMessageID");
 
-	auto v = std::make_shared<MTPDinputBotInlineMessageID>();
+	auto v = new MTPDinputBotInlineMessageID();
+	setData(v);
 	v->vdc_id.read(from, end);
 	v->vid.read(from, end);
 	v->vaccess_hash.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinputBotInlineMessageID::write(mtpBuffer &to) const {
 	auto &v = c_inputBotInlineMessageID();
@@ -33956,16 +33805,15 @@ inline void MTPinputBotInlineMessageID::write(mtpBuffer &to) const {
 	v.vaccess_hash.write(to);
 }
 inline const MTPDinputBotInlineMessageID &MTPinputBotInlineMessageID::c_inputBotInlineMessageID() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinputBotInlineMessageID&>(*data);
+	return queryData<MTPDinputBotInlineMessageID>();
 }
-inline MTPinputBotInlineMessageID::MTPinputBotInlineMessageID(std::shared_ptr<const MTPDinputBotInlineMessageID> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinputBotInlineMessageID::MTPinputBotInlineMessageID(const MTPDinputBotInlineMessageID *data) : TypeDataOwner(data) {
 }
 inline MTPinputBotInlineMessageID MTP_inputBotInlineMessageID(MTPint _dc_id, const MTPlong &_id, const MTPlong &_access_hash) {
 	return MTP::internal::TypeCreator::new_inputBotInlineMessageID(_dc_id, _id, _access_hash);
 }
 
-inline MTPinlineBotSwitchPM::MTPinlineBotSwitchPM() : mtpDataOwner(std::make_shared<MTPDinlineBotSwitchPM>()) {
+inline MTPinlineBotSwitchPM::MTPinlineBotSwitchPM() : TypeDataOwner(new MTPDinlineBotSwitchPM()) {
 }
 
 inline uint32 MTPinlineBotSwitchPM::innerLength() const {
@@ -33978,10 +33826,10 @@ inline mtpTypeId MTPinlineBotSwitchPM::type() const {
 inline void MTPinlineBotSwitchPM::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inlineBotSwitchPM) throw mtpErrorUnexpected(cons, "MTPinlineBotSwitchPM");
 
-	auto v = std::make_shared<MTPDinlineBotSwitchPM>();
+	auto v = new MTPDinlineBotSwitchPM();
+	setData(v);
 	v->vtext.read(from, end);
 	v->vstart_param.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinlineBotSwitchPM::write(mtpBuffer &to) const {
 	auto &v = c_inlineBotSwitchPM();
@@ -33989,16 +33837,15 @@ inline void MTPinlineBotSwitchPM::write(mtpBuffer &to) const {
 	v.vstart_param.write(to);
 }
 inline const MTPDinlineBotSwitchPM &MTPinlineBotSwitchPM::c_inlineBotSwitchPM() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinlineBotSwitchPM&>(*data);
+	return queryData<MTPDinlineBotSwitchPM>();
 }
-inline MTPinlineBotSwitchPM::MTPinlineBotSwitchPM(std::shared_ptr<const MTPDinlineBotSwitchPM> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinlineBotSwitchPM::MTPinlineBotSwitchPM(const MTPDinlineBotSwitchPM *data) : TypeDataOwner(data) {
 }
 inline MTPinlineBotSwitchPM MTP_inlineBotSwitchPM(const MTPstring &_text, const MTPstring &_start_param) {
 	return MTP::internal::TypeCreator::new_inlineBotSwitchPM(_text, _start_param);
 }
 
-inline MTPmessages_peerDialogs::MTPmessages_peerDialogs() : mtpDataOwner(std::make_shared<MTPDmessages_peerDialogs>()) {
+inline MTPmessages_peerDialogs::MTPmessages_peerDialogs() : TypeDataOwner(new MTPDmessages_peerDialogs()) {
 }
 
 inline uint32 MTPmessages_peerDialogs::innerLength() const {
@@ -34011,13 +33858,13 @@ inline mtpTypeId MTPmessages_peerDialogs::type() const {
 inline void MTPmessages_peerDialogs::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_peerDialogs) throw mtpErrorUnexpected(cons, "MTPmessages_peerDialogs");
 
-	auto v = std::make_shared<MTPDmessages_peerDialogs>();
+	auto v = new MTPDmessages_peerDialogs();
+	setData(v);
 	v->vdialogs.read(from, end);
 	v->vmessages.read(from, end);
 	v->vchats.read(from, end);
 	v->vusers.read(from, end);
 	v->vstate.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_peerDialogs::write(mtpBuffer &to) const {
 	auto &v = c_messages_peerDialogs();
@@ -34028,16 +33875,15 @@ inline void MTPmessages_peerDialogs::write(mtpBuffer &to) const {
 	v.vstate.write(to);
 }
 inline const MTPDmessages_peerDialogs &MTPmessages_peerDialogs::c_messages_peerDialogs() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_peerDialogs&>(*data);
+	return queryData<MTPDmessages_peerDialogs>();
 }
-inline MTPmessages_peerDialogs::MTPmessages_peerDialogs(std::shared_ptr<const MTPDmessages_peerDialogs> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_peerDialogs::MTPmessages_peerDialogs(const MTPDmessages_peerDialogs *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_peerDialogs MTP_messages_peerDialogs(const MTPVector<MTPDialog> &_dialogs, const MTPVector<MTPMessage> &_messages, const MTPVector<MTPChat> &_chats, const MTPVector<MTPUser> &_users, const MTPupdates_State &_state) {
 	return MTP::internal::TypeCreator::new_messages_peerDialogs(_dialogs, _messages, _chats, _users, _state);
 }
 
-inline MTPtopPeer::MTPtopPeer() : mtpDataOwner(std::make_shared<MTPDtopPeer>()) {
+inline MTPtopPeer::MTPtopPeer() : TypeDataOwner(new MTPDtopPeer()) {
 }
 
 inline uint32 MTPtopPeer::innerLength() const {
@@ -34050,10 +33896,10 @@ inline mtpTypeId MTPtopPeer::type() const {
 inline void MTPtopPeer::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_topPeer) throw mtpErrorUnexpected(cons, "MTPtopPeer");
 
-	auto v = std::make_shared<MTPDtopPeer>();
+	auto v = new MTPDtopPeer();
+	setData(v);
 	v->vpeer.read(from, end);
 	v->vrating.read(from, end);
-	data = std::move(v);
 }
 inline void MTPtopPeer::write(mtpBuffer &to) const {
 	auto &v = c_topPeer();
@@ -34061,10 +33907,9 @@ inline void MTPtopPeer::write(mtpBuffer &to) const {
 	v.vrating.write(to);
 }
 inline const MTPDtopPeer &MTPtopPeer::c_topPeer() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDtopPeer&>(*data);
+	return queryData<MTPDtopPeer>();
 }
-inline MTPtopPeer::MTPtopPeer(std::shared_ptr<const MTPDtopPeer> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPtopPeer::MTPtopPeer(const MTPDtopPeer *data) : TypeDataOwner(data) {
 }
 inline MTPtopPeer MTP_topPeer(const MTPPeer &_peer, const MTPdouble &_rating) {
 	return MTP::internal::TypeCreator::new_topPeer(_peer, _rating);
@@ -34115,7 +33960,7 @@ inline MTPtopPeerCategory MTP_topPeerCategoryChannels() {
 	return MTP::internal::TypeCreator::new_topPeerCategoryChannels();
 }
 
-inline MTPtopPeerCategoryPeers::MTPtopPeerCategoryPeers() : mtpDataOwner(std::make_shared<MTPDtopPeerCategoryPeers>()) {
+inline MTPtopPeerCategoryPeers::MTPtopPeerCategoryPeers() : TypeDataOwner(new MTPDtopPeerCategoryPeers()) {
 }
 
 inline uint32 MTPtopPeerCategoryPeers::innerLength() const {
@@ -34128,11 +33973,11 @@ inline mtpTypeId MTPtopPeerCategoryPeers::type() const {
 inline void MTPtopPeerCategoryPeers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_topPeerCategoryPeers) throw mtpErrorUnexpected(cons, "MTPtopPeerCategoryPeers");
 
-	auto v = std::make_shared<MTPDtopPeerCategoryPeers>();
+	auto v = new MTPDtopPeerCategoryPeers();
+	setData(v);
 	v->vcategory.read(from, end);
 	v->vcount.read(from, end);
 	v->vpeers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPtopPeerCategoryPeers::write(mtpBuffer &to) const {
 	auto &v = c_topPeerCategoryPeers();
@@ -34141,10 +33986,9 @@ inline void MTPtopPeerCategoryPeers::write(mtpBuffer &to) const {
 	v.vpeers.write(to);
 }
 inline const MTPDtopPeerCategoryPeers &MTPtopPeerCategoryPeers::c_topPeerCategoryPeers() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDtopPeerCategoryPeers&>(*data);
+	return queryData<MTPDtopPeerCategoryPeers>();
 }
-inline MTPtopPeerCategoryPeers::MTPtopPeerCategoryPeers(std::shared_ptr<const MTPDtopPeerCategoryPeers> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPtopPeerCategoryPeers::MTPtopPeerCategoryPeers(const MTPDtopPeerCategoryPeers *data) : TypeDataOwner(data) {
 }
 inline MTPtopPeerCategoryPeers MTP_topPeerCategoryPeers(const MTPTopPeerCategory &_category, MTPint _count, const MTPVector<MTPTopPeer> &_peers) {
 	return MTP::internal::TypeCreator::new_topPeerCategoryPeers(_category, _count, _peers);
@@ -34164,15 +34008,14 @@ inline mtpTypeId MTPcontacts_topPeers::type() const {
 	return _type;
 }
 inline void MTPcontacts_topPeers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_contacts_topPeersNotModified: _type = cons; break;
 		case mtpc_contacts_topPeers: _type = cons; {
-			auto v = std::make_shared<MTPDcontacts_topPeers>();
+			auto v = new MTPDcontacts_topPeers();
+			setData(v);
 			v->vcategories.read(from, end);
 			v->vchats.read(from, end);
 			v->vusers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPcontacts_topPeers");
 	}
@@ -34190,15 +34033,15 @@ inline void MTPcontacts_topPeers::write(mtpBuffer &to) const {
 inline MTPcontacts_topPeers::MTPcontacts_topPeers(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_contacts_topPeersNotModified: break;
-		case mtpc_contacts_topPeers: data = std::make_shared<MTPDcontacts_topPeers>(); break;
+		case mtpc_contacts_topPeers: setData(new MTPDcontacts_topPeers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPcontacts_topPeers");
 	}
 }
 inline const MTPDcontacts_topPeers &MTPcontacts_topPeers::c_contacts_topPeers() const {
-	t_assert(data != nullptr && _type == mtpc_contacts_topPeers);
-	return static_cast<const MTPDcontacts_topPeers&>(*data);
+	t_assert(_type == mtpc_contacts_topPeers);
+	return queryData<MTPDcontacts_topPeers>();
 }
-inline MTPcontacts_topPeers::MTPcontacts_topPeers(std::shared_ptr<const MTPDcontacts_topPeers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_contacts_topPeers) {
+inline MTPcontacts_topPeers::MTPcontacts_topPeers(const MTPDcontacts_topPeers *data) : TypeDataOwner(data), _type(mtpc_contacts_topPeers) {
 }
 inline MTPcontacts_topPeers MTP_contacts_topPeersNotModified() {
 	return MTP::internal::TypeCreator::new_contacts_topPeersNotModified();
@@ -34221,17 +34064,16 @@ inline mtpTypeId MTPdraftMessage::type() const {
 	return _type;
 }
 inline void MTPdraftMessage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_draftMessageEmpty: _type = cons; break;
 		case mtpc_draftMessage: _type = cons; {
-			auto v = std::make_shared<MTPDdraftMessage>();
+			auto v = new MTPDdraftMessage();
+			setData(v);
 			v->vflags.read(from, end);
 			if (v->has_reply_to_msg_id()) { v->vreply_to_msg_id.read(from, end); } else { v->vreply_to_msg_id = MTPint(); }
 			v->vmessage.read(from, end);
 			if (v->has_entities()) { v->ventities.read(from, end); } else { v->ventities = MTPVector<MTPMessageEntity>(); }
 			v->vdate.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPdraftMessage");
 	}
@@ -34251,15 +34093,15 @@ inline void MTPdraftMessage::write(mtpBuffer &to) const {
 inline MTPdraftMessage::MTPdraftMessage(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_draftMessageEmpty: break;
-		case mtpc_draftMessage: data = std::make_shared<MTPDdraftMessage>(); break;
+		case mtpc_draftMessage: setData(new MTPDdraftMessage()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPdraftMessage");
 	}
 }
 inline const MTPDdraftMessage &MTPdraftMessage::c_draftMessage() const {
-	t_assert(data != nullptr && _type == mtpc_draftMessage);
-	return static_cast<const MTPDdraftMessage&>(*data);
+	t_assert(_type == mtpc_draftMessage);
+	return queryData<MTPDdraftMessage>();
 }
-inline MTPdraftMessage::MTPdraftMessage(std::shared_ptr<const MTPDdraftMessage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_draftMessage) {
+inline MTPdraftMessage::MTPdraftMessage(const MTPDdraftMessage *data) : TypeDataOwner(data), _type(mtpc_draftMessage) {
 }
 inline MTPdraftMessage MTP_draftMessageEmpty() {
 	return MTP::internal::TypeCreator::new_draftMessageEmpty();
@@ -34283,15 +34125,14 @@ inline mtpTypeId MTPmessages_featuredStickers::type() const {
 	return _type;
 }
 inline void MTPmessages_featuredStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_featuredStickersNotModified: _type = cons; break;
 		case mtpc_messages_featuredStickers: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_featuredStickers>();
+			auto v = new MTPDmessages_featuredStickers();
+			setData(v);
 			v->vhash.read(from, end);
 			v->vsets.read(from, end);
 			v->vunread.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_featuredStickers");
 	}
@@ -34309,15 +34150,15 @@ inline void MTPmessages_featuredStickers::write(mtpBuffer &to) const {
 inline MTPmessages_featuredStickers::MTPmessages_featuredStickers(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messages_featuredStickersNotModified: break;
-		case mtpc_messages_featuredStickers: data = std::make_shared<MTPDmessages_featuredStickers>(); break;
+		case mtpc_messages_featuredStickers: setData(new MTPDmessages_featuredStickers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_featuredStickers");
 	}
 }
 inline const MTPDmessages_featuredStickers &MTPmessages_featuredStickers::c_messages_featuredStickers() const {
-	t_assert(data != nullptr && _type == mtpc_messages_featuredStickers);
-	return static_cast<const MTPDmessages_featuredStickers&>(*data);
+	t_assert(_type == mtpc_messages_featuredStickers);
+	return queryData<MTPDmessages_featuredStickers>();
 }
-inline MTPmessages_featuredStickers::MTPmessages_featuredStickers(std::shared_ptr<const MTPDmessages_featuredStickers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_featuredStickers) {
+inline MTPmessages_featuredStickers::MTPmessages_featuredStickers(const MTPDmessages_featuredStickers *data) : TypeDataOwner(data), _type(mtpc_messages_featuredStickers) {
 }
 inline MTPmessages_featuredStickers MTP_messages_featuredStickersNotModified() {
 	return MTP::internal::TypeCreator::new_messages_featuredStickersNotModified();
@@ -34340,14 +34181,13 @@ inline mtpTypeId MTPmessages_recentStickers::type() const {
 	return _type;
 }
 inline void MTPmessages_recentStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_recentStickersNotModified: _type = cons; break;
 		case mtpc_messages_recentStickers: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_recentStickers>();
+			auto v = new MTPDmessages_recentStickers();
+			setData(v);
 			v->vhash.read(from, end);
 			v->vstickers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_recentStickers");
 	}
@@ -34364,15 +34204,15 @@ inline void MTPmessages_recentStickers::write(mtpBuffer &to) const {
 inline MTPmessages_recentStickers::MTPmessages_recentStickers(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messages_recentStickersNotModified: break;
-		case mtpc_messages_recentStickers: data = std::make_shared<MTPDmessages_recentStickers>(); break;
+		case mtpc_messages_recentStickers: setData(new MTPDmessages_recentStickers()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_recentStickers");
 	}
 }
 inline const MTPDmessages_recentStickers &MTPmessages_recentStickers::c_messages_recentStickers() const {
-	t_assert(data != nullptr && _type == mtpc_messages_recentStickers);
-	return static_cast<const MTPDmessages_recentStickers&>(*data);
+	t_assert(_type == mtpc_messages_recentStickers);
+	return queryData<MTPDmessages_recentStickers>();
 }
-inline MTPmessages_recentStickers::MTPmessages_recentStickers(std::shared_ptr<const MTPDmessages_recentStickers> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_recentStickers) {
+inline MTPmessages_recentStickers::MTPmessages_recentStickers(const MTPDmessages_recentStickers *data) : TypeDataOwner(data), _type(mtpc_messages_recentStickers) {
 }
 inline MTPmessages_recentStickers MTP_messages_recentStickersNotModified() {
 	return MTP::internal::TypeCreator::new_messages_recentStickersNotModified();
@@ -34381,7 +34221,7 @@ inline MTPmessages_recentStickers MTP_messages_recentStickers(MTPint _hash, cons
 	return MTP::internal::TypeCreator::new_messages_recentStickers(_hash, _stickers);
 }
 
-inline MTPmessages_archivedStickers::MTPmessages_archivedStickers() : mtpDataOwner(std::make_shared<MTPDmessages_archivedStickers>()) {
+inline MTPmessages_archivedStickers::MTPmessages_archivedStickers() : TypeDataOwner(new MTPDmessages_archivedStickers()) {
 }
 
 inline uint32 MTPmessages_archivedStickers::innerLength() const {
@@ -34394,10 +34234,10 @@ inline mtpTypeId MTPmessages_archivedStickers::type() const {
 inline void MTPmessages_archivedStickers::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_archivedStickers) throw mtpErrorUnexpected(cons, "MTPmessages_archivedStickers");
 
-	auto v = std::make_shared<MTPDmessages_archivedStickers>();
+	auto v = new MTPDmessages_archivedStickers();
+	setData(v);
 	v->vcount.read(from, end);
 	v->vsets.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_archivedStickers::write(mtpBuffer &to) const {
 	auto &v = c_messages_archivedStickers();
@@ -34405,10 +34245,9 @@ inline void MTPmessages_archivedStickers::write(mtpBuffer &to) const {
 	v.vsets.write(to);
 }
 inline const MTPDmessages_archivedStickers &MTPmessages_archivedStickers::c_messages_archivedStickers() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_archivedStickers&>(*data);
+	return queryData<MTPDmessages_archivedStickers>();
 }
-inline MTPmessages_archivedStickers::MTPmessages_archivedStickers(std::shared_ptr<const MTPDmessages_archivedStickers> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_archivedStickers::MTPmessages_archivedStickers(const MTPDmessages_archivedStickers *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_archivedStickers MTP_messages_archivedStickers(MTPint _count, const MTPVector<MTPStickerSetCovered> &_sets) {
 	return MTP::internal::TypeCreator::new_messages_archivedStickers(_count, _sets);
@@ -34428,13 +34267,12 @@ inline mtpTypeId MTPmessages_stickerSetInstallResult::type() const {
 	return _type;
 }
 inline void MTPmessages_stickerSetInstallResult::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_messages_stickerSetInstallResultSuccess: _type = cons; break;
 		case mtpc_messages_stickerSetInstallResultArchive: _type = cons; {
-			auto v = std::make_shared<MTPDmessages_stickerSetInstallResultArchive>();
+			auto v = new MTPDmessages_stickerSetInstallResultArchive();
+			setData(v);
 			v->vsets.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPmessages_stickerSetInstallResult");
 	}
@@ -34450,15 +34288,15 @@ inline void MTPmessages_stickerSetInstallResult::write(mtpBuffer &to) const {
 inline MTPmessages_stickerSetInstallResult::MTPmessages_stickerSetInstallResult(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_messages_stickerSetInstallResultSuccess: break;
-		case mtpc_messages_stickerSetInstallResultArchive: data = std::make_shared<MTPDmessages_stickerSetInstallResultArchive>(); break;
+		case mtpc_messages_stickerSetInstallResultArchive: setData(new MTPDmessages_stickerSetInstallResultArchive()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPmessages_stickerSetInstallResult");
 	}
 }
 inline const MTPDmessages_stickerSetInstallResultArchive &MTPmessages_stickerSetInstallResult::c_messages_stickerSetInstallResultArchive() const {
-	t_assert(data != nullptr && _type == mtpc_messages_stickerSetInstallResultArchive);
-	return static_cast<const MTPDmessages_stickerSetInstallResultArchive&>(*data);
+	t_assert(_type == mtpc_messages_stickerSetInstallResultArchive);
+	return queryData<MTPDmessages_stickerSetInstallResultArchive>();
 }
-inline MTPmessages_stickerSetInstallResult::MTPmessages_stickerSetInstallResult(std::shared_ptr<const MTPDmessages_stickerSetInstallResultArchive> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_messages_stickerSetInstallResultArchive) {
+inline MTPmessages_stickerSetInstallResult::MTPmessages_stickerSetInstallResult(const MTPDmessages_stickerSetInstallResultArchive *data) : TypeDataOwner(data), _type(mtpc_messages_stickerSetInstallResultArchive) {
 }
 inline MTPmessages_stickerSetInstallResult MTP_messages_stickerSetInstallResultSuccess() {
 	return MTP::internal::TypeCreator::new_messages_stickerSetInstallResultSuccess();
@@ -34485,19 +34323,18 @@ inline mtpTypeId MTPstickerSetCovered::type() const {
 	return _type;
 }
 inline void MTPstickerSetCovered::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_stickerSetCovered: _type = cons; {
-			auto v = std::make_shared<MTPDstickerSetCovered>();
+			auto v = new MTPDstickerSetCovered();
+			setData(v);
 			v->vset.read(from, end);
 			v->vcover.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_stickerSetMultiCovered: _type = cons; {
-			auto v = std::make_shared<MTPDstickerSetMultiCovered>();
+			auto v = new MTPDstickerSetMultiCovered();
+			setData(v);
 			v->vset.read(from, end);
 			v->vcovers.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPstickerSetCovered");
 	}
@@ -34518,22 +34355,22 @@ inline void MTPstickerSetCovered::write(mtpBuffer &to) const {
 }
 inline MTPstickerSetCovered::MTPstickerSetCovered(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_stickerSetCovered: data = std::make_shared<MTPDstickerSetCovered>(); break;
-		case mtpc_stickerSetMultiCovered: data = std::make_shared<MTPDstickerSetMultiCovered>(); break;
+		case mtpc_stickerSetCovered: setData(new MTPDstickerSetCovered()); break;
+		case mtpc_stickerSetMultiCovered: setData(new MTPDstickerSetMultiCovered()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPstickerSetCovered");
 	}
 }
 inline const MTPDstickerSetCovered &MTPstickerSetCovered::c_stickerSetCovered() const {
-	t_assert(data != nullptr && _type == mtpc_stickerSetCovered);
-	return static_cast<const MTPDstickerSetCovered&>(*data);
+	t_assert(_type == mtpc_stickerSetCovered);
+	return queryData<MTPDstickerSetCovered>();
 }
-inline MTPstickerSetCovered::MTPstickerSetCovered(std::shared_ptr<const MTPDstickerSetCovered> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_stickerSetCovered) {
+inline MTPstickerSetCovered::MTPstickerSetCovered(const MTPDstickerSetCovered *data) : TypeDataOwner(data), _type(mtpc_stickerSetCovered) {
 }
 inline const MTPDstickerSetMultiCovered &MTPstickerSetCovered::c_stickerSetMultiCovered() const {
-	t_assert(data != nullptr && _type == mtpc_stickerSetMultiCovered);
-	return static_cast<const MTPDstickerSetMultiCovered&>(*data);
+	t_assert(_type == mtpc_stickerSetMultiCovered);
+	return queryData<MTPDstickerSetMultiCovered>();
 }
-inline MTPstickerSetCovered::MTPstickerSetCovered(std::shared_ptr<const MTPDstickerSetMultiCovered> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_stickerSetMultiCovered) {
+inline MTPstickerSetCovered::MTPstickerSetCovered(const MTPDstickerSetMultiCovered *data) : TypeDataOwner(data), _type(mtpc_stickerSetMultiCovered) {
 }
 inline MTPstickerSetCovered MTP_stickerSetCovered(const MTPStickerSet &_set, const MTPDocument &_cover) {
 	return MTP::internal::TypeCreator::new_stickerSetCovered(_set, _cover);
@@ -34542,7 +34379,7 @@ inline MTPstickerSetCovered MTP_stickerSetMultiCovered(const MTPStickerSet &_set
 	return MTP::internal::TypeCreator::new_stickerSetMultiCovered(_set, _covers);
 }
 
-inline MTPmaskCoords::MTPmaskCoords() : mtpDataOwner(std::make_shared<MTPDmaskCoords>()) {
+inline MTPmaskCoords::MTPmaskCoords() : TypeDataOwner(new MTPDmaskCoords()) {
 }
 
 inline uint32 MTPmaskCoords::innerLength() const {
@@ -34555,12 +34392,12 @@ inline mtpTypeId MTPmaskCoords::type() const {
 inline void MTPmaskCoords::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_maskCoords) throw mtpErrorUnexpected(cons, "MTPmaskCoords");
 
-	auto v = std::make_shared<MTPDmaskCoords>();
+	auto v = new MTPDmaskCoords();
+	setData(v);
 	v->vn.read(from, end);
 	v->vx.read(from, end);
 	v->vy.read(from, end);
 	v->vzoom.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmaskCoords::write(mtpBuffer &to) const {
 	auto &v = c_maskCoords();
@@ -34570,10 +34407,9 @@ inline void MTPmaskCoords::write(mtpBuffer &to) const {
 	v.vzoom.write(to);
 }
 inline const MTPDmaskCoords &MTPmaskCoords::c_maskCoords() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmaskCoords&>(*data);
+	return queryData<MTPDmaskCoords>();
 }
-inline MTPmaskCoords::MTPmaskCoords(std::shared_ptr<const MTPDmaskCoords> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmaskCoords::MTPmaskCoords(const MTPDmaskCoords *data) : TypeDataOwner(data) {
 }
 inline MTPmaskCoords MTP_maskCoords(MTPint _n, const MTPdouble &_x, const MTPdouble &_y, const MTPdouble &_zoom) {
 	return MTP::internal::TypeCreator::new_maskCoords(_n, _x, _y, _zoom);
@@ -34597,17 +34433,16 @@ inline mtpTypeId MTPinputStickeredMedia::type() const {
 	return _type;
 }
 inline void MTPinputStickeredMedia::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputStickeredMediaPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDinputStickeredMediaPhoto>();
+			auto v = new MTPDinputStickeredMediaPhoto();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputStickeredMediaDocument: _type = cons; {
-			auto v = std::make_shared<MTPDinputStickeredMediaDocument>();
+			auto v = new MTPDinputStickeredMediaDocument();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputStickeredMedia");
 	}
@@ -34626,22 +34461,22 @@ inline void MTPinputStickeredMedia::write(mtpBuffer &to) const {
 }
 inline MTPinputStickeredMedia::MTPinputStickeredMedia(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputStickeredMediaPhoto: data = std::make_shared<MTPDinputStickeredMediaPhoto>(); break;
-		case mtpc_inputStickeredMediaDocument: data = std::make_shared<MTPDinputStickeredMediaDocument>(); break;
+		case mtpc_inputStickeredMediaPhoto: setData(new MTPDinputStickeredMediaPhoto()); break;
+		case mtpc_inputStickeredMediaDocument: setData(new MTPDinputStickeredMediaDocument()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputStickeredMedia");
 	}
 }
 inline const MTPDinputStickeredMediaPhoto &MTPinputStickeredMedia::c_inputStickeredMediaPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_inputStickeredMediaPhoto);
-	return static_cast<const MTPDinputStickeredMediaPhoto&>(*data);
+	t_assert(_type == mtpc_inputStickeredMediaPhoto);
+	return queryData<MTPDinputStickeredMediaPhoto>();
 }
-inline MTPinputStickeredMedia::MTPinputStickeredMedia(std::shared_ptr<const MTPDinputStickeredMediaPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputStickeredMediaPhoto) {
+inline MTPinputStickeredMedia::MTPinputStickeredMedia(const MTPDinputStickeredMediaPhoto *data) : TypeDataOwner(data), _type(mtpc_inputStickeredMediaPhoto) {
 }
 inline const MTPDinputStickeredMediaDocument &MTPinputStickeredMedia::c_inputStickeredMediaDocument() const {
-	t_assert(data != nullptr && _type == mtpc_inputStickeredMediaDocument);
-	return static_cast<const MTPDinputStickeredMediaDocument&>(*data);
+	t_assert(_type == mtpc_inputStickeredMediaDocument);
+	return queryData<MTPDinputStickeredMediaDocument>();
 }
-inline MTPinputStickeredMedia::MTPinputStickeredMedia(std::shared_ptr<const MTPDinputStickeredMediaDocument> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputStickeredMediaDocument) {
+inline MTPinputStickeredMedia::MTPinputStickeredMedia(const MTPDinputStickeredMediaDocument *data) : TypeDataOwner(data), _type(mtpc_inputStickeredMediaDocument) {
 }
 inline MTPinputStickeredMedia MTP_inputStickeredMediaPhoto(const MTPInputPhoto &_id) {
 	return MTP::internal::TypeCreator::new_inputStickeredMediaPhoto(_id);
@@ -34650,7 +34485,7 @@ inline MTPinputStickeredMedia MTP_inputStickeredMediaDocument(const MTPInputDocu
 	return MTP::internal::TypeCreator::new_inputStickeredMediaDocument(_id);
 }
 
-inline MTPgame::MTPgame() : mtpDataOwner(std::make_shared<MTPDgame>()) {
+inline MTPgame::MTPgame() : TypeDataOwner(new MTPDgame()) {
 }
 
 inline uint32 MTPgame::innerLength() const {
@@ -34663,7 +34498,8 @@ inline mtpTypeId MTPgame::type() const {
 inline void MTPgame::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_game) throw mtpErrorUnexpected(cons, "MTPgame");
 
-	auto v = std::make_shared<MTPDgame>();
+	auto v = new MTPDgame();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vid.read(from, end);
 	v->vaccess_hash.read(from, end);
@@ -34672,7 +34508,6 @@ inline void MTPgame::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId 
 	v->vdescription.read(from, end);
 	v->vphoto.read(from, end);
 	if (v->has_document()) { v->vdocument.read(from, end); } else { v->vdocument = MTPDocument(); }
-	data = std::move(v);
 }
 inline void MTPgame::write(mtpBuffer &to) const {
 	auto &v = c_game();
@@ -34686,10 +34521,9 @@ inline void MTPgame::write(mtpBuffer &to) const {
 	if (v.has_document()) v.vdocument.write(to);
 }
 inline const MTPDgame &MTPgame::c_game() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDgame&>(*data);
+	return queryData<MTPDgame>();
 }
-inline MTPgame::MTPgame(std::shared_ptr<const MTPDgame> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPgame::MTPgame(const MTPDgame *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDgame::Flags)
 inline MTPgame MTP_game(const MTPflags<MTPDgame::Flags> &_flags, const MTPlong &_id, const MTPlong &_access_hash, const MTPstring &_short_name, const MTPstring &_title, const MTPstring &_description, const MTPPhoto &_photo, const MTPDocument &_document) {
@@ -34714,19 +34548,18 @@ inline mtpTypeId MTPinputGame::type() const {
 	return _type;
 }
 inline void MTPinputGame::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_inputGameID: _type = cons; {
-			auto v = std::make_shared<MTPDinputGameID>();
+			auto v = new MTPDinputGameID();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_inputGameShortName: _type = cons; {
-			auto v = std::make_shared<MTPDinputGameShortName>();
+			auto v = new MTPDinputGameShortName();
+			setData(v);
 			v->vbot_id.read(from, end);
 			v->vshort_name.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPinputGame");
 	}
@@ -34747,22 +34580,22 @@ inline void MTPinputGame::write(mtpBuffer &to) const {
 }
 inline MTPinputGame::MTPinputGame(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_inputGameID: data = std::make_shared<MTPDinputGameID>(); break;
-		case mtpc_inputGameShortName: data = std::make_shared<MTPDinputGameShortName>(); break;
+		case mtpc_inputGameID: setData(new MTPDinputGameID()); break;
+		case mtpc_inputGameShortName: setData(new MTPDinputGameShortName()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPinputGame");
 	}
 }
 inline const MTPDinputGameID &MTPinputGame::c_inputGameID() const {
-	t_assert(data != nullptr && _type == mtpc_inputGameID);
-	return static_cast<const MTPDinputGameID&>(*data);
+	t_assert(_type == mtpc_inputGameID);
+	return queryData<MTPDinputGameID>();
 }
-inline MTPinputGame::MTPinputGame(std::shared_ptr<const MTPDinputGameID> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputGameID) {
+inline MTPinputGame::MTPinputGame(const MTPDinputGameID *data) : TypeDataOwner(data), _type(mtpc_inputGameID) {
 }
 inline const MTPDinputGameShortName &MTPinputGame::c_inputGameShortName() const {
-	t_assert(data != nullptr && _type == mtpc_inputGameShortName);
-	return static_cast<const MTPDinputGameShortName&>(*data);
+	t_assert(_type == mtpc_inputGameShortName);
+	return queryData<MTPDinputGameShortName>();
 }
-inline MTPinputGame::MTPinputGame(std::shared_ptr<const MTPDinputGameShortName> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_inputGameShortName) {
+inline MTPinputGame::MTPinputGame(const MTPDinputGameShortName *data) : TypeDataOwner(data), _type(mtpc_inputGameShortName) {
 }
 inline MTPinputGame MTP_inputGameID(const MTPlong &_id, const MTPlong &_access_hash) {
 	return MTP::internal::TypeCreator::new_inputGameID(_id, _access_hash);
@@ -34771,7 +34604,7 @@ inline MTPinputGame MTP_inputGameShortName(const MTPInputUser &_bot_id, const MT
 	return MTP::internal::TypeCreator::new_inputGameShortName(_bot_id, _short_name);
 }
 
-inline MTPhighScore::MTPhighScore() : mtpDataOwner(std::make_shared<MTPDhighScore>()) {
+inline MTPhighScore::MTPhighScore() : TypeDataOwner(new MTPDhighScore()) {
 }
 
 inline uint32 MTPhighScore::innerLength() const {
@@ -34784,11 +34617,11 @@ inline mtpTypeId MTPhighScore::type() const {
 inline void MTPhighScore::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_highScore) throw mtpErrorUnexpected(cons, "MTPhighScore");
 
-	auto v = std::make_shared<MTPDhighScore>();
+	auto v = new MTPDhighScore();
+	setData(v);
 	v->vpos.read(from, end);
 	v->vuser_id.read(from, end);
 	v->vscore.read(from, end);
-	data = std::move(v);
 }
 inline void MTPhighScore::write(mtpBuffer &to) const {
 	auto &v = c_highScore();
@@ -34797,16 +34630,15 @@ inline void MTPhighScore::write(mtpBuffer &to) const {
 	v.vscore.write(to);
 }
 inline const MTPDhighScore &MTPhighScore::c_highScore() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDhighScore&>(*data);
+	return queryData<MTPDhighScore>();
 }
-inline MTPhighScore::MTPhighScore(std::shared_ptr<const MTPDhighScore> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPhighScore::MTPhighScore(const MTPDhighScore *data) : TypeDataOwner(data) {
 }
 inline MTPhighScore MTP_highScore(MTPint _pos, MTPint _user_id, MTPint _score) {
 	return MTP::internal::TypeCreator::new_highScore(_pos, _user_id, _score);
 }
 
-inline MTPmessages_highScores::MTPmessages_highScores() : mtpDataOwner(std::make_shared<MTPDmessages_highScores>()) {
+inline MTPmessages_highScores::MTPmessages_highScores() : TypeDataOwner(new MTPDmessages_highScores()) {
 }
 
 inline uint32 MTPmessages_highScores::innerLength() const {
@@ -34819,10 +34651,10 @@ inline mtpTypeId MTPmessages_highScores::type() const {
 inline void MTPmessages_highScores::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_messages_highScores) throw mtpErrorUnexpected(cons, "MTPmessages_highScores");
 
-	auto v = std::make_shared<MTPDmessages_highScores>();
+	auto v = new MTPDmessages_highScores();
+	setData(v);
 	v->vscores.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPmessages_highScores::write(mtpBuffer &to) const {
 	auto &v = c_messages_highScores();
@@ -34830,10 +34662,9 @@ inline void MTPmessages_highScores::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDmessages_highScores &MTPmessages_highScores::c_messages_highScores() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDmessages_highScores&>(*data);
+	return queryData<MTPDmessages_highScores>();
 }
-inline MTPmessages_highScores::MTPmessages_highScores(std::shared_ptr<const MTPDmessages_highScores> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPmessages_highScores::MTPmessages_highScores(const MTPDmessages_highScores *data) : TypeDataOwner(data) {
 }
 inline MTPmessages_highScores MTP_messages_highScores(const MTPVector<MTPHighScore> &_scores, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_messages_highScores(_scores, _users);
@@ -34885,56 +34716,55 @@ inline mtpTypeId MTPrichText::type() const {
 	return _type;
 }
 inline void MTPrichText::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_textEmpty: _type = cons; break;
 		case mtpc_textPlain: _type = cons; {
-			auto v = std::make_shared<MTPDtextPlain>();
+			auto v = new MTPDtextPlain();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textBold: _type = cons; {
-			auto v = std::make_shared<MTPDtextBold>();
+			auto v = new MTPDtextBold();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textItalic: _type = cons; {
-			auto v = std::make_shared<MTPDtextItalic>();
+			auto v = new MTPDtextItalic();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textUnderline: _type = cons; {
-			auto v = std::make_shared<MTPDtextUnderline>();
+			auto v = new MTPDtextUnderline();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textStrike: _type = cons; {
-			auto v = std::make_shared<MTPDtextStrike>();
+			auto v = new MTPDtextStrike();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textFixed: _type = cons; {
-			auto v = std::make_shared<MTPDtextFixed>();
+			auto v = new MTPDtextFixed();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textUrl: _type = cons; {
-			auto v = std::make_shared<MTPDtextUrl>();
+			auto v = new MTPDtextUrl();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vurl.read(from, end);
 			v->vwebpage_id.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textEmail: _type = cons; {
-			auto v = std::make_shared<MTPDtextEmail>();
+			auto v = new MTPDtextEmail();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vemail.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_textConcat: _type = cons; {
-			auto v = std::make_shared<MTPDtextConcat>();
+			auto v = new MTPDtextConcat();
+			setData(v);
 			v->vtexts.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPrichText");
 	}
@@ -34985,71 +34815,71 @@ inline void MTPrichText::write(mtpBuffer &to) const {
 inline MTPrichText::MTPrichText(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_textEmpty: break;
-		case mtpc_textPlain: data = std::make_shared<MTPDtextPlain>(); break;
-		case mtpc_textBold: data = std::make_shared<MTPDtextBold>(); break;
-		case mtpc_textItalic: data = std::make_shared<MTPDtextItalic>(); break;
-		case mtpc_textUnderline: data = std::make_shared<MTPDtextUnderline>(); break;
-		case mtpc_textStrike: data = std::make_shared<MTPDtextStrike>(); break;
-		case mtpc_textFixed: data = std::make_shared<MTPDtextFixed>(); break;
-		case mtpc_textUrl: data = std::make_shared<MTPDtextUrl>(); break;
-		case mtpc_textEmail: data = std::make_shared<MTPDtextEmail>(); break;
-		case mtpc_textConcat: data = std::make_shared<MTPDtextConcat>(); break;
+		case mtpc_textPlain: setData(new MTPDtextPlain()); break;
+		case mtpc_textBold: setData(new MTPDtextBold()); break;
+		case mtpc_textItalic: setData(new MTPDtextItalic()); break;
+		case mtpc_textUnderline: setData(new MTPDtextUnderline()); break;
+		case mtpc_textStrike: setData(new MTPDtextStrike()); break;
+		case mtpc_textFixed: setData(new MTPDtextFixed()); break;
+		case mtpc_textUrl: setData(new MTPDtextUrl()); break;
+		case mtpc_textEmail: setData(new MTPDtextEmail()); break;
+		case mtpc_textConcat: setData(new MTPDtextConcat()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPrichText");
 	}
 }
 inline const MTPDtextPlain &MTPrichText::c_textPlain() const {
-	t_assert(data != nullptr && _type == mtpc_textPlain);
-	return static_cast<const MTPDtextPlain&>(*data);
+	t_assert(_type == mtpc_textPlain);
+	return queryData<MTPDtextPlain>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextPlain> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textPlain) {
+inline MTPrichText::MTPrichText(const MTPDtextPlain *data) : TypeDataOwner(data), _type(mtpc_textPlain) {
 }
 inline const MTPDtextBold &MTPrichText::c_textBold() const {
-	t_assert(data != nullptr && _type == mtpc_textBold);
-	return static_cast<const MTPDtextBold&>(*data);
+	t_assert(_type == mtpc_textBold);
+	return queryData<MTPDtextBold>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextBold> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textBold) {
+inline MTPrichText::MTPrichText(const MTPDtextBold *data) : TypeDataOwner(data), _type(mtpc_textBold) {
 }
 inline const MTPDtextItalic &MTPrichText::c_textItalic() const {
-	t_assert(data != nullptr && _type == mtpc_textItalic);
-	return static_cast<const MTPDtextItalic&>(*data);
+	t_assert(_type == mtpc_textItalic);
+	return queryData<MTPDtextItalic>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextItalic> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textItalic) {
+inline MTPrichText::MTPrichText(const MTPDtextItalic *data) : TypeDataOwner(data), _type(mtpc_textItalic) {
 }
 inline const MTPDtextUnderline &MTPrichText::c_textUnderline() const {
-	t_assert(data != nullptr && _type == mtpc_textUnderline);
-	return static_cast<const MTPDtextUnderline&>(*data);
+	t_assert(_type == mtpc_textUnderline);
+	return queryData<MTPDtextUnderline>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextUnderline> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textUnderline) {
+inline MTPrichText::MTPrichText(const MTPDtextUnderline *data) : TypeDataOwner(data), _type(mtpc_textUnderline) {
 }
 inline const MTPDtextStrike &MTPrichText::c_textStrike() const {
-	t_assert(data != nullptr && _type == mtpc_textStrike);
-	return static_cast<const MTPDtextStrike&>(*data);
+	t_assert(_type == mtpc_textStrike);
+	return queryData<MTPDtextStrike>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextStrike> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textStrike) {
+inline MTPrichText::MTPrichText(const MTPDtextStrike *data) : TypeDataOwner(data), _type(mtpc_textStrike) {
 }
 inline const MTPDtextFixed &MTPrichText::c_textFixed() const {
-	t_assert(data != nullptr && _type == mtpc_textFixed);
-	return static_cast<const MTPDtextFixed&>(*data);
+	t_assert(_type == mtpc_textFixed);
+	return queryData<MTPDtextFixed>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextFixed> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textFixed) {
+inline MTPrichText::MTPrichText(const MTPDtextFixed *data) : TypeDataOwner(data), _type(mtpc_textFixed) {
 }
 inline const MTPDtextUrl &MTPrichText::c_textUrl() const {
-	t_assert(data != nullptr && _type == mtpc_textUrl);
-	return static_cast<const MTPDtextUrl&>(*data);
+	t_assert(_type == mtpc_textUrl);
+	return queryData<MTPDtextUrl>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextUrl> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textUrl) {
+inline MTPrichText::MTPrichText(const MTPDtextUrl *data) : TypeDataOwner(data), _type(mtpc_textUrl) {
 }
 inline const MTPDtextEmail &MTPrichText::c_textEmail() const {
-	t_assert(data != nullptr && _type == mtpc_textEmail);
-	return static_cast<const MTPDtextEmail&>(*data);
+	t_assert(_type == mtpc_textEmail);
+	return queryData<MTPDtextEmail>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextEmail> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textEmail) {
+inline MTPrichText::MTPrichText(const MTPDtextEmail *data) : TypeDataOwner(data), _type(mtpc_textEmail) {
 }
 inline const MTPDtextConcat &MTPrichText::c_textConcat() const {
-	t_assert(data != nullptr && _type == mtpc_textConcat);
-	return static_cast<const MTPDtextConcat&>(*data);
+	t_assert(_type == mtpc_textConcat);
+	return queryData<MTPDtextConcat>();
 }
-inline MTPrichText::MTPrichText(std::shared_ptr<const MTPDtextConcat> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_textConcat) {
+inline MTPrichText::MTPrichText(const MTPDtextConcat *data) : TypeDataOwner(data), _type(mtpc_textConcat) {
 }
 inline MTPrichText MTP_textEmpty() {
 	return MTP::internal::TypeCreator::new_textEmpty();
@@ -35168,95 +34998,95 @@ inline mtpTypeId MTPpageBlock::type() const {
 	return _type;
 }
 inline void MTPpageBlock::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_pageBlockUnsupported: _type = cons; break;
 		case mtpc_pageBlockTitle: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockTitle>();
+			auto v = new MTPDpageBlockTitle();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockSubtitle: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockSubtitle>();
+			auto v = new MTPDpageBlockSubtitle();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockAuthorDate: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockAuthorDate>();
+			auto v = new MTPDpageBlockAuthorDate();
+			setData(v);
 			v->vauthor.read(from, end);
 			v->vpublished_date.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockHeader: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockHeader>();
+			auto v = new MTPDpageBlockHeader();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockSubheader: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockSubheader>();
+			auto v = new MTPDpageBlockSubheader();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockParagraph: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockParagraph>();
+			auto v = new MTPDpageBlockParagraph();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockPreformatted: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockPreformatted>();
+			auto v = new MTPDpageBlockPreformatted();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vlanguage.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockFooter: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockFooter>();
+			auto v = new MTPDpageBlockFooter();
+			setData(v);
 			v->vtext.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockDivider: _type = cons; break;
 		case mtpc_pageBlockAnchor: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockAnchor>();
+			auto v = new MTPDpageBlockAnchor();
+			setData(v);
 			v->vname.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockList: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockList>();
+			auto v = new MTPDpageBlockList();
+			setData(v);
 			v->vordered.read(from, end);
 			v->vitems.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockBlockquote: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockBlockquote>();
+			auto v = new MTPDpageBlockBlockquote();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockPullquote: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockPullquote>();
+			auto v = new MTPDpageBlockPullquote();
+			setData(v);
 			v->vtext.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockPhoto: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockPhoto>();
+			auto v = new MTPDpageBlockPhoto();
+			setData(v);
 			v->vphoto_id.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockVideo: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockVideo>();
+			auto v = new MTPDpageBlockVideo();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vvideo_id.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockCover: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockCover>();
+			auto v = new MTPDpageBlockCover();
+			setData(v);
 			v->vcover.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockEmbed: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockEmbed>();
+			auto v = new MTPDpageBlockEmbed();
+			setData(v);
 			v->vflags.read(from, end);
 			if (v->has_url()) { v->vurl.read(from, end); } else { v->vurl = MTPstring(); }
 			if (v->has_html()) { v->vhtml.read(from, end); } else { v->vhtml = MTPstring(); }
@@ -35264,10 +35094,10 @@ inline void MTPpageBlock::read(const mtpPrime *&from, const mtpPrime *end, mtpTy
 			v->vw.read(from, end);
 			v->vh.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockEmbedPost: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockEmbedPost>();
+			auto v = new MTPDpageBlockEmbedPost();
+			setData(v);
 			v->vurl.read(from, end);
 			v->vwebpage_id.read(from, end);
 			v->vauthor_photo_id.read(from, end);
@@ -35275,19 +35105,18 @@ inline void MTPpageBlock::read(const mtpPrime *&from, const mtpPrime *end, mtpTy
 			v->vdate.read(from, end);
 			v->vblocks.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockCollage: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockCollage>();
+			auto v = new MTPDpageBlockCollage();
+			setData(v);
 			v->vitems.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageBlockSlideshow: _type = cons; {
-			auto v = std::make_shared<MTPDpageBlockSlideshow>();
+			auto v = new MTPDpageBlockSlideshow();
+			setData(v);
 			v->vitems.read(from, end);
 			v->vcaption.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPpageBlock");
 	}
@@ -35397,142 +35226,142 @@ inline void MTPpageBlock::write(mtpBuffer &to) const {
 inline MTPpageBlock::MTPpageBlock(mtpTypeId type) : _type(type) {
 	switch (type) {
 		case mtpc_pageBlockUnsupported: break;
-		case mtpc_pageBlockTitle: data = std::make_shared<MTPDpageBlockTitle>(); break;
-		case mtpc_pageBlockSubtitle: data = std::make_shared<MTPDpageBlockSubtitle>(); break;
-		case mtpc_pageBlockAuthorDate: data = std::make_shared<MTPDpageBlockAuthorDate>(); break;
-		case mtpc_pageBlockHeader: data = std::make_shared<MTPDpageBlockHeader>(); break;
-		case mtpc_pageBlockSubheader: data = std::make_shared<MTPDpageBlockSubheader>(); break;
-		case mtpc_pageBlockParagraph: data = std::make_shared<MTPDpageBlockParagraph>(); break;
-		case mtpc_pageBlockPreformatted: data = std::make_shared<MTPDpageBlockPreformatted>(); break;
-		case mtpc_pageBlockFooter: data = std::make_shared<MTPDpageBlockFooter>(); break;
+		case mtpc_pageBlockTitle: setData(new MTPDpageBlockTitle()); break;
+		case mtpc_pageBlockSubtitle: setData(new MTPDpageBlockSubtitle()); break;
+		case mtpc_pageBlockAuthorDate: setData(new MTPDpageBlockAuthorDate()); break;
+		case mtpc_pageBlockHeader: setData(new MTPDpageBlockHeader()); break;
+		case mtpc_pageBlockSubheader: setData(new MTPDpageBlockSubheader()); break;
+		case mtpc_pageBlockParagraph: setData(new MTPDpageBlockParagraph()); break;
+		case mtpc_pageBlockPreformatted: setData(new MTPDpageBlockPreformatted()); break;
+		case mtpc_pageBlockFooter: setData(new MTPDpageBlockFooter()); break;
 		case mtpc_pageBlockDivider: break;
-		case mtpc_pageBlockAnchor: data = std::make_shared<MTPDpageBlockAnchor>(); break;
-		case mtpc_pageBlockList: data = std::make_shared<MTPDpageBlockList>(); break;
-		case mtpc_pageBlockBlockquote: data = std::make_shared<MTPDpageBlockBlockquote>(); break;
-		case mtpc_pageBlockPullquote: data = std::make_shared<MTPDpageBlockPullquote>(); break;
-		case mtpc_pageBlockPhoto: data = std::make_shared<MTPDpageBlockPhoto>(); break;
-		case mtpc_pageBlockVideo: data = std::make_shared<MTPDpageBlockVideo>(); break;
-		case mtpc_pageBlockCover: data = std::make_shared<MTPDpageBlockCover>(); break;
-		case mtpc_pageBlockEmbed: data = std::make_shared<MTPDpageBlockEmbed>(); break;
-		case mtpc_pageBlockEmbedPost: data = std::make_shared<MTPDpageBlockEmbedPost>(); break;
-		case mtpc_pageBlockCollage: data = std::make_shared<MTPDpageBlockCollage>(); break;
-		case mtpc_pageBlockSlideshow: data = std::make_shared<MTPDpageBlockSlideshow>(); break;
+		case mtpc_pageBlockAnchor: setData(new MTPDpageBlockAnchor()); break;
+		case mtpc_pageBlockList: setData(new MTPDpageBlockList()); break;
+		case mtpc_pageBlockBlockquote: setData(new MTPDpageBlockBlockquote()); break;
+		case mtpc_pageBlockPullquote: setData(new MTPDpageBlockPullquote()); break;
+		case mtpc_pageBlockPhoto: setData(new MTPDpageBlockPhoto()); break;
+		case mtpc_pageBlockVideo: setData(new MTPDpageBlockVideo()); break;
+		case mtpc_pageBlockCover: setData(new MTPDpageBlockCover()); break;
+		case mtpc_pageBlockEmbed: setData(new MTPDpageBlockEmbed()); break;
+		case mtpc_pageBlockEmbedPost: setData(new MTPDpageBlockEmbedPost()); break;
+		case mtpc_pageBlockCollage: setData(new MTPDpageBlockCollage()); break;
+		case mtpc_pageBlockSlideshow: setData(new MTPDpageBlockSlideshow()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpageBlock");
 	}
 }
 inline const MTPDpageBlockTitle &MTPpageBlock::c_pageBlockTitle() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockTitle);
-	return static_cast<const MTPDpageBlockTitle&>(*data);
+	t_assert(_type == mtpc_pageBlockTitle);
+	return queryData<MTPDpageBlockTitle>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockTitle> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockTitle) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockTitle *data) : TypeDataOwner(data), _type(mtpc_pageBlockTitle) {
 }
 inline const MTPDpageBlockSubtitle &MTPpageBlock::c_pageBlockSubtitle() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockSubtitle);
-	return static_cast<const MTPDpageBlockSubtitle&>(*data);
+	t_assert(_type == mtpc_pageBlockSubtitle);
+	return queryData<MTPDpageBlockSubtitle>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockSubtitle> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockSubtitle) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockSubtitle *data) : TypeDataOwner(data), _type(mtpc_pageBlockSubtitle) {
 }
 inline const MTPDpageBlockAuthorDate &MTPpageBlock::c_pageBlockAuthorDate() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockAuthorDate);
-	return static_cast<const MTPDpageBlockAuthorDate&>(*data);
+	t_assert(_type == mtpc_pageBlockAuthorDate);
+	return queryData<MTPDpageBlockAuthorDate>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockAuthorDate> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockAuthorDate) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockAuthorDate *data) : TypeDataOwner(data), _type(mtpc_pageBlockAuthorDate) {
 }
 inline const MTPDpageBlockHeader &MTPpageBlock::c_pageBlockHeader() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockHeader);
-	return static_cast<const MTPDpageBlockHeader&>(*data);
+	t_assert(_type == mtpc_pageBlockHeader);
+	return queryData<MTPDpageBlockHeader>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockHeader> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockHeader) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockHeader *data) : TypeDataOwner(data), _type(mtpc_pageBlockHeader) {
 }
 inline const MTPDpageBlockSubheader &MTPpageBlock::c_pageBlockSubheader() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockSubheader);
-	return static_cast<const MTPDpageBlockSubheader&>(*data);
+	t_assert(_type == mtpc_pageBlockSubheader);
+	return queryData<MTPDpageBlockSubheader>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockSubheader> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockSubheader) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockSubheader *data) : TypeDataOwner(data), _type(mtpc_pageBlockSubheader) {
 }
 inline const MTPDpageBlockParagraph &MTPpageBlock::c_pageBlockParagraph() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockParagraph);
-	return static_cast<const MTPDpageBlockParagraph&>(*data);
+	t_assert(_type == mtpc_pageBlockParagraph);
+	return queryData<MTPDpageBlockParagraph>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockParagraph> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockParagraph) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockParagraph *data) : TypeDataOwner(data), _type(mtpc_pageBlockParagraph) {
 }
 inline const MTPDpageBlockPreformatted &MTPpageBlock::c_pageBlockPreformatted() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockPreformatted);
-	return static_cast<const MTPDpageBlockPreformatted&>(*data);
+	t_assert(_type == mtpc_pageBlockPreformatted);
+	return queryData<MTPDpageBlockPreformatted>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockPreformatted> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockPreformatted) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockPreformatted *data) : TypeDataOwner(data), _type(mtpc_pageBlockPreformatted) {
 }
 inline const MTPDpageBlockFooter &MTPpageBlock::c_pageBlockFooter() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockFooter);
-	return static_cast<const MTPDpageBlockFooter&>(*data);
+	t_assert(_type == mtpc_pageBlockFooter);
+	return queryData<MTPDpageBlockFooter>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockFooter> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockFooter) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockFooter *data) : TypeDataOwner(data), _type(mtpc_pageBlockFooter) {
 }
 inline const MTPDpageBlockAnchor &MTPpageBlock::c_pageBlockAnchor() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockAnchor);
-	return static_cast<const MTPDpageBlockAnchor&>(*data);
+	t_assert(_type == mtpc_pageBlockAnchor);
+	return queryData<MTPDpageBlockAnchor>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockAnchor> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockAnchor) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockAnchor *data) : TypeDataOwner(data), _type(mtpc_pageBlockAnchor) {
 }
 inline const MTPDpageBlockList &MTPpageBlock::c_pageBlockList() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockList);
-	return static_cast<const MTPDpageBlockList&>(*data);
+	t_assert(_type == mtpc_pageBlockList);
+	return queryData<MTPDpageBlockList>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockList> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockList) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockList *data) : TypeDataOwner(data), _type(mtpc_pageBlockList) {
 }
 inline const MTPDpageBlockBlockquote &MTPpageBlock::c_pageBlockBlockquote() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockBlockquote);
-	return static_cast<const MTPDpageBlockBlockquote&>(*data);
+	t_assert(_type == mtpc_pageBlockBlockquote);
+	return queryData<MTPDpageBlockBlockquote>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockBlockquote> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockBlockquote) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockBlockquote *data) : TypeDataOwner(data), _type(mtpc_pageBlockBlockquote) {
 }
 inline const MTPDpageBlockPullquote &MTPpageBlock::c_pageBlockPullquote() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockPullquote);
-	return static_cast<const MTPDpageBlockPullquote&>(*data);
+	t_assert(_type == mtpc_pageBlockPullquote);
+	return queryData<MTPDpageBlockPullquote>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockPullquote> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockPullquote) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockPullquote *data) : TypeDataOwner(data), _type(mtpc_pageBlockPullquote) {
 }
 inline const MTPDpageBlockPhoto &MTPpageBlock::c_pageBlockPhoto() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockPhoto);
-	return static_cast<const MTPDpageBlockPhoto&>(*data);
+	t_assert(_type == mtpc_pageBlockPhoto);
+	return queryData<MTPDpageBlockPhoto>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockPhoto> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockPhoto) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockPhoto *data) : TypeDataOwner(data), _type(mtpc_pageBlockPhoto) {
 }
 inline const MTPDpageBlockVideo &MTPpageBlock::c_pageBlockVideo() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockVideo);
-	return static_cast<const MTPDpageBlockVideo&>(*data);
+	t_assert(_type == mtpc_pageBlockVideo);
+	return queryData<MTPDpageBlockVideo>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockVideo> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockVideo) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockVideo *data) : TypeDataOwner(data), _type(mtpc_pageBlockVideo) {
 }
 inline const MTPDpageBlockCover &MTPpageBlock::c_pageBlockCover() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockCover);
-	return static_cast<const MTPDpageBlockCover&>(*data);
+	t_assert(_type == mtpc_pageBlockCover);
+	return queryData<MTPDpageBlockCover>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockCover> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockCover) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockCover *data) : TypeDataOwner(data), _type(mtpc_pageBlockCover) {
 }
 inline const MTPDpageBlockEmbed &MTPpageBlock::c_pageBlockEmbed() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockEmbed);
-	return static_cast<const MTPDpageBlockEmbed&>(*data);
+	t_assert(_type == mtpc_pageBlockEmbed);
+	return queryData<MTPDpageBlockEmbed>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockEmbed> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockEmbed) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockEmbed *data) : TypeDataOwner(data), _type(mtpc_pageBlockEmbed) {
 }
 inline const MTPDpageBlockEmbedPost &MTPpageBlock::c_pageBlockEmbedPost() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockEmbedPost);
-	return static_cast<const MTPDpageBlockEmbedPost&>(*data);
+	t_assert(_type == mtpc_pageBlockEmbedPost);
+	return queryData<MTPDpageBlockEmbedPost>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockEmbedPost> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockEmbedPost) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockEmbedPost *data) : TypeDataOwner(data), _type(mtpc_pageBlockEmbedPost) {
 }
 inline const MTPDpageBlockCollage &MTPpageBlock::c_pageBlockCollage() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockCollage);
-	return static_cast<const MTPDpageBlockCollage&>(*data);
+	t_assert(_type == mtpc_pageBlockCollage);
+	return queryData<MTPDpageBlockCollage>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockCollage> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockCollage) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockCollage *data) : TypeDataOwner(data), _type(mtpc_pageBlockCollage) {
 }
 inline const MTPDpageBlockSlideshow &MTPpageBlock::c_pageBlockSlideshow() const {
-	t_assert(data != nullptr && _type == mtpc_pageBlockSlideshow);
-	return static_cast<const MTPDpageBlockSlideshow&>(*data);
+	t_assert(_type == mtpc_pageBlockSlideshow);
+	return queryData<MTPDpageBlockSlideshow>();
 }
-inline MTPpageBlock::MTPpageBlock(std::shared_ptr<const MTPDpageBlockSlideshow> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageBlockSlideshow) {
+inline MTPpageBlock::MTPpageBlock(const MTPDpageBlockSlideshow *data) : TypeDataOwner(data), _type(mtpc_pageBlockSlideshow) {
 }
 inline MTPpageBlock MTP_pageBlockUnsupported() {
 	return MTP::internal::TypeCreator::new_pageBlockUnsupported();
@@ -35618,21 +35447,20 @@ inline mtpTypeId MTPpage::type() const {
 	return _type;
 }
 inline void MTPpage::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_pagePart: _type = cons; {
-			auto v = std::make_shared<MTPDpagePart>();
+			auto v = new MTPDpagePart();
+			setData(v);
 			v->vblocks.read(from, end);
 			v->vphotos.read(from, end);
 			v->vvideos.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_pageFull: _type = cons; {
-			auto v = std::make_shared<MTPDpageFull>();
+			auto v = new MTPDpageFull();
+			setData(v);
 			v->vblocks.read(from, end);
 			v->vphotos.read(from, end);
 			v->vvideos.read(from, end);
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPpage");
 	}
@@ -35655,22 +35483,22 @@ inline void MTPpage::write(mtpBuffer &to) const {
 }
 inline MTPpage::MTPpage(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_pagePart: data = std::make_shared<MTPDpagePart>(); break;
-		case mtpc_pageFull: data = std::make_shared<MTPDpageFull>(); break;
+		case mtpc_pagePart: setData(new MTPDpagePart()); break;
+		case mtpc_pageFull: setData(new MTPDpageFull()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPpage");
 	}
 }
 inline const MTPDpagePart &MTPpage::c_pagePart() const {
-	t_assert(data != nullptr && _type == mtpc_pagePart);
-	return static_cast<const MTPDpagePart&>(*data);
+	t_assert(_type == mtpc_pagePart);
+	return queryData<MTPDpagePart>();
 }
-inline MTPpage::MTPpage(std::shared_ptr<const MTPDpagePart> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pagePart) {
+inline MTPpage::MTPpage(const MTPDpagePart *data) : TypeDataOwner(data), _type(mtpc_pagePart) {
 }
 inline const MTPDpageFull &MTPpage::c_pageFull() const {
-	t_assert(data != nullptr && _type == mtpc_pageFull);
-	return static_cast<const MTPDpageFull&>(*data);
+	t_assert(_type == mtpc_pageFull);
+	return queryData<MTPDpageFull>();
 }
-inline MTPpage::MTPpage(std::shared_ptr<const MTPDpageFull> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_pageFull) {
+inline MTPpage::MTPpage(const MTPDpageFull *data) : TypeDataOwner(data), _type(mtpc_pageFull) {
 }
 inline MTPpage MTP_pagePart(const MTPVector<MTPPageBlock> &_blocks, const MTPVector<MTPPhoto> &_photos, const MTPVector<MTPDocument> &_videos) {
 	return MTP::internal::TypeCreator::new_pagePart(_blocks, _photos, _videos);
@@ -35679,7 +35507,7 @@ inline MTPpage MTP_pageFull(const MTPVector<MTPPageBlock> &_blocks, const MTPVec
 	return MTP::internal::TypeCreator::new_pageFull(_blocks, _photos, _videos);
 }
 
-inline MTPinputPhoneCall::MTPinputPhoneCall() : mtpDataOwner(std::make_shared<MTPDinputPhoneCall>()) {
+inline MTPinputPhoneCall::MTPinputPhoneCall() : TypeDataOwner(new MTPDinputPhoneCall()) {
 }
 
 inline uint32 MTPinputPhoneCall::innerLength() const {
@@ -35692,10 +35520,10 @@ inline mtpTypeId MTPinputPhoneCall::type() const {
 inline void MTPinputPhoneCall::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_inputPhoneCall) throw mtpErrorUnexpected(cons, "MTPinputPhoneCall");
 
-	auto v = std::make_shared<MTPDinputPhoneCall>();
+	auto v = new MTPDinputPhoneCall();
+	setData(v);
 	v->vid.read(from, end);
 	v->vaccess_hash.read(from, end);
-	data = std::move(v);
 }
 inline void MTPinputPhoneCall::write(mtpBuffer &to) const {
 	auto &v = c_inputPhoneCall();
@@ -35703,10 +35531,9 @@ inline void MTPinputPhoneCall::write(mtpBuffer &to) const {
 	v.vaccess_hash.write(to);
 }
 inline const MTPDinputPhoneCall &MTPinputPhoneCall::c_inputPhoneCall() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDinputPhoneCall&>(*data);
+	return queryData<MTPDinputPhoneCall>();
 }
-inline MTPinputPhoneCall::MTPinputPhoneCall(std::shared_ptr<const MTPDinputPhoneCall> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPinputPhoneCall::MTPinputPhoneCall(const MTPDinputPhoneCall *data) : TypeDataOwner(data) {
 }
 inline MTPinputPhoneCall MTP_inputPhoneCall(const MTPlong &_id, const MTPlong &_access_hash) {
 	return MTP::internal::TypeCreator::new_inputPhoneCall(_id, _access_hash);
@@ -35742,15 +35569,15 @@ inline mtpTypeId MTPphoneCall::type() const {
 	return _type;
 }
 inline void MTPphoneCall::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
-	data.reset();
 	switch (cons) {
 		case mtpc_phoneCallEmpty: _type = cons; {
-			auto v = std::make_shared<MTPDphoneCallEmpty>();
+			auto v = new MTPDphoneCallEmpty();
+			setData(v);
 			v->vid.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_phoneCallWaiting: _type = cons; {
-			auto v = std::make_shared<MTPDphoneCallWaiting>();
+			auto v = new MTPDphoneCallWaiting();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
@@ -35759,10 +35586,10 @@ inline void MTPphoneCall::read(const mtpPrime *&from, const mtpPrime *end, mtpTy
 			v->vparticipant_id.read(from, end);
 			v->vprotocol.read(from, end);
 			if (v->has_receive_date()) { v->vreceive_date.read(from, end); } else { v->vreceive_date = MTPint(); }
-			data = std::move(v);
 		} break;
 		case mtpc_phoneCallRequested: _type = cons; {
-			auto v = std::make_shared<MTPDphoneCallRequested>();
+			auto v = new MTPDphoneCallRequested();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
@@ -35770,10 +35597,10 @@ inline void MTPphoneCall::read(const mtpPrime *&from, const mtpPrime *end, mtpTy
 			v->vparticipant_id.read(from, end);
 			v->vg_a.read(from, end);
 			v->vprotocol.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_phoneCall: _type = cons; {
-			auto v = std::make_shared<MTPDphoneCall>();
+			auto v = new MTPDphoneCall();
+			setData(v);
 			v->vid.read(from, end);
 			v->vaccess_hash.read(from, end);
 			v->vdate.read(from, end);
@@ -35785,15 +35612,14 @@ inline void MTPphoneCall::read(const mtpPrime *&from, const mtpPrime *end, mtpTy
 			v->vconnection.read(from, end);
 			v->valternative_connections.read(from, end);
 			v->vstart_date.read(from, end);
-			data = std::move(v);
 		} break;
 		case mtpc_phoneCallDiscarded: _type = cons; {
-			auto v = std::make_shared<MTPDphoneCallDiscarded>();
+			auto v = new MTPDphoneCallDiscarded();
+			setData(v);
 			v->vflags.read(from, end);
 			v->vid.read(from, end);
 			if (v->has_reason()) { v->vreason.read(from, end); } else { v->vreason = MTPPhoneCallDiscardReason(); }
 			if (v->has_duration()) { v->vduration.read(from, end); } else { v->vduration = MTPint(); }
-			data = std::move(v);
 		} break;
 		default: throw mtpErrorUnexpected(cons, "MTPphoneCall");
 	}
@@ -35850,43 +35676,43 @@ inline void MTPphoneCall::write(mtpBuffer &to) const {
 }
 inline MTPphoneCall::MTPphoneCall(mtpTypeId type) : _type(type) {
 	switch (type) {
-		case mtpc_phoneCallEmpty: data = std::make_shared<MTPDphoneCallEmpty>(); break;
-		case mtpc_phoneCallWaiting: data = std::make_shared<MTPDphoneCallWaiting>(); break;
-		case mtpc_phoneCallRequested: data = std::make_shared<MTPDphoneCallRequested>(); break;
-		case mtpc_phoneCall: data = std::make_shared<MTPDphoneCall>(); break;
-		case mtpc_phoneCallDiscarded: data = std::make_shared<MTPDphoneCallDiscarded>(); break;
+		case mtpc_phoneCallEmpty: setData(new MTPDphoneCallEmpty()); break;
+		case mtpc_phoneCallWaiting: setData(new MTPDphoneCallWaiting()); break;
+		case mtpc_phoneCallRequested: setData(new MTPDphoneCallRequested()); break;
+		case mtpc_phoneCall: setData(new MTPDphoneCall()); break;
+		case mtpc_phoneCallDiscarded: setData(new MTPDphoneCallDiscarded()); break;
 		default: throw mtpErrorBadTypeId(type, "MTPphoneCall");
 	}
 }
 inline const MTPDphoneCallEmpty &MTPphoneCall::c_phoneCallEmpty() const {
-	t_assert(data != nullptr && _type == mtpc_phoneCallEmpty);
-	return static_cast<const MTPDphoneCallEmpty&>(*data);
+	t_assert(_type == mtpc_phoneCallEmpty);
+	return queryData<MTPDphoneCallEmpty>();
 }
-inline MTPphoneCall::MTPphoneCall(std::shared_ptr<const MTPDphoneCallEmpty> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_phoneCallEmpty) {
+inline MTPphoneCall::MTPphoneCall(const MTPDphoneCallEmpty *data) : TypeDataOwner(data), _type(mtpc_phoneCallEmpty) {
 }
 inline const MTPDphoneCallWaiting &MTPphoneCall::c_phoneCallWaiting() const {
-	t_assert(data != nullptr && _type == mtpc_phoneCallWaiting);
-	return static_cast<const MTPDphoneCallWaiting&>(*data);
+	t_assert(_type == mtpc_phoneCallWaiting);
+	return queryData<MTPDphoneCallWaiting>();
 }
-inline MTPphoneCall::MTPphoneCall(std::shared_ptr<const MTPDphoneCallWaiting> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_phoneCallWaiting) {
+inline MTPphoneCall::MTPphoneCall(const MTPDphoneCallWaiting *data) : TypeDataOwner(data), _type(mtpc_phoneCallWaiting) {
 }
 inline const MTPDphoneCallRequested &MTPphoneCall::c_phoneCallRequested() const {
-	t_assert(data != nullptr && _type == mtpc_phoneCallRequested);
-	return static_cast<const MTPDphoneCallRequested&>(*data);
+	t_assert(_type == mtpc_phoneCallRequested);
+	return queryData<MTPDphoneCallRequested>();
 }
-inline MTPphoneCall::MTPphoneCall(std::shared_ptr<const MTPDphoneCallRequested> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_phoneCallRequested) {
+inline MTPphoneCall::MTPphoneCall(const MTPDphoneCallRequested *data) : TypeDataOwner(data), _type(mtpc_phoneCallRequested) {
 }
 inline const MTPDphoneCall &MTPphoneCall::c_phoneCall() const {
-	t_assert(data != nullptr && _type == mtpc_phoneCall);
-	return static_cast<const MTPDphoneCall&>(*data);
+	t_assert(_type == mtpc_phoneCall);
+	return queryData<MTPDphoneCall>();
 }
-inline MTPphoneCall::MTPphoneCall(std::shared_ptr<const MTPDphoneCall> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_phoneCall) {
+inline MTPphoneCall::MTPphoneCall(const MTPDphoneCall *data) : TypeDataOwner(data), _type(mtpc_phoneCall) {
 }
 inline const MTPDphoneCallDiscarded &MTPphoneCall::c_phoneCallDiscarded() const {
-	t_assert(data != nullptr && _type == mtpc_phoneCallDiscarded);
-	return static_cast<const MTPDphoneCallDiscarded&>(*data);
+	t_assert(_type == mtpc_phoneCallDiscarded);
+	return queryData<MTPDphoneCallDiscarded>();
 }
-inline MTPphoneCall::MTPphoneCall(std::shared_ptr<const MTPDphoneCallDiscarded> &&data) : mtpDataOwner(std::move(data)), _type(mtpc_phoneCallDiscarded) {
+inline MTPphoneCall::MTPphoneCall(const MTPDphoneCallDiscarded *data) : TypeDataOwner(data), _type(mtpc_phoneCallDiscarded) {
 }
 inline MTPphoneCall MTP_phoneCallEmpty(const MTPlong &_id) {
 	return MTP::internal::TypeCreator::new_phoneCallEmpty(_id);
@@ -35906,7 +35732,7 @@ inline MTPphoneCall MTP_phoneCallDiscarded(const MTPflags<MTPDphoneCallDiscarded
 	return MTP::internal::TypeCreator::new_phoneCallDiscarded(_flags, _id, _reason, _duration);
 }
 
-inline MTPphoneConnection::MTPphoneConnection() : mtpDataOwner(std::make_shared<MTPDphoneConnection>()) {
+inline MTPphoneConnection::MTPphoneConnection() : TypeDataOwner(new MTPDphoneConnection()) {
 }
 
 inline uint32 MTPphoneConnection::innerLength() const {
@@ -35919,13 +35745,13 @@ inline mtpTypeId MTPphoneConnection::type() const {
 inline void MTPphoneConnection::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_phoneConnection) throw mtpErrorUnexpected(cons, "MTPphoneConnection");
 
-	auto v = std::make_shared<MTPDphoneConnection>();
+	auto v = new MTPDphoneConnection();
+	setData(v);
 	v->vid.read(from, end);
 	v->vip.read(from, end);
 	v->vipv6.read(from, end);
 	v->vport.read(from, end);
 	v->vpeer_tag.read(from, end);
-	data = std::move(v);
 }
 inline void MTPphoneConnection::write(mtpBuffer &to) const {
 	auto &v = c_phoneConnection();
@@ -35936,16 +35762,15 @@ inline void MTPphoneConnection::write(mtpBuffer &to) const {
 	v.vpeer_tag.write(to);
 }
 inline const MTPDphoneConnection &MTPphoneConnection::c_phoneConnection() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDphoneConnection&>(*data);
+	return queryData<MTPDphoneConnection>();
 }
-inline MTPphoneConnection::MTPphoneConnection(std::shared_ptr<const MTPDphoneConnection> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPphoneConnection::MTPphoneConnection(const MTPDphoneConnection *data) : TypeDataOwner(data) {
 }
 inline MTPphoneConnection MTP_phoneConnection(const MTPlong &_id, const MTPstring &_ip, const MTPstring &_ipv6, MTPint _port, const MTPbytes &_peer_tag) {
 	return MTP::internal::TypeCreator::new_phoneConnection(_id, _ip, _ipv6, _port, _peer_tag);
 }
 
-inline MTPphoneCallProtocol::MTPphoneCallProtocol() : mtpDataOwner(std::make_shared<MTPDphoneCallProtocol>()) {
+inline MTPphoneCallProtocol::MTPphoneCallProtocol() : TypeDataOwner(new MTPDphoneCallProtocol()) {
 }
 
 inline uint32 MTPphoneCallProtocol::innerLength() const {
@@ -35958,11 +35783,11 @@ inline mtpTypeId MTPphoneCallProtocol::type() const {
 inline void MTPphoneCallProtocol::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_phoneCallProtocol) throw mtpErrorUnexpected(cons, "MTPphoneCallProtocol");
 
-	auto v = std::make_shared<MTPDphoneCallProtocol>();
+	auto v = new MTPDphoneCallProtocol();
+	setData(v);
 	v->vflags.read(from, end);
 	v->vmin_layer.read(from, end);
 	v->vmax_layer.read(from, end);
-	data = std::move(v);
 }
 inline void MTPphoneCallProtocol::write(mtpBuffer &to) const {
 	auto &v = c_phoneCallProtocol();
@@ -35971,17 +35796,16 @@ inline void MTPphoneCallProtocol::write(mtpBuffer &to) const {
 	v.vmax_layer.write(to);
 }
 inline const MTPDphoneCallProtocol &MTPphoneCallProtocol::c_phoneCallProtocol() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDphoneCallProtocol&>(*data);
+	return queryData<MTPDphoneCallProtocol>();
 }
-inline MTPphoneCallProtocol::MTPphoneCallProtocol(std::shared_ptr<const MTPDphoneCallProtocol> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPphoneCallProtocol::MTPphoneCallProtocol(const MTPDphoneCallProtocol *data) : TypeDataOwner(data) {
 }
 Q_DECLARE_OPERATORS_FOR_FLAGS(MTPDphoneCallProtocol::Flags)
 inline MTPphoneCallProtocol MTP_phoneCallProtocol(const MTPflags<MTPDphoneCallProtocol::Flags> &_flags, MTPint _min_layer, MTPint _max_layer) {
 	return MTP::internal::TypeCreator::new_phoneCallProtocol(_flags, _min_layer, _max_layer);
 }
 
-inline MTPphone_phoneCall::MTPphone_phoneCall() : mtpDataOwner(std::make_shared<MTPDphone_phoneCall>()) {
+inline MTPphone_phoneCall::MTPphone_phoneCall() : TypeDataOwner(new MTPDphone_phoneCall()) {
 }
 
 inline uint32 MTPphone_phoneCall::innerLength() const {
@@ -35994,10 +35818,10 @@ inline mtpTypeId MTPphone_phoneCall::type() const {
 inline void MTPphone_phoneCall::read(const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons) {
 	if (cons != mtpc_phone_phoneCall) throw mtpErrorUnexpected(cons, "MTPphone_phoneCall");
 
-	auto v = std::make_shared<MTPDphone_phoneCall>();
+	auto v = new MTPDphone_phoneCall();
+	setData(v);
 	v->vphone_call.read(from, end);
 	v->vusers.read(from, end);
-	data = std::move(v);
 }
 inline void MTPphone_phoneCall::write(mtpBuffer &to) const {
 	auto &v = c_phone_phoneCall();
@@ -36005,10 +35829,9 @@ inline void MTPphone_phoneCall::write(mtpBuffer &to) const {
 	v.vusers.write(to);
 }
 inline const MTPDphone_phoneCall &MTPphone_phoneCall::c_phone_phoneCall() const {
-	t_assert(data != nullptr);
-	return static_cast<const MTPDphone_phoneCall&>(*data);
+	return queryData<MTPDphone_phoneCall>();
 }
-inline MTPphone_phoneCall::MTPphone_phoneCall(std::shared_ptr<const MTPDphone_phoneCall> &&data) : mtpDataOwner(std::move(data)) {
+inline MTPphone_phoneCall::MTPphone_phoneCall(const MTPDphone_phoneCall *data) : TypeDataOwner(data) {
 }
 inline MTPphone_phoneCall MTP_phone_phoneCall(const MTPPhoneCall &_phone_call, const MTPVector<MTPUser> &_users) {
 	return MTP::internal::TypeCreator::new_phone_phoneCall(_phone_call, _users);

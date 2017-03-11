@@ -967,9 +967,9 @@ protected:
 template <typename T>
 class HistoryItemInstantiated {
 public:
-	template <typename ... Args>
-	static T *_create(Args ... args) {
-		T *result = new T(args ...);
+	template <typename ...Args>
+	static T *_create(Args &&... args) {
+		T *result = new T(std::forward<Args>(args)...);
 		result->finishCreate();
 		return result;
 	}

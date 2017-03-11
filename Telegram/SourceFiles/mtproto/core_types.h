@@ -174,27 +174,93 @@ public:
 	}
 };
 
-class mtpData {
+namespace MTP {
+namespace internal {
+
+class TypeData {
 public:
-	virtual ~mtpData() {
+	TypeData() = default;
+	TypeData(const TypeData &other) = delete;
+	TypeData(TypeData &&other) = delete;
+	TypeData &operator=(const TypeData &other) = delete;
+	TypeData &operator=(TypeData &&other) = delete;
+
+	void incrementCounter() const {
+		_counter.ref();
 	}
+
+	bool decrementCounter() const {
+		return _counter.deref();
+	}
+
+	virtual ~TypeData() {
+	}
+
+private:
+	mutable QAtomicInt _counter = { 1 };
 
 };
 
-class mtpDataOwner {
+class TypeDataOwner {
 public:
-	mtpDataOwner(mtpDataOwner &&other) = default;
-	mtpDataOwner(const mtpDataOwner &other) = default;
-	mtpDataOwner &operator=(mtpDataOwner &&other) = default;
-	mtpDataOwner &operator=(const mtpDataOwner &other) = default;
+	TypeDataOwner(TypeDataOwner &&other) : _data(base::take(other._data)) {
+	}
+	TypeDataOwner(const TypeDataOwner &other) : _data(other._data) {
+		incrementCounter();
+	}
+	TypeDataOwner &operator=(TypeDataOwner &&other) {
+		if (other._data != _data) {
+			decrementCounter();
+			_data = base::take(other._data);
+		}
+		return *this;
+	}
+	TypeDataOwner &operator=(const TypeDataOwner &other) {
+		if (other._data != _data) {
+			setData(other._data);
+			incrementCounter();
+		}
+		return *this;
+	}
+	~TypeDataOwner() {
+		decrementCounter();
+	}
 
 protected:
-	mtpDataOwner() = default;
-	explicit mtpDataOwner(std::shared_ptr<const mtpData> &&data) : data(data) {
+	TypeDataOwner() = default;
+	TypeDataOwner(const TypeData *data) : _data(data) {
 	}
-	std::shared_ptr<const mtpData> data;
+
+	void setData(const TypeData *data) {
+		decrementCounter();
+		_data = data;
+	}
+
+	template <typename DataType>
+	const DataType &queryData() const {
+		// Unsafe cast, type should be checked by the caller.
+		t_assert(_data != nullptr);
+		return static_cast<const DataType &>(*_data);
+	}
+
+private:
+	void incrementCounter() {
+		if (_data) {
+			_data->incrementCounter();
+		}
+	}
+	void decrementCounter() {
+		if (_data && !_data->decrementCounter()) {
+			delete base::take(_data);
+		}
+	}
+
+	const TypeData * _data = nullptr;
 
 };
+
+} // namespace internal
+} // namespace MTP
 
 enum {
 	// core types
