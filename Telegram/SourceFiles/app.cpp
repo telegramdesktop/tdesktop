@@ -2319,6 +2319,11 @@ namespace {
 		ClickHandler::clearActive();
 		ClickHandler::unpressed();
 
+		if (AuthSession::Exists()) {
+			// Clear notifications to prevent any showNotification() calls while destroying items.
+			AuthSession::Current().notifications()->clearAllFast();
+		}
+
 		histories().clear();
 
 		clearStorageImages();
