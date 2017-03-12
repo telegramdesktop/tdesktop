@@ -772,7 +772,9 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	})();
-	icon->paintInCenter(p, inner);
+	if (icon) {
+		icon->paintInCenter(p, inner);
+	}
 	if (radial) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
