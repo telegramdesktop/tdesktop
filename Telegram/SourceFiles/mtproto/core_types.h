@@ -185,18 +185,18 @@ public:
 	TypeData &operator=(const TypeData &other) = delete;
 	TypeData &operator=(TypeData &&other) = delete;
 
-	void incrementCounter() const {
-		_counter.ref();
-	}
-
-	bool decrementCounter() const {
-		return _counter.deref();
-	}
-
 	virtual ~TypeData() {
 	}
 
 private:
+	void incrementCounter() const {
+		_counter.ref();
+	}
+	bool decrementCounter() const {
+		return _counter.deref();
+	}
+	friend class TypeDataOwner;
+
 	mutable QAtomicInt _counter = { 1 };
 
 };

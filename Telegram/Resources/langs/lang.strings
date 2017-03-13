@@ -403,6 +403,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Username";
 "lng_connection_password_ph" = "Password";
 "lng_connection_save" = "Save";
+
+"lng_settings_blocked_users" = "Blocked users";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -427,6 +429,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "No other sessions";
 "lng_sessions_other_desc" = "You can log in to Telegram from other mobile, tablet and desktop devices, using the same phone number. All your data will be instantly synchronized.";
 "lng_sessions_terminate_all" = "Terminate all other sessions";
+
+"lng_blocked_list_title" = "Blocked users";
+"lng_blocked_list_unknown_phone" = "unknown phone";
+"lng_blocked_list_unblock" = "Unblock";
+"lng_blocked_list_add" = "Block user";
+"lng_blocked_list_about" = "Blocked users can't send you messages or add you to groups. They will not see your profile pictures, online and last seen status.";
 
 "lng_preview_loading" = "Getting Link Info...";
 

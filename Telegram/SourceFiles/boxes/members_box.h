@@ -34,20 +34,22 @@ enum class MembersFilter {
 };
 using MembersAlreadyIn = OrderedSet<UserData*>;
 
-class MembersAddButton : public Ui::RippleButton {
-public:
-	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-	QImage prepareRippleMask() const override;
-	QPoint prepareRippleStartPosition() const override;
-
-private:
-	const style::TwoIconButton &_st;
-
-};
+// Not used for now.
+//
+//class MembersAddButton : public Ui::RippleButton {
+//public:
+//	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
+//
+//protected:
+//	void paintEvent(QPaintEvent *e) override;
+//
+//	QImage prepareRippleMask() const override;
+//	QPoint prepareRippleStartPosition() const override;
+//
+//private:
+//	const style::TwoIconButton &_st;
+//
+//};
 
 class MembersBox : public BoxContent {
 	Q_OBJECT

@@ -32,6 +32,8 @@
 <(src_loc)/boxes/members_box.h
 <(src_loc)/boxes/notifications_box.cpp
 <(src_loc)/boxes/notifications_box.h
+<(src_loc)/boxes/peer_list_box.cpp
+<(src_loc)/boxes/peer_list_box.h
 <(src_loc)/boxes/passcodebox.cpp
 <(src_loc)/boxes/passcodebox.h
 <(src_loc)/boxes/photocropbox.cpp
@@ -295,6 +297,8 @@
 <(src_loc)/settings/settings_advanced_widget.h
 <(src_loc)/settings/settings_background_widget.cpp
 <(src_loc)/settings/settings_background_widget.h
+<(src_loc)/settings/settings_blocked_box_controller.cpp
+<(src_loc)/settings/settings_blocked_box_controller.h
 <(src_loc)/settings/settings_block_widget.cpp
 <(src_loc)/settings/settings_block_widget.h
 <(src_loc)/settings/settings_chat_settings_widget.cpp

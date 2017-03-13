@@ -62,17 +62,6 @@ public:
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
-	void setDelegate(BoxContentDelegate *newDelegate) {
-		_delegate = newDelegate;
-		prepare();
-		setInnerFocus();
-	}
-	virtual void setInnerFocus() {
-		setFocus();
-	}
-	virtual void closeHook() {
-	}
-
 	bool isBoxShown() const {
 		return getDelegate()->isBoxShown();
 	}
@@ -80,17 +69,6 @@ public:
 		getDelegate()->closeBox();
 	}
 
-public slots:
-	void onScrollToY(int top, int bottom = -1);
-
-	void onDraggingScrollDelta(int delta);
-
-protected:
-	virtual void prepare() = 0;
-
-	void setLayerType(bool layerType) {
-		getDelegate()->setLayerType(layerType);
-	}
 	void setTitle(const QString &title, const QString &additional = QString()) {
 		getDelegate()->setTitle(title, additional);
 	}
@@ -105,6 +83,30 @@ protected:
 	}
 	void updateButtonsGeometry() {
 		getDelegate()->updateButtonsPositions();
+	}
+
+	virtual void setInnerFocus() {
+		setFocus();
+	}
+	virtual void closeHook() {
+	}
+
+	void setDelegate(BoxContentDelegate *newDelegate) {
+		_delegate = newDelegate;
+		prepare();
+		setInnerFocus();
+	}
+
+public slots:
+	void onScrollToY(int top, int bottom = -1);
+
+	void onDraggingScrollDelta(int delta);
+
+protected:
+	virtual void prepare() = 0;
+
+	void setLayerType(bool layerType) {
+		getDelegate()->setLayerType(layerType);
 	}
 
 	void setNoContentMargin(bool noContentMargin) {

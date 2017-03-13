@@ -85,6 +85,7 @@ public:
 	PrivacyWidget(QWidget *parent, UserData *self);
 
 private slots:
+	void onBlockedUsers();
 	void onAutoLock();
 	void onShowSessions();
 
@@ -92,6 +93,7 @@ private:
 	void createControls();
 	void autoLockUpdated();
 
+	object_ptr<Ui::LinkButton> _blockedUsers = { nullptr };
 	object_ptr<LocalPasscodeState> _localPasscodeState = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
 	object_ptr<CloudPasswordState> _cloudPasswordState = { nullptr };

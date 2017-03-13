@@ -34,31 +34,33 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "storage/file_download.h"
 
-MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
-, _st(st) {
-	resize(_st.width, _st.height);
-	setCursor(style::cur_pointer);
-}
-
-void MembersAddButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	auto ms = getms();
-	auto over = isOver();
-	auto down = isDown();
-
-	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
-	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
-	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
-}
-
-QImage MembersAddButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
-}
-
-QPoint MembersAddButton::prepareRippleStartPosition() const {
-	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
-}
+// Not used for now.
+//
+//MembersAddButton::MembersAddButton(QWidget *parent, const style::TwoIconButton &st) : RippleButton(parent, st.ripple)
+//, _st(st) {
+//	resize(_st.width, _st.height);
+//	setCursor(style::cur_pointer);
+//}
+//
+//void MembersAddButton::paintEvent(QPaintEvent *e) {
+//	Painter p(this);
+//
+//	auto ms = getms();
+//	auto over = isOver();
+//	auto down = isDown();
+//
+//	((over || down) ? _st.iconBelowOver : _st.iconBelow).paint(p, _st.iconPosition, width());
+//	paintRipple(p, _st.rippleAreaPosition.x(), _st.rippleAreaPosition.y(), ms);
+//	((over || down) ? _st.iconAboveOver : _st.iconAbove).paint(p, _st.iconPosition, width());
+//}
+//
+//QImage MembersAddButton::prepareRippleMask() const {
+//	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+//}
+//
+//QPoint MembersAddButton::prepareRippleStartPosition() const {
+//	return mapFromGlobal(QCursor::pos()) - _st.rippleAreaPosition;
+//}
 
 MembersBox::MembersBox(QWidget*, ChannelData *channel, MembersFilter filter)
 : _channel(channel)
