@@ -28,7 +28,7 @@
       '<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles.timestamp',
     ],
     'action': [
-      'python', '<(DEPTH)/update_dependent.py', '-tstyle',
+      'python', '<(DEPTH)/update_dependent.py', '--styles',
       '-I<(res_loc)', '-I<(src_loc)',
       '-o<(SHARED_INTERMEDIATE_DIR)/update_dependent_styles.timestamp',
       '<@(style_files)',
@@ -39,13 +39,13 @@
     'inputs': [
       '<(DEPTH)/update_dependent.py',
       '<@(qrc_files)',
-      '<!@(python <(DEPTH)/update_dependent.py -tqrc_list <@(qrc_files))',
+      '<!@(python <(DEPTH)/update_dependent.py --qrc_list <@(qrc_files))',
     ],
     'outputs': [
       '<(SHARED_INTERMEDIATE_DIR)/update_dependent_qrc.timestamp',
     ],
     'action': [
-      'python', '<(DEPTH)/update_dependent.py', '-tqrc',
+      'python', '<(DEPTH)/update_dependent.py', '--qrc',
       '-o<(SHARED_INTERMEDIATE_DIR)/update_dependent_qrc.timestamp',
       '<@(qrc_files)',
     ],

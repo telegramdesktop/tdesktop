@@ -135,6 +135,11 @@
       }],
     ],
 
+    # If you need moc sources include a line in your 'sources':
+    # '<!@(python <(DEPTH)/list_sources.py [sources] <(qt_moc_list_sources_arg))'
+    # where [sources] contains all your source files
+    'qt_moc_list_sources_arg': '--moc-prefix SHARED_INTERMEDIATE_DIR/<(_target_name)/moc/moc_',
+
     'linux_path_xkbcommon%': '/usr/local',
     'linux_lib_ssl%': '/usr/local/ssl/lib/libssl.a',
     'linux_lib_crypto%': '/usr/local/ssl/lib/libcrypto.a',
@@ -265,6 +270,5 @@
       '-o', '<(SHARED_INTERMEDIATE_DIR)/<(_target_name)/moc/moc_<(RULE_INPUT_ROOT).cpp',
     ],
     'message': 'Moc-ing <(RULE_INPUT_ROOT).h..',
-    'process_outputs_as_sources': 1,
   }],
 }
