@@ -120,6 +120,7 @@ void BlockedBoxController::handleBlockedEvent(UserData *user) {
 	if (user->isBlocked()) {
 		if (prependRow(user)) {
 			view()->refreshRows();
+			view()->onScrollToY(0);
 		}
 	} else if (auto row = view()->findRow(user)) {
 		view()->removeRow(row);
@@ -166,6 +167,7 @@ void BlockUserBoxController::prepare() {
 	view()->setTitle(lang(lng_blocked_list_add_title));
 	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
 	view()->setSearchable(true);
+	view()->setSearchNoResultsText(lang(lng_blocked_list_not_found));
 
 	rebuildRows();
 
@@ -191,7 +193,7 @@ void BlockUserBoxController::prepare() {
 
 void BlockUserBoxController::rebuildRows() {
 	auto ms = getms();
-	auto wasEmpty = !view()->rowsCount();
+	auto wasEmpty = !view()->fullRowsCount();
 	auto appendList = [this](auto chats) {
 		auto count = 0;
 		for_const (auto row, chats->all()) {
@@ -220,7 +222,7 @@ void BlockUserBoxController::rebuildRows() {
 }
 
 void BlockUserBoxController::checkForEmptyRows() {
-	if (view()->rowsCount()) {
+	if (view()->fullRowsCount()) {
 		view()->setAboutText(QString());
 	} else {
 		auto &sessionData = AuthSession::Current().data();

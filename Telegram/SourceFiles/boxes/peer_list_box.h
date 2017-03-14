@@ -27,6 +27,7 @@ class RippleAnimation;
 class MultiSelect;
 template <typename Widget>
 class WidgetSlideWrap;
+class FlatLabel;
 } // namespace Ui
 
 class PeerListBox : public BoxContent {
@@ -73,11 +74,11 @@ public:
 		QString action() const;
 		int actionWidth() const;
 
-		void setIndex(int index) {
-			_index = index;
+		void setAbsoluteIndex(int index) {
+			_absoluteIndex = index;
 		}
-		int index() const {
-			return _index;
+		int absoluteIndex() const {
+			return _absoluteIndex;
 		}
 		bool disabled() const {
 			return _disabled;
@@ -107,7 +108,7 @@ public:
 		QString _action;
 		int _actionWidth = 0;
 		bool _disabled = false;
-		int _index = -1;
+		int _absoluteIndex = -1;
 		OrderedSet<QChar> _nameFirstChars;
 
 	};
@@ -147,10 +148,13 @@ public:
 	Row *findRow(PeerData *peer);
 	void updateRow(Row *row);
 	void removeRow(Row *row);
-	int rowsCount() const;
+	int fullRowsCount() const;
 	void setAboutText(const QString &aboutText);
+	void setAbout(object_ptr<Ui::FlatLabel> about);
 	void refreshRows();
 	void setSearchable(bool searchable);
+	void setSearchNoResultsText(const QString &noResultsText);
+	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
 
 	// callback takes two iterators, like [](auto &begin, auto &end).
 	template <typename ReorderCallback>
@@ -169,6 +173,7 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
+	void searchQueryChanged(const QString &query);
 
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
@@ -193,20 +198,29 @@ public:
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
+	void searchQueryChanged(QString query);
+	void submitted();
+
 	// Interface for the controller.
 	void appendRow(std::unique_ptr<Row> row);
 	void prependRow(std::unique_ptr<Row> row);
 	Row *findRow(PeerData *peer);
-	void updateRow(Row *row);
+	void updateRow(Row *row) {
+		updateRow(row, RowIndex());
+	}
 	void removeRow(Row *row);
-	int rowsCount() const;
-	void setAboutText(const QString &aboutText);
+	int fullRowsCount() const;
+	void setAbout(object_ptr<Ui::FlatLabel> about);
 	void refreshRows();
 	void setSearchable(bool searchable);
+	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
 
 	template <typename ReorderCallback>
 	void reorderRows(ReorderCallback &&callback) {
-		callback(std::begin(_rows), std::end(_rows));
+		callback(_rows.begin(), _rows.end());
+		for (auto &searchEntity : _searchIndex) {
+			callback(searchEntity.second.begin(), searchEntity.second.end());
+		}
 		refreshIndices();
 	}
 
@@ -228,39 +242,74 @@ protected:
 private:
 	void refreshIndices();
 
-	struct SelectedRow {
-		int index = -1;
-		bool action = false;
+	struct RowIndex {
+		RowIndex() = default;
+		explicit RowIndex(int value) : value(value) {
+		}
+		int value = -1;
 	};
-	friend inline bool operator==(SelectedRow a, SelectedRow b) {
-		return (a.index == b.index) && (a.action == b.action);
+	friend inline bool operator==(RowIndex a, RowIndex b) {
+		return (a.value == b.value);
 	}
-	friend inline bool operator!=(SelectedRow a, SelectedRow b) {
+	friend inline bool operator!=(RowIndex a, RowIndex b) {
 		return !(a == b);
 	}
 
-	void setPressed(SelectedRow pressed);
+	struct Selected {
+		Selected() = default;
+		Selected(RowIndex index, bool action) : index(index), action(action) {
+		}
+		Selected(int index, bool action) : index(index), action(action) {
+		}
+		RowIndex index;
+		bool action = false;
+	};
+	friend inline bool operator==(Selected a, Selected b) {
+		return (a.index == b.index) && (a.action == b.action);
+	}
+	friend inline bool operator!=(Selected a, Selected b) {
+		return !(a == b);
+	}
+
+	void setSelected(Selected selected);
+	void setPressed(Selected pressed);
+	void restoreSelection();
 
 	void updateSelection();
 	void loadProfilePhotos();
 	void checkScrollForPreload();
 
-	void updateRowWithIndex(int index);
-	int getRowTop(int index) const;
+	void updateRow(Row *row, RowIndex hint);
+	void updateRow(RowIndex row);
+	int getRowTop(RowIndex row) const;
+	Row *getRow(RowIndex element);
+	RowIndex findRowIndex(Row *row, RowIndex hint = RowIndex());
 
-	void paintRow(Painter &p, TimeMs ms, int index);
+	void paintRow(Painter &p, TimeMs ms, RowIndex index);
 
 	void addRowEntry(Row *row);
 	void addToSearchIndex(Row *row);
 	void removeFromSearchIndex(Row *row);
+	bool showingSearch() const {
+		return !_searchQuery.isEmpty();
+	}
+	int shownRowsCount() const {
+		return showingSearch() ? _filterResults.size() : _rows.size();
+	}
+	template <typename Callback>
+	bool enumerateShownRows(Callback callback);
+	template <typename Callback>
+	bool enumerateShownRows(int from, int to, Callback callback);
+
+	int labelHeight() const;
 
 	Controller *_controller = nullptr;
 	int _rowHeight = 0;
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
 
-	SelectedRow _selected;
-	SelectedRow _pressed;
+	Selected _selected;
+	Selected _pressed;
 	bool _mouseSelection = false;
 
 	std::vector<std::unique_ptr<Row>> _rows;
@@ -268,10 +317,11 @@ private:
 
 	bool _searchable = false;
 	std::map<QChar, std::vector<Row*>> _searchIndex;
+	QString _searchQuery;
+	std::vector<Row*> _filterResults;
 
-	int _aboutWidth = 0;
-	int _aboutHeight = 0;
-	Text _about;
+	object_ptr<Ui::FlatLabel> _about = { nullptr };
+	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 
 	QPoint _lastMousePosition;
 

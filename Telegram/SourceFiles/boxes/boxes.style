@@ -373,6 +373,12 @@ notificationSampleOpacity: 0.5;
 notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
+membersAbout: FlatLabel(defaultFlatLabel) {
+	width: 332px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+	style: boxLabelStyle;
+}
 
 sessionsScroll: boxLayerScroll;
 sessionsHeight: 350px;
