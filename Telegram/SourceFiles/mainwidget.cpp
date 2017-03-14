@@ -1154,6 +1154,10 @@ Dialogs::IndexedList *MainWidget::dialogsList() {
 	return _dialogs->dialogsList();
 }
 
+Dialogs::IndexedList *MainWidget::contactsNoDialogsList() {
+	return _dialogs->contactsNoDialogsList();
+}
+
 namespace {
 QString parseCommandFromMessage(History *history, const QString &message) {
 	if (history->peer->id != peerFromUser(ServiceUserId)) {
@@ -3563,7 +3567,7 @@ bool MainWidget::failChannelDifference(ChannelData *channel, const RPCError &err
 }
 
 void MainWidget::gotState(const MTPupdates_State &state) {
-	const auto &d(state.c_updates_state());
+	auto &d = state.c_updates_state();
 	updSetState(d.vpts.v, d.vdate.v, d.vqts.v, d.vseq.v);
 
 	_lastUpdateTime = getms(true);

@@ -24,6 +24,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class RippleAnimation;
+class MultiSelect;
+template <typename Widget>
+class WidgetSlideWrap;
 } // namespace Ui
 
 class PeerListBox : public BoxContent {
@@ -76,11 +79,21 @@ public:
 		int index() const {
 			return _index;
 		}
+		bool disabled() const {
+			return _disabled;
+		}
 
 		template <typename UpdateCallback>
 		void addRipple(QSize size, QPoint point, UpdateCallback updateCallback);
 		void stopLastRipple();
 		void paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+
+		void setNameFirstChars(const OrderedSet<QChar> &nameFirstChars) {
+			_nameFirstChars = nameFirstChars;
+		}
+		const OrderedSet<QChar> &nameFirstChars() const {
+			return _nameFirstChars;
+		}
 
 		void lazyInitialize();
 
@@ -95,6 +108,7 @@ public:
 		int _actionWidth = 0;
 		bool _disabled = false;
 		int _index = -1;
+		OrderedSet<QChar> _nameFirstChars;
 
 	};
 
@@ -133,16 +147,31 @@ public:
 	Row *findRow(PeerData *peer);
 	void updateRow(Row *row);
 	void removeRow(Row *row);
+	int rowsCount() const;
 	void setAboutText(const QString &aboutText);
 	void refreshRows();
+	void setSearchable(bool searchable);
+
+	// callback takes two iterators, like [](auto &begin, auto &end).
+	template <typename ReorderCallback>
+	void reorderRows(ReorderCallback &&callback) {
+		_inner->reorderRows(std::forward<ReorderCallback>(callback));
+	}
 
 protected:
 	void prepare() override;
+	void setInnerFocus() override;
 
 	void keyPressEvent(QKeyEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
+	int getTopScrollSkip() const;
+	void updateScrollSkips();
+
+	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select = { nullptr };
+
 	class Inner;
 	QPointer<Inner> _inner;
 
@@ -157,8 +186,8 @@ class PeerListBox::Inner : public TWidget, public RPCSender, private base::Subsc
 public:
 	Inner(QWidget *parent, Controller *controller);
 
-	void selectSkip(int32 dir);
-	void selectSkipPage(int32 h, int32 dir);
+	void selectSkip(int direction);
+	void selectSkipPage(int height, int direction);
 
 	void clearSelection();
 
@@ -170,8 +199,16 @@ public:
 	Row *findRow(PeerData *peer);
 	void updateRow(Row *row);
 	void removeRow(Row *row);
+	int rowsCount() const;
 	void setAboutText(const QString &aboutText);
 	void refreshRows();
+	void setSearchable(bool searchable);
+
+	template <typename ReorderCallback>
+	void reorderRows(ReorderCallback &&callback) {
+		callback(std::begin(_rows), std::end(_rows));
+		refreshIndices();
+	}
 
 signals:
 	void mustScrollTo(int ymin, int ymax);
@@ -189,6 +226,8 @@ protected:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 private:
+	void refreshIndices();
+
 	struct SelectedRow {
 		int index = -1;
 		bool action = false;
@@ -211,6 +250,10 @@ private:
 
 	void paintRow(Painter &p, TimeMs ms, int index);
 
+	void addRowEntry(Row *row);
+	void addToSearchIndex(Row *row);
+	void removeFromSearchIndex(Row *row);
+
 	Controller *_controller = nullptr;
 	int _rowHeight = 0;
 	int _visibleTop = 0;
@@ -221,7 +264,10 @@ private:
 	bool _mouseSelection = false;
 
 	std::vector<std::unique_ptr<Row>> _rows;
-	QMap<PeerData*, Row*> _rowsByPeer;
+	std::map<PeerData*, Row*> _rowsByPeer;
+
+	bool _searchable = false;
+	std::map<QChar, std::vector<Row*>> _searchIndex;
 
 	int _aboutWidth = 0;
 	int _aboutHeight = 0;

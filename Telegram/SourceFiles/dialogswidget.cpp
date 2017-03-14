@@ -2199,6 +2199,10 @@ Dialogs::IndexedList *DialogsInner::dialogsList() {
 	return _dialogs.get();
 }
 
+Dialogs::IndexedList *DialogsInner::contactsNoDialogsList() {
+	return _contactsNoDialogs.get();
+}
+
 int32 DialogsInner::lastSearchDate() const {
 	return _lastSearchDate;
 }
@@ -2546,6 +2550,11 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 
 	_dialogsRequestId = 0;
 	loadDialogs();
+
+	AuthSession::Current().data().moreChatsLoaded().notify();
+	if (_dialogsFull) {
+		AuthSession::Current().data().allChatsLoaded().set(true);
+	}
 }
 
 void DialogsWidget::pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs, mtpRequestId requestId) {
@@ -2578,6 +2587,8 @@ void DialogsWidget::pinnedDialogsReceived(const MTPmessages_PeerDialogs &dialogs
 
 	_pinnedDialogsRequestId = 0;
 	_pinnedDialogsReceived = true;
+
+	AuthSession::Current().data().moreChatsLoaded().notify();
 }
 
 bool DialogsWidget::dialogsFailed(const RPCError &error, mtpRequestId requestId) {
@@ -2744,6 +2755,8 @@ void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &result) {
 		_inner->contactsReceived(d.vcontacts.v);
 	}
 	if (App::main()) App::main()->contactsReceived();
+
+	AuthSession::Current().data().contactsLoaded().set(true);
 }
 
 bool DialogsWidget::contactsFailed(const RPCError &error) {
@@ -3216,6 +3229,10 @@ Dialogs::IndexedList *DialogsWidget::contactsList() {
 
 Dialogs::IndexedList *DialogsWidget::dialogsList() {
 	return _inner->dialogsList();
+}
+
+Dialogs::IndexedList *DialogsWidget::contactsNoDialogsList() {
+	return _inner->contactsNoDialogsList();
 }
 
 bool DialogsWidget::onCancelSearch() {

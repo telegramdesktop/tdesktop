@@ -34,6 +34,8 @@ public:
 private:
 	void receivedUsers(const QVector<MTPContactBlocked> &result);
 	void handleBlockedEvent(UserData *user);
+	void blockUser();
+
 	bool appendRow(UserData *user);
 	bool prependRow(UserData *user);
 	std::unique_ptr<PeerListBox::Row> createRow(UserData *user) const;
@@ -41,6 +43,33 @@ private:
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
 	bool _allLoaded = false;
+
+};
+
+class BlockUserBoxController : public QObject, public PeerListBox::Controller, private base::Subscriber {
+public:
+	void prepare() override;
+	void rowClicked(PeerData *peer) override;
+
+private:
+	void rebuildRows();
+	void checkForEmptyRows();
+	void updateIsBlocked(PeerListBox::Row *row, UserData *user) const;
+	bool appendRow(History *history);
+
+	class Row : public PeerListBox::Row {
+	public:
+		Row(History *history) : PeerListBox::Row(history->peer), _history(history) {
+		}
+		History *history() const {
+			return _history;
+		}
+
+	private:
+		History *_history = nullptr;
+
+	};
+	std::unique_ptr<Row> createRow(History *history) const;
 
 };
 

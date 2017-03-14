@@ -285,6 +285,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 
 	struct MessageToSend {
 		History *history = nullptr;

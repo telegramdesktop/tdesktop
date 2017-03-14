@@ -23,6 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "lang.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "mainwidget.h"
+#include "dialogs/dialogs_indexed_list.h"
+#include "auth_session.h"
 
 namespace Settings {
 namespace {
@@ -34,14 +37,14 @@ constexpr auto kPerPage = 40;
 void BlockedBoxController::prepare() {
 	view()->setTitle(lang(lng_blocked_list_title));
 	view()->addButton(lang(lng_close), [this] { view()->closeBox(); });
+	view()->addLeftButton(lang(lng_blocked_list_add), [this] { blockUser(); });
 	view()->setAboutText(lang(lng_contacts_loading));
 	view()->refreshRows();
 
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
-		if (!update.peer->isUser()) {
-			return;
+		if (auto user = update.peer->asUser()) {
+			handleBlockedEvent(user);
 		}
-		handleBlockedEvent(update.peer->asUser());
 	}));
 
 	preloadRows();
@@ -124,6 +127,10 @@ void BlockedBoxController::handleBlockedEvent(UserData *user) {
 	}
 }
 
+void BlockedBoxController::blockUser() {
+	Ui::show(Box<PeerListBox>(std::make_unique<BlockUserBoxController>()), KeepOtherLayers);
+}
+
 bool BlockedBoxController::appendRow(UserData *user) {
 	if (view()->findRow(user)) {
 		return false;
@@ -152,6 +159,106 @@ std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user
 		return App::formatPhone(user->phone());
 	};
 	row->setCustomStatus(status());
+	return row;
+}
+
+void BlockUserBoxController::prepare() {
+	view()->setTitle(lang(lng_blocked_list_add_title));
+	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
+	view()->setSearchable(true);
+
+	rebuildRows();
+
+	auto &sessionData = AuthSession::Current().data();
+	subscribe(sessionData.contactsLoaded(), [this](bool loaded) {
+		rebuildRows();
+	});
+	subscribe(sessionData.moreChatsLoaded(), [this] {
+		rebuildRows();
+	});
+	subscribe(sessionData.allChatsLoaded(), [this](bool loaded) {
+		checkForEmptyRows();
+	});
+	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
+		if (auto user = update.peer->asUser()) {
+			if (auto row = view()->findRow(user)) {
+				updateIsBlocked(row, user);
+				view()->updateRow(row);
+			}
+		}
+	}));
+}
+
+void BlockUserBoxController::rebuildRows() {
+	auto ms = getms();
+	auto wasEmpty = !view()->rowsCount();
+	auto appendList = [this](auto chats) {
+		auto count = 0;
+		for_const (auto row, chats->all()) {
+			auto history = row->history();
+			if (history->peer->isUser()) {
+				if (appendRow(history)) {
+					++count;
+				}
+			}
+		}
+		return count;
+	};
+	auto added = appendList(App::main()->dialogsList());
+	added += appendList(App::main()->contactsNoDialogsList());
+	if (!wasEmpty && added > 0) {
+		view()->reorderRows([](auto &begin, auto &end) {
+			// Place dialogs list before contactsNoDialogs list.
+			std::stable_partition(begin, end, [](auto &row) {
+				auto history = static_cast<Row&>(*row).history();
+				return history->inChatList(Dialogs::Mode::All);
+			});
+		});
+	}
+	checkForEmptyRows();
+	view()->refreshRows();
+}
+
+void BlockUserBoxController::checkForEmptyRows() {
+	if (view()->rowsCount()) {
+		view()->setAboutText(QString());
+	} else {
+		auto &sessionData = AuthSession::Current().data();
+		auto loaded = sessionData.contactsLoaded().value() && sessionData.allChatsLoaded().value();
+		view()->setAboutText(lang(loaded ? lng_contacts_not_found : lng_contacts_loading));
+	}
+}
+
+void BlockUserBoxController::updateIsBlocked(PeerListBox::Row *row, UserData *user) const {
+	auto blocked = user->isBlocked();
+	row->setDisabled(blocked);
+	if (blocked) {
+		row->setCustomStatus(lang(lng_blocked_list_already_blocked));
+	} else {
+		row->clearCustomStatus();
+	}
+}
+
+void BlockUserBoxController::rowClicked(PeerData *peer) {
+	auto user = peer->asUser();
+	t_assert(user != nullptr);
+
+	App::api()->blockUser(user);
+	view()->closeBox();
+}
+
+bool BlockUserBoxController::appendRow(History *history) {
+	if (auto row = view()->findRow(history->peer)) {
+		updateIsBlocked(row, history->peer->asUser());
+		return false;
+	}
+	view()->appendRow(createRow(history));
+	return true;
+}
+
+std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(History *history) const {
+	auto row = std::make_unique<Row>(history);
+	updateIsBlocked(row.get(), history->peer->asUser());
 	return row;
 }
 

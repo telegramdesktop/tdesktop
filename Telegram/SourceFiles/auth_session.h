@@ -63,10 +63,33 @@ public:
 		return _notifications.get();
 	}
 
+	class Data {
+	public:
+		base::Variable<bool> &contactsLoaded() {
+			return _contactsLoaded;
+		}
+		base::Variable<bool> &allChatsLoaded() {
+			return _allChatsLoaded;
+		}
+		base::Observable<void> &moreChatsLoaded() {
+			return _moreChatsLoaded;
+		}
+
+	private:
+		base::Variable<bool> _contactsLoaded = { false } ;
+		base::Variable<bool> _allChatsLoaded = { false };
+		base::Observable<void> _moreChatsLoaded;
+
+	};
+	Data &data() {
+		return _data;
+	}
+
 	~AuthSession();
 
 private:
 	UserId _userId = 0;
+	Data _data;
 
 	const std::unique_ptr<Storage::Downloader> _downloader;
 	const std::unique_ptr<Window::Notifications::System> _notifications;

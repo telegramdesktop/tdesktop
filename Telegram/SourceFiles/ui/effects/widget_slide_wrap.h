@@ -41,6 +41,11 @@ public:
 	void showFast();
 	void hideFast();
 
+	void finishAnimation() {
+		_a_height.finish();
+		animationCallback();
+	}
+
 	TWidget *entity() {
 		return _entity;
 	}

@@ -91,6 +91,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
@@ -335,6 +336,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();

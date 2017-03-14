@@ -434,6 +434,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_blocked_list_unknown_phone" = "unknown phone";
 "lng_blocked_list_unblock" = "Unblock";
 "lng_blocked_list_add" = "Block user";
+"lng_blocked_list_add_title" = "Select user to block";
+"lng_blocked_list_already_blocked" = "blocked already";
 "lng_blocked_list_about" = "Blocked users can't send you messages or add you to groups. They will not see your profile pictures, online and last seen status.";
 
 "lng_preview_loading" = "Getting Link Info...";
