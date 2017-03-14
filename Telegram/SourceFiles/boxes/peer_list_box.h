@@ -83,6 +83,12 @@ public:
 		bool disabled() const {
 			return _disabled;
 		}
+		bool isGlobalSearchResult() const {
+			return _isGlobalSearchResult;
+		}
+		void setIsGlobalSearchResult(bool isGlobalSearchResult) {
+			_isGlobalSearchResult = isGlobalSearchResult;
+		}
 
 		template <typename UpdateCallback>
 		void addRipple(QSize size, QPoint point, UpdateCallback updateCallback);
@@ -110,6 +116,7 @@ public:
 		bool _disabled = false;
 		int _absoluteIndex = -1;
 		OrderedSet<QChar> _nameFirstChars;
+		bool _isGlobalSearchResult = false;
 
 	};
 
@@ -120,6 +127,9 @@ public:
 		virtual void rowActionClicked(PeerData *peer) {
 		}
 		virtual void preloadRows() {
+		}
+		virtual std::unique_ptr<Row> createGlobalRow(PeerData *peer) {
+			return std::unique_ptr<Row>();
 		}
 
 		virtual ~Controller() = default;
@@ -152,9 +162,16 @@ public:
 	void setAboutText(const QString &aboutText);
 	void setAbout(object_ptr<Ui::FlatLabel> about);
 	void refreshRows();
-	void setSearchable(bool searchable);
+	enum class SearchMode {
+		None,
+		Local,
+		Global,
+	};
+	void setSearchMode(SearchMode mode);
 	void setSearchNoResultsText(const QString &noResultsText);
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
+	void setSearchLoadingText(const QString &searchLoadingText);
+	void setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading);
 
 	// callback takes two iterators, like [](auto &begin, auto &end).
 	template <typename ReorderCallback>
@@ -212,8 +229,9 @@ public:
 	int fullRowsCount() const;
 	void setAbout(object_ptr<Ui::FlatLabel> about);
 	void refreshRows();
-	void setSearchable(bool searchable);
+	void setSearchMode(SearchMode mode);
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
+	void setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading);
 
 	template <typename ReorderCallback>
 	void reorderRows(ReorderCallback &&callback) {
@@ -241,6 +259,7 @@ protected:
 
 private:
 	void refreshIndices();
+	void appendGlobalSearchRow(std::unique_ptr<Row> row);
 
 	struct RowIndex {
 		RowIndex() = default;
@@ -289,6 +308,7 @@ private:
 
 	void addRowEntry(Row *row);
 	void addToSearchIndex(Row *row);
+	bool addingToSearchIndex() const;
 	void removeFromSearchIndex(Row *row);
 	bool showingSearch() const {
 		return !_searchQuery.isEmpty();
@@ -303,6 +323,14 @@ private:
 
 	int labelHeight() const;
 
+	void needGlobalSearch();
+	bool globalSearchInCache();
+	void globalSearchOnServer();
+	void globalSearchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
+	bool globalSearchFail(const RPCError &error, mtpRequestId requestId);
+	bool globalSearchLoading() const;
+	void clearGlobalSearchRows();
+
 	Controller *_controller = nullptr;
 	int _rowHeight = 0;
 	int _visibleTop = 0;
@@ -315,14 +343,23 @@ private:
 	std::vector<std::unique_ptr<Row>> _rows;
 	std::map<PeerData*, Row*> _rowsByPeer;
 
-	bool _searchable = false;
+	SearchMode _searchMode = SearchMode::None;
 	std::map<QChar, std::vector<Row*>> _searchIndex;
 	QString _searchQuery;
 	std::vector<Row*> _filterResults;
 
 	object_ptr<Ui::FlatLabel> _about = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
+	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
 
 	QPoint _lastMousePosition;
+
+	std::vector<std::unique_ptr<Row>> _globalSearchRows;
+	object_ptr<SingleTimer> _globalSearchTimer = { nullptr };
+	QString _globalSearchQuery;
+	QString _globalSearchHighlight;
+	mtpRequestId _globalSearchRequestId = 0;
+	std::map<QString, MTPcontacts_Found> _globalSearchCache;
+	std::map<mtpRequestId, QString> _globalSearchQueries;
 
 };

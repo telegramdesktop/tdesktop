@@ -152,9 +152,9 @@ void PeerListBox::refreshRows() {
 	_inner->refreshRows();
 }
 
-void PeerListBox::setSearchable(bool searchable) {
-	_inner->setSearchable(searchable);
-	if (searchable) {
+void PeerListBox::setSearchMode(SearchMode mode) {
+	_inner->setSearchMode(mode);
+	if (mode != SearchMode::None) {
 		if (!_select) {
 			_select = createMultiSelect();
 			_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { _inner->submitted(); });
@@ -178,6 +178,18 @@ void PeerListBox::setSearchNoResultsText(const QString &searchNoResultsText) {
 
 void PeerListBox::setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults) {
 	_inner->setSearchNoResults(std::move(searchNoResults));
+}
+
+void PeerListBox::setSearchLoadingText(const QString &searchLoadingText) {
+	if (searchLoadingText.isEmpty()) {
+		setSearchLoading(nullptr);
+	} else {
+		setSearchLoading(object_ptr<Ui::FlatLabel>(this, searchLoadingText, Ui::FlatLabel::InitType::Simple, st::membersAbout));
+	}
+}
+
+void PeerListBox::setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading) {
+	_inner->setSearchLoading(std::move(searchLoading));
 }
 
 PeerListBox::Row::Row(PeerData *peer) : _peer(peer) {
@@ -294,14 +306,34 @@ void PeerListBox::Inner::appendRow(std::unique_ptr<Row> row) {
 	}
 }
 
+void PeerListBox::Inner::appendGlobalSearchRow(std::unique_ptr<Row> row) {
+	t_assert(showingSearch());
+	if (_rowsByPeer.find(row->peer()) == _rowsByPeer.cend()) {
+		row->setAbsoluteIndex(_globalSearchRows.size());
+		row->setIsGlobalSearchResult(true);
+		addRowEntry(row.get());
+		_filterResults.push_back(row.get());
+		_globalSearchRows.push_back(std::move(row));
+	}
+}
+
 void PeerListBox::Inner::addRowEntry(Row *row) {
 	_rowsByPeer.emplace(row->peer(), row);
-	if (_searchable) {
+	if (addingToSearchIndex()) {
 		addToSearchIndex(row);
 	}
 }
 
+bool PeerListBox::Inner::addingToSearchIndex() const {
+	// If we started indexing already, we continue.
+	return (_searchMode != SearchMode::None) || !_searchIndex.empty();
+}
+
 void PeerListBox::Inner::addToSearchIndex(Row *row) {
+	if (row->isGlobalSearchResult()) {
+		return;
+	}
+
 	removeFromSearchIndex(row);
 	row->setNameFirstChars(row->peer()->chars);
 	for_const (auto ch, row->nameFirstChars()) {
@@ -348,20 +380,21 @@ PeerListBox::Row *PeerListBox::Inner::findRow(PeerData *peer) {
 
 void PeerListBox::Inner::removeRow(Row *row) {
 	auto index = row->absoluteIndex();
-	t_assert(index >= 0 && index < _rows.size());
-	t_assert(_rows[index].get() == row);
+	auto isGlobalSearchResult = row->isGlobalSearchResult();
+	auto &eraseFrom = isGlobalSearchResult ? _globalSearchRows : _rows;
+
+	t_assert(index >= 0 && index < eraseFrom.size());
+	t_assert(eraseFrom[index].get() == row);
 
 	setSelected(Selected());
 	setPressed(Selected());
 
 	_rowsByPeer.erase(row->peer());
-	if (_searchable) {
-		removeFromSearchIndex(row);
-	}
+	removeFromSearchIndex(row);
 	_filterResults.erase(std::find(_filterResults.begin(), _filterResults.end(), row), _filterResults.end());
-	_rows.erase(_rows.begin() + index);
-	for (auto i = index, count = int(_rows.size()); i != count; ++i) {
-		_rows[i]->setAbsoluteIndex(i);
+	eraseFrom.erase(eraseFrom.begin() + index);
+	for (auto i = index, count = int(eraseFrom.size()); i != count; ++i) {
+		eraseFrom[i]->setAbsoluteIndex(i);
 	}
 
 	restoreSelection();
@@ -379,16 +412,22 @@ void PeerListBox::Inner::setAbout(object_ptr<Ui::FlatLabel> about) {
 }
 
 int PeerListBox::Inner::labelHeight() const {
-	if (showingSearch()) {
-		if (_filterResults.empty() && _searchNoResults) {
-			return st::membersAboutLimitPadding.top() + _searchNoResults->height() + st::membersAboutLimitPadding.bottom();
+	auto computeLabelHeight = [](auto &label) {
+		if (!label) {
+			return 0;
 		}
-		return 0;
+		return st::membersAboutLimitPadding.top() + label->height() + st::membersAboutLimitPadding.bottom();
+	};
+	if (showingSearch()) {
+		if (!_filterResults.empty()) {
+			return 0;
+		}
+		if (globalSearchLoading()) {
+			return computeLabelHeight(_searchLoading);
+		}
+		return computeLabelHeight(_searchNoResults);
 	}
-	if (_about) {
-		return st::membersAboutLimitPadding.top() + _about->height() + st::membersAboutLimitPadding.bottom();
-	}
-	return 0;
+	return computeLabelHeight(_about);
 }
 
 void PeerListBox::Inner::refreshRows() {
@@ -400,7 +439,11 @@ void PeerListBox::Inner::refreshRows() {
 	}
 	if (_searchNoResults) {
 		_searchNoResults->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top());
-		_searchNoResults->setVisible(showingSearch() && _filterResults.empty());
+		_searchNoResults->setVisible(showingSearch() && _filterResults.empty() && !globalSearchLoading());
+	}
+	if (_searchLoading) {
+		_searchLoading->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top());
+		_searchLoading->setVisible(showingSearch() && _filterResults.empty() && globalSearchLoading());
 	}
 	if (_visibleBottom > 0) {
 		checkScrollForPreload();
@@ -408,13 +451,27 @@ void PeerListBox::Inner::refreshRows() {
 	update();
 }
 
-void PeerListBox::Inner::setSearchable(bool searchable) {
-	// We don't destroy a search index if we have one already.
-	if (searchable && !_searchable) {
-		_searchable = true;
-		for_const (auto &row, _rows) {
-			addToSearchIndex(row.get());
+void PeerListBox::Inner::setSearchMode(SearchMode mode) {
+	if (_searchMode != mode) {
+		if (!addingToSearchIndex()) {
+			for_const (auto &row, _rows) {
+				addToSearchIndex(row.get());
+			}
 		}
+		_searchMode = mode;
+		if (_searchMode == SearchMode::Global) {
+			if (!_searchLoading) {
+				setSearchLoading(object_ptr<Ui::FlatLabel>(this, lang(lng_contacts_loading), Ui::FlatLabel::InitType::Simple, st::membersAbout));
+			}
+		} else {
+			clearGlobalSearchRows();
+		}
+	}
+}
+
+void PeerListBox::Inner::clearGlobalSearchRows() {
+	while (!_globalSearchRows.empty()) {
+		removeRow(_globalSearchRows.back().get());
 	}
 }
 
@@ -422,6 +479,13 @@ void PeerListBox::Inner::setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoRe
 	_searchNoResults = std::move(searchNoResults);
 	if (_searchNoResults) {
 		_searchNoResults->setParent(this);
+	}
+}
+
+void PeerListBox::Inner::setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading) {
+	_searchLoading = std::move(searchLoading);
+	if (_searchLoading) {
+		_searchLoading->setParent(this);
 	}
 }
 
@@ -545,10 +609,37 @@ void PeerListBox::Inner::paintRow(Painter &p, TimeMs ms, RowIndex index) {
 		p.drawTextRight(actionRight, actionTop, width(), row->action(), actionWidth);
 	}
 
-	auto statusHasOnlineColor = (row->statusType() == Row::StatusType::Online);
 	p.setFont(st::contactsStatusFont);
-	p.setPen(statusHasOnlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
-	p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), row->status());
+	if (row->isGlobalSearchResult() && !peer->userName().isEmpty()) {
+		auto username = peer->userName();
+		if (!_globalSearchHighlight.isEmpty() && username.startsWith(_globalSearchHighlight, Qt::CaseInsensitive)) {
+			auto availableWidth = width() - namex - st::contactsPadding.right();
+			auto highlightedPart = '@' + username.mid(0, _globalSearchHighlight.size());
+			auto grayedPart = username.mid(_globalSearchHighlight.size());
+			auto highlightedWidth = st::contactsStatusFont->width(highlightedPart);
+			if (highlightedWidth >= availableWidth || grayedPart.isEmpty()) {
+				if (highlightedWidth > availableWidth) {
+					highlightedPart = st::contactsStatusFont->elided(highlightedPart, availableWidth);
+				}
+				p.setPen(st::contactsStatusFgOnline);
+				p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), highlightedPart);
+			} else {
+				grayedPart = st::contactsStatusFont->elided(grayedPart, availableWidth - highlightedWidth);
+				auto grayedWidth = st::contactsStatusFont->width(grayedPart);
+				p.setPen(st::contactsStatusFgOnline);
+				p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), highlightedPart);
+				p.setPen(selected ? st::contactsStatusFgOver : st::contactsStatusFg);
+				p.drawTextLeft(namex + highlightedWidth, st::contactsPadding.top() + st::contactsStatusTop, width(), grayedPart);
+			}
+		} else {
+			p.setPen(st::contactsStatusFgOnline);
+			p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), '@' + username);
+		}
+	} else {
+		auto statusHasOnlineColor = (row->statusType() == Row::StatusType::Online);
+		p.setPen(statusHasOnlineColor ? st::contactsStatusFgOnline : (selected ? st::contactsStatusFgOver : st::contactsStatusFg));
+		p.drawTextLeft(namex, st::contactsPadding.top() + st::contactsStatusTop, width(), row->status());
+	}
 }
 
 void PeerListBox::Inner::selectSkip(int direction) {
@@ -664,6 +755,7 @@ void PeerListBox::Inner::searchQueryChanged(QString query) {
 
 		_searchQuery = query;
 		_filterResults.clear();
+		clearGlobalSearchRows();
 		if (!searchWordsList.isEmpty()) {
 			auto minimalList = (const std::vector<Row*>*)nullptr;
 			for_const (auto &searchWord, searchWordsList) {
@@ -703,9 +795,94 @@ void PeerListBox::Inner::searchQueryChanged(QString query) {
 				}
 			}
 		}
+		if (_searchMode == SearchMode::Global) {
+			needGlobalSearch();
+		}
 		refreshRows();
 		restoreSelection();
 	}
+}
+
+void PeerListBox::Inner::needGlobalSearch() {
+	if (!globalSearchInCache()) {
+		if (!_globalSearchTimer) {
+			_globalSearchTimer = object_ptr<SingleTimer>(this);
+			_globalSearchTimer->setTimeoutHandler([this] { globalSearchOnServer(); });
+		}
+		_globalSearchTimer->start(AutoSearchTimeout);
+	}
+}
+
+bool PeerListBox::Inner::globalSearchInCache() {
+	auto it = _globalSearchCache.find(_searchQuery);
+	if (it != _globalSearchCache.cend()) {
+		_globalSearchQuery = _searchQuery;
+		_globalSearchRequestId = 0;
+		globalSearchDone(it->second, _globalSearchRequestId);
+		return true;
+	}
+	return false;
+}
+
+void PeerListBox::Inner::globalSearchOnServer() {
+	_globalSearchQuery = _searchQuery;
+	_globalSearchRequestId = MTP::send(MTPcontacts_Search(MTP_string(_globalSearchQuery), MTP_int(SearchPeopleLimit)), ::rpcDone(base::lambda_guarded(this, [this](const MTPcontacts_Found &result, mtpRequestId requestId) {
+		globalSearchDone(result, requestId);
+	})), ::rpcFail(base::lambda_guarded(this, [this](const RPCError &error, mtpRequestId requestId) {
+		return globalSearchFail(error, requestId);
+	})));
+	_globalSearchQueries.emplace(_globalSearchRequestId, _globalSearchQuery);
+}
+
+void PeerListBox::Inner::globalSearchDone(const MTPcontacts_Found &result, mtpRequestId requestId) {
+	auto query = _globalSearchQuery;
+	auto it = _globalSearchQueries.find(requestId);
+	if (it != _globalSearchQueries.cend()) {
+		query = it->second;
+		_globalSearchCache[query] = result;
+		_globalSearchQueries.erase(it);
+	}
+
+	if (_globalSearchRequestId == requestId) {
+		_globalSearchRequestId = 0;
+		if (result.type() == mtpc_contacts_found) {
+			auto &contacts = result.c_contacts_found();
+			App::feedUsers(contacts.vusers);
+			App::feedChats(contacts.vchats);
+
+			_globalSearchHighlight = query;
+			if (!_globalSearchHighlight.isEmpty() && _globalSearchHighlight[0] == '@') {
+				_globalSearchHighlight = _globalSearchHighlight.mid(1);
+			}
+
+			for_const (auto &mtpPeer, contacts.vresults.v) {
+				if (auto peer = App::peerLoaded(peerFromMTP(mtpPeer))) {
+					if (findRow(peer)) {
+						continue;
+					}
+					if (auto row = _controller->createGlobalRow(peer)) {
+						appendGlobalSearchRow(std::move(row));
+					}
+				}
+			}
+		}
+		refreshRows();
+		updateSelection();
+	}
+}
+
+bool PeerListBox::Inner::globalSearchFail(const RPCError &error, mtpRequestId requestId) {
+	if (MTP::isDefaultHandledError(error)) return false;
+
+	if (_globalSearchRequestId == requestId) {
+		_globalSearchRequestId = 0;
+		refreshRows();
+	}
+	return true;
+}
+
+bool PeerListBox::Inner::globalSearchLoading() const {
+	return (_globalSearchTimer && _globalSearchTimer->isActive()) || _globalSearchRequestId;
 }
 
 void PeerListBox::Inner::submitted() {
@@ -834,6 +1011,7 @@ PeerListBox::Row *PeerListBox::Inner::getRow(RowIndex index) {
 
 PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(Row *row, RowIndex hint) {
 	if (!showingSearch()) {
+		t_assert(!row->isGlobalSearchResult());
 		return RowIndex(row->absoluteIndex());
 	}
 
@@ -854,7 +1032,7 @@ PeerListBox::Inner::RowIndex PeerListBox::Inner::findRowIndex(Row *row, RowIndex
 
 void PeerListBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names &oldNames, const PeerData::NameFirstChars &oldChars) {
 	if (auto row = findRow(peer)) {
-		if (_searchable) {
+		if (addingToSearchIndex()) {
 			addToSearchIndex(row);
 		}
 		row->refreshName();

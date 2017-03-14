@@ -166,7 +166,7 @@ std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user
 void BlockUserBoxController::prepare() {
 	view()->setTitle(lang(lng_blocked_list_add_title));
 	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
-	view()->setSearchable(true);
+	view()->setSearchMode(PeerListBox::SearchMode::Global);
 	view()->setSearchNoResultsText(lang(lng_blocked_list_not_found));
 
 	rebuildRows();
@@ -247,6 +247,13 @@ void BlockUserBoxController::rowClicked(PeerData *peer) {
 
 	App::api()->blockUser(user);
 	view()->closeBox();
+}
+
+std::unique_ptr<PeerListBox::Row> BlockUserBoxController::createGlobalRow(PeerData *peer) {
+	if (auto user = peer->asUser()) {
+		return createRow(App::history(user));
+	}
+	return std::unique_ptr<Row>();
 }
 
 bool BlockUserBoxController::appendRow(History *history) {

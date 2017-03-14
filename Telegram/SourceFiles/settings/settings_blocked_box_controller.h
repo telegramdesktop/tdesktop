@@ -50,6 +50,7 @@ class BlockUserBoxController : public QObject, public PeerListBox::Controller, p
 public:
 	void prepare() override;
 	void rowClicked(PeerData *peer) override;
+	std::unique_ptr<PeerListBox::Row> createGlobalRow(PeerData *peer) override;
 
 private:
 	void rebuildRows();
