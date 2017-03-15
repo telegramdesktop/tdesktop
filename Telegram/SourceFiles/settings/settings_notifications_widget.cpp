@@ -106,15 +106,8 @@ void NotificationsWidget::onDesktopNotifications() {
 
 void NotificationsWidget::desktopEnabledUpdated() {
 	_desktopNotifications->setChecked(Global::DesktopNotify());
-	if (Global::DesktopNotify()) {
-		_showSenderName->slideDown();
-		if (_showSenderName->entity()->checked()) {
-			_showMessagePreview->slideDown();
-		}
-	} else {
-		_showSenderName->slideUp();
-		_showMessagePreview->slideUp();
-	}
+	_showSenderName->toggleAnimated(Global::DesktopNotify());
+	_showMessagePreview->toggleAnimated(Global::DesktopNotify() && _showSenderName->entity()->checked());
 }
 
 void NotificationsWidget::onShowSenderName() {
@@ -153,11 +146,7 @@ void NotificationsWidget::onShowMessagePreview() {
 }
 
 void NotificationsWidget::viewParamUpdated() {
-	if (_showSenderName->entity()->checked()) {
-		_showMessagePreview->slideDown();
-	} else {
-		_showMessagePreview->slideUp();
-	}
+	_showMessagePreview->toggleAnimated(_showSenderName->entity()->checked());
 }
 
 void NotificationsWidget::onNativeNotifications() {
@@ -170,11 +159,7 @@ void NotificationsWidget::onNativeNotifications() {
 
 	AuthSession::Current().notifications()->createManager();
 
-	if (Global::NativeNotifications()) {
-		_advanced->slideUp();
-	} else {
-		_advanced->slideDown();
-	}
+	_advanced->toggleAnimated(!Global::NativeNotifications());
 }
 
 void NotificationsWidget::onAdvanced() {

@@ -39,7 +39,7 @@ WidgetSlideWrap<TWidget>::WidgetSlideWrap(QWidget *parent
 	resizeToWidth(_realSize.width());
 }
 
-void WidgetSlideWrap<TWidget>::slideUp() {
+void WidgetSlideWrap<TWidget>::hideAnimated() {
 	if (isHidden()) {
 		_forceHeight = 0;
 		resizeToWidth(_realSize.width());
@@ -53,7 +53,7 @@ void WidgetSlideWrap<TWidget>::slideUp() {
 	_a_height.start([this] { animationCallback(); }, _realSize.height(), 0., _duration);
 }
 
-void WidgetSlideWrap<TWidget>::slideDown() {
+void WidgetSlideWrap<TWidget>::showAnimated() {
 	if (isHidden()) {
 		show();
 	}
@@ -69,21 +69,12 @@ void WidgetSlideWrap<TWidget>::slideDown() {
 	_a_height.start([this] { animationCallback(); }, 0., _realSize.height(), _duration);
 }
 
-void WidgetSlideWrap<TWidget>::showFast() {
-	show();
+void WidgetSlideWrap<TWidget>::toggleFast(bool visible) {
+	if (visible) show();
 	_a_height.finish();
-	_forceHeight = -1;
+	_forceHeight = visible ? -1 : 0;
 	resizeToWidth(_realSize.width());
-	if (_updateCallback) {
-		_updateCallback();
-	}
-}
-
-void WidgetSlideWrap<TWidget>::hideFast() {
-	_a_height.finish();
-	_forceHeight = 0;
-	resizeToWidth(_realSize.width());
-	hide();
+	if (!visible) hide();
 	if (_updateCallback) {
 		_updateCallback();
 	}

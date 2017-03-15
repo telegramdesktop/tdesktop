@@ -88,11 +88,7 @@ void AdvancedWidget::createControls() {
 
 void AdvancedWidget::checkNonDefaultTheme() {
 	if (self()) return;
-	if (Local::hasTheme()) {
-		_useDefaultTheme->slideDown();
-	} else {
-		_useDefaultTheme->slideUp();
-	}
+	_useDefaultTheme->toggleAnimated(Local::hasTheme());
 }
 
 void AdvancedWidget::onManageLocalStorage() {

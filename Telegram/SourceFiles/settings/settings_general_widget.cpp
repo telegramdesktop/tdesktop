@@ -250,11 +250,10 @@ void GeneralWidget::onRestart() {
 void GeneralWidget::onUpdateAutomatically() {
 	cSetAutoUpdate(_updateAutomatically->checked());
 	Local::writeSettings();
+	_updateRow->toggleAnimated(cAutoUpdate());
 	if (cAutoUpdate()) {
-		_updateRow->slideDown();
 		Sandbox::startUpdateCheck();
 	} else {
-		_updateRow->slideUp();
 		Sandbox::stopUpdate();
 	}
 }
@@ -290,7 +289,6 @@ void GeneralWidget::onAutoStart() {
 	cSetAutoStart(_autoStart->checked());
 	if (cAutoStart()) {
 		psAutoStart(true);
-		_startMinimized->slideDown();
 		Local::writeSettings();
 	} else {
 		psAutoStart(false);
@@ -299,8 +297,8 @@ void GeneralWidget::onAutoStart() {
 		} else {
 			Local::writeSettings();
 		}
-		_startMinimized->slideUp();
 	}
+	_startMinimized->toggleAnimated(cAutoStart());
 }
 
 void GeneralWidget::onStartMinimized() {

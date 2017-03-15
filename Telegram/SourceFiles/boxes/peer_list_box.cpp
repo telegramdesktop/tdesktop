@@ -154,17 +154,15 @@ void PeerListBox::refreshRows() {
 
 void PeerListBox::setSearchMode(SearchMode mode) {
 	_inner->setSearchMode(mode);
-	if (mode != SearchMode::None) {
-		if (!_select) {
-			_select = createMultiSelect();
-			_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { _inner->submitted(); });
-			_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
-			_select->resizeToWidth(width());
-			_select->moveToLeft(0, 0);
-		}
-		_select->slideDown();
-	} else if (_select) {
-		_select->slideUp();
+	if (mode != SearchMode::None && !_select) {
+		_select = createMultiSelect();
+		_select->entity()->setSubmittedCallback([this](bool chtrlShiftEnter) { _inner->submitted(); });
+		_select->entity()->setQueryChangedCallback([this](const QString &query) { searchQueryChanged(query); });
+		_select->resizeToWidth(width());
+		_select->moveToLeft(0, 0);
+	}
+	if (_select) {
+		_select->toggleAnimated(mode != SearchMode::None);
 	}
 }
 

@@ -86,19 +86,30 @@ public:
 		, bool scaled = false);
 
 	void showAnimated() {
-		_animation.fadeIn(_duration);
+		toggleAnimated(true);
 	}
 	void hideAnimated() {
-		_animation.fadeOut(_duration);
+		toggleAnimated(false);
 	}
-	void showFast() {
-		_animation.show();
-		if (_updateCallback) {
-			_updateCallback();
+	void toggleAnimated(bool visible) {
+		if (visible) {
+			_animation.fadeIn(_duration);
+		} else {
+			_animation.fadeOut(_duration);
 		}
 	}
+	void showFast() {
+		toggleFast(true);
+	}
 	void hideFast() {
-		_animation.hide();
+		toggleFast(false);
+	}
+	void toggleFast(bool visible) {
+		if (visible) {
+			_animation.show();
+		} else {
+			_animation.hide();
+		}
 		if (_updateCallback) {
 			_updateCallback();
 		}

@@ -115,12 +115,11 @@ void InfoWidget::refreshLink() {
 }
 
 void InfoWidget::setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
-	if (textWithEntities.text.isEmpty()) {
-		row->slideUp();
-	} else {
+	auto nonEmptyText = !textWithEntities.text.isEmpty();
+	if (nonEmptyText) {
 		row->entity()->setLabeledText(label, textWithEntities, shortTextWithEntities, copyText);
-		row->slideDown();
 	}
+	row->toggleAnimated(nonEmptyText);
 }
 
 InfoWidget::LabeledWidget::LabeledWidget(QWidget *parent) : TWidget(parent) {

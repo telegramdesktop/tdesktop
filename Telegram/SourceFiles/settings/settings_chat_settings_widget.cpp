@@ -190,11 +190,7 @@ void ChatSettingsWidget::onReplaceEmoji() {
 	cSetReplaceEmojis(_replaceEmoji->checked());
 	Local::writeUserSettings();
 
-	if (_replaceEmoji->checked()) {
-		_viewList->slideDown();
-	} else {
-		_viewList->slideUp();
-	}
+	_viewList->toggleAnimated(_replaceEmoji->checked());
 }
 
 void ChatSettingsWidget::onViewList() {
@@ -205,11 +201,7 @@ void ChatSettingsWidget::onDontAskDownloadPath() {
 	Global::SetAskDownloadPath(!_dontAskDownloadPath->checked());
 	Local::writeUserSettings();
 #ifndef OS_WIN_STORE
-	if (_dontAskDownloadPath->checked()) {
-		_downloadPath->slideDown();
-	} else {
-		_downloadPath->slideUp();
-	}
+	_downloadPath->toggleAnimated(_dontAskDownloadPath->checked());
 #endif // OS_WIN_STORE
 }
 

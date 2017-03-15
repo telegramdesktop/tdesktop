@@ -1612,7 +1612,7 @@ void MainWidget::switchToPanelPlayer() {
 	if (_playerUsingPanel) return;
 	_playerUsingPanel = true;
 
-	_player->slideUp();
+	_player->hideAnimated();
 	_playerVolume.destroyDelayed();
 	_playerPlaylist->hideIgnoringEnterEvents();
 
@@ -1626,7 +1626,7 @@ void MainWidget::switchToFixedPlayer() {
 	if (!_player) {
 		createPlayer();
 	} else {
-		_player->slideDown();
+		_player->showAnimated();
 		if (!_playerVolume) {
 			_playerVolume.create(this);
 			_player->entity()->volumeWidgetCreated(_playerVolume);
@@ -1643,7 +1643,7 @@ void MainWidget::closeBothPlayers() {
 		_playerUsingPanel = false;
 		_player.destroyDelayed();
 	} else {
-		_player->slideUp();
+		_player->hideAnimated();
 	}
 	_playerVolume.destroyDelayed();
 
@@ -1667,7 +1667,7 @@ void MainWidget::createPlayer() {
 	} else {
 		_player->hideFast();
 		if (_player) {
-			_player->slideDown();
+			_player->showAnimated();
 			_playerHeight = _contentScrollAddToY = _player->contentHeight();
 			updateControlsGeometry();
 		}

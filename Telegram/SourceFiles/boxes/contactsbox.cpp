@@ -140,21 +140,16 @@ void ContactsBox::prepare() {
 		addPeerToMultiSelect(i, true);
 	}
 	_inner->setAllAdminsChangedCallback([this] {
+		_select->toggleAnimated(!_inner->allAdmins());
 		if (_inner->allAdmins()) {
 			_select->entity()->clearQuery();
-			_select->slideUp();
 			_inner->setFocus();
 		} else {
-			_select->slideDown();
 			_select->entity()->setInnerFocus();
 		}
 		updateScrollSkips();
 	});
-	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins && _inner->allAdmins()) {
-		_select->hideFast();
-	} else {
-		_select->showFast();
-	}
+	_select->toggleFast(!_inner->chat() || (_inner->membersFilter() != MembersFilter::Admins) || !_inner->allAdmins());
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
 		if (auto peer = App::peerLoaded(itemId)) {

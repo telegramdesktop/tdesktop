@@ -208,11 +208,7 @@ BackgroundWidget::BackgroundWidget(QWidget *parent, UserData *self) : BlockWidge
 		}
 	});
 	subscribe(Adaptive::Changed(), [this]() {
-		if (Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide) {
-			_adaptive->slideDown();
-		} else {
-			_adaptive->slideUp();
-		}
+		_adaptive->toggleAnimated(Global::AdaptiveChatLayout() == Adaptive::ChatLayout::Wide);
 	});
 }
 

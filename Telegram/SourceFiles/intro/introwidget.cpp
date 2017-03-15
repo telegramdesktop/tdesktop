@@ -276,20 +276,11 @@ void Widget::showControls() {
 	getStep()->show();
 	_next->show();
 	_next->setText(getStep()->nextButtonText());
-	if (getStep()->hasCover()) {
-		_settings->hideFast();
-		if (_update) _update->hideFast();
-		if (_changeLanguage) _changeLanguage->showFast();
-	} else {
-		_settings->showFast();
-		if (_update) _update->showFast();
-		if (_changeLanguage) _changeLanguage->hideFast();
-	}
-	if (getStep()->hasBack()) {
-		_back->showFast();
-	} else {
-		_back->hideFast();
-	}
+	auto hasCover = getStep()->hasCover();
+	_settings->toggleFast(!hasCover);
+	if (_update) _update->toggleFast(!hasCover);
+	if (_changeLanguage) _changeLanguage->toggleFast(hasCover);
+	_back->toggleFast(getStep()->hasBack());
 }
 
 void Widget::hideControls() {

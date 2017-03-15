@@ -175,16 +175,8 @@ void BoxContent::updateScrollAreaGeometry() {
 		updateInnerVisibleTopBottom();
 
 		auto top = _scroll->scrollTop();
-		if (top > 0 || _innerTopSkip > 0) {
-			_topShadow->showFast();
-		} else {
-			_topShadow->hideFast();
-		}
-		if (top < _scroll->scrollTopMax()) {
-			_bottomShadow->showFast();
-		} else {
-			_bottomShadow->hideFast();
-		}
+		_topShadow->toggleFast(top > 0 || _innerTopSkip > 0);
+		_bottomShadow->toggleFast(top < _scroll->scrollTopMax());
 	}
 }
 

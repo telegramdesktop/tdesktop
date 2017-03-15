@@ -189,10 +189,8 @@ void PrivacyWidget::autoLockUpdated() {
 		auto value = (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
 		_autoLock->entity()->link()->setText(value);
 		resizeToWidth(width());
-		_autoLock->slideDown();
-	} else {
-		_autoLock->slideUp();
 	}
+	_autoLock->toggleAnimated(Global::LocalPasscode());
 }
 
 void PrivacyWidget::onBlockedUsers() {

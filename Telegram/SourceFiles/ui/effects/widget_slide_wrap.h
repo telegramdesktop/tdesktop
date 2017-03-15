@@ -36,10 +36,22 @@ public:
 		, base::lambda<void()> updateCallback
 		, int duration = st::widgetSlideDuration);
 
-	void slideUp();
-	void slideDown();
-	void showFast();
-	void hideFast();
+	void showAnimated();
+	void hideAnimated();
+	void toggleAnimated(bool visible) {
+		if (visible) {
+			showAnimated();
+		} else {
+			hideAnimated();
+		}
+	}
+	void showFast() {
+		toggleFast(true);
+	}
+	void hideFast() {
+		toggleFast(false);
+	}
+	void toggleFast(bool visible);
 
 	void finishAnimation() {
 		_a_height.finish();

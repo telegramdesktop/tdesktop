@@ -3054,16 +3054,11 @@ void DialogsWidget::updateLockUnlockVisibility() {
 void DialogsWidget::updateJumpToDateVisibility(bool fast) {
 	if (_a_show.animating()) return;
 
-	if (_searchInPeer && _filter->getLastText().isEmpty()) {
-		if (fast) {
-			_jumpToDate->showFast();
-		} else {
-			_jumpToDate->showAnimated();
-		}
-	} else if (fast) {
-		_jumpToDate->hideFast();
+	auto jumpToDateVisible = (_searchInPeer && _filter->getLastText().isEmpty());
+	if (fast) {
+		_jumpToDate->toggleFast(jumpToDateVisible);
 	} else {
-		_jumpToDate->hideAnimated();
+		_jumpToDate->toggleAnimated(jumpToDateVisible);
 	}
 }
 
