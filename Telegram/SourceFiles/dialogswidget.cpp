@@ -212,7 +212,7 @@ void DialogsInner::paintRegion(Painter &p, const QRegion &region, bool paintingO
 			if (!paintingOther) {
 				p.setFont(st::noContactsFont);
 				p.setPen(st::noContactsColor);
-				p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (cContactsReceived() ? st::noContactsFont->height : 0)), lang(cContactsReceived() ? lng_no_chats : lng_contacts_loading), style::al_center);
+				p.drawText(QRect(0, 0, fullWidth, st::noContactsHeight - (AuthSession::Current().data().contactsLoaded().value() ? st::noContactsFont->height : 0)), lang(AuthSession::Current().data().contactsLoaded().value() ? lng_no_chats : lng_contacts_loading), style::al_center);
 			}
 		}
 	} else if (_state == FilteredState || _state == SearchedState) {
@@ -1001,7 +1001,7 @@ void DialogsInner::removeDialog(History *history) {
 	if (_dialogsImportant) {
 		history->removeFromChatList(Dialogs::Mode::Important, _dialogsImportant.get());
 	}
-	AuthSession::Current().notifications()->clearFromHistory(history);
+	AuthSession::Current().notifications().clearFromHistory(history);
 	if (_contacts->contains(history->peer->id)) {
 		if (!_contactsNoDialogs->contains(history->peer->id)) {
 			_contactsNoDialogs->addByName(history);
@@ -1650,7 +1650,7 @@ void DialogsInner::refresh(bool toTop) {
 	if (_state == DefaultState) {
 		if (shownDialogs()->isEmpty()) {
 			h = st::noContactsHeight;
-			if (cContactsReceived()) {
+			if (AuthSession::Current().data().contactsLoaded().value()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();
@@ -1891,7 +1891,7 @@ void DialogsInner::loadPeerPhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
-	AuthSession::Current().downloader()->clearPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	if (_state == DefaultState) {
 		auto otherStart = shownDialogs()->size() * st::dialogsRowHeight;
 		if (yFrom < otherStart) {
@@ -2494,7 +2494,7 @@ void DialogsWidget::dialogsReceived(const MTPmessages_Dialogs &dialogs, mtpReque
 	} break;
 	}
 
-	if (!cContactsReceived() && !_contactsRequestId) {
+	if (!AuthSession::Current().data().contactsLoaded().value() && !_contactsRequestId) {
 		_contactsRequestId = MTP::send(MTPcontacts_GetContacts(MTP_string("")), rpcDone(&DialogsWidget::contactsReceived), rpcFail(&DialogsWidget::contactsFailed));
 	}
 
@@ -2726,7 +2726,6 @@ void DialogsWidget::loadDialogs() {
 	if (_dialogsRequestId) return;
 	if (_dialogsFull) {
 		_inner->addAllSavedPeers();
-		cSetDialogsReceived(true);
 		return;
 	}
 
@@ -2748,14 +2747,11 @@ void DialogsWidget::loadPinnedDialogs() {
 
 void DialogsWidget::contactsReceived(const MTPcontacts_Contacts &result) {
 	_contactsRequestId = 0;
-	cSetContactsReceived(true);
 	if (result.type() == mtpc_contacts_contacts) {
 		auto &d = result.c_contacts_contacts();
 		App::feedUsers(d.vusers);
 		_inner->contactsReceived(d.vcontacts.v);
 	}
-	if (App::main()) App::main()->contactsReceived();
-
 	AuthSession::Current().data().contactsLoaded().set(true);
 }
 

@@ -257,9 +257,6 @@ DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(QUrl, UpdateURL);
 
-DeclareSetting(bool, ContactsReceived);
-DeclareSetting(bool, DialogsReceived);
-
 DeclareSetting(int, OtherOnline);
 
 class PeerData;

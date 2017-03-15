@@ -64,7 +64,7 @@ std::unique_ptr<Manager> Create(System *system) {
 }
 
 Manager::Manager(System *system) : Notifications::Manager(system) {
-	subscribe(system->authSession()->downloader()->taskFinished(), [this] {
+	subscribe(system->authSession()->downloader().taskFinished(), [this] {
 		for_const (auto &notification, _notifications) {
 			notification->updatePeerPhoto();
 		}

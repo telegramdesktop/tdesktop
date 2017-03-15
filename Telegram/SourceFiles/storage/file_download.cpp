@@ -71,7 +71,7 @@ namespace {
 }
 
 FileLoader::FileLoader(const QString &toFile, int32 size, LocationType locationType, LoadToCacheSetting toCache, LoadFromCloudSetting fromCloud, bool autoLoading)
-: _downloader(AuthSession::Current().downloader())
+: _downloader(&AuthSession::Current().downloader())
 , _autoLoading(autoLoading)
 , _file(toFile)
 , _fname(toFile)

@@ -114,9 +114,6 @@ QString gPlatformString;
 QUrl gUpdateURL;
 bool gIsElCapitan = false;
 
-bool gContactsReceived = false;
-bool gDialogsReceived = false;
-
 int gOtherOnline = 0;
 
 SavedPeers gSavedPeers;

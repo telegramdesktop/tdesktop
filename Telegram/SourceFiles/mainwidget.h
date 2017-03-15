@@ -357,8 +357,6 @@ public:
 	void choosePeer(PeerId peerId, MsgId showAtMsgId); // does offerPeer or showPeerHistory
 	void clearBotStartToken(PeerData *peer);
 
-	void contactsReceived();
-
 	void ptsWaiterStartTimerFor(ChannelData *channel, int32 ms); // ms <= 0 - stop timer
 	void feedUpdates(const MTPUpdates &updates, uint64 randomId = 0);
 	void feedUpdate(const MTPUpdate &update);

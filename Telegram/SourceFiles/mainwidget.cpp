@@ -2182,10 +2182,6 @@ void MainWidget::clearBotStartToken(PeerData *peer) {
 	}
 }
 
-void MainWidget::contactsReceived() {
-	_history->contactsReceived();
-}
-
 void MainWidget::updateAfterDrag() {
 	if (_overview) {
 		_overview->updateAfterDrag();
@@ -4187,7 +4183,7 @@ void MainWidget::applyNotifySetting(const MTPNotifyPeer &peer, const MTPPeerNoti
 				if (!h) h = App::history(updatePeer->id);
 				int32 changeIn = 0;
 				if (isNotifyMuted(setTo, &changeIn)) {
-					AuthSession::Current().notifications()->clearFromHistory(h);
+					AuthSession::Current().notifications().clearFromHistory(h);
 					h->setMute(true);
 					App::regMuted(updatePeer, changeIn);
 				} else {

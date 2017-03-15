@@ -228,7 +228,7 @@ void MainWindow::clearPasscode() {
 	} else {
 		_main->showAnimated(bg, true);
 	}
-	AuthSession::Current().notifications()->updateAll();
+	AuthSession::Current().notifications().updateAll();
 	updateGlobalMenu();
 
 	if (_main) {
@@ -253,7 +253,7 @@ void MainWindow::setupPasscode() {
 	}
 	_shouldLockAt = 0;
 	if (AuthSession::Exists()) {
-		AuthSession::Current().notifications()->updateAll();
+		AuthSession::Current().notifications().updateAll();
 	}
 	updateGlobalMenu();
 }
@@ -280,8 +280,6 @@ void MainWindow::checkAutoLock() {
 }
 
 void MainWindow::setupIntro() {
-	cSetContactsReceived(false);
-	cSetDialogsReceived(false);
 	if (_intro && !_intro->isHidden() && !_main) return;
 
 	Ui::hideSettingsAndLayer(true);
@@ -830,9 +828,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		}
 	}
 	Local::writeUserSettings();
-	AuthSession::Current().notifications()->settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
+	AuthSession::Current().notifications().settingsChanged().notify(Window::Notifications::ChangeType::DesktopEnabled);
 	if (soundNotifyChanged) {
-		AuthSession::Current().notifications()->settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
+		AuthSession::Current().notifications().settingsChanged().notify(Window::Notifications::ChangeType::SoundEnabled);
 	}
 }
 

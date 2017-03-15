@@ -53,14 +53,14 @@ public:
 	}
 	bool validateSelf(const MTPUser &user);
 
-	Storage::Downloader *downloader() {
-		return _downloader.get();
+	Storage::Downloader &downloader() {
+		return *_downloader;
 	}
 
 	static base::Observable<void> &CurrentDownloaderTaskFinished();
 
-	Window::Notifications::System *notifications() {
-		return _notifications.get();
+	Window::Notifications::System &notifications() {
+		return *_notifications;
 	}
 
 	class Data {

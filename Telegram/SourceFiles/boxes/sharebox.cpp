@@ -435,7 +435,7 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 	yFrom *= _columnCount;
 	yTo *= _columnCount;
 
-	AuthSession::Current().downloader()->clearPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	if (_filter.isEmpty()) {
 		if (!_chatsIndexed->isEmpty()) {
 			auto i = _chatsIndexed->cfind(yFrom, _rowHeight);

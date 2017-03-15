@@ -1168,7 +1168,7 @@ void MediaView::displayPhoto(PhotoData *photo, HistoryItem *item) {
 	}
 
 	_zoomToScreen = 0;
-	AuthSession::Current().downloader()->clearPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	_full = -1;
 	_current = QPixmap();
 	_down = OverNone;

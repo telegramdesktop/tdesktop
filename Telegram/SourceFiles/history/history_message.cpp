@@ -2034,7 +2034,7 @@ bool HistoryService::updateDependent(bool force) {
 		updateDependentText();
 	}
 	if (force && gotDependencyItem) {
-		AuthSession::Current().notifications()->checkDelayed();
+		AuthSession::Current().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }

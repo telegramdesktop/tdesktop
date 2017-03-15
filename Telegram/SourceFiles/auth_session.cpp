@@ -46,7 +46,7 @@ UserData *AuthSession::CurrentUser() {
 }
 
 base::Observable<void> &AuthSession::CurrentDownloaderTaskFinished() {
-	return Current().downloader()->taskFinished();
+	return Current().downloader().taskFinished();
 }
 
 bool AuthSession::validateSelf(const MTPUser &user) {

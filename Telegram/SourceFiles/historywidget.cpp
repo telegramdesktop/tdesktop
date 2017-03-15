@@ -3342,6 +3342,12 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
+	subscribe(AuthSession::Current().data().contactsLoaded(), [this](bool) {
+		if (_peer) {
+			updateReportSpamStatus();
+			updateControlsVisibility();
+		}
+	});
 }
 
 void HistoryWidget::start() {
@@ -4430,7 +4436,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 	if (_peer) {
 		App::forgetMedia();
 		_serviceImageCacheSize = imageCacheSize();
-		AuthSession::Current().downloader()->clearPriorities();
+		AuthSession::Current().downloader().clearPriorities();
 
 		_history = App::history(_peer->id);
 		_migrated = _peer->migrateFrom() ? App::history(_peer->migrateFrom()->id) : 0;
@@ -4520,12 +4526,6 @@ void HistoryWidget::clearAllLoadRequests() {
 	_preloadRequest = _preloadDownRequest = _firstLoadRequest = 0;
 }
 
-void HistoryWidget::contactsReceived() {
-	if (!_peer) return;
-	updateReportSpamStatus();
-	updateControlsVisibility();
-}
-
 void HistoryWidget::updateAfterDrag() {
 	if (_list) _list->dragActionUpdate(QCursor::pos());
 }
@@ -4607,7 +4607,7 @@ void HistoryWidget::updateReportSpamStatus() {
 			}
 		}
 	}
-	if (!cContactsReceived() || _firstLoadRequest) {
+	if (!AuthSession::Current().data().contactsLoaded().value() || _firstLoadRequest) {
 		_reportSpamStatus = dbiprsUnknown;
 	} else if (_peer->isUser() && _peer->asUser()->contact > 0) {
 		_reportSpamStatus = dbiprsHidden;
@@ -4886,7 +4886,7 @@ void HistoryWidget::newUnreadMsg(History *history, HistoryItem *item) {
 			return;
 		}
 	}
-	AuthSession::Current().notifications()->schedule(history, item);
+	AuthSession::Current().notifications().schedule(history, item);
 	history->setUnreadCount(history->unreadCount() + 1);
 }
 

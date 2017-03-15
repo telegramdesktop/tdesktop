@@ -844,7 +844,7 @@ void ContactsBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop - _rowsTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	AuthSession::Current().downloader()->clearPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;
@@ -1097,7 +1097,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			QString text;
 			skip = 0;
 			if (bot()) {
-				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
+				text = lang((AuthSession::Current().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
@@ -1106,7 +1106,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
 				p.translate(0, _aboutHeight);
-			} else if (cContactsReceived() && !_searching) {
+			} else if (AuthSession::Current().data().contactsLoaded().value() && !_searching) {
 				text = lang(lng_no_contacts);
 				skip = st::noContactsFont->height;
 			} else {
@@ -1122,11 +1122,11 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::noContactsColor);
 			QString text;
 			if (bot()) {
-				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
+				text = lang((AuthSession::Current().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(_chat->participants.isEmpty() ? lng_contacts_loading : lng_contacts_not_found);
 			} else {
-				text = lang((cContactsReceived() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
+				text = lang((AuthSession::Current().data().contactsLoaded().value() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
 			}
 			p.drawText(QRect(0, 0, width(), st::noContactsHeight), text, style::al_center);
 		} else {
@@ -1769,7 +1769,7 @@ void ContactsBox::Inner::refresh() {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			resize(width(), _rowsTop + _aboutHeight + st::noContactsHeight + st::contactsMarginBottom);
 		} else {
-			if (cContactsReceived() && !bot()) {
+			if (AuthSession::Current().data().contactsLoaded().value() && !bot()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();

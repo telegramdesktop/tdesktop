@@ -2012,7 +2012,7 @@ namespace {
 				dependent->dependencyItemRemoved(item);
 			}
 		}
-		AuthSession::Current().notifications()->clearFromItem(item);
+		AuthSession::Current().notifications().clearFromItem(item);
 		if (Global::started() && !App::quitting()) {
 			Global::RefItemRemoved().notify(item, true);
 		}
@@ -2321,7 +2321,7 @@ namespace {
 
 		if (AuthSession::Exists()) {
 			// Clear notifications to prevent any showNotification() calls while destroying items.
-			AuthSession::Current().notifications()->clearAllFast();
+			AuthSession::Current().notifications().clearAllFast();
 		}
 
 		histories().clear();

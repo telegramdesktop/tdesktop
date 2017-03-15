@@ -344,7 +344,7 @@ void MembersBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	AuthSession::Current().downloader()->clearPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;

@@ -194,7 +194,7 @@ void NotificationsBox::countChanged() {
 
 	if (currentCount() != Global::NotificationsCount()) {
 		Global::SetNotificationsCount(currentCount());
-		AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::MaxCount);
+		AuthSession::Current().notifications().settingsChanged().notify(ChangeType::MaxCount);
 		Local::writeUserSettings();
 	}
 }
@@ -351,7 +351,7 @@ void NotificationsBox::setOverCorner(Notify::ScreenCorner corner) {
 		_isOverCorner = true;
 		setCursor(style::cur_pointer);
 		Global::SetNotificationsDemoIsShown(true);
-		AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::DemoIsShown);
+		AuthSession::Current().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
 	}
 	_overCorner = corner;
 
@@ -386,7 +386,7 @@ void NotificationsBox::clearOverCorner() {
 		_isOverCorner = false;
 		setCursor(style::cur_default);
 		Global::SetNotificationsDemoIsShown(false);
-		AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::DemoIsShown);
+		AuthSession::Current().notifications().settingsChanged().notify(ChangeType::DemoIsShown);
 
 		for_const (auto &samples, _cornerSamples) {
 			for_const (auto widget, samples) {
@@ -413,7 +413,7 @@ void NotificationsBox::mouseReleaseEvent(QMouseEvent *e) {
 
 		if (_chosenCorner != Global::NotificationsCorner()) {
 			Global::SetNotificationsCorner(_chosenCorner);
-			AuthSession::Current().notifications()->settingsChanged().notify(ChangeType::Corner);
+			AuthSession::Current().notifications().settingsChanged().notify(ChangeType::Corner);
 			Local::writeUserSettings();
 		}
 	}

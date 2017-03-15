@@ -1505,7 +1505,7 @@ MsgId History::inboxRead(MsgId upTo) {
 	}
 
 	showFrom = nullptr;
-	AuthSession::Current().notifications()->clearFromHistory(this);
+	AuthSession::Current().notifications().clearFromHistory(this);
 
 	return upTo;
 }

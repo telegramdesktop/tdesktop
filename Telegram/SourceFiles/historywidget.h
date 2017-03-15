@@ -675,7 +675,6 @@ public:
 
 	void applyCloudDraft(History *history);
 
-	void contactsReceived();
 	void updateHistoryDownPosition();
 	void updateHistoryDownVisibility();
 

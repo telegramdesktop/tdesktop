@@ -1015,7 +1015,7 @@ PeerData *ApiWrap::notifySettingReceived(MTPInputNotifyPeer notifyPeer, const MT
 		}
 	} break;
 	}
-	AuthSession::Current().notifications()->checkDelayed();
+	AuthSession::Current().notifications().checkDelayed();
 	return requestedPeer;
 }
 
