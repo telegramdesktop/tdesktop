@@ -638,7 +638,7 @@ void Messenger::checkMapVersion() {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000021) {
-				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Send MP4/MOV files as videos that will play right inside Telegram.\n\xE2\x80\x94 Bug fixes and other minor improvements.");
+				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Edit list of blocked users in Settings.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000012) {
 				versionFeatures = langNewVersionText();
 			} else {

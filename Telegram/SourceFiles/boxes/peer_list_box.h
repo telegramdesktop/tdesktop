@@ -175,9 +175,7 @@ public:
 
 	// callback takes two iterators, like [](auto &begin, auto &end).
 	template <typename ReorderCallback>
-	void reorderRows(ReorderCallback &&callback) {
-		_inner->reorderRows(std::forward<ReorderCallback>(callback));
-	}
+	void reorderRows(ReorderCallback &&callback);
 
 protected:
 	void prepare() override;
@@ -194,7 +192,6 @@ private:
 
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> _select = { nullptr };
 
-	class Inner;
 	QPointer<Inner> _inner;
 
 	std::unique_ptr<Controller> _controller;
@@ -262,7 +259,8 @@ private:
 	void appendGlobalSearchRow(std::unique_ptr<Row> row);
 
 	struct RowIndex {
-		RowIndex() = default;
+		RowIndex() {
+		}
 		explicit RowIndex(int value) : value(value) {
 		}
 		int value = -1;
@@ -275,7 +273,8 @@ private:
 	}
 
 	struct Selected {
-		Selected() = default;
+		Selected() {
+		}
 		Selected(RowIndex index, bool action) : index(index), action(action) {
 		}
 		Selected(int index, bool action) : index(index), action(action) {
@@ -363,3 +362,8 @@ private:
 	std::map<mtpRequestId, QString> _globalSearchQueries;
 
 };
+
+template <typename ReorderCallback>
+inline void PeerListBox::reorderRows(ReorderCallback &&callback) {
+	_inner->reorderRows(std::forward<ReorderCallback>(callback));
+}

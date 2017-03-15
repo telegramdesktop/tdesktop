@@ -209,7 +209,7 @@ void BlockUserBoxController::rebuildRows() {
 	auto added = appendList(App::main()->dialogsList());
 	added += appendList(App::main()->contactsNoDialogsList());
 	if (!wasEmpty && added > 0) {
-		view()->reorderRows([](auto &begin, auto &end) {
+		view()->reorderRows([](auto &&begin, auto &&end) {
 			// Place dialogs list before contactsNoDialogs list.
 			std::stable_partition(begin, end, [](auto &row) {
 				auto history = static_cast<Row&>(*row).history();

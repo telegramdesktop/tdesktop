@@ -1,3 +1,7 @@
+1.0.23 alpha (15.03.17)
+
+- Edit list of blocked users in Settings.
+
 1.0.22 alpha (13.03.17)
 
 - Bug fixes and other minor improvements.
@@ -1162,12 +1166,12 @@
 
 - Escape key closes photo view.
 - On OS X now Ctrl+Tab and Ctrl+Shift+Tab are working for dialogs switching.
-- On Linux fixed notifies (they don&#39;t grab focus and aren&#39;t seen in windows switcher), fixed keyboard layout change.
+- On Linux fixed notifies (they don't grab focus and aren't seen in windows switcher), fixed keyboard layout change.
 - On Linux all application data is now stored in ~/.TelegramDesktop directory.
 
 0.5.9 (18.07.14)
 
-- Choose between notification with preview, with only sender&#39;s name (message preview hidden) or without any information.
+- Choose between notification with preview, with only sender's name (message preview hidden) or without any information.
 - Sending documents from "Send to" explorer context menu added, see a checkbox in Settings (only Windows version).
 - Little features: Ctrl+Tab / Ctrl+Shift+Tab switch to near dialogs, links without top-level domain highlight, version in About dialog now leads to version history.
 - Some bugs fixed: maximize button in Ubuntu, running different copies of app under different users at the same time in Windows, Surface touchscreen support fixed.
@@ -1215,7 +1219,7 @@
 
 0.5.0 (30.05.14)
 
-- Application source code is published on <a href="https://github.com/telegramdesktop/tdesktop">GitHub</a> under GPL v3,<br>license is available <a href="https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE">here</a>.
+- Application source code is published on GitHub under GPL v3
 
 0.4.18 (28.05.14)
 
