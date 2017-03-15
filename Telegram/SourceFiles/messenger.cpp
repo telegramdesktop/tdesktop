@@ -637,7 +637,7 @@ void Messenger::checkMapVersion() {
 	if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000021) {
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000023) {
 				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Edit list of blocked users in Settings.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000012) {
 				versionFeatures = langNewVersionText();
