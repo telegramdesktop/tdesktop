@@ -40,9 +40,9 @@ QString tryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?(telegram|t)\\.me/(.+)$"), url, matchOptions);
+	auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
 	if (telegramMeMatch) {
-		auto query = telegramMeMatch->capturedRef(3);
+		auto query = telegramMeMatch->capturedRef(4);
 		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
