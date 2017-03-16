@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/peer_list_box.h"
+#include "boxes/edit_privacy_box.h"
 
 namespace Settings {
 
@@ -43,34 +44,6 @@ private:
 	int _offset = 0;
 	mtpRequestId _loadRequestId = 0;
 	bool _allLoaded = false;
-
-};
-
-class BlockUserBoxController : public QObject, public PeerListBox::Controller, private base::Subscriber {
-public:
-	void prepare() override;
-	void rowClicked(PeerData *peer) override;
-	std::unique_ptr<PeerListBox::Row> createGlobalRow(PeerData *peer) override;
-
-private:
-	void rebuildRows();
-	void checkForEmptyRows();
-	void updateIsBlocked(PeerListBox::Row *row, UserData *user) const;
-	bool appendRow(History *history);
-
-	class Row : public PeerListBox::Row {
-	public:
-		Row(History *history) : PeerListBox::Row(history->peer), _history(history) {
-		}
-		History *history() const {
-			return _history;
-		}
-
-	private:
-		History *_history = nullptr;
-
-	};
-	std::unique_ptr<Row> createRow(History *history) const;
 
 };
 
