@@ -23,33 +23,35 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Fonts {
 
-	bool Started = false;
-	void start() {
-		if (!Started) {
-			Started = true;
+bool Started = false;
+void start() {
+	if (!Started) {
+		Started = true;
 
-			QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Regular.ttf"));
-			QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Bold.ttf"));
-			QFontDatabase::addApplicationFont(qsl(":/gui/art/fonts/OpenSans-Semibold.ttf"));
-		}
+		QFontDatabase::addApplicationFont(qsl(":/gui/fonts/OpenSans-Regular.ttf"));
+		QFontDatabase::addApplicationFont(qsl(":/gui/fonts/OpenSans-Bold.ttf"));
+		QFontDatabase::addApplicationFont(qsl(":/gui/fonts/OpenSans-Semibold.ttf"));
 	}
-
 }
+
+} // Fonts
 
 namespace {
-	void _sendResizeEvents(QWidget *target) {
-		QResizeEvent e(target->size(), QSize());
-		QApplication::sendEvent(target, &e);
 
-		const QObjectList children = target->children();
-		for (int i = 0; i < children.size(); ++i) {
-			QWidget *child = static_cast<QWidget*>(children.at(i));
-			if (child->isWidgetType() && !child->isWindow() && child->testAttribute(Qt::WA_PendingResizeEvent)) {
-				_sendResizeEvents(child);
-			}
+void _sendResizeEvents(QWidget *target) {
+	QResizeEvent e(target->size(), QSize());
+	QApplication::sendEvent(target, &e);
+
+	const QObjectList children = target->children();
+	for (int i = 0; i < children.size(); ++i) {
+		QWidget *child = static_cast<QWidget*>(children.at(i));
+		if (child->isWidgetType() && !child->isWindow() && child->testAttribute(Qt::WA_PendingResizeEvent)) {
+			_sendResizeEvents(child);
 		}
 	}
 }
+
+} // namespace
 
 bool TWidget::inFocusChain() const {
 	return !isHidden() && App::wnd() && (App::wnd()->focusWidget() == this || isAncestorOf(App::wnd()->focusWidget()));

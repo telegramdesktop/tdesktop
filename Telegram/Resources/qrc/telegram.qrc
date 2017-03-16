@@ -1,24 +1,24 @@
 <RCC>
   <qresource prefix="/gui">
-    <file>art/fonts/OpenSans-Regular.ttf</file>
-    <file>art/fonts/OpenSans-Bold.ttf</file>
-    <file>art/fonts/OpenSans-Semibold.ttf</file>
-    <file>art/newmsg.wav</file>
-    <file>art/bg.jpg</file>
-    <file>art/bg_initial.jpg</file>
-    <file>art/icon256.png</file>
-    <file>art/iconbig256.png</file>
-    <file>art/sunrise.jpg</file>
+    <file alias="fonts/OpenSans-Regular.ttf">../fonts/OpenSans-Regular.ttf</file>
+    <file alias="fonts/OpenSans-Bold.ttf">../fonts/OpenSans-Bold.ttf</file>
+    <file alias="fonts/OpenSans-Semibold.ttf">../fonts/OpenSans-Semibold.ttf</file>
+    <file alias="art/newmsg.wav">../art/newmsg.wav</file>
+    <file alias="art/bg.jpg">../art/bg.jpg</file>
+    <file alias="art/bg_initial.jpg">../art/bg_initial.jpg</file>
+    <file alias="art/icon256.png">../art/icon256.png</file>
+    <file alias="art/iconbig256.png">../art/iconbig256.png</file>
+    <file alias="art/sunrise.jpg">../art/sunrise.jpg</file>
   </qresource>
   <qresource prefix="/qt-project.org">
     <file>qmime/freedesktop.org.xml</file>
   </qresource>
   <qresource prefix="/langs">
-    <file alias="lang_it.strings">langs/lang_it.strings</file>
-    <file alias="lang_es.strings">langs/lang_es.strings</file>
-    <file alias="lang_de.strings">langs/lang_de.strings</file>
-    <file alias="lang_nl.strings">langs/lang_nl.strings</file>
-    <file alias="lang_pt_BR.strings">langs/lang_pt_BR.strings</file>
-    <file alias="lang_ko.strings">langs/lang_ko.strings</file>
+    <file alias="lang_it.strings">../langs/lang_it.strings</file>
+    <file alias="lang_es.strings">../langs/lang_es.strings</file>
+    <file alias="lang_de.strings">../langs/lang_de.strings</file>
+    <file alias="lang_nl.strings">../langs/lang_nl.strings</file>
+    <file alias="lang_pt_BR.strings">../langs/lang_pt_BR.strings</file>
+    <file alias="lang_ko.strings">../langs/lang_ko.strings</file>
   </qresource>
 </RCC>

@@ -20,30 +20,30 @@
 {
   'variables': {
     'qrc_files': [
-      '<(res_loc)/telegram.qrc',
-      '<(res_loc)/telegram_emoji.qrc',
-      '<(res_loc)/telegram_emoji_large.qrc',
+      '<(res_loc)/qrc/telegram.qrc',
+      '<(res_loc)/qrc/telegram_emoji.qrc',
+      '<(res_loc)/qrc/telegram_emoji_large.qrc',
     ],
   },
   'conditions': [
     [ 'build_linux', {
       'variables': {
         'qrc_files': [
-          '<(res_loc)/telegram_linux.qrc',
+          '<(res_loc)/qrc/telegram_linux.qrc',
         ],
       }
     }],
     [ 'build_mac', {
       'variables': {
         'qrc_files': [
-          '<(res_loc)/telegram_mac.qrc',
+          '<(res_loc)/qrc/telegram_mac.qrc',
         ],
       },
     }],
     [ 'build_win', {
       'variables': {
         'qrc_files': [
-          '<(res_loc)/telegram_wnd.qrc',
+          '<(res_loc)/qrc/telegram_wnd.qrc',
         ],
       }
     }],

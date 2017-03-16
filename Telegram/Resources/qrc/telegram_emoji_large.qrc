@@ -1,5 +1,5 @@
 <RCC>
   <qresource prefix="/gui">
-    <file>art/emoji_250x.webp</file>
+    <file alias="art/emoji_250x.webp">../art/emoji_250x.webp</file>
   </qresource>
 </RCC>
