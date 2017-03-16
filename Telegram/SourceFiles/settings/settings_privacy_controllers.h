@@ -47,4 +47,20 @@ private:
 
 };
 
+class LastSeenPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
+public:
+	using Option = EditPrivacyBox::Option;
+
+	MTPInputPrivacyKey key() override;
+	void save(QVector<MTPInputPrivacyRule> &&result) override;
+
+	QString title() override;
+	QString optionDescription(Option option) override;
+	QString description() override;
+	QString alwaysLinkText(int count) override;
+	QString neverLinkText(int count) override;
+	QString exceptionsDescription() override;
+
+};
+
 } // namespace Settings

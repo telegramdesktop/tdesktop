@@ -271,6 +271,12 @@ public:
 		}
 	}
 
+	// Resize to minimum of natural width and available width.
+	void resizeToNaturalWidth(int newWidth) {
+		auto maxWidth = naturalWidth();
+		resizeToWidth((maxWidth >= 0) ? qMin(newWidth, maxWidth) : newWidth);
+	}
+
 	QRect rectNoMargins() const {
 		return rect().marginsRemoved(getMargins());
 	}

@@ -405,6 +405,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_save" = "Save";
 
 "lng_settings_blocked_users" = "Blocked users";
+"lng_settings_last_seen_privacy" = "Last Seen privacy";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -438,6 +439,20 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_blocked_list_already_blocked" = "blocked already";
 "lng_blocked_list_about" = "Blocked users can't send you messages or add you to groups. They will not see your profile pictures, online and last seen status.";
 "lng_blocked_list_not_found" = "No users found.";
+
+"lng_edit_privacy_everyone" = "Everybody";
+"lng_edit_privacy_contacts" = "My contacts";
+"lng_edit_privacy_nobody" = "Nobody";
+"lng_edit_privacy_exceptions" = "Add exceptions";
+
+"lng_edit_privacy_lastseen_title" = "Last Seen time privacy";
+"lng_edit_privacy_lastseen_everyone" = "Anyone can see my Last Seen time";
+"lng_edit_privacy_lastseen_contacts" = "Only contacts can see my Last Seen time";
+"lng_edit_privacy_lastseen_nobody" = "No one can see my Last Seen time";
+"lng_edit_privacy_lastseen_description" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
+"lng_edit_privacy_lastseen_always" = "Always share with{count:| # user| # users}";
+"lng_edit_privacy_lastseen_never" = "Never share with{count:| # user| # users}";
+"lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 
 "lng_preview_loading" = "Getting Link Info...";
 

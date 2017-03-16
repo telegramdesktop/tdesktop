@@ -299,4 +299,42 @@ std::unique_ptr<PeerListBox::Row> BlockedBoxController::createRow(UserData *user
 	return row;
 }
 
+MTPInputPrivacyKey LastSeenPrivacyController::key() {
+	return MTP_inputPrivacyKeyStatusTimestamp();
+}
+
+void LastSeenPrivacyController::save(QVector<MTPInputPrivacyRule> &&result) {
+	MTP::send(MTPaccount_SetPrivacy(MTP_inputPrivacyKeyStatusTimestamp(), MTP_vector<MTPInputPrivacyRule>(result)));
+	view()->closeBox();
+}
+
+QString LastSeenPrivacyController::title() {
+	return lang(lng_edit_privacy_lastseen_title);
+}
+
+QString LastSeenPrivacyController::optionDescription(Option option) {
+	switch (option) {
+	case Option::Everyone: return lang(lng_edit_privacy_lastseen_everyone);
+	case Option::Contacts: return lang(lng_edit_privacy_lastseen_contacts);
+	case Option::Nobody: return lang(lng_edit_privacy_lastseen_nobody);
+	}
+	return QString();
+}
+
+QString LastSeenPrivacyController::description() {
+	return lang(lng_edit_privacy_lastseen_description);
+}
+
+QString LastSeenPrivacyController::alwaysLinkText(int count) {
+	return lng_edit_privacy_lastseen_always(lt_count, count);
+}
+
+QString LastSeenPrivacyController::neverLinkText(int count) {
+	return lng_edit_privacy_lastseen_never(lt_count, count);
+}
+
+QString LastSeenPrivacyController::exceptionsDescription() {
+	return lang(lng_edit_privacy_lastseen_exceptions);
+}
+
 } // namespace Settings

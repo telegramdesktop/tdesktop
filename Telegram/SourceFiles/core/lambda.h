@@ -583,20 +583,20 @@ class lambda_slot_wrap : public QObject {
 	Q_OBJECT
 
 public:
-	lambda_slot_wrap(QObject *parent, lambda_once<void()> lambda) : QObject(parent), _lambda(std::move(lambda)) {
+	lambda_slot_wrap(QObject *parent, lambda<void()> lambda) : QObject(parent), _lambda(std::move(lambda)) {
 	}
 
-	public slots :
-		void action() {
+public slots :
+	void action() {
 		_lambda();
 	}
 
 private:
-	lambda_once<void()> _lambda;
+	lambda<void()> _lambda;
 
 };
 
-inline lambda_slot_wrap *lambda_slot(QObject *parent, lambda_once<void()> lambda) {
+inline lambda_slot_wrap *lambda_slot(QObject *parent, lambda<void()> lambda) {
 	return new lambda_slot_wrap(parent, std::move(lambda));
 }
 

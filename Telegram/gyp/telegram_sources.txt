@@ -22,6 +22,8 @@
 <(src_loc)/boxes/downloadpathbox.h
 <(src_loc)/boxes/editcolorbox.cpp
 <(src_loc)/boxes/editcolorbox.h
+<(src_loc)/boxes/edit_privacy_box.cpp
+<(src_loc)/boxes/edit_privacy_box.h
 <(src_loc)/boxes/emojibox.cpp
 <(src_loc)/boxes/emojibox.h
 <(src_loc)/boxes/languagebox.cpp
@@ -295,8 +297,6 @@
 <(src_loc)/settings/settings_advanced_widget.h
 <(src_loc)/settings/settings_background_widget.cpp
 <(src_loc)/settings/settings_background_widget.h
-<(src_loc)/settings/settings_blocked_box_controller.cpp
-<(src_loc)/settings/settings_blocked_box_controller.h
 <(src_loc)/settings/settings_block_widget.cpp
 <(src_loc)/settings/settings_block_widget.h
 <(src_loc)/settings/settings_chat_settings_widget.cpp
@@ -315,6 +315,8 @@
 <(src_loc)/settings/settings_layer.h
 <(src_loc)/settings/settings_notifications_widget.cpp
 <(src_loc)/settings/settings_notifications_widget.h
+<(src_loc)/settings/settings_privacy_controllers.cpp
+<(src_loc)/settings/settings_privacy_controllers.h
 <(src_loc)/settings/settings_privacy_widget.cpp
 <(src_loc)/settings/settings_privacy_widget.h
 <(src_loc)/settings/settings_scale_widget.cpp

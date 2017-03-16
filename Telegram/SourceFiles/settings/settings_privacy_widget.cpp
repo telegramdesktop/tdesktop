@@ -25,12 +25,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_settings.h"
 #include "lang.h"
 #include "application.h"
+#include "platform/platform_specific.h"
 #include "boxes/sessionsbox.h"
 #include "boxes/passcodebox.h"
 #include "boxes/autolockbox.h"
 #include "boxes/peer_list_box.h"
-#include "platform/platform_specific.h"
-#include "settings/settings_blocked_box_controller.h"
+#include "boxes/edit_privacy_box.h"
+#include "settings/settings_privacy_controllers.h"
 
 namespace Settings {
 
@@ -173,6 +174,7 @@ void PrivacyWidget::createControls() {
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
 	addChildRow(_blockedUsers, marginSmall, lang(lng_settings_blocked_users), SLOT(onBlockedUsers()));
+	addChildRow(_lastSeenPrivacy, marginSmall, lang(lng_settings_last_seen_privacy), SLOT(onLastSeenPrivacy()));
 	addChildRow(_localPasscodeState, marginSmall);
 	auto label = lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive);
 	auto value = (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
@@ -195,6 +197,10 @@ void PrivacyWidget::autoLockUpdated() {
 
 void PrivacyWidget::onBlockedUsers() {
 	Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>()));
+}
+
+void PrivacyWidget::onLastSeenPrivacy() {
+	Ui::show(Box<EditPrivacyBox>(std::make_unique<LastSeenPrivacyController>()));
 }
 
 void PrivacyWidget::onAutoLock() {

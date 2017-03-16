@@ -86,6 +86,7 @@ public:
 
 private slots:
 	void onBlockedUsers();
+	void onLastSeenPrivacy();
 	void onAutoLock();
 	void onShowSessions();
 
@@ -94,6 +95,7 @@ private:
 	void autoLockUpdated();
 
 	object_ptr<Ui::LinkButton> _blockedUsers = { nullptr };
+	object_ptr<Ui::LinkButton> _lastSeenPrivacy = { nullptr };
 	object_ptr<LocalPasscodeState> _localPasscodeState = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
 	object_ptr<CloudPasswordState> _cloudPasswordState = { nullptr };

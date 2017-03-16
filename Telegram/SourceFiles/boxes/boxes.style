@@ -584,3 +584,23 @@ colorValueInput: InputField(defaultInputField) {
 }
 colorResultInput: InputField(colorValueInput) {
 }
+
+editPrivacyOptionMargin: margins(23px, 0px, 21px, 10px);
+editPrivacyPadding: margins(23px, 0px, 21px, 0px);
+editPrivacyTitle: FlatLabel(defaultFlatLabel) {
+	width: 320px;
+	textFg: boxTitleFg;
+	maxHeight: 46px;
+	margin: margins(0px, 13px, 0px, 10px);
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: boxTitleFont;
+	}
+}
+editPrivacyLabel: FlatLabel(defaultFlatLabel) {
+	width: 320px;
+	textFg: membersAboutLimitFg;
+	style: defaultTextStyle;
+}
+editPrivacyLinkMargin: margins(0px, 0px, 0px, 10px);
