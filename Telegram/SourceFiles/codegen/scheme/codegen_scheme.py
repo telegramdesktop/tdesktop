@@ -18,9 +18,25 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014 John Preston, https://desktop.telegram.org
 '''
-import glob
-import re
-import binascii
+import glob, re, binascii, os, sys
+
+input_file = ''
+output_path = ''
+for arg in sys.argv[1:]:
+  if re.match(r'^-o(.+)', arg):
+    output_path = arg[2:]
+  else:
+    input_file = arg
+
+if input_file == '':
+  print('Input file required.')
+  sys.exit(1)
+if output_path == '':
+  print('Output path required.')
+  sys.exit(1)
+
+output_header = output_path + '/scheme.h'
+output_source = output_path + '/scheme.cpp'
 
 # define some checked flag conversions
 # the key flag type should be a subset of the value flag type
@@ -66,31 +82,8 @@ textSerializeInit = '';
 textSerializeMethods = '';
 forwards = '';
 forwTypedefs = '';
-out = open('scheme_auto.h', 'w')
-out.write('/*\n');
-out.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
-out.write('WARNING! All changes made in this file will be lost!\n\n');
-out.write('This file is part of Telegram Desktop,\n');
-out.write('the official desktop version of Telegram messaging app, see https://telegram.org\n');
-out.write('\n');
-out.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
-out.write('it under the terms of the GNU General Public License as published by\n');
-out.write('the Free Software Foundation, either version 3 of the License, or\n');
-out.write('(at your option) any later version.\n');
-out.write('\n');
-out.write('It is distributed in the hope that it will be useful,\n');
-out.write('but WITHOUT ANY WARRANTY; without even the implied warranty of\n');
-out.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
-out.write('GNU General Public License for more details.\n');
-out.write('\n');
-out.write('In addition, as a special exception, the copyright holders give permission\n');
-out.write('to link the code of portions of this program with the OpenSSL library.\n');
-out.write('\n');
-out.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
-out.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
-out.write('*/\n');
-out.write('#pragma once\n\n#include "mtproto/core_types.h"\n');
-with open('scheme.tl') as f:
+
+with open(input_file) as f:
   for line in f:
     layerline = re.match(r'// LAYER (\d+)', line)
     if (layerline):
@@ -387,9 +380,9 @@ with open('scheme.tl') as f:
       funcsText += '\t}\n';
 
       if (isTemplate != ''):
-        funcsText += '\n\ttypedef typename TQueryType::ResponseType ResponseType;\n';
+        funcsText += '\n\tusing ResponseType = typename TQueryType::ResponseType;\n';
       else:
-        funcsText += '\n\ttypedef MTP' + resType + ' ResponseType;\n'; # method return type
+        funcsText += '\n\tusing ResponseType = MTP' + resType + ';\n'; # method return type
 
       funcsText += '};\n'; # class ending
       if (len(conditionsList)):
@@ -531,7 +524,7 @@ def addTextSerializeInit(lst, dct):
     v = dct[restype];
     for data in v:
       name = data[0];
-      result += '\t\t_serializers.insert(mtpc_' + name + ', _serialize_' + name + ');\n';
+      result += '\t_serializers.insert(mtpc_' + name + ', _serialize_' + name + ');\n';
   return result;
 
 textSerializeMethods += addTextSerialize(typesList, typesDict, 'D');
@@ -548,7 +541,7 @@ for restype in typesList:
   constructsInline = '';
 
   forwards += 'class MTP' + restype + ';\n';
-  forwTypedefs += 'typedef MTPBoxed<MTP' + restype + '> MTP' + resType + ';\n';
+  forwTypedefs += 'using MTP' + resType + ' = MTPBoxed<MTP' + restype + '>;\n';
 
   withType = (len(v) > 1);
   switchLines = '';
@@ -789,7 +782,7 @@ for restype in typesList:
     inlineMethods += writer;
   inlineMethods += '}\n';
 
-  typesText += '\n\ttypedef void ResponseType;\n'; # no response types declared
+  typesText += '\n\tusing ResponseType = void;\n'; # no response types declared
 
   typesText += '\nprivate:\n'; # private constructors
   if (withType): # by-type-id constructor
@@ -815,7 +808,7 @@ for restype in typesList:
   typesText += '};\n'; # type class ended
 
   inlineMethods += creatorsText;
-  typesText += 'typedef MTPBoxed<MTP' + restype + '> MTP' + resType + ';\n'; # boxed type definition
+  typesText += 'using MTP' + resType + ' = MTPBoxed<MTP' + restype + '>;\n'; # boxed type definition
 
 for childName in parentFlagsList:
   parentName = parentFlags[childName];
@@ -830,128 +823,220 @@ for childName in parentFlagsList:
   inlineMethods += 'inline ' + parentName + '::Flags mtpCastFlags(MTPflags<' + childName + '::Flags> flags) { return mtpCastFlags(flags.v); }\n';
 
 # manual types added here
-textSerializeMethods += 'void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
-textSerializeMethods += '\tif (stage) {\n';
-textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
-textSerializeMethods += '\t} else {\n';
-textSerializeMethods += '\t\tto.add("{ rpc_result");\n';
-textSerializeMethods += '\t\tto.add("\\n").addSpaces(lev);\n';
-textSerializeMethods += '\t}\n';
-textSerializeMethods += '\tswitch (stage) {\n';
-textSerializeMethods += '\tcase 0: to.add("  req_msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tcase 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-textSerializeMethods += '\t}\n';
-textSerializeMethods += '}\n\n';
-textSerializeInit += '\t\t_serializers.insert(mtpc_rpc_result, _serialize_rpc_result);\n';
+textSerializeMethods += '\
+void _serialize_rpc_result(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n\
+	if (stage) {\n\
+		to.add(",\\n").addSpaces(lev);\n\
+	} else {\n\
+		to.add("{ rpc_result");\n\
+		to.add("\\n").addSpaces(lev);\n\
+	}\n\
+	switch (stage) {\n\
+	case 0: to.add("  req_msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
+	case 1: to.add("  result: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n\
+	}\n\
+}\n\
+\n\
+void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n\
+	if (stage) {\n\
+		to.add(",\\n").addSpaces(lev);\n\
+	} else {\n\
+		to.add("{ msg_container");\n\
+		to.add("\\n").addSpaces(lev);\n\
+	}\n\
+	switch (stage) {\n\
+	case 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n\
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n\
+	}\n\
+}\n\
+\n\
+void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n\
+	if (stage) {\n\
+		to.add(",\\n").addSpaces(lev);\n\
+	} else {\n\
+		to.add("{ core_message");\n\
+		to.add("\\n").addSpaces(lev);\n\
+	}\n\
+	switch (stage) {\n\
+	case 0: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
+	case 1: to.add("  seq_no: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
+	case 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
+	case 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n\
+	default: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n\
+	}\n\
+}\n\
+\n';
 
-textSerializeMethods += 'void _serialize_msg_container(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
-textSerializeMethods += '\tif (stage) {\n';
-textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
-textSerializeMethods += '\t} else {\n';
-textSerializeMethods += '\t\tto.add("{ msg_container");\n';
-textSerializeMethods += '\t\tto.add("\\n").addSpaces(lev);\n';
-textSerializeMethods += '\t}\n';
-textSerializeMethods += '\tswitch (stage) {\n';
-textSerializeMethods += '\tcase 0: to.add("  messages: "); ++stages.back(); types.push_back(mtpc_vector); vtypes.push_back(mtpc_core_message); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-textSerializeMethods += '\t}\n';
-textSerializeMethods += '}\n\n';
-textSerializeInit += '\t\t_serializers.insert(mtpc_msg_container, _serialize_msg_container);\n';
+textSerializeInit += '\
+	_serializers.insert(mtpc_rpc_result, _serialize_rpc_result);\n\
+	_serializers.insert(mtpc_msg_container, _serialize_msg_container);\n\
+	_serializers.insert(mtpc_core_message, _serialize_core_message);\n';
 
-textSerializeMethods += 'void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
-textSerializeMethods += '\tif (stage) {\n';
-textSerializeMethods += '\t\tto.add(",\\n").addSpaces(lev);\n';
-textSerializeMethods += '\t} else {\n';
-textSerializeMethods += '\t\tto.add("{ core_message");\n';
-textSerializeMethods += '\t\tto.add("\\n").addSpaces(lev);\n';
-textSerializeMethods += '\t}\n';
-textSerializeMethods += '\tswitch (stage) {\n';
-textSerializeMethods += '\tcase 0: to.add("  msg_id: "); ++stages.back(); types.push_back(mtpc_long); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tcase 1: to.add("  seq_no: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tcase 2: to.add("  bytes: "); ++stages.back(); types.push_back(mtpc_int); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tcase 3: to.add("  body: "); ++stages.back(); types.push_back(0); vtypes.push_back(0); stages.push_back(0); flags.push_back(0); break;\n';
-textSerializeMethods += '\tdefault: to.add("}"); types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back(); break;\n';
-textSerializeMethods += '\t}\n';
-textSerializeMethods += '}\n\n';
-textSerializeInit += '\t\t_serializers.insert(mtpc_core_message, _serialize_core_message);\n';
+# module itself
 
-textSerializeFull = '\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n';
-textSerializeFull += '\tif (_serializers.isEmpty()) initTextSerializers();\n\n';
-textSerializeFull += '\tQVector<mtpTypeId> types, vtypes;\n';
-textSerializeFull += '\tQVector<int32> stages, flags;\n';
-textSerializeFull += '\ttypes.reserve(20); vtypes.reserve(20); stages.reserve(20); flags.reserve(20);\n';
-textSerializeFull += '\ttypes.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0); flags.push_back(0);\n\n';
-textSerializeFull += '\tconst mtpPrime *start = from;\n';
-textSerializeFull += '\tmtpTypeId type = cons, vtype = vcons;\n';
-textSerializeFull += '\tint32 stage = 0, flag = 0;\n\n';
-textSerializeFull += '\twhile (!types.isEmpty()) {\n';
-textSerializeFull += '\t\ttype = types.back();\n';
-textSerializeFull += '\t\tvtype = vtypes.back();\n';
-textSerializeFull += '\t\tstage = stages.back();\n';
-textSerializeFull += '\t\tflag = flags.back();\n';
-textSerializeFull += '\t\tif (!type) {\n';
-textSerializeFull += '\t\t\tif (from >= end) {\n';
-textSerializeFull += '\t\t\t\tthrow Exception("from >= end");\n';
-textSerializeFull += '\t\t\t} else if (stage) {\n';
-textSerializeFull += '\t\t\t\tthrow Exception("unknown type on stage > 0");\n';
-textSerializeFull += '\t\t\t}\n';
-textSerializeFull += '\t\t\ttypes.back() = type = *from;\n';
-textSerializeFull += '\t\t\tstart = ++from;\n';
-textSerializeFull += '\t\t}\n\n';
-textSerializeFull += '\t\tint32 lev = level + types.size() - 1;\n';
-textSerializeFull += '\t\tTextSerializers::const_iterator it = _serializers.constFind(type);\n';
-textSerializeFull += '\t\tif (it != _serializers.cend()) {\n';
-textSerializeFull += '\t\t\t(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n';
-textSerializeFull += '\t\t} else {\n';
-textSerializeFull += '\t\t\tmtpTextSerializeCore(to, from, end, type, lev, vtype);\n';
-textSerializeFull += '\t\t\ttypes.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n';
-textSerializeFull += '\t\t}\n';
-textSerializeFull += '\t}\n';
-textSerializeFull += '}\n';
+header = '\
+/*\n\
+WARNING! All changes made in this file will be lost!\n\
+Created from \'' + os.path.basename(input_file) + '\' by \'codegen_scheme\'\n\
+\n\
+This file is part of Telegram Desktop,\n\
+the official desktop version of Telegram messaging app, see https://telegram.org\n\
+\n\
+Telegram Desktop is free software: you can redistribute it and/or modify\n\
+it under the terms of the GNU General Public License as published by\n\
+the Free Software Foundation, either version 3 of the License, or\n\
+(at your option) any later version.\n\
+\n\
+It is distributed in the hope that it will be useful,\n\
+but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
+GNU General Public License for more details.\n\
+\n\
+In addition, as a special exception, the copyright holders give permission\n\
+to link the code of portions of this program with the OpenSSL library.\n\
+\n\
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
+Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+*/\n\
+#pragma once\n\
+\n\
+#include "mtproto/core_types.h"\n\
+\n\
+// Creator current layer and proxy class declaration\n\
+namespace MTP {\n\
+namespace internal {\n\
+\n\
+' + layer + '\n\
+\n\
+class TypeCreator;\n\
+\n\
+} // namespace internal\n\
+} // namespace MTP\n\
+\n\
+// Type id constants\n\
+enum {\n\
+' + ',\n'.join(enums) + '\n\
+};\n\
+\n\
+// Type forward declarations\n\
+' + forwards + '\n\
+// Boxed types definitions\n\
+' + forwTypedefs + '\n\
+// Type classes definitions\n\
+' + typesText + '\n\
+// Type constructors with data\n\
+' + dataTexts + '\n\
+// RPC methods\n\
+' + funcsText + '\n\
+// Creator proxy class definition\n\
+namespace MTP {\n\
+namespace internal {\n\
+\n\
+class TypeCreator {\n\
+public:\n\
+' + creatorProxyText + '\n\
+};\n\
+\n\
+} // namespace internal\n\
+} // namespace MTP\n\
+\n\
+// Inline methods definition\n\
+' + inlineMethods + '\n\
+// Human-readable text serialization\n\
+void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n'
 
-out.write('\n// Creator current layer and proxy class declaration\n');
-out.write('namespace MTP {\nnamespace internal {\n\n' + layer + '\n\n');
-out.write('class TypeCreator;\n\n} // namespace internal\n} // namespace MTP\n');
-out.write('\n// Type id constants\nenum {\n' + ',\n'.join(enums) + '\n};\n');
-out.write('\n// Type forward declarations\n' + forwards);
-out.write('\n// Boxed types definitions\n' + forwTypedefs);
-out.write('\n// Type classes definitions\n' + typesText);
-out.write('\n// Type constructors with data\n' + dataTexts);
-out.write('\n// RPC methods\n' + funcsText);
-out.write('\n// Creator proxy class definition\nnamespace MTP {\nnamespace internal {\n\nclass TypeCreator {\npublic:\n' + creatorProxyText + '\t};\n\n} // namespace internal\n} // namespace MTP\n');
-out.write('\n// Inline methods definition\n' + inlineMethods);
-out.write('\n// Human-readable text serialization\nvoid mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons);\n');
+source = '\
+/*\n\
+WARNING! All changes made in this file will be lost!\n\
+Created from \'' + os.path.basename(input_file) + '\' by \'codegen_scheme\'\n\
+\n\
+This file is part of Telegram Desktop,\n\
+the official desktop version of Telegram messaging app, see https://telegram.org\n\
+\n\
+Telegram Desktop is free software: you can redistribute it and/or modify\n\
+it under the terms of the GNU General Public License as published by\n\
+the Free Software Foundation, either version 3 of the License, or\n\
+(at your option) any later version.\n\
+\n\
+It is distributed in the hope that it will be useful,\n\
+but WITHOUT ANY WARRANTY; without even the implied warranty of\n\
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n\
+GNU General Public License for more details.\n\
+\n\
+Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
+Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
+*/\n\
+#include "scheme.h"\n\
+\n\
+typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\
+\n\
+' + textSerializeMethods + '\n\
+namespace {\n\
+\n\
+using mtpTextSerializer = void (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag);\n\
+using TextSerializers = QMap<mtpTypeId, mtpTextSerializer>;\n\
+\n\
+TextSerializers _serializers;\n\
+\n\
+void initTextSerializers() {\n\
+' + textSerializeInit + '\n\
+}\n\
+\n\
+} // namespace\n\
+\n\
+void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n\
+	if (_serializers.isEmpty()) {\n\
+		initTextSerializers();\n\
+	}\n\
+\n\
+	QVector<mtpTypeId> types, vtypes;\n\
+	QVector<int32> stages, flags;\n\
+	types.reserve(20); vtypes.reserve(20); stages.reserve(20); flags.reserve(20);\n\
+	types.push_back(mtpTypeId(cons)); vtypes.push_back(mtpTypeId(vcons)); stages.push_back(0); flags.push_back(0);\n\
+\n\
+	const mtpPrime *start = from;\n\
+	mtpTypeId type = cons, vtype = vcons;\n\
+	int32 stage = 0, flag = 0;\n\
+\n\
+	while (!types.isEmpty()) {\n\
+		type = types.back();\n\
+		vtype = vtypes.back();\n\
+		stage = stages.back();\n\
+		flag = flags.back();\n\
+		if (!type) {\n\
+			if (from >= end) {\n\
+				throw Exception("from >= end");\n\
+			} else if (stage) {\n\
+				throw Exception("unknown type on stage > 0");\n\
+			}\n\
+			types.back() = type = *from;\n\
+			start = ++from;\n\
+		}\n\
+\n\
+		int32 lev = level + types.size() - 1;\n\
+		TextSerializers::const_iterator it = _serializers.constFind(type);\n\
+		if (it != _serializers.cend()) {\n\
+			(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n\
+		} else {\n\
+			mtpTextSerializeCore(to, from, end, type, lev, vtype);\n\
+			types.pop_back(); vtypes.pop_back(); stages.pop_back(); flags.pop_back();\n\
+		}\n\
+	}\n\
+}\n';
 
-outCpp = open('scheme_auto.cpp', 'w');
-outCpp.write('/*\n');
-outCpp.write('Created from \'/SourceFiles/mtproto/scheme.tl\' by \'/SourceFiles/mtproto/generate.py\' script\n\n');
-outCpp.write('WARNING! All changes made in this file will be lost!\n\n');
-outCpp.write('This file is part of Telegram Desktop,\n');
-outCpp.write('the official desktop version of Telegram messaging app, see https://telegram.org\n');
-outCpp.write('\n');
-outCpp.write('Telegram Desktop is free software: you can redistribute it and/or modify\n');
-outCpp.write('it under the terms of the GNU General Public License as published by\n');
-outCpp.write('the Free Software Foundation, either version 3 of the License, or\n');
-outCpp.write('(at your option) any later version.\n');
-outCpp.write('\n');
-outCpp.write('It is distributed in the hope that it will be useful,\n');
-outCpp.write('but WITHOUT ANY WARRANTY; without even the implied warranty of\n');
-outCpp.write('MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the\n');
-outCpp.write('GNU General Public License for more details.\n');
-outCpp.write('\n');
-outCpp.write('Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n');
-outCpp.write('Copyright (c) 2014 John Preston, https://desktop.telegram.org\n');
-outCpp.write('*/\n');
-outCpp.write('#include "mtproto/scheme_auto.h"\n\n');
-outCpp.write('typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\n');
-outCpp.write(textSerializeMethods);
-outCpp.write('namespace {\n');
-outCpp.write('\ttypedef void(*mtpTextSerializer)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag);\n');
-outCpp.write('\ttypedef QMap<mtpTypeId, mtpTextSerializer> TextSerializers;\n\tTextSerializers _serializers;\n\n');
-outCpp.write('\tvoid initTextSerializers() {\n');
-outCpp.write(textSerializeInit);
-outCpp.write('\t}\n}\n');
-outCpp.write(textSerializeFull + '\n');
+already_header = ''
+if os.path.isfile(output_header):
+  with open(output_header, 'r') as already:
+    already_header = already.read()
+if already_header != header:
+  with open(output_header, 'w') as out:
+    out.write(header)
 
-print('Done, written {0} constructors, {1} functions.'.format(consts, funcs));
+already_source = ''
+if os.path.isfile(output_source):
+  with open(output_source, 'r') as already:
+    already_source = already.read()
+if already_source != source:
+  with open(output_source, 'w') as out:
+    out.write(source)

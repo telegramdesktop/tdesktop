@@ -864,7 +864,7 @@ inline QString mtpTextSerialize(const mtpPrime *&from, const mtpPrime *end) {
 	return QString::fromUtf8(to.p, to.size);
 }
 
-#include "mtproto/scheme_auto.h"
+#include "scheme.h"
 
 inline MTPbool MTP_bool(bool v) {
 	return v ? MTP_boolTrue() : MTP_boolFalse();
