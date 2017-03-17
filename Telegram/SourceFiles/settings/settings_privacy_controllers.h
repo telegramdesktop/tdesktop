@@ -53,7 +53,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	MTPInputPrivacyKey key() override;
-	void save(QVector<MTPInputPrivacyRule> &&result) override;
 
 	QString title() override;
 	QString optionDescription(Option option) override;
@@ -70,7 +69,6 @@ public:
 	using Exception = EditPrivacyBox::Exception;
 
 	MTPInputPrivacyKey key() override;
-	void save(QVector<MTPInputPrivacyRule> &&result) override;
 
 	QString title() override;
 	QString optionDescription(Option option) override;

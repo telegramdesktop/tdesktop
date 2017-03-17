@@ -223,11 +223,6 @@ MTPInputPrivacyKey LastSeenPrivacyController::key() {
 	return MTP_inputPrivacyKeyStatusTimestamp();
 }
 
-void LastSeenPrivacyController::save(QVector<MTPInputPrivacyRule> &&result) {
-	MTP::send(MTPaccount_SetPrivacy(MTP_inputPrivacyKeyStatusTimestamp(), MTP_vector<MTPInputPrivacyRule>(result)));
-	view()->closeBox();
-}
-
 QString LastSeenPrivacyController::title() {
 	return lang(lng_edit_privacy_lastseen_title);
 }
@@ -267,11 +262,6 @@ QString LastSeenPrivacyController::exceptionsDescription() {
 
 MTPInputPrivacyKey GroupsInvitePrivacyController::key() {
 	return MTP_inputPrivacyKeyChatInvite();
-}
-
-void GroupsInvitePrivacyController::save(QVector<MTPInputPrivacyRule> &&result) {
-	MTP::send(MTPaccount_SetPrivacy(MTP_inputPrivacyKeyChatInvite(), MTP_vector<MTPInputPrivacyRule>(result)));
-	view()->closeBox();
 }
 
 QString GroupsInvitePrivacyController::title() {

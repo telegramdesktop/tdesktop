@@ -44,7 +44,6 @@ public:
 	class Controller {
 	public:
 		virtual MTPInputPrivacyKey key() = 0;
-		virtual void save(QVector<MTPInputPrivacyRule> &&result) = 0;
 
 		virtual QString title() = 0;
 		virtual QString optionDescription(Option option) {

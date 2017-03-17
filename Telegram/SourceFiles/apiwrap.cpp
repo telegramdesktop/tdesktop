@@ -923,6 +923,140 @@ bool ApiWrap::hasUnsavedDrafts() const {
 	return !_draftsSaveRequestIds.isEmpty();
 }
 
+void ApiWrap::savePrivacy(const MTPInputPrivacyKey &key, QVector<MTPInputPrivacyRule> &&rules) {
+	auto keyTypeId = key.type();
+	auto it = _privacySaveRequests.find(keyTypeId);
+	if (it != _privacySaveRequests.cend()) {
+		MTP::cancel(it.value());
+		_privacySaveRequests.erase(it);
+	}
+	auto requestId = MTP::send(MTPaccount_SetPrivacy(key, MTP_vector<MTPInputPrivacyRule>(std::move(rules))), rpcDone(&ApiWrap::savePrivacyDone, keyTypeId), rpcFail(&ApiWrap::savePrivacyFail, keyTypeId));
+	_privacySaveRequests.insert(keyTypeId, requestId);
+}
+
+void ApiWrap::savePrivacyDone(mtpTypeId keyTypeId, const MTPaccount_PrivacyRules &result) {
+	Expects(result.type() == mtpc_account_privacyRules);
+	auto &rules = result.c_account_privacyRules();
+	App::feedUsers(rules.vusers);
+	_privacySaveRequests.remove(keyTypeId);
+	handlePrivacyChange(keyTypeId, rules.vrules);
+}
+
+bool ApiWrap::savePrivacyFail(mtpTypeId keyTypeId, const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
+	_privacySaveRequests.remove(keyTypeId);
+	return true;
+}
+
+void ApiWrap::handlePrivacyChange(mtpTypeId keyTypeId, const MTPVector<MTPPrivacyRule> &rules) {
+	if (keyTypeId == mtpc_privacyKeyStatusTimestamp) {
+		enum class Rule {
+			Unknown,
+			Allow,
+			Disallow,
+		};
+		auto userRules = QMap<UserId, Rule>();
+		auto contactsRule = Rule::Unknown;
+		auto everyoneRule = Rule::Unknown;
+		for (auto &rule : rules.v) {
+			auto type = rule.type();
+			if (type != mtpc_privacyValueAllowAll && type != mtpc_privacyValueDisallowAll && contactsRule != Rule::Unknown) {
+				// This is simplified: we ignore per-user rules that come after a contacts rule.
+				// But none of the official apps provide such complicated rule sets, so its fine.
+				continue;
+			}
+
+			switch (type) {
+			case mtpc_privacyValueAllowAll: everyoneRule = Rule::Allow; break;
+			case mtpc_privacyValueDisallowAll: everyoneRule = Rule::Disallow; break;
+			case mtpc_privacyValueAllowContacts: contactsRule = Rule::Allow; break;
+			case mtpc_privacyValueDisallowContacts: contactsRule = Rule::Disallow; break;
+			case mtpc_privacyValueAllowUsers: {
+				for_const (auto &userId, rule.c_privacyValueAllowUsers().vusers.v) {
+					if (!userRules.contains(userId.v)) {
+						userRules.insert(userId.v, Rule::Allow);
+					}
+				}
+			} break;
+			case mtpc_privacyValueDisallowUsers: {
+				for_const (auto &userId, rule.c_privacyValueDisallowUsers().vusers.v) {
+					if (!userRules.contains(userId.v)) {
+						userRules.insert(userId.v, Rule::Disallow);
+					}
+				}
+			} break;
+			}
+			if (everyoneRule != Rule::Unknown) {
+				break;
+			}
+		}
+
+		auto now = unixtime();
+		App::enumerateUsers([&userRules, contactsRule, everyoneRule, now](UserData *user) {
+			if (user->isSelf() || user->loadedStatus != PeerData::FullLoaded) {
+				return;
+			}
+			if (user->onlineTill <= 0) {
+				return;
+			}
+
+			if (user->onlineTill + 3 * 86400 >= now) {
+				user->onlineTill = -2; // recently
+			} else if (user->onlineTill + 7 * 86400 >= now) {
+				user->onlineTill = -3; // last week
+			} else if (user->onlineTill + 30 * 86400 >= now) {
+				user->onlineTill = -4; // last month
+			} else {
+				user->onlineTill = 0;
+			}
+			Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
+		});
+
+		if (_contactsStatusesRequestId) {
+			MTP::cancel(_contactsStatusesRequestId);
+		}
+		_contactsStatusesRequestId = MTP::send(MTPcontacts_GetStatuses(), rpcDone(&ApiWrap::contactsStatusesDone), rpcFail(&ApiWrap::contactsStatusesFail));
+	}
+}
+
+int ApiWrap::onlineTillFromStatus(const MTPUserStatus &status, int currentOnlineTill) {
+	switch (status.type()) {
+	case mtpc_userStatusEmpty: return 0;
+	case mtpc_userStatusRecently: return (currentOnlineTill > -10) ? -2 : currentOnlineTill; // don't modify pseudo-online
+	case mtpc_userStatusLastWeek: return -3;
+	case mtpc_userStatusLastMonth: return -4;
+	case mtpc_userStatusOffline: return status.c_userStatusOffline().vwas_online.v;
+	case mtpc_userStatusOnline: return status.c_userStatusOnline().vexpires.v;
+	}
+	Unexpected("Bad UserStatus type.");
+}
+
+void ApiWrap::contactsStatusesDone(const MTPVector<MTPContactStatus> &result) {
+	_contactsStatusesRequestId = 0;
+	for_const (auto &item, result.v) {
+		t_assert(item.type() == mtpc_contactStatus);
+		auto &data = item.c_contactStatus();
+		if (auto user = App::userLoaded(data.vuser_id.v)) {
+			auto oldOnlineTill = user->onlineTill;
+			auto newOnlineTill = onlineTillFromStatus(data.vstatus, oldOnlineTill);
+			if (oldOnlineTill != newOnlineTill) {
+				user->onlineTill = newOnlineTill;
+				Notify::peerUpdatedDelayed(user, Notify::PeerUpdate::Flag::UserOnlineChanged);
+			}
+		}
+	}
+}
+
+bool ApiWrap::contactsStatusesFail(const RPCError &error) {
+	if (MTP::isDefaultHandledError(error)) {
+		return false;
+	}
+	_contactsStatusesRequestId = 0;
+	return true;
+}
+
 void ApiWrap::saveDraftsToCloud() {
 	for (auto i = _draftsSaveRequestIds.begin(), e = _draftsSaveRequestIds.end(); i != e; ++i) {
 		if (i.value()) continue; // sent already

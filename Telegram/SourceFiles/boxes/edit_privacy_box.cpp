@@ -26,6 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/peer_list_box.h"
+#include "apiwrap.h"
 #include "lang.h"
 
 namespace {
@@ -330,7 +331,10 @@ void EditPrivacyBox::createWidgets() {
 	_exceptionsDescription.create(this, _controller->exceptionsDescription(), Ui::FlatLabel::InitType::Simple, st::editPrivacyLabel);
 
 	clearButtons();
-	addButton(lang(lng_settings_save), [this] { _controller->save(collectResult()); });
+	addButton(lang(lng_settings_save), [this] {
+		App::api()->savePrivacy(_controller->key(), collectResult());
+		closeBox();
+	});
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
 	showChildren();

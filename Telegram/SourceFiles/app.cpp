@@ -535,21 +535,13 @@ namespace {
 			data->loadedStatus = PeerData::FullLoaded;
 		}
 
-		auto oldOnlineTill = data->onlineTill;
-		if (status && !minimal) switch (status->type()) {
-		case mtpc_userStatusEmpty: data->onlineTill = 0; break;
-		case mtpc_userStatusRecently:
-		if (data->onlineTill > -10) { // don't modify pseudo-online
-			data->onlineTill = -2;
-		}
-		break;
-		case mtpc_userStatusLastWeek: data->onlineTill = -3; break;
-		case mtpc_userStatusLastMonth: data->onlineTill = -4; break;
-		case mtpc_userStatusOffline: data->onlineTill = status->c_userStatusOffline().vwas_online.v; break;
-		case mtpc_userStatusOnline: data->onlineTill = status->c_userStatusOnline().vexpires.v; break;
-		}
-		if (oldOnlineTill != data->onlineTill) {
-			update.flags |= UpdateFlag::UserOnlineChanged;
+		if (status && !minimal) {
+			auto oldOnlineTill = data->onlineTill;
+			auto newOnlineTill = App::api()->onlineTillFromStatus(*status, oldOnlineTill);
+			if (oldOnlineTill != newOnlineTill) {
+				data->onlineTill = newOnlineTill;
+				update.flags |= UpdateFlag::UserOnlineChanged;
+			}
 		}
 
 		if (data->contact < 0 && !data->phone().isEmpty() && data->id != AuthSession::CurrentUserPeerId()) {
@@ -1558,6 +1550,14 @@ namespace {
 		} break;
 		}
 		return i.value();
+	}
+
+	void enumerateUsers(base::lambda<void(UserData*)> action) {
+		for_const (auto peer, peersData) {
+			if (auto user = peer->asUser()) {
+				action(user);
+			}
+		}
 	}
 
 	UserData *self() {
