@@ -24,6 +24,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
+#include "auth_session.h"
+#include "storage/localstorage.h"
+#include "boxes/confirmbox.h"
 
 namespace Settings {
 namespace {
@@ -258,6 +261,24 @@ QString LastSeenPrivacyController::exceptionBoxTitle(Exception exception) {
 
 QString LastSeenPrivacyController::exceptionsDescription() {
 	return lang(lng_edit_privacy_lastseen_exceptions);
+}
+
+void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) {
+	if (someAreDisallowed && !AuthSession::Current().data().lastSeenWarningSeen()) {
+		auto weakBox = std::make_shared<QPointer<ConfirmBox>>();
+		auto callback = [weakBox, saveCallback = std::move(saveCallback)]() mutable {
+			if (auto box = *weakBox) {
+				box->closeBox();
+			}
+			saveCallback();
+			AuthSession::Current().data().setLastSeenWarningSeen(true);
+			Local::writeUserSettings();
+		};
+		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_description), lang(lng_continue), lang(lng_cancel), std::move(callback));
+		*weakBox = Ui::show(std::move(box), KeepOtherLayers);
+	} else {
+		saveCallback();
+	}
 }
 
 MTPInputPrivacyKey GroupsInvitePrivacyController::key() {

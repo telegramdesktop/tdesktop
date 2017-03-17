@@ -61,6 +61,8 @@ public:
 	QString exceptionBoxTitle(Exception exception) override;
 	QString exceptionsDescription() override;
 
+	void confirmSave(bool someAreDisallowed, base::lambda_once<void()> saveCallback) override;
+
 };
 
 class GroupsInvitePrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {

@@ -48,6 +48,8 @@ using FileKey = quint64;
 constexpr char tdfMagic[] = { 'T', 'D', 'F', '$' };
 constexpr int tdfMagicLen = sizeof(tdfMagic);
 
+bool _cacheLastSeenWarningSeen = false;
+
 QString toFilePart(FileKey val) {
 	QString result;
 	result.reserve(0x10);
@@ -572,6 +574,7 @@ enum {
 	dbiUseExternalVideoPlayer = 0x49,
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
+	dbiLastSeenWarningSeen = 0x4c,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -917,6 +920,7 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Messenger::Instance().setMtpMainDcId(dcId);
 		if (userId) {
 			Messenger::Instance().authSessionCreate(UserId(userId));
+			AuthSession::Current().data().setLastSeenWarningSeen(_cacheLastSeenWarningSeen);
 		}
 	} break;
 
@@ -936,6 +940,9 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Messenger::Instance().setMtpAuthorization(serialized);
+		if (AuthSession::Exists()) {
+			AuthSession::Current().data().setLastSeenWarningSeen(_cacheLastSeenWarningSeen);
+		}
 	} break;
 
 	case dbiAutoStart: {
@@ -1081,6 +1088,18 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Global::SetDialogsWidthRatio(v / 1000000.);
+	} break;
+
+	case dbiLastSeenWarningSeen: {
+		qint32 v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		if (AuthSession::Exists()) {
+			AuthSession::Current().data().setLastSeenWarningSeen(v == 1);
+		} else {
+			_cacheLastSeenWarningSeen = (v == 1);
+		}
 	} break;
 
 	case dbiWorkMode: {
@@ -1728,6 +1747,8 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(Global::DialogsWidthRatio() * 1000000), 0, 1000000));
+	auto lastSeenWarningSeen = (AuthSession::Exists() ? AuthSession::Current().data().lastSeenWarningSeen() : _cacheLastSeenWarningSeen);
+	data.stream << quint32(dbiLastSeenWarningSeen) << qint32(lastSeenWarningSeen ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
 
 	{
@@ -2329,6 +2350,7 @@ void reset() {
 	_savedGifsKey = 0;
 	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
+	_cacheLastSeenWarningSeen = false;
 	_mapChanged = true;
 	_writeMap(WriteMapNow);
 

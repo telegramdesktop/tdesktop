@@ -99,6 +99,10 @@ public:
 		return _option->checked();
 	}
 
+	QMargins getMargins() const override {
+		return _option->getMargins();
+	}
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 
@@ -117,8 +121,8 @@ int EditPrivacyBox::OptionWidget::resizeGetHeight(int newWidth) {
 	_option->resizeToNaturalWidth(newWidth);
 	auto optionTextLeft = st::defaultBoxCheckbox.textPosition.x();
 	_description->resizeToWidth(newWidth - optionTextLeft);
-	_option->moveToLeft(0, 0);
-	_description->moveToLeft(optionTextLeft, _option->bottomNoMargins());
+	_option->moveToLeft(getMargins().left(), getMargins().top());
+	_description->moveToLeft(optionTextLeft + getMargins().left(), _option->bottomNoMargins());
 	return _description->bottomNoMargins();
 }
 
@@ -332,8 +336,11 @@ void EditPrivacyBox::createWidgets() {
 
 	clearButtons();
 	addButton(lang(lng_settings_save), [this] {
-		App::api()->savePrivacy(_controller->key(), collectResult());
-		closeBox();
+		auto someAreDisallowed = (_option != Option::Everyone) || !_neverUsers.empty();
+		_controller->confirmSave(someAreDisallowed, base::lambda_guarded(this, [this] {
+			App::api()->savePrivacy(_controller->key(), collectResult());
+			closeBox();
+		}));
 	});
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 

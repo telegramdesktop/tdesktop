@@ -75,10 +75,18 @@ public:
 			return _moreChatsLoaded;
 		}
 
+		bool lastSeenWarningSeen() const {
+			return _lastSeenWarningSeen;
+		}
+		void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
+			_lastSeenWarningSeen = lastSeenWarningSeen;
+		}
+
 	private:
 		base::Variable<bool> _contactsLoaded = { false } ;
 		base::Variable<bool> _allChatsLoaded = { false };
 		base::Observable<void> _moreChatsLoaded;
+		bool _lastSeenWarningSeen = false;
 
 	};
 	Data &data() {
