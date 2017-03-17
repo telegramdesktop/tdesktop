@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/shadow.h"
 
 namespace Ui {
@@ -98,7 +97,7 @@ QPixmap Shadow::grab(TWidget *target, const style::Shadow &shadow, Sides sides) 
 		target->render(&p, QPoint(extend.left(), extend.top()), rect, QWidget::DrawChildren | QWidget::IgnoreMask);
 		target->grabFinish();
 	}
-	return std_::move(result);
+	return result;
 }
 
 } // namespace Ui

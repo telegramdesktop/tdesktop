@@ -18,10 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings.h"
 
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "lang.h"
 
 bool gRtl = false;
@@ -56,7 +55,6 @@ bool gAutoUpdate = true;
 TWindowPos gWindowPos;
 LaunchMode gLaunchMode = LaunchModeNormal;
 bool gSupportTray = true;
-DBIWorkMode gWorkMode = dbiwmWindowAndTray;
 bool gSeenTrayTooltip = false;
 bool gRestartingUpdate = false, gRestarting = false, gRestartingToSettings = false, gWriteProtected = false;
 int32 gLastUpdateCheck = 0;
@@ -115,9 +113,6 @@ DBIPlatform gPlatform = dbipLinux32;
 QString gPlatformString;
 QUrl gUpdateURL;
 bool gIsElCapitan = false;
-
-bool gContactsReceived = false;
-bool gDialogsReceived = false;
 
 int gOtherOnline = 0;
 
@@ -181,10 +176,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 
 	gExeDir = psCurrentExeDirectory(argc, argv);
 	gExeName = psCurrentExeName(argc, argv);
-	if (argc == 2 && fromUtf8Safe(argv[1]).endsWith(qstr(".telegramcrash")) && QFile(fromUtf8Safe(argv[1])).exists()) {
-		gLaunchMode = LaunchModeShowCrash;
-		gStartUrl = fromUtf8Safe(argv[1]);
-	}
     for (int32 i = 0; i < argc; ++i) {
 		if (qstr("-testmode") == argv[i]) {
 			gTestMode = true;
@@ -200,9 +191,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gLaunchMode = LaunchModeFixPrevious;
 		} else if (qstr("-cleanup") == argv[i]) {
 			gLaunchMode = LaunchModeCleanup;
-		} else if (qstr("-crash") == argv[i] && i + 1 < argc) {
-			gLaunchMode = LaunchModeShowCrash;
-			gStartUrl = fromUtf8Safe(argv[++i]);
 		} else if (qstr("-noupdate") == argv[i]) {
 			gNoStartUpdate = true;
 		} else if (qstr("-tosettings") == argv[i]) {

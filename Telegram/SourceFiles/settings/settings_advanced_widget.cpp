@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_advanced_widget.h"
 
 #include "styles/style_settings.h"
@@ -30,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/widget_slide_wrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "window/themes/window_theme.h"
 
 namespace Settings {
@@ -89,11 +88,7 @@ void AdvancedWidget::createControls() {
 
 void AdvancedWidget::checkNonDefaultTheme() {
 	if (self()) return;
-	if (Local::hasTheme()) {
-		_useDefaultTheme->slideDown();
-	} else {
-		_useDefaultTheme->slideUp();
-	}
+	_useDefaultTheme->toggleAnimated(Local::hasTheme());
 }
 
 void AdvancedWidget::onManageLocalStorage() {
@@ -136,7 +131,7 @@ void AdvancedWidget::onAskQuestion() {
 		onTelegramFAQ();
 	}));
 	box->setStrictCancel(true);
-	Ui::show(std_::move(box));
+	Ui::show(std::move(box));
 }
 
 void AdvancedWidget::onAskQuestionSure() {

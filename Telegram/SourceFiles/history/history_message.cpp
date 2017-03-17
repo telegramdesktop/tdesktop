@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_message.h"
 
 #include "lang.h"
@@ -28,9 +27,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_location_manager.h"
 #include "history/history_service_layout.h"
 #include "history/history_media_types.h"
+#include "auth_session.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_history.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -414,7 +415,7 @@ HistoryMessage::HistoryMessage(History *history, const MTPDmessage &msg)
 
 	TextWithEntities textWithEntities = {
 		textClean(qs(msg.vmessage)),
-		msg.has_entities() ? entitiesFromMTP(msg.ventities.c_vector().v) : EntitiesInText(),
+		msg.has_entities() ? entitiesFromMTP(msg.ventities.v) : EntitiesInText(),
 	};
 	setText(textWithEntities);
 }
@@ -826,7 +827,7 @@ void HistoryMessage::initDimensions() {
 	}
 	if (auto markup = inlineReplyMarkup()) {
 		if (!markup->inlineKeyboard) {
-			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std_::make_unique<KeyboardStyle>(st::msgBotKbButton)));
+			markup->inlineKeyboard.reset(new ReplyKeyboard(this, std::make_unique<KeyboardStyle>(st::msgBotKbButton)));
 		}
 
 		// if we have a text bubble we can resize it to fit the keyboard
@@ -894,7 +895,7 @@ void HistoryMessage::applyEdition(const MTPDmessage &message) {
 
 	TextWithEntities textWithEntities = { qs(message.vmessage), EntitiesInText() };
 	if (message.has_entities()) {
-		textWithEntities.entities = entitiesFromMTP(message.ventities.c_vector().v);
+		textWithEntities.entities = entitiesFromMTP(message.ventities.v);
 	}
 	setText(textWithEntities);
 	setMedia(message.has_media() ? (&message.vmedia) : nullptr);
@@ -989,7 +990,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 	} else {
 		result.text = textResult.text + qstr("\n\n");
 		result.entities = textResult.entities;
-		appendTextWithEntities(result, std_::move(mediaResult));
+		appendTextWithEntities(result, std::move(mediaResult));
 	}
 	if (auto fwd = Get<HistoryMessageForwarded>()) {
 		if (selection == FullSelection) {
@@ -998,9 +999,9 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			wrapped.text.reserve(fwdinfo.text.size() + 4 + result.text.size());
 			wrapped.entities.reserve(fwdinfo.entities.size() + result.entities.size());
 			wrapped.text.append('[');
-			appendTextWithEntities(wrapped, std_::move(fwdinfo));
+			appendTextWithEntities(wrapped, std::move(fwdinfo));
 			wrapped.text.append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std_::move(result));
+			appendTextWithEntities(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}
@@ -1009,7 +1010,7 @@ TextWithEntities HistoryMessage::selectedText(TextSelection selection) const {
 			TextWithEntities wrapped;
 			wrapped.text.reserve(lang(lng_in_reply_to).size() + reply->replyToMsg->author()->name.size() + 4 + result.text.size());
 			wrapped.text.append('[').append(lang(lng_in_reply_to)).append(' ').append(reply->replyToMsg->author()->name).append(qsl("]\n"));
-			appendTextWithEntities(wrapped, std_::move(result));
+			appendTextWithEntities(wrapped, std::move(result));
 			result = wrapped;
 		}
 	}
@@ -1849,10 +1850,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	switch (action.type()) {
 	case mtpc_messageActionChatAddUser: {
 		auto &d = action.c_messageActionChatAddUser();
-		auto &v = d.vusers.c_vector().v;
+		auto &v = d.vusers.v;
 		bool foundSelf = false;
 		for (int i = 0, l = v.size(); i < l; ++i) {
-			if (v.at(i).v == MTP::authedId()) {
+			if (v.at(i).v == AuthSession::CurrentUserId()) {
 				foundSelf = true;
 				break;
 			}
@@ -2032,10 +2033,8 @@ bool HistoryService::updateDependent(bool force) {
 		}
 		updateDependentText();
 	}
-	if (force) {
-		if (gotDependencyItem && App::wnd()) {
-			App::wnd()->notifySettingGot();
-		}
+	if (force && gotDependencyItem) {
+		AuthSession::Current().notifications().checkDelayed();
 	}
 	return (dependent->msg || !dependent->msgId);
 }
@@ -2445,7 +2444,7 @@ HistoryJoined::HistoryJoined(History *history, const QDateTime &inviteDate, User
 	: HistoryService(history, clientMsgId(), inviteDate, QString(), flags) {
 	Links links;
 	auto text = ([history, inviter, &links]() {
-		if (peerToUser(inviter->id) == MTP::authedId()) {
+		if (inviter->id == AuthSession::CurrentUserPeerId()) {
 			return lang(history->isMegagroup() ? lng_action_you_joined_group : lng_action_you_joined);
 		}
 		links.push_back(peerOpenClickHandler(inviter));

@@ -101,7 +101,7 @@ private:
 	object_ptr<Ui::IconButton> _repeatTrack;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<Ui::PlainShadow> _shadow = { nullptr };
-	std_::unique_ptr<Clip::Playback> _playback;
+	std::unique_ptr<Clip::Playback> _playback;
 
 };
 

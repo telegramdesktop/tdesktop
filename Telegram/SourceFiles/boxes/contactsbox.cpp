@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/contactsbox.h"
 
 #include "dialogs/dialogs_indexed_list.h"
@@ -30,10 +29,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "application.h"
+#include "messenger.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/effects/widget_slide_wrap.h"
@@ -43,6 +42,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/themes/window_theme.h"
 #include "observer_peer.h"
 #include "apiwrap.h"
+#include "auth_session.h"
+#include "storage/file_download.h"
 
 QString PeerFloodErrorText(PeerFloodType type) {
 	auto link = textcmdLink(CreateInternalLinkHttps(qsl("spambot")), lang(lng_cant_more_info));
@@ -139,21 +140,16 @@ void ContactsBox::prepare() {
 		addPeerToMultiSelect(i, true);
 	}
 	_inner->setAllAdminsChangedCallback([this] {
+		_select->toggleAnimated(!_inner->allAdmins());
 		if (_inner->allAdmins()) {
 			_select->entity()->clearQuery();
-			_select->slideUp();
 			_inner->setFocus();
 		} else {
-			_select->slideDown();
 			_select->entity()->setInnerFocus();
 		}
 		updateScrollSkips();
 	});
-	if (_inner->chat() && _inner->membersFilter() == MembersFilter::Admins && _inner->allAdmins()) {
-		_select->hideFast();
-	} else {
-		_select->showFast();
-	}
+	_select->toggleFast(!_inner->chat() || (_inner->membersFilter() != MembersFilter::Admins) || !_inner->allAdmins());
 	_select->entity()->setQueryChangedCallback([this](const QString &query) { onFilterUpdate(query); });
 	_select->entity()->setItemRemovedCallback([this](uint64 itemId) {
 		if (auto peer = App::peerLoaded(itemId)) {
@@ -239,7 +235,7 @@ void ContactsBox::peopleReceived(const MTPcontacts_Found &result, mtpRequestId r
 		case mtpc_contacts_found: {
 			App::feedUsers(result.c_contacts_found().vusers);
 			App::feedChats(result.c_contacts_found().vchats);
-			_inner->peopleReceived(q, result.c_contacts_found().vresults.c_vector().v);
+			_inner->peopleReceived(q, result.c_contacts_found().vresults.v);
 		} break;
 		}
 
@@ -293,7 +289,7 @@ object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> ContactsBox::createMultiSelect(
 	auto entity = object_ptr<Ui::MultiSelect>(this, st::contactsMultiSelect, lang(lng_participant_filter));
 	auto margins = style::margins(0, 0, 0, 0);
 	auto callback = [this] { updateScrollSkips(); };
-	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std_::move(entity), margins, std_::move(callback));
+	return object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>>(this, std::move(entity), margins, std::move(callback));
 }
 
 int ContactsBox::getTopScrollSkip() const {
@@ -486,8 +482,8 @@ void ContactsBox::creationDone(const MTPUpdates &updates) {
 	App::main()->sentUpdatesReceived(updates);
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (ContactsBox::creationDone)").arg(updates.type())); break;
 	}
 
@@ -527,8 +523,8 @@ bool ContactsBox::creationFail(const RPCError &error) {
 
 ContactsBox::Inner::ContactData::ContactData() = default;
 
-ContactsBox::Inner::ContactData::ContactData(PeerData *peer, const base::lambda_copy<void()> &updateCallback)
-: checkbox(std_::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
+ContactsBox::Inner::ContactData::ContactData(PeerData *peer, base::lambda<void()> updateCallback)
+: checkbox(std::make_unique<Ui::RoundImageCheckbox>(st::contactsPhotoCheckbox, updateCallback, PaintUserpicCallback(peer))) {
 }
 
 ContactsBox::Inner::ContactData::~ContactData() = default;
@@ -568,7 +564,7 @@ ContactsBox::Inner::Inner(QWidget *parent, ChatData *chat, MembersFilter members
 , _aboutWidth(st::boxWideWidth - st::contactsPadding.left() - st::contactsPadding.right())
 , _aboutAllAdmins(st::defaultTextStyle, lang(lng_chat_about_all_admins), _defaultOptions, _aboutWidth)
 , _aboutAdmins(st::defaultTextStyle, lang(lng_chat_about_admins), _defaultOptions, _aboutWidth)
-, _customList((membersFilter == MembersFilter::Recent) ? std_::unique_ptr<Dialogs::IndexedList>() : std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _customList((membersFilter == MembersFilter::Recent) ? std::unique_ptr<Dialogs::IndexedList>() : std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts((membersFilter == MembersFilter::Recent) ? App::main()->contactsList() : _customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	initList();
@@ -596,7 +592,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _bot(bot)
 , _allAdmins(this, lang(lng_chat_all_members_admins), false, st::defaultBoxCheckbox)
-, _customList(std_::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
+, _customList(std::make_unique<Dialogs::IndexedList>(Dialogs::SortMode::Add))
 , _contacts(_customList.get())
 , _addContactLnk(this, lang(lng_add_contact_button)) {
 	if (sharingBotGame()) {
@@ -623,7 +619,7 @@ ContactsBox::Inner::Inner(QWidget *parent, UserData *bot) : TWidget(parent)
 }
 
 void ContactsBox::Inner::init() {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 	connect(_addContactLnk, SIGNAL(clicked()), App::wnd(), SLOT(onShowAddContact()));
 	connect(_allAdmins, SIGNAL(changed()), this, SLOT(onAllAdminsChanged()));
 
@@ -848,7 +844,7 @@ void ContactsBox::Inner::loadProfilePhotos() {
 
 	auto yFrom = _visibleTop - _rowsTop;
 	auto yTo = yFrom + (_visibleBottom - _visibleTop) * 5;
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 
 	if (yTo < 0) return;
 	if (yFrom < 0) yFrom = 0;
@@ -891,9 +887,9 @@ ContactsBox::Inner::ContactData *ContactsBox::Inner::contactData(Dialogs::Row *r
 						data->disabledChecked = _chat->participants.contains(peer->asUser());
 					}
 				} else if (_creating == CreatingGroupGroup) {
-					data->disabledChecked = (peerToUser(peer->id) == MTP::authedId());
+					data->disabledChecked = (peer->id == AuthSession::CurrentUserPeerId());
 				} else if (_channel) {
-					data->disabledChecked = (peerToUser(peer->id) == MTP::authedId()) || _already.contains(peer->asUser());
+					data->disabledChecked = (peer->id == AuthSession::CurrentUserPeerId()) || _already.contains(peer->asUser());
 				}
 			}
 			if (usingMultiSelect() && _checkedContacts.contains(peer)) {
@@ -1101,7 +1097,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			QString text;
 			skip = 0;
 			if (bot()) {
-				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
+				text = lang((AuthSession::Current().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_no_chats : lng_bot_no_groups) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(lng_contacts_loading);
 				p.fillRect(0, 0, width(), _aboutHeight - st::contactsPadding.bottom() - st::lineWidth, st::contactsAboutBg);
@@ -1110,7 +1106,7 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 				int aboutw = width() - st::contactsPadding.left() - st::contactsPadding.right();
 				(_allAdmins->checked() ? _aboutAllAdmins : _aboutAdmins).draw(p, st::contactsPadding.left(), st::contactsAboutTop, aboutw);
 				p.translate(0, _aboutHeight);
-			} else if (cContactsReceived() && !_searching) {
+			} else if (AuthSession::Current().data().contactsLoaded().value() && !_searching) {
 				text = lang(lng_no_contacts);
 				skip = st::noContactsFont->height;
 			} else {
@@ -1126,11 +1122,11 @@ void ContactsBox::Inner::paintEvent(QPaintEvent *e) {
 			p.setPen(st::noContactsColor);
 			QString text;
 			if (bot()) {
-				text = lang((cDialogsReceived() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
+				text = lang((AuthSession::Current().data().allChatsLoaded().value() && !_searching) ? (sharingBotGame() ? lng_bot_chats_not_found : lng_bot_groups_not_found) : lng_contacts_loading);
 			} else if (_chat && _membersFilter == MembersFilter::Admins) {
 				text = lang(_chat->participants.isEmpty() ? lng_contacts_loading : lng_contacts_not_found);
 			} else {
-				text = lang((cContactsReceived() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
+				text = lang((AuthSession::Current().data().contactsLoaded().value() && !_searching) ? lng_contacts_not_found : lng_contacts_loading);
 			}
 			p.drawText(QRect(0, 0, width(), st::noContactsHeight), text, style::al_center);
 		} else {
@@ -1297,7 +1293,7 @@ void ContactsBox::Inner::addRipple(PeerData *peer, ContactData *data) {
 	auto rowTop = getSelectedRowTop();
 	if (!data->ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
-		data->ripple = std_::make_unique<Ui::RippleAnimation>(st::contactsRipple, std_::move(mask), [this, data] {
+		data->ripple = std::make_unique<Ui::RippleAnimation>(st::contactsRipple, std::move(mask), [this, data] {
 			updateRowWithTop(data->rippleRowTop);
 		});
 	}
@@ -1470,8 +1466,8 @@ void ContactsBox::Inner::peerUnselected(PeerData *peer) {
 	changePeerCheckState(data, peer, false, ChangeStateWay::SkipCallback);
 }
 
-void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> &&callback) {
-	_peerSelectedChangedCallback = std_::move(callback);
+void ContactsBox::Inner::setPeerSelectedChangedCallback(base::lambda<void(PeerData *peer, bool selected)> callback) {
+	_peerSelectedChangedCallback = std::move(callback);
 }
 
 void ContactsBox::Inner::changePeerCheckState(ContactData *data, PeerData *peer, bool checked, ChangeStateWay useCallback) {
@@ -1773,7 +1769,7 @@ void ContactsBox::Inner::refresh() {
 			if (!_addContactLnk->isHidden()) _addContactLnk->hide();
 			resize(width(), _rowsTop + _aboutHeight + st::noContactsHeight + st::contactsMarginBottom);
 		} else {
-			if (cContactsReceived() && !bot()) {
+			if (AuthSession::Current().data().contactsLoaded().value() && !bot()) {
 				if (_addContactLnk->isHidden()) _addContactLnk->show();
 			} else {
 				if (!_addContactLnk->isHidden()) _addContactLnk->hide();

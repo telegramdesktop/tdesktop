@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "observer_peer.h"
 
 #include "core/observer.h"
@@ -101,10 +100,10 @@ void peerUpdatedSendDelayed() {
 	auto smallList = base::take(*SmallUpdates);
 	auto allList = base::take(*AllUpdates);
 	for (auto &update : smallList) {
-		PeerUpdated().notify(std_::move(update), true);
+		PeerUpdated().notify(std::move(update), true);
 	}
 	for (auto &update : allList) {
-		PeerUpdated().notify(std_::move(update), true);
+		PeerUpdated().notify(std::move(update), true);
 	}
 
 	if (SmallUpdates->isEmpty()) {

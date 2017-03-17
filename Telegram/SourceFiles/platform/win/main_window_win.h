@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "window/main_window.h"
+#include "platform/platform_main_window.h"
 #include <windows.h>
 
 namespace Ui {
@@ -43,14 +43,7 @@ public:
 	void psUpdateSysMenu(Qt::WindowState state);
 	void psUpdateMargins();
 
-	void psFlash();
-	void psNotifySettingGot();
-
-	void psUpdateWorkmode();
-
 	void psRefreshTaskbarIcon();
-
-	bool psHasNativeNotifications();
 
 	virtual QImage iconWithCounter(int size, int count, style::color bg, style::color fg, bool smallIcon) = 0;
 
@@ -107,6 +100,8 @@ protected:
 	virtual void placeSmallCounter(QImage &img, int size, int count, style::color bg, const QPoint &shift, style::color color) = 0;
 
 	void showTrayTooltip() override;
+
+	void workmodeUpdated(DBIWorkMode mode) override;
 
 	QTimer psUpdatedPositionTimer;
 

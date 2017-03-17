@@ -10,8 +10,6 @@ environment:
    - BUILD_VERSION: disable_register_custom_scheme
    - BUILD_VERSION: disable_crash_reports
    - BUILD_VERSION: disable_network_proxy
-   - BUILD_VERSION: disable_desktop_file_generation
-   - BUILD_VERSION: disable_unity_integration
 
 matrix:
   fast_finish: true

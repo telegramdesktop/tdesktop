@@ -47,10 +47,10 @@ public:
 
 	using Callback = base::lambda<void(float64)>;
 	void setChangeProgressCallback(Callback &&callback) {
-		_changeProgressCallback = std_::move(callback);
+		_changeProgressCallback = std::move(callback);
 	}
 	void setChangeFinishedCallback(Callback &&callback) {
-		_changeFinishedCallback = std_::move(callback);
+		_changeFinishedCallback = std::move(callback);
 	}
 	bool isChanging() const {
 		return _mouseDown;
@@ -99,7 +99,7 @@ private:
 	Direction _direction = Direction::Horizontal;
 	bool _disabled = false;
 
-	std_::unique_ptr<SingleTimer> _byWheelFinished;
+	std::unique_ptr<SingleTimer> _byWheelFinished;
 
 	Callback _changeProgressCallback;
 	Callback _changeFinishedCallback;

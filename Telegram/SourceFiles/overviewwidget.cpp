@@ -18,8 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "styles/style_overview.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -27,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/buttons.h"
@@ -44,6 +42,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "history/history_service_layout.h"
 #include "media/media_audio.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "storage/file_download.h"
 
 // flick scroll taken from http://qt-project.org/doc/qt-4.8/demos-embedded-anomaly-src-flickcharm-cpp.html
 
@@ -61,7 +61,7 @@ OverviewInner::OverviewInner(OverviewWidget *overview, Ui::ScrollArea *scroll, P
 , _cancelSearch(this, st::dialogsCancelSearch)
 , _itemsToBeLoaded(LinksOverviewPerPage * 2)
 , _width(st::windowMinWidth) {
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::Current().downloader().taskFinished(), [this] { update(); });
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
@@ -204,26 +204,26 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 	}
 
 	if (_searchRequest == req) {
-		const QVector<MTPMessage> *messages = 0;
+		const QVector<MTPMessage> *messages = nullptr;
 		switch (result.type()) {
 		case mtpc_messages_messages: {
-			auto &d(result.c_messages_messages());
+			auto &d = result.c_messages_messages();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = messages->size();
 		} break;
 
 		case mtpc_messages_messagesSlice: {
-			auto &d(result.c_messages_messagesSlice());
+			auto &d = result.c_messages_messagesSlice();
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = d.vcount.v;
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			auto &d(result.c_messages_channelMessages());
+			auto &d = result.c_messages_channelMessages();
 			if (_peer && _peer->isChannel()) {
 				_peer->asChannel()->ptsReceived(d.vpts.v);
 			} else {
@@ -231,7 +231,7 @@ void OverviewInner::searchReceived(SearchRequestType type, const MTPmessages_Mes
 			}
 			App::feedUsers(d.vusers);
 			App::feedChats(d.vchats);
-			messages = &d.vmessages.c_vector().v;
+			messages = &d.vmessages.v;
 			_searchedCount = d.vcount.v;
 		} break;
 		}
@@ -1440,7 +1440,7 @@ void OverviewInner::showContextInFolder() {
 	if (auto lnkDocument = dynamic_cast<DocumentClickHandler*>(_contextMenuLnk.data())) {
 		auto filepath = lnkDocument->document()->filepath(DocumentData::FilePathResolveChecked);
 		if (!filepath.isEmpty()) {
-			psShowInFolder(filepath);
+			File::ShowInFolder(filepath);
 		}
 	}
 }
@@ -1919,7 +1919,7 @@ void OverviewWidget::clear() {
 }
 
 void OverviewWidget::onScroll() {
-	MTP::clearLoaderPriorities();
+	AuthSession::Current().downloader().clearPriorities();
 	int32 preloadThreshold = _scroll->height() * 5;
 	bool needToPreload = false;
 	do {

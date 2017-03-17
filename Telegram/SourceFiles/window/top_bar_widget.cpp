@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/top_bar_widget.h"
 
 #include "styles/style_window.h"
@@ -28,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 #include "shortcuts.h"
 #include "lang.h"
-#include "ui/buttons/peer_avatar_button.h"
+#include "ui/special_buttons.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/dropdown_menu.h"
 #include "dialogs/dialogs_layout.h"
@@ -126,8 +125,8 @@ void TopBarWidget::showMenu() {
 					}
 				}));
 				_menuToggle->installEventFilter(_menu);
-				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda<void()> &&callback) {
-					return _menu->addAction(text, std_::move(callback));
+				App::main()->fillPeerMenu(peer, [this](const QString &text, base::lambda<void()> callback) {
+					return _menu->addAction(text, std::move(callback));
 				}, false);
 				_menu->moveToRight(st::topBarMenuPosition.x(), st::topBarMenuPosition.y());
 				_menu->showAnimated(Ui::PanelAnimation::Origin::TopRight);

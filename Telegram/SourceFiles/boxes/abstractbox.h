@@ -43,8 +43,8 @@ public:
 	virtual void setTitle(const QString &title, const QString &additional) = 0;
 
 	virtual void clearButtons() = 0;
-	virtual QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) = 0;
-	virtual QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
+	virtual QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) = 0;
 	virtual void updateButtonsPositions() = 0;
 
 	virtual void setDimensions(int newWidth, int maxHeight) = 0;
@@ -62,22 +62,39 @@ public:
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
 
-	void setDelegate(BoxContentDelegate *newDelegate) {
-		_delegate = newDelegate;
-		prepare();
-		setInnerFocus();
+	bool isBoxShown() const {
+		return getDelegate()->isBoxShown();
 	}
+	void closeBox() {
+		getDelegate()->closeBox();
+	}
+
+	void setTitle(const QString &title, const QString &additional = QString()) {
+		getDelegate()->setTitle(title, additional);
+	}
+
+	void clearButtons() {
+		getDelegate()->clearButtons();
+	}
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback);
+	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> clickCallback);
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
+		return getDelegate()->addButton(text, std::move(clickCallback), st);
+	}
+	void updateButtonsGeometry() {
+		getDelegate()->updateButtonsPositions();
+	}
+
 	virtual void setInnerFocus() {
 		setFocus();
 	}
 	virtual void closeHook() {
 	}
 
-	bool isBoxShown() const {
-		return getDelegate()->isBoxShown();
-	}
-	void closeBox() {
-		getDelegate()->closeBox();
+	void setDelegate(BoxContentDelegate *newDelegate) {
+		_delegate = newDelegate;
+		prepare();
+		setInnerFocus();
 	}
 
 public slots:
@@ -90,21 +107,6 @@ protected:
 
 	void setLayerType(bool layerType) {
 		getDelegate()->setLayerType(layerType);
-	}
-	void setTitle(const QString &title, const QString &additional = QString()) {
-		getDelegate()->setTitle(title, additional);
-	}
-
-	void clearButtons() {
-		getDelegate()->clearButtons();
-	}
-	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback);
-	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback);
-	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
-		return getDelegate()->addButton(text, std_::move(clickCallback), st);
-	}
-	void updateButtonsGeometry() {
-		getDelegate()->updateButtonsPositions();
 	}
 
 	void setNoContentMargin(bool noContentMargin) {
@@ -123,7 +125,7 @@ protected:
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, const style::ScrollArea &st, int topSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
-		setInner(std_::move(inner), st);
+		setInner(std::move(inner), st);
 		return result;
 	}
 
@@ -131,7 +133,7 @@ protected:
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> inner, int topSkip = 0) {
 		auto result = QPointer<Widget>(inner.data());
 		setInnerTopSkip(topSkip);
-		setInner(std_::move(inner));
+		setInner(std::move(inner));
 		return result;
 	}
 
@@ -187,8 +189,8 @@ public:
 	void setTitle(const QString &title, const QString &additional) override;
 
 	void clearButtons() override;
-	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) override;
-	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
+	QPointer<Ui::RoundButton> addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) override;
 	void updateButtonsPositions() override;
 
 	void setDimensions(int newWidth, int maxHeight) override;
@@ -241,7 +243,7 @@ private:
 	QString _additionalTitle;
 	bool _layerType = false;
 
-	std_::vector_of_moveable<object_ptr<Ui::RoundButton>> _buttons;
+	std::vector<object_ptr<Ui::RoundButton>> _buttons;
 	object_ptr<Ui::RoundButton> _leftButton = { nullptr };
 
 };

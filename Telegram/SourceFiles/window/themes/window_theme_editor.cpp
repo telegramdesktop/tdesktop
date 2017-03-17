@@ -18,13 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/themes/window_theme_editor.h"
 
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor_block.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "styles/style_window.h"
 #include "styles/style_settings.h"
@@ -39,7 +38,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/task_queue.h"
 #include "core/zlib_help.h"
 #include "ui/toast/toast.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "boxes/editcolorbox.h"
 #include "lang.h"
 
@@ -208,14 +207,14 @@ class Editor::Inner : public TWidget, private base::Subscriber {
 public:
 	Inner(QWidget *parent, const QString &path);
 
-	void setErrorCallback(base::lambda<void()> &&callback) {
-		_errorCallback = std_::move(callback);
+	void setErrorCallback(base::lambda<void()> callback) {
+		_errorCallback = std::move(callback);
 	}
-	void setFocusCallback(base::lambda<void()> &&callback) {
-		_focusCallback = std_::move(callback);
+	void setFocusCallback(base::lambda<void()> callback) {
+		_focusCallback = std::move(callback);
 	}
-	void setScrollCallback(base::lambda<void(int top, int bottom)> &&callback) {
-		_scrollCallback = std_::move(callback);
+	void setScrollCallback(base::lambda<void(int top, int bottom)> callback) {
+		_scrollCallback = std::move(callback);
 	}
 
 	void prepare();
@@ -629,13 +628,13 @@ void ThemeExportBox::updateThumbnail() {
 		p.drawImage(QRect(0, 0, st::settingsBackgroundSize, st::settingsBackgroundSize), pix, QRect(sx, sy, s, s));
 	}
 	Images::prepareRound(back, ImageRoundRadius::Small);
-	_thumbnail = App::pixmapFromImageInPlace(std_::move(back));
+	_thumbnail = App::pixmapFromImageInPlace(std::move(back));
 	_thumbnail.setDevicePixelRatio(cRetinaFactor());
 	update();
 }
 
 void ThemeExportBox::chooseBackgroundFromFile() {
-	FileDialog::askOpenPath(lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+	FileDialog::GetOpenPath(lang(lng_theme_editor_choose_image), "Image files (*.jpeg *.jpg *.png)", base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
 		auto content = result.remoteContent;
 		if (!result.paths.isEmpty()) {
 			QFile f(result.paths.front());
@@ -664,7 +663,7 @@ void ThemeExportBox::exportTheme() {
 		auto caption = lang(lng_theme_editor_choose_name);
 		auto filter = "Themes (*.tdesktop-theme)";
 		auto name = "awesome.tdesktop-theme";
-		FileDialog::askWritePath(caption, filter, name, base::lambda_guarded(this, [this](const QString &path) {
+		FileDialog::GetWritePath(caption, filter, name, base::lambda_guarded(this, [this](const QString &path) {
 			zlib::FileToWrite zip;
 
 			zip_fileinfo zfi = { { 0, 0, 0, 0, 0, 0 }, 0, 0, 0 };
@@ -798,7 +797,7 @@ void Editor::paintEvent(QPaintEvent *e) {
 void Editor::Start() {
 	auto palettePath = Local::themePaletteAbsolutePath();
 	if (palettePath.isEmpty()) {
-		FileDialog::askWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
+		FileDialog::GetWritePath(lang(lng_theme_editor_save_palette), "Palette (*.tdesktop-palette)", "colors.tdesktop-palette", [](const QString &path) {
 			if (!Local::copyThemeColorsToPalette(path)) {
 				writeDefaultPalette(path);
 			}

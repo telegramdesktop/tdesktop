@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history.h"
 
 #include "history/history_media_types.h"
@@ -29,9 +28,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "window/top_bar_widget.h"
 #include "observer_peer.h"
+#include "auth_session.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -106,14 +107,14 @@ void History::setHasPendingResizedItems() {
 	Global::RefHandleHistoryUpdate().call();
 }
 
-void History::setLocalDraft(std_::unique_ptr<Data::Draft> &&draft) {
-	_localDraft = std_::move(draft);
+void History::setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
+	_localDraft = std::move(draft);
 }
 
 void History::takeLocalDraft(History *from) {
 	if (auto &draft = from->_localDraft) {
 		if (!draft->textWithTags.text.isEmpty() && !_localDraft) {
-			_localDraft = std_::move(draft);
+			_localDraft = std::move(draft);
 
 			// Edit and reply to drafts can't migrate.
 			// Cloud drafts do not migrate automatically.
@@ -131,7 +132,7 @@ void History::createLocalDraftFromCloud() {
 	auto existing = localDraft();
 	if (Data::draftIsNull(existing) || !existing->date.isValid() || draft->date >= existing->date) {
 		if (!existing) {
-			setLocalDraft(std_::make_unique<Data::Draft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
+			setLocalDraft(std::make_unique<Data::Draft>(draft->textWithTags, draft->msgId, draft->cursor, draft->previewCancelled));
 			existing = localDraft();
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
@@ -143,19 +144,19 @@ void History::createLocalDraftFromCloud() {
 	}
 }
 
-void History::setCloudDraft(std_::unique_ptr<Data::Draft> &&draft) {
-	_cloudDraft = std_::move(draft);
+void History::setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
+	_cloudDraft = std::move(draft);
 	cloudDraftTextCache.clear();
 }
 
 Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 	if (Data::draftIsNull(fromDraft)) {
-		setCloudDraft(std_::make_unique<Data::Draft>(TextWithTags(), 0, MessageCursor(), false));
+		setCloudDraft(std::make_unique<Data::Draft>(TextWithTags(), 0, MessageCursor(), false));
 		cloudDraft()->date = QDateTime();
 	} else {
 		auto existing = cloudDraft();
 		if (!existing) {
-			setCloudDraft(std_::make_unique<Data::Draft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
+			setCloudDraft(std::make_unique<Data::Draft>(fromDraft->textWithTags, fromDraft->msgId, fromDraft->cursor, fromDraft->previewCancelled));
 			existing = cloudDraft();
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
@@ -172,8 +173,8 @@ Data::Draft *History::createCloudDraft(Data::Draft *fromDraft) {
 	return cloudDraft();
 }
 
-void History::setEditDraft(std_::unique_ptr<Data::Draft> &&draft) {
-	_editDraft = std_::move(draft);
+void History::setEditDraft(std::unique_ptr<Data::Draft> &&draft) {
+	_editDraft = std::move(draft);
 }
 
 void History::clearLocalDraft() {
@@ -406,7 +407,7 @@ HistoryJoined *ChannelHistory::insertJoinedMessage(bool unread) {
 	if (!inviter) return nullptr;
 
 	MTPDmessage::Flags flags = 0;
-	if (peerToUser(inviter->id) == MTP::authedId()) {
+	if (inviter->id == AuthSession::CurrentUserPeerId()) {
 		unread = false;
 	//} else if (unread) {
 	//	flags |= MTPDmessage::Flag::f_unread;
@@ -839,7 +840,7 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			case mtpc_messageActionChatAddUser: {
 				auto &d = action.c_messageActionChatAddUser();
 				if (peer->isMegagroup()) {
-					auto &v = d.vusers.c_vector().v;
+					auto &v = d.vusers.v;
 					for (auto i = 0, l = v.size(); i != l; ++i) {
 						if (auto user = App::userLoaded(peerFromUser(v[i]))) {
 							if (peer->asChannel()->mgInfo->lastParticipants.indexOf(user) < 0) {
@@ -919,13 +920,14 @@ HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction,
 			} break;
 
 			case mtpc_messageActionChatEditPhoto: {
-				const auto &d(action.c_messageActionChatEditPhoto());
+				auto &d = action.c_messageActionChatEditPhoto();
 				if (d.vphoto.type() == mtpc_photo) {
-					const auto &sizes(d.vphoto.c_photo().vsizes.c_vector().v);
+					auto &sizes = d.vphoto.c_photo().vsizes.v;
 					if (!sizes.isEmpty()) {
-						PhotoData *photo = App::feedPhoto(d.vphoto.c_photo());
+						auto photo = App::feedPhoto(d.vphoto.c_photo());
 						if (photo) photo->peer = peer;
-						const auto &smallSize(sizes.front()), &bigSize(sizes.back());
+						auto &smallSize = sizes.front();
+						auto &bigSize = sizes.back();
 						const MTPFileLocation *smallLoc = 0, *bigLoc = 0;
 						switch (smallSize.type()) {
 						case mtpc_photoSize: smallLoc = &smallSize.c_photoSize().vlocation; break;
@@ -1285,7 +1287,7 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 	if (!block) {
 		// If no items were added it means we've loaded everything old.
 		oldLoaded = true;
-	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors / lastParticipants
+	} else if (loadedAtBottom()) { // add photos to overview and authors to lastAuthors
 		bool channel = isChannel();
 		int32 mask = 0;
 		QList<UserData*> *lastAuthors = nullptr;
@@ -1294,7 +1296,12 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			lastAuthors = &peer->asChat()->lastAuthors;
 			markupSenders = &peer->asChat()->markupSenders;
 		} else if (peer->isMegagroup()) {
-			lastAuthors = &peer->asChannel()->mgInfo->lastParticipants;
+			// We don't add users to mgInfo->lastParticipants here.
+			// We're scrolling back and we see messages from users that
+			// could be gone from the megagroup already. It is fine for
+			// chat->lastAuthors, because they're used only for field
+			// autocomplete, but this is bad for megagroups, because its
+			// lastParticipants are displayed in Profile as members list.
 			markupSenders = &peer->asChannel()->mgInfo->markupSenders;
 		}
 		for (int32 i = block->items.size(); i > 0; --i) {
@@ -1302,9 +1309,9 @@ void History::addOlderSlice(const QVector<MTPMessage> &slice) {
 			mask |= item->addToOverview(AddToOverviewFront);
 			if (item->from()->id) {
 				if (lastAuthors) { // chats
-					if (item->from()->isUser()) {
-						if (!lastAuthors->contains(item->from()->asUser())) {
-							lastAuthors->push_back(item->from()->asUser());
+					if (auto user = item->from()->asUser()) {
+						if (!lastAuthors->contains(user)) {
+							lastAuthors->push_back(user);
 							if (peer->isMegagroup()) {
 								peer->asChannel()->mgInfo->lastParticipantsStatus |= MegagroupInfo::LastParticipantsAdminsOutdated;
 								Notify::peerUpdatedDelayed(peer, Notify::PeerUpdate::Flag::MembersChanged);
@@ -1498,7 +1505,7 @@ MsgId History::inboxRead(MsgId upTo) {
 	}
 
 	showFrom = nullptr;
-	App::wnd()->notifyClear(this);
+	AuthSession::Current().notifications().clearFromHistory(this);
 
 	return upTo;
 }
@@ -2115,7 +2122,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		auto &d(result.c_messages_messages());
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 		overviewCountData[overviewIndex] = 0;
 	} break;
 
@@ -2124,7 +2131,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	case mtpc_messages_channelMessages: {
@@ -2137,7 +2144,7 @@ void History::overviewSliceDone(int32 overviewIndex, const MTPmessages_Messages 
 		App::feedUsers(d.vusers);
 		App::feedChats(d.vchats);
 		overviewCountData[overviewIndex] = d.vcount.v;
-		v = &d.vmessages.c_vector().v;
+		v = &d.vmessages.v;
 	} break;
 
 	default: return;

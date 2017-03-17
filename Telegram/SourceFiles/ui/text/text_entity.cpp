@@ -18,8 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/text/text_entity.h"
+
+#include "auth_session.h"
 
 namespace {
 
@@ -1376,7 +1377,7 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 				const auto &d(entity.c_inputMessageEntityMentionName());
 				auto data = ([&d]() -> QString {
 					if (d.vuser_id.type() == mtpc_inputUserSelf) {
-						return QString::number(MTP::authedId());
+						return QString::number(AuthSession::CurrentUserId());
 					} else if (d.vuser_id.type() == mtpc_inputUser) {
 						const auto &user(d.vuser_id.c_inputUser());
 						return QString::number(user.vuser_id.v) + '.' + QString::number(user.vaccess_hash.v);
@@ -1399,9 +1400,9 @@ EntitiesInText entitiesFromMTP(const QVector<MTPMessageEntity> &entities) {
 }
 
 MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending) {
-	MTPVector<MTPMessageEntity> result(MTP_vector<MTPMessageEntity>(0));
-	auto &v = result._vector().v;
-	for_const (const auto &link, links) {
+	auto v = QVector<MTPMessageEntity>();
+	v.reserve(links.size());
+	for_const (auto &link, links) {
 		if (link.length() <= 0) continue;
 		if (sending
 			&& link.type() != EntityInTextCode
@@ -1422,7 +1423,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 				UserId userId = 0;
 				uint64 accessHash = 0;
 				if (mentionNameToFields(data, &userId, &accessHash)) {
-					if (userId == MTP::authedId()) {
+					if (userId == AuthSession::CurrentUserId()) {
 						return MTP_inputUserSelf();
 					}
 					return MTP_inputUser(MTP_int(userId), MTP_long(accessHash));
@@ -1440,7 +1441,7 @@ MTPVector<MTPMessageEntity> linksToMTP(const EntitiesInText &links, bool sending
 		case EntityInTextPre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(link.data()))); break;
 		}
 	}
-	return result;
+	return MTP_vector<MTPMessageEntity>(std::move(v));
 }
 
 // Some code is duplicated in flattextarea.cpp!

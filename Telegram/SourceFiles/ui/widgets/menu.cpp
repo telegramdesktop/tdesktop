@@ -15,7 +15,6 @@ GNU General Public License for more details.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/menu.h"
 
 #include "ui/effects/ripple_animation.h"
@@ -57,9 +56,9 @@ QAction *Menu::addAction(const QString &text, const QObject *receiver, const cha
 	return action;
 }
 
-QAction *Menu::addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon, const style::icon *iconOver) {
+QAction *Menu::addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon, const style::icon *iconOver) {
 	auto action = addAction(new QAction(text, this), icon, iconOver);
-	connect(action, SIGNAL(triggered(bool)), base::lambda_slot(action, std_::move(callback)), SLOT(action()), Qt::QueuedConnection);
+	connect(action, SIGNAL(triggered(bool)), base::lambda_slot(action, std::move(callback)), SLOT(action()), Qt::QueuedConnection);
 	return action;
 }
 
@@ -221,7 +220,7 @@ void Menu::itemPressed(TriggeredSource source) {
 		if (source == TriggeredSource::Mouse) {
 			if (!_actionsData[_pressed].ripple) {
 				auto mask = RippleAnimation::rectMask(QSize(width(), _itemHeight));
-				_actionsData[_pressed].ripple = MakeShared<RippleAnimation>(_st.ripple, std_::move(mask), [this, selected = _pressed] {
+				_actionsData[_pressed].ripple = MakeShared<RippleAnimation>(_st.ripple, std::move(mask), [this, selected = _pressed] {
 					updateItem(selected);
 				});
 			}
@@ -233,7 +232,7 @@ void Menu::itemPressed(TriggeredSource source) {
 }
 
 void Menu::itemReleased(TriggeredSource source) {
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	if (pressed >= 0 && pressed < _actions.size()) {
 		if (source == TriggeredSource::Mouse && _actionsData[pressed].ripple) {
 			_actionsData[pressed].ripple->lastStop();

@@ -20,7 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "platform/platform_main_window.h"
 #include "core/single_timer.h"
 
@@ -87,7 +87,7 @@ public:
 	void clearPasscode();
 	void checkAutoLockIn(int msec);
 	void setupIntro();
-	void setupMain(const MTPUser *user = 0);
+	void setupMain(const MTPUser *user = nullptr);
 	void serviceNotification(const TextWithEntities &message, const MTPMessageMedia &media = MTP_messageMediaEmpty(), int32 date = 0, bool force = false);
 	void serviceNotificationLocal(QString text);
 	void sendServiceHistoryRequest();
@@ -119,12 +119,6 @@ public:
 	TempDirState tempDirState();
 	TempDirState localStorageState();
 	void tempDirDelete(int task);
-
-	void notifySettingGot();
-	void notifySchedule(History *history, HistoryItem *item);
-	void notifyClear(History *history = 0);
-	void notifyClearFast();
-	void notifyUpdateAll();
 
 	QImage iconLarge() const;
 
@@ -183,8 +177,6 @@ public slots:
 	void onClearFinished(int task, void *manager);
 	void onClearFailed(int task, void *manager);
 
-	void notifyShowNext();
-
 	void onShowAddContact();
 	void onShowNewGroup();
 	void onShowNewChannel();
@@ -239,28 +231,6 @@ private:
 
 	SingleTimer _autoLockTimer;
 	TimeMs _shouldLockAt = 0;
-
-	using NotifyWhenMap = QMap<MsgId, TimeMs>;
-	using NotifyWhenMaps = QMap<History*, NotifyWhenMap>;
-	NotifyWhenMaps _notifyWhenMaps;
-	struct NotifyWaiter {
-		NotifyWaiter(MsgId msg, TimeMs when, PeerData *notifyByFrom)
-		: msg(msg)
-		, when(when)
-		, notifyByFrom(notifyByFrom) {
-		}
-		MsgId msg;
-		TimeMs when;
-		PeerData *notifyByFrom;
-	};
-	using NotifyWaiters = QMap<History*, NotifyWaiter>;
-	NotifyWaiters _notifyWaiters;
-	NotifyWaiters _notifySettingWaiters;
-	SingleTimer _notifyWaitTimer;
-
-	using NotifyWhenAlert = QMap<TimeMs, PeerData*>;
-	using NotifyWhenAlerts = QMap<History*, NotifyWhenAlert>;
-	NotifyWhenAlerts _notifyWhenAlerts;
 
 };
 
@@ -479,7 +449,3 @@ private:
 	PreLaunchLog _log;
 
 };
-
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-int showCrashReportWindow(const QString &crashdump);
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS

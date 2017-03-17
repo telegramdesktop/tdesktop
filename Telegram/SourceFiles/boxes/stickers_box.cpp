@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "stickers_box.h"
 
 #include "lang.h"
@@ -27,7 +26,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/confirmbox.h"
 #include "boxes/stickersetbox.h"
 #include "apiwrap.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "dialogs/dialogs_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_stickers.h"
@@ -36,6 +35,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/slide_animation.h"
 #include "ui/widgets/discrete_sliders.h"
+#include "auth_session.h"
 
 namespace {
 
@@ -118,16 +118,16 @@ void StickersBox::CounterWidget::updateCounter() {
 template <typename ...Args>
 StickersBox::Tab::Tab(int index, Args&&... args)
 : _index(index)
-, _widget(std_::forward<Args>(args)...)
+, _widget(std::forward<Args>(args)...)
 , _weak(_widget) {
 }
 
 object_ptr<StickersBox::Inner> StickersBox::Tab::takeWidget() {
-	return std_::move(_widget);
+	return std::move(_widget);
 }
 
 void StickersBox::Tab::returnWidget(object_ptr<Inner> widget) {
-	_widget = std_::move(widget);
+	_widget = std::move(widget);
 	t_assert(_widget == _weak);
 }
 
@@ -171,7 +171,7 @@ void StickersBox::getArchivedDone(uint64 offsetId, const MTPmessages_ArchivedSti
 
 	auto addedSet = false;
 	auto changedSets = false;
-	auto &v = stickers.vsets.c_vector().v;
+	auto &v = stickers.vsets.v;
 	for_const (auto &stickerSet, v) {
 		const MTPDstickerSet *setData = nullptr;
 		switch (stickerSet.type()) {
@@ -398,7 +398,7 @@ void StickersBox::switchTab() {
 		auto widget = takeInnerWidget<Inner>();
 		widget->setParent(this);
 		widget->hide();
-		_tab->returnWidget(std_::move(widget));
+		_tab->returnWidget(std::move(widget));
 		_tab = newTab;
 		_section = newSection;
 		setInnerWidget(_tab->takeWidget(), getTopSkip());
@@ -410,8 +410,8 @@ void StickersBox::switchTab() {
 		auto nowCache = grabContentCache();
 		auto nowIndex = _tab->index();
 
-		_slideAnimation = std_::make_unique<Ui::SlideAnimation>();
-		_slideAnimation->setSnapshots(std_::move(wasCache), std_::move(nowCache));
+		_slideAnimation = std::make_unique<Ui::SlideAnimation>();
+		_slideAnimation->setSnapshots(std::move(wasCache), std::move(nowCache));
 		auto slideLeft = wasIndex > nowIndex;
 		_slideAnimation->start(slideLeft, [this] { update(); }, st::slideDuration);
 		setInnerVisible(false);
@@ -425,7 +425,7 @@ QPixmap StickersBox::grabContentCache() {
 	_tabs->hide();
 	auto result = grabInnerCache();
 	_tabs->show();
-	return std_::move(result);
+	return result;
 }
 
 void StickersBox::installSet(uint64 setId) {
@@ -577,7 +577,7 @@ StickersBox::Inner::Inner(QWidget *parent, const Stickers::Order &archivedIds) :
 }
 
 void StickersBox::Inner::setup() {
-	subscribe(FileDownload::ImageLoaded(), [this] {
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 		readVisibleSets();
 	});
@@ -796,16 +796,16 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 				if (set->removed) {
 					auto rippleSize = QSize(_undoWidth - st::stickersUndoRemove.width, st::stickersUndoRemove.height);
 					auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::buttonRadius);
-					ensureRipple(st::stickersUndoRemove.ripple, std_::move(rippleMask), removeButton);
+					ensureRipple(st::stickersUndoRemove.ripple, std::move(rippleMask), removeButton);
 				} else {
 					auto rippleSize = st::stickersRemove.rippleAreaSize;
 					auto rippleMask = Ui::RippleAnimation::ellipseMask(QSize(rippleSize, rippleSize));
-					ensureRipple(st::stickersRemove.ripple, std_::move(rippleMask), removeButton);
+					ensureRipple(st::stickersRemove.ripple, std::move(rippleMask), removeButton);
 				}
 			} else if (!set->installed || set->archived || set->removed) {
 				auto rippleSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
 				auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::buttonRadius);
-				ensureRipple(st::stickersTrendingAdd.ripple, std_::move(rippleMask), removeButton);
+				ensureRipple(st::stickersTrendingAdd.ripple, std::move(rippleMask), removeButton);
 			}
 		}
 		if (set->ripple) {
@@ -816,7 +816,7 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 }
 
 void StickersBox::Inner::ensureRipple(const style::RippleAnimation &st, QImage mask, bool removeButton) {
-	_rows[_actionDown]->ripple = MakeShared<Ui::RippleAnimation>(st, std_::move(mask), [this, index = _actionDown, removeButton] {
+	_rows[_actionDown]->ripple = MakeShared<Ui::RippleAnimation>(st, std::move(mask), [this, index = _actionDown, removeButton] {
 		update(myrtlrect(relativeButtonRect(removeButton).translated(0, _itemsTop + index * _rowHeight)));
 	});
 }
@@ -922,7 +922,7 @@ float64 StickersBox::Inner::aboveShadowOpacity() const {
 }
 
 void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 
 	if (_section != Section::Installed && _selected < 0 && pressed >= 0) {
 		setCursor(style::cur_default);

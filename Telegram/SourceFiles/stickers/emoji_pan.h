@@ -622,7 +622,7 @@ private:
 	int _bottom = 0;
 
 	Ui::PanelAnimation::Origin _origin = Ui::PanelAnimation::Origin::BottomRight;
-	std_::unique_ptr<Ui::PanelAnimation> _showAnimation;
+	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;
 
 	bool _hiding = false;
@@ -632,7 +632,7 @@ private:
 	bool _inPanelGrab = false;
 
 	class SlideAnimation;
-	std_::unique_ptr<SlideAnimation> _slideAnimation;
+	std::unique_ptr<SlideAnimation> _slideAnimation;
 	Animation _a_slide;
 
 	object_ptr<Ui::IconButton> _recent;

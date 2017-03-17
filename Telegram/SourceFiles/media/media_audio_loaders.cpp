@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_audio_loaders.h"
 
 #include "media/media_audio.h"
@@ -312,7 +311,7 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 	}
 
 	if (!l) {
-		std_::unique_ptr<AudioPlayerLoader> *loader = nullptr;
+		std::unique_ptr<AudioPlayerLoader> *loader = nullptr;
 		switch (audio.type()) {
 		case AudioMsgId::Type::Voice: _audio = audio; loader = &_audioLoader; break;
 		case AudioMsgId::Type::Song: _song = audio; loader = &_songLoader; break;
@@ -326,10 +325,10 @@ AudioPlayerLoader *Loaders::setupLoader(const AudioMsgId &audio, SetupError &err
 				LOG(("Audio Error: video sound data not ready"));
 				return nullptr;
 			}
-			_videoLoader = std_::make_unique<ChildFFMpegLoader>(track->videoPlayId, std_::move(track->videoData));
+			_videoLoader = std::make_unique<ChildFFMpegLoader>(track->videoPlayId, std::move(track->videoData));
 			l = _videoLoader.get();
 		} else {
-			*loader = std_::make_unique<FFMpegLoader>(track->file, track->data);
+			*loader = std::make_unique<FFMpegLoader>(track->file, track->data);
 			l = loader->get();
 		}
 

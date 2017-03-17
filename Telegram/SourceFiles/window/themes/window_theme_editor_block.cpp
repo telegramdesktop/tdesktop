@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/themes/window_theme_editor_block.h"
 
 #include "styles/style_window.h"
@@ -99,8 +98,8 @@ public:
 	Ui::RippleAnimation *ripple() const {
 		return _ripple.get();
 	}
-	Ui::RippleAnimation *setRipple(std_::unique_ptr<Ui::RippleAnimation> ripple) const {
-		_ripple = std_::move(ripple);
+	Ui::RippleAnimation *setRipple(std::unique_ptr<Ui::RippleAnimation> ripple) const {
+		_ripple = std::move(ripple);
 		return _ripple.get();
 	}
 	void resetRipple() const {
@@ -123,7 +122,7 @@ private:
 	int _top = 0;
 	int _height = 0;
 
-	mutable std_::unique_ptr<Ui::RippleAnimation> _ripple;
+	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
 
@@ -242,7 +241,7 @@ void EditorBlock::removeRow(const QString &name, bool removeCopyReferences) {
 	t_assert(it != _indices.cend());
 
 	auto index = it.value();
-	for (auto i = index + 1, count = _data.size(); i != count; ++i) {
+	for (auto i = index + 1, count = static_cast<int>(_data.size()); i != count; ++i) {
 		auto &row = _data[i];
 		removeFromSearch(row);
 		_indices[row.name()] = i - 1;
@@ -252,7 +251,7 @@ void EditorBlock::removeRow(const QString &name, bool removeCopyReferences) {
 	}
 	_data.erase(_data.begin() + index);
 	_indices.erase(it);
-	for (auto i = index, count = _data.size(); i != count; ++i) {
+	for (auto i = index, count = static_cast<int>(_data.size()); i != count; ++i) {
 		addToSearch(_data[i]);
 	}
 }
@@ -417,7 +416,7 @@ void EditorBlock::enumerateRows(Callback callback) {
 			}
 		}
 	} else {
-		for_const (auto &row, _data) {
+		for (auto &row : _data) {
 			if (!callback(row)) {
 				break;
 			}
@@ -528,7 +527,7 @@ void EditorBlock::saveEditing(QColor value) {
 	auto &row = _data[_editing];
 	auto name = row.name();
 	if (_type == Type::New) {
-		auto removing = base::take(_editing, -1);
+		auto removing = std::exchange(_editing, -1);
 		setSelected(-1);
 		setPressed(-1);
 
@@ -565,7 +564,7 @@ void EditorBlock::saveEditing(QColor value) {
 }
 
 void EditorBlock::checkCopiesChanged(int startIndex, QStringList names, QColor value) {
-	for (auto i = startIndex, count = _data.size(); i != count; ++i) {
+	for (auto i = startIndex, count = static_cast<int>(_data.size()); i != count; ++i) {
 		auto &checkIfIsCopy = _data[i];
 		if (names.contains(checkIfIsCopy.copyOf())) {
 			removeFromSearch(checkIfIsCopy);
@@ -630,7 +629,7 @@ void EditorBlock::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	auto clip = e->rect();
-	if (_data.isEmpty()) {
+	if (_data.empty()) {
 		p.fillRect(clip, st::dialogsBg);
 		p.setFont(st::noContactsFont);
 		p.setPen(st::noContactsColor);
@@ -729,7 +728,7 @@ void EditorBlock::addRowRipple(int index) {
 	auto ripple = row.ripple();
 	if (!ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), row.height()));
-		ripple = row.setRipple(std_::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std_::move(mask), [this, index = findRowIndex(&row)] {
+		ripple = row.setRipple(std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(mask), [this, index = findRowIndex(&row)] {
 			updateRow(_data[index]);
 		}));
 	}

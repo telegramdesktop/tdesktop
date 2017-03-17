@@ -18,26 +18,22 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "core/single_timer.h"
 
 #include "application.h"
 
 SingleTimer::SingleTimer(QObject *parent) : QTimer(parent) {
 	QTimer::setSingleShot(true);
-	if (App::app()) {
-		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
-		_inited = true;
-	}
+	Sandbox::connect(SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
 }
 
-void SingleTimer::setTimeoutHandler(base::lambda<void()> &&handler) {
+void SingleTimer::setTimeoutHandler(base::lambda<void()> handler) {
 	if (_handler && !handler) {
 		disconnect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
 	} else if (handler && !_handler) {
 		connect(this, SIGNAL(timeout()), this, SLOT(onTimeout()));
 	}
-	_handler = std_::move(handler);
+	_handler = std::move(handler);
 }
 
 void SingleTimer::adjust() {
@@ -59,10 +55,6 @@ void SingleTimer::onTimeout() {
 
 void SingleTimer::start(int msec) {
 	_finishing = getms(true) + (msec < 0 ? 0 : msec);
-	if (!_inited && App::app()) {
-		connect(App::app(), SIGNAL(adjustSingleTimers()), this, SLOT(adjust()));
-		_inited = true;
-	}
 	QTimer::start(msec);
 }
 

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_service_layout.h"
 
 #include "data/data_abstract_structure.h"
@@ -104,7 +103,7 @@ QPixmap circleCorner(int corner) {
 		auto part = QRect(xoffset, yoffset, size, size);
 		auto result = style::colorizeImage(serviceMessageStyle->circle[maskType], st::msgServiceBg, part);
 		result.setDevicePixelRatio(cRetinaFactor());
-		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std_::move(result));
+		serviceMessageStyle->corners[corner] = App::pixmapFromImageInPlace(std::move(result));
 	}
 	return serviceMessageStyle->corners[corner];
 }
@@ -194,12 +193,16 @@ void ServiceMessagePainter::paint(Painter &p, const HistoryService *message, con
 		if (animms > st::activeFadeInDuration + st::activeFadeOutDuration) {
 			App::main()->stopAnimActive();
 		} else {
-			int skiph = st::msgServiceMargin.top() - st::msgServiceMargin.bottom();
+			auto top = st::msgServiceMargin.top();
+			auto bottom = st::msgServiceMargin.bottom();
+			auto fill = qMin(top, bottom);
+			auto skiptop = top - fill;
+			auto fillheight = fill + height + fill;
 
-			float64 dt = (animms > st::activeFadeInDuration) ? (1 - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
-			float64 o = p.opacity();
+			auto dt = (animms > st::activeFadeInDuration) ? (1. - (animms - st::activeFadeInDuration) / float64(st::activeFadeOutDuration)) : (animms / float64(st::activeFadeInDuration));
+			auto o = p.opacity();
 			p.setOpacity(o * dt);
-			p.fillRect(0, skiph, message->history()->width, message->height() - skiph, st::defaultTextPalette.selectOverlay);
+			p.fillRect(0, skiptop, message->history()->width, fillheight, st::defaultTextPalette.selectOverlay);
 			p.setOpacity(o);
 		}
 	}

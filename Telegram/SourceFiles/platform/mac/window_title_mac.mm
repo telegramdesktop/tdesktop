@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "platform/mac/window_title_mac.h"
 
 #include "mainwindow.h"
@@ -115,7 +114,7 @@ QImage PreviewWindowSystemButton(QColor inner, QColor border) {
 		p.drawEllipse(QRectF(0.5, 0.5, fullSize - 1., fullSize - 1.));
 	}
 	result.setDevicePixelRatio(cRetinaFactor());
-	return std_::move(result);
+	return result;
 }
 
 void PreviewWindowTitle(Painter &p, const style::palette &palette, QRect body, int titleHeight, int outerWidth) {

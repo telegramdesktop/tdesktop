@@ -18,10 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/main_window.h"
 
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "styles/style_window.h"
 #include "platform/platform_window_title.h"
 #include "window/themes/window_theme.h"
@@ -44,6 +43,7 @@ MainWindow::MainWindow() : QWidget()
 		}
 	});
 	subscribe(Global::RefUnreadCounterUpdate(), [this] { updateUnreadCounter(); });
+	subscribe(Global::RefWorkMode(), [this](DBIWorkMode mode) { workmodeUpdated(mode); });
 
 	_isActiveTimer->setSingleShot(true);
 	connect(_isActiveTimer, SIGNAL(timeout()), this, SLOT(updateIsActiveByTimer()));
@@ -54,7 +54,7 @@ bool MainWindow::hideNoQuit() {
 		hideMediaview();
 		return true;
 	}
-	if (cWorkMode() == dbiwmTrayOnly || cWorkMode() == dbiwmWindowAndTray) {
+	if (Global::WorkMode().value() == dbiwmTrayOnly || Global::WorkMode().value() == dbiwmWindowAndTray) {
 		if (minimizeToTray()) {
 			Ui::showChatsList();
 			return true;
@@ -329,7 +329,7 @@ bool MainWindow::minimizeToTray() {
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	auto wasWidth = width();
 	auto wasRightWidth = _rightColumn ? _rightColumn->width() : 0;
-	_rightColumn = std_::move(widget);
+	_rightColumn = std::move(widget);
 	if (_rightColumn) {
 		_rightColumn->setParent(this);
 		_rightColumn->show();

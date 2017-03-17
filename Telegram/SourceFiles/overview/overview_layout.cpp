@@ -18,22 +18,21 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "overview/overview_layout.h"
 
 #include "styles/style_overview.h"
 #include "styles/style_history.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "boxes/addcontactbox.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
 #include "mainwidget.h"
 #include "application.h"
-#include "fileuploader.h"
+#include "storage/file_upload.h"
 #include "mainwindow.h"
 #include "media/media_audio.h"
 #include "media/player/media_player_instance.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "history/history_media_types.h"
 #include "ui/effects/round_checkbox.h"
 
@@ -47,6 +46,22 @@ TextParseOptions _documentNameOptions = {
 	0, // maxh
 	Qt::LayoutDirectionAuto, // dir
 };
+
+TextWithEntities ComposeNameWithEntities(DocumentData *document) {
+	TextWithEntities result;
+	auto song = document->song();
+	if (!song || (song->title.isEmpty() && song->performer.isEmpty())) {
+		result.text = document->name.isEmpty() ? qsl("Unknown File") : document->name;
+		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
+	} else if (song->performer.isEmpty()) {
+		result.text = song->title;
+		result.entities.push_back({ EntityInTextBold, 0, result.text.size() });
+	} else {
+		result.text = song->performer + QString::fromUtf8(" \xe2\x80\x93 ") + (song->title.isEmpty() ? qsl("Unknown Track") : song->title);
+		result.entities.push_back({ EntityInTextBold, 0, song->performer.size() });
+	}
+	return result;
+}
 
 } // namespace
 
@@ -70,9 +85,9 @@ void RadialProgressItem::clickHandlerActiveChanged(const ClickHandlerPtr &action
 }
 
 void RadialProgressItem::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
-	_openl = std_::move(openl);
-	_savel = std_::move(savel);
-	_cancell = std_::move(cancell);
+	_openl = std::move(openl);
+	_savel = std::move(savel);
+	_cancell = std::move(cancell);
 }
 
 void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
@@ -88,7 +103,7 @@ void RadialProgressItem::step_radial(TimeMs ms, bool timer) {
 
 void RadialProgressItem::ensureRadial() {
 	if (!_radial) {
-		_radial = std_::make_unique<Ui::RadialAnimation>(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
+		_radial = std::make_unique<Ui::RadialAnimation>(animation(const_cast<RadialProgressItem*>(this), &RadialProgressItem::step_radial));
 	}
 }
 
@@ -156,7 +171,7 @@ public:
 private:
 	void startAnimation();
 
-	base::lambda_copy<void()> _updateCallback;
+	base::lambda<void()> _updateCallback;
 	Ui::RoundCheckbox _check;
 
 	Animation _pression;
@@ -241,7 +256,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
 
-			_pix = App::pixmapFromImageInPlace(std_::move(img));
+			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
 			_pix = QPixmap();
 		}
@@ -262,7 +277,7 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Photo::ensureCheckboxCreated() {
-	if (!_check) _check = std_::make_unique<PhotoVideoCheckbox>([this] {
+	if (!_check) _check = std::make_unique<PhotoVideoCheckbox>([this] {
 		Ui::repaintHistoryItem(_parent);
 	});
 }
@@ -343,7 +358,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 			img.setDevicePixelRatio(cRetinaFactor());
 			_data->forget();
 
-			_pix = App::pixmapFromImageInPlace(std_::move(img));
+			_pix = App::pixmapFromImageInPlace(std::move(img));
 		} else if (!_pix.isNull()) {
 			_pix = QPixmap();
 		}
@@ -422,7 +437,7 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 }
 
 void Video::ensureCheckboxCreated() {
-	if (!_check) _check = std_::make_unique<PhotoVideoCheckbox>([this] {
+	if (!_check) _check = std::make_unique<PhotoVideoCheckbox>([this] {
 		Ui::repaintHistoryItem(_parent);
 	});
 }
@@ -673,7 +688,7 @@ Document::Document(DocumentData *document, HistoryItem *parent, const style::Ove
 , _date(langDateTime(date(_data->date)))
 , _datew(st::normalFont->width(_date))
 , _colorIndex(documentColorIndex(_data, _ext)) {
-	_name.setMarkedText(st::defaultTextStyle, documentNameWithEntities(_data), _documentNameOptions);
+	_name.setMarkedText(st::defaultTextStyle, ComposeNameWithEntities(_data), _documentNameOptions);
 
 	AddComponents(Info::Bit());
 

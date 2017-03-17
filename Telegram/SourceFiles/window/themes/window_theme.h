@@ -61,7 +61,7 @@ struct Preview {
 };
 
 bool Apply(const QString &filepath);
-bool Apply(std_::unique_ptr<Preview> preview);
+bool Apply(std::unique_ptr<Preview> preview);
 void ApplyDefault();
 bool ApplyEditedPalette(const QString &path, const QByteArray &content);
 void KeepApplied();
@@ -141,7 +141,7 @@ void ComputeBackgroundRects(QRect wholeFill, QSize imageSize, QRect &to, QRect &
 
 bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent);
 
-bool ReadPaletteValues(const QByteArray &content, base::lambda<bool(QLatin1String name, QLatin1String value)> &&callback);
+bool ReadPaletteValues(const QByteArray &content, base::lambda<bool(QLatin1String name, QLatin1String value)> callback);
 
 } // namespace Theme
 } // namespace Window

@@ -52,8 +52,8 @@ public:
 
 	void setAcceptBoth(bool acceptBoth = true);
 
-	void setClickedCallback(base::lambda<void()> &&callback) {
-		_clickedCallback = std_::move(callback);
+	void setClickedCallback(base::lambda<void()> callback) {
+		_clickedCallback = std::move(callback);
 	}
 
 	void setVisible(bool visible) override {

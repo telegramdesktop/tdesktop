@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "structs.h"
 #include "dialogs/dialogs_common.h"
 #include "ui/effects/send_action_animations.h"
+#include "core/observer.h"
 
 void historyInit();
 
@@ -378,12 +379,12 @@ public:
 	Data::Draft *editDraft() {
 		return _editDraft.get();
 	}
-	void setLocalDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft);
 	void takeLocalDraft(History *from);
 	void createLocalDraftFromCloud();
-	void setCloudDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft);
 	Data::Draft *createCloudDraft(Data::Draft *fromDraft);
-	void setEditDraft(std_::unique_ptr<Data::Draft> &&draft);
+	void setEditDraft(std::unique_ptr<Data::Draft> &&draft);
 	void clearLocalDraft();
 	void clearCloudDraft();
 	void clearEditDraft();
@@ -560,14 +561,14 @@ private:
 		int expectedItemsCount = 0; // optimization for block->items.reserve() call
 		HistoryBlock *block = nullptr;
 	};
-	std_::unique_ptr<BuildingBlock> _buildingFrontBlock;
+	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
 
 	// Creates if necessary a new block for adding item.
 	// Depending on isBuildingFrontBlock() gets front or back block.
 	HistoryBlock *prepareBlockForAddingItem();
 
-	std_::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
-	std_::unique_ptr<Data::Draft> _editDraft;
+	std::unique_ptr<Data::Draft> _localDraft, _cloudDraft;
+	std::unique_ptr<Data::Draft> _editDraft;
 
 	using TypingUsers = QMap<UserData*, TimeMs>;
 	TypingUsers _typing;

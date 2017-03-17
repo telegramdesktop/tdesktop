@@ -20,6 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+namespace Platform {
+namespace Audio {
+
+void Init();
+
+void DeInit();
+
+} // namespace Audio
+} // namespace Platform
+
+// Platform dependent implementations.
+
 #if defined Q_OS_MAC || defined Q_OS_LINUX
 namespace Platform {
 namespace Audio {

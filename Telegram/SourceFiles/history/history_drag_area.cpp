@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_drag_area.h"
 
 #include "styles/style_stickers.h"
@@ -29,7 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "inline_bots/inline_bot_layout_item.h"
 #include "dialogs/dialogs_layout.h"
 #include "historywidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "lang.h"
 #include "mainwindow.h"
 #include "apiwrap.h"

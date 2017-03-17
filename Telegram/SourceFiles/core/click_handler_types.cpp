@@ -18,16 +18,16 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "core/click_handler_types.h"
 
 #include "lang.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "boxes/confirmbox.h"
 #include "core/qthelp_regex.h"
 #include "core/qthelp_url.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "ui/widgets/tooltip.h"
+#include "core/file_utilities.h"
 
 QString UrlClickHandler::copyToClipboardContextItemText() const {
 	return lang(isEmail() ? lng_context_copy_email : lng_context_copy_link);
@@ -40,9 +40,9 @@ QString tryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?(telegram|t)\\.me/(.+)$"), url, matchOptions);
+	auto telegramMeMatch = regex_match(qsl("https?://(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
 	if (telegramMeMatch) {
-		auto query = telegramMeMatch->capturedRef(3);
+		auto query = telegramMeMatch->capturedRef(4);
 		if (auto joinChatMatch = regex_match(qsl("^joinchat/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(1));
 		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
@@ -68,10 +68,7 @@ void UrlClickHandler::doOpen(QString url) {
 	Ui::Tooltip::Hide();
 
 	if (isEmail(url)) {
-		QUrl u(qstr("mailto:") + url);
-		if (!QDesktopServices::openUrl(u)) {
-			psOpenFile(u.toString(QUrl::FullyEncoded), true);
-		}
+		File::OpenEmailLink(url);
 		return;
 	}
 

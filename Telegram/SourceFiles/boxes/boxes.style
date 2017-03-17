@@ -373,6 +373,12 @@ notificationSampleOpacity: 0.5;
 notificationSampleSize: size(64px, 16px);
 
 membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
+membersAbout: FlatLabel(defaultFlatLabel) {
+	width: 332px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+	style: boxLabelStyle;
+}
 
 sessionsScroll: boxLayerScroll;
 sessionsHeight: 350px;
@@ -515,6 +521,34 @@ backgroundScroll: ScrollArea(boxLayerScroll) {
 	deltat: 10px;
 	deltab: 10px;
 }
+
+calendarTitleHeight: boxTitleHeight;
+calendarPrevious: IconButton {
+	width: calendarTitleHeight;
+	height: calendarTitleHeight;
+
+	icon: icon {{ "title_back", boxTitleFg }};
+	iconPosition: point(20px, 20px);
+
+	rippleAreaPosition: point(6px, 6px);
+	rippleAreaSize: 44px;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
+calendarPreviousDisabled: icon {{ "title_back", menuIconFg }};
+calendarNext: IconButton(calendarPrevious) {
+	icon: icon {{ "title_back-flip_horizontal", boxTitleFg }};
+}
+calendarNextDisabled: icon {{ "title_back-flip_horizontal", menuIconFg }};
+calendarTitleFont: boxTitleFont;
+calendarDaysFont: normalFont;
+calendarDaysFg: boxTitleAdditionalFg;
+calendarDaysHeight: 32px;
+calendarCellSize: size(48px, 40px);
+calendarCellInner: 34px;
+calendarPadding: margins(14px, 15px, 14px, 10px);
+calendarScroll: backgroundScroll;
 
 passcodeTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 20px;

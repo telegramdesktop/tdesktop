@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "dialogs/dialogs_row.h"
 
 #include "styles/style_dialogs.h"
@@ -30,10 +29,10 @@ namespace Dialogs {
 RippleRow::RippleRow() = default;
 RippleRow::~RippleRow() = default;
 
-void RippleRow::addRipple(QPoint origin, QSize size, base::lambda_copy<void()> &&updateCallback) {
+void RippleRow::addRipple(QPoint origin, QSize size, base::lambda<void()> updateCallback) {
 	if (!_ripple) {
 		auto mask = Ui::RippleAnimation::rectMask(size);
-		_ripple = std_::make_unique<Ui::RippleAnimation>(st::dialogsRipple, std_::move(mask), std_::move(updateCallback));
+		_ripple = std::make_unique<Ui::RippleAnimation>(st::dialogsRipple, std::move(mask), std::move(updateCallback));
 	}
 	_ripple->add(origin);
 }

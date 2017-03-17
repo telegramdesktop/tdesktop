@@ -55,12 +55,12 @@ template <typename Lambda>
 void SlideAnimation::start(bool slideLeft, Lambda &&updateCallback, float64 duration) {
 	_slideLeft = slideLeft;
 	if (_slideLeft) {
-		std_::swap_moveable(_leftSnapshot, _rightSnapshot);
+		std::swap(_leftSnapshot, _rightSnapshot);
 	}
 	_leftSnapshotWidth = _leftSnapshot.width() / cIntRetinaFactor();
 	_leftSnapshotHeight = _leftSnapshot.height() / cIntRetinaFactor();
 	_rightSnapshotWidth = _rightSnapshot.width() / cIntRetinaFactor();
-	_animation.start(std_::forward<Lambda>(updateCallback), 0., 1., duration);
+	_animation.start(std::forward<Lambda>(updateCallback), 0., 1., duration);
 }
 
 } // namespace Ui

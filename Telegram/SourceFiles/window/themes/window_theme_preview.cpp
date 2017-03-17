@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/themes/window_theme_preview.h"
 
 #include "window/themes/window_theme.h"
@@ -185,14 +184,14 @@ private:
 	QRect _history;
 
 	int _rowsTop = 0;
-	std_::vector_of_moveable<Row> _rows;
+	std::vector<Row> _rows;
 
 	Text _topBarName;
 	QString _topBarStatus;
 	bool _topBarStatusActive = false;
 
 	int _historyBottom = 0;
-	std_::vector_of_moveable<Bubble> _bubbles;
+	std::vector<Bubble> _bubbles;
 
 	style::TextPalette _textPalette;
 
@@ -220,7 +219,7 @@ void Generator::addRow(QString name, int peerIndex, QString date, QString text) 
 	row.peerIndex = peerIndex;
 	row.date = date;
 	row.text.setRichText(st::dialogsTextStyle, text, _textDlgOptions);
-	_rows.push_back(std_::move(row));
+	_rows.push_back(std::move(row));
 }
 
 void Generator::addBubble(Bubble bubble, int width, int height, QString date, Status status) {
@@ -228,7 +227,7 @@ void Generator::addBubble(Bubble bubble, int width, int height, QString date, St
 	bubble.height = height;
 	bubble.date = date;
 	bubble.status = status;
-	_bubbles.push_back(std_::move(bubble));
+	_bubbles.push_back(std::move(bubble));
 }
 
 void Generator::addAudioBubble(QVector<int> waveform, int waveactive, QString wavestatus, QString date, Status status) {
@@ -247,7 +246,7 @@ void Generator::addAudioBubble(QVector<int> waveform, int waveactive, QString wa
 	accumulate_min(width, st::msgMaxWidth);
 
 	auto height = st::msgFilePadding.top() + st::msgFileSize + st::msgFilePadding.bottom();
-	addBubble(std_::move(bubble), width, height, date, status);
+	addBubble(std::move(bubble), width, height, date, status);
 }
 
 QSize Generator::computeSkipBlock(Status status, QString date) {
@@ -278,12 +277,12 @@ void Generator::addTextBubble(QString text, QString date, Status status) {
 	auto textHeight = bubble.text.countHeight(textWidth);
 
 	auto height = st::msgPadding.top() + textHeight + st::msgPadding.bottom();
-	addBubble(std_::move(bubble), width, height, date, status);
+	addBubble(std::move(bubble), width, height, date, status);
 }
 
 void Generator::addDateBubble(QString date) {
 	Bubble bubble;
-	addBubble(std_::move(bubble), 0, 0, date, Status::None);
+	addBubble(std::move(bubble), 0, 0, date, Status::None);
 }
 
 void Generator::addPhotoBubble(QString image, QString caption, QString date, Status status) {
@@ -302,7 +301,7 @@ void Generator::addPhotoBubble(QString image, QString caption, QString date, Sta
 	auto textHeight = bubble.text.countHeight(textWidth);
 
 	auto height = st::mediaCaptionSkip + textHeight + st::msgPadding.bottom();
-	addBubble(std_::move(bubble), width, height, date, status);
+	addBubble(std::move(bubble), width, height, date, status);
 }
 
 void Generator::generateData() {
@@ -378,7 +377,7 @@ QPixmap Generator::generate() {
 	}
 	Platform::PreviewWindowFramePaint(result, _palette, _body, _rect.width());
 
-	return App::pixmapFromImageInPlace(std_::move(result));
+	return App::pixmapFromImageInPlace(std::move(result));
 }
 
 void Generator::paintHistoryList() {
@@ -411,7 +410,7 @@ void Generator::paintHistoryBackground() {
 			tiled = _current.backgroundTiled;
 		}
 	}
-	background = std_::move(background).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	background = std::move(background).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	background.setDevicePixelRatio(cRetinaFactor());
 	_p->setClipRect(_history);
 	if (tiled) {
@@ -888,14 +887,14 @@ void Generator::restoreTextPalette() {
 
 } // namespace
 
-std_::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data) {
-	auto result = std_::make_unique<Preview>();
+std::unique_ptr<Preview> GeneratePreview(const QString &filepath, const CurrentData &data) {
+	auto result = std::make_unique<Preview>();
 	result->path = filepath;
 	if (!LoadFromFile(filepath, &result->instance, &result->content)) {
-		return std_::unique_ptr<Preview>();
+		return std::unique_ptr<Preview>();
 	}
 	result->preview = Generator(result->instance, data).generate();
-	return std_::move(result);
+	return result;
 }
 
 int DefaultPreviewTitleHeight() {

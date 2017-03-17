@@ -70,7 +70,7 @@ protected:
 
 	template <typename Widget, typename ...Args>
 	Widget *addChildRow(object_ptr<Widget> &child, style::margins margin, Args&&... args) {
-		createChildRow(child, margin, std_::forward<Args>(args)...);
+		createChildRow(child, margin, std::forward<Args>(args)...);
 		addCreatedRow(child, margin);
 		return child;
 	}
@@ -79,8 +79,8 @@ private:
 	template <typename Widget, typename ...Args>
 	void createChildRow(object_ptr<Ui::WidgetSlideWrap<Widget>> &child, style::margins &margin, const style::margins &padding, Args&&... args) {
 		object_ptr<Widget> entity = { nullptr };
-		createChildRow(entity, margin, std_::forward<Args>(args)...);
-		child.create(this, std_::move(entity), padding, [this] { rowHeightUpdated(); });
+		createChildRow(entity, margin, std::forward<Args>(args)...);
+		child.create(this, std::move(entity), padding, [this] { rowHeightUpdated(); });
 		margin.setLeft(margin.left() - padding.left());
 		margin.setTop(margin.top() - padding.top());
 		margin.setRight(margin.right() - padding.right());
@@ -103,15 +103,15 @@ private:
 	};
 
 	template <typename Widget>
-	using NotImplementedYet = std_::enable_if_t<
+	using NotImplementedYet = std::enable_if_t<
 		!IsWidgetSlideWrap<Widget>::value &&
-		!std_::is_same<Widget, Ui::Checkbox>::value &&
-		!std_::is_same<Widget, Ui::Radiobutton>::value &&
-		!std_::is_same<Widget, Ui::LinkButton>::value>;
+		!std::is_same<Widget, Ui::Checkbox>::value &&
+		!std::is_same<Widget, Ui::Radiobutton>::value &&
+		!std::is_same<Widget, Ui::LinkButton>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
 	void createChildRow(object_ptr<Widget> &child, style::margins &margin, Args&&... args) {
-		child.create(this, std_::forward<Args>(args)...);
+		child.create(this, std::forward<Args>(args)...);
 	}
 
 	void paintTitle(Painter &p);

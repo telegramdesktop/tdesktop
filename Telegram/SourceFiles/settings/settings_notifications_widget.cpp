@@ -18,30 +18,36 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_notifications_widget.h"
 
 #include "styles/style_settings.h"
 #include "lang.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 #include "window/notifications_manager.h"
 #include "boxes/notifications_box.h"
+#include "platform/platform_notifications_manager.h"
+#include "auth_session.h"
 
 namespace Settings {
+namespace {
+
+using ChangeType = Window::Notifications::ChangeType;
+
+} // namespace
 
 NotificationsWidget::NotificationsWidget(QWidget *parent, UserData *self) : BlockWidget(parent, self, lang(lng_settings_section_notify)) {
 	createControls();
 
-	subscribe(Global::RefNotifySettingsChanged(), [this](Notify::ChangeType type) {
-		if (type == Notify::ChangeType::DesktopEnabled) {
+	subscribe(AuthSession::Current().notifications().settingsChanged(), [this](ChangeType type) {
+		if (type == ChangeType::DesktopEnabled) {
 			desktopEnabledUpdated();
-		} else if (type == Notify::ChangeType::ViewParams) {
+		} else if (type == ChangeType::ViewParams) {
 			viewParamUpdated();
-		} else if (type == Notify::ChangeType::SoundEnabled) {
+		} else if (type == ChangeType::SoundEnabled) {
 			_playSound->setChecked(Global::SoundNotify());
 		}
 	});
@@ -72,16 +78,14 @@ void NotificationsWidget::createNotificationsControls() {
 	style::margins margin(0, 0, 0, st::settingsSkip);
 	style::margins slidedPadding(0, margin.bottom() / 2, 0, margin.bottom() - (margin.bottom() / 2));
 
-	QString nativeNotificationsLabel;
+	auto nativeNotificationsLabel = QString();
+	if (Platform::Notifications::Supported()) {
 #ifdef Q_OS_WIN
-	if (App::wnd()->psHasNativeNotifications()) {
 		nativeNotificationsLabel = lang(lng_settings_use_windows);
-	}
-#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32
-	if (App::wnd()->psHasNativeNotifications()) {
+#elif defined Q_OS_LINUX64 || defined Q_OS_LINUX32 // Q_OS_WIN
 		nativeNotificationsLabel = lang(lng_settings_use_native_notifications);
+#endif // Q_OS_WIN || Q_OS_LINUX64 || Q_OS_LINUX32
 	}
-#endif // Q_OS_WIN
 	if (!nativeNotificationsLabel.isEmpty()) {
 		addChildRow(_nativeNotifications, margin, nativeNotificationsLabel, SLOT(onNativeNotifications()), Global::NativeNotifications());
 	}
@@ -97,20 +101,13 @@ void NotificationsWidget::onDesktopNotifications() {
 	}
 	Global::SetDesktopNotify(_desktopNotifications->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::DesktopEnabled);
+	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::DesktopEnabled);
 }
 
 void NotificationsWidget::desktopEnabledUpdated() {
 	_desktopNotifications->setChecked(Global::DesktopNotify());
-	if (Global::DesktopNotify()) {
-		_showSenderName->slideDown();
-		if (_showSenderName->entity()->checked()) {
-			_showMessagePreview->slideDown();
-		}
-	} else {
-		_showSenderName->slideUp();
-		_showMessagePreview->slideUp();
-	}
+	_showSenderName->toggleAnimated(Global::DesktopNotify());
+	_showMessagePreview->toggleAnimated(Global::DesktopNotify() && _showSenderName->entity()->checked());
 }
 
 void NotificationsWidget::onShowSenderName() {
@@ -127,7 +124,7 @@ void NotificationsWidget::onShowSenderName() {
 	}
 	Global::SetNotifyView(viewParam);
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::ViewParams);
+	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::ViewParams);
 }
 
 void NotificationsWidget::onShowMessagePreview() {
@@ -145,15 +142,11 @@ void NotificationsWidget::onShowMessagePreview() {
 
 	Global::SetNotifyView(viewParam);
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::ViewParams);
+	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::ViewParams);
 }
 
 void NotificationsWidget::viewParamUpdated() {
-	if (_showSenderName->entity()->checked()) {
-		_showMessagePreview->slideDown();
-	} else {
-		_showMessagePreview->slideUp();
-	}
+	_showMessagePreview->toggleAnimated(_showSenderName->entity()->checked());
 }
 
 void NotificationsWidget::onNativeNotifications() {
@@ -161,15 +154,12 @@ void NotificationsWidget::onNativeNotifications() {
 		return;
 	}
 
-	Window::Notifications::manager()->clearAllFast();
 	Global::SetNativeNotifications(_nativeNotifications->checked());
 	Local::writeUserSettings();
 
-	if (Global::NativeNotifications()) {
-		_advanced->slideUp();
-	} else {
-		_advanced->slideDown();
-	}
+	AuthSession::Current().notifications().createManager();
+
+	_advanced->toggleAnimated(!Global::NativeNotifications());
 }
 
 void NotificationsWidget::onAdvanced() {
@@ -183,13 +173,13 @@ void NotificationsWidget::onPlaySound() {
 
 	Global::SetSoundNotify(_playSound->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::SoundEnabled);
+	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::SoundEnabled);
 }
 
 void NotificationsWidget::onIncludeMuted() {
 	Global::SetIncludeMuted(_includeMuted->checked());
 	Local::writeUserSettings();
-	Global::RefNotifySettingsChanged().notify(Notify::ChangeType::IncludeMuted);
+	AuthSession::Current().notifications().settingsChanged().notify(ChangeType::IncludeMuted);
 }
 
 } // namespace Settings

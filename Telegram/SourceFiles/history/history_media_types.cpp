@@ -18,13 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_media_types.h"
 
 #include "lang.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "media/media_audio.h"
 #include "media/media_clip_reader.h"
 #include "media/player/media_player_instance.h"
@@ -124,7 +123,7 @@ TextWithEntities captionedSelectedText(const QString &attachType, const Text &ca
 	result.text.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
 	if (!caption.isEmpty()) {
 		result.text.append(qstr("\n"));
-		appendTextWithEntities(result, std_::move(original));
+		appendTextWithEntities(result, std::move(original));
 	}
 	return result;
 }
@@ -171,9 +170,9 @@ void HistoryFileMedia::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool
 }
 
 void HistoryFileMedia::setLinks(ClickHandlerPtr &&openl, ClickHandlerPtr &&savel, ClickHandlerPtr &&cancell) {
-	_openl = std_::move(openl);
-	_savel = std_::move(savel);
-	_cancell = std_::move(cancell);
+	_openl = std::move(openl);
+	_savel = std::move(savel);
+	_cancell = std::move(cancell);
 }
 
 void HistoryFileMedia::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
@@ -204,7 +203,7 @@ void HistoryFileMedia::step_radial(TimeMs ms, bool timer) {
 
 void HistoryFileMedia::ensureAnimation() const {
 	if (!_animation) {
-		_animation = std_::make_unique<AnimationData>(animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
+		_animation = std::make_unique<AnimationData>(animation(const_cast<HistoryFileMedia*>(this), &HistoryFileMedia::step_radial));
 	}
 }
 
@@ -511,7 +510,7 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 		App::feedPhoto(photo, _data);
 
 		if (photo.type() == mtpc_photo) {
-			auto &sizes = photo.c_photo().vsizes.c_vector().v;
+			auto &sizes = photo.c_photo().vsizes.v;
 			int32 max = 0;
 			const MTPDfileLocation *maxLocation = 0;
 			for (int32 i = 0, l = sizes.size(); i < l; ++i) {
@@ -519,13 +518,13 @@ void HistoryPhoto::updateSentMedia(const MTPMessageMedia &media) {
 				const MTPFileLocation *loc = 0;
 				switch (sizes.at(i).type()) {
 				case mtpc_photoSize: {
-					auto &s = sizes.at(i).c_photoSize().vtype.c_string().v;
+					auto &s = sizes.at(i).c_photoSize().vtype.v;
 					loc = &sizes.at(i).c_photoSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
 
 				case mtpc_photoCachedSize: {
-					auto &s = sizes.at(i).c_photoCachedSize().vtype.c_string().v;
+					auto &s = sizes.at(i).c_photoCachedSize().vtype.v;
 					loc = &sizes.at(i).c_photoCachedSize().vlocation;
 					if (s.size()) size = s[0];
 				} break;
@@ -762,23 +761,28 @@ void HistoryVideo::draw(Painter &p, const QRect &r, TextSelection selection, Tim
 		p.setOpacity(1);
 	}
 
-	auto icon = ([loaded, radial, this, selected] {
-		if (loaded) {
+	auto icon = ([this, radial, selected, loaded]() -> const style::icon * {
+		if (loaded && !radial) {
 			return &(selected ? st::historyFileThumbPlaySelected : st::historyFileThumbPlay);
 		} else if (radial || _data->loading()) {
-			return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+			if (_parent->id > 0 || _data->uploading()) {
+				return &(selected ? st::historyFileThumbCancelSelected : st::historyFileThumbCancel);
+			}
+			return nullptr;
 		}
 		return &(selected ? st::historyFileThumbDownloadSelected : st::historyFileThumbDownload);
 	})();
-	icon->paintInCenter(p, inner);
+	if (icon) {
+		icon->paintInCenter(p, inner);
+	}
 	if (radial) {
 		QRect rinner(inner.marginsRemoved(QMargins(st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine, st::msgFileRadialLine)));
 		_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 	}
 
-	int32 statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
-	int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-	int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+	auto statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
+	auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+	auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 	App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 	p.setFont(st::normalFont);
 	p.setPen(st::msgDateImgFg);
@@ -824,7 +828,11 @@ HistoryTextState HistoryVideo::getState(int x, int y, HistoryStateRequest reques
 		height -= skipy + st::mediaPadding.bottom();
 	}
 	if (x >= skipx && y >= skipy && x < skipx + width && y < skipy + height) {
-		result.link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
+		if (_data->uploading()) {
+			result.link = _cancell;
+		} else {
+			result.link = loaded ? _openl : (_data->loading() ? _cancell : _savel);
+		}
 		if (_caption.isEmpty() && _parent->getMedia() == this) {
 			int32 fullRight = skipx + width, fullBottom = skipy + height;
 			bool inDate = _parent->pointInTime(fullRight, fullBottom, x, y, InfoDisplayOverImage);
@@ -880,6 +888,12 @@ void HistoryVideo::detachFromParent() {
 	App::unregDocumentItem(_data, _parent);
 }
 
+void HistoryVideo::updateSentMedia(const MTPMessageMedia &media) {
+	if (media.type() == mtpc_messageMediaDocument) {
+		App::feedDocument(media.c_messageMediaDocument().vdocument, _data);
+	}
+}
+
 bool HistoryVideo::needReSetInlineResultMedia(const MTPMessageMedia &media) {
 	return needReSetInlineResultDocument(media, _data);
 }
@@ -910,7 +924,7 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(const HistoryDocument
 
 void HistoryDocumentVoice::ensurePlayback(const HistoryDocument *that) const {
 	if (!_playback) {
-		_playback = std_::make_unique<HistoryDocumentVoicePlayback>(that);
+		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}
 }
 
@@ -998,7 +1012,7 @@ void HistoryDocument::createComponents(bool caption) {
 }
 
 void HistoryDocument::fillNamedFromData(HistoryDocumentNamed *named) {
-	auto name = named->_name = documentName(_data);
+	auto name = named->_name = _data->composeNameString();
 	named->_namew = st::semiboldFont->width(name);
 }
 
@@ -2573,16 +2587,16 @@ void HistoryWebPage::initDimensions() {
 	if (!_asArticle && !_attach) {
 		if (_data->document) {
 			if (_data->document->sticker()) {
-				_attach = std_::make_unique<HistorySticker>(_parent, _data->document);
+				_attach = std::make_unique<HistorySticker>(_parent, _data->document);
 			} else if (_data->document->isAnimation()) {
-				_attach = std_::make_unique<HistoryGif>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryGif>(_parent, _data->document, QString());
 			} else if (_data->document->isVideo()) {
-				_attach = std_::make_unique<HistoryVideo>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryVideo>(_parent, _data->document, QString());
 			} else {
-				_attach = std_::make_unique<HistoryDocument>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryDocument>(_parent, _data->document, QString());
 			}
 		} else if (_data->photo) {
-			_attach = std_::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
+			_attach = std::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
 		}
 	}
 
@@ -2992,7 +3006,7 @@ TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std_::move(descriptionResult));
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -3046,16 +3060,16 @@ void HistoryGame::initDimensions() {
 	if (!_attach) {
 		if (_data->document) {
 			if (_data->document->sticker()) {
-				_attach = std_::make_unique<HistorySticker>(_parent, _data->document);
+				_attach = std::make_unique<HistorySticker>(_parent, _data->document);
 			} else if (_data->document->isAnimation()) {
-				_attach = std_::make_unique<HistoryGif>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryGif>(_parent, _data->document, QString());
 			} else if (_data->document->isVideo()) {
-				_attach = std_::make_unique<HistoryVideo>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryVideo>(_parent, _data->document, QString());
 			} else {
-				_attach = std_::make_unique<HistoryDocument>(_parent, _data->document, QString());
+				_attach = std::make_unique<HistoryDocument>(_parent, _data->document, QString());
 			}
 		} else if (_data->photo) {
-			_attach = std_::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
+			_attach = std::make_unique<HistoryPhoto>(_parent, _data->photo, QString());
 		}
 	}
 
@@ -3363,7 +3377,7 @@ TextWithEntities HistoryGame::selectedText(TextSelection selection) const {
 	}
 
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std_::move(descriptionResult));
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 
@@ -3636,7 +3650,7 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 		TextWithEntities result = { qsl("[ ") + lang(lng_maps_point) + qsl(" ]\n"), EntitiesInText() };
 		auto info = selectedText(AllTextSelection);
 		if (!info.text.isEmpty()) {
-			appendTextWithEntities(result, std_::move(info));
+			appendTextWithEntities(result, std::move(info));
 			result.text.append('\n');
 		}
 		result.text += _link->dragText();
@@ -3651,7 +3665,7 @@ TextWithEntities HistoryLocation::selectedText(TextSelection selection) const {
 		return titleResult;
 	}
 	titleResult.text += '\n';
-	appendTextWithEntities(titleResult, std_::move(descriptionResult));
+	appendTextWithEntities(titleResult, std::move(descriptionResult));
 	return titleResult;
 }
 

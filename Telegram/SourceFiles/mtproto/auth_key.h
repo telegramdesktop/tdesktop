@@ -20,66 +20,70 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include <array>
+#include <memory>
+
 namespace MTP {
 
 class AuthKey {
 public:
+	static constexpr auto kSize = 256; // 2048 bits.
+	using Data = std::array<char, kSize>;
+	using KeyId = uint64;
 
-	AuthKey() : _isset(false), _dc(0) {
+	enum class Type {
+		Generated,
+		ReadFromFile,
+		Local,
+	};
+	AuthKey(Type type, DcId dcId, const Data &data) : _type(type), _dcId(dcId), _key(data) {
+		countKeyId();
+	}
+	AuthKey(const Data &data) : _type(Type::Local), _key(data) {
+		countKeyId();
 	}
 
-	bool created() const {
-		return _isset;
+	AuthKey(const AuthKey &other) = delete;
+	AuthKey &operator=(const AuthKey &other) = delete;
+
+	Type type() const {
+		return _type;
 	}
 
-	void setKey(const void *from) {
-		memcpy(_key, from, 256);
-		uchar sha1Buffer[20];
-		_keyId = *(uint64*)(hashSha1(_key, 256, sha1Buffer) + 3);
-		_isset = true;
+	int dcId() const {
+		return _dcId;
 	}
 
-	void setDC(uint32 dc) {
-		_dc = dc;
-	}
-
-	uint32 getDC() const {
-		t_assert(_isset);
-		return _dc;
-	}
-
-	uint64 keyId() const {
-		t_assert(_isset);
+	KeyId keyId() const {
 		return _keyId;
 	}
 
 	void prepareAES(const MTPint128 &msgKey, MTPint256 &aesKey, MTPint256 &aesIV, bool send = true) const {
-		t_assert(_isset);
-
 		uint32 x = send ? 0 : 8;
 
 		uchar data_a[16 + 32], sha1_a[20];
 		memcpy(data_a, &msgKey, 16);
-		memcpy(data_a + 16, _key + x, 32);
+		memcpy(data_a + 16, _key.data() + x, 32);
 		hashSha1(data_a, 16 + 32, sha1_a);
 
 		uchar data_b[16 + 16 + 16], sha1_b[20];
-		memcpy(data_b, _key + 32 + x, 16);
+		memcpy(data_b, _key.data() + 32 + x, 16);
 		memcpy(data_b + 16, &msgKey, 16);
-		memcpy(data_b + 32, _key + 48 + x, 16);
+		memcpy(data_b + 32, _key.data() + 48 + x, 16);
 		hashSha1(data_b, 16 + 16 + 16, sha1_b);
 
 		uchar data_c[32 + 16], sha1_c[20];
-		memcpy(data_c, _key + 64 + x, 32);
+		memcpy(data_c, _key.data() + 64 + x, 32);
 		memcpy(data_c + 32, &msgKey, 16);
 		hashSha1(data_c, 32 + 16, sha1_c);
 
 		uchar data_d[16 + 32], sha1_d[20];
 		memcpy(data_d, &msgKey, 16);
-		memcpy(data_d + 16, _key + 96 + x, 32);
+		memcpy(data_d + 16, _key.data() + 96 + x, 32);
 		hashSha1(data_d, 16 + 32, sha1_d);
 
-		uchar *key((uchar*)&aesKey), *iv((uchar*)&aesIV);
+		auto key = reinterpret_cast<uchar*>(&aesKey);
+		auto iv = reinterpret_cast<uchar*>(&aesIV);
 		memcpy(key, sha1_a, 8);
 		memcpy(key + 8, sha1_b + 8, 12);
 		memcpy(key + 8 + 12, sha1_c + 4, 12);
@@ -90,29 +94,30 @@ public:
 	}
 
 	void write(QDataStream &to) const {
-		t_assert(_isset);
-		to.writeRawData(_key, 256);
+		to.writeRawData(_key.data(), _key.size());
 	}
 
-	static const uint64 RecreateKeyId = 0xFFFFFFFFFFFFFFFFL;
-
-	friend bool operator==(const AuthKey &a, const AuthKey &b);
+	bool equals(const std::shared_ptr<AuthKey> &other) const {
+		return other ? (_key == other->_key) : false;
+	}
 
 private:
+	void countKeyId() {
+		auto sha1 = hashSha1(_key.data(), _key.size());
 
-	char _key[256];
-	uint64 _keyId;
-	bool _isset;
-	uint32 _dc;
+		// Lower 64 bits = 8 bytes of 20 byte SHA1 hash.
+		_keyId = *reinterpret_cast<KeyId*>(sha1.data() + 12);
+	}
+
+	Type _type = Type::Generated;
+	DcId _dcId = 0;
+	Data _key = { { 0 } };
+	KeyId _keyId = 0;
 
 };
 
-inline bool operator==(const AuthKey &a, const AuthKey &b) {
-	return !memcmp(a._key, b._key, 256);
-}
-
-typedef QSharedPointer<AuthKey> AuthKeyPtr;
-typedef QVector<AuthKeyPtr> AuthKeysMap;
+using AuthKeyPtr = std::shared_ptr<AuthKey>;
+using AuthKeysList = std::vector<AuthKeyPtr>;
 
 void aesIgeEncrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv);
 void aesIgeDecrypt(const void *src, void *dst, uint32 len, const void *key, const void *iv);
@@ -124,7 +129,7 @@ inline void aesIgeEncrypt(const void *src, void *dst, uint32 len, const AuthKeyP
 	return aesIgeEncrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
-inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const AuthKey *authKey, const void *key128) {
+inline void aesEncryptLocal(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 
@@ -138,7 +143,7 @@ inline void aesIgeDecrypt(const void *src, void *dst, uint32 len, const AuthKeyP
 	return aesIgeDecrypt(src, dst, len, static_cast<const void*>(&aesKey), static_cast<const void*>(&aesIV));
 }
 
-inline void aesDecryptLocal(const void *src, void *dst, uint32 len, const AuthKey *authKey, const void *key128) {
+inline void aesDecryptLocal(const void *src, void *dst, uint32 len, const AuthKeyPtr &authKey, const void *key128) {
 	MTPint256 aesKey, aesIV;
 	authKey->prepareAES(*(const MTPint128*)key128, aesKey, aesIV, false);
 

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/continuous_sliders.h"
 
 namespace Ui {
@@ -48,7 +47,7 @@ void ContinuousSlider::setDisabled(bool disabled) {
 void ContinuousSlider::setMoveByWheel(bool move) {
 	if (move != moveByWheel()) {
 		if (move) {
-			_byWheelFinished = std_::make_unique<SingleTimer>();
+			_byWheelFinished = std::make_unique<SingleTimer>();
 			_byWheelFinished->setTimeoutHandler([this] {
 				if (_changeFinishedCallback) {
 					_changeFinishedCallback(getCurrentValue(getms()));

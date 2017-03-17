@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_audio.h"
 
 #include "media/media_audio_ffmpeg_loader.h"
@@ -777,7 +776,7 @@ void Mixer::play(const AudioMsgId &audio, int64 position) {
 	}
 }
 
-void Mixer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position) {
+void Mixer::initFromVideo(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data, int64 position) {
 	AudioMsgId stopped;
 	{
 		QMutexLocker lock(&AudioMutex);
@@ -811,7 +810,7 @@ void Mixer::initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &
 		current->clear();
 		current->state.id = AudioMsgId(AudioMsgId::Type::Video);
 		current->videoPlayId = videoPlayId;
-		current->videoData = std_::move(data);
+		current->videoData = std::move(data);
 		{
 			QMutexLocker videoLock(&_lastVideoMutex);
 			_lastVideoPlayId = current->videoPlayId;
@@ -947,7 +946,7 @@ void Mixer::resumeFromVideo(uint64 videoPlayId) {
 }
 
 void Mixer::feedFromVideo(VideoSoundPart &&part) {
-	_loader->feedFromVideo(std_::move(part));
+	_loader->feedFromVideo(std::move(part));
 }
 
 TimeMs Mixer::getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs) {
@@ -1657,24 +1656,27 @@ private:
 
 };
 
-MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat) {
-	FFMpegAttributesReader reader(FileLocation(StorageFilePartial, fname), data);
+namespace Media {
+namespace Player {
+
+FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+	auto result = FileLoadTask::Song();
+	FFMpegAttributesReader reader(FileLocation(fname), data);
 	qint64 position = 0;
-	if (reader.open(position)) {
-		int32 duration = reader.duration() / reader.frequency();
-		if (reader.duration() > 0) {
-			cover = reader.cover();
-			coverBytes = reader.coverBytes();
-			coverFormat = reader.coverFormat();
-			return MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(duration), MTP_string(reader.title()), MTP_string(reader.performer()), MTPstring());
-		}
+	if (reader.open(position) && reader.duration() > 0) {
+		result.duration = reader.duration() / reader.frequency();
+		result.title = reader.title();
+		result.performer = reader.performer();
+		result.cover = reader.cover();
 	}
-	return MTP_documentAttributeFilename(MTP_string(fname));
+	return result;
 }
+
+} // namespace Player
+} // namespace Media
 
 class FFMpegWaveformCounter : public FFMpegLoader {
 public:
-
 	FFMpegWaveformCounter(const FileLocation &file, const QByteArray &data) : FFMpegLoader(file, data) {
 	}
 

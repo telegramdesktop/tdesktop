@@ -18,10 +18,9 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/notifications_utilities.h"
 
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "mainwindow.h"
 #include "styles/style_window.h"
 
@@ -113,7 +112,13 @@ void CachedUserpics::onClear() {
 
 CachedUserpics::~CachedUserpics() {
 	if (_someSavedFlag) {
-		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
+		TimeMs result = 0;
+		for_const (auto &item, _images) {
+			QFile(item.path).remove();
+		}
+
+// This works about 1200ms on Windows for a folder with one image O_o
+//		psDeleteDir(cWorkingDir() + qsl("tdata/temp"));
 	}
 }
 

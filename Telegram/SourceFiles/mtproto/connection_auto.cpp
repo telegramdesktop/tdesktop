@@ -18,8 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "mtproto/connection_auto.h"
 
 #include "mtproto/connection_http.h"
@@ -119,7 +117,7 @@ void AutoConnection::sendData(mtpBuffer &buffer) {
 	if (buffer.size() < 3) {
 		LOG(("TCP Error: writing bad packet, len = %1").arg(buffer.size() * sizeof(mtpPrime)));
 		TCP_LOG(("TCP Error: bad packet %1").arg(Logs::mb(&buffer[0], buffer.size() * sizeof(mtpPrime)).str()));
-		emit error();
+		emit error(kErrorCodeOther);
 		return;
 	}
 
@@ -162,23 +160,24 @@ void AutoConnection::disconnectFromServer() {
 	httpStartTimer.stop();
 }
 
-void AutoConnection::connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
-	_addrTcp = addr;
-	_portTcp = port;
-	_flagsTcp = flags;
+void AutoConnection::connectTcp(const DcOptions::Endpoint &endpoint) {
+	_addrTcp = QString::fromStdString(endpoint.ip);
+	_portTcp = endpoint.port;
+	_flagsTcp = endpoint.flags;
 
 	connect(&sock, SIGNAL(readyRead()), this, SLOT(socketRead()));
 	sock.connectToHost(QHostAddress(_addrTcp), _portTcp);
 }
 
-void AutoConnection::connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) {
-	address = QUrl(((flags & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(addr).arg(80));//not p - always 80 port for http transport
+void AutoConnection::connectHttp(const DcOptions::Endpoint &endpoint) {
+	_addrHttp = QString::fromStdString(endpoint.ip);
+	_portHttp = endpoint.port;
+	_flagsHttp = endpoint.flags;
+
+	// not endpoint.port - always 80 port for http transport
+	address = QUrl(((_flagsHttp & MTPDdcOption::Flag::f_ipv6) ? qsl("http://[%1]:%2/api") : qsl("http://%1:%2/api")).arg(_addrHttp).arg(80));
 	TCP_LOG(("HTTP Info: address is %1").arg(address.toDisplayString()));
 	connect(&manager, SIGNAL(finished(QNetworkReply*)), this, SLOT(requestFinished(QNetworkReply*)));
-
-	_addrHttp = addr;
-	_portHttp = port;
-	_flagsHttp = flags;
 
 	mtpBuffer buffer(preparePQFake(httpNonce));
 
@@ -203,11 +202,11 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 			if (status == WaitingBoth) {
 				status = WaitingTcp;
 			} else {
-				emit error();
+				emit error(data[0]);
 			}
 		} else if (!data.isEmpty()) {
 			if (status == UsingHttp) {
-				receivedQueue.push_back(data);
+				_receivedQueue.push_back(data);
 				emit receivedData();
 			} else if (status == WaitingBoth || status == WaitingHttp) {
 				try {
@@ -229,7 +228,7 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 					if (status == WaitingBoth) {
 						status = WaitingTcp;
 					} else {
-						emit error();
+						emit error(kErrorCodeOther);
 					}
 				}
 			} else if (status == UsingTcp) {
@@ -241,11 +240,10 @@ void AutoConnection::requestFinished(QNetworkReply *reply) {
 			return;
 		}
 
-		bool mayBeBadKey = HTTPConnection::handleError(reply) && _sentEncrypted;
 		if (status == WaitingBoth) {
 			status = WaitingTcp;
 		} else if (status == WaitingHttp || status == UsingHttp) {
-			emit error(mayBeBadKey);
+			emit error(HTTPConnection::handleError(reply));
 		} else {
 			LOG(("Strange Http Error: status %1").arg(status));
 		}
@@ -266,13 +264,12 @@ void AutoConnection::socketPacket(const char *packet, uint32 length) {
 			sock.disconnectFromHost();
 			emit connected();
 		} else if (status == WaitingTcp || status == UsingTcp) {
-			bool mayBeBadKey = (data[0] == -410) && _sentEncrypted;
-			emit error(mayBeBadKey);
+			emit error(data[0]);
 		} else {
 			LOG(("Strange Tcp Error; status %1").arg(status));
 		}
 	} else if (status == UsingTcp) {
-		receivedQueue.push_back(data);
+		_receivedQueue.push_back(data);
 		emit receivedData();
 	} else if (status == WaitingBoth || status == WaitingTcp || status == HttpReady) {
 		tcpTimeoutTimer.stop();
@@ -295,7 +292,7 @@ void AutoConnection::socketPacket(const char *packet, uint32 length) {
 				sock.disconnectFromHost();
 				emit connected();
 			} else {
-				emit error();
+				emit error(kErrorCodeOther);
 			}
 		}
 	}
@@ -334,7 +331,7 @@ void AutoConnection::socketError(QAbstractSocket::SocketError e) {
 		status = UsingHttp;
 		emit connected();
 	} else if (status == WaitingTcp || status == UsingTcp) {
-		emit error();
+		emit error(kErrorCodeOther);
 	} else {
 		LOG(("Strange Tcp Error: status %1").arg(status));
 	}

@@ -36,19 +36,19 @@ public:
 	void setInnerFocus();
 	void clearQuery();
 
-	void setQueryChangedCallback(base::lambda<void(const QString &query)> &&callback);
-	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> &&callback);
-	void setResizedCallback(base::lambda<void()> &&callback);
+	void setQueryChangedCallback(base::lambda<void(const QString &query)> callback);
+	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback);
+	void setResizedCallback(base::lambda<void()> callback);
 
 	enum class AddItemWay {
 		Default,
 		SkipAnimation,
 	};
 	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	void addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage &&paintRoundImage, AddItemWay way = AddItemWay::Default);
+	void addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way = AddItemWay::Default);
 	void setItemText(uint64 itemId, const QString &text);
 
-	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> &&callback);
+	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback);
 	void removeItem(uint64 itemId);
 
 protected:
@@ -76,23 +76,23 @@ class MultiSelect::Inner : public TWidget {
 
 public:
 	using ScrollCallback = base::lambda<void(int activeTop, int activeBottom)>;
-	Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback &&callback);
+	Inner(QWidget *parent, const style::MultiSelect &st, const QString &placeholder, ScrollCallback callback);
 
 	QString getQuery() const;
 	bool setInnerFocus();
 	void clearQuery();
 
-	void setQueryChangedCallback(base::lambda<void(const QString &query)> &&callback);
-	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> &&callback);
+	void setQueryChangedCallback(base::lambda<void(const QString &query)> callback);
+	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback);
 
 	class Item;
-	void addItem(std_::unique_ptr<Item> item, AddItemWay way);
+	void addItem(std::unique_ptr<Item> item, AddItemWay way);
 	void setItemText(uint64 itemId, const QString &text);
 
-	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> &&callback);
+	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback);
 	void removeItem(uint64 itemId);
 
-	void setResizedCallback(base::lambda<void(int heightDelta)> &&callback);
+	void setResizedCallback(base::lambda<void(int heightDelta)> callback);
 
 	~Inner();
 

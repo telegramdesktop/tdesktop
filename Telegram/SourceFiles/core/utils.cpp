@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "core/utils.h"
 
 #include <openssl/crypto.h>
@@ -35,6 +34,7 @@ extern "C" {
 }
 
 #include "application.h"
+#include "platform/platform_specific.h"
 
 uint64 _SharedMemoryLocation[4] = { 0x00, 0x01, 0x02, 0x03 };
 
@@ -123,7 +123,7 @@ void unixtimeSet(int32 serverTime, bool force) {
 }
 
 TimeId unixtime() {
-	TimeId result = myunixtime();
+	auto result = myunixtime();
 
 	QReadLocker locker(&unixtimeLock);
 	return result + unixtimeDelta;
@@ -320,7 +320,6 @@ namespace ThirdParty {
 
 		Platform::ThirdParty::finish();
 	}
-
 }
 
 bool checkms() {
@@ -330,7 +329,7 @@ bool checkms() {
 		_msAddToUnixtime = ((ms - unixms) / 1000LL) * 1000LL;
 	} else if (unixms > ms + 1000LL) {
 		_msAddToMsStart += ((unixms - ms) / 1000LL) * 1000LL;
-		if (App::app()) emit App::app()->adjustSingleTimers();
+		Sandbox::adjustSingleTimers();
 		return true;
 	}
 	return false;

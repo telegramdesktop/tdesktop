@@ -18,12 +18,11 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "profile/profile_userpic_button.h"
 
 #include "styles/style_profile.h"
 #include "observer_peer.h"
-#include "mtproto/file_download.h"
+#include "auth_session.h"
 
 namespace Profile {
 
@@ -42,7 +41,7 @@ UserpicButton::UserpicButton(QWidget *parent, PeerData *peer, int size) : Abstra
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(observeEvents, [this](const Notify::PeerUpdate &update) {
 		notifyPeerUpdated(update);
 	}));
-	subscribe(FileDownload::ImageLoaded(), [this] {
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		if (_waiting && _peer->userpicLoaded()) {
 			_waiting = false;
 			startNewPhotoShowing();
@@ -117,7 +116,7 @@ QPixmap UserpicButton::prepareUserpicPixmap() const {
 		Painter p(&image);
 		_peer->paintUserpic(p, 0, 0, width());
 	}
-	return App::pixmapFromImageInPlace(std_::move(image));
+	return App::pixmapFromImageInPlace(std::move(image));
 }
 
 } // namespace Profile

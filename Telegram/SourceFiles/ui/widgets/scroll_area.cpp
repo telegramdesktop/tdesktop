@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/widgets/scroll_area.h"
 
 namespace Ui {
@@ -726,7 +725,7 @@ void ScrollArea::doSetOwnedWidget(object_ptr<TWidget> w) {
 		_horizontalBar->raise();
 		_verticalBar->raise();
 	}
-	_widget = std_::move(w);
+	_widget = std::move(w);
 	QScrollArea::setWidget(_widget);
 	if (_widget) {
 		_widget->setAutoFillBackground(false);
@@ -753,7 +752,7 @@ object_ptr<TWidget> ScrollArea::doTakeWidget() {
 		disconnect(verticalScrollBar(), SIGNAL(valueChanged(int)), this, SLOT(onVerticalScroll()));
 	}
 	QScrollArea::takeWidget();
-	return std_::move(_widget);
+	return std::move(_widget);
 }
 
 void ScrollArea::onResizeOther() {

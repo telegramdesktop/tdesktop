@@ -18,13 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "profile/profile_block_peer_list.h"
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/popup_menu.h"
 #include "styles/style_profile.h"
 #include "styles/style_widgets.h"
+#include "auth_session.h"
 
 namespace Profile {
 
@@ -39,7 +39,7 @@ PeerListWidget::PeerListWidget(QWidget *parent, PeerData *peer, const QString &t
 , _removeText(removeText)
 , _removeWidth(st::normalFont->width(_removeText)) {
 	setMouseTracking(true);
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 }
 
 int PeerListWidget::resizeGetHeight(int newWidth) {
@@ -153,7 +153,7 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 		if (!item->ripple) {
 			auto memberRowWidth = rowWidth();
 			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth - _st.button.outlineWidth, st::profileMemberHeight));
-			item->ripple = std_::make_unique<Ui::RippleAnimation>(_st.button.ripple, std_::move(mask), [this, index = _pressed] {
+			item->ripple = std::make_unique<Ui::RippleAnimation>(_st.button.ripple, std::move(mask), [this, index = _pressed] {
 				repaintRow(index);
 			});
 		}
@@ -169,7 +169,7 @@ void PeerListWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 void PeerListWidget::mousePressReleased(Qt::MouseButton button) {
 	repaintRow(_pressed);
-	auto pressed = base::take(_pressed, -1);
+	auto pressed = std::exchange(_pressed, -1);
 	auto pressedRemove = base::take(_pressedRemove);
 	if (pressed >= 0 && pressed < _items.size()) {
 		if (auto &ripple = _items[pressed]->ripple) {

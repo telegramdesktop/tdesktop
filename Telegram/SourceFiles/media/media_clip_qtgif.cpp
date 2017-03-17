@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_clip_qtgif.h"
 
 namespace Media {
@@ -99,15 +98,15 @@ TimeMs QtGifReaderImplementation::durationMs() const {
 	return 0; // not supported
 }
 
-bool QtGifReaderImplementation::start(Mode mode, int64 &positionMs) {
-	if (mode == Mode::OnlyGifv) return false;
+bool QtGifReaderImplementation::start(Mode mode, TimeMs &positionMs) {
+	if (mode == Mode::Inspecting) {
+		return false;
+	}
 	_mode = mode;
 	return jumpToStart();
 }
 
-QtGifReaderImplementation::~QtGifReaderImplementation() {
-	delete base::take(_reader);
-}
+QtGifReaderImplementation::~QtGifReaderImplementation() = default;
 
 bool QtGifReaderImplementation::jumpToStart() {
 	if (_reader && _reader->jumpToImage(0)) {
@@ -115,9 +114,9 @@ bool QtGifReaderImplementation::jumpToStart() {
 		return true;
 	}
 
-	delete _reader;
+	_reader = nullptr;
 	initDevice();
-	_reader = new QImageReader(_device);
+	_reader = std::make_unique<QImageReader>(_device);
 #ifndef OS_MAC_OLD
 	_reader->setAutoTransform(true);
 #endif // OS_MAC_OLD

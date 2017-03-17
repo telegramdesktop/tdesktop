@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/confirmphonebox.h"
 
 #include "styles/style_boxes.h"
@@ -106,7 +105,7 @@ void ConfirmPhoneBox::setCallStatus(const CallStatus &status) {
 
 void ConfirmPhoneBox::launch() {
 	if (!CurrentConfirmPhoneBox) return;
-	Ui::show(std_::move(CurrentConfirmPhoneBox));
+	Ui::show(std::move(CurrentConfirmPhoneBox));
 }
 
 void ConfirmPhoneBox::prepare() {

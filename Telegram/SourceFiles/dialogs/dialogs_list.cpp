@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "dialogs/dialogs_list.h"
 
 #include "dialogs/dialogs_layout.h"
@@ -28,7 +27,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Dialogs {
 
 List::List(SortMode sortMode)
-: _last(std_::make_unique<Row>(nullptr, nullptr, nullptr, 0))
+: _last(std::make_unique<Row>(nullptr, nullptr, nullptr, 0))
 , _begin(_last.get())
 , _end(_last.get())
 , _sortMode(sortMode)

@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "storage/localimageloader.h"
+
 class FileLocation;
 
 namespace Media {
@@ -175,7 +177,7 @@ private:
 
 template <typename ...Args>
 inline ReaderPointer MakeReader(Args&&... args) {
-	return ReaderPointer(new Reader(std_::forward<Args>(args)...));
+	return ReaderPointer(new Reader(std::forward<Args>(args)...));
 }
 
 enum class ProcessResult {
@@ -243,7 +245,7 @@ private:
 
 };
 
-MTPDocumentAttribute readAttributes(const QString &fname, const QByteArray &data, QImage &cover);
+FileLoadTask::Video PrepareForSending(const QString &fname, const QByteArray &data);
 
 void Finish();
 

@@ -37,7 +37,7 @@ public:
 
 	static Manager *instance(QWidget *parent);
 
-	void addToast(std_::unique_ptr<Instance> &&toast);
+	void addToast(std::unique_ptr<Instance> &&toast);
 
 	~Manager();
 

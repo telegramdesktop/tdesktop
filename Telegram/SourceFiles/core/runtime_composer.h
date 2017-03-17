@@ -97,7 +97,7 @@ protected:
 		((Type*)location)->~Type();
 	}
 	static void RuntimeComponentMove(void *location, void *waslocation) {
-		*(Type*)location = std_::move(*(Type*)waslocation);
+		*(Type*)location = std::move(*(Type*)waslocation);
 	}
 
 };
@@ -164,7 +164,7 @@ public:
 					try {
 						auto constructAt = _dataptrunsafe(offset);
 						auto space = RuntimeComponentWraps[i].Size;
-						auto alignedAt = std_::align(RuntimeComponentWraps[i].Align, space, constructAt, space);
+						auto alignedAt = std::align(RuntimeComponentWraps[i].Align, space, constructAt, space);
 						t_assert(alignedAt == constructAt);
 						RuntimeComponentWraps[i].Construct(constructAt, this);
 					} catch (...) {

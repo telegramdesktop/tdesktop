@@ -18,12 +18,11 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "history/history_location_manager.h"
 
 #include "mainwidget.h"
 #include "lang.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 
 namespace {
 
@@ -89,7 +88,7 @@ void LocationManager::init() {
 	auto data = QImage(cIntRetinaFactor(), cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
 	data.fill(st::imageBgTransparent->c);
 	data.setDevicePixelRatio(cRetinaFactor());
-	notLoadedPlaceholder = new ImagePtr(App::pixmapFromImageInPlace(std_::move(data)), "GIF");
+	notLoadedPlaceholder = new ImagePtr(App::pixmapFromImageInPlace(std::move(data)), "GIF");
 }
 
 void LocationManager::reinit() {

@@ -18,18 +18,18 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "passcodewidget.h"
 
 #include "lang.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "mainwindow.h"
-#include "application.h"
+#include "messenger.h"
 #include "ui/text/text.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "styles/style_boxes.h"
 #include "window/window_slide_animation.h"
+#include "auth_session.h"
 
 PasscodeWidget::PasscodeWidget(QWidget *parent) : TWidget(parent)
 , _passcode(this, st::passcodeInput, lang(lng_passcode_ph))
@@ -71,8 +71,8 @@ void PasscodeWidget::onSubmit() {
 		if (Local::readMap(_passcode->text().toUtf8()) != Local::ReadMapPassNeeded) {
 			cSetPasscodeBadTries(0);
 
-			MTP::start();
-			if (MTP::authedId()) {
+			Messenger::Instance().startMtp();
+			if (AuthSession::Exists()) {
 				App::wnd()->setupMain();
 			} else {
 				App::wnd()->setupIntro();

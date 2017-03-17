@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/aboutbox.h"
 
 #include "lang.h"
@@ -30,7 +29,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
-#include "platform/platform_file_dialog.h"
+#include "platform/platform_file_utilities.h"
 
 AboutBox::AboutBox(QWidget *parent)
 : _version(this, lng_about_version(lt_version, QString::fromLatin1(AppVersionStr.c_str()) + (cAlphaVersion() ? " alpha" : "") + (cBetaVersion() ? qsl(" beta %1").arg(cBetaVersion()) : QString())), st::aboutVersionLink)
@@ -86,34 +85,6 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 	} else {
 		BoxContent::keyPressEvent(e);
 	}
-}
-
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-QString _getCrashReportFile(const QMimeData *m) {
-	if (!m || m->urls().size() != 1 || !m->urls().at(0).isLocalFile()) return QString();
-
-	auto file = Platform::FileDialog::UrlToLocal(m->urls().at(0));
-
-	return file.endsWith(qstr(".telegramcrash"), Qt::CaseInsensitive) ? file : QString();
-}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
-
-void AboutBox::dragEnterEvent(QDragEnterEvent *e) {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
-		e->setDropAction(Qt::CopyAction);
-		e->accept();
-	}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
-}
-
-void AboutBox::dropEvent(QDropEvent *e) {
-#ifndef TDESKTOP_DISABLE_CRASH_REPORTS
-	if (!_getCrashReportFile(e->mimeData()).isEmpty()) {
-		e->acceptProposedAction();
-		showCrashReportWindow(_getCrashReportFile(e->mimeData()));
-	}
-#endif // !TDESKTOP_DISABLE_CRASH_REPORTS
 }
 
 QString telegramFaqLink() {

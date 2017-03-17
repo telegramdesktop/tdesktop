@@ -51,7 +51,7 @@ class Layer : public LayerWidget {
 public:
 	Layer();
 
-	void setCloseClickHandler(base::lambda<void()> &&callback);
+	void setCloseClickHandler(base::lambda<void()> callback);
 	void resizeToWidth(int newWidth, int newContentLeft);
 
 protected:
@@ -61,7 +61,7 @@ protected:
 	template <typename Widget>
 	QPointer<Widget> setInnerWidget(object_ptr<Widget> widget) {
 		auto result = QPointer<Widget>(widget);
-		doSetInnerWidget(std_::move(widget));
+		doSetInnerWidget(std::move(widget));
 		return result;
 	}
 

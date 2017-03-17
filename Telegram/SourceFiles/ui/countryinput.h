@@ -134,6 +134,6 @@ private:
 	QString _filter;
 	bool _mouseSelection = false;
 
-	std_::vector_of_moveable<std_::unique_ptr<Ui::RippleAnimation>> _ripples;
+	std::vector<std::unique_ptr<Ui::RippleAnimation>> _ripples;
 
 };

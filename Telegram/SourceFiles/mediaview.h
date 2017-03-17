@@ -256,7 +256,7 @@ private:
 	bool _pressed = false;
 	int32 _dragging = 0;
 	QPixmap _current;
-	std_::unique_ptr<Media::Clip::Reader> _gif;
+	std::unique_ptr<Media::Clip::Reader> _gif;
 	int32 _full = -1; // -1 - thumb, 0 - medium, 1 - full
 
 	// Video without audio stream playback information.
@@ -365,7 +365,7 @@ private:
 	bool _themePreviewShown = false;
 	uint64 _themePreviewId = 0;
 	QRect _themePreviewRect;
-	std_::unique_ptr<Window::Theme::Preview> _themePreview;
+	std::unique_ptr<Window::Theme::Preview> _themePreview;
 	object_ptr<Ui::RoundButton> _themeApply = { nullptr };
 	object_ptr<Ui::RoundButton> _themeCancel = { nullptr };
 

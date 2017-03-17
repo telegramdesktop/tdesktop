@@ -54,6 +54,7 @@
           '-Wno-switch',
           '-Wno-comment',
           '-Wno-missing-field-initializers',
+          '-Wno-sign-compare',
         ],
       },
       'xcode_settings': {
@@ -88,9 +89,6 @@
     }],
     [ 'build_macold', {
       'xcode_settings': {
-        'OTHER_CFLAGS': [
-          '-Wno-inconsistent-missing-override',
-        ],
         'OTHER_CPLUSPLUSFLAGS': [
           '-Wno-inconsistent-missing-override',
         ],

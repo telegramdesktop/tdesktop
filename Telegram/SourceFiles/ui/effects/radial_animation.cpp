@@ -18,14 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/effects/radial_animation.h"
 
 namespace Ui {
 
 RadialAnimation::RadialAnimation(AnimationCallbacks &&callbacks)
 	: a_arcStart(0, FullArcLength)
-	, _animation(std_::move(callbacks)) {
+	, _animation(std::move(callbacks)) {
 }
 
 void RadialAnimation::start(float64 prg) {

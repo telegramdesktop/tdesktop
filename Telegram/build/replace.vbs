@@ -1,23 +1,35 @@
-Dim pat, patparts, rxp, inp, found
-pat = WScript.Arguments(0)
+Dim action, pat, patparts, rxp, inp, matchCount
+action = WScript.Arguments(0)
+pat = WScript.Arguments(1)
 pat = Replace(pat, "&quot;", chr(34))
 pat = Replace(pat, "&hat;", "^")
 pat = Replace(pat, "&amp;", "&")
-patparts = Split(pat,"/")
+
 Set rxp = new RegExp
-found = False
 rxp.Global = True
 rxp.Multiline = False
-rxp.Pattern = patparts(0)
+If action = "Replace" Then
+  patparts = Split(pat, "/")
+  rxp.Pattern = patparts(0)
+Else
+  rxp.Pattern = pat
+End If
+
+matchCount = 0
 Do While Not WScript.StdIn.AtEndOfStream
   inp = WScript.StdIn.ReadLine()
-  If not found Then
-    If rxp.Test(inp) Then
-      found = True
-    End If
+  If rxp.Test(inp) Then
+    matchCount = matchCount + 1
   End If
-  WScript.Echo rxp.Replace(inp, patparts(1))
+  If action = "Replace" Then
+    WScript.Echo rxp.Replace(inp, patparts(1))
+  End If
 Loop
-If not found Then
-  WScript.Quit(2)
+
+If action = "Replace" Then
+  If matchCount = 0 Then
+    WScript.Quit(2)
+  End If
+Else
+  WScript.Echo matchCount
 End If

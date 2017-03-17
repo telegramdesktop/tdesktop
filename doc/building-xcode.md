@@ -12,19 +12,19 @@ There you will have two folders, **Libraries** for third-party libs and **tdeskt
 
 By git – in Terminal go to **/Users/user/TBuild** and run:
 
-    git clone https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
 ###Prepare libraries
 
 In your build Terminal run:
 
-	MACOSX_DEPLOYMENT_TARGET=10.8
+    MACOSX_DEPLOYMENT_TARGET=10.8
 
 to set minimal supported OS version to 10.8 for future console builds.
 
 ####zlib 1.2.8
 
-http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, zipfile format**](http://zlib.net/zlib128.zip)
+http://www.zlib.net/ > Download [**zlib source code, version 1.2.8**](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries**
 
@@ -32,9 +32,9 @@ Extract to **/Users/user/TBuild/Libraries**
 
 In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
 
-	CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
-	make
-	sudo make install
+    CFLAGS="-mmacosx-version-min=10.8" LDFLAGS="-mmacosx-version-min=10.8" ./configure
+    make
+    sudo make install
 
 ####OpenSSL 1.0.1g
 
@@ -45,7 +45,7 @@ From https://github.com/telegramdesktop/openssl-xcode with git in Terminal:
 * go to **/Users/user/TBuild/Libraries
 * run:
 
-	git clone https://github.com/telegramdesktop/openssl-xcode.git
+    git clone https://github.com/telegramdesktop/openssl-xcode.git
 
 The path to openssl.xcodeproj should now be: **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj**
 
@@ -87,7 +87,7 @@ From https://github.com/telegramdesktop/libexif-0.6.20 with git in Terminal:
 *  go to **/Users/user/TBuild/Libraries**
 *  run:
 
-    	git clone https://github.com/telegramdesktop/libexif-0.6.20.git
+    git clone https://github.com/telegramdesktop/libexif-0.6.20.git
 
 The folder configure should have this path:
 **/Users/user/TBuild/Libraries/libexif-0.6.20/configure**

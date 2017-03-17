@@ -75,7 +75,6 @@ enum LaunchMode {
 	LaunchModeAutoStart,
 	LaunchModeFixPrevious,
 	LaunchModeCleanup,
-	LaunchModeShowCrash,
 };
 DeclareReadSetting(LaunchMode, LaunchMode);
 DeclareSetting(QString, WorkingDir);
@@ -102,7 +101,6 @@ struct TWindowPos {
 };
 DeclareSetting(TWindowPos, WindowPos);
 DeclareSetting(bool, SupportTray);
-DeclareSetting(DBIWorkMode, WorkMode);
 DeclareSetting(bool, SeenTrayTooltip);
 DeclareSetting(bool, RestartingUpdate);
 DeclareSetting(bool, Restarting);
@@ -258,9 +256,6 @@ DeclareReadSetting(DBIPlatform, Platform);
 DeclareReadSetting(QString, PlatformString);
 DeclareReadSetting(bool, IsElCapitan);
 DeclareReadSetting(QUrl, UpdateURL);
-
-DeclareSetting(bool, ContactsReceived);
-DeclareSetting(bool, DialogsReceived);
 
 DeclareSetting(int, OtherOnline);
 

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/player/media_player_widget.h"
 
 #include "ui/widgets/labels.h"
@@ -92,7 +91,7 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 , _repeatTrack(this, st::mediaPlayerRepeatButton)
 , _close(this, st::mediaPlayerClose)
 , _shadow(this, st::shadowFg)
-, _playback(std_::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
+, _playback(std::make_unique<Clip::Playback>(new Ui::FilledSlider(this, st::mediaPlayerPlayback))) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setMouseTracking(true);
 	resize(width(), st::mediaPlayerHeight + st::lineWidth);
@@ -157,7 +156,7 @@ void Widget::updateVolumeToggleIcon() {
 }
 
 void Widget::setCloseCallback(CloseCallback &&callback) {
-	_close->setClickedCallback(std_::move(callback));
+	_close->setClickedCallback(std::move(callback));
 }
 
 void Widget::setShadowGeometryToLeft(int x, int y, int w, int h) {

@@ -18,13 +18,13 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "logs.h"
 
 #include <signal.h>
 #include <new>
 
-#include "pspecific.h"
+#include "platform/platform_specific.h"
+#include "mtproto/connection.h"
 
 #ifndef TDESKTOP_DISABLE_CRASH_REPORTS
 
@@ -87,9 +87,8 @@ QString _logsEntryStart() {
 	static int32 index = 0;
 	QDateTime tm(QDateTime::currentDateTime());
 
-	QThread *thread = QThread::currentThread();
-	MTP::internal::Thread *mtpThread = qobject_cast<MTP::internal::Thread*>(thread);
-	uint threadId = mtpThread ? mtpThread->getThreadId() : 0;
+	auto thread = qobject_cast<MTP::internal::Thread*>(QThread::currentThread());
+	auto threadId = thread ? thread->getThreadIndex() : 0;
 
 	return QString("[%1 %2-%3]").arg(tm.toString("hh:mm:ss.zzz")).arg(QString("%1").arg(threadId, 2, 10, QChar('0'))).arg(++index, 7, 10, QChar('0'));
 }
@@ -746,17 +745,15 @@ namespace internal {
 	struct SomeAllocatedMemoryChunk {
 		char data[1024 * 1024];
 	};
-	std_::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
-
-	void OperatorNewHandler() {
-		std::set_new_handler(nullptr);
-		SomeAllocatedMemory.reset();
-		t_assert(!"Could not allocate!");
-	}
+	std::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
 
 	void InstallOperatorNewHandler() {
-		SomeAllocatedMemory = std_::make_unique<SomeAllocatedMemoryChunk>();
-		std::set_new_handler(OperatorNewHandler);
+		SomeAllocatedMemory = std::make_unique<SomeAllocatedMemoryChunk>();
+		std::set_new_handler([] {
+			std::set_new_handler(nullptr);
+			SomeAllocatedMemory.reset();
+			t_assert(!"Could not allocate!");
+		});
 	}
 
 	Qt::HANDLE ReportingThreadId = nullptr;

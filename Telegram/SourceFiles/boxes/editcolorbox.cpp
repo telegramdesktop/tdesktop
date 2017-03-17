@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/editcolorbox.h"
 
 #include "lang.h"
@@ -359,9 +358,9 @@ void EditColorBox::Slider::generatePixmap() {
 			++ints;
 		}
 		if (!isHorizontal()) {
-			image = std_::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
+			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
 		}
-		_pixmap = App::pixmapFromImageInPlace(std_::move(image));
+		_pixmap = App::pixmapFromImageInPlace(std::move(image));
 	} else {
 		auto color = anim::shifted(QColor(255, 255, 255, 255));
 		auto transparent = anim::shifted(QColor(255, 255, 255, 0));
@@ -377,9 +376,9 @@ void EditColorBox::Slider::generatePixmap() {
 			ints += intsPerLineAdded;
 		}
 		if (!isHorizontal()) {
-			image = std_::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
+			image = std::move(image).transformed(QTransform(0, -1, 1, 0, 0, 0));
 		}
-		_mask = std_::move(image);
+		_mask = std::move(image);
 		updatePixmapFromMask();
 	}
 }

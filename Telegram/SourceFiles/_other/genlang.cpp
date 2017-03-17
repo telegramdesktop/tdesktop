@@ -489,7 +489,7 @@ to link the code of portions of this program with the OpenSSL library.\n\
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE\n\
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org\n\
 */\n";
-			tcpp << "#include \"stdafx.h\"\n#include \"lang.h\"\n\n";
+			tcpp << "#include \"lang.h\"\n\n";
 			tcpp << "namespace {\n";
 
 			tcpp << "\tconst char *_langKeyNames[lngkeys_cnt] = {\n";

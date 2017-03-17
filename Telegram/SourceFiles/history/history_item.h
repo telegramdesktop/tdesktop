@@ -146,12 +146,12 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
 		replyToMsgId = other.replyToMsgId;
 		std::swap(replyToMsg, other.replyToMsg);
-		replyToLnk = std_::move(other.replyToLnk);
-		replyToName = std_::move(other.replyToName);
-		replyToText = std_::move(other.replyToText);
+		replyToLnk = std::move(other.replyToLnk);
+		replyToName = std::move(other.replyToName);
+		replyToText = std::move(other.replyToText);
 		replyToVersion = other.replyToVersion;
 		_maxReplyWidth = other._maxReplyWidth;
-		_replyToVia = std_::move(other._replyToVia);
+		_replyToVia = std::move(other._replyToVia);
 		return *this;
 	}
 	~HistoryMessageReply() {
@@ -191,7 +191,7 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply> {
 	mutable Text replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int _maxReplyWidth = 0;
-	std_::unique_ptr<HistoryMessageVia> _replyToVia;
+	std::unique_ptr<HistoryMessageVia> _replyToVia;
 	int toWidth = 0;
 };
 Q_DECLARE_OPERATORS_FOR_FLAGS(HistoryMessageReply::PaintFlags);
@@ -227,7 +227,7 @@ struct HistoryMessageReplyMarkup : public RuntimeComponent<HistoryMessageReplyMa
 	ButtonRows rows;
 	MTPDreplyKeyboardMarkup::Flags flags = 0;
 
-	std_::unique_ptr<ReplyKeyboard> inlineKeyboard;
+	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 
 	// If >= 0 it holds the y coord of the inlineKeyboard before the last edition.
 	int oldTop = -1;
@@ -313,7 +313,7 @@ public:
 		friend class ReplyKeyboard;
 
 	};
-	typedef std_::unique_ptr<Style> StylePtr;
+	typedef std::unique_ptr<Style> StylePtr;
 
 	ReplyKeyboard(const HistoryItem *item, StylePtr &&s);
 	ReplyKeyboard(const ReplyKeyboard &other) = delete;
@@ -967,9 +967,9 @@ protected:
 template <typename T>
 class HistoryItemInstantiated {
 public:
-	template <typename ... Args>
-	static T *_create(Args ... args) {
-		T *result = new T(args ...);
+	template <typename ...Args>
+	static T *_create(Args &&... args) {
+		T *result = new T(std::forward<Args>(args)...);
 		result->finishCreate();
 		return result;
 	}

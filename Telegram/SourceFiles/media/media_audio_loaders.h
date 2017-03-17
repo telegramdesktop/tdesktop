@@ -57,9 +57,9 @@ private:
 	void clearFromVideoQueue();
 
 	AudioMsgId _audio, _song, _video;
-	std_::unique_ptr<AudioPlayerLoader> _audioLoader;
-	std_::unique_ptr<AudioPlayerLoader> _songLoader;
-	std_::unique_ptr<ChildFFMpegLoader> _videoLoader;
+	std::unique_ptr<AudioPlayerLoader> _audioLoader;
+	std::unique_ptr<AudioPlayerLoader> _songLoader;
+	std::unique_ptr<ChildFFMpegLoader> _videoLoader;
 
 	QMutex _fromVideoMutex;
 	uint64 _fromVideoPlayId;

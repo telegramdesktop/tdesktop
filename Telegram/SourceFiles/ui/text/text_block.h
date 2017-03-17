@@ -50,17 +50,11 @@ public:
 	int32 width() const {
 		return _width.toInt();
 	}
-	int32 lpadding() const {
-		return _lpadding.toInt();
-	}
 	int32 rpadding() const {
 		return _rpadding.toInt();
 	}
 	QFixed f_width() const {
 		return _width;
-	}
-	QFixed f_lpadding() const {
-		return _lpadding;
 	}
 	QFixed f_rpadding() const {
 		return _rpadding;
@@ -88,13 +82,17 @@ public:
 	}
 
 protected:
-
 	uint16 _from = 0;
 
 	uint32 _flags = 0; // 4 bits empty, 16 bits lnkIndex, 4 bits type, 8 bits flags
 
 	QFixed _width = 0;
-	QFixed _lpadding = 0;
+
+	// Right padding: spaces after the last content of the block (like a word).
+	// This holds spaces after the end of the block, for example a text ending
+	// with a space before a link has started. If text block has a leading spaces
+	// (for example a text block after a link block) it is prepended with an empty
+	// word that holds those spaces as a right padding.
 	QFixed _rpadding = 0;
 
 };

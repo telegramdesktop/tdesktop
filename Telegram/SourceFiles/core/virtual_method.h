@@ -233,9 +233,9 @@ typename virtual_object<Object, void>::virtual_object_registrator virtual_object
 namespace virtual_methods {
 
 template <typename Arg>
-struct is_virtual_argument : public std_::integral_constant<bool,
+struct is_virtual_argument : public std::integral_constant<bool,
 	base::type_traits<Arg>::is_pointer::value
-	? std_::is_base_of<object_base, typename base::type_traits<Arg>::pointed_type>::value
+	? std::is_base_of<object_base, typename base::type_traits<Arg>::pointed_type>::value
 	: false> {
 };
 
@@ -281,10 +281,10 @@ struct multi_index_collector<ConcreteArg, ConcreteArgs...> {
 		multi_index_collector<ConcreteArgs...>::call(indices.subindex(), args...);
 	}
 
-	static inline int computeIndex(std_::integral_constant<bool, false>, ConcreteArg arg) {
+	static inline int computeIndex(std::integral_constant<bool, false>, ConcreteArg arg) {
 		return 0;
 	}
-	static inline int computeIndex(std_::integral_constant<bool, true>, ConcreteArg arg) {
+	static inline int computeIndex(std::integral_constant<bool, true>, ConcreteArg arg) {
 		return arg->virtual_object_child_index();
 	}
 
@@ -348,15 +348,15 @@ public:
 		return (*this)[index.current()][index.subindex()];
 	}
 	inline int size() const {
-		return count_size(std_::integral_constant<int,N>());
+		return count_size(std::integral_constant<int,N>());
 	}
 
 private:
 	template <int M>
-	inline int count_size(std_::integral_constant<int,M>) const {
+	inline int count_size(std::integral_constant<int,M>) const {
 		return _size.current() / _size.subindex().current();
 	}
-	inline int count_size(std_::integral_constant<int,1>) const {
+	inline int count_size(std::integral_constant<int,1>) const {
 		return _size.current();
 	}
 
@@ -391,10 +391,10 @@ struct table_count_size<Arg, Args...> {
 		index.current() = count(is_virtual_argument<Arg>()) * subindex.current();
 	}
 
-	static inline int count(std_::integral_constant<bool, false>) {
+	static inline int count(std::integral_constant<bool, false>) {
 		return 1;
 	}
-	static inline int count(std_::integral_constant<bool, true>) {
+	static inline int count(std::integral_constant<bool, true>) {
 		return base::type_traits<Arg>::pointed_type::virtual_object_get_child_entries().size();
 	}
 
@@ -483,10 +483,10 @@ struct table_fill_entry_helper<Call, Arg, Args...> {
 		return false;
 	}
 
-	static inline bool good(std_::integral_constant<bool,false>, int start, int current) {
+	static inline bool good(std::integral_constant<bool,false>, int start, int current) {
 		return (start == current);
 	}
-	static inline bool good(std_::integral_constant<bool,true>, int start, int current) {
+	static inline bool good(std::integral_constant<bool,true>, int start, int current) {
 		using BaseObject = typename base::type_traits<Arg>::pointed_type;
 		auto &entries = BaseObject::virtual_object_get_child_entries();
 		return (start == current) || entries[start].check_is_parent(entries[current]);
@@ -531,10 +531,10 @@ struct override_key_collector_helper<M, ConcreteArg, ConcreteArgs...> {
 		override_key_collector_helper<M + 1, ConcreteArgs...>::call(indices);
 	}
 
-	static inline void setValue(std_::integral_constant<bool,false>, int **indices) {
+	static inline void setValue(std::integral_constant<bool,false>, int **indices) {
 		indices[M] = nullptr;
 	}
-	static inline void setValue(std_::integral_constant<bool,true>, int **indices) {
+	static inline void setValue(std::integral_constant<bool,true>, int **indices) {
 		using ConcreteObject = typename base::type_traits<ConcreteArg>::pointed_type;
 		using IsParentCheckStruct = is_parent<ConcreteObject>;
 		using IsParentCheckPointer = decltype(&IsParentCheckStruct::check);

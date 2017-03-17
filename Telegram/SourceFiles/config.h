@@ -51,8 +51,6 @@ enum {
 	MTPDownloadSessionsCount = 2, // max 2 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
-	MTPEnumDCTimeout = 8000, // 8 seconds timeout for help_getConfig to work (then move to other dc)
-
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
 
 	MaxUsersPerInvite = 100, // max users in one super group invite request
@@ -76,7 +74,6 @@ enum {
 	LocalEncryptIterCount = 4000, // key derivation iteration count
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit
-	LocalEncryptKeySize = 256, // 2048 bit
 
 	AnimationTimerDelta = 7,
 	ClipThreadsCount = 8,

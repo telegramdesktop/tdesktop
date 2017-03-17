@@ -127,6 +127,9 @@ protected:
 	virtual void showTrayTooltip() {
 	}
 
+	virtual void workmodeUpdated(DBIWorkMode mode) {
+	}
+
 	virtual void updateControlsGeometry();
 
 	// This one is overriden in Windows for historical reasons.

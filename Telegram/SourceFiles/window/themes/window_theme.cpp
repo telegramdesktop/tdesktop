@@ -18,11 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/themes/window_theme.h"
 
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "core/parse_helper.h"
 #include "core/zlib_help.h"
 #include "styles/style_widgets.h"
@@ -202,10 +201,10 @@ bool loadColorScheme(const QByteArray &content, Instance *out) {
 
 void applyBackground(QImage &&background, bool tiled, Instance *out) {
 	if (out) {
-		out->background = std_::move(background);
+		out->background = std::move(background);
 		out->tiled = tiled;
 	} else {
-		Background()->setThemeData(std_::move(background), tiled);
+		Background()->setThemeData(std::move(background), tiled);
 	}
 }
 
@@ -233,7 +232,7 @@ bool loadThemeFromCache(const QByteArray &content, Cached &cache) {
 		return false;
 	}
 	if (!background.isNull()) {
-		applyBackground(std_::move(background), cache.tiled, nullptr);
+		applyBackground(std::move(background), cache.tiled, nullptr);
 	}
 
 	return true;
@@ -312,7 +311,7 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 			}
 			cache.tiled = backgroundTiled;
 
-			applyBackground(std_::move(background), cache.tiled, out);
+			applyBackground(std::move(background), cache.tiled, out);
 		}
 	} else {
 		// Looks like it is not a .zip theme.
@@ -333,10 +332,10 @@ bool loadTheme(const QByteArray &content, Cached &cache, Instance *out = nullptr
 
 QImage prepareBackgroundImage(QImage &&image) {
 	if (image.format() != QImage::Format_ARGB32 && image.format() != QImage::Format_ARGB32_Premultiplied && image.format() != QImage::Format_RGB32) {
-		image = std_::move(image).convertToFormat(QImage::Format_RGB32);
+		image = std::move(image).convertToFormat(QImage::Format_RGB32);
 	}
 	image.setDevicePixelRatio(cRetinaFactor());
-	return std_::move(image);
+	return std::move(image);
 }
 
 void adjustColor(style::color color, float64 hue, float64 saturation) {
@@ -381,7 +380,7 @@ void adjustColorsUsingBackground(const QImage &img) {
 } // namespace
 
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
-	_themeImage = prepareBackgroundImage(std_::move(themeImage));
+	_themeImage = prepareBackgroundImage(std::move(themeImage));
 	_themeTile = themeTile;
 }
 
@@ -408,7 +407,7 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 			image.load(qsl(":/gui/art/bg.jpg"));
 			_id = internal::kTestingDefaultBackground;
 		}
-		setPreparedImage(std_::move(image));
+		setPreparedImage(std::move(image));
 	} else {
 		if (_id == kInitialBackground) {
 			image.load(qsl(":/gui/art/bg_initial.jpg"));
@@ -422,14 +421,14 @@ void ChatBackground::setImage(int32 id, QImage &&image) {
 			image.load(qsl(":/gui/art/bg.jpg"));
 		}
 		Local::writeBackground(_id, (_id == kDefaultBackground || _id == kInitialBackground) ? QImage() : image);
-		setPreparedImage(prepareBackgroundImage(std_::move(image)));
+		setPreparedImage(prepareBackgroundImage(std::move(image)));
 	}
 	t_assert(!_pixmap.isNull() && !_pixmapForTiled.isNull());
 	notify(BackgroundUpdate(BackgroundUpdate::Type::New, _tile));
 }
 
 void ChatBackground::setPreparedImage(QImage &&image) {
-	image = std_::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	image = std::move(image).convertToFormat(QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
 
 	auto adjustColors = [this] {
@@ -484,9 +483,9 @@ void ChatBackground::setPreparedImage(QImage &&image) {
 				imageForTiledBytes += imageForTiled.bytesPerLine() - (repeatTimesX * bytesInLine);
 			}
 		}
-		_pixmapForTiled = App::pixmapFromImageInPlace(std_::move(imageForTiled));
+		_pixmapForTiled = App::pixmapFromImageInPlace(std::move(imageForTiled));
 	}
-	_pixmap = App::pixmapFromImageInPlace(std_::move(image));
+	_pixmap = App::pixmapFromImageInPlace(std::move(image));
 	if (!isSmallForTiled) {
 		_pixmapForTiled = _pixmap;
 	}
@@ -547,7 +546,7 @@ void ChatBackground::saveForRevert() {
 	ensureStarted();
 	if (_id != internal::kTestingThemeBackground && _id != internal::kTestingDefaultBackground) {
 		_idForRevert = _id;
-		_imageForRevert = std_::move(_pixmap).toImage();
+		_imageForRevert = std::move(_pixmap).toImage();
 		_tileForRevert = _tile;
 	}
 }
@@ -558,15 +557,15 @@ void ChatBackground::setTestingTheme(Instance &&theme) {
 		// Grab current background image if it is not already custom
 		if (_id != kCustomBackground) {
 			saveForRevert();
-			setImage(internal::kTestingEditorBackground, std_::move(_pixmap).toImage());
+			setImage(internal::kTestingEditorBackground, std::move(_pixmap).toImage());
 		}
 	} else if (!theme.background.isNull() || _id == kThemeBackground) {
 		saveForRevert();
-		setImage(internal::kTestingThemeBackground, std_::move(theme.background));
+		setImage(internal::kTestingThemeBackground, std::move(theme.background));
 		setTile(theme.tiled);
 	} else {
 		// Apply current background image so that service bg colors are recounted.
-		setImage(_id, std_::move(_pixmap).toImage());
+		setImage(_id, std::move(_pixmap).toImage());
 	}
 	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
 }
@@ -579,7 +578,7 @@ void ChatBackground::setTestingDefaultTheme() {
 		setTile(false);
 	} else {
 		// Apply current background image so that service bg colors are recounted.
-		setImage(_id, std_::move(_pixmap).toImage());
+		setImage(_id, std::move(_pixmap).toImage());
 	}
 	notify(BackgroundUpdate(BackgroundUpdate::Type::TestingTheme, _tile), true);
 }
@@ -616,10 +615,10 @@ void ChatBackground::revert() {
 		|| _id == internal::kTestingDefaultBackground
 		|| _id == internal::kTestingEditorBackground) {
 		setTile(_tileForRevert);
-		setImage(_idForRevert, std_::move(_imageForRevert));
+		setImage(_idForRevert, std::move(_imageForRevert));
 	} else {
 		// Apply current background image so that service bg colors are recounted.
-		setImage(_id, std_::move(_pixmap).toImage());
+		setImage(_id, std::move(_pixmap).toImage());
 	}
 	notify(BackgroundUpdate(BackgroundUpdate::Type::RevertingTheme, _tile), true);
 }
@@ -653,23 +652,23 @@ void Unload() {
 }
 
 bool Apply(const QString &filepath) {
-	auto preview = std_::make_unique<Preview>();
+	auto preview = std::make_unique<Preview>();
 	preview->path = filepath;
 	if (!LoadFromFile(preview->path, &preview->instance, &preview->content)) {
 		return false;
 	}
-	return Apply(std_::move(preview));
+	return Apply(std::move(preview));
 }
 
-bool Apply(std_::unique_ptr<Preview> preview) {
+bool Apply(std::unique_ptr<Preview> preview) {
 	instance.createIfNull();
-	instance->applying.path = std_::move(preview->path);
-	instance->applying.content = std_::move(preview->content);
-	instance->applying.cached = std_::move(preview->instance.cached);
+	instance->applying.path = std::move(preview->path);
+	instance->applying.content = std::move(preview->content);
+	instance->applying.cached = std::move(preview->instance.cached);
 	if (instance->applying.paletteForRevert.isEmpty()) {
 		instance->applying.paletteForRevert = style::main_palette::save();
 	}
-	Background()->setTestingTheme(std_::move(preview->instance));
+	Background()->setTestingTheme(std::move(preview->instance));
 	return true;
 }
 
@@ -700,7 +699,7 @@ bool ApplyEditedPalette(const QString &path, const QByteArray &content) {
 	if (instance->applying.paletteForRevert.isEmpty()) {
 		instance->applying.paletteForRevert = style::main_palette::save();
 	}
-	Background()->setTestingTheme(std_::move(out));
+	Background()->setTestingTheme(std::move(out));
 	KeepApplied();
 	return true;
 }
@@ -798,7 +797,7 @@ bool CopyColorsToPalette(const QString &path, const QByteArray &themeContent) {
 	return true;
 }
 
-bool ReadPaletteValues(const QByteArray &content, base::lambda<bool(QLatin1String name, QLatin1String value)> &&callback) {
+bool ReadPaletteValues(const QByteArray &content, base::lambda<bool(QLatin1String name, QLatin1String value)> callback) {
 	if (content.size() > kThemeSchemeSizeLimit) {
 		LOG(("Theme Error: color scheme file too large (should be less than 1 MB, got %2)").arg(content.size()));
 		return false;

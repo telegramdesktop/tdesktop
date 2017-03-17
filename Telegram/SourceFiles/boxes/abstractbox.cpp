@@ -18,11 +18,10 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/abstractbox.h"
 
 #include "styles/style_boxes.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "lang.h"
 #include "ui/effects/widget_fade_wrap.h"
 #include "ui/widgets/buttons.h"
@@ -33,16 +32,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 BoxLayerTitleShadow::BoxLayerTitleShadow(QWidget *parent) : Ui::PlainShadow(parent, st::boxLayerTitleShadow) {
 }
 
-QPointer<Ui::RoundButton> BoxContent::addButton(const QString &text, base::lambda<void()> &&clickCallback) {
-	return addButton(text, std_::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addButton(const QString &text, base::lambda<void()> clickCallback) {
+	return addButton(text, std::move(clickCallback), st::defaultBoxButton);
 }
 
-QPointer<Ui::RoundButton> BoxContent::addLeftButton(const QString &text, base::lambda<void()> &&clickCallback) {
-	return getDelegate()->addLeftButton(text, std_::move(clickCallback), st::defaultBoxButton);
+QPointer<Ui::RoundButton> BoxContent::addLeftButton(const QString &text, base::lambda<void()> clickCallback) {
+	return getDelegate()->addLeftButton(text, std::move(clickCallback), st::defaultBoxButton);
 }
 
 void BoxContent::setInner(object_ptr<TWidget> inner) {
-	setInner(std_::move(inner), st::boxLayerScroll);
+	setInner(std::move(inner), st::boxLayerScroll);
 }
 
 void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st) {
@@ -50,7 +49,7 @@ void BoxContent::setInner(object_ptr<TWidget> inner, const style::ScrollArea &st
 		getDelegate()->setLayerType(true);
 		_scroll.create(this, st);
 		_scroll->setGeometryToLeft(0, _innerTopSkip, width(), 0);
-		_scroll->setOwnedWidget(std_::move(inner));
+		_scroll->setOwnedWidget(std::move(inner));
 		if (_topShadow) {
 			_topShadow->raise();
 			_bottomShadow->raise();
@@ -155,7 +154,7 @@ QPixmap BoxContent::grabInnerCache() {
 	auto result = myGrab(this, _scroll->geometry());
 	if (isTopShadowVisible) _topShadow->show();
 	if (isBottomShadowVisible) _bottomShadow->show();
-	return std_::move(result);
+	return result;
 }
 
 void BoxContent::resizeEvent(QResizeEvent *e) {
@@ -176,16 +175,8 @@ void BoxContent::updateScrollAreaGeometry() {
 		updateInnerVisibleTopBottom();
 
 		auto top = _scroll->scrollTop();
-		if (top > 0 || _innerTopSkip > 0) {
-			_topShadow->showFast();
-		} else {
-			_topShadow->hideFast();
-		}
-		if (top < _scroll->scrollTopMax()) {
-			_bottomShadow->showFast();
-		} else {
-			_bottomShadow->hideFast();
-		}
+		_topShadow->toggleFast(top > 0 || _innerTopSkip > 0);
+		_bottomShadow->toggleFast(top < _scroll->scrollTopMax());
 	}
 }
 
@@ -197,14 +188,14 @@ void BoxContent::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	if (testAttribute(Qt::WA_OpaquePaintEvent)) {
-		for_const (auto rect, e->region().rects()) {
+		for (auto rect : e->region().rects()) {
 			p.fillRect(rect, st::boxBg);
 		}
 	}
 }
 
 AbstractBox::AbstractBox(QWidget *parent, object_ptr<BoxContent> content) : LayerWidget(parent)
-, _content(std_::move(content)) {
+, _content(std::move(content)) {
 	_content->setParent(this);
 	_content->setDelegate(this);
 }
@@ -240,7 +231,7 @@ void AbstractBox::paintEvent(QPaintEvent *e) {
 	}
 	auto other = e->region().intersected(QRect(0, st::boxRadius, width(), height() - 2 * st::boxRadius));
 	if (!other.isEmpty()) {
-		for_const (auto rect, other.rects()) {
+		for (auto rect : other.rects()) {
 			p.fillRect(rect, st::boxBg);
 		}
 	}
@@ -289,7 +280,7 @@ void AbstractBox::updateSize() {
 }
 
 void AbstractBox::updateButtonsPositions() {
-	if (!_buttons.isEmpty() || _leftButton) {
+	if (!_buttons.empty() || _leftButton) {
 		auto padding = _layerType ? st::boxLayerButtonPadding : st::boxButtonPadding;
 		auto right = padding.right();
 		auto top = buttonsTop();
@@ -310,19 +301,19 @@ void AbstractBox::clearButtons() {
 	_leftButton.destroy();
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
 	_buttons.push_back(object_ptr<Ui::RoundButton>(this, text, st));
 	auto result = QPointer<Ui::RoundButton>(_buttons.back());
-	result->setClickedCallback(std_::move(clickCallback));
+	result->setClickedCallback(std::move(clickCallback));
 	result->show();
 	updateButtonsPositions();
 	return result;
 }
 
-QPointer<Ui::RoundButton> AbstractBox::addLeftButton(const QString &text, base::lambda<void()> &&clickCallback, const style::RoundButton &st) {
+QPointer<Ui::RoundButton> AbstractBox::addLeftButton(const QString &text, base::lambda<void()> clickCallback, const style::RoundButton &st) {
 	_leftButton = object_ptr<Ui::RoundButton>(this, text, st);
 	auto result = QPointer<Ui::RoundButton>(_leftButton);
-	result->setClickedCallback(std_::move(clickCallback));
+	result->setClickedCallback(std::move(clickCallback));
 	result->show();
 	updateButtonsPositions();
 	return result;

@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_widget.h"
 
 #include "settings/settings_inner_widget.h"
@@ -31,11 +30,13 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "lang.h"
-#include "application.h"
-#include "ui/filedialog.h"
+#include "messenger.h"
+#include "mtproto/mtp_instance.h"
+#include "mtproto/dc_options.h"
+#include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_editor.h"
 
@@ -43,7 +44,7 @@ namespace Settings {
 namespace {
 
 QString SecretText;
-QMap<QString, base::lambda_copy<void()>> Codes;
+QMap<QString, base::lambda<void()>> Codes;
 
 void fillCodes() {
 	Codes.insert(qsl("debugmode"), []() {
@@ -93,7 +94,7 @@ void fillCodes() {
 		}
 	});
 	Codes.insert(qsl("loadcolors"), []() {
-		FileDialog::askOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
+		FileDialog::GetOpenPath("Open palette file", "Palette (*.tdesktop-palette)", [](const FileDialog::OpenResult &result) {
 			if (!result.paths.isEmpty()) {
 				Window::Theme::Apply(result.paths.front());
 			}
@@ -109,6 +110,15 @@ void fillCodes() {
 			Local::writeUserSettings();
 			Ui::hideLayer();
 		}));
+	});
+	Codes.insert(qsl("endpoints"), []() {
+		FileDialog::GetOpenPath("Open DC endpoints", "DC Endpoints (*.tdesktop-endpoints)", [](const FileDialog::OpenResult &result) {
+			if (!result.paths.isEmpty()) {
+				if (!Messenger::Instance().mtp()->dcOptions()->loadFromFile(result.paths.front())) {
+					Ui::show(Box<InformBox>("Could not load endpoints :( Errors in 'log.txt'."));
+				}
+			}
+		});
 	});
 }
 

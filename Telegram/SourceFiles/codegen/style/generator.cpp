@@ -772,12 +772,13 @@ void palette::finalize() {\n\
 	auto result = module_.enumVariables([this, &indexInPalette, &checksumString, &dataRows, &names](const Variable &variable) -> bool {
 		auto name = variable.name.back();
 		auto index = indexInPalette++;
-		paletteIndices_[name] = index;
+		paletteIndices_.emplace(name, index);
 		if (variable.value.type().tag != structure::TypeTag::Color) {
 			return false;
 		}
 		auto color = variable.value.Color();
-		auto fallbackIndex = paletteIndices_.value(colorFallbackName(variable.value), -1);
+		auto fallbackIterator = paletteIndices_.find(colorFallbackName(variable.value));
+		auto fallbackIndex = (fallbackIterator == paletteIndices_.end()) ? -1 : fallbackIterator->second;
 		auto assignment = QString("{ %1, %2, %3, %4 }").arg(color.red).arg(color.green).arg(color.blue).arg(color.alpha);
 		source_->stream() << "\tcompute(" << index << ", " << fallbackIndex << ", " << assignment << ");\n";
 		checksumString.append('&' + name + ':' + assignment);
@@ -818,57 +819,132 @@ int getPaletteIndex(QLatin1String name) {\n\
 	auto size = name.size();\n\
 	auto data = name.data();\n";
 
-	int already = 0;
-	QString prefix;
-	QString tabs;
-	for (auto i = paletteIndices_.end(), b = paletteIndices_.begin(); i != b;) {
-		--i;
-		auto name = i.key();
-		auto index = i.value();
-		auto prev = i;
-		auto next = (i == b) ? QString() : (--prev).key();
-		while ((prefix.size() > name.size()) || (!prefix.isEmpty() && prefix.mid(0, already - 1) != name.mid(0, already - 1))) {
-			source_->stream() << "\n" << tabs << "};";
-			prefix.chop(1);
-			tabs.chop(1);
-			--already;
-		}
-		if (!prefix.isEmpty() && prefix[already - 1] != name[already - 1]) {
-			source_->stream() << "\n" << tabs << "case '" << name[already - 1] << "':";
-			prefix[already - 1] = name[already - 1];
-		}
-		while (name.size() > already) {
-			if (name.mid(0, already) != next.mid(0, already)) {
-				break;
-			} else if (next.size() <= already) {
-				source_->stream() << "\n" << tabs << "\tif (size == " << name.size() << ")";
-				break;
+	auto tabs = [](int size) {
+		return QString(size, '\t');
+	};
+
+	enum class UsedCheckType {
+		Switch,
+		If,
+		UpcomingIf,
+	};
+	auto checkTypes = QVector<UsedCheckType>();
+	auto checkLengthHistory = QVector<int>(1, 0);
+	auto chars = QString();
+	auto tabsUsed = 1;
+
+	// Returns true if at least one check was finished.
+	auto finishChecksTillKey = [this, &chars, &checkTypes, &checkLengthHistory, &tabsUsed, tabs](const QString &key) {
+		auto result = false;
+		while (!chars.isEmpty() && key.midRef(0, chars.size()) != chars) {
+			result = true;
+
+			auto wasType = checkTypes.back();
+			chars.resize(chars.size() - 1);
+			checkTypes.pop_back();
+			checkLengthHistory.pop_back();
+			if (wasType == UsedCheckType::Switch || wasType == UsedCheckType::If) {
+				--tabsUsed;
+				if (wasType == UsedCheckType::Switch) {
+					source_->stream() << tabs(tabsUsed) << "break;\n";
+				}
+				if ((!chars.isEmpty() && key.midRef(0, chars.size()) != chars) || key == chars) {
+					source_->stream() << tabs(tabsUsed) << "}\n";
+				}
 			}
-			source_->stream() << "\n" << tabs << "\tif (size > " << already << ") switch (data[" << already << "]) {\n";
-			prefix.append(name[already]);
-			tabs.append('\t');
-			++already;
-			source_->stream() << tabs << "case '" << name[already - 1] << "':";
 		}
-		if (name.size() == already || name.mid(0, already) != next.mid(0, already)) {
-			source_->stream() << " return (size == " << name.size();
-			if (name.size() != already) {
-				source_->stream() << " && ";
+		return result;
+	};
+
+	// Check if we can use "if" for a check on "charIndex" in "it" (otherwise only "switch")
+	auto canUseIfForCheck = [](auto it, auto end, int charIndex) {
+		auto key = it->first;
+		auto i = it;
+		auto keyStart = key.mid(0, charIndex);
+		for (++i; i != end; ++i) {
+			auto nextKey = i->first;
+			if (nextKey.mid(0, charIndex) != keyStart) {
+				return true;
+			} else if (nextKey.size() > charIndex && nextKey[charIndex] != key[charIndex]) {
+				return false;
 			}
-		} else {
-			source_->stream() << " return (";
 		}
-		if (already != name.size()) {
-			source_->stream() << "!memcmp(data + " << already << ", \"" << name.mid(already) << "\", " << (name.size() - already) << ")";
+		return true;
+	};
+
+	auto countMinimalLength = [](auto it, auto end, int charIndex) {
+		auto key = it->first;
+		auto i = it;
+		auto keyStart = key.mid(0, charIndex);
+		auto result = key.size();
+		for (++i; i != end; ++i) {
+			auto nextKey = i->first;
+			if (nextKey.mid(0, charIndex) != keyStart) {
+				break;
+			} else if (nextKey.size() > charIndex && result > nextKey.size()) {
+				result = nextKey.size();
+			}
 		}
-		source_->stream() << ") ? " << index << " : -1;";
+		return result;
+	};
+
+	for (auto i = paletteIndices_.begin(), e = paletteIndices_.end(); i != e; ++i) {
+		auto name = i->first;
+		auto index = i->second;
+
+		auto weContinueOldSwitch = finishChecksTillKey(name);
+		while (chars.size() != name.size()) {
+			auto checking = chars.size();
+			auto partialKey = name.mid(0, checking);
+
+			auto keyChar = name[checking];
+			auto usedIfForCheckCount = 0;
+			auto minimalLengthCheck = countMinimalLength(i, e, checking);
+			for (; checking + usedIfForCheckCount != name.size(); ++usedIfForCheckCount) {
+				if (!canUseIfForCheck(i, e, checking + usedIfForCheckCount)
+					|| countMinimalLength(i, e, checking + usedIfForCheckCount) != minimalLengthCheck) {
+					break;
+				}
+			}
+			auto usedIfForCheck = !weContinueOldSwitch && (usedIfForCheckCount > 0);
+			auto checkLengthCondition = QString();
+			if (weContinueOldSwitch) {
+				weContinueOldSwitch = false;
+			} else {
+				checkLengthCondition = (minimalLengthCheck > checkLengthHistory.back()) ? ("size >= " + QString::number(minimalLengthCheck)) : QString();
+				if (!usedIfForCheck) {
+					source_->stream() << tabs(tabsUsed) << (checkLengthCondition.isEmpty() ? QString() : ("if (" + checkLengthCondition + ") ")) << "switch (data[" << checking << "]) {\n";
+				}
+			}
+			if (usedIfForCheck) {
+				auto conditions = QStringList();
+				if (usedIfForCheckCount > 1) {
+					conditions.push_back("!memcmp(data + " + QString::number(checking) + ", \"" + name.mid(checking, usedIfForCheckCount) + "\", " + QString::number(usedIfForCheckCount) + ")");
+				} else {
+					conditions.push_back("data[" + QString::number(checking) + "] == '" + keyChar + "'");
+				}
+				if (!checkLengthCondition.isEmpty()) {
+					conditions.push_front(checkLengthCondition);
+				}
+				source_->stream() << tabs(tabsUsed) << "if (" << conditions.join(" && ") << ") {\n";
+				checkTypes.push_back(UsedCheckType::If);
+				for (auto i = 1; i != usedIfForCheckCount; ++i) {
+					checkTypes.push_back(UsedCheckType::UpcomingIf);
+					chars.push_back(keyChar);
+					checkLengthHistory.push_back(qMax(minimalLengthCheck, checkLengthHistory.back()));
+					keyChar = name[checking + i];
+				}
+			} else {
+				source_->stream() << tabs(tabsUsed) << "case '" << keyChar << "':\n";
+				checkTypes.push_back(UsedCheckType::Switch);
+			}
+			++tabsUsed;
+			chars.push_back(keyChar);
+			checkLengthHistory.push_back(qMax(minimalLengthCheck, checkLengthHistory.back()));
+		}
+		source_->stream() << tabs(tabsUsed) << "return (size == " << chars.size() << ") ? " << index << " : -1;\n";
 	}
-	while (!prefix.isEmpty()) {
-		source_->stream() << "\n" << tabs << "};";
-		prefix.chop(1);
-		tabs.chop(1);
-		--already;
-	}
+	finishChecksTillKey(QString());
 
 	source_->stream() << "\
 \n\

@@ -80,58 +80,90 @@ LangString langCounted(ushort key0, ushort tag, float64 value);
 
 const char *langKeyName(LangKey key);
 
-inline LangString langDayOfMonth(const QDate &date) {
-	QDate c(QDate::currentDate());
-	int32 month = date.month(), day = date.day(), year = date.year(), cyear = c.year(), cmonth = c.month();
-	if (year != cyear) {
-		if (year > cyear + 1 || cyear > year + 1 || (year == cyear + 1 && month + 12 > cmonth + 3) || (cyear == year + 1 && cmonth + 12 > month + 3)) {
-			return (month > 0 && month <= 12) ? lng_month_day_year(lt_month, lang(LangKey(lng_month1_small + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year)) : qsl("MONTH_ERR");
+template <typename WithYear, typename WithoutYear>
+inline LangString langDateMaybeWithYear(QDate date, WithYear withYear, WithoutYear withoutYear) {
+	auto month = date.month();
+	if (month <= 0 || month > 12) {
+		return qsl("MONTH_ERR");
+	};
+	auto year = date.year();
+	auto current = QDate::currentDate();
+	auto currentYear = current.year();
+	auto currentMonth = current.month();
+	if (year != currentYear) {
+		auto yearIsMuchGreater = [](int year, int otherYear) {
+			return (year > otherYear + 1);
+		};
+		auto monthIsMuchGreater = [](int year, int month, int otherYear, int otherMonth) {
+			return (year == otherYear + 1) && (month + 12 > otherMonth + 3);
+		};
+		if (false
+			|| yearIsMuchGreater(year, currentYear)
+			|| yearIsMuchGreater(currentYear, year)
+			|| monthIsMuchGreater(year, month, currentYear, currentMonth)
+			|| monthIsMuchGreater(currentYear, currentMonth, year, month)) {
+			return withYear(month, year);
 		}
 	}
-	return (month > 0 && month <= 12) ? lng_month_day(lt_month, lang(LangKey(lng_month1_small + month - 1)), lt_day, QString::number(day)) : qsl("MONTH_ERR");
+	return withoutYear(month, year);
+}
+
+inline LangString langDayOfMonth(const QDate &date) {
+	auto day = date.day();
+	return langDateMaybeWithYear(date, [day](int month, int year) {
+		return lng_month_day_year(lt_month, lang(LangKey(lng_month1_small + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year));
+	}, [day](int month, int year) {
+		return lng_month_day(lt_month, lang(LangKey(lng_month1_small + month - 1)), lt_day, QString::number(day));
+	});
 }
 
 inline LangString langDayOfMonthFull(const QDate &date) {
-	QDate c(QDate::currentDate());
-	int32 month = date.month(), day = date.day(), year = date.year(), cyear = c.year(), cmonth = c.month();
-	if (year != cyear) {
-		if (year > cyear + 1 || cyear > year + 1 || (year == cyear + 1 && month + 12 > cmonth + 3) || (cyear == year + 1 && cmonth + 12 > month + 3)) {
-			return (month > 0 && month <= 12) ? lng_month_day_year(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year)) : qsl("MONTH_ERR");
-		}
-	}
-	return (month > 0 && month <= 12) ? lng_month_day(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day)) : qsl("MONTH_ERR");
+	auto day = date.day();
+	return langDateMaybeWithYear(date, [day](int month, int year) {
+		return lng_month_day_year(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day), lt_year, QString::number(year));
+	}, [day](int month, int year) {
+		return lng_month_day(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_day, QString::number(day));
+	});
+}
+
+inline LangString langMonthOfYear(int month, int year) {
+	return (month > 0 && month <= 12) ? lng_month_year(lt_month, lang(LangKey(lng_month1_small + month - 1)), lt_year, QString::number(year)) : qsl("MONTH_ERR");
 }
 
 inline LangString langMonth(const QDate &date) {
-	QDate c(QDate::currentDate());
-	int32 month = date.month(), day = date.day(), year = date.year(), cyear = c.year(), cmonth = c.month();
-	if (year != cyear) {
-		if (year > cyear + 1 || cyear > year + 1 || (year == cyear + 1 && month + 12 > cmonth + 3) || (cyear == year + 1 && cmonth + 12 > month + 3)) {
-			return (month > 0 && month <= 12) ? lng_month_year(lt_month, lang(LangKey(lng_month1_small + month - 1)), lt_year, QString::number(year)) : qsl("MONTH_ERR");
-		}
-	}
-	return (month > 0 && month <= 12) ? lang(LangKey(lng_month1_small + month - 1)) : qsl("MONTH_ERR");
+	return langDateMaybeWithYear(date, [](int month, int year) {
+		return langMonthOfYear(month, year);
+	}, [](int month, int year) {
+		return lang(LangKey(lng_month1_small + month - 1));
+	});
+}
+
+inline LangString langMonthOfYearFull(int month, int year) {
+	return (month > 0 && month <= 12) ? lng_month_year(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_year, QString::number(year)) : qsl("MONTH_ERR");
 }
 
 inline LangString langMonthFull(const QDate &date) {
-	QDate c(QDate::currentDate());
-	int32 month = date.month(), day = date.day(), year = date.year(), cyear = c.year(), cmonth = c.month();
-	if (year != cyear) {
-		if (year > cyear + 1 || cyear > year + 1 || (year == cyear + 1 && month + 12 > cmonth + 3) || (cyear == year + 1 && cmonth + 12 > month + 3)) {
-			return (month > 0 && month <= 12) ? lng_month_year(lt_month, lang(LangKey(lng_month1 + month - 1)), lt_year, QString::number(year)) : qsl("MONTH_ERR");
-		}
-	}
-	return (month > 0 && month <= 12) ? lang(LangKey(lng_month1 + month - 1)) : qsl("MONTH_ERR");
+	return langDateMaybeWithYear(date, [](int month, int year) {
+		return langMonthOfYearFull(month, year);
+	}, [](int month, int year) {
+		return lang(LangKey(lng_month1 + month - 1));
+	});
+}
+
+inline LangString langDayOfWeek(int index) {
+	return (index > 0 && index <= 7) ? lang(LangKey(lng_weekday1 + index - 1)) : qsl("DAY_ERR");
 }
 
 inline LangString langDayOfWeek(const QDate &date) {
-	int32 day = date.dayOfWeek();
-	return (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1 + day - 1)) : qsl("DAY_ERR");
+	return langDayOfWeek(date.dayOfWeek());
+}
+
+inline LangString langDayOfWeekFull(int index) {
+	return (index > 0 && index <= 7) ? lang(LangKey(lng_weekday1_full + index - 1)) : qsl("DAY_ERR");
 }
 
 inline LangString langDayOfWeekFull(const QDate &date) {
-	int32 day = date.dayOfWeek();
-	return (day > 0 && day <= 7) ? lang(LangKey(lng_weekday1_full + day - 1)) : qsl("DAY_ERR");
+	return langDayOfWeekFull(date.dayOfWeek());
 }
 
 inline LangString langDateTime(const QDateTime &date) {

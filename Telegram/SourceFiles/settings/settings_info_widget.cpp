@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_info_widget.h"
 
 #include "styles/style_settings.h"
@@ -116,12 +115,11 @@ void InfoWidget::refreshLink() {
 }
 
 void InfoWidget::setLabeledText(object_ptr<LabeledWrap> &row, const QString &label, const TextWithEntities &textWithEntities, const TextWithEntities &shortTextWithEntities, const QString &copyText) {
-	if (textWithEntities.text.isEmpty()) {
-		row->slideUp();
-	} else {
+	auto nonEmptyText = !textWithEntities.text.isEmpty();
+	if (nonEmptyText) {
 		row->entity()->setLabeledText(label, textWithEntities, shortTextWithEntities, copyText);
-		row->slideDown();
 	}
+	row->toggleAnimated(nonEmptyText);
 }
 
 InfoWidget::LabeledWidget::LabeledWidget(QWidget *parent) : TWidget(parent) {

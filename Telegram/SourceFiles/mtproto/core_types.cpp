@@ -18,8 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
-
 #include "mtproto/core_types.h"
 
 #include "zlib.h"
@@ -33,34 +31,40 @@ QString mtpWrapNumber(float64 number) {
 void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpTypeId cons, uint32 level, mtpPrime vcons) {
 	switch (mtpTypeId(cons)) {
 	case mtpc_int: {
-		MTPint value(from, end, cons);
+		MTPint value;
+		value.read(from, end, cons);
 		to.add(mtpWrapNumber(value.v)).add(" [INT]");
 	} break;
 
 	case mtpc_long: {
-		MTPlong value(from, end, cons);
+		MTPlong value;
+		value.read(from, end, cons);
 		to.add(mtpWrapNumber(value.v)).add(" [LONG]");
 	} break;
 
 	case mtpc_int128: {
-		MTPint128 value(from, end, cons);
+		MTPint128 value;
+		value.read(from, end, cons);
 		to.add(mtpWrapNumber(value.h)).add(" * 2^64 + ").add(mtpWrapNumber(value.l)).add(" [INT128]");
 	} break;
 
 	case mtpc_int256: {
-		MTPint256 value(from, end, cons);
+		MTPint256 value;
+		value.read(from, end, cons);
 		to.add(mtpWrapNumber(value.h.h)).add(" * 2^192 + ").add(mtpWrapNumber(value.h.l)).add(" * 2^128 + ").add(mtpWrapNumber(value.l.h)).add(" * 2 ^ 64 + ").add(mtpWrapNumber(value.l.l)).add(" [INT256]");
 	} break;
 
 	case mtpc_double: {
-		MTPdouble value(from, end, cons);
+		MTPdouble value;
+		value.read(from, end, cons);
 		to.add(mtpWrapNumber(value.v)).add(" [DOUBLE]");
 	} break;
 
 	case mtpc_string: {
-		MTPstring value(from, end, cons);
-		QByteArray strUtf8(value.c_string().v.c_str(), value.c_string().v.length());
-		QString str = QString::fromUtf8(strUtf8);
+		MTPstring value;
+		value.read(from, end, cons);
+		auto strUtf8 = value.v;
+		auto str = QString::fromUtf8(strUtf8);
 		if (str.toUtf8() == strUtf8) {
 			to.add("\"").add(str.replace('\\', "\\\\").replace('"', "\\\"").replace('\n', "\\n")).add("\" [STRING]");
 		} else if (strUtf8.size() < 64) {
@@ -90,8 +94,9 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 	} break;
 
 	case mtpc_gzip_packed: {
-		MTPstring packed(from, end); // read packed string as serialized mtp string type
-		uint32 packedLen = packed.c_string().v.size(), unpackedChunk = packedLen;
+		MTPstring packed;
+		packed.read(from, end); // read packed string as serialized mtp string type
+		uint32 packedLen = packed.v.size(), unpackedChunk = packedLen;
 		mtpBuffer result; // * 4 because of mtpPrime type
 		result.resize(0);
 
@@ -106,7 +111,7 @@ void mtpTextSerializeCore(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 			throw Exception(QString("ungzip init, code: %1").arg(res));
 		}
 		stream.avail_in = packedLen;
-		stream.next_in = (Bytef*)&packed._string().v[0];
+		stream.next_in = reinterpret_cast<Bytef*>(packed.v.data());
 		stream.avail_out = 0;
 		while (!stream.avail_out) {
 			result.resize(result.size() + unpackedChunk);

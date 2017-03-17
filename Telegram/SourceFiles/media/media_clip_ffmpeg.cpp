@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "media/media_clip_ffmpeg.h"
 
 #include "media/media_audio.h"
@@ -369,17 +368,9 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 	_codec = avcodec_find_decoder(_codecContext->codec_id);
 
 	_audioStreamId = av_find_best_stream(_fmtContext, AVMEDIA_TYPE_AUDIO, -1, -1, 0, 0);
-	if (_mode == Mode::OnlyGifv) {
-		if (_audioStreamId >= 0) { // should be no audio stream
-			_audioStreamId = -1;
-			return false;
-		}
-		if (dataSize() > AnimationInMemory) {
-			return false;
-		}
-		if (_codecContext->codec_id != AV_CODEC_ID_H264) {
-			return false;
-		}
+	if (_mode == Mode::Inspecting) {
+		_hasAudioStream = (_audioStreamId >= 0);
+		_audioStreamId = -1;
 	} else if (_mode == Mode::Silent || !_playId) {
 		_audioStreamId = -1;
 	}
@@ -389,9 +380,9 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 		return false;
 	}
 
-	std_::unique_ptr<VideoSoundData> soundData;
+	std::unique_ptr<VideoSoundData> soundData;
 	if (_audioStreamId >= 0) {
-		AVCodecContext *audioContext = avcodec_alloc_context3(nullptr);
+		auto audioContext = avcodec_alloc_context3(nullptr);
 		if (!audioContext) {
 			LOG(("Audio Error: Unable to avcodec_alloc_context3 %1").arg(logData()));
 			return false;
@@ -409,7 +400,7 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 			LOG(("Gif Error: Unable to avcodec_open2 %1, error %2, %3").arg(logData()).arg(res).arg(av_make_error_string(err, sizeof(err), res)));
 			_audioStreamId = -1;
 		} else {
-			soundData = std_::make_unique<VideoSoundData>();
+			soundData = std::make_unique<VideoSoundData>();
 			soundData->context = audioContext;
 			soundData->frequency = _fmtContext->streams[_audioStreamId]->codecpar->sample_rate;
 			if (_fmtContext->streams[_audioStreamId]->duration == AV_NOPTS_VALUE) {
@@ -419,9 +410,8 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 			}
 		}
 	}
-
 	if (positionMs > 0) {
-		int64 ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
+		auto ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
 		if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
 			if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_BACKWARD) < 0) {
 				return false;
@@ -437,13 +427,51 @@ bool FFMpegReaderImplementation::start(Mode mode, TimeMs &positionMs) {
 
 	if (_audioStreamId >= 0) {
 		auto position = (positionMs * soundData->frequency) / 1000LL;
-		Player::mixer()->initFromVideo(_playId, std_::move(soundData), position);
+		Player::mixer()->initFromVideo(_playId, std::move(soundData), position);
 	}
 
 	if (readResult == PacketResult::Ok) {
 		processPacket(&packet);
 	}
 
+	return true;
+}
+
+bool FFMpegReaderImplementation::inspectAt(TimeMs &positionMs) {
+	if (positionMs > 0) {
+		auto ts = (positionMs * _fmtContext->streams[_streamId]->time_base.den) / (1000LL * _fmtContext->streams[_streamId]->time_base.num);
+		if (av_seek_frame(_fmtContext, _streamId, ts, 0) < 0) {
+			if (av_seek_frame(_fmtContext, _streamId, ts, AVSEEK_FLAG_BACKWARD) < 0) {
+				return false;
+			}
+		}
+	}
+
+	_packetQueue.clear();
+
+	AVPacket packet;
+	auto readResult = readPacket(&packet);
+	if (readResult == PacketResult::Ok && positionMs > 0) {
+		positionMs = countPacketMs(&packet);
+	}
+
+	if (readResult == PacketResult::Ok) {
+		processPacket(&packet);
+	}
+
+	return true;
+}
+
+bool FFMpegReaderImplementation::isGifv() const {
+	if (_hasAudioStream) {
+		return false;
+	}
+	if (dataSize() > AnimationInMemory) {
+		return false;
+	}
+	if (_codecContext->codec_id != AV_CODEC_ID_H264) {
+		return false;
+	}
 	return true;
 }
 
@@ -490,7 +518,7 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 				VideoSoundPart part;
 				part.packet = &_packetNull;
 				part.videoPlayId = _playId;
-				Player::mixer()->feedFromVideo(std_::move(part));
+				Player::mixer()->feedFromVideo(std::move(part));
 			}
 			return PacketResult::EndOfFile;
 		}
@@ -502,8 +530,8 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readPacket(
 }
 
 void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
-	bool videoPacket = (packet->stream_index == _streamId);
-	bool audioPacket = (_audioStreamId >= 0 && packet->stream_index == _audioStreamId);
+	auto videoPacket = (packet->stream_index == _streamId);
+	auto audioPacket = (_audioStreamId >= 0 && packet->stream_index == _audioStreamId);
 	if (audioPacket || videoPacket) {
 		if (videoPacket) {
 			_lastReadVideoMs = countPacketMs(packet);
@@ -516,7 +544,7 @@ void FFMpegReaderImplementation::processPacket(AVPacket *packet) {
 			VideoSoundPart part;
 			part.packet = packet;
 			part.videoPlayId = _playId;
-			Player::mixer()->feedFromVideo(std_::move(part));
+			Player::mixer()->feedFromVideo(std::move(part));
 		}
 	} else {
 		av_packet_unref(packet);
@@ -582,6 +610,10 @@ int64_t FFMpegReaderImplementation::_seek(void *opaque, int64_t offset, int when
 	case SEEK_SET: return l->_device->seek(offset) ? l->_device->pos() : -1;
 	case SEEK_CUR: return l->_device->seek(l->_device->pos() + offset) ? l->_device->pos() : -1;
 	case SEEK_END: return l->_device->seek(l->_device->size() + offset) ? l->_device->pos() : -1;
+	case AVSEEK_SIZE: {
+		// Special whence for determining filesize without any seek.
+		return l->_dataSize;
+	} break;
 	}
 	return -1;
 }

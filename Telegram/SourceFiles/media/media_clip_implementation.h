@@ -33,9 +33,9 @@ public:
 		, _data(data) {
 	}
 	enum class Mode {
-		OnlyGifv,
 		Silent,
 		Normal,
+		Inspecting, // Not playing video, but reading data.
 	};
 
 	enum class ReadResult {
@@ -59,6 +59,7 @@ public:
 	virtual void resumeAudio() = 0;
 
 	virtual bool start(Mode mode, TimeMs &positionMs) = 0;
+
 	virtual ~ReaderImplementation() {
 	}
 	int64 dataSize() const {

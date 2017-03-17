@@ -18,13 +18,12 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "inline_bots/inline_bot_result.h"
 
 #include "inline_bots/inline_bot_layout_item.h"
 #include "inline_bots/inline_bot_send_data.h"
-#include "mtproto/file_download.h"
-#include "ui/filedialog.h"
+#include "storage/file_download.h"
+#include "core/file_utilities.h"
 #include "mainwidget.h"
 
 namespace InlineBots {
@@ -32,10 +31,10 @@ namespace InlineBots {
 Result::Result(const Creator &creator) : _queryId(creator.queryId), _type(creator.type) {
 }
 
-std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult &mtpData) {
+std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult &mtpData) {
 	using StringToTypeMap = QMap<QString, Result::Type>;
 	static StaticNeverFreedPointer<StringToTypeMap> stringToTypeMap{ ([]() -> StringToTypeMap* {
-		auto result = std_::make_unique<StringToTypeMap>();
+		auto result = std::make_unique<StringToTypeMap>();
 		result->insert(qsl("photo"), Result::Type::Photo);
 		result->insert(qsl("video"), Result::Type::Video);
 		result->insert(qsl("audio"), Result::Type::Audio);
@@ -61,10 +60,10 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	};
 	Type type = getInlineResultType(mtpData);
 	if (type == Type::Unknown) {
-		return std_::unique_ptr<Result>();
+		return std::unique_ptr<Result>();
 	}
 
-	auto result = std_::make_unique<Result>(Creator{ queryId, type });
+	auto result = std::make_unique<Result>(Creator{ queryId, type });
 	const MTPBotInlineMessage *message = nullptr;
 	switch (mtpData.type()) {
 	case mtpc_botInlineResult: {
@@ -101,18 +100,18 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	bool badAttachment = (result->_photo && !result->_photo->access) || (result->_document && !result->_document->isValid());
 
 	if (!message) {
-		return std_::unique_ptr<Result>();
+		return std::unique_ptr<Result>();
 	}
 
 	// Ensure required media fields for layouts.
 	if (result->_type == Type::Photo) {
 		if (!result->_photo && result->_content_url.isEmpty()) {
-			return std_::unique_ptr<Result>();
+			return std::unique_ptr<Result>();
 		}
 		result->createPhoto();
 	} else if (result->_type == Type::File || result->_type == Type::Gif || result->_type == Type::Sticker) {
 		if (!result->_document && result->_content_url.isEmpty()) {
-			return std_::unique_ptr<Result>();
+			return std::unique_ptr<Result>();
 		}
 		result->createDocument();
 	}
@@ -131,13 +130,13 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 			result->sendData.reset(new internal::SendFile(result->_document, qs(r.vcaption)));
 		}
 		if (r.has_reply_markup()) {
-			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
+			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}
 	} break;
 
 	case mtpc_botInlineMessageText: {
 		auto &r = message->c_botInlineMessageText();
-		EntitiesInText entities = r.has_entities() ? entitiesFromMTP(r.ventities.c_vector().v) : EntitiesInText();
+		auto entities = r.has_entities() ? entitiesFromMTP(r.ventities.v) : EntitiesInText();
 		result->sendData.reset(new internal::SendText(qs(r.vmessage), entities, r.is_no_webpage()));
 		if (result->_type == Type::Photo) {
 			result->createPhoto();
@@ -145,7 +144,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 			result->createDocument();
 		}
 		if (r.has_reply_markup()) {
-			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
+			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}
 	} break;
 
@@ -157,7 +156,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 			badAttachment = true;
 		}
 		if (r.has_reply_markup()) {
-			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
+			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}
 	} break;
 
@@ -169,7 +168,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 			badAttachment = true;
 		}
 		if (r.has_reply_markup()) {
-			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
+			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}
 	} break;
 
@@ -177,7 +176,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 		auto &r = message->c_botInlineMessageMediaContact();
 		result->sendData.reset(new internal::SendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
 		if (r.has_reply_markup()) {
-			result->_mtpKeyboard = std_::make_unique<MTPReplyMarkup>(r.vreply_markup);
+			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}
 	} break;
 
@@ -187,7 +186,7 @@ std_::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult
 	}
 
 	if (badAttachment || !result->sendData || !result->sendData->isValid()) {
-		return std_::unique_ptr<Result>();
+		return std::unique_ptr<Result>();
 	}
 
 	if (result->_thumb->isNull() && !result->_thumb_url.isEmpty()) {

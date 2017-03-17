@@ -37,6 +37,8 @@ class FlatButton;
 class LinkButton;
 class FlatInput;
 class CrossButton;
+template <typename Widget>
+class WidgetScaledFadeWrap;
 } // namespace Ui
 
 enum DialogsSearchRequestType {
@@ -89,6 +91,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
@@ -112,8 +115,8 @@ public:
 
 	PeerData *updateFromParentDrag(QPoint globalPos);
 
-	void setLoadMoreCallback(base::lambda<void()> &&callback) {
-		_loadMoreCallback = std_::move(callback);
+	void setLoadMoreCallback(base::lambda<void()> callback) {
+		_loadMoreCallback = std::move(callback);
 	}
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -152,13 +155,13 @@ protected:
 
 private:
 	struct ImportantSwitch;
-	using DialogsList = std_::unique_ptr<Dialogs::IndexedList>;
+	using DialogsList = std::unique_ptr<Dialogs::IndexedList>;
 	using FilteredDialogs = QVector<Dialogs::Row*>;
-	using SearchResults = std_::vector_of_moveable<std_::unique_ptr<Dialogs::FakeRow>>;
+	using SearchResults = std::vector<std::unique_ptr<Dialogs::FakeRow>>;
 	struct HashtagResult;
-	using HashtagResults = std_::vector_of_moveable<std_::unique_ptr<HashtagResult>>;
+	using HashtagResults = std::vector<std::unique_ptr<HashtagResult>>;
 	struct PeerSearchResult;
-	using PeerSearchResults = std_::vector_of_moveable<std_::unique_ptr<PeerSearchResult>>;
+	using PeerSearchResults = std::vector<std::unique_ptr<PeerSearchResult>>;
 
 	void mousePressReleased(Qt::MouseButton button);
 	void clearIrrelevantState();
@@ -228,7 +231,7 @@ private:
 	bool _mouseSelection = false;
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
-	std_::unique_ptr<ImportantSwitch> _importantSwitch;
+	std::unique_ptr<ImportantSwitch> _importantSwitch;
 	bool _importantSwitchSelected = false;
 	bool _importantSwitchPressed = false;
 	Dialogs::Row *_selected = nullptr;
@@ -242,7 +245,7 @@ private:
 		anim::value yadd;
 		TimeMs animStartTime = 0;
 	};
-	std_::vector_of_moveable<PinnedRow> _pinnedRows;
+	std::vector<PinnedRow> _pinnedRows;
 	BasicAnimation _a_pinnedShifting;
 	QList<History*> _pinnedOrder;
 
@@ -333,6 +336,7 @@ public:
 
 	Dialogs::IndexedList *contactsList();
 	Dialogs::IndexedList *dialogsList();
+	Dialogs::IndexedList *contactsNoDialogsList();
 
 	void searchMessages(const QString &query, PeerData *inPeer = 0);
 	void onSearchMore();
@@ -394,6 +398,7 @@ private:
 	void setSearchInPeer(PeerData *peer);
 	void showMainMenu();
 	void updateLockUnlockVisibility();
+	void updateJumpToDateVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void updateForwardBar();
 
@@ -419,6 +424,7 @@ private:
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::WidgetScaledFadeWrap<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
 	object_ptr<Ui::ScrollArea> _scroll;

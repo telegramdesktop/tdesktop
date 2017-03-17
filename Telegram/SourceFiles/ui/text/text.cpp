@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/text/text.h"
 
 #include <private/qharfbuzz_p.h>
@@ -26,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/click_handler_types.h"
 #include "ui/text/text_block.h"
 #include "lang.h"
-#include "pspecific.h"
+#include "platform/platform_specific.h"
 #include "boxes/confirmbox.h"
 #include "mainwindow.h"
 
@@ -857,15 +856,16 @@ public:
 
 		_lineHeight = 0;
 		_fontHeight = _t->_st->font->height;
-		QFixed last_rBearing = 0, last_rPadding = 0;
+		auto last_rBearing = QFixed(0);
+		_last_rPadding = QFixed(0);
 
-		int32 blockIndex = 0;
+		auto blockIndex = 0;
 		bool longWordLine = true;
-		Text::TextBlocks::const_iterator e = _t->_blocks.cend();
-		for (Text::TextBlocks::const_iterator i = _t->_blocks.cbegin(); i != e; ++i, ++blockIndex) {
-			ITextBlock *b = *i;
-			TextBlockType _btype = b->type();
-			int32 blockHeight = countBlockHeight(b, _t->_st);
+		auto e = _t->_blocks.cend();
+		for (auto i = _t->_blocks.cbegin(); i != e; ++i, ++blockIndex) {
+			auto b = *i;
+			auto _btype = b->type();
+			auto blockHeight = countBlockHeight(b, _t->_st);
 
 			if (_btype == TextBlockTNewline) {
 				if (!_lineHeight) _lineHeight = blockHeight;
@@ -879,7 +879,7 @@ public:
 				_lineStartBlock = blockIndex + 1;
 
 				last_rBearing = b->f_rbearing();
-				last_rPadding = b->f_rpadding();
+				_last_rPadding = b->f_rpadding();
 				_wLeft = _w - (b->f_width() - last_rBearing);
 				if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 					_wLeft -= _elideRemoveFromEnd;
@@ -893,12 +893,11 @@ public:
 				continue;
 			}
 
-			auto b__f_lpadding = b->f_lpadding();
 			auto b__f_rbearing = b->f_rbearing();
-			QFixed newWidthLeft = _wLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
+			auto newWidthLeft = _wLeft - last_rBearing - (_last_rPadding + b->f_width() - b__f_rbearing);
 			if (newWidthLeft >= 0) {
 				last_rBearing = b__f_rbearing;
-				last_rPadding = b->f_rpadding();
+				_last_rPadding = b->f_rpadding();
 				_wLeft = newWidthLeft;
 
 				_lineHeight = qMax(_lineHeight, blockHeight);
@@ -908,9 +907,9 @@ public:
 			}
 
 			if (_btype == TextBlockTText) {
-				TextBlock *t = static_cast<TextBlock*>(b);
+				auto t = static_cast<TextBlock*>(b);
 				if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-					last_rPadding += b__f_lpadding;
+					_last_rPadding += b->f_rpadding();
 
 					_lineHeight = qMax(_lineHeight, blockHeight);
 
@@ -918,17 +917,16 @@ public:
 					continue;
 				}
 
-				QFixed f_wLeft = _wLeft; // vars for saving state of the last word start
-				int32 f_lineHeight = _lineHeight; // f points to the last word-start element of t->_words
-				for (TextBlock::TextWords::const_iterator j = t->_words.cbegin(), en = t->_words.cend(), f = j; j != en; ++j) {
-					bool wordEndsHere = (j->f_width() >= 0);
-					QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
+				auto f_wLeft = _wLeft; // vars for saving state of the last word start
+				auto f_lineHeight = _lineHeight; // f points to the last word-start element of t->_words
+				for (auto j = t->_words.cbegin(), en = t->_words.cend(), f = j; j != en; ++j) {
+					auto wordEndsHere = (j->f_width() >= 0);
+					auto j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-					QFixed newWidthLeft = _wLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-					b__f_lpadding = 0;
+					auto newWidthLeft = _wLeft - last_rBearing - (_last_rPadding + j_width - j->f_rbearing());
 					if (newWidthLeft >= 0) {
 						last_rBearing = j->f_rbearing();
-						last_rPadding = j->f_rpadding();
+						_last_rPadding = j->f_rpadding();
 						_wLeft = newWidthLeft;
 
 						_lineHeight = qMax(_lineHeight, blockHeight);
@@ -944,8 +942,8 @@ public:
 						continue;
 					}
 
-					int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-					bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
+					auto elidedLineHeight = qMax(_lineHeight, blockHeight);
+					auto elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 					if (elidedLine) {
 						_lineHeight = elidedLineHeight;
 					} else if (f != j && !_breakEverywhere) {
@@ -964,7 +962,7 @@ public:
 					_lineStartBlock = blockIndex;
 
 					last_rBearing = j->f_rbearing();
-					last_rPadding = j->f_rpadding();
+					_last_rPadding = j->f_rpadding();
 					_wLeft = _w - (j_width - last_rBearing);
 					if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 						_wLeft -= _elideRemoveFromEnd;
@@ -978,8 +976,8 @@ public:
 				continue;
 			}
 
-			int32 elidedLineHeight = qMax(_lineHeight, blockHeight);
-			bool elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
+			auto elidedLineHeight = qMax(_lineHeight, blockHeight);
+			auto elidedLine = _elideLast && (_y + elidedLineHeight >= _yToElide);
 			if (elidedLine) {
 				_lineHeight = elidedLineHeight;
 			}
@@ -992,7 +990,7 @@ public:
 			_lineStartBlock = blockIndex;
 
 			last_rBearing = b__f_rbearing;
-			last_rPadding = b->f_rpadding();
+			_last_rPadding = b->f_rpadding();
 			_wLeft = _w - (b->f_width() - last_rBearing);
 			if (_elideLast && _elideRemoveFromEnd > 0 && (_y + blockHeight >= _yToElide)) {
 				_wLeft -= _elideRemoveFromEnd;
@@ -1133,18 +1131,19 @@ private:
 			return true;
 		}
 
-		uint16 trimmedLineEnd = _lineEnd;
-		// Disable text trimming because it causes render bugs in case of
-		// fully selected lines with pending spaces.
-		//for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
-		//	QChar ch = _t->_text.at(trimmedLineEnd - 1);
-		//	if ((ch != QChar::Space || trimmedLineEnd == _lineStart + 1) && ch != QChar::LineFeed) {
-		//		break;
-		//	}
-		//}
+		// Trimming pending spaces, because they sometimes don't fit on the line.
+		// They also are not counted in the line width, they're in the right padding.
+		// Line width is a sum of block / word widths and paddings between them, without trailing one.
+		auto trimmedLineEnd = _lineEnd;
+		for (; trimmedLineEnd > _lineStart; --trimmedLineEnd) {
+			auto ch = _t->_text[trimmedLineEnd - 1];
+			if (ch != QChar::Space && ch != QChar::LineFeed) {
+				break;
+			}
+		}
 
-		ITextBlock *_endBlock = (_endBlockIter == _end) ? nullptr : (*_endBlockIter);
-		bool elidedLine = _elideLast && (_y + _lineHeight >= _yToElide);
+		auto _endBlock = (_endBlockIter == _end) ? nullptr : (*_endBlockIter);
+		auto elidedLine = _elideLast && (_y + _lineHeight >= _yToElide);
 		if (elidedLine) {
 			// If we decided to draw the last line elided only because of the skip block
 			// that did not fit on this line, we just draw the line till the very end.
@@ -1157,23 +1156,24 @@ private:
 			}
 		}
 
-		int blockIndex = _lineStartBlock;
-		ITextBlock *currentBlock = _t->_blocks[blockIndex];
-		ITextBlock *nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : 0;
+		auto blockIndex = _lineStartBlock;
+		auto currentBlock = _t->_blocks[blockIndex];
+		auto nextBlock = (++blockIndex < _blocksSize) ? _t->_blocks[blockIndex] : nullptr;
 
 		int32 delta = (currentBlock->from() < _lineStart ? qMin(_lineStart - currentBlock->from(), 2) : 0);
 		_localFrom = _lineStart - delta;
 		int32 lineEnd = (_endBlock && _endBlock->from() < trimmedLineEnd && !elidedLine) ? qMin(uint16(trimmedLineEnd + 2), _t->countBlockEnd(_endBlockIter, _end)) : trimmedLineEnd;
 
-		QString lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
-		int32 lineStart = delta, lineLength = trimmedLineEnd - _lineStart;
+		auto lineText = _t->_text.mid(_localFrom, lineEnd - _localFrom);
+		auto lineStart = delta;
+		auto lineLength = trimmedLineEnd - _lineStart;
 
 		if (elidedLine) {
 			initParagraphBidi();
 			prepareElidedLine(lineText, lineStart, lineLength, _endBlock);
 		}
 
-		QFixed x = _x;
+		auto x = _x;
 		if (_align & Qt::AlignHCenter) {
 			x += (_wLeft / 2).toInt();
 		} else if (((_align & Qt::AlignLeft) && _parDirection == Qt::RightToLeft) || ((_align & Qt::AlignRight) && _parDirection == Qt::LeftToRight)) {
@@ -1632,10 +1632,10 @@ private:
 					glyphsEnd = si.num_glyphs;
 				}
 
-				for (int g = glyphsStart; g < glyphsEnd; ++g) {
-					QFixed adv = glyphs.effectiveAdvance(g);
+				for (auto g = glyphsStart; g < glyphsEnd; ++g) {
+					auto adv = glyphs.effectiveAdvance(g);
 					if (_wLeft < adv) {
-						int pos = itemStart;
+						auto pos = itemStart;
 						while (pos < itemEnd && logClusters[pos - si.position] < g) {
 							++pos;
 						}
@@ -2356,7 +2356,7 @@ private:
 	// current line data
 	QTextEngine *_e = nullptr;
 	style::font _f;
-	QFixed _x, _w, _wLeft;
+	QFixed _x, _w, _wLeft, _last_rPadding;
 	int32 _y, _yDelta, _lineHeight, _fontHeight;
 
 	// elided hack support
@@ -2473,10 +2473,10 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	int32 lineHeight = 0;
 	int32 result = 0, lastNewlineStart = 0;
 	QFixed _width = 0, last_rBearing = 0, last_rPadding = 0;
-	for (TextBlocks::const_iterator i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
-		ITextBlock *b = *i;
-		TextBlockType _btype = b->type();
-		int32 blockHeight = countBlockHeight(b, _st);
+	for (auto i = _blocks.cbegin(), e = _blocks.cend(); i != e; ++i) {
+		auto b = *i;
+		auto _btype = b->type();
+		auto blockHeight = countBlockHeight(b, _st);
 		if (_btype == TextBlockTNewline) {
 			if (!lineHeight) lineHeight = blockHeight;
 			if (initial) {
@@ -2497,16 +2497,23 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 			lineHeight = 0;
 			last_rBearing = b->f_rbearing();
 			last_rPadding = b->f_rpadding();
-			if (_maxWidth < _width) {
-				_maxWidth = _width;
-			}
+
+			accumulate_max(_maxWidth, _width);
 			_width = (b->f_width() - last_rBearing);
 			continue;
 		}
 
 		auto b__f_rbearing = b->f_rbearing(); // cache
 
-		_width += b->f_lpadding();
+		// We need to accumulate max width after each block, because
+		// some blocks have width less than -1 * previous right bearing.
+		// In that cases the _width gets _smaller_ after moving to the next block.
+		//
+		// But when we layout block and we're sure that _maxWidth is enough
+		// for all the blocks to fit on their line we check each block, even the
+		// intermediate one with a large negative right bearing.
+		accumulate_max(_maxWidth, _width);
+
 		_width += last_rBearing + (last_rPadding + b->f_width() - b__f_rbearing);
 		lineHeight = qMax(lineHeight, blockHeight);
 
@@ -2528,9 +2535,7 @@ void Text::recountNaturalSize(bool initial, Qt::LayoutDirection optionsDir) {
 	if (_width > 0) {
 		if (!lineHeight) lineHeight = countBlockHeight(_blocks.back(), _st);
 		_minHeight += lineHeight;
-		if (_maxWidth < _width) {
-			_maxWidth = _width;
-		}
+		accumulate_max(_maxWidth, _width);
 	}
 }
 
@@ -2720,7 +2725,7 @@ void Text::enumerateLines(int w, Callback callback) const {
 	QFixed widthLeft = width, last_rBearing = 0, last_rPadding = 0;
 	bool longWordLine = true;
 	for_const (auto b, _blocks) {
-		TextBlockType _btype = b->type();
+		auto _btype = b->type();
 		int blockHeight = countBlockHeight(b, _st);
 
 		if (_btype == TextBlockTNewline) {
@@ -2735,9 +2740,8 @@ void Text::enumerateLines(int w, Callback callback) const {
 			longWordLine = true;
 			continue;
 		}
-		auto b__f_lpadding = b->f_lpadding();
 		auto b__f_rbearing = b->f_rbearing();
-		QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
+		auto newWidthLeft = widthLeft - last_rBearing - (last_rPadding + b->f_width() - b__f_rbearing);
 		if (newWidthLeft >= 0) {
 			last_rBearing = b__f_rbearing;
 			last_rPadding = b->f_rpadding();
@@ -2750,9 +2754,9 @@ void Text::enumerateLines(int w, Callback callback) const {
 		}
 
 		if (_btype == TextBlockTText) {
-			TextBlock *t = static_cast<TextBlock*>(b);
+			auto t = static_cast<TextBlock*>(b);
 			if (t->_words.isEmpty()) { // no words in this block, spaces only => layout this block in the same line
-				last_rPadding += b__f_lpadding;
+				last_rPadding += b->f_rpadding();
 
 				lineHeight = qMax(lineHeight, blockHeight);
 
@@ -2760,14 +2764,13 @@ void Text::enumerateLines(int w, Callback callback) const {
 				continue;
 			}
 
-			QFixed f_wLeft = widthLeft;
+			auto f_wLeft = widthLeft;
 			int f_lineHeight = lineHeight;
 			for (auto j = t->_words.cbegin(), e = t->_words.cend(), f = j; j != e; ++j) {
 				bool wordEndsHere = (j->f_width() >= 0);
-				QFixed j_width = wordEndsHere ? j->f_width() : -j->f_width();
+				auto j_width = wordEndsHere ? j->f_width() : -j->f_width();
 
-				QFixed newWidthLeft = widthLeft - b__f_lpadding - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
-				b__f_lpadding = 0;
+				auto newWidthLeft = widthLeft - last_rBearing - (last_rPadding + j_width - j->f_rbearing());
 				if (newWidthLeft >= 0) {
 					last_rBearing = j->f_rbearing();
 					last_rPadding = j->f_rpadding();

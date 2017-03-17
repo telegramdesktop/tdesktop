@@ -33,7 +33,7 @@ public:
 		Pause,
 		Cancel,
 	};
-	PlayButtonLayout(const style::MediaPlayerButton &st, base::lambda<void()> &&callback);
+	PlayButtonLayout(const style::MediaPlayerButton &st, base::lambda<void()> callback);
 
 	void setState(State state);
 	void finishTransform();

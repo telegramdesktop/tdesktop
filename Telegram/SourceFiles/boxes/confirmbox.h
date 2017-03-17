@@ -30,11 +30,11 @@ class FlatLabel;
 class InformBox;
 class ConfirmBox : public BoxContent, public ClickHandlerHost {
 public:
-	ConfirmBox(QWidget*, const QString &text, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
-	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda<void()> &&confirmedCallback = base::lambda<void()>(), base::lambda<void()> &&cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, base::lambda<void()> confirmedCallback = base::lambda<void()>(), base::lambda<void()> cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, base::lambda<void()> confirmedCallback = base::lambda<void()>(), base::lambda<void()> cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, base::lambda<void()> confirmedCallback = base::lambda<void()>(), base::lambda<void()> cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const QString &cancelText, base::lambda<void()> confirmedCallback = base::lambda<void()>(), base::lambda<void()> cancelledCallback = base::lambda<void()>());
+	ConfirmBox(QWidget*, const QString &text, const QString &confirmText, const style::RoundButton &confirmStyle, const QString &cancelText, base::lambda<void()> confirmedCallback = base::lambda<void()>(), base::lambda<void()> cancelledCallback = base::lambda<void()>());
 
 	void updateLink();
 
@@ -62,8 +62,8 @@ protected:
 private:
 	struct InformBoxTag {
 	};
-	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback);
-	base::lambda<void()> generateInformCallback(const base::lambda_copy<void()> &closedCallback);
+	ConfirmBox(const InformBoxTag &, const QString &text, const QString &doneText, base::lambda<void()> closedCallback);
+	base::lambda<void()> generateInformCallback(base::lambda<void()> closedCallback);
 	friend class InformBox;
 
 	void confirmed();
@@ -93,8 +93,8 @@ private:
 
 class InformBox : public ConfirmBox {
 public:
-	InformBox(QWidget*, const QString &text, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
-	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda_copy<void()> &&closedCallback = base::lambda_copy<void()>());
+	InformBox(QWidget*, const QString &text, base::lambda<void()> closedCallback = base::lambda<void()>());
+	InformBox(QWidget*, const QString &text, const QString &doneText, base::lambda<void()> closedCallback = base::lambda<void()>());
 
 };
 

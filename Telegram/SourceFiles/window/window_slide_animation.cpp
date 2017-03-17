@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "window/window_slide_animation.h"
 
 #include "styles/style_window.h"
@@ -62,11 +61,11 @@ void SlideAnimation::setTopBarShadow(bool enabled) {
 }
 
 void SlideAnimation::setRepaintCallback(RepaintCallback &&callback) {
-	_repaintCallback = std_::move(callback);
+	_repaintCallback = std::move(callback);
 }
 
 void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
-	_finishedCallback = std_::move(callback);
+	_finishedCallback = std::move(callback);
 }
 
 void SlideAnimation::start() {

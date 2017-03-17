@@ -22,40 +22,46 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "mtproto/core_types.h"
 #include "mtproto/auth_key.h"
-#include "mtproto/connection_abstract.h"
 #include "core/single_timer.h"
 
 namespace MTP {
+
+class Instance;
+
 namespace internal {
 
+class AbstractConnection;
 class ConnectionPrivate;
 class SessionData;
+class RSAPublicKey;
 
 class Thread : public QThread {
 	Q_OBJECT
 
 public:
-	Thread();
-	uint32 getThreadId() const;
-	~Thread();
+	Thread() {
+		static int ThreadCounter = 0;
+		_threadIndex = ++ThreadCounter;
+	}
+	int getThreadIndex() const {
+		return _threadIndex;
+	}
 
 private:
-	uint32 _threadId;
+	int _threadIndex = 0;
 
 };
 
 class Connection {
 public:
-
 	enum ConnectionType {
 		TcpConnection,
 		HttpConnection
 	};
 
-	Connection();
+	Connection(Instance *instance);
 
-	int32 prepare(SessionData *data, int32 dc = 0); // return dc
-	void start();
+	void start(SessionData *data, ShiftedDcId shiftedDcId);
 
 	void kill();
 	void waitTillFinish();
@@ -67,9 +73,9 @@ public:
 	QString transport() const;
 
 private:
-
-	QThread *thread;
-	ConnectionPrivate *data;
+	Instance *_instance = nullptr;
+	std::unique_ptr<QThread> thread;
+	ConnectionPrivate *data = nullptr;
 
 };
 
@@ -77,19 +83,17 @@ class ConnectionPrivate : public QObject {
 	Q_OBJECT
 
 public:
-
-	ConnectionPrivate(QThread *thread, Connection *owner, SessionData *data, uint32 dc);
+	ConnectionPrivate(Instance *instance, QThread *thread, Connection *owner, SessionData *data, ShiftedDcId shiftedDcId);
 	~ConnectionPrivate();
 
 	void stop();
 
-	int32 getDC() const;
+	int32 getShiftedDcId() const;
 
 	int32 getState() const;
 	QString transport() const;
 
 signals:
-
 	void needToReceive();
 	void needToRestart();
 	void stateChanged(qint32 newState);
@@ -104,13 +108,11 @@ signals:
 	void resendManyAsync(QVector<quint64> msgIds, qint64 msCanWait, bool forceContainer, bool sendMsgStateInfo);
 	void resendAllAsync();
 
-	void finished(Connection *connection);
+	void finished(internal::Connection *connection);
 
 public slots:
-
 	void retryByTimer();
 	void restartNow();
-	void restart(bool mayBeBadKey = false);
 
 	void onPingSender();
 	void onPingSendForce();
@@ -130,8 +132,8 @@ public slots:
 	void onConnected6();
 	void onDisconnected4();
 	void onDisconnected6();
-	void onError4(bool mayBeBadKey = false);
-	void onError6(bool mayBeBadKey = false);
+	void onError4(qint32 errorCode);
+	void onError6(qint32 errorCode);
 
 	void doFinish();
 
@@ -151,8 +153,8 @@ public slots:
 	void onConfigLoaded();
 
 private:
-
 	void doDisconnect();
+	void restart();
 
 	void createConn(bool createIPv4, bool createIPv6);
 	void destroyConn(AbstractConnection **conn = 0); // 0 - destory all
@@ -172,18 +174,24 @@ private:
 	};
 	HandleResult handleOneReceived(const mtpPrime *from, const mtpPrime *end, uint64 msgId, int32 serverTime, uint64 serverSalt, bool badTime);
 	mtpBuffer ungzip(const mtpPrime *from, const mtpPrime *end) const;
-	void handleMsgsStates(const QVector<MTPlong> &ids, const std::string &states, QVector<MTPlong> &acked);
+	void handleMsgsStates(const QVector<MTPlong> &ids, const QByteArray &states, QVector<MTPlong> &acked);
 
 	void clearMessages();
 
 	bool setState(int32 state, int32 ifState = Connection::UpdateAlways);
+
+	std::string encryptPQInnerRSA(const MTPP_Q_inner_data &data, const MTP::internal::RSAPublicKey *key);
+	std::string encryptClientDHInner(const MTPClient_DH_Inner_Data &data);
+
+	Instance *_instance = nullptr;
+
 	mutable QReadWriteLock stateConnMutex;
-	int32 _state;
+	int32 _state = DisconnectedState;
 
 	bool _needSessionReset = false;
 	void resetSession();
 
-	ShiftedDcId dc = 0;
+	ShiftedDcId _shiftedDcId = 0;
 	Connection *_owner = nullptr;
 	AbstractConnection *_conn = nullptr;
 	AbstractConnection *_conn4 = nullptr;
@@ -252,7 +260,6 @@ private:
 
 		uchar aesKey[32] = { 0 };
 		uchar aesIV[32] = { 0 };
-		uint32 auth_key[64] = { 0 };
 		MTPlong auth_key_hash;
 
 		uint32 req_num = 0; // sent not encrypted request number
@@ -261,9 +268,10 @@ private:
 	struct AuthKeyCreateStrings {
 		QByteArray dh_prime;
 		QByteArray g_a;
+		AuthKey::Data auth_key = { { 0 } };
 	};
-	std_::unique_ptr<AuthKeyCreateData> _authKeyData;
-	std_::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
+	std::unique_ptr<AuthKeyCreateData> _authKeyData;
+	std::unique_ptr<AuthKeyCreateStrings> _authKeyStrings;
 
 	void dhClientParamsSend();
 	void authKeyCreated();

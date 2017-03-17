@@ -90,6 +90,26 @@ repl () {
   fi
 }
 
+echo "Checking changelog..."
+ChangelogFile="$FullScriptPath/../../changelog.txt"
+ChangelogCommand="grep -sc '^$VersionStr ' $ChangelogFile"
+set +e
+FoundCount=`eval $ChangelogCommand`
+set -e
+if [ "$FoundCount" == "0" ]; then
+  ChangelogCommand="grep -sc '^$VersionStrSmall ' $ChangelogFile"
+  set +e
+  FoundCount=`eval $ChangelogCommand`
+  set -e
+  if [ "$FoundCount" == "0" ]; then
+    Error "Changelog entry not found!"
+  elif [ "$FoundCount" != "1" ]; then
+    Error "Wrong changelog entries count found: $FoundCount"
+  fi
+elif [ "$FoundCount" != "1" ]; then
+  Error "Wrong changelog entries count found: $FoundCount"
+fi
+
 echo "Patching build/version..."
 VersionFilePath="$FullScriptPath/version"
 repl "\(AppVersion\) \([ ]*\)[0-9][0-9]*" "\1\2 $VersionFull" "$VersionFilePath"

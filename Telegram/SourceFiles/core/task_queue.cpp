@@ -18,33 +18,16 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "core/task_queue.h"
+
+#include <thread>
+#include <condition_variable>
 
 namespace base {
 namespace {
 
-auto MainThreadId = QThread::currentThreadId();
-const auto MaxThreadsCount = qMax(QThread::idealThreadCount(), 2);
-
-template <typename Lambda>
-class Thread : public QThread {
-public:
-	Thread(Lambda code) : _code(std_::move(code)) {
-	}
-	void run() override {
-		_code();
-	}
-
-private:
-	Lambda _code;
-
-};
-
-template <typename Lambda>
-object_ptr<Thread<Lambda>> MakeThread(Lambda code) {
-	return object_ptr<Thread<Lambda>>(std_::move(code));
-}
+auto MainThreadId = std::this_thread::get_id();
+const auto MaxThreadsCount = qMax(std::thread::hardware_concurrency(), 2U);
 
 } // namespace
 
@@ -77,7 +60,7 @@ class TaskQueue::TaskThreadPool {
 
 public:
 	TaskThreadPool(const Private &) { }
-	static const QSharedPointer<TaskThreadPool> &Instance();
+	static const std::shared_ptr<TaskThreadPool> &Instance();
 
 	void AddQueueTask(TaskQueue *queue, Task &&task);
 	void RemoveQueue(TaskQueue *queue);
@@ -85,16 +68,15 @@ public:
 	~TaskThreadPool();
 
 private:
-
 	void ThreadFunction();
 
-	std_::vector_of_moveable<object_ptr<QThread>> threads_;
-	QMutex queues_mutex_;
+	std::vector<std::thread> threads_;
+	std::mutex queues_mutex_;
 
 	// queues_mutex_ must be locked when working with the list.
 	TaskQueueList queue_list_;
 
-	QWaitCondition thread_condition_;
+	std::condition_variable thread_condition_;
 	bool stopped_ = false;
 	int tasks_in_process_ = 0;
 	int background_tasks_in_process_ = 0;
@@ -193,9 +175,9 @@ TaskQueue *TaskQueue::TaskQueueList::TakeFirst(int list_index_) {
 }
 
 void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
-	QMutexLocker lock(&queues_mutex_);
+	std::unique_lock<std::mutex> lock(queues_mutex_);
 
-	queue->tasks_.push_back(new Task(std_::move(task)));
+	queue->tasks_.push_back(std::move(task));
 	auto list_was_empty = queue_list_.Empty(kAllQueuesList);
 	auto threads_count = threads_.size();
 	auto all_threads_processing = (threads_count == tasks_in_process_);
@@ -208,18 +190,17 @@ void TaskQueue::TaskThreadPool::AddQueueTask(TaskQueue *queue, Task &&task) {
 		}
 	}
 	if (will_create_thread) {
-		threads_.push_back(MakeThread([this]() {
+		threads_.emplace_back([this]() {
 			ThreadFunction();
-		}));
-		threads_.back()->start();
+		});
 	} else if (some_threads_are_vacant) {
 		t_assert(threads_count > tasks_in_process_);
-		thread_condition_.wakeOne();
+		thread_condition_.notify_one();
 	}
 }
 
 void TaskQueue::TaskThreadPool::RemoveQueue(TaskQueue *queue) {
-	QMutexLocker lock(&queues_mutex_);
+	std::unique_lock<std::mutex> lock(queues_mutex_);
 	if (queue_list_.IsInList(queue)) {
 		queue_list_.Unregister(queue);
 	}
@@ -230,18 +211,18 @@ void TaskQueue::TaskThreadPool::RemoveQueue(TaskQueue *queue) {
 
 TaskQueue::TaskThreadPool::~TaskThreadPool() {
 	{
-		QMutexLocker lock(&queues_mutex_);
+		std::unique_lock<std::mutex> lock(queues_mutex_);
 		queue_list_.Clear();
 		stopped_ = true;
 	}
-	thread_condition_.wakeAll();
+	thread_condition_.notify_all();
 	for (auto &thread : threads_) {
-		thread->wait();
+		thread.join();
 	}
 }
 
-const QSharedPointer<TaskQueue::TaskThreadPool> &TaskQueue::TaskThreadPool::Instance() { // static
-	static auto Pool = MakeShared<TaskThreadPool>(Private());
+const std::shared_ptr<TaskQueue::TaskThreadPool> &TaskQueue::TaskThreadPool::Instance() { // static
+	static auto Pool = std::make_shared<TaskThreadPool>(Private());
 	return Pool;
 }
 
@@ -258,9 +239,9 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 	bool serial_queue_destroyed = false;
 	bool task_was_processed = false;
 	while (true) {
-		std_::unique_ptr<Task> task;
+		Task task;
 		{
-			QMutexLocker lock(&queues_mutex_);
+			std::unique_lock<std::mutex> lock(queues_mutex_);
 
 			// Finish the previous task processing.
 			if (task_was_processed) {
@@ -286,7 +267,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 				if (stopped_) {
 					return;
 				}
-				thread_condition_.wait(&queues_mutex_);
+				thread_condition_.wait(lock);
 			}
 
 			// Select a task we will be processing.
@@ -297,7 +278,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 
 			t_assert(!queue->tasks_.empty());
 
-			task.reset(queue->tasks_.front());
+			task = std::move(queue->tasks_.front());
 			queue->tasks_.pop_front();
 
 			if (queue->type_ == Type::Serial) {
@@ -318,7 +299,7 @@ void TaskQueue::TaskThreadPool::ThreadFunction() {
 			}
 		}
 
-		(*task)();
+		task();
 	}
 }
 
@@ -332,36 +313,33 @@ TaskQueue::TaskQueue(Type type, Priority priority)
 
 TaskQueue::~TaskQueue() {
 	if (type_ != Type::Main && type_ != Type::Special) {
-		if (auto thread_pool = weak_thread_pool_.toStrongRef()) {
+		if (auto thread_pool = weak_thread_pool_.lock()) {
 			thread_pool->RemoveQueue(this);
 		}
-	}
-	for (auto task : take(tasks_)) {
-		delete task;
 	}
 }
 
 void TaskQueue::Put(Task &&task) {
 	if (type_ == Type::Main) {
-		QMutexLocker lock(&tasks_mutex_);
-		tasks_.push_back(new Task(std_::move(task)));
+		std::unique_lock<std::mutex> lock(tasks_mutex_);
+		tasks_.push_back(std::move(task));
 
 		Sandbox::MainThreadTaskAdded();
 	} else {
 		t_assert(type_ != Type::Special);
-		TaskThreadPool::Instance()->AddQueueTask(this, std_::move(task));
+		TaskThreadPool::Instance()->AddQueueTask(this, std::move(task));
 	}
 }
 
 void TaskQueue::ProcessMainTasks() { // static
-	t_assert(QThread::currentThreadId() == MainThreadId);
+	t_assert(std::this_thread::get_id() == MainThreadId);
 
 	while (ProcessOneMainTask()) {
 	}
 }
 
 void TaskQueue::ProcessMainTasks(TimeMs max_time_spent) { // static
-	t_assert(QThread::currentThreadId() == MainThreadId);
+	t_assert(std::this_thread::get_id() == MainThreadId);
 
 	auto start_time = getms();
 	while (ProcessOneMainTask()) {
@@ -372,25 +350,25 @@ void TaskQueue::ProcessMainTasks(TimeMs max_time_spent) { // static
 }
 
 bool TaskQueue::ProcessOneMainTask() { // static
-	std_::unique_ptr<Task> task;
+	Task task;
 	{
-		QMutexLocker lock(&Main().tasks_mutex_);
+		std::unique_lock<std::mutex> lock(Main().tasks_mutex_);
 		auto &tasks = Main().tasks_;
 		if (tasks.empty()) {
 			return false;
 		}
 
-		task.reset(tasks.front());
+		task = std::move(tasks.front());
 		tasks.pop_front();
 	}
 
-	(*task)();
+	task();
 	return true;
 }
 
 bool TaskQueue::IsMyThread() const {
 	if (type_ == Type::Main) {
-		return (QThread::currentThreadId() == MainThreadId);
+		return (std::this_thread::get_id() == MainThreadId);
 	}
 	t_assert(type_ != Type::Special);
 	return false;

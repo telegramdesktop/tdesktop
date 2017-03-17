@@ -81,6 +81,9 @@ build() {
   # Patched GYP (supports cmake precompiled headers)
   getGYP
 
+  # Guideline Support Library
+  getGSL
+
   # Configure the build
   if [[ $BUILD_VERSION == *"disable_autoupdate"* ]]; then
     GYP_DEFINES+=",TDESKTOP_DISABLE_AUTOUPDATE"
@@ -537,6 +540,12 @@ buildCustomQt() {
               -dbus-runtime -no-gstreamer -no-mtdev # <- Not sure about these
   make $MAKE_ARGS
   sudo make install
+}
+
+getGSL() {
+  cd "$UPSTREAM"
+  git submodule init
+  git submodule update
 }
 
 getGYP() {

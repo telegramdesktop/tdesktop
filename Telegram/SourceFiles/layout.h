@@ -81,8 +81,6 @@ QString formatDurationAndSizeText(qint64 duration, qint64 size);
 QString formatGifAndSizeText(qint64 size);
 QString formatPlayedText(qint64 played, qint64 duration);
 
-QString documentName(DocumentData *document);
-TextWithEntities documentNameWithEntities(DocumentData *document);
 int32 documentColorIndex(DocumentData *document, QString &ext);
 style::color documentColor(int colorIndex);
 style::color documentDarkColor(int colorIndex);

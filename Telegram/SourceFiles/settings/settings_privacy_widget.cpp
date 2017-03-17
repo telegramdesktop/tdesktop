@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_privacy_widget.h"
 
 #include "ui/effects/widget_slide_wrap.h"
@@ -29,7 +28,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/sessionsbox.h"
 #include "boxes/passcodebox.h"
 #include "boxes/autolockbox.h"
-#include "pspecific.h"
+#include "boxes/peer_list_box.h"
+#include "platform/platform_specific.h"
+#include "settings/settings_blocked_box_controller.h"
 
 namespace Settings {
 
@@ -171,6 +172,7 @@ void PrivacyWidget::createControls() {
 	style::margins marginSkip(0, 0, 0, st::settingsSkip);
 	style::margins slidedPadding(0, marginSmall.bottom() / 2, 0, marginSmall.bottom() - (marginSmall.bottom() / 2));
 
+	addChildRow(_blockedUsers, marginSmall, lang(lng_settings_blocked_users), SLOT(onBlockedUsers()));
 	addChildRow(_localPasscodeState, marginSmall);
 	auto label = lang(psIdleSupported() ? lng_passcode_autolock_away : lng_passcode_autolock_inactive);
 	auto value = (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
@@ -187,10 +189,12 @@ void PrivacyWidget::autoLockUpdated() {
 		auto value = (Global::AutoLock() % 3600) ? lng_passcode_autolock_minutes(lt_count, Global::AutoLock() / 60) : lng_passcode_autolock_hours(lt_count, Global::AutoLock() / 3600);
 		_autoLock->entity()->link()->setText(value);
 		resizeToWidth(width());
-		_autoLock->slideDown();
-	} else {
-		_autoLock->slideUp();
 	}
+	_autoLock->toggleAnimated(Global::LocalPasscode());
+}
+
+void PrivacyWidget::onBlockedUsers() {
+	Ui::show(Box<PeerListBox>(std::make_unique<BlockedBoxController>()));
 }
 
 void PrivacyWidget::onAutoLock() {

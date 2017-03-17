@@ -34,7 +34,7 @@ public:
 	Menu(QWidget *parent, QMenu *menu, const style::Menu &st = st::defaultMenu);
 
 	QAction *addAction(const QString &text, const QObject *receiver, const char* member, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
-	QAction *addAction(const QString &text, base::lambda<void()> &&callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
+	QAction *addAction(const QString &text, base::lambda<void()> callback, const style::icon *icon = nullptr, const style::icon *iconOver = nullptr);
 	QAction *addSeparator();
 	void clearActions();
 
@@ -52,34 +52,34 @@ public:
 	using Actions = QList<QAction*>;
 	Actions &actions();
 
-	void setResizedCallback(base::lambda<void()> &&callback) {
-		_resizedCallback = std_::move(callback);
+	void setResizedCallback(base::lambda<void()> callback) {
+		_resizedCallback = std::move(callback);
 	}
 
-	void setActivatedCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> &&callback) {
-		_activatedCallback = std_::move(callback);
+	void setActivatedCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> callback) {
+		_activatedCallback = std::move(callback);
 	}
-	void setTriggeredCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> &&callback) {
-		_triggeredCallback = std_::move(callback);
+	void setTriggeredCallback(base::lambda<void(QAction *action, int actionTop, TriggeredSource source)> callback) {
+		_triggeredCallback = std::move(callback);
 	}
 
-	void setKeyPressDelegate(base::lambda<bool(int key)> &&delegate) {
-		_keyPressDelegate = std_::move(delegate);
+	void setKeyPressDelegate(base::lambda<bool(int key)> delegate) {
+		_keyPressDelegate = std::move(delegate);
 	}
 	void handleKeyPress(int key);
 
-	void setMouseMoveDelegate(base::lambda<void(QPoint globalPosition)> &&delegate) {
-		_mouseMoveDelegate = std_::move(delegate);
+	void setMouseMoveDelegate(base::lambda<void(QPoint globalPosition)> delegate) {
+		_mouseMoveDelegate = std::move(delegate);
 	}
 	void handleMouseMove(QPoint globalPosition);
 
-	void setMousePressDelegate(base::lambda<void(QPoint globalPosition)> &&delegate) {
-		_mousePressDelegate = std_::move(delegate);
+	void setMousePressDelegate(base::lambda<void(QPoint globalPosition)> delegate) {
+		_mousePressDelegate = std::move(delegate);
 	}
 	void handleMousePress(QPoint globalPosition);
 
-	void setMouseReleaseDelegate(base::lambda<void(QPoint globalPosition)> &&delegate) {
-		_mouseReleaseDelegate = std_::move(delegate);
+	void setMouseReleaseDelegate(base::lambda<void(QPoint globalPosition)> delegate) {
+		_mouseReleaseDelegate = std::move(delegate);
 	}
 	void handleMouseRelease(QPoint globalPosition);
 

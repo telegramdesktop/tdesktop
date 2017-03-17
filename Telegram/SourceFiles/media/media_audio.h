@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "storage/localimageloader.h"
+
 struct VideoSoundData;
 struct VideoSoundPart;
 
@@ -101,7 +103,7 @@ public:
 	void stop(AudioMsgId::Type type);
 
 	// Video player audio stream interface.
-	void initFromVideo(uint64 videoPlayId, std_::unique_ptr<VideoSoundData> &&data, int64 position);
+	void initFromVideo(uint64 videoPlayId, std::unique_ptr<VideoSoundData> &&data, int64 position);
 	void feedFromVideo(VideoSoundPart &&part);
 	int64 getVideoCorrectedTime(uint64 playId, TimeMs frameMs, TimeMs systemMs);
 	TrackState currentVideoState(uint64 videoPlayId);
@@ -183,7 +185,7 @@ private:
 		Stream stream;
 
 		uint64 videoPlayId = 0;
-		std_::unique_ptr<VideoSoundData> videoData;
+		std::unique_ptr<VideoSoundData> videoData;
 
 	private:
 		void createStream();
@@ -278,6 +280,8 @@ private:
 
 };
 
+FileLoadTask::Song PrepareForSending(const QString &fname, const QByteArray &data);
+
 } // namespace Player
 } // namespace Media
 
@@ -291,5 +295,4 @@ bool CheckAudioDeviceConnected();
 
 } // namespace internal
 
-MTPDocumentAttribute audioReadSongAttributes(const QString &fname, const QByteArray &data, QImage &cover, QByteArray &coverBytes, QByteArray &coverFormat);
 VoiceWaveform audioCountWaveform(const FileLocation &file, const QByteArray &data);

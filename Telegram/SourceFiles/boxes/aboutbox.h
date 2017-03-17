@@ -36,8 +36,6 @@ protected:
 
 	void resizeEvent(QResizeEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
-	void dragEnterEvent(QDragEnterEvent *e) override;
-	void dropEvent(QDropEvent *e) override;
 
 private:
 	void showVersionHistory();

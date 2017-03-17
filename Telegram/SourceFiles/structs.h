@@ -20,6 +20,34 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+using MediaKey = QPair<uint64, uint64>;
+
+inline uint64 mediaMix32To64(int32 a, int32 b) {
+	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
+}
+
+enum LocationType {
+	UnknownFileLocation = 0,
+	// 1, 2, etc are used as "version" value in mediaKey() method.
+
+	DocumentFileLocation = 0x4e45abe9, // mtpc_inputDocumentFileLocation
+	AudioFileLocation = 0x74dc404d, // mtpc_inputAudioFileLocation
+	VideoFileLocation = 0x3d0364ec, // mtpc_inputVideoFileLocation
+};
+
+// Old method, should not be used anymore.
+//inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
+//	return MediaKey(mediaMix32To64(type, dc), id);
+//}
+// New method when version was introduced, type is not relevant anymore (all files are Documents).
+inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id, int32 version) {
+	return (version > 0) ? MediaKey(mediaMix32To64(version, dc), id) : MediaKey(mediaMix32To64(type, dc), id);
+}
+
+inline StorageKey mediaKey(const MTPDfileLocation &location) {
+	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
+}
+
 typedef int32 UserId;
 typedef int32 ChatId;
 typedef int32 ChannelId;
@@ -101,18 +129,17 @@ inline MTPpeer peerToMTP(const PeerId &id) {
 	return MTP_peerUser(MTP_int(0));
 }
 inline PeerId peerFromMessage(const MTPmessage &msg) {
-	PeerId from_id = 0, to_id = 0;
+	auto compute = [](auto &message) {
+		auto from_id = message.has_from_id() ? peerFromUser(message.vfrom_id) : 0;
+		auto to_id = peerFromMTP(message.vto_id);
+		auto out = message.is_out();
+		return (out || !peerIsUser(to_id)) ? to_id : from_id;
+	};
 	switch (msg.type()) {
-	case mtpc_message:
-		from_id = msg.c_message().has_from_id() ? peerFromUser(msg.c_message().vfrom_id) : 0;
-		to_id = peerFromMTP(msg.c_message().vto_id);
-		break;
-	case mtpc_messageService:
-		from_id = msg.c_messageService().has_from_id() ? peerFromUser(msg.c_messageService().vfrom_id) : 0;
-		to_id = peerFromMTP(msg.c_messageService().vto_id);
-		break;
+	case mtpc_message: return compute(msg.c_message());
+	case mtpc_messageService: return compute(msg.c_messageService());
 	}
-	return (from_id && peerToUser(to_id) == MTP::authedId()) ? from_id : to_id;
+	return 0;
 }
 inline MTPDmessage::Flags flagsFromMessage(const MTPmessage &msg) {
 	switch (msg.type()) {
@@ -168,11 +195,11 @@ constexpr const MsgId ServerMaxMsgId = 0x3FFFFFFF;
 constexpr const MsgId ShowAtUnreadMsgId = 0;
 
 struct NotifySettings {
-	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), mute(0), sound("default") {
+	NotifySettings() : flags(MTPDpeerNotifySettings::Flag::f_show_previews), sound(qsl("default")) {
 	}
 	MTPDpeerNotifySettings::Flags flags;
-	TimeId mute;
-	std::string sound;
+	TimeId mute = 0;
+	QString sound;
 	bool previews() const {
 		return flags & MTPDpeerNotifySettings::Flag::f_show_previews;
 	}
@@ -187,9 +214,9 @@ static const NotifySettingsPtr EmptyNotifySettings = NotifySettingsPtr(1);
 extern NotifySettings globalNotifyAll, globalNotifyUsers, globalNotifyChats;
 extern NotifySettingsPtr globalNotifyAllPtr, globalNotifyUsersPtr, globalNotifyChatsPtr;
 
-inline bool isNotifyMuted(NotifySettingsPtr settings, TimeId *changeIn = 0) {
+inline bool isNotifyMuted(NotifySettingsPtr settings, TimeId *changeIn = nullptr) {
 	if (settings != UnknownNotifySettings && settings != EmptyNotifySettings) {
-		TimeId t = unixtime();
+		auto t = unixtime();
 		if (settings->mute > t) {
 			if (changeIn) *changeIn = settings->mute - t + 1;
 			return true;
@@ -224,7 +251,7 @@ public:
 
 private:
 	class Impl;
-	std_::unique_ptr<Impl> _impl;
+	std::unique_ptr<Impl> _impl;
 	friend class Impl;
 
 };
@@ -489,7 +516,7 @@ public:
 		return _about;
 	}
 
-	std_::unique_ptr<BotInfo> botInfo;
+	std::unique_ptr<BotInfo> botInfo;
 
 	QString restrictionReason() const override {
 		return _restrictionReason;
@@ -973,8 +1000,6 @@ public:
 	void forget();
 	ImagePtr makeReplyPreview();
 
-	~PhotoData();
-
 	PhotoId id;
 	uint64 access;
 	int32 date;
@@ -982,15 +1007,16 @@ public:
 	ImagePtr medium;
 	ImagePtr full;
 
-	PeerData *peer; // for chat and channel photos connection
+	PeerData *peer = nullptr; // for chat and channel photos connection
 	// geo, caption
 
 	struct UploadingData {
-		UploadingData(int32 size) : offset(0), size(size) {
+		UploadingData(int size) : size(size) {
 		}
-		int32 offset, size;
+		int offset = 0;
+		int size = 0;
 	};
-	UploadingData *uploadingData;
+	std::unique_ptr<UploadingData> uploadingData;
 
 private:
 	void notifyLayoutChanged() const;
@@ -1231,6 +1257,14 @@ public:
 		return ::mediaKey(locationType(), _dc, id, _version);
 	}
 
+	static QString composeNameString(const QString &filename, const QString &songTitle, const QString &songPerformer);
+	QString composeNameString() const {
+		if (auto songData = song()) {
+			return composeNameString(name, songData->title, songData->performer);
+		}
+		return composeNameString(name, QString(), QString());
+	}
+
 private:
 	DocumentData(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QString &url, const QVector<MTPDocumentAttribute> &attributes);
 
@@ -1248,7 +1282,7 @@ private:
 
 	FileLocation _location;
 	QByteArray _data;
-	std_::unique_ptr<DocumentAdditionalData> _additional;
+	std::unique_ptr<DocumentAdditionalData> _additional;
 	int32 _duration = -1;
 
 	ActionOnLoad _actionOnLoad = ActionOnLoadNone;
@@ -1256,6 +1290,8 @@ private:
 	mutable FileLoader *_loader = nullptr;
 
 	void notifyLayoutChanged() const;
+
+	void destroyLoaderDelayed(mtpFileLoader *newValue = nullptr) const;
 
 };
 

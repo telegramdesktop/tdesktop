@@ -30,7 +30,6 @@ namespace common {
 struct ProjectInfo {
 	QString name;
 	QString source;
-	QString precompiledHeader;
 	bool forceReGenerate;
 };
 

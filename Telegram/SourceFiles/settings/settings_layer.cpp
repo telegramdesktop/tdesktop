@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "settings/settings_layer.h"
 
 #include "settings/settings_inner_widget.h"
@@ -31,10 +30,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/buttons.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "localstorage.h"
+#include "storage/localstorage.h"
 #include "boxes/confirmbox.h"
 #include "application.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "window/themes/window_theme.h"
 
 namespace Settings {
@@ -54,8 +53,8 @@ Layer::Layer()
 	connect(_scroll, SIGNAL(scrolled()), this, SLOT(onScroll()));
 }
 
-void Layer::setCloseClickHandler(base::lambda<void()> &&callback) {
-	_fixedBarClose->setClickedCallback(std_::move(callback));
+void Layer::setCloseClickHandler(base::lambda<void()> callback) {
+	_fixedBarClose->setClickedCallback(std::move(callback));
 }
 
 void Layer::onScroll() {
@@ -79,7 +78,7 @@ void Layer::onInnerHeightUpdated() {
 }
 
 void Layer::doSetInnerWidget(object_ptr<LayerInner> widget) {
-	_inner = _scroll->setOwnedWidget(std_::move(widget));
+	_inner = _scroll->setOwnedWidget(std::move(widget));
 	connect(_inner, SIGNAL(heightUpdated()), this, SLOT(onInnerHeightUpdated()));
 }
 

@@ -109,7 +109,7 @@ public:
 		virtual ~TagMimeProcessor() {
 		}
 	};
-	void setTagMimeProcessor(std_::unique_ptr<TagMimeProcessor> &&processor);
+	void setTagMimeProcessor(std::unique_ptr<TagMimeProcessor> &&processor);
 
 public slots:
 	void onTouchTimer();
@@ -195,7 +195,7 @@ private:
 	int _realInsertPosition = -1;
 	int _realCharsAdded = 0;
 
-	std_::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
+	std::unique_ptr<TagMimeProcessor> _tagMimeProcessor;
 
 	const style::FlatTextarea &_st;
 

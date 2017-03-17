@@ -50,7 +50,7 @@ public:
 		bool statusHasOnlineColor = false;
 		bool hasAdminStar = false;
 		bool hasRemoveLink = false;
-		std_::unique_ptr<Ui::RippleAnimation> ripple;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};
 	virtual int getListTop() const {
 		return contentTop();
@@ -78,20 +78,20 @@ public:
 	}
 	template <typename Predicate>
 	void sortItems(Predicate predicate) {
-		qSort(_items.begin(), _items.end(), std_::move(predicate));
+		qSort(_items.begin(), _items.end(), std::move(predicate));
 	}
 
-	void setPreloadMoreCallback(base::lambda<void()> &&callback) {
-		_preloadMoreCallback = std_::move(callback);
+	void setPreloadMoreCallback(base::lambda<void()> callback) {
+		_preloadMoreCallback = std::move(callback);
 	}
-	void setSelectedCallback(base::lambda<void(PeerData*)> &&callback) {
-		_selectedCallback = std_::move(callback);
+	void setSelectedCallback(base::lambda<void(PeerData*)> callback) {
+		_selectedCallback = std::move(callback);
 	}
-	void setRemovedCallback(base::lambda<void(PeerData*)> &&callback) {
-		_removedCallback = std_::move(callback);
+	void setRemovedCallback(base::lambda<void(PeerData*)> callback) {
+		_removedCallback = std::move(callback);
 	}
-	void setUpdateItemCallback(base::lambda<void(Item*)> &&callback) {
-		_updateItemCallback = std_::move(callback);
+	void setUpdateItemCallback(base::lambda<void(Item*)> callback) {
+		_updateItemCallback = std::move(callback);
 	}
 
 protected:

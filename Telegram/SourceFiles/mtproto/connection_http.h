@@ -34,9 +34,9 @@ public:
 
 	void sendData(mtpBuffer &buffer) override;
 	void disconnectFromServer() override;
-	void connectTcp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override { // not supported
+	void connectTcp(const DcOptions::Endpoint &endpoint) override { // not supported
 	}
-	void connectHttp(const QString &addr, int32 port, MTPDdcOption::Flags flags) override;
+	void connectHttp(const DcOptions::Endpoint &endpoint) override;
 	bool isConnected() const override;
 	bool usingHttpWait() override;
 	bool needHttpWait() override;
@@ -45,11 +45,11 @@ public:
 
 	QString transport() const override;
 
+	static mtpBuffer handleResponse(QNetworkReply *reply);
+	static qint32 handleError(QNetworkReply *reply); // returnes error code
+
 public slots:
 	void requestFinished(QNetworkReply *reply);
-
-	static mtpBuffer handleResponse(QNetworkReply *reply);
-	static bool handleError(QNetworkReply *reply); // returnes "maybe bad key"
 
 private:
 	enum Status {

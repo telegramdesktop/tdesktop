@@ -70,7 +70,6 @@ bool Processor::write(const structure::Module &module) const {
 	common::ProjectInfo project = {
 		"codegen_style",
 		srcFile.fileName(),
-		"stdafx.h",
 		forceReGenerate
 	};
 

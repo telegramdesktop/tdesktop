@@ -20,7 +20,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
-#include "mtproto/file_download.h"
+class FileLoader;
+class mtpFileLoader;
+
+enum LoadFromCloudSetting {
+	LoadFromCloudOrLocal,
+	LoadFromLocalOnly,
+};
+
+enum LoadToCacheSetting {
+	LoadToFileOnly,
+	LoadToCacheAsWell,
+};
 
 enum class ImageRoundRadius {
 	None,
@@ -282,10 +293,6 @@ inline StorageKey storageKey(const StorageImageLocation &location) {
 
 class RemoteImage : public Image {
 public:
-
-	RemoteImage() : _loader(0) {
-	}
-
 	void automaticLoad(const HistoryItem *item); // auto load photo
 	void automaticLoadSettingsChanged();
 
@@ -320,17 +327,16 @@ protected:
 	void loadLocal();
 
 private:
-	mutable FileLoader *_loader;
-	bool amLoading() const {
-		return _loader && _loader != CancelledFileLoader;
-	}
+	mutable FileLoader *_loader = nullptr;
+	bool amLoading() const;
 	void doCheckload() const;
+
+	void destroyLoaderDelayed(FileLoader *newValue = nullptr) const;
 
 };
 
 class StorageImage : public RemoteImage {
 public:
-
 	StorageImage(const StorageImageLocation &location, int32 size = 0);
 	StorageImage(const StorageImageLocation &location, QByteArray &bytes);
 
@@ -485,9 +491,8 @@ private:
 
 class FileLocation {
 public:
-	FileLocation(StorageFileType type, const QString &name);
-	FileLocation() : size(0) {
-	}
+	FileLocation() = default;
+	explicit FileLocation(const QString &name);
 
 	bool check() const;
 	const QString &name() const;
@@ -500,7 +505,6 @@ public:
 	bool accessEnable() const;
 	void accessDisable() const;
 
-	StorageFileType type;
 	QString fname;
 	QDateTime modified;
 	qint32 size;
@@ -510,24 +514,8 @@ private:
 
 };
 inline bool operator==(const FileLocation &a, const FileLocation &b) {
-	return a.type == b.type && a.name() == b.name() && a.modified == b.modified && a.size == b.size;
+	return (a.name() == b.name()) && (a.modified == b.modified) && (a.size == b.size);
 }
 inline bool operator!=(const FileLocation &a, const FileLocation &b) {
 	return !(a == b);
-}
-
-typedef QPair<uint64, uint64> MediaKey;
-inline uint64 mediaMix32To64(int32 a, int32 b) {
-	return (uint64(*reinterpret_cast<uint32*>(&a)) << 32) | uint64(*reinterpret_cast<uint32*>(&b));
-}
-// Old method, should not be used anymore.
-//inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id) {
-//	return MediaKey(mediaMix32To64(type, dc), id);
-//}
-// New method when version was introduced, type is not relevant anymore (all files are Documents).
-inline MediaKey mediaKey(LocationType type, int32 dc, const uint64 &id, int32 version) {
-	return (version > 0) ? MediaKey(mediaMix32To64(version, dc), id) : MediaKey(mediaMix32To64(type, dc), id);
-}
-inline StorageKey mediaKey(const MTPDfileLocation &location) {
-	return storageKey(location.vdc_id.v, location.vvolume_id.v, location.vlocal_id.v);
 }

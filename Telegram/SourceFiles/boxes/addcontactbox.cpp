@@ -18,27 +18,27 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "boxes/addcontactbox.h"
 
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
 #include "lang.h"
-#include "application.h"
+#include "messenger.h"
 #include "boxes/contactsbox.h"
 #include "boxes/confirmbox.h"
 #include "boxes/photocropbox.h"
-#include "ui/filedialog.h"
+#include "core/file_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
-#include "ui/buttons/peer_avatar_button.h"
+#include "ui/special_buttons.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "observer_peer.h"
+#include "auth_session.h"
 
 AddContactBox::AddContactBox(QWidget*, QString fname, QString lname, QString phone)
 : _first(this, st::defaultInputField, lang(lng_signup_firstname), fname)
@@ -194,7 +194,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	auto &d = res.c_contacts_importedContacts();
 	App::feedUsers(d.vusers);
 
-	auto &v = d.vimported.c_vector().v;
+	auto &v = d.vimported.v;
 	UserData *user = nullptr;
 	if (!v.isEmpty()) {
 		const auto &c(v.front().c_importedContact());
@@ -270,16 +270,33 @@ void GroupInfoBox::prepare() {
 	addButton(lang(_creating == CreatingGroupChannel ? lng_create_group_create : lng_create_group_next), [this] { onNext(); });
 	addButton(lang(_fromTypeChoose ? lng_create_group_back : lng_cancel), [this] { closeBox(); });
 
-	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
-		auto imgExtensions = cImgExtensions();
-		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + filedialogAllFilesFilter();
-		_setPhotoFileQueryId = FileDialog::queryReadFile(lang(lng_choose_image), filter);
-	}));
-	subscribe(FileDialog::QueryDone(), [this](const FileDialog::QueryUpdate &update) {
-		notifyFileQueryUpdated(update);
-	});
+	setupPhotoButton();
 
 	updateMaxHeight();
+}
+
+void GroupInfoBox::setupPhotoButton() {
+	_photo->setClickedCallback(App::LambdaDelayed(st::defaultActiveButton.ripple.hideDuration, this, [this] {
+		auto imgExtensions = cImgExtensions();
+		auto filter = qsl("Image files (*") + imgExtensions.join(qsl(" *")) + qsl(");;") + FileDialog::AllFilesFilter();
+		FileDialog::GetOpenPath(lang(lng_choose_image), filter, base::lambda_guarded(this, [this](const FileDialog::OpenResult &result) {
+			if (result.remoteContent.isEmpty() && result.paths.isEmpty()) {
+				return;
+			}
+
+			QImage img;
+			if (!result.remoteContent.isEmpty()) {
+				img = App::readImage(result.remoteContent);
+			} else {
+				img = App::readImage(result.paths.front());
+			}
+			if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
+				return;
+			}
+			auto box = Ui::show(Box<PhotoCropBox>(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0)), KeepOtherLayers);
+			connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
+		}));
+	}));
 }
 
 void GroupInfoBox::setInnerFocus() {
@@ -335,8 +352,8 @@ void GroupInfoBox::creationDone(const MTPUpdates &updates) {
 
 	const QVector<MTPChat> *v = 0;
 	switch (updates.type()) {
-	case mtpc_updates: v = &updates.c_updates().vchats.c_vector().v; break;
-	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.c_vector().v; break;
+	case mtpc_updates: v = &updates.c_updates().vchats.v; break;
+	case mtpc_updatesCombined: v = &updates.c_updatesCombined().vchats.v; break;
 	default: LOG(("API Error: unexpected update cons %1 (GroupInfoBox::creationDone)").arg(updates.type())); break;
 	}
 
@@ -392,28 +409,6 @@ void GroupInfoBox::updateMaxHeight() {
 		newHeight += st::newGroupDescriptionPadding.top() + _description->height() + st::newGroupDescriptionPadding.bottom();
 	}
 	setDimensions(st::boxWideWidth, newHeight);
-}
-
-void GroupInfoBox::notifyFileQueryUpdated(const FileDialog::QueryUpdate &update) {
-	if (_setPhotoFileQueryId != update.queryId) {
-		return;
-	}
-	_setPhotoFileQueryId = 0;
-	if (update.remoteContent.isEmpty() && update.filePaths.isEmpty()) {
-		return;
-	}
-
-	QImage img;
-	if (!update.remoteContent.isEmpty()) {
-		img = App::readImage(update.remoteContent);
-	} else {
-		img = App::readImage(update.filePaths.front());
-	}
-	if (img.isNull() || img.width() > 10 * img.height() || img.height() > 10 * img.width()) {
-		return;
-	}
-	auto box = Ui::show(Box<PhotoCropBox>(img, (_creating == CreatingGroupChannel) ? peerFromChannel(0) : peerFromChat(0)), KeepOtherLayers);
-	connect(box, SIGNAL(ready(const QImage&)), this, SLOT(onPhotoReady(const QImage&)));
 }
 
 void GroupInfoBox::onPhotoReady(const QImage &img) {
@@ -541,7 +536,7 @@ void SetupChannelBox::mouseMoveEvent(QMouseEvent *e) {
 
 void SetupChannelBox::mousePressEvent(QMouseEvent *e) {
 	if (_linkOver) {
-		Application::clipboard()->setText(_channel->inviteLink());
+		QGuiApplication::clipboard()->setText(_channel->inviteLink());
 		Ui::Toast::Show(lang(lng_create_channel_link_copied));
 	}
 }
@@ -1111,11 +1106,11 @@ void EditChannelBox::onSaveSignDone(const MTPUpdates &updates) {
 	closeBox();
 }
 
-RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> &&revokeCallback)
+RevokePublicLinkBox::RevokePublicLinkBox(QWidget*, base::lambda<void()> revokeCallback)
 : _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _revokeWidth(st::normalFont->width(lang(lng_channels_too_much_public_revoke)))
 , _aboutRevoke(this, lang(lng_channels_too_much_public_about), Ui::FlatLabel::InitType::Simple, st::aboutRevokePublicLabel)
-, _revokeCallback(std_::move(revokeCallback)) {
+, _revokeCallback(std::move(revokeCallback)) {
 }
 
 void RevokePublicLinkBox::prepare() {
@@ -1125,7 +1120,7 @@ void RevokePublicLinkBox::prepare() {
 
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	subscribe(FileDownload::ImageLoaded(), [this] { update(); });
+	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] { update(); });
 
 	updateMaxHeight();
 }
@@ -1223,7 +1218,7 @@ void RevokePublicLinkBox::paintChat(Painter &p, const ChatRow &row, bool selecte
 
 void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 	if (auto chats = Api::getChatsFromMessagesChats(result)) {
-		for_const (auto &chat, chats->c_vector().v) {
+		for_const (auto &chat, chats->v) {
 			if (auto peer = App::feedChat(chat)) {
 				if (!peer->isChannel() || peer->userName().isEmpty()) continue;
 
@@ -1231,7 +1226,7 @@ void RevokePublicLinkBox::getPublicDone(const MTPmessages_Chats &result) {
 				row.peer = peer;
 				row.name.setText(st::contactsNameStyle, peer->name, _textNameOptions);
 				row.status.setText(st::defaultTextStyle, CreateInternalLink(textcmdLink(1, peer->userName())), _textDlgOptions);
-				_rows.push_back(std_::move(row));
+				_rows.push_back(std::move(row));
 			}
 		}
 	}

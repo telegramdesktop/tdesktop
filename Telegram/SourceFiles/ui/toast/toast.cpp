@@ -18,7 +18,6 @@ to link the code of portions of this program with the OpenSSL library.
 Full license: https://github.com/telegramdesktop/tdesktop/blob/master/LICENSE
 Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
-#include "stdafx.h"
 #include "ui/toast/toast.h"
 
 #include "ui/toast/toast_manager.h"
@@ -30,14 +29,14 @@ namespace Toast {
 
 Instance::Instance(const Config &config, QWidget *widgetParent, const Private &)
 : _hideAtMs(getms(true) + config.durationMs) {
-	_widget = std_::make_unique<internal::Widget>(widgetParent, config);
+	_widget = std::make_unique<internal::Widget>(widgetParent, config);
 	_a_opacity.start([this] { opacityAnimationCallback(); }, 0., 1., st::toastFadeInDuration);
 }
 
 void Show(QWidget *parent, const Config &config) {
 	if (auto manager = internal::Manager::instance(parent)) {
-		auto toast = std_::make_unique<Instance>(config, parent, Instance::Private());
-		manager->addToast(std_::move(toast));
+		auto toast = std::make_unique<Instance>(config, parent, Instance::Private());
+		manager->addToast(std::move(toast));
 	}
 }
 
