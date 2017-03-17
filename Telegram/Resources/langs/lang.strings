@@ -406,6 +406,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";
+"lng_settings_groups_invite_privacy" = "Groups invite privacy";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -455,6 +456,16 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
+
+"lng_edit_privacy_groups_title" = "Group invite privacy";
+"lng_edit_privacy_groups_everyone" = "Anyone can invite me to groups and channels";
+"lng_edit_privacy_groups_contacts" = "Only contacts can invite me to groups and channels";
+"lng_edit_privacy_groups_description" = "You can restrict who can add you to groups and channels with granular precision.";
+"lng_edit_privacy_groups_always" = "Always allow{count:| # user| # users}";
+"lng_edit_privacy_groups_never" = "Never allow{count:| # user| # users}";
+"lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
+"lng_edit_privacy_groups_always_title" = "Always allow";
+"lng_edit_privacy_groups_never_title" = "Never allow";
 
 "lng_preview_loading" = "Getting Link Info...";
 

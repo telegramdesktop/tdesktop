@@ -74,7 +74,6 @@ void PrivacyExceptionsBoxController::prepareViewHook() {
 
 void PrivacyExceptionsBoxController::rowClicked(PeerListBox::Row *row) {
 	view()->setRowChecked(row, !row->checked());
-	view()->updateRow(row);
 }
 
 std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxController::createRow(History *history) {
@@ -190,12 +189,12 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 		auto value = static_cast<int>(Option::Everyone);
 		auto selected = false;
 		auto fake = object_ptr<OptionWidget>(nullptr, value, selected, label, description);
-		fake->resizeToWidth(newWidth);
+		fake->resizeToNaturalWidth(newWidth - st::editPrivacyOptionMargin.left() - st::editPrivacyOptionMargin.right());
 		return st::editPrivacyOptionMargin.top() + fake->heightNoMargins() + st::editPrivacyOptionMargin.bottom();
 	};
 	auto labelHeight = [this, newWidth](const QString &text, const style::FlatLabel &st) {
 		auto fake = object_ptr<Ui::FlatLabel>(nullptr, text, Ui::FlatLabel::InitType::Simple, st);
-		fake->resizeToWidth(newWidth);
+		fake->resizeToNaturalWidth(newWidth - st::editPrivacyPadding.left() - st::editPrivacyPadding.right());
 		return st::editPrivacyPadding.top() + fake->heightNoMargins() + st::editPrivacyPadding.bottom();
 	};
 	auto linkMargins = exceptionLinkMargins();

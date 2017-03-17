@@ -141,9 +141,14 @@ void PeerListBox::setRowChecked(Row *row, bool checked) {
 	if (checked) {
 		addSelectItem(peer, Row::SetStyle::Animated);
 		_inner->changeCheckState(row, checked, Row::SetStyle::Animated);
+		updateRow(row);
+
+		// This call deletes row from _globalSearchRows.
+		_select->entity()->clearQuery();
 	} else {
 		// The itemRemovedCallback will call changeCheckState() here.
 		_select->entity()->removeItem(peer->id);
+		updateRow(row);
 	}
 }
 

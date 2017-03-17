@@ -265,4 +265,49 @@ QString LastSeenPrivacyController::exceptionsDescription() {
 	return lang(lng_edit_privacy_lastseen_exceptions);
 }
 
+MTPInputPrivacyKey GroupsInvitePrivacyController::key() {
+	return MTP_inputPrivacyKeyChatInvite();
+}
+
+void GroupsInvitePrivacyController::save(QVector<MTPInputPrivacyRule> &&result) {
+	MTP::send(MTPaccount_SetPrivacy(MTP_inputPrivacyKeyChatInvite(), MTP_vector<MTPInputPrivacyRule>(result)));
+	view()->closeBox();
+}
+
+QString GroupsInvitePrivacyController::title() {
+	return lang(lng_edit_privacy_groups_title);
+}
+
+QString GroupsInvitePrivacyController::optionDescription(Option option) {
+	switch (option) {
+	case Option::Everyone: return lang(lng_edit_privacy_groups_everyone);
+	case Option::Contacts: return lang(lng_edit_privacy_groups_contacts);
+	}
+	return QString();
+}
+
+QString GroupsInvitePrivacyController::description() {
+	return lang(lng_edit_privacy_groups_description);
+}
+
+QString GroupsInvitePrivacyController::exceptionLinkText(Exception exception, int count) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_groups_always(lt_count, count);
+	case Exception::Never: return lng_edit_privacy_groups_never(lt_count, count);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString GroupsInvitePrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_groups_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_groups_never_title);
+	}
+	Unexpected("Invalid exception value.");
+}
+
+QString GroupsInvitePrivacyController::exceptionsDescription() {
+	return lang(lng_edit_privacy_groups_exceptions);
+}
+
 } // namespace Settings
