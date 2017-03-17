@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class RippleAnimation;
+class RoundImageCheckbox;
 class MultiSelect;
 template <typename Widget>
 class WidgetSlideWrap;
@@ -40,7 +41,15 @@ public:
 	public:
 		Row(PeerData *peer);
 
-		void setDisabled(bool disabled);
+		void setDisabled(bool disabled) {
+			_disabled = disabled;
+		}
+
+		// Checked state is controlled by the box with multiselect,
+		// not by the row itself, so there is no setChecked() method.
+		// We can query the checked state from row, but before it is
+		// added to the box it is always false.
+		bool checked() const;
 
 		void setActionLink(const QString &action);
 		PeerData *peer() const {
@@ -54,6 +63,7 @@ public:
 
 	private:
 		// Inner interface.
+		friend class PeerListBox;
 		friend class Inner;
 
 		void refreshName();
@@ -90,10 +100,25 @@ public:
 			_isGlobalSearchResult = isGlobalSearchResult;
 		}
 
+		enum class SetStyle {
+			Animated,
+			Fast,
+		};
+		template <typename UpdateCallback>
+		void setChecked(bool checked, SetStyle style, UpdateCallback callback) {
+			if (checked && !_checkbox) {
+				createCheckbox(std::move(callback));
+			}
+			setCheckedInternal(checked, style);
+		}
+		void invalidatePixmapsCache();
+
 		template <typename UpdateCallback>
 		void addRipple(QSize size, QPoint point, UpdateCallback updateCallback);
 		void stopLastRipple();
-		void paintRipple(Painter &p, int x, int y, int outerWidth, TimeMs ms);
+		void paintRipple(Painter &p, TimeMs ms, int x, int y, int outerWidth);
+		void paintUserpic(Painter &p, TimeMs ms, int x, int y, int outerWidth);
+		float64 checkedRatio();
 
 		void setNameFirstChars(const OrderedSet<QChar> &nameFirstChars) {
 			_nameFirstChars = nameFirstChars;
@@ -105,9 +130,14 @@ public:
 		void lazyInitialize();
 
 	private:
+		void createCheckbox(base::lambda<void()> updateCallback);
+		void setCheckedInternal(bool checked, SetStyle style);
+		void paintDisabledCheckUserpic(Painter &p, int x, int y, int outerWidth) const;
+
 		PeerData *_peer = nullptr;
 		bool _initialized = false;
 		std::unique_ptr<Ui::RippleAnimation> _ripple;
+		std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 		Text _name;
 		QString _status;
 		StatusType _statusType = StatusType::Online;
@@ -123,8 +153,8 @@ public:
 	class Controller {
 	public:
 		virtual void prepare() = 0;
-		virtual void rowClicked(PeerData *peer) = 0;
-		virtual void rowActionClicked(PeerData *peer) {
+		virtual void rowClicked(Row *row) = 0;
+		virtual void rowActionClicked(Row *row) {
 		}
 		virtual void preloadRows() {
 		}
@@ -148,6 +178,7 @@ public:
 		PeerListBox *_view = nullptr;
 
 		friend class PeerListBox;
+		friend class Inner;
 
 	};
 	PeerListBox(QWidget*, std::unique_ptr<Controller> controller);
@@ -158,6 +189,7 @@ public:
 	Row *findRow(PeerData *peer);
 	void updateRow(Row *row);
 	void removeRow(Row *row);
+	void setRowChecked(Row *row, bool checked);
 	int fullRowsCount() const;
 	void setAboutText(const QString &aboutText);
 	void setAbout(object_ptr<Ui::FlatLabel> about);
@@ -173,9 +205,21 @@ public:
 	void setSearchLoadingText(const QString &searchLoadingText);
 	void setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading);
 
+	template <typename PeerDataRange>
+	void addSelectedRows(PeerDataRange &&range) {
+		Expects(_select != nullptr);
+		for (auto peer : range) {
+			addSelectItem(peer, Row::SetStyle::Fast);
+		}
+		finishSelectItemsBunch();
+	}
+	QVector<PeerData*> collectSelectedRows() const;
+
 	// callback takes two iterators, like [](auto &begin, auto &end).
 	template <typename ReorderCallback>
 	void reorderRows(ReorderCallback &&callback);
+
+	bool isRowSelected(PeerData *peer) const;
 
 protected:
 	void prepare() override;
@@ -185,6 +229,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void addSelectItem(PeerData *peer, Row::SetStyle style);
+	void finishSelectItemsBunch();
 	object_ptr<Ui::WidgetSlideWrap<Ui::MultiSelect>> createMultiSelect();
 	int getTopScrollSkip() const;
 	void updateScrollSkips();
@@ -230,6 +276,8 @@ public:
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> searchNoResults);
 	void setSearchLoading(object_ptr<Ui::FlatLabel> searchLoading);
 
+	void changeCheckState(Row *row, bool checked, Row::SetStyle style);
+
 	template <typename ReorderCallback>
 	void reorderRows(ReorderCallback &&callback) {
 		callback(_rows.begin(), _rows.end());
@@ -257,6 +305,8 @@ protected:
 private:
 	void refreshIndices();
 	void appendGlobalSearchRow(std::unique_ptr<Row> row);
+
+	void invalidatePixmapsCache();
 
 	struct RowIndex {
 		RowIndex() {
@@ -367,3 +417,33 @@ template <typename ReorderCallback>
 inline void PeerListBox::reorderRows(ReorderCallback &&callback) {
 	_inner->reorderRows(std::forward<ReorderCallback>(callback));
 }
+
+class ChatsListBoxController : public PeerListBox::Controller, protected base::Subscriber {
+public:
+	void prepare() override final;
+	std::unique_ptr<PeerListBox::Row> createGlobalRow(PeerData *peer) override final;
+
+protected:
+	class Row : public PeerListBox::Row {
+	public:
+		Row(History *history) : PeerListBox::Row(history->peer), _history(history) {
+		}
+		History *history() const {
+			return _history;
+		}
+
+	private:
+		History *_history = nullptr;
+
+	};
+	virtual std::unique_ptr<Row> createRow(History *history) = 0;
+	virtual void prepareViewHook() = 0;
+	virtual void updateRowHook(Row *row) {
+	}
+
+private:
+	void rebuildRows();
+	void checkForEmptyRows();
+	bool appendRow(History *history);
+
+};

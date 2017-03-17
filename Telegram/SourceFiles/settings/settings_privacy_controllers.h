@@ -28,8 +28,8 @@ namespace Settings {
 class BlockedBoxController : public QObject, public PeerListBox::Controller, private base::Subscriber {
 public:
 	void prepare() override;
-	void rowClicked(PeerData *peer) override;
-	void rowActionClicked(PeerData *peer) override;
+	void rowClicked(PeerListBox::Row *row) override;
+	void rowActionClicked(PeerListBox::Row *row) override;
 	void preloadRows() override;
 
 private:
@@ -50,6 +50,7 @@ private:
 class LastSeenPrivacyController : public EditPrivacyBox::Controller, private base::Subscriber {
 public:
 	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
 
 	MTPInputPrivacyKey key() override;
 	void save(QVector<MTPInputPrivacyRule> &&result) override;
@@ -57,8 +58,8 @@ public:
 	QString title() override;
 	QString optionDescription(Option option) override;
 	QString description() override;
-	QString alwaysLinkText(int count) override;
-	QString neverLinkText(int count) override;
+	QString exceptionLinkText(Exception exception, int count) override;
+	QString exceptionBoxTitle(Exception exception) override;
 	QString exceptionsDescription() override;
 
 };

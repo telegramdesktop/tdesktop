@@ -1012,7 +1012,7 @@ void ContactsBox::Inner::paintDisabledCheckUserpic(Painter &p, PeerData *peer, i
 	auto iconBorderPen = st::contactsPhotoCheckbox.check.border->p;
 	iconBorderPen.setWidth(st::contactsPhotoCheckbox.selectWidth);
 
-	peer->paintUserpicLeft(p, userpicLeft, userpicTop, width(), userpicRadius * 2);
+	peer->paintUserpicLeft(p, userpicLeft, userpicTop, outerWidth, userpicRadius * 2);
 
 	{
 		PainterHighQualityEnabler hq(p);
@@ -1446,7 +1446,7 @@ void ContactsBox::Inner::changeCheckState(Dialogs::Row *row) {
 }
 
 void ContactsBox::Inner::changeCheckState(ContactData *data, PeerData *peer) {
-	t_assert(usingMultiSelect());
+	Expects(usingMultiSelect());
 
 	if (isRowDisabled(peer, data)) {
 	} else if (data->checkbox->checked()) {

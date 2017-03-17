@@ -55,6 +55,7 @@ public:
 
 	void finishAnimation() {
 		_a_height.finish();
+		myEnsureResized(_entity);
 		animationCallback();
 	}
 

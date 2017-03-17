@@ -439,19 +439,19 @@ bool Editor::Inner::readData() {
 				t_assert(!result.error);
 				_newRows->feed(name, result.color);
 				//if (!_newRows->feedFallbackName(name, str_const_toString(row.fallback))) {
-				//	t_assert(!"Row for fallback not found");
+				//	Unexpected("Row for fallback not found");
 				//}
 			} else {
 				auto copyOf = bytesToUtf8(row.value);
 				if (auto result = _existingRows->find(copyOf)) {
 					_newRows->feed(name, *result, copyOf);
 				} else if (!_newRows->feedCopy(name, copyOf)) {
-					t_assert(!"Copy of unknown value in the default palette");
+					Unexpected("Copy of unknown value in the default palette");
 				}
 				t_assert(row.fallback.size() == 0);
 			}
 			if (!_newRows->feedDescription(name, description)) {
-				t_assert(!"Row for description not found");
+				Unexpected("Row for description not found");
 			}
 		}
 	}

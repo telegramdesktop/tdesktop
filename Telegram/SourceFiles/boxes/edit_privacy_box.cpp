@@ -25,7 +25,68 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/widget_slide_wrap.h"
+#include "boxes/peer_list_box.h"
 #include "lang.h"
+
+namespace {
+
+class PrivacyExceptionsBoxController : public ChatsListBoxController {
+public:
+	PrivacyExceptionsBoxController(const QString &title, const QVector<UserData*> &selected, base::lambda_once<void(QVector<UserData*> &&result)> saveCallback);
+	void rowClicked(PeerListBox::Row *row) override;
+
+protected:
+	void prepareViewHook() override;
+	std::unique_ptr<Row> createRow(History *history) override;
+
+private:
+	QString _title;
+	QVector<UserData*> _selected;
+	base::lambda_once<void(QVector<UserData*> &&result)> _saveCallback;
+
+};
+
+PrivacyExceptionsBoxController::PrivacyExceptionsBoxController(const QString &title, const QVector<UserData*> &selected, base::lambda_once<void(QVector<UserData*> &&result)> saveCallback)
+: _title(title)
+, _selected(selected)
+, _saveCallback(std::move(saveCallback)) {
+}
+
+void PrivacyExceptionsBoxController::prepareViewHook() {
+	view()->setTitle(_title);
+	view()->addButton(lang(lng_settings_save), [this] {
+		auto peers = view()->collectSelectedRows();
+		auto users = QVector<UserData*>();
+		if (!peers.empty()) {
+			users.reserve(peers.size());
+			for_const (auto peer, peers) {
+				auto user = peer->asUser();
+				t_assert(user != nullptr);
+				users.push_back(user);
+			}
+		}
+		_saveCallback(std::move(users));
+		view()->closeBox();
+	});
+	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
+	view()->addSelectedRows(_selected);
+}
+
+void PrivacyExceptionsBoxController::rowClicked(PeerListBox::Row *row) {
+	view()->setRowChecked(row, !row->checked());
+	view()->updateRow(row);
+}
+
+std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxController::createRow(History *history) {
+	if (auto user = history->peer->asUser()) {
+		if (!user->isSelf()) {
+			return std::make_unique<Row>(history);
+		}
+	}
+	return std::unique_ptr<Row>();
+}
+
+} // namespace
 
 class EditPrivacyBox::OptionWidget : public TWidget {
 public:
@@ -149,12 +210,34 @@ int EditPrivacyBox::countDefaultHeight(int newWidth) {
 	return height;
 }
 
-void EditPrivacyBox::editAlwaysUsers() {
-	// not implemented
+void EditPrivacyBox::editExceptionUsers(Exception exception) {
+	auto controller = std::make_unique<PrivacyExceptionsBoxController>(_controller->exceptionBoxTitle(exception), exceptionUsers(exception), base::lambda_guarded(this, [this, exception](QVector<UserData*> &&users) {
+		exceptionUsers(exception) = std::move(users);
+		exceptionLink(exception)->entity()->setText(exceptionLinkText(exception));
+		auto removeFrom = ([exception] {
+			switch (exception) {
+			case Exception::Always: return Exception::Never;
+			case Exception::Never: return Exception::Always;
+			}
+			Unexpected("Invalid exception value.");
+		})();
+		auto &removeFromUsers = exceptionUsers(removeFrom);
+		auto removedSome = false;
+		for (auto user : exceptionUsers(exception)) {
+			if (removeFromUsers.contains(user)) {
+				removeFromUsers.erase(std::remove(removeFromUsers.begin(), removeFromUsers.end(), user), removeFromUsers.end());
+				removedSome = true;
+			}
+		}
+		if (removedSome) {
+			exceptionLink(removeFrom)->entity()->setText(exceptionLinkText(removeFrom));
+		}
+	}));
+	Ui::show(Box<PeerListBox>(std::move(controller)), KeepOtherLayers);
 }
 
-void EditPrivacyBox::editNeverUsers() {
-	// not implemented
+QString EditPrivacyBox::exceptionLinkText(Exception exception) {
+	return _controller->exceptionLinkText(exception, exceptionUsers(exception).size());
 }
 
 QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
@@ -169,10 +252,10 @@ QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
 
 	auto result = QVector<MTPInputPrivacyRule>();
 	result.reserve(3);
-	if (showAlwaysLink() && !_alwaysUsers.empty()) {
+	if (showExceptionLink(Exception::Always) && !_alwaysUsers.empty()) {
 		result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_alwaysUsers))));
 	}
-	if (showNeverLink() && !_neverUsers.empty()) {
+	if (showExceptionLink(Exception::Never) && !_neverUsers.empty()) {
 		result.push_back(MTP_inputPrivacyValueDisallowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_neverUsers))));
 	}
 	switch (_option) {
@@ -188,12 +271,28 @@ style::margins EditPrivacyBox::exceptionLinkMargins() const {
 	return st::editPrivacyLinkMargin;
 }
 
-bool EditPrivacyBox::showAlwaysLink() const {
-	return (_option == Option::Contacts) || (_option == Option::Nobody);
+QVector<UserData*> &EditPrivacyBox::exceptionUsers(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return _alwaysUsers;
+	case Exception::Never: return _neverUsers;
+	}
+	Unexpected("Invalid exception value.");
 }
 
-bool EditPrivacyBox::showNeverLink() const {
-	return (_option == Option::Everyone) || (_option == Option::Contacts);
+object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> &EditPrivacyBox::exceptionLink(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return _alwaysLink;
+	case Exception::Never: return _neverLink;
+	}
+	Unexpected("Invalid exception value.");
+}
+
+bool EditPrivacyBox::showExceptionLink(Exception exception) const {
+	switch (exception) {
+	case Exception::Always: return (_option == Option::Contacts) || (_option == Option::Nobody);
+	case Exception::Never: return (_option == Option::Everyone) || (_option == Option::Contacts);
+	}
+	Unexpected("Invalid exception value.");
 }
 
 void EditPrivacyBox::createOption(Option option, object_ptr<OptionWidget> &widget, const QString &label) {
@@ -205,8 +304,8 @@ void EditPrivacyBox::createOption(Option option, object_ptr<OptionWidget> &widge
 		widget->setChangedCallback([this, option, widget = widget.data()] {
 			if (widget->checked()) {
 				_option = option;
-				_alwaysLink->toggleAnimated(showAlwaysLink());
-				_neverLink->toggleAnimated(showNeverLink());
+				_alwaysLink->toggleAnimated(showExceptionLink(Exception::Always));
+				_neverLink->toggleAnimated(showExceptionLink(Exception::Never));
 			}
 		});
 	}
@@ -221,22 +320,23 @@ void EditPrivacyBox::createWidgets() {
 	_description.create(this, _controller->description(), Ui::FlatLabel::InitType::Simple, st::editPrivacyLabel);
 
 	_exceptionsTitle.create(this, lang(lng_edit_privacy_exceptions), Ui::FlatLabel::InitType::Simple, st::editPrivacyTitle);
-	auto linkResizedCallback = [this] {
-		resizeGetHeight(width());
+	auto createExceptionLink = [this](Exception exception) {
+		exceptionLink(exception).create(this, object_ptr<Ui::LinkButton>(this, exceptionLinkText(exception)), exceptionLinkMargins(), [this] {
+			resizeGetHeight(width());
+		});
+		exceptionLink(exception)->entity()->setClickedCallback([this, exception] { editExceptionUsers(exception); });
 	};
-	_alwaysLink.create(this, object_ptr<Ui::LinkButton>(this, _controller->alwaysLinkText(_alwaysUsers.size())), exceptionLinkMargins(), linkResizedCallback);
-	_alwaysLink->entity()->setClickedCallback([this] { editAlwaysUsers(); });
-	_neverLink.create(this, object_ptr<Ui::LinkButton>(this, _controller->neverLinkText(_neverUsers.size())), exceptionLinkMargins(), linkResizedCallback);
-	_neverLink->entity()->setClickedCallback([this] { editNeverUsers(); });
+	createExceptionLink(Exception::Always);
+	createExceptionLink(Exception::Never);
 	_exceptionsDescription.create(this, _controller->exceptionsDescription(), Ui::FlatLabel::InitType::Simple, st::editPrivacyLabel);
 
-	addButton(lang(lng_settings_save), [this] {
-		_controller->save(collectResult());
-	});
+	clearButtons();
+	addButton(lang(lng_settings_save), [this] { _controller->save(collectResult()); });
+	addButton(lang(lng_cancel), [this] { closeBox(); });
 
 	showChildren();
-	_alwaysLink->toggleFast(showAlwaysLink());
-	_neverLink->toggleFast(showNeverLink());
+	_alwaysLink->toggleFast(showExceptionLink(Exception::Always));
+	_neverLink->toggleFast(showExceptionLink(Exception::Never));
 
 	setDimensions(st::boxWideWidth, resizeGetHeight(st::boxWideWidth));
 }

@@ -402,7 +402,16 @@ QString MultiSelect::getQuery() const {
 }
 
 void MultiSelect::addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way) {
-	_inner->addItem(std::make_unique<Inner::Item>(_st.item, itemId, text, color, std::move(paintRoundImage)), way);
+	addItemInBunch(itemId, text, color, std::move(paintRoundImage));
+	_inner->finishItemsBunch(way);
+}
+
+void MultiSelect::addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage) {
+	_inner->addItemInBunch(std::make_unique<Inner::Item>(_st.item, itemId, text, color, std::move(paintRoundImage)));
+}
+
+void MultiSelect::finishItemsBunch() {
+	_inner->finishItemsBunch(AddItemWay::SkipAnimation);
 }
 
 void MultiSelect::setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback) {
@@ -411,6 +420,18 @@ void MultiSelect::setItemRemovedCallback(base::lambda<void(uint64 itemId)> callb
 
 void MultiSelect::removeItem(uint64 itemId) {
 	_inner->removeItem(itemId);
+}
+
+int MultiSelect::getItemsCount() const {
+	return _inner->getItemsCount();
+}
+
+QVector<uint64> MultiSelect::getItems() const {
+	return _inner->getItems();
+}
+
+bool MultiSelect::hasItem(uint64 itemId) const {
+	return _inner->hasItem(itemId);
 }
 
 int MultiSelect::resizeGetHeight(int newWidth) {
@@ -572,7 +593,7 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 	auto checkRect = myrtlrect(paintRect);
 	auto paintMargins = itemPaintMargins();
 	for (auto i = _removingItems.begin(), e = _removingItems.end(); i != e;) {
-		auto item = *i;
+		auto &item = *i;
 		auto itemRect = item->paintArea(outerWidth);
 		itemRect = itemRect.marginsAdded(paintMargins);
 		if (checkRect.intersects(itemRect)) {
@@ -585,7 +606,7 @@ void MultiSelect::Inner::paintEvent(QPaintEvent *e) {
 			++i;
 		}
 	}
-	for_const (auto item, _items) {
+	for_const (auto &item, _items) {
 		auto itemRect = item->paintArea(outerWidth);
 		itemRect = itemRect.marginsAdded(paintMargins);
 		if (checkRect.y() + checkRect.height() <= itemRect.y()) {
@@ -615,7 +636,7 @@ void MultiSelect::Inner::mouseMoveEvent(QMouseEvent *e) {
 
 void MultiSelect::Inner::keyPressEvent(QKeyEvent *e) {
 	if (_active >= 0) {
-		t_assert(_active < _items.size());
+		Expects(_active < _items.size());
 		if (e->key() == Qt::Key_Delete || e->key() == Qt::Key_Backspace) {
 			auto itemId = _items[_active]->id();
 			setActiveItemNext();
@@ -643,7 +664,7 @@ void MultiSelect::Inner::onFieldFocused() {
 void MultiSelect::Inner::updateSelection(QPoint mousePosition) {
 	auto point = myrtlpoint(mousePosition) - QPoint(_st.padding.left(), _st.padding.right());
 	auto selected = -1;
-	for (auto i = 0, size = _items.size(); i != size; ++i) {
+	for (auto i = 0, count = int(_items.size()); i != count; ++i) {
 		auto itemRect = _items[i]->rect();
 		if (itemRect.y() > point.y()) {
 			break;
@@ -674,8 +695,8 @@ void MultiSelect::Inner::updateSelection(QPoint mousePosition) {
 
 void MultiSelect::Inner::mousePressEvent(QMouseEvent *e) {
 	if (_overDelete) {
-		t_assert(_selected >= 0);
-		t_assert(_selected < _items.size());
+		Expects(_selected >= 0);
+		Expects(_selected < _items.size());
 		removeItem(_items[_selected]->id());
 	} else if (_selected >= 0) {
 		setActiveItem(_selected);
@@ -684,7 +705,7 @@ void MultiSelect::Inner::mousePressEvent(QMouseEvent *e) {
 	}
 }
 
-void MultiSelect::Inner::addItem(std::unique_ptr<Item> item, AddItemWay way) {
+void MultiSelect::Inner::addItemInBunch(std::unique_ptr<Item> item) {
 	auto wasEmpty = _items.empty();
 	item->setUpdateCallback([this, item = item.get()] {
 		auto itemRect = item->paintArea(width() - _st.padding.left() - _st.padding.top());
@@ -692,11 +713,15 @@ void MultiSelect::Inner::addItem(std::unique_ptr<Item> item, AddItemWay way) {
 		itemRect = itemRect.marginsAdded(itemPaintMargins());
 		rtlupdate(itemRect);
 	});
-	_items.push_back(item.release());
-	updateItemsGeometry();
+	_idsMap.insert(item->id());
+	_items.push_back(std::move(item));
 	if (wasEmpty) {
 		updateHasAnyItems(true);
 	}
+}
+
+void MultiSelect::Inner::finishItemsBunch(AddItemWay way) {
+	updateItemsGeometry();
 	if (way != AddItemWay::SkipAnimation) {
 		_items.back()->showAnimated();
 	} else {
@@ -712,7 +737,7 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 	auto itemTop = 0;
 	auto widthLeft = newWidth;
 	auto maxVisiblePadding = qMax(_st.padding.left(), _st.padding.right());
-	for_const (auto item, _items) {
+	for_const (auto &item, _items) {
 		auto itemWidth = item->getWidth();
 		t_assert(itemWidth <= newWidth);
 		if (itemWidth > widthLeft) {
@@ -738,8 +763,6 @@ void MultiSelect::Inner::computeItemsGeometry(int newWidth) {
 }
 
 void MultiSelect::Inner::updateItemsGeometry() {
-	computeItemsGeometry(width());
-	updateFieldGeometry();
 	auto newHeight = resizeGetHeight(width());
 	if (newHeight == _newHeight) return;
 
@@ -764,8 +787,7 @@ void MultiSelect::Inner::finishHeightAnimation() {
 }
 
 void MultiSelect::Inner::setItemText(uint64 itemId, const QString &text) {
-	for (int i = 0, count = _items.size(); i != count; ++i) {
-		auto item = _items[i];
+	for_const (auto &item, _items) {
 		if (item->id() == itemId) {
 			item->setText(text);
 			updateItemsGeometry();
@@ -783,18 +805,23 @@ void MultiSelect::Inner::setResizedCallback(base::lambda<void(int heightDelta)> 
 }
 
 void MultiSelect::Inner::removeItem(uint64 itemId) {
-	for (int i = 0, count = _items.size(); i != count; ++i) {
-		auto item = _items[i];
+	auto found = false;
+	for (auto i = 0, count = int(_items.size()); i != count; ++i) {
+		auto &item = _items[i];
 		if (item->id() == itemId) {
+			found = true;
 			clearSelection();
-			_items.removeAt(i);
+
+			item->hideAnimated();
+			_idsMap.erase(item->id());
+			auto inserted = _removingItems.insert(std::move(item));
+			_items.erase(_items.begin() + i);
+
 			if (_active == i) {
 				_active = -1;
 			} else if (_active > i) {
 				--_active;
 			}
-			_removingItems.insert(item);
-			item->hideAnimated();
 
 			updateItemsGeometry();
 			if (_items.empty()) {
@@ -809,19 +836,28 @@ void MultiSelect::Inner::removeItem(uint64 itemId) {
 			break;
 		}
 	}
-	if (_itemRemovedCallback) {
+	if (found && _itemRemovedCallback) {
 		_itemRemovedCallback(itemId);
 	}
 	setInnerFocus();
 }
 
-MultiSelect::Inner::~Inner() {
-	for (auto item : base::take(_items)) {
-		delete item;
-	}
-	for (auto item : base::take(_removingItems)) {
-		delete item;
-	}
+int MultiSelect::Inner::getItemsCount() const {
+	return _items.size();
 }
+
+QVector<uint64> MultiSelect::Inner::getItems() const {
+	auto result = QVector<uint64>();
+	result.reserve(_items.size());
+	for_const (auto &item, _items) {
+		result.push_back(item->id());
+	}
+	return result;
+}
+
+bool MultiSelect::Inner::hasItem(uint64 itemId) const {
+	return _idsMap.find(itemId) != _idsMap.cend();
+}
+
 
 } // namespace Ui

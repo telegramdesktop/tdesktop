@@ -72,7 +72,7 @@ void fillCodes() {
 		Ui::show(Box<InformBox>(DebugLogging::FileLoader() ? qsl("Enabled file download logging") : qsl("Disabled file download logging")));
 	});
 	Codes.insert(qsl("crashplease"), []() {
-		t_assert(!"Crashed in Settings!");
+		Unexpected("Crashed in Settings!");
 	});
 	Codes.insert(qsl("workmode"), []() {
 		auto text = Global::DialogsModeEnabled() ? qsl("Disable work mode?") : qsl("Enable work mode?");

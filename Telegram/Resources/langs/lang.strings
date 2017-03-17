@@ -405,7 +405,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_save" = "Save";
 
 "lng_settings_blocked_users" = "Blocked users";
-"lng_settings_last_seen_privacy" = "Last Seen privacy";
+"lng_settings_last_seen_privacy" = "Last seen privacy";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -453,6 +453,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_lastseen_always" = "Always share with{count:| # user| # users}";
 "lng_edit_privacy_lastseen_never" = "Never share with{count:| # user| # users}";
 "lng_edit_privacy_lastseen_exceptions" = "These settings will override the values above.";
+"lng_edit_privacy_lastseen_always_title" = "Always share with";
+"lng_edit_privacy_lastseen_never_title" = "Never share with";
 
 "lng_preview_loading" = "Getting Link Info...";
 

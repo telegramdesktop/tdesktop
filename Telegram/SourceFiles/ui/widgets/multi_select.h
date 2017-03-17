@@ -46,10 +46,16 @@ public:
 	};
 	using PaintRoundImage = base::lambda<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	void addItem(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage, AddItemWay way = AddItemWay::Default);
+	void addItemInBunch(uint64 itemId, const QString &text, style::color color, PaintRoundImage paintRoundImage);
+	void finishItemsBunch();
 	void setItemText(uint64 itemId, const QString &text);
 
 	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback);
 	void removeItem(uint64 itemId);
+
+	int getItemsCount() const;
+	QVector<uint64> getItems() const;
+	bool hasItem(uint64 itemId) const;
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -86,15 +92,18 @@ public:
 	void setSubmittedCallback(base::lambda<void(bool ctrlShiftEnter)> callback);
 
 	class Item;
-	void addItem(std::unique_ptr<Item> item, AddItemWay way);
+	void addItemInBunch(std::unique_ptr<Item> item);
+	void finishItemsBunch(AddItemWay way);
 	void setItemText(uint64 itemId, const QString &text);
 
 	void setItemRemovedCallback(base::lambda<void(uint64 itemId)> callback);
 	void removeItem(uint64 itemId);
 
-	void setResizedCallback(base::lambda<void(int heightDelta)> callback);
+	int getItemsCount() const;
+	QVector<uint64> getItems() const;
+	bool hasItem(uint64 itemId) const;
 
-	~Inner();
+	void setResizedCallback(base::lambda<void(int heightDelta)> callback);
 
 protected:
 	int resizeGetHeight(int newWidth) override;
@@ -141,10 +150,9 @@ private:
 
 	ScrollCallback _scrollCallback;
 
-	using Items = QList<Item*>;
-	Items _items;
-	using RemovingItems = OrderedSet<Item*>;
-	RemovingItems _removingItems;
+	std::set<uint64> _idsMap;
+	std::vector<std::unique_ptr<Item>> _items;
+	std::set<std::unique_ptr<Item>> _removingItems;
 
 	int _selected = -1;
 	int _active = -1;

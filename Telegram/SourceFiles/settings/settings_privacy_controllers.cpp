@@ -24,60 +24,33 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "apiwrap.h"
 #include "observer_peer.h"
 #include "mainwidget.h"
-#include "dialogs/dialogs_indexed_list.h"
-#include "auth_session.h"
 
 namespace Settings {
 namespace {
 
 constexpr auto kBlockedPerPage = 40;
 
-class BlockUserBoxController : public PeerListBox::Controller, private base::Subscriber {
+class BlockUserBoxController : public ChatsListBoxController {
 public:
-	void prepare() override;
-	void rowClicked(PeerData *peer) override;
-	std::unique_ptr<PeerListBox::Row> createGlobalRow(PeerData *peer) override;
+	void rowClicked(PeerListBox::Row *row) override;
+
+protected:
+	void prepareViewHook() override;
+	std::unique_ptr<Row> createRow(History *history) override;
+	void updateRowHook(Row *row) override {
+		updateIsBlocked(row, row->peer()->asUser());
+		view()->updateRow(row);
+	}
 
 private:
-	void rebuildRows();
-	void checkForEmptyRows();
 	void updateIsBlocked(PeerListBox::Row *row, UserData *user) const;
-	bool appendRow(History *history);
-
-	class Row : public PeerListBox::Row {
-	public:
-		Row(History *history) : PeerListBox::Row(history->peer), _history(history) {
-		}
-		History *history() const {
-			return _history;
-		}
-
-	private:
-		History *_history = nullptr;
-
-	};
-	std::unique_ptr<Row> createRow(History *history) const;
 
 };
 
-void BlockUserBoxController::prepare() {
+void BlockUserBoxController::prepareViewHook() {
 	view()->setTitle(lang(lng_blocked_list_add_title));
 	view()->addButton(lang(lng_cancel), [this] { view()->closeBox(); });
-	view()->setSearchMode(PeerListBox::SearchMode::Global);
-	view()->setSearchNoResultsText(lang(lng_blocked_list_not_found));
 
-	rebuildRows();
-
-	auto &sessionData = AuthSession::Current().data();
-	subscribe(sessionData.contactsLoaded(), [this](bool loaded) {
-		rebuildRows();
-	});
-	subscribe(sessionData.moreChatsLoaded(), [this] {
-		rebuildRows();
-	});
-	subscribe(sessionData.allChatsLoaded(), [this](bool loaded) {
-		checkForEmptyRows();
-	});
 	subscribe(Notify::PeerUpdated(), Notify::PeerUpdatedHandler(Notify::PeerUpdate::Flag::UserIsBlocked, [this](const Notify::PeerUpdate &update) {
 		if (auto user = update.peer->asUser()) {
 			if (auto row = view()->findRow(user)) {
@@ -86,46 +59,6 @@ void BlockUserBoxController::prepare() {
 			}
 		}
 	}));
-}
-
-void BlockUserBoxController::rebuildRows() {
-	auto ms = getms();
-	auto wasEmpty = !view()->fullRowsCount();
-	auto appendList = [this](auto chats) {
-		auto count = 0;
-		for_const (auto row, chats->all()) {
-			auto history = row->history();
-			if (history->peer->isUser()) {
-				if (appendRow(history)) {
-					++count;
-				}
-			}
-		}
-		return count;
-	};
-	auto added = appendList(App::main()->dialogsList());
-	added += appendList(App::main()->contactsNoDialogsList());
-	if (!wasEmpty && added > 0) {
-		view()->reorderRows([](auto &&begin, auto &&end) {
-			// Place dialogs list before contactsNoDialogs list.
-			std::stable_partition(begin, end, [](auto &row) {
-				auto history = static_cast<Row&>(*row).history();
-				return history->inChatList(Dialogs::Mode::All);
-			});
-		});
-	}
-	checkForEmptyRows();
-	view()->refreshRows();
-}
-
-void BlockUserBoxController::checkForEmptyRows() {
-	if (view()->fullRowsCount()) {
-		view()->setAboutText(QString());
-	} else {
-		auto &sessionData = AuthSession::Current().data();
-		auto loaded = sessionData.contactsLoaded().value() && sessionData.allChatsLoaded().value();
-		view()->setAboutText(lang(loaded ? lng_contacts_not_found : lng_contacts_loading));
-	}
 }
 
 void BlockUserBoxController::updateIsBlocked(PeerListBox::Row *row, UserData *user) const {
@@ -138,34 +71,21 @@ void BlockUserBoxController::updateIsBlocked(PeerListBox::Row *row, UserData *us
 	}
 }
 
-void BlockUserBoxController::rowClicked(PeerData *peer) {
-	auto user = peer->asUser();
-	t_assert(user != nullptr);
+void BlockUserBoxController::rowClicked(PeerListBox::Row *row) {
+	auto user = row->peer()->asUser();
+	Expects(user != nullptr);
 
 	App::api()->blockUser(user);
 	view()->closeBox();
 }
 
-std::unique_ptr<PeerListBox::Row> BlockUserBoxController::createGlobalRow(PeerData *peer) {
-	if (auto user = peer->asUser()) {
-		return createRow(App::history(user));
+std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(History *history) {
+	if (auto user = history->peer->asUser()) {
+		auto row = std::make_unique<Row>(history);
+		updateIsBlocked(row.get(), user);
+		return row;
 	}
 	return std::unique_ptr<Row>();
-}
-
-bool BlockUserBoxController::appendRow(History *history) {
-	if (auto row = view()->findRow(history->peer)) {
-		updateIsBlocked(row, history->peer->asUser());
-		return false;
-	}
-	view()->appendRow(createRow(history));
-	return true;
-}
-
-std::unique_ptr<BlockUserBoxController::Row> BlockUserBoxController::createRow(History *history) const {
-	auto row = std::make_unique<Row>(history);
-	updateIsBlocked(row.get(), history->peer->asUser());
-	return row;
 }
 
 } // namespace
@@ -210,7 +130,7 @@ void BlockedBoxController::preloadRows() {
 			_allLoaded = true;
 			receivedUsers(handleContactsBlocked(result.c_contacts_blocked()));
 		} break;
-		default: t_assert(!"Bad type() in MTPcontacts_GetBlocked() result.");
+		default: Unexpected("Bad type() in MTPcontacts_GetBlocked() result.");
 		}
 	})), rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
 		if (MTP::isDefaultHandledError(error)) {
@@ -221,13 +141,13 @@ void BlockedBoxController::preloadRows() {
 	})));
 }
 
-void BlockedBoxController::rowClicked(PeerData *peer) {
-	Ui::showPeerHistoryAsync(peer->id, ShowAtUnreadMsgId);
+void BlockedBoxController::rowClicked(PeerListBox::Row *row) {
+	Ui::showPeerHistoryAsync(row->peer()->id, ShowAtUnreadMsgId);
 }
 
-void BlockedBoxController::rowActionClicked(PeerData *peer) {
-	auto user = peer->asUser();
-	t_assert(user != nullptr);
+void BlockedBoxController::rowActionClicked(PeerListBox::Row *row) {
+	auto user = row->peer()->asUser();
+	Expects(user != nullptr);
 
 	App::api()->unblockUser(user);
 }
@@ -325,12 +245,20 @@ QString LastSeenPrivacyController::description() {
 	return lang(lng_edit_privacy_lastseen_description);
 }
 
-QString LastSeenPrivacyController::alwaysLinkText(int count) {
-	return lng_edit_privacy_lastseen_always(lt_count, count);
+QString LastSeenPrivacyController::exceptionLinkText(Exception exception, int count) {
+	switch (exception) {
+	case Exception::Always: return lng_edit_privacy_lastseen_always(lt_count, count);
+	case Exception::Never: return lng_edit_privacy_lastseen_never(lt_count, count);
+	}
+	Unexpected("Invalid exception value.");
 }
 
-QString LastSeenPrivacyController::neverLinkText(int count) {
-	return lng_edit_privacy_lastseen_never(lt_count, count);
+QString LastSeenPrivacyController::exceptionBoxTitle(Exception exception) {
+	switch (exception) {
+	case Exception::Always: return lang(lng_edit_privacy_lastseen_always_title);
+	case Exception::Never: return lang(lng_edit_privacy_lastseen_never_title);
+	}
+	Unexpected("Invalid exception value.");
 }
 
 QString LastSeenPrivacyController::exceptionsDescription() {

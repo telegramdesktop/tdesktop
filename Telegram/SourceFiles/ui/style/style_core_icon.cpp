@@ -101,7 +101,7 @@ QSize readGeneratedSize(const IconMask *mask, DBIScale scale) {
 			case dbisTwo: return QSize(width * 2, height * 2);
 			}
 		} else {
-			t_assert(!"Bad data in generated icon!");
+			Unexpected("Bad data in generated icon!");
 		}
 	}
 	return QSize();

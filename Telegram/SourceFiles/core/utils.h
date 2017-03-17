@@ -29,13 +29,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 // Release build assertions.
 inline void t_noop() {
 }
-inline void t_assert_fail(const char *message, const char *file, int32 line) {
+[[noreturn]] inline void t_assert_fail(const char *message, const char *file, int32 line) {
 	auto info = qsl("%1 %2:%3").arg(message).arg(file).arg(line);
 	LOG(("Assertion Failed! ") + info);
 	SignalHandlers::setCrashAnnotation("Assertion", info);
 
+	// Crash with access violation and generate crash report.
 	volatile int *t_assert_nullptr = nullptr;
 	*t_assert_nullptr = 0;
+
+	// Silent the possible failure to comply noreturn warning.
+	std::abort();
 }
 #define t_assert_full(condition, message, file, line) ((GSL_UNLIKELY(!(condition))) ? t_assert_fail(message, file, line) : t_noop())
 #define t_assert_c(condition, comment) t_assert_full(condition, "\"" #condition "\" (" comment ")", __FILE__, __LINE__)
@@ -45,13 +49,18 @@ inline void t_assert_fail(const char *message, const char *file, int32 line) {
 // Let them crash with reports and logging.
 #ifdef Expects
 #undef Expects
-#define Expects(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
 #endif // Expects
+#define Expects(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
 
 #ifdef Ensures
 #undef Ensures
-#define Ensures(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
 #endif // Ensures
+#define Ensures(condition) t_assert_full(condition, "\"" #condition "\"", __FILE__, __LINE__)
+
+#ifdef Unexpected
+#undef Unexpected
+#endif // Unexpected
+#define Unexpected(message) t_assert_fail("Unexpected: " message, __FILE__, __LINE__)
 
 // Define specializations for QByteArray for Qt 5.3.2, because
 // QByteArray in Qt 5.3.2 doesn't declare "pointer" subtype.

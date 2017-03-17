@@ -32,9 +32,13 @@ class WidgetSlideWrap;
 class EditPrivacyBox : public BoxContent {
 public:
 	enum class Option {
-		Everyone = 0,
+		Everyone,
 		Contacts,
 		Nobody,
+	};
+	enum class Exception {
+		Always,
+		Never,
 	};
 
 	class Controller {
@@ -47,8 +51,8 @@ public:
 			return QString();
 		}
 		virtual QString description() = 0;
-		virtual QString alwaysLinkText(int count) = 0;
-		virtual QString neverLinkText(int count) = 0;
+		virtual QString exceptionLinkText(Exception exception, int count) = 0;
+		virtual QString exceptionBoxTitle(Exception exception) = 0;
 		virtual QString exceptionsDescription() = 0;
 
 		virtual ~Controller() = default;
@@ -81,17 +85,20 @@ private:
 	class OptionWidget;
 
 	style::margins exceptionLinkMargins() const;
-	bool showAlwaysLink() const;
-	bool showNeverLink() const;
+	bool showExceptionLink(Exception exception) const;
 	void createWidgets();
 	void createOption(Option option, object_ptr<OptionWidget> &widget, const QString &label);
 	QVector<MTPInputPrivacyRule> collectResult();
 	void loadDone(const MTPaccount_PrivacyRules &result);
 	int countDefaultHeight(int newWidth);
-	void editAlwaysUsers();
-	void editNeverUsers();
+
+	void editExceptionUsers(Exception exception);
+	QString exceptionLinkText(Exception exception);
+	QVector<UserData*> &exceptionUsers(Exception exception);
+	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> &exceptionLink(Exception exception);
 
 	std::unique_ptr<Controller> _controller;
+	Option _option = Option::Everyone;
 
 	object_ptr<Ui::FlatLabel> _loading;
 	object_ptr<OptionWidget> _everyone = { nullptr };
@@ -105,7 +112,6 @@ private:
 
 	mtpRequestId _loadRequestId = 0;
 
-	Option _option = Option::Everyone;
 	QVector<UserData*> _alwaysUsers;
 	QVector<UserData*> _neverUsers;
 

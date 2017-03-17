@@ -742,17 +742,15 @@ namespace internal {
 
 namespace internal {
 
-	struct SomeAllocatedMemoryChunk {
-		char data[1024 * 1024];
-	};
-	std::unique_ptr<SomeAllocatedMemoryChunk> SomeAllocatedMemory;
+	using ReservedMemoryChunk = std::array<gsl::byte, 1024 * 1024>;
+	std::unique_ptr<ReservedMemoryChunk> ReservedMemory;
 
 	void InstallOperatorNewHandler() {
-		SomeAllocatedMemory = std::make_unique<SomeAllocatedMemoryChunk>();
+		ReservedMemory = std::make_unique<ReservedMemoryChunk>();
 		std::set_new_handler([] {
 			std::set_new_handler(nullptr);
-			SomeAllocatedMemory.reset();
-			t_assert(!"Could not allocate!");
+			ReservedMemory.reset();
+			Unexpected("Could not allocate!");
 		});
 	}
 

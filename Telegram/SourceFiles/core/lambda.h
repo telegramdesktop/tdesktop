@@ -71,14 +71,13 @@ using alignment = std::max_align_t;
 template <typename Lambda>
 constexpr bool is_large = (sizeof(std::decay_t<Lambda>) > kStorageSize);
 
-inline void bad_construct_copy(void *lambda, const void *source) {
-	t_assert(!"base::lambda bad_construct_copy() called!");
+[[noreturn]] inline void bad_construct_copy(void *lambda, const void *source) {
+	Unexpected("base::lambda bad_construct_copy() called!");
 }
 
 template <typename Return, typename ...Args>
-Return bad_const_call(const void *lambda, Args...) {
-	t_assert(!"base::lambda bad_const_call() called!");
-	return Return();
+[[noreturn]] Return bad_const_call(const void *lambda, Args...) {
+	Unexpected("base::lambda bad_const_call() called!");
 }
 
 template <typename Return, typename ...Args>
