@@ -90,12 +90,8 @@ void BlockWidget::createChildRow(object_ptr<Ui::Checkbox> &child, style::margins
 	connect(child, SIGNAL(changed()), this, slot);
 }
 
-void BlockWidget::createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const std::shared_ptr<Ui::RadiobuttonGroup> &group, int value, const QString &text) {
-	child.create(this, group, value, text, st::defaultBoxCheckbox);
-}
-
 void BlockWidget::createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st) {
-	child .create(this, text, st);
+	child.create(this, text, st);
 	connect(child, SIGNAL(clicked()), this, slot);
 }
 

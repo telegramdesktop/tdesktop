@@ -27,7 +27,10 @@ class InputField;
 class PortInput;
 class PasswordInput;
 class Checkbox;
-class Radiobutton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 } // namespace Ui
 
 class ConnectionBox : public BoxContent {
@@ -43,11 +46,11 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private slots:
-	void onChange();
 	void onSubmit();
 	void onSave();
 
 private:
+	void typeChanged(DBIConnectionType type);
 	void updateControlsVisibility();
 	void updateControlsPosition();
 
@@ -55,9 +58,10 @@ private:
 	object_ptr<Ui::PortInput> _portInput;
 	object_ptr<Ui::InputField> _userInput;
 	object_ptr<Ui::PasswordInput> _passwordInput;
-	object_ptr<Ui::Radiobutton> _autoRadio;
-	object_ptr<Ui::Radiobutton> _httpProxyRadio;
-	object_ptr<Ui::Radiobutton> _tcpProxyRadio;
+	std::shared_ptr<Ui::RadioenumGroup<DBIConnectionType>> _typeGroup;
+	object_ptr<Ui::Radioenum<DBIConnectionType>> _autoRadio;
+	object_ptr<Ui::Radioenum<DBIConnectionType>> _httpProxyRadio;
+	object_ptr<Ui::Radioenum<DBIConnectionType>> _tcpProxyRadio;
 	object_ptr<Ui::Checkbox> _tryIPv6;
 
 };

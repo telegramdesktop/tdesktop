@@ -102,7 +102,11 @@ private slots:
 	void onManageStickerSets();
 
 private:
-	void sendByChanged(int value);
+	enum class SendByType {
+		Enter,
+		CtrlEnter,
+	};
+	void sendByChanged(SendByType value);
 	void createControls();
 
 	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };
@@ -113,8 +117,8 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<DownloadPathState>> _downloadPath = { nullptr };
 #endif // OS_WIN_STORE
 
-	object_ptr<Ui::Radiobutton> _sendByEnter = { nullptr };
-	object_ptr<Ui::Radiobutton> _sendByCtrlEnter = { nullptr };
+	object_ptr<Ui::Radioenum<SendByType>> _sendByEnter = { nullptr };
+	object_ptr<Ui::Radioenum<SendByType>> _sendByCtrlEnter = { nullptr };
 	object_ptr<Ui::LinkButton> _automaticMediaDownloadSettings = { nullptr };
 	object_ptr<Ui::LinkButton> _manageStickerSets = { nullptr };
 

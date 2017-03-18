@@ -30,11 +30,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 
 ReportBox::ReportBox(QWidget*, PeerData *peer) : _peer(peer)
-, _reasonGroup(std::make_shared<Ui::RadiobuttonGroup>(ReasonSpam))
-, _reasonSpam(this, _reasonGroup, ReasonSpam, lang(lng_report_reason_spam), st::defaultBoxCheckbox)
-, _reasonViolence(this, _reasonGroup, ReasonViolence, lang(lng_report_reason_violence), st::defaultBoxCheckbox)
-, _reasonPornography(this, _reasonGroup, ReasonPornography, lang(lng_report_reason_pornography), st::defaultBoxCheckbox)
-, _reasonOther(this, _reasonGroup, ReasonOther, lang(lng_report_reason_other), st::defaultBoxCheckbox) {
+, _reasonGroup(std::make_shared<Ui::RadioenumGroup<Reason>>(Reason::Spam))
+, _reasonSpam(this, _reasonGroup, Reason::Spam, lang(lng_report_reason_spam), st::defaultBoxCheckbox)
+, _reasonViolence(this, _reasonGroup, Reason::Violence, lang(lng_report_reason_violence), st::defaultBoxCheckbox)
+, _reasonPornography(this, _reasonGroup, Reason::Pornography, lang(lng_report_reason_pornography), st::defaultBoxCheckbox)
+, _reasonOther(this, _reasonGroup, Reason::Other, lang(lng_report_reason_other), st::defaultBoxCheckbox) {
 }
 
 void ReportBox::prepare() {
@@ -43,7 +43,7 @@ void ReportBox::prepare() {
 	addButton(lang(lng_report_button), [this] { onReport(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	_reasonGroup->setChangedCallback([this](int value) { reasonChanged(value); });
+	_reasonGroup->setChangedCallback([this](Reason value) { reasonChanged(value); });
 
 	updateMaxHeight();
 }
@@ -61,8 +61,8 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void ReportBox::reasonChanged(int reason) {
-	if (reason == ReasonOther) {
+void ReportBox::reasonChanged(Reason reason) {
+	if (reason == Reason::Other) {
 		if (!_reasonOtherText) {
 			_reasonOtherText.create(this, st::profileReportReasonOther, lang(lng_report_reason_description));
 			_reasonOtherText->show();
@@ -105,10 +105,10 @@ void ReportBox::onReport() {
 
 	auto getReason = [this]() {
 		switch (_reasonGroup->value()) {
-		case ReasonSpam: return MTP_inputReportReasonSpam();
-		case ReasonViolence: return MTP_inputReportReasonViolence();
-		case ReasonPornography: return MTP_inputReportReasonPornography();
-		case ReasonOther: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
+		case Reason::Spam: return MTP_inputReportReasonSpam();
+		case Reason::Violence: return MTP_inputReportReasonViolence();
+		case Reason::Pornography: return MTP_inputReportReasonPornography();
+		case Reason::Other: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
 		}
 		Unexpected("Bad reason group value.");
 	};

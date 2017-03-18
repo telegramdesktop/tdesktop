@@ -25,7 +25,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 class FlatLabel;
 class LinkButton;
-class RadiobuttonGroup;
+template <typename Enum>
+class RadioenumGroup;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
@@ -104,7 +105,7 @@ private:
 	std::unique_ptr<Controller> _controller;
 	Option _option = Option::Everyone;
 
-	std::shared_ptr<Ui::RadiobuttonGroup> _optionGroup;
+	std::shared_ptr<Ui::RadioenumGroup<Option>> _optionGroup;
 	object_ptr<Ui::FlatLabel> _loading;
 	object_ptr<OptionWidget> _everyone = { nullptr };
 	object_ptr<OptionWidget> _contacts = { nullptr };

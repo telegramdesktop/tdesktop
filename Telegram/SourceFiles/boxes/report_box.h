@@ -23,8 +23,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstractbox.h"
 
 namespace Ui {
-class RadiobuttonGroup;
-class Radiobutton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 class InputArea;
 } // namespace Ui
 
@@ -48,7 +50,13 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void reasonChanged(int reason);
+	enum class Reason {
+		Spam,
+		Violence,
+		Pornography,
+		Other,
+	};
+	void reasonChanged(Reason reason);
 	void updateMaxHeight();
 
 	void reportDone(const MTPBool &result);
@@ -56,19 +64,13 @@ private:
 
 	PeerData *_peer;
 
-	std::shared_ptr<Ui::RadiobuttonGroup> _reasonGroup;
-	object_ptr<Ui::Radiobutton> _reasonSpam;
-	object_ptr<Ui::Radiobutton> _reasonViolence;
-	object_ptr<Ui::Radiobutton> _reasonPornography;
-	object_ptr<Ui::Radiobutton> _reasonOther;
+	std::shared_ptr<Ui::RadioenumGroup<Reason>> _reasonGroup;
+	object_ptr<Ui::Radioenum<Reason>> _reasonSpam;
+	object_ptr<Ui::Radioenum<Reason>> _reasonViolence;
+	object_ptr<Ui::Radioenum<Reason>> _reasonPornography;
+	object_ptr<Ui::Radioenum<Reason>> _reasonOther;
 	object_ptr<Ui::InputArea> _reasonOtherText = { nullptr };
 
-	enum Reason {
-		ReasonSpam,
-		ReasonViolence,
-		ReasonPornography,
-		ReasonOther,
-	};
 	mtpRequestId _requestId = 0;
 
 };

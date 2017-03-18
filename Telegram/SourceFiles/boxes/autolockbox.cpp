@@ -34,31 +34,27 @@ void AutoLockBox::prepare() {
 
 	addButton(lang(lng_box_ok), [this] { closeBox(); });
 
-	int opts[] = { 60, 300, 3600, 18000 }, cnt = sizeof(opts) / sizeof(opts[0]);
+	auto options = { 60, 300, 3600, 18000 };
+
+	auto group = std::make_shared<Ui::RadiobuttonGroup>(Global::AutoLock());
 	auto y = st::boxOptionListPadding.top();
-	_options.reserve(cnt);
-	for (auto i = 0; i != cnt; ++i) {
-		auto v = opts[i];
-		_options.push_back(new Ui::Radiobutton(this, qsl("autolock"), v, (v % 3600) ? lng_passcode_autolock_minutes(lt_count, v / 60) : lng_passcode_autolock_hours(lt_count, v / 3600), (Global::AutoLock() == v), st::langsButton));
+	auto count = int(options.size());
+	_options.reserve(count);
+	for (auto seconds : options) {
+		_options.emplace_back(this, group, seconds, (seconds % 3600) ? lng_passcode_autolock_minutes(lt_count, seconds / 60) : lng_passcode_autolock_hours(lt_count, seconds / 3600), st::langsButton);
 		_options.back()->move(st::boxPadding.left() + st::boxOptionListPadding.left(), y);
 		y += _options.back()->heightNoMargins() + st::boxOptionListSkip;
-		connect(_options.back(), SIGNAL(changed()), this, SLOT(onChange()));
 	}
+	group->setChangedCallback([this](int value) { durationChanged(value); });
 
-	setDimensions(st::langsWidth, st::boxOptionListPadding.top() + cnt * st::langsButton.height + (cnt - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
+	setDimensions(st::langsWidth, st::boxOptionListPadding.top() + count * st::langsButton.height + (count - 1) * st::boxOptionListSkip + st::boxOptionListPadding.bottom() + st::boxPadding.bottom());
 }
 
-void AutoLockBox::onChange() {
-	if (!isBoxShown()) return;
+void AutoLockBox::durationChanged(int seconds) {
+	Global::SetAutoLock(seconds);
+	Local::writeUserSettings();
+	Global::RefLocalPasscodeChanged().notify();
 
-	for (int32 i = 0, l = _options.size(); i < l; ++i) {
-		int32 v = _options[i]->val();
-		if (_options[i]->checked()) {
-			Global::SetAutoLock(v);
-			Local::writeUserSettings();
-			Global::RefLocalPasscodeChanged().notify();
-		}
-	}
 	App::wnd()->checkAutoLock();
 	closeBox();
 }

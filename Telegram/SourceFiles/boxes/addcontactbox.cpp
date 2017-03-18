@@ -197,7 +197,7 @@ void AddContactBox::onImportDone(const MTPcontacts_ImportedContacts &res) {
 	auto &v = d.vimported.v;
 	UserData *user = nullptr;
 	if (!v.isEmpty()) {
-		const auto &c(v.front().c_importedContact());
+		auto &c = v.front().c_importedContact();
 		if (c.vclient_id.v != _contactId) return;
 
 		user = App::userLoaded(c.vuser_id.v);
@@ -419,8 +419,9 @@ void GroupInfoBox::onPhotoReady(const QImage &img) {
 SetupChannelBox::SetupChannelBox(QWidget*, ChannelData *channel, bool existing)
 : _channel(channel)
 , _existing(existing)
-, _public(this, qsl("channel_privacy"), 0, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), true, st::defaultBoxCheckbox)
-, _private(this, qsl("channel_privacy"), 1, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), false, st::defaultBoxCheckbox)
+, _privacyGroup(std::make_shared<Ui::RadioenumGroup<Privacy>>(Privacy::Public))
+, _public(this, _privacyGroup, Privacy::Public, lang(channel->isMegagroup() ? lng_create_public_group_title : lng_create_public_channel_title), st::defaultBoxCheckbox)
+, _private(this, _privacyGroup, Privacy::Private, lang(channel->isMegagroup() ? lng_create_private_group_title : lng_create_private_channel_title), st::defaultBoxCheckbox)
 , _aboutPublicWidth(st::boxWideWidth - st::boxPadding.left() - st::boxButtonPadding.right() - st::newGroupPadding.left() - st::defaultBoxCheckbox.textPosition.x())
 , _aboutPublic(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_public_group_about : lng_create_public_channel_about), _defaultOptions, _aboutPublicWidth)
 , _aboutPrivate(st::defaultTextStyle, lang(channel->isMegagroup() ? lng_create_private_group_about : lng_create_private_channel_about), _defaultOptions, _aboutPublicWidth)
@@ -438,13 +439,12 @@ void SetupChannelBox::prepare() {
 	addButton(lang(_existing ? lng_cancel : lng_create_group_skip), [this] { closeBox(); });
 
 	connect(_link, SIGNAL(changed()), this, SLOT(onChange()));
-	_link->setVisible(_public->checked());
+	_link->setVisible(_privacyGroup->value() == Privacy::Public);
 
 	_checkTimer.setSingleShot(true);
 	connect(&_checkTimer, SIGNAL(timeout()), this, SLOT(onCheck()));
 
-	connect(_public, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
-	connect(_private, SIGNAL(changed()), this, SLOT(onPrivacyChange()));
+	_privacyGroup->setChangedCallback([this](Privacy value) { privacyChanged(value); });
 
 	updateMaxHeight();
 }
@@ -459,7 +459,7 @@ void SetupChannelBox::setInnerFocus() {
 
 void SetupChannelBox::updateMaxHeight() {
 	auto newHeight = st::boxPadding.top() + st::newGroupPadding.top() + _public->heightNoMargins() + _aboutPublicHeight + st::newGroupSkip + _private->heightNoMargins() + _aboutPrivate.countHeight(_aboutPublicWidth) + st::newGroupSkip + st::newGroupPadding.bottom();
-	if (!_channel->isMegagroup() || _public->checked()) {
+	if (!_channel->isMegagroup() || _privacyGroup->value() == Privacy::Public) {
 		newHeight += st::newGroupLinkPadding.top() + _link->height() + st::newGroupLinkPadding.bottom();
 	}
 	setDimensions(st::boxWideWidth, newHeight);
@@ -563,7 +563,7 @@ void SetupChannelBox::closeHook() {
 }
 
 void SetupChannelBox::onSave() {
-	if (!_public->checked()) {
+	if (_privacyGroup->value() == Privacy::Private) {
 		if (_existing) {
 			_sentUsername = QString();
 			_saveRequestId = MTP::send(MTPchannels_UpdateUsername(_channel->inputChannel, MTP_string(_sentUsername)), rpcDone(&SetupChannelBox::onUpdateDone), rpcFail(&SetupChannelBox::onUpdateFail));
@@ -633,13 +633,13 @@ void SetupChannelBox::onCheck() {
 	}
 }
 
-void SetupChannelBox::onPrivacyChange() {
-	if (_public->checked()) {
+void SetupChannelBox::privacyChanged(Privacy value) {
+	if (value == Privacy::Public) {
 		if (_tooMuchUsernames) {
-			_private->setChecked(true);
+			_privacyGroup->setValue(Privacy::Private);
 			Ui::show(Box<RevokePublicLinkBox>(base::lambda_guarded(this, [this] {
 				_tooMuchUsernames = false;
-				_public->setChecked(true);
+				_privacyGroup->setValue(Privacy::Public);
 				onCheck();
 			})), KeepOtherLayers);
 			return;
@@ -712,8 +712,7 @@ bool SetupChannelBox::onCheckFail(const RPCError &error) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
-			_private->setChecked(true);
-			onPrivacyChange();
+			_privacyGroup->setValue(Privacy::Private);
 		}
 		return true;
 	} else if (err == qstr("USERNAME_INVALID")) {
@@ -750,8 +749,7 @@ bool SetupChannelBox::onFirstCheckFail(const RPCError &error) {
 			showRevokePublicLinkBoxForEdit();
 		} else {
 			_tooMuchUsernames = true;
-			_private->setChecked(true);
-			onPrivacyChange();
+			_privacyGroup->setValue(Privacy::Private);
 		}
 		return true;
 	}

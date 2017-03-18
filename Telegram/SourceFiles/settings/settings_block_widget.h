@@ -28,6 +28,10 @@ class Checkbox;
 class RadiobuttonGroup;
 class Radiobutton;
 class LinkButton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
@@ -88,27 +92,35 @@ private:
 		margin.setBottom(margin.bottom() - padding.bottom());
 	}
 	void createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
-	void createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const Ui::RadiobuttonGroup &group, int value, const QString &text);
 	void createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
+
+	template <typename Enum>
+	void createChildRow(object_ptr<Ui::Radioenum<Enum>> &child, style::margins &margin, const std::shared_ptr<Ui::RadioenumGroup<Enum>> &group, Enum value, const QString &text) {
+		child.create(this, group, value, text, st::defaultBoxCheckbox);
+	}
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);
 	void rowHeightUpdated();
 
 	template <typename Widget>
-	struct IsWidgetSlideWrap {
-		static constexpr bool value = false;
+	struct IsWidgetSlideWrap : std::false_type {
 	};
 	template <typename Widget>
-	struct IsWidgetSlideWrap<Ui::WidgetSlideWrap<Widget>> {
-		static constexpr bool value = true;
+	struct IsWidgetSlideWrap<Ui::WidgetSlideWrap<Widget>> : std::true_type {
+	};
+	template <typename Widget>
+	struct IsRadioenum : std::false_type {
+	};
+	template <typename Enum>
+	struct IsRadioenum<Ui::Radioenum<Enum>> : std::true_type {
 	};
 
 	template <typename Widget>
 	using NotImplementedYet = std::enable_if_t<
 		!IsWidgetSlideWrap<Widget>::value &&
-		!std::is_same<Widget, Ui::Checkbox>::value &&
-		!std::is_same<Widget, Ui::Radiobutton>::value &&
-		!std::is_same<Widget, Ui::LinkButton>::value>;
+		!IsRadioenum<Widget>::value &&
+		!std::is_same<Ui::Checkbox, Widget>::value &&
+		!std::is_same<Ui::LinkButton, Widget>::value>;
 
 	template <typename Widget, typename... Args, typename = NotImplementedYet<Widget>>
 	void createChildRow(object_ptr<Widget> &child, style::margins &margin, Args&&... args) {

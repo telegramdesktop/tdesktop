@@ -91,6 +91,8 @@ public:
 	}
 	void setValue(int value);
 
+private:
+	friend class Radiobutton;
 	void registerButton(Radiobutton *button) {
 		if (!base::contains(_buttons, button)) {
 			_buttons.push_back(button);
@@ -99,11 +101,6 @@ public:
 	void unregisterButton(Radiobutton *button) {
 		_buttons.erase(std::remove(_buttons.begin(), _buttons.end(), button), _buttons.end());
 	}
-
-private:
-	friend class Radiobutton;
-	void registerButton(Radiobutton *button);
-	void unregisterButton(Radiobutton *button);
 
 	int _value = 0;
 	bool _hasValue = false;
@@ -116,9 +113,6 @@ class Radiobutton : public RippleButton {
 public:
 	Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st = st::defaultCheckbox);
 
-	RadiobuttonGroup *group() const {
-		return _group.get();
-	}
 	QMargins getMargins() const override {
 		return _st.margin;
 	}
@@ -149,6 +143,50 @@ private:
 
 	bool _checked = false;
 	Animation _a_checked;
+
+};
+
+template <typename Enum>
+class Radioenum;
+
+template <typename Enum>
+class RadioenumGroup {
+public:
+	RadioenumGroup() = default;
+	RadioenumGroup(Enum value) : _group(static_cast<int>(value)) {
+	}
+
+	template <typename Callback>
+	void setChangedCallback(Callback &&callback) {
+		_group.setChangedCallback([callback](int value) {
+			callback(static_cast<Enum>(value));
+		});
+	}
+
+	bool hasValue() const {
+		return _group.hasValue();
+	}
+	Enum value() const {
+		return static_cast<Enum>(_group.value());
+	}
+	void setValue(Enum value) {
+		_group.setValue(static_cast<int>(value));
+	}
+
+private:
+	template <typename OtherEnum>
+	friend class Radioenum;
+
+	RadiobuttonGroup _group;
+
+};
+
+template <typename Enum>
+class Radioenum : public Radiobutton {
+public:
+	Radioenum(QWidget *parent, const std::shared_ptr<RadioenumGroup<Enum>> &group, Enum value, const QString &text, const style::Checkbox &st = st::defaultCheckbox)
+		: Radiobutton(parent, std::shared_ptr<RadiobuttonGroup>(group, &group->_group), static_cast<int>(value), text, st) {
+	}
 
 };
 

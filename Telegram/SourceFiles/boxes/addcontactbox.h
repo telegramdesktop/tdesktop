@@ -31,7 +31,10 @@ class PhoneInput;
 class InputArea;
 class UsernameInput;
 class Checkbox;
-class Radiobutton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 class LinkButton;
 class NewAvatarButton;
 } // namespace Ui
@@ -150,9 +153,12 @@ private slots:
 	void onChange();
 	void onCheck();
 
-	void onPrivacyChange();
-
 private:
+	enum class Privacy {
+		Public,
+		Private,
+	};
+	void privacyChanged(Privacy value);
 	void updateSelected(const QPoint &cursorGlobalPosition);
 
 	void onUpdateDone(const MTPBool &result);
@@ -169,8 +175,9 @@ private:
 	ChannelData *_channel = nullptr;
 	bool _existing = false;
 
-	object_ptr<Ui::Radiobutton> _public;
-	object_ptr<Ui::Radiobutton> _private;
+	std::shared_ptr<Ui::RadioenumGroup<Privacy>> _privacyGroup;
+	object_ptr<Ui::Radioenum<Privacy>> _public;
+	object_ptr<Ui::Radioenum<Privacy>> _private;
 	int32 _aboutPublicWidth, _aboutPublicHeight;
 	Text _aboutPublic, _aboutPrivate;
 

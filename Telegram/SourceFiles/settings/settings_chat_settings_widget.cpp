@@ -180,10 +180,10 @@ void ChatSettingsWidget::createControls() {
 	}
 #endif // OS_WIN_STORE
 
-	auto group = std::make_shared<Ui::RadiobuttonGroup>(cCtrlEnter() ? 1 : 0);
-	addChildRow(_sendByEnter, marginSmall, group, 0, lang(lng_settings_send_enter));
-	addChildRow(_sendByCtrlEnter, marginSkip, group, 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), SLOT(onSendByCtrlEnter()), cCtrlEnter());
-	group->setChangedCallback([this](int value) {
+	auto group = std::make_shared<Ui::RadioenumGroup<SendByType>>(cCtrlEnter() ? SendByType::CtrlEnter : SendByType::Enter);
+	addChildRow(_sendByEnter, marginSmall, group, SendByType::Enter, lang(lng_settings_send_enter));
+	addChildRow(_sendByCtrlEnter, marginSkip, group, SendByType::CtrlEnter, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter));
+	group->setChangedCallback([this](SendByType value) {
 		sendByChanged(value);
 	});
 
@@ -210,8 +210,8 @@ void ChatSettingsWidget::onDontAskDownloadPath() {
 #endif // OS_WIN_STORE
 }
 
-void ChatSettingsWidget::sendByChanged(int value) {
-	cSetCtrlEnter(value == 1);
+void ChatSettingsWidget::sendByChanged(SendByType value) {
+	cSetCtrlEnter(value == SendByType::CtrlEnter);
 	if (App::main()) App::main()->ctrlEnterSubmitUpdated();
 	Local::writeUserSettings();
 }

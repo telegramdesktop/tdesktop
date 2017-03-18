@@ -24,7 +24,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "core/observer.h"
 
 namespace Ui {
-class Radiobutton;
+template <typename Enum>
+class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 class LinkButton;
 } // namespace Ui
 
@@ -40,10 +43,24 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private slots:
-	void onChange();
 	void onEditPath();
 
 private:
+	enum class Directory {
+		Downloads,
+		Temp,
+		Custom,
+	};
+	void radioChanged(Directory value);
+	Directory typeFromPath(const QString &path) {
+		if (path.isEmpty()) {
+			return Directory::Downloads;
+		} else if (path == qsl("tmp")) {
+			return Directory::Temp;
+		}
+		return Directory::Custom;
+	}
+
 	void save();
 	void updateControlsVisibility();
 	void setPathText(const QString &text);
@@ -51,9 +68,10 @@ private:
 	QString _path;
 	QByteArray _pathBookmark;
 
-	object_ptr<Ui::Radiobutton> _default;
-	object_ptr<Ui::Radiobutton> _temp;
-	object_ptr<Ui::Radiobutton> _dir;
+	std::shared_ptr<Ui::RadioenumGroup<Directory>> _group;
+	object_ptr<Ui::Radioenum<Directory>> _default;
+	object_ptr<Ui::Radioenum<Directory>> _temp;
+	object_ptr<Ui::Radioenum<Directory>> _dir;
 	object_ptr<Ui::LinkButton> _pathLink;
 
 };

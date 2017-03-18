@@ -35,9 +35,10 @@ ConnectionBox::ConnectionBox(QWidget *parent)
 , _portInput(this, st::connectionPortInputField, lang(lng_connection_port_ph), QString::number(Global::ConnectionProxy().port))
 , _userInput(this, st::connectionUserInputField, lang(lng_connection_user_ph), Global::ConnectionProxy().user)
 , _passwordInput(this, st::connectionPasswordInputField, lang(lng_connection_password_ph), Global::ConnectionProxy().password)
-, _autoRadio(this, qsl("conn_type"), dbictAuto, lang(lng_connection_auto_rb), (Global::ConnectionType() == dbictAuto), st::defaultBoxCheckbox)
-, _httpProxyRadio(this, qsl("conn_type"), dbictHttpProxy, lang(lng_connection_http_proxy_rb), (Global::ConnectionType() == dbictHttpProxy), st::defaultBoxCheckbox)
-, _tcpProxyRadio(this, qsl("conn_type"), dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), (Global::ConnectionType() == dbictTcpProxy), st::defaultBoxCheckbox)
+, _typeGroup(std::make_shared<Ui::RadioenumGroup<DBIConnectionType>>(Global::ConnectionType()))
+, _autoRadio(this, _typeGroup, dbictAuto, lang(lng_connection_auto_rb), st::defaultBoxCheckbox)
+, _httpProxyRadio(this, _typeGroup, dbictHttpProxy, lang(lng_connection_http_proxy_rb), st::defaultBoxCheckbox)
+, _tcpProxyRadio(this, _typeGroup, dbictTcpProxy, lang(lng_connection_tcp_proxy_rb), st::defaultBoxCheckbox)
 , _tryIPv6(this, lang(lng_connection_try_ipv6), Global::TryIPv6(), st::defaultBoxCheckbox) {
 }
 
@@ -47,9 +48,7 @@ void ConnectionBox::prepare() {
 	addButton(lang(lng_connection_save), [this] { onSave(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	connect(_autoRadio, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_httpProxyRadio, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_tcpProxyRadio, SIGNAL(changed()), this, SLOT(onChange()));
+	_typeGroup->setChangedCallback([this](DBIConnectionType value) { typeChanged(value); });
 
 	connect(_hostInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
 	connect(_portInput, SIGNAL(submitted(bool)), this, SLOT(onSubmit()));
@@ -61,17 +60,17 @@ void ConnectionBox::prepare() {
 
 void ConnectionBox::updateControlsVisibility() {
 	auto newHeight = st::boxOptionListPadding.top() + _autoRadio->heightNoMargins() + st::boxOptionListSkip + _httpProxyRadio->heightNoMargins() + st::boxOptionListSkip + _tcpProxyRadio->heightNoMargins() + st::boxOptionListSkip + st::connectionIPv6Skip + _tryIPv6->heightNoMargins() + st::boxOptionListPadding.bottom() + st::boxPadding.bottom();
-	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
+	if (_typeGroup->value() == dbictAuto) {
+		_hostInput->hide();
+		_portInput->hide();
+		_userInput->hide();
+		_passwordInput->hide();
+	} else {
 		newHeight += 2 * st::boxOptionInputSkip + 2 * _hostInput->height();
 		_hostInput->show();
 		_portInput->show();
 		_userInput->show();
 		_passwordInput->show();
-	} else {
-		_hostInput->hide();
-		_portInput->hide();
-		_userInput->hide();
-		_passwordInput->hide();
 	}
 
 	setDimensions(st::boxWidth, newHeight);
@@ -93,16 +92,17 @@ void ConnectionBox::resizeEvent(QResizeEvent *e) {
 }
 
 void ConnectionBox::updateControlsPosition() {
+	auto type = _typeGroup->value();
 	_autoRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), st::boxOptionListPadding.top());
 	_httpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _autoRadio->bottomNoMargins() + st::boxOptionListSkip);
 
-	int32 inputy = 0;
-	if (_httpProxyRadio->checked()) {
+	auto inputy = 0;
+	if (type == dbictHttpProxy) {
 		inputy = _httpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), inputy + st::boxOptionInputSkip + 2 * _hostInput->height() + st::boxOptionListSkip);
 	} else {
 		_tcpProxyRadio->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), _httpProxyRadio->bottomNoMargins() + st::boxOptionListSkip);
-		if (_tcpProxyRadio->checked()) {
+		if (type == dbictTcpProxy) {
 			inputy = _tcpProxyRadio->bottomNoMargins() + st::boxOptionInputSkip;
 		}
 	}
@@ -114,17 +114,17 @@ void ConnectionBox::updateControlsPosition() {
 		_passwordInput->moveToRight(st::boxPadding.right(), _userInput->y());
 	}
 
-	auto tryipv6y = (_tcpProxyRadio->checked() ? _userInput->bottomNoMargins() : _tcpProxyRadio->bottomNoMargins()) + st::boxOptionListSkip + st::connectionIPv6Skip;
+	auto tryipv6y = ((type == dbictTcpProxy) ? _userInput->bottomNoMargins() : _tcpProxyRadio->bottomNoMargins()) + st::boxOptionListSkip + st::connectionIPv6Skip;
 	_tryIPv6->moveToLeft(st::boxPadding.left() + st::boxOptionListPadding.left(), tryipv6y);
 }
 
-void ConnectionBox::onChange() {
+void ConnectionBox::typeChanged(DBIConnectionType type) {
 	updateControlsVisibility();
-	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
+	if (type != dbictAuto) {
 		if (!_hostInput->hasFocus() && !_portInput->hasFocus() && !_userInput->hasFocus() && !_passwordInput->hasFocus()) {
 			_hostInput->setFocusFast();
 		}
-		if (_httpProxyRadio->checked() && !_portInput->getLastText().toInt()) {
+		if ((type == dbictHttpProxy) && !_portInput->getLastText().toInt()) {
 			_portInput->setText(qsl("80"));
 			_portInput->finishAnimations();
 		}
@@ -161,7 +161,15 @@ void ConnectionBox::onSubmit() {
 }
 
 void ConnectionBox::onSave() {
-	if (_httpProxyRadio->checked() || _tcpProxyRadio->checked()) {
+	auto type = _typeGroup->value();
+	if (type == dbictAuto) {
+		Global::SetConnectionType(type);
+		Global::SetConnectionProxy(ProxyData());
+#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
+		QNetworkProxyFactory::setUseSystemConfiguration(false);
+		QNetworkProxyFactory::setUseSystemConfiguration(true);
+#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
+	} else {
 		ProxyData p;
 		p.host = _hostInput->getLastText().trimmed();
 		p.user = _userInput->getLastText().trimmed();
@@ -174,19 +182,8 @@ void ConnectionBox::onSave() {
 			_portInput->setFocus();
 			return;
 		}
-		if (_httpProxyRadio->checked()) {
-			Global::SetConnectionType(dbictHttpProxy);
-		} else {
-			Global::SetConnectionType(dbictTcpProxy);
-		}
+		Global::SetConnectionType(type);
 		Global::SetConnectionProxy(p);
-	} else {
-		Global::SetConnectionType(dbictAuto);
-		Global::SetConnectionProxy(ProxyData());
-#ifndef TDESKTOP_DISABLE_NETWORK_PROXY
-		QNetworkProxyFactory::setUseSystemConfiguration(false);
-		QNetworkProxyFactory::setUseSystemConfiguration(true);
-#endif // !TDESKTOP_DISABLE_NETWORK_PROXY
 	}
 	if (cPlatform() == dbipWindows && Global::TryIPv6() != _tryIPv6->checked()) {
 		Global::SetTryIPv6(_tryIPv6->checked());
