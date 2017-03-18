@@ -180,8 +180,13 @@ void ChatSettingsWidget::createControls() {
 	}
 #endif // OS_WIN_STORE
 
-	addChildRow(_sendByEnter, marginSmall, qsl("send_key"), 0, lang(lng_settings_send_enter), SLOT(onSendByEnter()), !cCtrlEnter());
-	addChildRow(_sendByCtrlEnter, marginSkip, qsl("send_key"), 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), SLOT(onSendByCtrlEnter()), cCtrlEnter());
+	auto group = std::make_shared<Ui::RadiobuttonGroup>(cCtrlEnter() ? 1 : 0);
+	addChildRow(_sendByEnter, marginSmall, group, 0, lang(lng_settings_send_enter));
+	addChildRow(_sendByCtrlEnter, marginSkip, group, 1, lang((cPlatform() == dbipMac || cPlatform() == dbipMacOld) ? lng_settings_send_cmdenter : lng_settings_send_ctrlenter), SLOT(onSendByCtrlEnter()), cCtrlEnter());
+	group->setChangedCallback([this](int value) {
+		sendByChanged(value);
+	});
+
 	addChildRow(_automaticMediaDownloadSettings, marginSmall, lang(lng_media_auto_settings), SLOT(onAutomaticMediaDownloadSettings()));
 	addChildRow(_manageStickerSets, marginSmall, lang(lng_stickers_you_have), SLOT(onManageStickerSets()));
 }
@@ -205,20 +210,10 @@ void ChatSettingsWidget::onDontAskDownloadPath() {
 #endif // OS_WIN_STORE
 }
 
-void ChatSettingsWidget::onSendByEnter() {
-	if (_sendByEnter->checked()) {
-		cSetCtrlEnter(false);
-		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
-		Local::writeUserSettings();
-	}
-}
-
-void ChatSettingsWidget::onSendByCtrlEnter() {
-	if (_sendByCtrlEnter->checked()) {
-		cSetCtrlEnter(true);
-		if (App::main()) App::main()->ctrlEnterSubmitUpdated();
-		Local::writeUserSettings();
-	}
+void ChatSettingsWidget::sendByChanged(int value) {
+	cSetCtrlEnter(value == 1);
+	if (App::main()) App::main()->ctrlEnterSubmitUpdated();
+	Local::writeUserSettings();
 }
 
 void ChatSettingsWidget::onAutomaticMediaDownloadSettings() {

@@ -30,10 +30,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mainwindow.h"
 
 ReportBox::ReportBox(QWidget*, PeerData *peer) : _peer(peer)
-, _reasonSpam(this, qsl("report_reason"), ReasonSpam, lang(lng_report_reason_spam), true, st::defaultBoxCheckbox)
-, _reasonViolence(this, qsl("report_reason"), ReasonViolence, lang(lng_report_reason_violence), false, st::defaultBoxCheckbox)
-, _reasonPornography(this, qsl("report_reason"), ReasonPornography, lang(lng_report_reason_pornography), false, st::defaultBoxCheckbox)
-, _reasonOther(this, qsl("report_reason"), ReasonOther, lang(lng_report_reason_other), false, st::defaultBoxCheckbox) {
+, _reasonGroup(std::make_shared<Ui::RadiobuttonGroup>(ReasonSpam))
+, _reasonSpam(this, _reasonGroup, ReasonSpam, lang(lng_report_reason_spam), st::defaultBoxCheckbox)
+, _reasonViolence(this, _reasonGroup, ReasonViolence, lang(lng_report_reason_violence), st::defaultBoxCheckbox)
+, _reasonPornography(this, _reasonGroup, ReasonPornography, lang(lng_report_reason_pornography), st::defaultBoxCheckbox)
+, _reasonOther(this, _reasonGroup, ReasonOther, lang(lng_report_reason_other), st::defaultBoxCheckbox) {
 }
 
 void ReportBox::prepare() {
@@ -42,10 +43,7 @@ void ReportBox::prepare() {
 	addButton(lang(lng_report_button), [this] { onReport(); });
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	connect(_reasonSpam, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_reasonViolence, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_reasonPornography, SIGNAL(changed()), this, SLOT(onChange()));
-	connect(_reasonOther, SIGNAL(changed()), this, SLOT(onChange()));
+	_reasonGroup->setChangedCallback([this](int value) { reasonChanged(value); });
 
 	updateMaxHeight();
 }
@@ -63,8 +61,8 @@ void ReportBox::resizeEvent(QResizeEvent *e) {
 	}
 }
 
-void ReportBox::onChange() {
-	if (_reasonOther->checked()) {
+void ReportBox::reasonChanged(int reason) {
+	if (reason == ReasonOther) {
 		if (!_reasonOtherText) {
 			_reasonOtherText.create(this, st::profileReportReasonOther, lang(lng_report_reason_description));
 			_reasonOtherText->show();
@@ -106,15 +104,13 @@ void ReportBox::onReport() {
 	}
 
 	auto getReason = [this]() {
-		if (_reasonViolence->checked()) {
-			return MTP_inputReportReasonViolence();
-		} else if (_reasonPornography->checked()) {
-			return MTP_inputReportReasonPornography();
-		} else if (_reasonOtherText) {
-			return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
-		} else {
-			return MTP_inputReportReasonSpam();
+		switch (_reasonGroup->value()) {
+		case ReasonSpam: return MTP_inputReportReasonSpam();
+		case ReasonViolence: return MTP_inputReportReasonViolence();
+		case ReasonPornography: return MTP_inputReportReasonPornography();
+		case ReasonOther: return MTP_inputReportReasonOther(MTP_string(_reasonOtherText->getLastText()));
 		}
+		Unexpected("Bad reason group value.");
 	};
 	_requestId = MTP::send(MTPaccount_ReportPeer(_peer->input, getReason()), rpcDone(&ReportBox::reportDone), rpcFail(&ReportBox::reportFail));
 }

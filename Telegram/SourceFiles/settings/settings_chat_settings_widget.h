@@ -98,12 +98,11 @@ private slots:
 	void onReplaceEmoji();
 	void onViewList();
 	void onDontAskDownloadPath();
-	void onSendByEnter();
-	void onSendByCtrlEnter();
 	void onAutomaticMediaDownloadSettings();
 	void onManageStickerSets();
 
 private:
+	void sendByChanged(int value);
 	void createControls();
 
 	object_ptr<Ui::Checkbox> _replaceEmoji = { nullptr };

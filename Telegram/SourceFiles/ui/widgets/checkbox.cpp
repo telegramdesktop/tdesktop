@@ -26,58 +26,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace Ui {
 namespace {
 
-class RadiobuttonGroup : public QMap<Radiobutton*, bool> {
-	using Parent = QMap<Radiobutton*, bool>;
-
-public:
-	RadiobuttonGroup(const QString &name) : _name(name) {
-	}
-
-	void remove(Radiobutton * const &radio);
-	int32 val() const {
-		return _val;
-	}
-	void setVal(int32 val) {
-		_val = val;
-	}
-
-private:
-	QString _name;
-	int _val = 0;
-
-};
-
-class Radiobuttons : public QMap<QString, RadiobuttonGroup*> {
-	using Parent = QMap<QString, RadiobuttonGroup*>;
-
-public:
-	RadiobuttonGroup *reg(const QString &group) {
-		typename Parent::const_iterator i = Parent::constFind(group);
-		if (i == Parent::cend()) {
-			i = Parent::insert(group, new RadiobuttonGroup(group));
-		}
-		return i.value();
-	}
-
-	int remove(const QString &group) {
-		typename Parent::iterator i = Parent::find(group);
-		if (i != Parent::cend()) {
-			delete i.value();
-			Parent::erase(i);
-			return 1;
-		}
-		return 0;
-	}
-
-	~Radiobuttons() {
-		for (typename Parent::const_iterator i = Parent::cbegin(), e = Parent::cend(); i != e; ++i) {
-			delete *i;
-		}
-	}
-};
-
-Radiobuttons radiobuttons;
-
 TextParseOptions _checkboxOptions = {
 	TextParseMultiline, // flags
 	0, // maxw
@@ -86,13 +34,6 @@ TextParseOptions _checkboxOptions = {
 };
 
 } // namespace
-
-void RadiobuttonGroup::remove(Radiobutton * const &radio) {
-	Parent::remove(radio);
-	if (isEmpty()) {
-		radiobuttons.remove(_name);
-	}
-}
 
 Checkbox::Checkbox(QWidget *parent, const QString &text, bool checked, const style::Checkbox &st) : RippleButton(parent, st.ripple)
 , _st(st)
@@ -194,38 +135,41 @@ QPoint Checkbox::prepareRippleStartPosition() const {
 	return disabledRippleStartPosition();
 }
 
-Radiobutton::Radiobutton(QWidget *parent, const QString &group, int32 value, const QString &text, bool checked, const style::Checkbox &st) : RippleButton(parent, st.ripple)
+void RadiobuttonGroup::setValue(int value) {
+	if (_hasValue && _value == value) {
+		return;
+	}
+	_hasValue = true;
+	_value = value;
+	for (auto button : _buttons) {
+		button->handleNewGroupValue(_value);
+	}
+	if (_changedCallback) {
+		_changedCallback(_value);
+	}
+}
+
+Radiobutton::Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st) : RippleButton(parent, st.ripple)
+, _group(group)
+, _value(value)
 , _st(st)
 , _text(_st.style, text, _checkboxOptions)
-, _checked(checked)
-, _group(radiobuttons.reg(group))
-, _value(value) {
+, _checked(_group->hasValue() && _group->value() == _value) {
+	_group->registerButton(this);
+
 	if (_st.width <= 0) {
 		resizeToWidth(_text.maxWidth() - _st.width);
 	} else {
 		resizeToWidth(_st.width);
 	}
 	_checkRect = myrtlrect(_st.margin.left(), _st.margin.top(), _st.diameter, _st.diameter);
-
-	connect(this, SIGNAL(clicked()), this, SLOT(onClicked()));
-
-	setCursor(style::cur_pointer);
-
-	reinterpret_cast<RadiobuttonGroup*>(_group)->insert(this, true);
-	if (_checked) onChanged();
 }
 
-bool Radiobutton::checked() const {
-	return _checked;
-}
-
-void Radiobutton::setChecked(bool checked) {
+void Radiobutton::handleNewGroupValue(int value) {
+	auto checked = (value == _value);
 	if (_checked != checked) {
 		_checked = checked;
 		_a_checked.start([this] { update(_checkRect); }, _checked ? 0. : 1., _checked ? 1. : 0., _st.duration);
-
-		onChanged();
-		emit changed();
 	}
 }
 
@@ -279,11 +223,6 @@ void Radiobutton::paintEvent(QPaintEvent *e) {
 	_text.drawLeftElided(p, _st.margin.left() + _st.textPosition.x(), _st.margin.top() + _st.textPosition.y(), textWidth, width());
 }
 
-void Radiobutton::onClicked() {
-	if (isDisabled()) return;
-	setChecked(!checked());
-}
-
 void Radiobutton::onStateChanged(State was, StateChangeSource source) {
 	RippleButton::onStateChanged(was, source);
 
@@ -291,6 +230,13 @@ void Radiobutton::onStateChanged(State was, StateChangeSource source) {
 		setCursor(style::cur_default);
 	} else if (!isDisabled() && (was & StateFlag::Disabled)) {
 		setCursor(style::cur_pointer);
+	}
+
+	auto now = state();
+	if (!isDisabled() && (was & StateFlag::Over) && (now & StateFlag::Over)) {
+		if ((was & StateFlag::Down) && !(now & StateFlag::Down)) {
+			_group->setValue(_value);
+		}
 	}
 }
 
@@ -310,25 +256,8 @@ QPoint Radiobutton::prepareRippleStartPosition() const {
 	return disabledRippleStartPosition();
 }
 
-void Radiobutton::onChanged() {
-	RadiobuttonGroup *group = reinterpret_cast<RadiobuttonGroup*>(_group);
-	if (checked()) {
-		int32 uncheck = group->val();
-		if (uncheck != _value) {
-			group->setVal(_value);
-			for (RadiobuttonGroup::const_iterator i = group->cbegin(), e = group->cend(); i != e; ++i) {
-				if (i.key()->val() == uncheck) {
-					i.key()->setChecked(false);
-				}
-			}
-		}
-	} else if (group->val() == _value) {
-		setChecked(true);
-	}
-}
-
 Radiobutton::~Radiobutton() {
-	reinterpret_cast<RadiobuttonGroup*>(_group)->remove(this);
+	_group->unregisterButton(this);
 }
 
 } // namespace Ui

@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 class Checkbox;
+class RadiobuttonGroup;
 class Radiobutton;
 class LinkButton;
 template <typename Widget>
@@ -87,7 +88,7 @@ private:
 		margin.setBottom(margin.bottom() - padding.bottom());
 	}
 	void createChildRow(object_ptr<Ui::Checkbox> &child, style::margins &margin, const QString &text, const char *slot, bool checked);
-	void createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const QString &group, int value, const QString &text, const char *slot, bool checked);
+	void createChildRow(object_ptr<Ui::Radiobutton> &child, style::margins &margin, const Ui::RadiobuttonGroup &group, int value, const QString &text);
 	void createChildRow(object_ptr<Ui::LinkButton> &child, style::margins &margin, const QString &text, const char *slot, const style::LinkButton &st = st::boxLinkButton);
 
 	void addCreatedRow(TWidget *child, const style::margins &margin);

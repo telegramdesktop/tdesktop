@@ -71,19 +71,54 @@ private:
 
 };
 
-class Radiobutton : public RippleButton {
-	Q_OBJECT
+class Radiobutton;
 
+class RadiobuttonGroup {
 public:
-	Radiobutton(QWidget *parent, const QString &group, int value, const QString &text, bool checked = false, const style::Checkbox &st = st::defaultCheckbox);
-
-	bool checked() const;
-	void setChecked(bool checked);
-
-	int val() const {
-		return _value;
+	RadiobuttonGroup() = default;
+	RadiobuttonGroup(int value) : _value(value), _hasValue(true) {
 	}
 
+	void setChangedCallback(base::lambda<void(int value)> callback) {
+		_changedCallback = std::move(callback);
+	}
+
+	bool hasValue() const {
+		return _hasValue;
+	}
+	int value() const {
+		return _value;
+	}
+	void setValue(int value);
+
+	void registerButton(Radiobutton *button) {
+		if (!base::contains(_buttons, button)) {
+			_buttons.push_back(button);
+		}
+	}
+	void unregisterButton(Radiobutton *button) {
+		_buttons.erase(std::remove(_buttons.begin(), _buttons.end(), button), _buttons.end());
+	}
+
+private:
+	friend class Radiobutton;
+	void registerButton(Radiobutton *button);
+	void unregisterButton(Radiobutton *button);
+
+	int _value = 0;
+	bool _hasValue = false;
+	base::lambda<void(int value)> _changedCallback;
+	std::vector<Radiobutton*> _buttons;
+
+};
+
+class Radiobutton : public RippleButton {
+public:
+	Radiobutton(QWidget *parent, const std::shared_ptr<RadiobuttonGroup> &group, int value, const QString &text, const style::Checkbox &st = st::defaultCheckbox);
+
+	RadiobuttonGroup *group() const {
+		return _group.get();
+	}
 	QMargins getMargins() const override {
 		return _st.margin;
 	}
@@ -100,25 +135,20 @@ protected:
 	QImage prepareRippleMask() const override;
 	QPoint prepareRippleStartPosition() const override;
 
-public slots:
-	void onClicked();
-
-signals:
-	void changed();
-
 private:
-	void onChanged();
+	friend class RadiobuttonGroup;
+	void handleNewGroupValue(int value);
+
+	std::shared_ptr<RadiobuttonGroup> _group;
+	int _value = 0;
 
 	const style::Checkbox &_st;
 
 	Text _text;
 	QRect _checkRect;
 
-	bool _checked;
+	bool _checked = false;
 	Animation _a_checked;
-
-	void *_group;
-	int _value;
 
 };
 

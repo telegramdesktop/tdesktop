@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/abstractbox.h"
 
 namespace Ui {
+class RadiobuttonGroup;
 class Radiobutton;
 class InputArea;
 } // namespace Ui
@@ -35,7 +36,6 @@ public:
 
 private slots:
 	void onReport();
-	void onChange();
 	void onDescriptionResized();
 	void onClose() {
 		closeBox();
@@ -48,6 +48,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void reasonChanged(int reason);
 	void updateMaxHeight();
 
 	void reportDone(const MTPBool &result);
@@ -55,6 +56,7 @@ private:
 
 	PeerData *_peer;
 
+	std::shared_ptr<Ui::RadiobuttonGroup> _reasonGroup;
 	object_ptr<Ui::Radiobutton> _reasonSpam;
 	object_ptr<Ui::Radiobutton> _reasonViolence;
 	object_ptr<Ui::Radiobutton> _reasonPornography;
