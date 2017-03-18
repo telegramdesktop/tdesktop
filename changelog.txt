@@ -1,3 +1,7 @@
+1.0.24 alpha (19.03.17)
+
+- Added Last Seen and Group Invite privacy settings.
+
 1.0.23 alpha (15.03.17)
 
 - Edit list of blocked users in Settings.

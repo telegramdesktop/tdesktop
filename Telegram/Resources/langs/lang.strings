@@ -406,7 +406,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_settings_blocked_users" = "Blocked users";
 "lng_settings_last_seen_privacy" = "Last seen privacy";
-"lng_settings_groups_invite_privacy" = "Groups invite privacy";
+"lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -446,10 +446,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_nobody" = "Nobody";
 "lng_edit_privacy_exceptions" = "Add exceptions";
 
-"lng_edit_privacy_lastseen_title" = "Last Seen time privacy";
+"lng_edit_privacy_lastseen_title" = "Last seen privacy";
 "lng_edit_privacy_lastseen_everyone" = "Anyone can see my Last Seen time";
 "lng_edit_privacy_lastseen_contacts" = "Only contacts can see my Last Seen time";
-"lng_edit_privacy_lastseen_nobody" = "No one can see my Last Seen time";
+"lng_edit_privacy_lastseen_nobody" = "Nobody can see my Last Seen time";
 "lng_edit_privacy_lastseen_description" = "Important: you won't be able to see Last Seen times for people with whom you don't share your Last Seen time. Approximate last seen will be shown instead (recently, within a week, within a month).";
 "lng_edit_privacy_lastseen_always" = "Always share with{count:| # user| # users}";
 "lng_edit_privacy_lastseen_never" = "Never share with{count:| # user| # users}";
@@ -457,7 +457,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_lastseen_always_title" = "Always share with";
 "lng_edit_privacy_lastseen_never_title" = "Never share with";
 
-"lng_edit_privacy_groups_title" = "Group invite privacy";
+"lng_edit_privacy_groups_title" = "Group invite settings";
 "lng_edit_privacy_groups_everyone" = "Anyone can invite me to groups and channels";
 "lng_edit_privacy_groups_contacts" = "Only contacts can invite me to groups and channels";
 "lng_edit_privacy_groups_description" = "You can restrict who can add you to groups and channels with granular precision.";
