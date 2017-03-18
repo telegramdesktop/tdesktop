@@ -859,5 +859,6 @@ bool MultiSelect::Inner::hasItem(uint64 itemId) const {
 	return _idsMap.find(itemId) != _idsMap.cend();
 }
 
+MultiSelect::Inner::~Inner() = default;
 
 } // namespace Ui

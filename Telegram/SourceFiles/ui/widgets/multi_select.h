@@ -105,6 +105,8 @@ public:
 
 	void setResizedCallback(base::lambda<void(int heightDelta)> callback);
 
+	~Inner();
+
 protected:
 	int resizeGetHeight(int newWidth) override;
 
