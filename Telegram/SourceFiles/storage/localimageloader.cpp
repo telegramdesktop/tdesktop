@@ -381,26 +381,33 @@ void FileLoadTask::process() {
 				filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
 			}
 		}
-	} else if (!fullimage.isNull() && fullimage.width() > 0) {
-		if (_type == SendMediaType::Photo) {
-			if (ValidateThumbDimensions(fullimage.width(), fullimage.height())) {
-				filesize = -1; // Fill later.
-				filemime = mimeTypeForName("image/jpeg").name();
-				filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
-			} else {
-				_type = SendMediaType::File;
+	} else {
+		if (_information) {
+			if (auto image = base::get_if<FileLoadTask::Image>(&_information->media)) {
+				fullimage = base::take(image->data);
 			}
 		}
-		if (_type == SendMediaType::File) {
-			filemime = mimeTypeForName("image/png").name();
-			filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
-			{
-				QBuffer buffer(&_content);
-				fullimage.save(&buffer, "PNG");
+		if (!fullimage.isNull() && fullimage.width() > 0) {
+			if (_type == SendMediaType::Photo) {
+				if (ValidateThumbDimensions(fullimage.width(), fullimage.height())) {
+					filesize = -1; // Fill later.
+					filemime = mimeTypeForName("image/jpeg").name();
+					filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+				} else {
+					_type = SendMediaType::File;
+				}
 			}
-			filesize = _content.size();
+			if (_type == SendMediaType::File) {
+				filemime = mimeTypeForName("image/png").name();
+				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+				{
+					QBuffer buffer(&_content);
+					fullimage.save(&buffer, "PNG");
+				}
+				filesize = _content.size();
+			}
+			fullimage = Images::prepareOpaque(std::move(fullimage));
 		}
-		fullimage = Images::prepareOpaque(std::move(fullimage));
 	}
 	_result->filesize = (int32)qMin(filesize, qint64(INT_MAX));
 
