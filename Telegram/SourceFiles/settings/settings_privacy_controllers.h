@@ -55,8 +55,8 @@ public:
 	MTPInputPrivacyKey key() override;
 
 	QString title() override;
-	QString optionDescription(Option option) override;
 	QString description() override;
+	QString warning() override;
 	QString exceptionLinkText(Exception exception, int count) override;
 	QString exceptionBoxTitle(Exception exception) override;
 	QString exceptionsDescription() override;
@@ -73,7 +73,7 @@ public:
 	MTPInputPrivacyKey key() override;
 
 	QString title() override;
-	QString optionDescription(Option option) override;
+	bool hasOption(Option option) override;
 	QString description() override;
 	QString exceptionLinkText(Exception exception, int count) override;
 	QString exceptionBoxTitle(Exception exception) override;

@@ -88,37 +88,6 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
-class EditPrivacyBox::OptionWidget : public TWidget {
-public:
-	OptionWidget(QWidget *parent, const std::shared_ptr<Ui::RadioenumGroup<Option>> &group, Option value, const QString &text, const QString &description);
-
-	QMargins getMargins() const override {
-		return _option->getMargins();
-	}
-
-protected:
-	int resizeGetHeight(int newWidth) override;
-
-private:
-	object_ptr<Ui::Radioenum<Option>> _option;
-	object_ptr<Ui::FlatLabel> _description;
-
-};
-
-EditPrivacyBox::OptionWidget::OptionWidget(QWidget *parent, const std::shared_ptr<Ui::RadioenumGroup<Option>> &group, Option value, const QString &text, const QString &description) : TWidget(parent)
-, _option(this, group, value, text, st::defaultBoxCheckbox)
-, _description(this, description, Ui::FlatLabel::InitType::Simple, st::editPrivacyLabel) {
-}
-
-int EditPrivacyBox::OptionWidget::resizeGetHeight(int newWidth) {
-	_option->resizeToNaturalWidth(newWidth);
-	auto optionTextLeft = st::defaultBoxCheckbox.textPosition.x();
-	_description->resizeToWidth(newWidth - optionTextLeft);
-	_option->moveToLeft(getMargins().left(), getMargins().top());
-	_description->moveToLeft(optionTextLeft + getMargins().left(), _option->bottomNoMargins());
-	return _description->bottomNoMargins();
-}
-
 EditPrivacyBox::EditPrivacyBox(QWidget*, std::unique_ptr<Controller> controller) : BoxContent()
 , _controller(std::move(controller))
 , _loading(this, lang(lng_contacts_loading), Ui::FlatLabel::InitType::Simple, st::membersAbout) {
@@ -142,9 +111,6 @@ void EditPrivacyBox::prepare() {
 	})));
 
 	setDimensions(st::boxWideWidth, countDefaultHeight(st::boxWideWidth));
-
-	_loading->resizeToWidth(width());
-	_loading->moveToLeft(0, height() / 3);
 }
 
 int EditPrivacyBox::resizeGetHeight(int newWidth) {
@@ -156,10 +122,11 @@ int EditPrivacyBox::resizeGetHeight(int newWidth) {
 		top = widget->bottomNoMargins() + padding.bottom();
 	};
 
+	layoutRow(_description, st::editPrivacyPadding);
 	layoutRow(_everyone, st::editPrivacyOptionMargin);
 	layoutRow(_contacts, st::editPrivacyOptionMargin);
 	layoutRow(_nobody, st::editPrivacyOptionMargin);
-	layoutRow(_description, st::editPrivacyPadding);
+	layoutRow(_warning, st::editPrivacyWarningPadding);
 	layoutRow(_exceptionsTitle, st::editPrivacyPadding);
 	auto linksTop = top;
 	layoutRow(_alwaysLink, st::editPrivacyPadding);
@@ -176,33 +143,42 @@ int EditPrivacyBox::resizeGetHeight(int newWidth) {
 	return top;
 }
 
+void EditPrivacyBox::resizeEvent(QResizeEvent *e) {
+	if (_loading) {
+		_loading->moveToLeft((width() - _loading->width()) / 2, height() / 3);
+	}
+}
+
 int EditPrivacyBox::countDefaultHeight(int newWidth) {
 	auto height = 0;
-	auto fakeGroup = std::make_shared<Ui::RadioenumGroup<Option>>(Option::Everyone);
-	auto optionHeight = [this, newWidth, &fakeGroup](Option option, const QString &label) {
-		auto description = _controller->optionDescription(option);
-		if (description.isEmpty()) {
+	auto optionHeight = [this](Option option) {
+		if (!_controller->hasOption(option)) {
+			return 0;
+		}
+		return st::editPrivacyOptionMargin.top() + st::defaultBoxCheckbox.height + st::editPrivacyOptionMargin.bottom();
+	};
+	auto labelHeight = [this, newWidth](const QString &text, const style::FlatLabel &st, style::margins padding) {
+		if (text.isEmpty()) {
 			return 0;
 		}
 
-		auto fake = object_ptr<OptionWidget>(nullptr, fakeGroup, Option::Everyone, label, description);
-		fake->resizeToNaturalWidth(newWidth - st::editPrivacyOptionMargin.left() - st::editPrivacyOptionMargin.right());
-		return st::editPrivacyOptionMargin.top() + fake->heightNoMargins() + st::editPrivacyOptionMargin.bottom();
-	};
-	auto labelHeight = [this, newWidth](const QString &text, const style::FlatLabel &st) {
 		auto fake = object_ptr<Ui::FlatLabel>(nullptr, text, Ui::FlatLabel::InitType::Simple, st);
-		fake->resizeToNaturalWidth(newWidth - st::editPrivacyPadding.left() - st::editPrivacyPadding.right());
-		return st::editPrivacyPadding.top() + fake->heightNoMargins() + st::editPrivacyPadding.bottom();
+		fake->resizeToNaturalWidth(newWidth - padding.left() - padding.right());
+		return padding.top() + fake->heightNoMargins() + padding.bottom();
 	};
-	auto linkMargins = exceptionLinkMargins();
-	height += optionHeight(Option::Everyone, lang(lng_edit_privacy_everyone));
-	height += optionHeight(Option::Contacts, lang(lng_edit_privacy_contacts));
-	height += optionHeight(Option::Nobody, lang(lng_edit_privacy_nobody));
-	height += labelHeight(_controller->description(), st::editPrivacyLabel);
-	height += labelHeight(lang(lng_edit_privacy_exceptions), st::editPrivacyTitle);
-	height += linkMargins.top() + st::boxLinkButton.font->height + linkMargins.bottom(); // linkHeight(_controller->alwaysLinkText(0))
-	height += linkMargins.top() + st::boxLinkButton.font->height + linkMargins.bottom(); // linkHeight(_controller->neverLinkText(0))
-	height += labelHeight(_controller->exceptionsDescription(), st::editPrivacyLabel);
+	auto linkHeight = [this]() {
+		auto linkMargins = exceptionLinkMargins();
+		return linkMargins.top() + st::boxLinkButton.font->height + linkMargins.bottom();
+	};
+	height += labelHeight(_controller->description(), st::editPrivacyLabel, st::editPrivacyPadding);
+	height += optionHeight(Option::Everyone);
+	height += optionHeight(Option::Contacts);
+	height += optionHeight(Option::Nobody);
+	height += labelHeight(_controller->warning(), st::editPrivacyLabel, st::editPrivacyWarningPadding);
+	height += labelHeight(lang(lng_edit_privacy_exceptions), st::editPrivacyTitle, st::editPrivacyPadding);
+	height += linkHeight();
+	height += linkHeight();
+	height += labelHeight(_controller->exceptionsDescription(), st::editPrivacyLabel, st::editPrivacyPadding);
 	return height;
 }
 
@@ -246,8 +222,9 @@ QVector<MTPInputPrivacyRule> EditPrivacyBox::collectResult() {
 		return result;
 	};
 
+	constexpr auto kMaxRules = 3; // allow users, disallow users, option
 	auto result = QVector<MTPInputPrivacyRule>();
-	result.reserve(3);
+	result.reserve(kMaxRules);
 	if (showExceptionLink(Exception::Always) && !_alwaysUsers.empty()) {
 		result.push_back(MTP_inputPrivacyValueAllowUsers(MTP_vector<MTPInputUser>(collectInputUsers(_alwaysUsers))));
 	}
@@ -291,39 +268,37 @@ bool EditPrivacyBox::showExceptionLink(Exception exception) const {
 	Unexpected("Invalid exception value.");
 }
 
-void EditPrivacyBox::createOption(Option option, object_ptr<OptionWidget> &widget, const QString &label) {
-	auto description = _controller->optionDescription(option);
-	auto selected = (_option == option);
-	if (!description.isEmpty() || selected) {
-		widget.create(this, _optionGroup, option, label, description);
-	}
-}
-
 void EditPrivacyBox::createWidgets() {
 	_loading.destroy();
-
 	_optionGroup = std::make_shared<Ui::RadioenumGroup<Option>>(_option);
-	createOption(Option::Everyone, _everyone, lang(lng_edit_privacy_everyone));
-	createOption(Option::Contacts, _contacts, lang(lng_edit_privacy_contacts));
-	createOption(Option::Nobody, _nobody, lang(lng_edit_privacy_nobody));
-	_optionGroup->setChangedCallback([this](Option value) {
-		_option = value;
-		_alwaysLink->toggleAnimated(showExceptionLink(Exception::Always));
-		_neverLink->toggleAnimated(showExceptionLink(Exception::Never));
-	});
 
-	_description.create(this, _controller->description(), Ui::FlatLabel::InitType::Simple, st::editPrivacyLabel);
-
-	_exceptionsTitle.create(this, lang(lng_edit_privacy_exceptions), Ui::FlatLabel::InitType::Simple, st::editPrivacyTitle);
+	auto createOption = [this](object_ptr<Ui::Radioenum<Option>> &widget, Option option, const QString &label) {
+		if (_controller->hasOption(option) || (_option == option)) {
+			widget.create(this, _optionGroup, option, label, st::defaultBoxCheckbox);
+		}
+	};
+	auto createLabel = [this](object_ptr<Ui::FlatLabel> &widget, const QString &text, const style::FlatLabel &st) {
+		if (text.isEmpty()) {
+			return;
+		}
+		widget.create(this, text, Ui::FlatLabel::InitType::Simple, st);
+	};
 	auto createExceptionLink = [this](Exception exception) {
 		exceptionLink(exception).create(this, object_ptr<Ui::LinkButton>(this, exceptionLinkText(exception)), exceptionLinkMargins(), [this] {
 			resizeGetHeight(width());
 		});
 		exceptionLink(exception)->entity()->setClickedCallback([this, exception] { editExceptionUsers(exception); });
 	};
+
+	createLabel(_description, _controller->description(), st::editPrivacyLabel);
+	createOption(_everyone, Option::Everyone, lang(lng_edit_privacy_everyone));
+	createOption(_contacts, Option::Contacts, lang(lng_edit_privacy_contacts));
+	createOption(_nobody, Option::Nobody, lang(lng_edit_privacy_nobody));
+	createLabel(_warning, _controller->warning(), st::editPrivacyLabel);
+	createLabel(_exceptionsTitle, lang(lng_edit_privacy_exceptions), st::editPrivacyTitle);
 	createExceptionLink(Exception::Always);
 	createExceptionLink(Exception::Never);
-	_exceptionsDescription.create(this, _controller->exceptionsDescription(), Ui::FlatLabel::InitType::Simple, st::editPrivacyLabel);
+	createLabel(_exceptionsDescription, _controller->exceptionsDescription(), st::editPrivacyLabel);
 
 	clearButtons();
 	addButton(lang(lng_settings_save), [this] {
@@ -334,6 +309,12 @@ void EditPrivacyBox::createWidgets() {
 		}));
 	});
 	addButton(lang(lng_cancel), [this] { closeBox(); });
+
+	_optionGroup->setChangedCallback([this](Option value) {
+		_option = value;
+		_alwaysLink->toggleAnimated(showExceptionLink(Exception::Always));
+		_neverLink->toggleAnimated(showExceptionLink(Exception::Never));
+	});
 
 	showChildren();
 	_alwaysLink->toggleFast(showExceptionLink(Exception::Always));

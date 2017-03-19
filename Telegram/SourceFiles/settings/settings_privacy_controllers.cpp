@@ -230,17 +230,12 @@ QString LastSeenPrivacyController::title() {
 	return lang(lng_edit_privacy_lastseen_title);
 }
 
-QString LastSeenPrivacyController::optionDescription(Option option) {
-	switch (option) {
-	case Option::Everyone: return lang(lng_edit_privacy_lastseen_everyone);
-	case Option::Contacts: return lang(lng_edit_privacy_lastseen_contacts);
-	case Option::Nobody: return lang(lng_edit_privacy_lastseen_nobody);
-	}
-	return QString();
-}
-
 QString LastSeenPrivacyController::description() {
 	return lang(lng_edit_privacy_lastseen_description);
+}
+
+QString LastSeenPrivacyController::warning() {
+	return lang(lng_edit_privacy_lastseen_warning);
 }
 
 QString LastSeenPrivacyController::exceptionLinkText(Exception exception, int count) {
@@ -274,7 +269,7 @@ void LastSeenPrivacyController::confirmSave(bool someAreDisallowed, base::lambda
 			AuthSession::Current().data().setLastSeenWarningSeen(true);
 			Local::writeUserSettings();
 		};
-		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_description), lang(lng_continue), lang(lng_cancel), std::move(callback));
+		auto box = Box<ConfirmBox>(lang(lng_edit_privacy_lastseen_warning), lang(lng_continue), lang(lng_cancel), std::move(callback));
 		*weakBox = Ui::show(std::move(box), KeepOtherLayers);
 	} else {
 		saveCallback();
@@ -289,12 +284,8 @@ QString GroupsInvitePrivacyController::title() {
 	return lang(lng_edit_privacy_groups_title);
 }
 
-QString GroupsInvitePrivacyController::optionDescription(Option option) {
-	switch (option) {
-	case Option::Everyone: return lang(lng_edit_privacy_groups_everyone);
-	case Option::Contacts: return lang(lng_edit_privacy_groups_contacts);
-	}
-	return QString();
+bool GroupsInvitePrivacyController::hasOption(Option option) {
+	return (option != Option::Nobody);
 }
 
 QString GroupsInvitePrivacyController::description() {

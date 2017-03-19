@@ -27,6 +27,8 @@ class FlatLabel;
 class LinkButton;
 template <typename Enum>
 class RadioenumGroup;
+template <typename Enum>
+class Radioenum;
 template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
@@ -48,10 +50,13 @@ public:
 		virtual MTPInputPrivacyKey key() = 0;
 
 		virtual QString title() = 0;
-		virtual QString optionDescription(Option option) {
-			return QString();
+		virtual bool hasOption(Option option) {
+			return true;
 		}
 		virtual QString description() = 0;
+		virtual QString warning() {
+			return QString();
+		}
 		virtual QString exceptionLinkText(Exception exception, int count) = 0;
 		virtual QString exceptionBoxTitle(Exception exception) = 0;
 		virtual QString exceptionsDescription() = 0;
@@ -83,16 +88,14 @@ public:
 
 protected:
 	void prepare() override;
-
 	int resizeGetHeight(int newWidth) override;
 
-private:
-	class OptionWidget;
+	void resizeEvent(QResizeEvent *e) override;
 
+private:
 	style::margins exceptionLinkMargins() const;
 	bool showExceptionLink(Exception exception) const;
 	void createWidgets();
-	void createOption(Option option, object_ptr<OptionWidget> &widget, const QString &label);
 	QVector<MTPInputPrivacyRule> collectResult();
 	void loadDone(const MTPaccount_PrivacyRules &result);
 	int countDefaultHeight(int newWidth);
@@ -107,10 +110,11 @@ private:
 
 	std::shared_ptr<Ui::RadioenumGroup<Option>> _optionGroup;
 	object_ptr<Ui::FlatLabel> _loading;
-	object_ptr<OptionWidget> _everyone = { nullptr };
-	object_ptr<OptionWidget> _contacts = { nullptr };
-	object_ptr<OptionWidget> _nobody = { nullptr };
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
+	object_ptr<Ui::Radioenum<Option>> _everyone = { nullptr };
+	object_ptr<Ui::Radioenum<Option>> _contacts = { nullptr };
+	object_ptr<Ui::Radioenum<Option>> _nobody = { nullptr };
+	object_ptr<Ui::FlatLabel> _warning = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsTitle = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _neverLink = { nullptr };

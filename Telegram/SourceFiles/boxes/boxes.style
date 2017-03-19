@@ -585,13 +585,14 @@ colorValueInput: InputField(defaultInputField) {
 colorResultInput: InputField(colorValueInput) {
 }
 
-editPrivacyOptionMargin: margins(23px, 8px, 21px, -3px);
+editPrivacyOptionMargin: margins(23px, 14px, 21px, 0px);
 editPrivacyPadding: margins(23px, 0px, 21px, 0px);
+editPrivacyWarningPadding: margins(23px, 14px, 21px, 0px);
 editPrivacyTitle: FlatLabel(defaultFlatLabel) {
 	width: 320px;
 	textFg: boxTitleFg;
-	maxHeight: 46px;
-	margin: margins(0px, 13px, 0px, 7px);
+	maxHeight: 56px;
+	margin: margins(0px, 20px, 0px, 13px);
 	style: TextStyle(defaultTextStyle) {
 		font: boxTitleFont;
 		linkFont: boxTitleFont;

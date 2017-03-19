@@ -44,6 +44,7 @@ void DiscreteSlider::setActiveSection(int index) {
 void DiscreteSlider::activateCallback() {
 	if (_timerId >= 0) {
 		killTimer(_timerId);
+		_timerId = -1;
 	}
 	auto ms = getms();
 	if (ms >= _callbackAfterMs) {
