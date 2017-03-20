@@ -22,11 +22,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "lang.h"
 #include "storage/localstorage.h"
-#include "boxes/confirmbox.h"
-#include "mainwidget.h"
 #include "mainwindow.h"
 #include "ui/widgets/checkbox.h"
-#include "ui/widgets/buttons.h"
 #include "styles/style_boxes.h"
 
 void AutoLockBox::prepare() {

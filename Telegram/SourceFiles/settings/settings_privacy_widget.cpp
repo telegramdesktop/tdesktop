@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "boxes/autolockbox.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
+#include "boxes/self_destruction_box.h"
 #include "settings/settings_privacy_controllers.h"
 
 namespace Settings {
@@ -185,6 +186,7 @@ void PrivacyWidget::createControls() {
 	}
 	addChildRow(_cloudPasswordState, marginSmall);
 	addChildRow(_showAllSessions, marginSmall, lang(lng_settings_show_sessions), SLOT(onShowSessions()));
+	addChildRow(_selfDestruction, marginSmall, lang(lng_settings_self_destruct), SLOT(onSelfDestruction()));
 }
 
 void PrivacyWidget::autoLockUpdated() {
@@ -214,6 +216,10 @@ void PrivacyWidget::onAutoLock() {
 
 void PrivacyWidget::onShowSessions() {
 	Ui::show(Box<SessionsBox>());
+}
+
+void PrivacyWidget::onSelfDestruction() {
+	Ui::show(Box<SelfDestructionBox>());
 }
 
 } // namespace Settings

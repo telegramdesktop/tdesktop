@@ -42,7 +42,7 @@ struct type_resolver<R(Lambda::*)(Args...) const> {
 
 template <typename Lambda, typename R, typename ...Args>
 struct type_resolver<R(Lambda::*)(Args...)> {
-	using type = lambda<R(Args...)>;
+	using type = lambda_once<R(Args...)>;
 	static constexpr auto is_mutable = true;
 };
 

@@ -408,6 +408,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_last_seen_privacy" = "Last seen privacy";
 "lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
+"lng_settings_self_destruct" = "Account self-destruct settings";
+
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
 "lng_settings_reset_one_sure" = "Do you want to terminate this session?";
@@ -462,6 +464,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_edit_privacy_groups_exceptions" = "These users will or will not be able to add you to groups and channels regardless of the settings above.";
 "lng_edit_privacy_groups_always_title" = "Always allow";
 "lng_edit_privacy_groups_never_title" = "Never allow";
+
+"lng_self_destruct_title" = "Account self-destruction";
+"lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
+"lng_self_destruct_months" = "{count:_not_used_|# month|# months}";
+"lng_self_destruct_years" = "{count:_not_used_|# year|# years}";
 
 "lng_preview_loading" = "Getting Link Info...";
 

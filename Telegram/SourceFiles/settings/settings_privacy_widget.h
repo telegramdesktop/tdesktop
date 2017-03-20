@@ -90,6 +90,7 @@ private slots:
 	void onGroupsInvitePrivacy();
 	void onAutoLock();
 	void onShowSessions();
+	void onSelfDestruction();
 
 private:
 	void createControls();
@@ -102,6 +103,7 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<LabeledLink>> _autoLock = { nullptr };
 	object_ptr<CloudPasswordState> _cloudPasswordState = { nullptr };
 	object_ptr<Ui::LinkButton> _showAllSessions = { nullptr };
+	object_ptr<Ui::LinkButton> _selfDestruction = { nullptr };
 
 };
 

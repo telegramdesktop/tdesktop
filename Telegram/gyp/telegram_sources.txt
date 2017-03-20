@@ -42,6 +42,8 @@
 <(src_loc)/boxes/photocropbox.h
 <(src_loc)/boxes/report_box.cpp
 <(src_loc)/boxes/report_box.h
+<(src_loc)/boxes/self_destruction_box.cpp
+<(src_loc)/boxes/self_destruction_box.h
 <(src_loc)/boxes/send_files_box.cpp
 <(src_loc)/boxes/send_files_box.h
 <(src_loc)/boxes/sessionsbox.cpp
