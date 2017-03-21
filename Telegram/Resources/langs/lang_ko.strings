@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "아이디";
 "lng_connection_password_ph" = "비밀번호";
 "lng_connection_save" = "저장";
+
+"lng_settings_blocked_users" = "차단된 사용자";
+"lng_settings_last_seen_privacy" = "접속 시간 개인설정";
+"lng_settings_groups_invite_privacy" = "그룹 초대 설정";
 "lng_settings_show_sessions" = "모든 세션 보기";
+"lng_settings_self_destruct" = "계정 자동탈퇴 설정";
+"lng_settings_change_phone" = "전화번호 변경";
+
 "lng_settings_reset" = "다른 모든 세션 강제 종료";
 "lng_settings_reset_sure" = "현재 기기를 제외하고 다른 기기에 로그인된 세션을 모두 종료시킬까요?";
 "lng_settings_reset_one_sure" = "해당 세션을 강제 종료 하시겠습니까?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "다른 세션이 없습니다.";
 "lng_sessions_other_desc" = "동일한 휴대번호로 다른 휴대기기, 태블릿과 데스크탑에서 텔레그램 로그인이 가능합니다. 모든 데이터는 즉시 동기화 됩니다.";
 "lng_sessions_terminate_all" = "다른 모든 세션 강제 종료";
+
+"lng_blocked_list_title" = "차단된 사용자";
+"lng_blocked_list_unknown_phone" = "알 수 없는 번호";
+"lng_blocked_list_unblock" = "차단해제";
+"lng_blocked_list_add" = "사용자 차단";
+"lng_blocked_list_add_title" = "차단할 사용자 선택";
+"lng_blocked_list_already_blocked" = "이미 차단됨";
+"lng_blocked_list_about" = "차단된 사용자는 회원님에게 메시지나 그룹으로 초대할 수 없습니다. 또한 프로필 사진, 온라인 및 접속 시간을 볼 수 없습니다.";
+"lng_blocked_list_not_found" = "사용자를 찾 을 수 없음";
+
+"lng_edit_privacy_everyone" = "모두";
+"lng_edit_privacy_contacts" = "내주소록";
+"lng_edit_privacy_nobody" = "모두거절";
+"lng_edit_privacy_exceptions" = "예외 추가";
+
+"lng_edit_privacy_lastseen_title" = "접속 시간 개인설정";
+"lng_edit_privacy_lastseen_description" = "내 접속시간을 볼 수 있는 사람 설정:";
+"lng_edit_privacy_lastseen_warning" = "중요: 접속시간을 공유하지 않는 사람의 접속 시간은 볼 수 없습니다. 대신 대략적으로 접속 시간이 표시 됩니다. (최근에, 일주일 이내, 한달 이내)";
+"lng_edit_privacy_lastseen_always" = "항상 공유 {count:| # user| # users}";
+"lng_edit_privacy_lastseen_never" = "공유 안함{count:| # user| # users}";
+"lng_edit_privacy_lastseen_exceptions" = "이 설정은 위 값을 무효화합니다";
+"lng_edit_privacy_lastseen_always_title" = "항상 공유";
+"lng_edit_privacy_lastseen_never_title" = "항상 공유 안함";
+
+"lng_edit_privacy_groups_title" = "그룹 초대 설정";
+"lng_edit_privacy_groups_description" = "그룹과 채널로 초대가 가능한 사람을 세세하게 설정 할 수 있습니다:";
+"lng_edit_privacy_groups_always" = "항상 허용{count:| # user| # users}";
+"lng_edit_privacy_groups_never" = "허용 안함{count:| # user| # users}";
+"lng_edit_privacy_groups_exceptions" = "위의 설정과 무관하여 이 사용자는 회원님을 그룹이나 채널로 초대할 수 없습니다.";
+"lng_edit_privacy_groups_always_title" = "항상 허용";
+"lng_edit_privacy_groups_never_title" = "허용 안함";
+
+"lng_self_destruct_title" = "계정 자동탈퇴";
+"lng_self_destruct_description" = "이 기간동안 최소한 한번도 온라인이 안될 경우 이 계정은 그룹대화, 일반대화 및 연락처 모두가 삭제됩니다.";
+"lng_self_destruct_months" = "{count:_not_used_|# 월|# 월}";
+"lng_self_destruct_years" = "{count:_not_used_|# 년|# 년}";
+
+"lng_change_phone_title" = "전화번호 변경";
+"lng_change_phone_description" = "텔레그램 번호 변경이 가능합니다.\n대화내용, 미디어, 연락처등 클라우드 데이터와\n모든 계정 정보는 새로운 번호로 이관됩니다.\n\n[b]중요[/b]:회원님 텔레그램 연락처에 있는 \n친구분들이회원님의 이전 전화번호가\n저장되어있고 차단을 하지 않았을 경우 \n[b]새로운 전화번호[/b]로 주소록에 저장이 됩니다.";
+"lng_change_phone_warning" = "회원님 텔레그램 연락처에 있는 친구분들이 회원님의 이전 전화번호가 저장되어있고 차단을 하지 않았을 경우 새로운 전화번호로 주소록에 저장이 됩니다.";
+"lng_change_phone_occupied" = "{phone}번호는 이미 텔레그램에 연결되어 있습니다. 새로운 번호로 마이그레이션 진행시 해당 계정을 탈퇴시켜주세요.";
+"lng_change_phone_button" = "전화번호 변경";
+"lng_change_phone_new_title" = "신규 전화번호 입력";
+"lng_change_phone_new_description" = "새로운 번호로 인증 문자를 전송하겠습니다.";
+"lng_change_phone_new_submit" = "입력";
+"lng_change_phone_code_title" = "인증코드 입력";
+"lng_change_phone_code_description" = "{phone} 번호로 인증코드 문자를 전송하였습니다.";
+"lng_change_phone_success" = "회원님의 전화번호가 변경되었습니다.";
 
 "lng_preview_loading" = "링크 정보를 가져오는 중..";
 
@@ -636,7 +691,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_profile_convert_feature2" = "— 메시지 삭제시 모두에게 삭제";
 "lng_profile_convert_feature3" = "— 관리자는 중요한 메시지 고정 가능";
 "lng_profile_convert_feature4" = "— 방 생성자가 그룹 공개링크 생성가능";
-"lng_profile_convert_warning" = "{bold_start}주위:{bold_end} 이 작업은 되돌릴 수 없습니다.";
+"lng_profile_convert_warning" = "{bold_start}주의:{bold_end} 이 작업은 되돌릴 수 없습니다.";
 "lng_profile_convert_confirm" = "변환";
 "lng_profile_add_more_after_upgrade" = "그룹에서 슈퍼그룹으로 업그레이드시 {count:_not_used_|# 명|# 명} 까지 추가 가능합니다.";
 
@@ -1021,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "텔레그램 데스크탑은  {version} 버전으로 업데이트 되었습니다.\n\n{changes}\n\n전체 버전 히스토리는 아래에서 확인 가능합니다:\n{link}";
 "lng_new_version_minor" = "— 버그 수정 및 일부 기능 향상";
-"lng_new_version_text" = "— 날자로 이동하여 특정일자 대화내역 확인\n— OSX 알림설정인 \"Do Not Disturb\" 설정 반영\n— 버그 수정 및 일부 기능 향상";
+"lng_new_version_text" = "— 텔레그램내에서 바로 MP4/MOV 파일 재생\n— 특정날자로 이동하여 대화내역 확인\n— 설정에서 전화번호 변경\n— 개인정보 설정화면에서 마지막 접속 및 그룹 초대 허용설정\n— 설정에서 차단된 사용자 리스트 수정\n— OSX 알림설정인 \"Do Not Disturb\" 설정 반영\n— 버그 수정 및 일부 기능 향상";
 
 "lng_menu_insert_unicode" = "유니코드 문자를 입력하세요.";
 

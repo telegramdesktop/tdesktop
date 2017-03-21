@@ -403,10 +403,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Benutzer";
 "lng_connection_password_ph" = "Kennwort";
 "lng_connection_save" = "Speichern";
+
+"lng_settings_blocked_users" = "Blockierte Nutzer";
+"lng_settings_last_seen_privacy" = "Zuletzt gesehen";
+"lng_settings_groups_invite_privacy" = "Gruppen";
 "lng_settings_show_sessions" = "Sitzungen";
-"lng_settings_reset" = "Alle anderen Geräte abmelden";
-"lng_settings_reset_sure" = "Sicher, dass du alle anderen Geräte\nabmelden möchtest?";
-"lng_settings_reset_one_sure" = "Dieses Gerät wirklich abmelden?";
+"lng_settings_self_destruct" = "Kontolöschung bei Inaktivität";
+"lng_settings_change_phone" = "Nummer ändern";
+
+"lng_settings_reset" = "Alle anderen Sitzungen abmelden";
+"lng_settings_reset_sure" = "Sicher, dass du alle anderen Sitzungen\nabmelden möchtest?";
+"lng_settings_reset_one_sure" = "Diese Sitzung wirklich abmelden?";
 "lng_settings_reset_button" = "Beenden";
 "lng_settings_reset_done" = "Alle anderen Sitzungen wurden erfolgreich beendet.";
 "lng_settings_manage_local_storage" = "Lokalen Cache verwalten";
@@ -422,11 +429,59 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_restart_now" = "NEUSTART";
 "lng_settings_restart_later" = "SPÄTER";
 
-"lng_sessions_header" = "Aktuelles Gerät";
-"lng_sessions_other_header" = "Andere Geräte";
-"lng_sessions_no_other" = "Keine anderen Geräte";
+"lng_sessions_header" = "Aktuelle Sitzung";
+"lng_sessions_other_header" = "Aktive Sitzungen";
+"lng_sessions_no_other" = "Keine anderen Sitzungen";
 "lng_sessions_other_desc" = "Du kannst Telegram gleichzeitig vom Handy, Tablet oder auch Computer mit der gleichen Handynummer benutzen. Alles wird immer synchronisiert.";
-"lng_sessions_terminate_all" = "Alle anderen Geräte abmelden";
+"lng_sessions_terminate_all" = "Alle anderen Sitzungen abmelden";
+
+"lng_blocked_list_title" = "Blockierte Nutzer";
+"lng_blocked_list_unknown_phone" = "unbekannte Nummer";
+"lng_blocked_list_unblock" = "Freigeben";
+"lng_blocked_list_add" = "Nutzer blockieren";
+"lng_blocked_list_add_title" = "Wen möchtest du blockieren?";
+"lng_blocked_list_already_blocked" = "bereits blockiert";
+"lng_blocked_list_about" = "Blockierte Nutzer können dir keine Nachrichten schicken oder dich in Gruppen einladen. Sie sehen weder dein Profilbild, noch deinen Online- und \"zuletzt gesehen\" Status.";
+"lng_blocked_list_not_found" = "Keine Nutzer gefunden.";
+
+"lng_edit_privacy_everyone" = "Jeder";
+"lng_edit_privacy_contacts" = "Meine Kontakte";
+"lng_edit_privacy_nobody" = "Niemand";
+"lng_edit_privacy_exceptions" = "Ausnahmen hinzufügen";
+
+"lng_edit_privacy_lastseen_title" = "Zuletzt gesehen";
+"lng_edit_privacy_lastseen_description" = "Wer darf deine \"zuletzt gesehen\" Zeit sehen:";
+"lng_edit_privacy_lastseen_warning" = "Wichtig: Du kannst den \"zuletzt gesehen\" Status nur von Personen sehen, mit denen du auch deinen teilst. Sonst wird nur die ungefähre Zeit angezeigt.";
+"lng_edit_privacy_lastseen_always" = "Immer teilen mit{count:| # Kontakt| # Kontakten}";
+"lng_edit_privacy_lastseen_never" = "Niemals teilen mit{count:| # Kontakt| # Kontakten}";
+"lng_edit_privacy_lastseen_exceptions" = "Hier kannst du Kontakte hinzufügen, für die eine Ausnahme gemacht werden soll.";
+"lng_edit_privacy_lastseen_always_title" = "Immer teilen mit";
+"lng_edit_privacy_lastseen_never_title" = "Niemals teilen mit";
+
+"lng_edit_privacy_groups_title" = "Wer kann mich Gruppen hinzufügen?";
+"lng_edit_privacy_groups_description" = "Du kannst bestimmen, wer dich in Gruppen oder Kanälen hinzufügen kann:";
+"lng_edit_privacy_groups_always" = "Immer erlauben{count:| # Kontakt| # Kontakten}";
+"lng_edit_privacy_groups_never" = "Niemals erlauben{count:| # Kontakt| # Kontakten}";
+"lng_edit_privacy_groups_exceptions" = "Hier kannst du Nutzer hinzufügen, für die eine Ausnahme gemacht werden soll.";
+"lng_edit_privacy_groups_always_title" = "Immer erlauben";
+"lng_edit_privacy_groups_never_title" = "Niemals erlauben";
+
+"lng_self_destruct_title" = "Automatische Kontolöschung";
+"lng_self_destruct_description" = "Wenn du dich innerhalb dieser Zeit nicht anmeldest, wird dein Konto mit allen Nachrichten, Gruppen und Kontakten gelöscht.";
+"lng_self_destruct_months" = "{count:_not_used_|# Monat|# Monate}";
+"lng_self_destruct_years" = "{count:_not_used_|# Jahr|# Jahre}";
+
+"lng_change_phone_title" = "Nummer ändern";
+"lng_change_phone_description" = "Du kannst deine Telefonnummer hier ändern.\nDein Konto und alle Daten in der Cloud, also \nNachrichten, Medien, Kontakte, etc. werden \nauf das neue Konto übertragen.\n\n[b]Wichtig[/b]: Alle deine Kontakte erhalten deine\n[b]neue Nummer[/b] ihrem Telefonbuch\nhinzugefügt, sofern sie deine alte Nummer \nhatten und du sie nicht blockiert hattest.";
+"lng_change_phone_warning" = "Bitte beachte, dass alle deine Kontakte deine neue Nummer ihrem Telefonbuch hinzugefügt bekommen, sofern sie deine alte Nummer gespeichert hatten und du sie nicht blockiert hattest.";
+"lng_change_phone_occupied" = "Unter der Nummer {phone} gibt es bereits ein Telegram-Konto. Du musst es vor der Änderung deiner Nummer löschen.";
+"lng_change_phone_button" = "Nummer ändern";
+"lng_change_phone_new_title" = "Neue Nummer eingeben";
+"lng_change_phone_new_description" = "Der Bestätigungscode kommt per SMS an deine neue Nummer.";
+"lng_change_phone_new_submit" = "Absenden";
+"lng_change_phone_code_title" = "Code eingeben";
+"lng_change_phone_code_description" = "Wir haben dir einen Bestätigungscode per SMS an {phone} gesendet.";
+"lng_change_phone_success" = "Deine Telefonnummer wurde geändert.";
 
 "lng_preview_loading" = "Lade Linkvorschau...";
 
@@ -660,7 +715,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_group_invite_about" = "Jeder, der Telegram installiert hat,\nkann anhand dieses Links in deine Gruppe.";
 "lng_group_invite_create_new" = "Link widerrufen";
 "lng_group_invite_about_new" = "Dein vorheriger Link wird ungültig, wenn du einen neuen erstellst.";
-"lng_group_invite_copied" = "Der Einladungslink für die Gruppe\nwurde in die Zwischenablage kopiert.";
+"lng_group_invite_copied" = "Einladungslink wurde kopiert.";
 "lng_group_invite_no_room" = "Leider kannst du dieser Gruppe nicht mehr beitreten, da sie bereits voll ist.";
 
 "lng_channel_public_link_copied" = "Link in die Zwischenablage kopiert.\n";
@@ -858,8 +913,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_context_view_profile" = "Profil öffnen";
 "lng_context_view_group" = "Gruppeninfo zeigen";
 "lng_context_view_channel" = "Kanalinfo anzeigen";
-"lng_context_pin_to_top" = "Anheften";
-"lng_context_unpin_from_top" = "Entfernen";
+"lng_context_pin_to_top" = "Oben anheften";
+"lng_context_unpin_from_top" = "Oben entfernen";
 
 "lng_context_promote_admin" = "Zum Admin machen";
 "lng_context_remove_admin" = "Als Admin entfernen";
@@ -1021,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop wurde aktualisiert auf Version {version}\n\n{changes}\n\nGesamter Versionsverlauf:\n{link}";
 "lng_new_version_minor" = "— Fehlerbehebungen und Softwareoptimierungen";
-"lng_new_version_text" = "— Schnell zu einem bestimmten Datum springen: Dazu einfach auf das Datum im Chat klicken.\n— App hält sich nun an die \"Nicht stören\"-Einstellungen auf macOS Systemen.\n— Fehlerbehebungen und sonstige Softwareoptimierungen.";
+"lng_new_version_text" = "— Sende MP4/MOV Dateien als Videos. Sie werden dann direkt in der App abgespielt.\n— Schnell zu einem bestimmten Datum springen: Tippe auf das Datum im Chat und springe so direkt zu einem anderen Tag.\n— Neue Einstellungen: Telefonnummer ändern, \"zuletzt gesehen\" Status und Gruppeneinladungen in den Telegram-Einstellungen.\n— Die App hält sich an die \"Nicht stören\" Einstellungen bei macOS.\n— Fehlerbehebungen und kleinere Verbesserungen.";
 
 "lng_menu_insert_unicode" = "Unicode-Steuerzeichen einfügen";
 

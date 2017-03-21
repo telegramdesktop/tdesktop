@@ -6,10 +6,10 @@
    xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
    xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
    IgnorableNamespaces="uap uap2 uap3 rescap">
-  <Identity Name="TelegramDesktop"
+  <Identity Name="TelegramMessengerLLP.TelegramDesktop"
     ProcessorArchitecture="x64"
-    Publisher="CN=Telegram Messenger LLP, O=Telegram Messenger LLP, L=London, C=GB"
-    Version="1.0.24.1" />
+    Publisher="CN=536BC709-8EE1-4478-AF22-F0F0F26FF64A"
+    Version="1.0.26.0" />
   <Properties>
     <DisplayName>Telegram Desktop</DisplayName>
     <PublisherDisplayName>Telegram Messenger LLP</PublisherDisplayName>

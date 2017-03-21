@@ -1,3 +1,13 @@
+1.0.26 (30.03.17)
+
+— Send MP4/MOV files as videos that will play right inside Telegram.
+— Click on the date in any chat to quickly jump to messages from a specific day.
+— Change your phone number in Settings.
+— Edit who can see your last seen time and who can add you to groups in Settings.
+— Edit your list of blocked users in Settings.
+— App now respects the "Do Not Disturb" setting for macOS notifications.
+— Bug fixes and other minor improvements.
+
 1.0.25 alpha (21.03.17)
 
 - Edit your account phone number in Settings.

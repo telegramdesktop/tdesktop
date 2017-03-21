@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Alias";
 "lng_connection_password_ph" = "Contraseña";
 "lng_connection_save" = "Guardar";
+
+"lng_settings_blocked_users" = "Usuarios bloqueados";
+"lng_settings_last_seen_privacy" = "Última conexión";
+"lng_settings_groups_invite_privacy" = "Invitación a grupos";
 "lng_settings_show_sessions" = "Mostrar todas las sesiones";
+"lng_settings_self_destruct" = "Autodestrucción de la cuenta";
+"lng_settings_change_phone" = "Cambiar número de teléfono";
+
 "lng_settings_reset" = "Cerrar todas las otras sesiones";
 "lng_settings_reset_sure" = "¿Quieres cerrar todas \nlas otras sesiones?";
 "lng_settings_reset_one_sure" = "¿Quieres cerrar esta sesión?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "Sin otras sesiones";
 "lng_sessions_other_desc" = "Puedes iniciar sesión en Telegram desde otro móvil, tablet o computador, usando el mismo número de teléfono. Todos tus datos se sincronizarán al instante.";
 "lng_sessions_terminate_all" = "Cerrar todas las otras sesiones";
+
+"lng_blocked_list_title" = "Usuarios bloqueados";
+"lng_blocked_list_unknown_phone" = "número desconocido";
+"lng_blocked_list_unblock" = "Desbloquear";
+"lng_blocked_list_add" = "Bloquear";
+"lng_blocked_list_add_title" = "Elige un usuario para bloquear";
+"lng_blocked_list_already_blocked" = "ya está bloqueado";
+"lng_blocked_list_about" = "Los usuarios bloqueados no pueden enviarte mensajes o añadirte a grupos. No verán tus fotos de perfil ni estados de conexión.";
+"lng_blocked_list_not_found" = "No se encontraron usuarios.";
+
+"lng_edit_privacy_everyone" = "Todos";
+"lng_edit_privacy_contacts" = "Mis contactos";
+"lng_edit_privacy_nobody" = "Nadie";
+"lng_edit_privacy_exceptions" = "Añadir excepciones";
+
+"lng_edit_privacy_lastseen_title" = "Última conexión";
+"lng_edit_privacy_lastseen_description" = "Puedes elegir quién ve tu última conexión:";
+"lng_edit_privacy_lastseen_warning" = "Importante: No verás la última conexión de las personas con las que no compartes la tuya. En su lugar, se mostrarán conexiones indeterminadas (recientemente, hace unos días, hace unas semanas).";
+"lng_edit_privacy_lastseen_always" = "Compartir con{count:| # usuario| # usuarios}";
+"lng_edit_privacy_lastseen_never" = "No compartir con{count:| # usuario| # usuarios}";
+"lng_edit_privacy_lastseen_exceptions" = "Estos ajustes anularán los valores de arriba.";
+"lng_edit_privacy_lastseen_always_title" = "Compartir con";
+"lng_edit_privacy_lastseen_never_title" = "No compartir con";
+
+"lng_edit_privacy_groups_title" = "Invitación a grupos";
+"lng_edit_privacy_groups_description" = "Puedes restringir quién puede añadirte a grupos o canales con gran precisión:";
+"lng_edit_privacy_groups_always" = "Permitir{count:| # usuario| # usuarios}";
+"lng_edit_privacy_groups_never" = "No permitir{count:| # usuario| # usuarios}";
+"lng_edit_privacy_groups_exceptions" = "Estos usuarios podrán o no añadirte a grupos y canales, independiente de los ajustes de arriba.";
+"lng_edit_privacy_groups_always_title" = "Permitir";
+"lng_edit_privacy_groups_never_title" = "No permitir";
+
+"lng_self_destruct_title" = "Autodestrucción de la cuenta";
+"lng_self_destruct_description" = "Si no estás en línea durante este tiempo, al menos una vez, tu cuenta se eliminará con todos tus grupos, mensajes y contactos.";
+"lng_self_destruct_months" = "{count:_not_used_|# mes|# meses}";
+"lng_self_destruct_years" = "{count:_not_used_|# año|# años}";
+
+"lng_change_phone_title" = "Cambiar número de teléfono";
+"lng_change_phone_description" = "Puedes cambiar tu número de Telegram aquí. \nTu cuenta y todos tus datos de la nube, mensajes,\narchivos, grupos, contactos, etc., se moverán al \nnuevo número.\n\n[b]Importante[/b]: Todos tus contactos de Telegram\ntendrán tu [b]nuevo número[/b] añadido a sus \nagendas de contactos, siempre que hayan tenido \ntu número viejo y no los hayas bloqueado.";
+"lng_change_phone_warning" = "Todos tus contactos de Telegram tendrán tu número nuevo añadido a sus agendas de contactos, siempre que hayan tenido tu número viejo y no los hayas bloqueado en Telegram.";
+"lng_change_phone_occupied" = "El número {phone} ya está vinculado a una cuenta de Telegram. Por favor, elimina esa cuenta antes de migrar al nuevo número.";
+"lng_change_phone_button" = "Cambiar número";
+"lng_change_phone_new_title" = "Pon tu número nuevo";
+"lng_change_phone_new_description" = "Enviaremos un SMS con el código de confirmación a tu nuevo número.";
+"lng_change_phone_new_submit" = "Enviar";
+"lng_change_phone_code_title" = "Pon el código";
+"lng_change_phone_code_description" = "Enviamos un SMS con el código de activación a tu teléfono {phone}.";
+"lng_change_phone_success" = "Tu número de teléfono ha sido cambiado.";
 
 "lng_preview_loading" = "Obteniendo enlace...";
 
@@ -1021,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop ha sido actualizada a la versión {version}\n\n{changes}\n\nEl historial completo está disponible aquí:\n{link}";
 "lng_new_version_minor" = "— Corrección de errores y otras mejoras menores";
-"lng_new_version_text" = "— Ir a la fecha: Haz clic en la fecha para ir a un día en específico dentro del chat.\n— La aplicación ahora respeta la opción “No molestar” en las notificaciones de macOS.\n— Corrección de errores y otras mejoras menores.";
+"lng_new_version_text" = "— Envía archivos MP4/MOV como videos que se reproducirán dentro de Telegram.\n— Haz clic en la fecha en cualquier chat para ir a los mensajes de un día en específico.\n— Cambia tu número de teléfono en ajustes.\n— Edita quién puede ver tu última conexión y quién puede añadirte a grupos en ajustes.\n— Edita la lista de usuarios bloqueados en ajustes.\n— La aplicación ahora respeta la opción “No molestar” en las notificaciones de macOS. \n— Corrección de errores y otras mejoras menores.";
 
 "lng_menu_insert_unicode" = "Insertar caracteres de control Unicode";
 

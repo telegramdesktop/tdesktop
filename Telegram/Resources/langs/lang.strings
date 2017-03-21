@@ -409,6 +409,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_settings_groups_invite_privacy" = "Group invite settings";
 "lng_settings_show_sessions" = "Show all sessions";
 "lng_settings_self_destruct" = "Account self-destruct settings";
+"lng_settings_change_phone" = "Change phone number";
 
 "lng_settings_reset" = "Terminate all other sessions";
 "lng_settings_reset_sure" = "Are you sure you want to terminate\nall other sessions?";
@@ -480,7 +481,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_change_phone_new_submit" = "Submit";
 "lng_change_phone_code_title" = "Enter code";
 "lng_change_phone_code_description" = "We've sent an SMS with a confirmation code to your phone {phone}.";
-"lng_change_phone_success" = "Your phone number was changed.";
+"lng_change_phone_success" = "Your phone number has been changed.";
 
 "lng_preview_loading" = "Getting Link Info...";
 
@@ -1075,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop was updated to version {version}\n\n{changes}\n\nFull version history is available here:\n{link}";
 "lng_new_version_minor" = "— Bug fixes and other minor improvements";
-"lng_new_version_text" = "— Go to date. Click on the date in a chat to jump to a specific day.\n— Added Last Seen and Group Invite privacy settings.\n— Edit list of blocked users in Settings.\n— Send MP4/MOV files as videos that will play right inside Telegram.\n— App now respects the \"Do Not Disturb\" setting for macOS notifications.\n— Bug fixes and other minor improvements.";
+"lng_new_version_text" = "— Send MP4/MOV files as videos that will play right inside Telegram.\n— Click on the date in any chat to quickly jump to messages from a specific day.\n— Change your phone number in Settings.\n— Edit who can see your last seen time and who can add you to groups in Settings.\n— Edit your list of blocked users in Settings.\n— App now respects the \"Do Not Disturb\" setting for macOS notifications.\n— Bug fixes and other minor improvements.";
 
 "lng_menu_insert_unicode" = "Insert Unicode control character";
 

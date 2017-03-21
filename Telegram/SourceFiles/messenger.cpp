@@ -676,7 +676,7 @@ void Messenger::checkMapVersion() {
 			QString versionFeatures;
 			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000025) {
 				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Edit your account phone number in Settings.");
-			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000012) {
+			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000026) {
 				versionFeatures = langNewVersionText();
 			} else {
 				versionFeatures = lang(lng_new_version_minor).trimmed();

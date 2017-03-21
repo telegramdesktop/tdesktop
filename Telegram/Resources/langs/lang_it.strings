@@ -352,7 +352,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_passcode_enter_first" = "Inserisci un codice";
 "lng_passcode_enter_new" = "Inserisci il nuovo codice";
 "lng_passcode_confirm_new" = "Reinserisci il nuovo codice";
-"lng_passcode_about" = "Quando un codice è attivo, appare un'icona col lucchetto sopra la lista delle chat. Premi su di essa per bloccare l'app.\n\nNota: se dimentichi il codice, dovrai accedere di nuovo su Telegram Desktop.";
+"lng_passcode_about" = "Quando è attivo un codice, appare un'icona col lucchetto sopra la lista delle chat. Premila per bloccare l'app.\n\nNota: se dimentichi il codice, dovrai accedere di nuovo su Telegram Desktop.";
 "lng_passcode_differ" = "I codici sono diversi";
 "lng_passcode_wrong" = "Codice errato";
 "lng_passcode_is_same" = "Il codice non è stato cambiato";
@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Username";
 "lng_connection_password_ph" = "Password";
 "lng_connection_save" = "Salva";
+
+"lng_settings_blocked_users" = "Utenti bloccati";
+"lng_settings_last_seen_privacy" = "Ultimo accesso";
+"lng_settings_groups_invite_privacy" = "Gruppi";
 "lng_settings_show_sessions" = "Mostra tutte le sessioni";
+"lng_settings_self_destruct" = "Impostazioni autodistruzione account";
+"lng_settings_change_phone" = "Cambia numero di telefono";
+
 "lng_settings_reset" = "Termina tutte le altre sessioni";
 "lng_settings_reset_sure" = "Sicuro di voler terminare\ntutte le altre sessioni?";
 "lng_settings_reset_one_sure" = "Vuoi terminare questa sessione?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "Nessun'altra sessione";
 "lng_sessions_other_desc" = "Ti puoi connettere a Telegram da altri dispositivi mobili, tablet e desktop usando lo stesso numero. Tutti i tuoi dati saranno sincronizzati istantaneamente.";
 "lng_sessions_terminate_all" = "Termina tutte le altre sessioni";
+
+"lng_blocked_list_title" = "Utenti bloccati";
+"lng_blocked_list_unknown_phone" = "numero sconosciuto";
+"lng_blocked_list_unblock" = "Sblocca";
+"lng_blocked_list_add" = "Blocca utente";
+"lng_blocked_list_add_title" = "Seleziona l'utente da bloccare";
+"lng_blocked_list_already_blocked" = "già bloccato";
+"lng_blocked_list_about" = "Gli utenti bloccati non possono inviarti messaggi o aggiungerti ai gruppi. Non vedranno le tue foto profilo, lo stato in linea e l'ultimo accesso.";
+"lng_blocked_list_not_found" = "Nessun utente trovato.";
+
+"lng_edit_privacy_everyone" = "Tutti";
+"lng_edit_privacy_contacts" = "I miei contatti";
+"lng_edit_privacy_nobody" = "Nessuno";
+"lng_edit_privacy_exceptions" = "Aggiungi eccezioni";
+
+"lng_edit_privacy_lastseen_title" = "Ultimo accesso";
+"lng_edit_privacy_lastseen_description" = "Puoi decidere chi può vedere il tuo ultimo accesso:";
+"lng_edit_privacy_lastseen_warning" = "Importante: non potrai vedere l'ultimo accesso delle persone con cui non condividi l'ultimo accesso. Verrà mostrato un orario approssimativo (di recente, entro una settimana, entro un mese).";
+"lng_edit_privacy_lastseen_always" = "Condividi con{count:| # utente| # utenti}";
+"lng_edit_privacy_lastseen_never" = "Non condividere con{count:| # utente| # utenti}";
+"lng_edit_privacy_lastseen_exceptions" = "Queste impostazioni annulleranno i valori precedenti.";
+"lng_edit_privacy_lastseen_always_title" = "Condividi con";
+"lng_edit_privacy_lastseen_never_title" = "Non condividere co";
+
+"lng_edit_privacy_groups_title" = "Gruppi";
+"lng_edit_privacy_groups_description" = "Puoi decidere chi può aggiungerti a gruppi e canali con precisione granulare:";
+"lng_edit_privacy_groups_always" = "Consenti sempre{count:| # utente| # utenti}";
+"lng_edit_privacy_groups_never" = "Non consentire mai{count:| # utente| # utenti}";
+"lng_edit_privacy_groups_exceptions" = "Questi utenti potranno o non potranno aggiungerti a gruppi e canali indipendentemente dalle impostazioni precedenti.";
+"lng_edit_privacy_groups_always_title" = "Consenti sempre";
+"lng_edit_privacy_groups_never_title" = "Non consentire mai";
+
+"lng_self_destruct_title" = "Autodistruzione account";
+"lng_self_destruct_description" = "Se non ti connetti almeno una volta in questo periodo, il tuo account verrà eliminato insieme a tutti i gruppi, i messaggi e i contatti.";
+"lng_self_destruct_months" = "{count:_not_used_|# mese|# mesi}";
+"lng_self_destruct_years" = "{count:_not_used_|# anno|# anni}";
+
+"lng_change_phone_title" = "Cambia numero di telefono";
+"lng_change_phone_description" = "Puoi cambiare il tuo numero di telefono\nqui. Il tuo account e tutti i tuoi dati cloud\n— messaggi, file, contatti, etc. saranno\ntrasferiti sul nuovo numero.\n\n[b]Importante[/b]: a tutti i tuoi contatti di Telegram\nverrà aggiunto il tuo [b]nuovo numero[/b] ai contatti,\npurché abbiano il tuo vecchio numero e\ntu non li abbia bloccati su Telegram.";
+"lng_change_phone_warning" = "Tutti i tuoi contatti Telegram avranno il tuo nuovo numero tra i loro contatti, purché abbiano il tuo vecchio numero e tu non li abbia bloccati su Telegram.";
+"lng_change_phone_occupied" = "Il numero {phone} è già connesso ad un account Telegram. Per favore elimina quell'account prima di migrare sul nuovo numero.";
+"lng_change_phone_button" = "Cambia numero";
+"lng_change_phone_new_title" = "Inserisci il nuovo numero";
+"lng_change_phone_new_description" = "Invieremo un SMS con un codice di conferma al tuo nuovo numero.";
+"lng_change_phone_new_submit" = "Invia";
+"lng_change_phone_code_title" = "Inserisci il codice";
+"lng_change_phone_code_description" = "Abbiamo inviato un SMS con un codice di conferma al tuo numero {phone}.";
+"lng_change_phone_success" = "Il tuo numero di telefono è stato cambiato.";
 
 "lng_preview_loading" = "Recupero le info del link...";
 
@@ -1021,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop si è aggiornato alla versione {version}\n\n{changes}\n\nLa cronologia degli aggiornamenti è disponibile qui:\n{link}";
 "lng_new_version_minor" = "— Risoluzione di problemi e altri miglioramenti minori";
-"lng_new_version_text" = "— Vai alla data. Clicca sulla data in una chat per visualizzare un giorno specifico.\n— L'app ora rispetta la modalità \"Non disturbare\" di macOS.\n— Risoluzione di problemi e altri miglioramenti minori.";
+"lng_new_version_text" = "—  Vai alla data. Quando esegui una ricerca in una chat clicca sulla data per andare al giorno selezionato.\n— Aggiunte le Impostazioni per la privacy dell'ultimo accesso e per l'invito ai gruppi.\n— Cambia il tuo numero nelle Impostazioni.\n— Modifica la lista degli utenti bloccati nelle Impostazioni.\n— Invia file MP4/MOV come video in modo che vengano aperti all'interno di  Telegram.\n— L'app ora rispetta la modalità \"Non disturbare\" per le notifiche di macOS.\n— Risoluzione di problemi e altri miglioramenti minori.";
 
 "lng_menu_insert_unicode" = "Inserisci carattere di controllo Unicode";
 

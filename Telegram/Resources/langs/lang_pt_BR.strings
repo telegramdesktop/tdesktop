@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Usuário";
 "lng_connection_password_ph" = "Senha";
 "lng_connection_save" = "Salvar";
+
+"lng_settings_blocked_users" = "Usuários bloqueados";
+"lng_settings_last_seen_privacy" = "Visto por último";
+"lng_settings_groups_invite_privacy" = "Grupos";
 "lng_settings_show_sessions" = "Exibir todas as sessões";
+"lng_settings_self_destruct" = "Configurações de auto-destruição da conta";
+"lng_settings_change_phone" = "Alterar número de telefone";
+
 "lng_settings_reset" = "Encerrar todas as outras sessões";
 "lng_settings_reset_sure" = "Você tem certeza que deseja terminar\ntodas as outras sessões?";
 "lng_settings_reset_one_sure" = "Você deseja terminar essa sessão?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "Nenhuma outra sessão";
 "lng_sessions_other_desc" = "Você pode entrar no Telegram de outro celular, tablet e computadores, usando o mesmo número de telefone. Todos seus dados estarão sincronizados.";
 "lng_sessions_terminate_all" = "Encerrar todas as outras sessões";
+
+"lng_blocked_list_title" = "Usuários bloqueados";
+"lng_blocked_list_unknown_phone" = "número desconhecido";
+"lng_blocked_list_unblock" = "Desbloquear";
+"lng_blocked_list_add" = "Bloquear usuário";
+"lng_blocked_list_add_title" = "Selecionar usuário para bloquear";
+"lng_blocked_list_already_blocked" = "já bloqueado";
+"lng_blocked_list_about" = "Usuários bloqueados não podem te enviar mensagens ou adicionar em grupos. Eles não verão suas fotos de perfil, online e status de visto por último.";
+"lng_blocked_list_not_found" = "Nenhum usuário encontrado";
+
+"lng_edit_privacy_everyone" = "Todos";
+"lng_edit_privacy_contacts" = "Meus Contatos";
+"lng_edit_privacy_nobody" = "Ninguém";
+"lng_edit_privacy_exceptions" = "Adicionar exceções";
+
+"lng_edit_privacy_lastseen_title" = "Visto por último";
+"lng_edit_privacy_lastseen_description" = "Você pode escolher quem vê o seu \"visto por último\":";
+"lng_edit_privacy_lastseen_warning" = "Importante: você não poderá ver o horário de Visto por Último de pessoas com as quais você não compartilha o seu. Você verá um valor aproximado (recentemente, na última semana, no último mês).";
+"lng_edit_privacy_lastseen_always" = "Sempre compartilhar com{count:| # usuário| # usuários}";
+"lng_edit_privacy_lastseen_never" = "Nunca compartilhar com{count:| # usuário| # usuários}";
+"lng_edit_privacy_lastseen_exceptions" = "Essas configurações irão sobrescrever os valores anteriores.";
+"lng_edit_privacy_lastseen_always_title" = "Sempre compartilhar com";
+"lng_edit_privacy_lastseen_never_title" = "Nunca compartilhar com";
+
+"lng_edit_privacy_groups_title" = "Configurações de convite à grupos";
+"lng_edit_privacy_groups_description" = "Você pode escolher quem pode te adicionar em grupos e canais com precisão:";
+"lng_edit_privacy_groups_always" = "Sempre permitir{count:| # usuário| # usuários}";
+"lng_edit_privacy_groups_never" = "Nunca permitir{count:| # usuário| # usuários}";
+"lng_edit_privacy_groups_exceptions" = "Esses usuários poderão ou não te adicionar em grupos e canais dependendo de suas configurações.";
+"lng_edit_privacy_groups_always_title" = "Sempre permitir";
+"lng_edit_privacy_groups_never_title" = "Nunca permitir";
+
+"lng_self_destruct_title" = "Auto-destruição da conta";
+"lng_self_destruct_description" = "Se você não ficar online ao menos uma vez nesse período, sua conta será apagada junto com seus grupos, mensagens e contatos.";
+"lng_self_destruct_months" = "{count:_not_used_|# mês|# meses}";
+"lng_self_destruct_years" = "{count:_not_used_|# ano|# anos}";
+
+"lng_change_phone_title" = "Alterar número de telefone";
+"lng_change_phone_description" = "Você pode alterar seu número do Telegram aqui.\nSua conta e todos os seus dados — mensagens,\nmídia, contatos, etc. serão movidos para\no novo número.\n\n[b]Importante[/b]: todos os contatos do Telegram terão\nseu [b]novo número[/b] adicionado às suas lista de contatos,\ndesde que eles tenham seu número antigo e você não\nos tenha bloqueado no Telegram.";
+"lng_change_phone_warning" = "Todos os seus contatos do Telegram terão seu novo número adicionado às suas listas de contatos, desde que eles tenham seu antigo número e você não os tenha bloqueado no Telegram.";
+"lng_change_phone_occupied" = "O número {phone} já possui uma conta do Telegram. Por favor, exclua esta conta antes de migrar para o novo número.";
+"lng_change_phone_button" = "Alterar número";
+"lng_change_phone_new_title" = "Insira o novo número";
+"lng_change_phone_new_description" = "Enviaremos um SMS com um código de confirmação para o seu novo número.";
+"lng_change_phone_new_submit" = "Enviar";
+"lng_change_phone_code_title" = "Insira o código";
+"lng_change_phone_code_description" = "Enviamos um SMS com um código de ativação para {phone}.";
+"lng_change_phone_success" = "Seu número de telefone foi alterado.";
 
 "lng_preview_loading" = "Obtendo Informações do Link...";
 
@@ -1021,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram Desktop foi atualizado para a versão {version}\n\n{changes}\n\nHistórico completo de mudanças disponível aqui:\n{link}";
 "lng_new_version_minor" = "— Resolução de bugs e outras melhorias menores";
-"lng_new_version_text" = "— Ir para data. Clique em uma data na conversa para pular para o dia específico.\n— O aplicativo agora respeita ao \"Não Perturbe\" nas notificações do macOS.\n— Resolução de bugs e outras melhorias.";
+"lng_new_version_text" = "— Envie arquivos MP4/MOV como vídeos que serão reproduzidos dentro do Telegram.\n— Clique em uma data na conversa para pular para o dia específico.\n— Altere seu número nas Configurações.\n— Edite quem pode ver suas opções de visto por último e quem pode te adicionar em grupos nas Configurações.\n— Edite a lista de usuários bloqueados nas Configurações.\n— O aplicativo agora respeita ao \"Não Perturbe\" nas notificações do macOS.\n— Resolução de bugs e outras melhorias.";
 
 "lng_menu_insert_unicode" = "Inserir caractere de controle Unicode";
 

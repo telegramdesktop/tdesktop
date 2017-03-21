@@ -338,7 +338,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_passcode_remove_button" = "Verwijder";
 
-"lng_passcode_turn_on" = "Toegangscode inschakelen";
+"lng_passcode_turn_on" = "Toegangscode";
 "lng_passcode_change" = "Toegangscode wijzigen";
 "lng_passcode_create" = "Toegangscode";
 "lng_passcode_remove" = "Toegangscode verwijderen";
@@ -366,7 +366,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_cloud_password_change" = "Cloud-wachtwoord wijzigen";
 "lng_cloud_password_create" = "Cloud-wachtwoord";
 "lng_cloud_password_remove" = "Cloud-wachtwoord verwijderen";
-"lng_cloud_password_set" = "Twee-staps-verificatie inschakelen";
+"lng_cloud_password_set" = "Twee-staps-verificatie";
 "lng_cloud_password_edit" = "Cloud-wachtwoord wijzigen";
 "lng_cloud_password_enter_old" = "Wachtwoord invoeren";
 "lng_cloud_password_enter_first" = "Wachtwoord invoeren";
@@ -403,7 +403,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_connection_user_ph" = "Gebruikersnaam";
 "lng_connection_password_ph" = "Wachtwoord";
 "lng_connection_save" = "Opslaan";
+
+"lng_settings_blocked_users" = "Geblokkeerde gebruikers";
+"lng_settings_last_seen_privacy" = "Laatst gezien";
+"lng_settings_groups_invite_privacy" = "Groepen";
 "lng_settings_show_sessions" = "Alle sessies weergeven";
+"lng_settings_self_destruct" = "Account verwijderen na inactiviteit";
+"lng_settings_change_phone" = "Telefoonnummer wijzigen";
+
 "lng_settings_reset" = "Beëindig alle andere sessies";
 "lng_settings_reset_sure" = "Alle apparaten behalve het huidige\napparaat uitloggen?";
 "lng_settings_reset_one_sure" = "Deze sessie beëindigen?";
@@ -427,6 +434,54 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_sessions_no_other" = "Geen andere sessies";
 "lng_sessions_other_desc" = "Je kunt in Telegram inloggen vanaf andere apparaten (mobiel,tablet,desktop) met hetzelfde telefoonnummer. Al je data zal direct worden gesynchroniseerd.";
 "lng_sessions_terminate_all" = "Beëindig alle andere sessies";
+
+"lng_blocked_list_title" = "Geblokkeerde gebruikers";
+"lng_blocked_list_unknown_phone" = "onbekend nummer";
+"lng_blocked_list_unblock" = "Deblokkeer";
+"lng_blocked_list_add" = "Blokkeer";
+"lng_blocked_list_add_title" = "Gebruikers blokkeren";
+"lng_blocked_list_already_blocked" = "al geblokkeerd";
+"lng_blocked_list_about" = "Deze gebruikers kunnen je geen berichten sturen, niet toevoegen aan groepen, je profielfoto, online status en laatst gezien niet zien.";
+"lng_blocked_list_not_found" = "Geen gebruikers.";
+
+"lng_edit_privacy_everyone" = "Iedereen";
+"lng_edit_privacy_contacts" = "Mijn contacten";
+"lng_edit_privacy_nobody" = "Niemand";
+"lng_edit_privacy_exceptions" = "Uitzonderingen";
+
+"lng_edit_privacy_lastseen_title" = "Laatst gezien";
+"lng_edit_privacy_lastseen_description" = "Je kunt instellen wie je \"laatst gezien\" mag zien:";
+"lng_edit_privacy_lastseen_warning" = "Let op: van mensen waarmee je je laatst gezien tijd niet deelt is deze voor jou ook niet zichtbaar. In plaats daarvan krijg je tijden bij benadering te zien.";
+"lng_edit_privacy_lastseen_always" = "Altijd delen met{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_lastseen_never" = "Nooit delen met{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_lastseen_exceptions" = "Deze instelling overschrijft de bovenstaande.";
+"lng_edit_privacy_lastseen_always_title" = "Altijd delen met";
+"lng_edit_privacy_lastseen_never_title" = "Nooit delen met";
+
+"lng_edit_privacy_groups_title" = "Wie kan mij toevoegen?";
+"lng_edit_privacy_groups_description" = "Je kunt nauwkeurig bepalen wie je aan groepen en kanalen mag toevoegen.";
+"lng_edit_privacy_groups_always" = "Altijd toestaan{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_groups_never" = "Nooit toestaan{count:| # gebruiker| # gebruikers}";
+"lng_edit_privacy_groups_exceptions" = "Deze gebruikers altijd toestaan of verbieden je aan groepen en kanalen toe te voegen.";
+"lng_edit_privacy_groups_always_title" = "Altijd toestaan";
+"lng_edit_privacy_groups_never_title" = "Nooit toestaan";
+
+"lng_self_destruct_title" = "Account verwijderen";
+"lng_self_destruct_description" = "Als je binnen deze periode niet minimaal één keer ingelogd bent geweest zal je account worden verwijderd, inclusief alle data.";
+"lng_self_destruct_months" = "{count:_not_used_|# maand|# maanden}";
+"lng_self_destruct_years" = "{count:_not_used_|# jaar|# jaar}";
+
+"lng_change_phone_title" = "Telefoonnummer wijzigen";
+"lng_change_phone_description" = "Je kan je telefoonnummer hier wijzigen.\nAl je clouddata — berichten, bestanden, \ngroepen, contacten, etc. zullen worden \ngekopieërd naar je nieuwe nummer.\n\n[b]Let op[/b]: al je Telegram-contacten krijgen \nje [b]nieuwe nummer[/b] in hun adresboek, ervan \nuitgaande dat ze je oude nummer hadden en \nje hen niet had geblokkeerd in Telegram.";
+"lng_change_phone_warning" = "Al je Telegram-contacten krijgen je nieuwe nummer in hun adresboek, ervan uitgaande dat ze je oude nummer hadden en je hen niet had geblokkeerd in Telegram.";
+"lng_change_phone_occupied" = "Aan telefoonnummer {phone} is al een Telegram-account gekoppeld. Verwijder het account om te kunnen migreren naar het nieuwe nummer.";
+"lng_change_phone_button" = "Nummer wijzigen";
+"lng_change_phone_new_title" = "Voer je nieuwe nummer in";
+"lng_change_phone_new_description" = "We sturen een sms-bericht met verificatiecode naar je nieuwe nummer.";
+"lng_change_phone_new_submit" = "Versturen";
+"lng_change_phone_code_title" = "Code invoeren";
+"lng_change_phone_code_description" = "Een sms-bericht met verificatiecode is naar nummer {phone} verstuurd.";
+"lng_change_phone_success" = "Je telefoonnummer is gewijzigd.";
 
 "lng_preview_loading" = "Link-preview ophalen...";
 
@@ -1021,7 +1076,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 "lng_new_version_wrap" = "Telegram is bijgewerkt naar versie {version}\n\n{changes} \n\nVolledige versiegeschiedenis is hier te vinden:\n{link}";
 "lng_new_version_minor" = "— Probleemoplossing en andere kleine verbeteringen";
-"lng_new_version_text" = "— Spring naar datum. Klik op de datum in een chat om naar een specifieke dag te springen.\n— Ondersteuning voor de \"Niet storen\"-functie van macOS.\n— Probleemoplossing en andere kleine verbeteringen.";
+"lng_new_version_text" = "— MP4/MOV-bestanden versturen als video, deze spelen direct af in Telegram.\n— Spring naar datum. Klik op de datum in een chat om naar een specifieke dag te springen.\n— Wijzig je telefoonnummer via de instellingen.\n— Privacyinstellingen voor \"laatst gezien\" en groepsuitnodigingen.\n— Geblokkeerde gebruikers beheren via instellingen.\n— Ondersteuning voor de \"Niet storen\"-functie van macOS.\n— Probleemoplossing en andere kleine verbeteringen.";
 
 "lng_menu_insert_unicode" = "Unicode-besturingsteken invoegen";
 

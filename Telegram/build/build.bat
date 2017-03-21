@@ -207,7 +207,7 @@ if %BuildUWP% neq 0 (
   MakeAppx.exe pack /d "%ReleasePath%\AppX" /l /p ..\out\Release\%BinaryName%.appx
   if %errorlevel% neq 0 goto error
 
-  call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
+  rem call "%SignAppxPath%" "..\out\Release\%BinaryName%.appx"
 
   xcopy "%ReleasePath%\%BinaryName%.pdb" "%ReleasePath%\AppX\"
   move "%ReleasePath%\%BinaryName%.exe.pdb" "%ReleasePath%\AppX\"
