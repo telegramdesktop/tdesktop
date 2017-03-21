@@ -3010,6 +3010,10 @@ TextWithEntities HistoryWebPage::selectedText(TextSelection selection) const {
 	return titleResult;
 }
 
+bool HistoryWebPage::hasReplyPreview() const {
+	return _attach ? _attach->hasReplyPreview() : (_data->photo ? true : false);
+}
+
 ImagePtr HistoryWebPage::replyPreview() {
 	return _attach ? _attach->replyPreview() : (_data->photo ? _data->photo->makeReplyPreview() : ImagePtr());
 }

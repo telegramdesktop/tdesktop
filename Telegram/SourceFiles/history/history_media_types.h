@@ -726,9 +726,7 @@ public:
 	void attachToParent() override;
 	void detachFromParent() override;
 
-	bool hasReplyPreview() const override {
-		return (_data->photo && !_data->photo->thumb->isNull()) || (_data->document && !_data->document->thumb->isNull());
-	}
+	bool hasReplyPreview() const override;
 	ImagePtr replyPreview() override;
 
 	WebPageData *webpage() {
