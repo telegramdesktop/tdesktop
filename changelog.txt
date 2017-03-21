@@ -1,3 +1,7 @@
+1.0.25 alpha (21.03.17)
+
+- Edit your account phone number in Settings.
+
 1.0.24 alpha (19.03.17)
 
 - Added Last Seen and Group Invite privacy settings.

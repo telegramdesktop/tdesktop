@@ -637,8 +637,8 @@ void Messenger::checkMapVersion() {
 	if (Local::oldMapVersion() < AppVersion) {
 		if (Local::oldMapVersion()) {
 			QString versionFeatures;
-			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000024) {
-				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Added Last Seen and Group Invite privacy settings.");
+			if ((cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000025) {
+				versionFeatures = QString::fromUtf8("\xE2\x80\x94 Edit your account phone number in Settings.");
 			} else if (!(cAlphaVersion() || cBetaVersion()) && Local::oldMapVersion() < 1000012) {
 				versionFeatures = langNewVersionText();
 			} else {

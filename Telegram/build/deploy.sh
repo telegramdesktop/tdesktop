@@ -94,10 +94,6 @@ elif [ "$BuildTarget" == "mac" ]; then
   WinSetupFile="tsetup.$AppVersionStrFull.exe"
   WinPortableFile="tportable.$AppVersionStrFull.zip"
   WinRemoteFolder="tsetup"
-  DropboxPath="/Volumes/Storage/Dropbox/Telegram/deploy/$AppVersionStrMajor"
-  DropboxDeployPath="$DropboxPath/$AppVersionStrFull"
-  DropboxSetupFile="$SetupFile"
-  DropboxMac32SetupFile="$Mac32SetupFile"
   BackupPath="/Volumes/Storage/backup/$AppVersionStrMajor/$AppVersionStrFull"
 elif [ "$BuildTarget" == "mac32" ] || [ "$BuildTarget" = "macstore" ]; then
   Error "No need to deploy this target."
@@ -128,10 +124,8 @@ if [ "$BetaVersion" != "0" ]; then
     SetupFile="tbeta${BetaVersion}_${BetaSignature}.tar.xz"
   elif [ "$BuildTarget" == "mac" ]; then
     SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-    DropboxSetupFile="tbeta${BetaVersion}_${BetaSignature}_mac.zip"
     Mac32UpdateFile="${Mac32UpdateFile}_${BetaSignature}"
     Mac32SetupFile="tbeta${BetaVersion}_${BetaSignature}.zip"
-    DropboxMac32SetupFile="tbeta${BetaVersion}_${BetaSignature}_mac32.zip"
     WinUpdateFile="${WinUpdateFile}_${BetaSignature}"
     WinPortableFile="tbeta${BetaVersion}_${BetaSignature}.zip"
   fi
@@ -180,8 +174,6 @@ fi
         Error "$WinPortableFile not found!"
       fi
     fi
-
-    mkdir -p "$DropboxDeployPath"
   fi
 #fi
 
@@ -208,36 +200,18 @@ if [ "$BuildTarget" == "linux" ] || [ "$BuildTarget" == "linux32" ] || [ "$Build
     fi
 
     if [ "$DeployMac" == "1" ]; then
-      if [ -d "$DropboxDeployPath/Telegram.app.dSYM" ]; then
-        rm -rf "$DropboxDeployPath/Telegram.app.dSYM"
-      fi
-      cp -rv "$DeployPath/Telegram.app.dSYM" "$DropboxDeployPath/"
       if [ "$BetaVersion" == "0" ]; then
         mkdir -p "$BackupPath/tmac"
         mv -v "$DeployPath/$SetupFile" "$BackupPath/tmac/"
       fi
     fi
     if [ "$DeployMac32" == "1" ]; then
-      if [ -d "$DropboxDeployPath/Telegram32.app.dSYM" ]; then
-        rm -rf "$DropboxDeployPath/Telegram32.app.dSYM"
-      fi
-      mv -v "$Mac32DeployPath/Telegram.app.dSYM" "$DropboxDeployPath/Telegram32.app.dSYM"
       if [ "$BetaVersion" == "0" ]; then
         mkdir -p "$BackupPath/tmac32"
         mv -v "$Mac32DeployPath/$Mac32SetupFile" "$BackupPath/tmac32/"
       fi
     fi
     if [ "$DeployWin" == "1" ]; then
-      if [ -f "$WinDeployPath/Telegram.pdb" ]; then
-        mv -v "$WinDeployPath/Telegram.pdb" "$DropboxDeployPath/"
-      elif [ ! -f "$DropboxDeployPath/Telegram.pdb" ]; then
-        echo "Warning: Telegram.pdb not found."
-      fi
-      if [ -f "$WinDeployPath/Updater.pdb" ]; then
-        mv -v "$WinDeployPath/Updater.pdb" "$DropboxDeployPath/"
-      elif [ ! -f "$DropboxDeployPath/Updater.pdb" ]; then
-        echo "Warning: Updater.pdb not found."
-      fi
       if [ "$BetaVersion" == "0" ]; then
         mkdir -p "$BackupPath/tsetup"
         mv -v "$WinDeployPath/$WinSetupFile" "$BackupPath/tsetup/"

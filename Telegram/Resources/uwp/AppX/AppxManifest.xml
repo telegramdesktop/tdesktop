@@ -9,7 +9,7 @@
   <Identity Name="TelegramDesktop"
     ProcessorArchitecture="x64"
     Publisher="CN=Telegram Messenger LLP, O=Telegram Messenger LLP, L=London, C=GB"
-    Version="1.0.24.0" />
+    Version="1.0.25.0" />
   <Properties>
     <DisplayName>Telegram Desktop</DisplayName>
     <PublisherDisplayName>Telegram Messenger LLP</PublisherDisplayName>

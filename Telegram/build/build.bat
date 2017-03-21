@@ -271,11 +271,6 @@ if %BuildUWP% equ 0 (
   ) else (
     xcopy "%DeployPath%\%BetaKeyFile%" "%FinalDeployPath%\" /Y
   )
-  xcopy "%DeployPath%\%BinaryName%.pdb" "%FinalDeployPath%\"
-  xcopy "%DeployPath%\%BinaryName%.exe.pdb" "%FinalDeployPath%\"
-  xcopy "%DeployPath%\Updater.exe" "%FinalDeployPath%\"
-  xcopy "%DeployPath%\Updater.pdb" "%FinalDeployPath%\"
-  xcopy "%DeployPath%\Updater.exe.pdb" "%FinalDeployPath%\"
 )
 
 echo Version %AppVersionStrFull% is ready!

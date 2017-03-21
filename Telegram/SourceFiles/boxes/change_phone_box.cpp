@@ -53,7 +53,8 @@ void createErrorLabel(QWidget *parent, object_ptr<Ui::WidgetFadeWrap<Ui::FlatLab
 
 class ChangePhoneBox::EnterPhone : public BoxContent {
 public:
-	using BoxContent::BoxContent;
+	EnterPhone(QWidget*) {
+	}
 
 	void setInnerFocus() override {
 		_phone->setFocusFast();
