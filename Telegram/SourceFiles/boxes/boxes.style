@@ -605,3 +605,22 @@ editPrivacyLabel: FlatLabel(defaultFlatLabel) {
 	style: defaultTextStyle;
 }
 editPrivacyLinkMargin: margins(0px, 0px, 0px, 8px);
+
+changePhoneIcon: icon {
+	{ "phone_simcard_from", changePhoneSimcardFrom },
+	{ "phone_simcard_migrate", changePhoneSimcardTo, point(30px, 11px) },
+	{ "phone_simcard_to", changePhoneSimcardTo, point(78px, 0px) }
+};
+changePhoneDescription: FlatLabel(boxLabel) {
+	width: 332px;
+	align: align(top);
+}
+changePhoneIconTop: 20px;
+changePhoneDescriptionTop: 96px;
+changePhoneLabel: FlatLabel(defaultFlatLabel) {
+	width: 275px;
+	textFg: windowSubTextFg;
+}
+changePhoneError: FlatLabel(changePhoneLabel) {
+	textFg: boxTextFgError;
+}

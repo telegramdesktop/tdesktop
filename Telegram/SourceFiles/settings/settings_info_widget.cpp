@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/labels.h"
 #include "ui/effects/widget_slide_wrap.h"
 #include "boxes/usernamebox.h"
+#include "boxes/change_phone_box.h"
 #include "observer_peer.h"
 
 namespace Settings {
@@ -68,6 +69,12 @@ void InfoWidget::refreshMobileNumber() {
 		}
 	}
 	setLabeledText(_mobileNumber, lang(lng_profile_mobile_number), phoneText, TextWithEntities(), lang(lng_profile_copy_phone));
+	if (auto text = _mobileNumber->entity()->textLabel()) {
+		text->setRichText(textcmdLink(1, phoneText.text));
+		text->setLink(1, MakeShared<LambdaClickHandler>([] {
+			Ui::show(Box<ChangePhoneBox>());
+		}));
+	}
 }
 
 void InfoWidget::refreshUsername() {

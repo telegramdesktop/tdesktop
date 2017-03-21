@@ -470,6 +470,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_self_destruct_months" = "{count:_not_used_|# month|# months}";
 "lng_self_destruct_years" = "{count:_not_used_|# year|# years}";
 
+"lng_change_phone_title" = "Change phone number";
+"lng_change_phone_description" = "You can change your Telegram number\nhere. Your account and all your cloud data\n— messages, media, contacts, etc. will be\nmoved to the new number.\n\n[b]Important[/b]: all your Telegram contacts will\nget your [b]new number[/b] added to their address\nbook, provided they had your old number and\nyou haven't blocked them in Telegram.";
+"lng_change_phone_warning" = "All your Telegram contacts will get your new number added to their address book, provided they had your old number and you haven't blocked them in Telegram.";
+"lng_change_phone_occupied" = "The number {phone} is already connected to a Telegram account. Please delete that account before migrating to the new number.";
+"lng_change_phone_button" = "Change number";
+"lng_change_phone_new_title" = "Enter new number";
+"lng_change_phone_new_description" = "We will send an SMS with a confirmation code to your new number.";
+"lng_change_phone_new_submit" = "Submit";
+"lng_change_phone_code_title" = "Enter code";
+"lng_change_phone_code_description" = "We've sent an SMS with a confirmation code to your phone {phone}.";
+"lng_change_phone_success" = "Your phone number was changed.";
+
 "lng_preview_loading" = "Getting Link Info...";
 
 "lng_profile_chat_unaccessible" = "Group is inaccessible";

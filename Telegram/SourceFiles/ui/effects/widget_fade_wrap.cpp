@@ -163,14 +163,21 @@ WidgetFadeWrap<TWidget>::WidgetFadeWrap(QWidget *parent
 , _updateCallback(std::move(updateCallback))
 , _animation(this, scaled) {
 	_animation.show();
-	if (_updateCallback) {
-		_animation.setFinishedCallback([this] { _updateCallback(); });
-		_animation.setUpdatedCallback([this](float64 opacity) { _updateCallback(); });
-	}
+	installCallbacks();
 	_entity->setParent(this);
 	_entity->moveToLeft(0, 0);
 	_entity->installEventFilter(this);
 	resize(_entity->size());
+}
+
+void WidgetFadeWrap<TWidget>::installCallbacks() {
+	if (_updateCallback) {
+		_animation.setFinishedCallback([this] { _updateCallback(); });
+		_animation.setUpdatedCallback([this](float64 opacity) { _updateCallback(); });
+	} else {
+		_animation.setFinishedCallback(base::lambda<void()>());
+		_animation.setUpdatedCallback(base::lambda<void(float64)>());
+	}
 }
 
 bool WidgetFadeWrap<TWidget>::eventFilter(QObject *object, QEvent *event) {

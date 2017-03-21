@@ -456,6 +456,9 @@ notificationSampleCloseFg: #d7d7d7 | windowSubTextFg; // custom notifications se
 notificationSampleTextFg: #d7d7d7 | windowSubTextFg; // custom notifications settings box small sample text placeholder
 notificationSampleNameFg: #939393 | windowSubTextFg; // custom notifications settings box small sample name placeholder
 
+changePhoneSimcardFrom: notificationSampleTextFg; // change phone number box left simcard icon
+changePhoneSimcardTo: notificationSampleNameFg; // change phone number box right simcard and plane icons
+
 mainMenuBg: windowBg; // main menu background
 mainMenuCoverBg: dialogsBgActive; // main menu top cover background
 mainMenuCoverFg: windowFgActive; // main menu top cover text

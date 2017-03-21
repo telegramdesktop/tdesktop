@@ -136,12 +136,18 @@ public:
 	bool animating() const {
 		return _animation.animating();
 	}
+	void setUpdateCallback(base::lambda<void()> callback) {
+		_updateCallback = std::move(callback);
+		installCallbacks();
+	}
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	void installCallbacks();
+
 	object_ptr<TWidget> _entity;
 	int _duration;
 	base::lambda<void()> _updateCallback;

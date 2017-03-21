@@ -34,6 +34,102 @@ object_ptr<ConfirmPhoneBox> CurrentConfirmPhoneBox = { nullptr };
 
 } // namespace
 
+void SentCodeField::fix() {
+	if (_fixing) return;
+
+	_fixing = true;
+	auto newText = QString();
+	auto now = getLastText();
+	auto oldPos = textCursor().position();
+	auto newPos = -1;
+	auto oldLen = now.size();
+	auto digitCount = 0;
+	for_const (auto ch, now) {
+		if (ch.isDigit()) {
+			++digitCount;
+		}
+	}
+
+	if (_autoSubmitLength > 0 && digitCount > _autoSubmitLength) {
+		digitCount = _autoSubmitLength;
+	}
+	auto strict = (_autoSubmitLength > 0 && digitCount == _autoSubmitLength);
+
+	newText.reserve(oldLen);
+	int i = 0;
+	for_const (auto ch, now) {
+		if (i++ == oldPos) {
+			newPos = newText.length();
+		}
+		if (ch.isDigit()) {
+			if (!digitCount--) {
+				break;
+			}
+			newText += ch;
+			if (strict && !digitCount) {
+				break;
+			}
+		}
+	}
+	if (newPos < 0) {
+		newPos = newText.length();
+	}
+	if (newText != now) {
+		now = newText;
+		setText(now);
+		setCursorPosition(newPos);
+	}
+	_fixing = false;
+
+	if (_changedCallback) {
+		_changedCallback();
+	}
+	if (strict && _submitCallback) {
+		_submitCallback();
+	}
+}
+
+SentCodeCall::SentCodeCall(QObject *parent, base::lambda_once<void()> callCallback, base::lambda<void()> updateCallback)
+: _timer(parent)
+, _call(std::move(callCallback))
+, _update(std::move(updateCallback)) {
+	_timer->connect(_timer, &QTimer::timeout, [this] {
+		if (_status.state == State::Waiting) {
+			if (--_status.timeout <= 0) {
+				_status.state = State::Calling;
+				_timer->stop();
+				if (_call) {
+					_call();
+				}
+			}
+		}
+		if (_update) {
+			_update();
+		}
+	});
+}
+
+void SentCodeCall::setStatus(const Status &status) {
+	_status = status;
+	if (_status.state == State::Waiting) {
+		_timer->start(1000);
+	}
+}
+
+QString SentCodeCall::getText() const {
+	switch (_status.state) {
+	case State::Waiting: {
+		if (_status.timeout >= 3600) {
+			return lng_code_call(lt_minutes, qsl("%1:%2").arg(_status.timeout / 3600).arg((_status.timeout / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
+		}
+		return lng_code_call(lt_minutes, QString::number(_status.timeout / 60), lt_seconds, qsl("%1").arg(_status.timeout % 60, 2, 10, QChar('0')));
+	} break;
+	case State::Calling: return lang(lng_code_calling);
+	case State::Called: return lang(lng_code_called);
+	}
+	return QString();
+}
+
 void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
 	if (CurrentConfirmPhoneBox && CurrentConfirmPhoneBox->getPhone() != phone) {
 		CurrentConfirmPhoneBox.destroyDelayed();
@@ -47,7 +143,11 @@ void ConfirmPhoneBox::start(const QString &phone, const QString &hash) {
 ConfirmPhoneBox::ConfirmPhoneBox(QWidget*, const QString &phone, const QString &hash)
 : _phone(phone)
 , _hash(hash)
-, _callTimer(this) {
+, _call(this, [this] { sendCall(); }, [this] { update(); }) {
+}
+
+void ConfirmPhoneBox::sendCall() {
+	MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_phoneHash)), rpcDone(&ConfirmPhoneBox::callDone));
 }
 
 void ConfirmPhoneBox::checkPhoneAndHash() {
@@ -59,6 +159,7 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 }
 
 void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
+	Expects(result.type() == mtpc_auth_sentCode);
 	_sendCodeRequestId = 0;
 
 	auto &resultInner = result.c_auth_sentCode();
@@ -70,9 +171,7 @@ void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {
 	}
 	_phoneHash = qs(resultInner.vphone_code_hash);
 	if (resultInner.has_next_type() && resultInner.vnext_type.type() == mtpc_auth_codeTypeCall) {
-		setCallStatus({ CallState::Waiting, resultInner.has_timeout() ? resultInner.vtimeout.v : 60 });
-	} else {
-		setCallStatus({ CallState::Disabled, 0 });
+		_call.setStatus({ SentCodeCall::State::Waiting, resultInner.has_timeout() ? resultInner.vtimeout.v : 60 });
 	}
 	launch();
 }
@@ -96,20 +195,12 @@ bool ConfirmPhoneBox::sendCodeFail(const RPCError &error) {
 	return true;
 }
 
-void ConfirmPhoneBox::setCallStatus(const CallStatus &status) {
-	_callStatus = status;
-	if (_callStatus.state == CallState::Waiting) {
-		_callTimer->start(1000);
-	}
-}
-
 void ConfirmPhoneBox::launch() {
 	if (!CurrentConfirmPhoneBox) return;
 	Ui::show(std::move(CurrentConfirmPhoneBox));
 }
 
 void ConfirmPhoneBox::prepare() {
-
 	_about.create(this, st::confirmPhoneAboutLabel);
 	TextWithEntities aboutText;
 	auto formattedPhone = App::formatPhone(_phone);
@@ -121,6 +212,8 @@ void ConfirmPhoneBox::prepare() {
 	_about->setMarkedText(aboutText);
 
 	_code.create(this, st::confirmPhoneCodeField, lang(lng_code_ph));
+	_code->setAutoSubmit(_sentCodeLength, [this] { onSendCode(); });
+	_code->setChangedCallback([this] { showError(QString()); });
 
 	setTitle(lang(lng_confirm_phone_title));
 
@@ -129,30 +222,13 @@ void ConfirmPhoneBox::prepare() {
 
 	setDimensions(st::boxWidth, st::usernamePadding.top() + _code->height() + st::usernameSkip + _about->height() + st::usernameSkip);
 
-	connect(_code, SIGNAL(changed()), this, SLOT(onCodeChanged()));
 	connect(_code, SIGNAL(submitted(bool)), this, SLOT(onSendCode()));
-
-	connect(_callTimer, SIGNAL(timeout()), this, SLOT(onCallStatusTimer()));
 
 	showChildren();
 }
 
-void ConfirmPhoneBox::onCallStatusTimer() {
-	if (_callStatus.state == CallState::Waiting) {
-		if (--_callStatus.timeout <= 0) {
-			_callStatus.state = CallState::Calling;
-			_callTimer->stop();
-			MTP::send(MTPauth_ResendCode(MTP_string(_phone), MTP_string(_phoneHash)), rpcDone(&ConfirmPhoneBox::callDone));
-		}
-	}
-	update();
-}
-
 void ConfirmPhoneBox::callDone(const MTPauth_SentCode &result) {
-	if (_callStatus.state == CallState::Calling) {
-		_callStatus.state = CallState::Called;
-		update();
-	}
+	_call.callDone();
 }
 
 void ConfirmPhoneBox::onSendCode() {
@@ -197,56 +273,6 @@ bool ConfirmPhoneBox::confirmFail(const RPCError &error) {
 	return true;
 }
 
-void ConfirmPhoneBox::onCodeChanged() {
-	if (_fixing) return;
-
-	_fixing = true;
-	QString newText, now = _code->getLastText();
-	int oldPos = _code->textCursor().position(), newPos = -1;
-	int oldLen = now.size(), digitCount = 0;
-	for_const (auto ch, now) {
-		if (ch.isDigit()) {
-			++digitCount;
-		}
-	}
-
-	if (_sentCodeLength > 0 && digitCount > _sentCodeLength) {
-		digitCount = _sentCodeLength;
-	}
-	bool strict = (_sentCodeLength > 0 && digitCount == _sentCodeLength);
-
-	newText.reserve(oldLen);
-	int i = 0;
-	for_const (auto ch, now) {
-		if (i++ == oldPos) {
-			newPos = newText.length();
-		}
-		if (ch.isDigit()) {
-			if (!digitCount--) {
-				break;
-			}
-			newText += ch;
-			if (strict && !digitCount) {
-				break;
-			}
-		}
-	}
-	if (newPos < 0) {
-		newPos = newText.length();
-	}
-	if (newText != now) {
-		now = newText;
-		_code->setText(now);
-		_code->setCursorPosition(newPos);
-	}
-	_fixing = false;
-
-	showError(QString());
-	if (strict) {
-		onSendCode();
-	}
-}
-
 void ConfirmPhoneBox::showError(const QString &error) {
 	_error = error;
 	if (!_error.isEmpty()) {
@@ -261,7 +287,7 @@ void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	p.setFont(st::boxTextFont);
-	auto callText = getCallText();
+	auto callText = _call.getText();
 	if (!callText.isEmpty()) {
 		p.setPen(st::usernameDefaultFg);
 		auto callTextRectLeft = st::usernamePadding.left();
@@ -282,20 +308,6 @@ void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
 	auto errorTextRectWidth = width() - 2 * st::usernamePadding.left();
 	auto errorTextRect = QRect(errorTextRectLeft, errorTextRectTop, errorTextRectWidth, st::usernameSkip);
 	p.drawText(errorTextRect, errorText, style::al_left);
-}
-
-QString ConfirmPhoneBox::getCallText() const {
-	switch (_callStatus.state) {
-	case CallState::Waiting: {
-		if (_callStatus.timeout >= 3600) {
-			return lng_code_call(lt_minutes, qsl("%1:%2").arg(_callStatus.timeout / 3600).arg((_callStatus.timeout / 60) % 60, 2, 10, QChar('0')), lt_seconds, qsl("%1").arg(_callStatus.timeout % 60, 2, 10, QChar('0')));
-		}
-		return lng_code_call(lt_minutes, QString::number(_callStatus.timeout / 60), lt_seconds, qsl("%1").arg(_callStatus.timeout % 60, 2, 10, QChar('0')));
-	} break;
-	case CallState::Calling: return lang(lng_code_calling);
-	case CallState::Called: return lang(lng_code_called);
-	}
-	return QString();
 }
 
 void ConfirmPhoneBox::resizeEvent(QResizeEvent *e) {

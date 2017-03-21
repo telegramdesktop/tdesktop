@@ -61,6 +61,8 @@ public:
 	BoxContent() {
 		setAttribute(Qt::WA_OpaquePaintEvent);
 	}
+	BoxContent(QWidget*) : BoxContent() {
+	}
 
 	bool isBoxShown() const {
 		return getDelegate()->isBoxShown();
