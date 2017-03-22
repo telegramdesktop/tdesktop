@@ -99,16 +99,7 @@ void EditPrivacyBox::prepare() {
 	setTitle(_controller->title());
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	_loadRequestId = MTP::send(MTPaccount_GetPrivacy(_controller->key()), rpcDone(base::lambda_guarded(this, [this](const MTPaccount_PrivacyRules &result) {
-		_loadRequestId = 0;
-		loadDone(result);
-	})), rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
-		if (MTP::isDefaultHandledError(error)) {
-			return false;
-		}
-		_loadRequestId = 0;
-		return true;
-	})));
+	loadData();
 
 	setDimensions(st::boxWideWidth, countDefaultHeight(st::boxWideWidth));
 }
@@ -323,55 +314,54 @@ void EditPrivacyBox::createWidgets() {
 	setDimensions(st::boxWideWidth, resizeGetHeight(st::boxWideWidth));
 }
 
-void EditPrivacyBox::loadDone(const MTPaccount_PrivacyRules &result) {
-	t_assert(result.type() == mtpc_account_privacyRules);
-	auto &rules = result.c_account_privacyRules();
-	App::feedUsers(rules.vusers);
+void EditPrivacyBox::loadData() {
+        request(MTPaccount_GetPrivacy(_controller->key())).done([this](const MTPaccount_PrivacyRules &result) {
+		Expects(result.type() == mtpc_account_privacyRules);
+		auto &rules = result.c_account_privacyRules();
+		App::feedUsers(rules.vusers);
 
-	// This is simplified version of privacy rules interpretation.
-	// But it should be fine for all the apps that use the same subset of features.
-	auto optionSet = false;
-	auto setOption = [this, &optionSet](Option option) {
-		if (optionSet) return;
-		optionSet = true;
-		_option = option;
-	};
-	auto feedRule = [this, &setOption](const MTPPrivacyRule &rule) {
-		switch (rule.type()) {
-		case mtpc_privacyValueAllowAll: setOption(Option::Everyone); break;
-		case mtpc_privacyValueAllowContacts: setOption(Option::Contacts); break;
-		case mtpc_privacyValueAllowUsers: {
-			auto &users = rule.c_privacyValueAllowUsers().vusers.v;
-			_alwaysUsers.reserve(_alwaysUsers.size() + users.size());
-			for (auto &userId : users) {
-				auto user = App::user(UserId(userId.v));
-				if (!_neverUsers.contains(user) && !_alwaysUsers.contains(user)) {
-					_alwaysUsers.push_back(user);
+		// This is simplified version of privacy rules interpretation.
+		// But it should be fine for all the apps that use the same subset of features.
+		auto optionSet = false;
+		auto setOption = [this, &optionSet](Option option) {
+			if (optionSet) return;
+			optionSet = true;
+			_option = option;
+		};
+		auto feedRule = [this, &setOption](const MTPPrivacyRule &rule) {
+			switch (rule.type()) {
+			case mtpc_privacyValueAllowAll: setOption(Option::Everyone); break;
+			case mtpc_privacyValueAllowContacts: setOption(Option::Contacts); break;
+			case mtpc_privacyValueAllowUsers: {
+				auto &users = rule.c_privacyValueAllowUsers().vusers.v;
+				_alwaysUsers.reserve(_alwaysUsers.size() + users.size());
+				for (auto &userId : users) {
+					auto user = App::user(UserId(userId.v));
+					if (!_neverUsers.contains(user) && !_alwaysUsers.contains(user)) {
+						_alwaysUsers.push_back(user);
+					}
 				}
-			}
-		} break;
-		case mtpc_privacyValueDisallowContacts: // not supported, fall through
-		case mtpc_privacyValueDisallowAll: setOption(Option::Nobody); break;
-		case mtpc_privacyValueDisallowUsers: {
-			auto &users = rule.c_privacyValueDisallowUsers().vusers.v;
-			_neverUsers.reserve(_neverUsers.size() + users.size());
-			for (auto &userId : users) {
-				auto user = App::user(UserId(userId.v));
-				if (!_alwaysUsers.contains(user) && !_neverUsers.contains(user)) {
-					_neverUsers.push_back(user);
+			} break;
+			case mtpc_privacyValueDisallowContacts: // not supported, fall through
+			case mtpc_privacyValueDisallowAll: setOption(Option::Nobody); break;
+			case mtpc_privacyValueDisallowUsers: {
+				auto &users = rule.c_privacyValueDisallowUsers().vusers.v;
+				_neverUsers.reserve(_neverUsers.size() + users.size());
+				for (auto &userId : users) {
+					auto user = App::user(UserId(userId.v));
+					if (!_alwaysUsers.contains(user) && !_neverUsers.contains(user)) {
+						_neverUsers.push_back(user);
+					}
 				}
+			} break;
 			}
-		} break;
+		};
+		for (auto &rule : rules.vrules.v) {
+			feedRule(rule);
 		}
-	};
-	for (auto &rule : rules.vrules.v) {
-		feedRule(rule);
-	}
-	feedRule(MTP_privacyValueDisallowAll()); // disallow by default.
+		feedRule(MTP_privacyValueDisallowAll()); // disallow by default.
 
-	createWidgets();
+		createWidgets();
+        }).send();
 }
 
-EditPrivacyBox::~EditPrivacyBox() {
-	MTP::cancel(_loadRequestId);
-}

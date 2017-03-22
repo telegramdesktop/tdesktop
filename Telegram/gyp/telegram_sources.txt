@@ -203,6 +203,7 @@
 <(src_loc)/mtproto/rsa_public_key.h
 <(src_loc)/mtproto/rpc_sender.cpp
 <(src_loc)/mtproto/rpc_sender.h
+<(src_loc)/mtproto/sender.h
 <(src_loc)/mtproto/session.cpp
 <(src_loc)/mtproto/session.h
 <(src_loc)/overview/overview_layout.cpp

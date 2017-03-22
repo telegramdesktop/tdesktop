@@ -422,7 +422,7 @@ void finish() {
 namespace {
 
 bool _psRunCommand(const QByteArray &command) {
-	int result = system(command.constData());
+	auto result = system(command.constData());
 	if (result) {
 		DEBUG_LOG(("App Error: command failed, code: %1, command (in utf8): %2").arg(result).arg(command.constData()));
 		return false;

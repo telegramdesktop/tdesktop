@@ -114,7 +114,7 @@ void BlockedBoxController::preloadRows() {
 		return;
 	}
 
-	_loadRequestId = MTP::send(MTPcontacts_GetBlocked(MTP_int(_offset), MTP_int(kBlockedPerPage)), rpcDone(base::lambda_guarded(this, [this](const MTPcontacts_Blocked &result) {
+	_loadRequestId = request(MTPcontacts_GetBlocked(MTP_int(_offset), MTP_int(kBlockedPerPage))).done([this](const MTPcontacts_Blocked &result) {
 		_loadRequestId = 0;
 
 		if (!_offset) {
@@ -135,13 +135,9 @@ void BlockedBoxController::preloadRows() {
 		} break;
 		default: Unexpected("Bad type() in MTPcontacts_GetBlocked() result.");
 		}
-	})), rpcFail(base::lambda_guarded(this, [this](const RPCError &error) {
-		if (MTP::isDefaultHandledError(error)) {
-			return false;
-		}
+	}).fail([this](const RPCError &error) {
 		_loadRequestId = 0;
-		return true;
-	})));
+	}).send();
 }
 
 void BlockedBoxController::rowClicked(PeerListBox::Row *row) {

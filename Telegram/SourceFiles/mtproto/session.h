@@ -278,7 +278,7 @@ class Session : public QObject {
 	Q_OBJECT
 
 public:
-	Session(Instance *instance, ShiftedDcId shiftedDcId);
+	Session(gsl::not_null<Instance*> instance, ShiftedDcId shiftedDcId);
 
 	void start();
 	void restart();
@@ -340,7 +340,7 @@ private:
 	mtpRequest getRequest(mtpRequestId requestId);
 	bool rpcErrorOccured(mtpRequestId requestId, const RPCFailHandlerPtr &onFail, const RPCError &err);
 
-	Instance *_instance;
+	gsl::not_null<Instance*> _instance;
 	std::unique_ptr<Connection> _connection;
 
 	bool _killed = false;

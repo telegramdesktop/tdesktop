@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class FlatLabel;
@@ -33,7 +34,7 @@ template <typename Widget>
 class WidgetSlideWrap;
 } // namespace Ui
 
-class EditPrivacyBox : public BoxContent {
+class EditPrivacyBox : public BoxContent, private MTP::Sender {
 public:
 	enum class Option {
 		Everyone,
@@ -84,7 +85,6 @@ public:
 	};
 
 	EditPrivacyBox(QWidget*, std::unique_ptr<Controller> controller);
-	~EditPrivacyBox();
 
 protected:
 	void prepare() override;
@@ -97,7 +97,7 @@ private:
 	bool showExceptionLink(Exception exception) const;
 	void createWidgets();
 	QVector<MTPInputPrivacyRule> collectResult();
-	void loadDone(const MTPaccount_PrivacyRules &result);
+	void loadData();
 	int countDefaultHeight(int newWidth);
 
 	void editExceptionUsers(Exception exception);
@@ -119,8 +119,6 @@ private:
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _alwaysLink = { nullptr };
 	object_ptr<Ui::WidgetSlideWrap<Ui::LinkButton>> _neverLink = { nullptr };
 	object_ptr<Ui::FlatLabel> _exceptionsDescription = { nullptr };
-
-	mtpRequestId _loadRequestId = 0;
 
 	QVector<UserData*> _alwaysUsers;
 	QVector<UserData*> _neverUsers;

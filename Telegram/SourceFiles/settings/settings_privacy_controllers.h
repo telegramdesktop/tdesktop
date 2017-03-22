@@ -22,10 +22,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "boxes/peer_list_box.h"
 #include "boxes/edit_privacy_box.h"
+#include "mtproto/sender.h"
 
 namespace Settings {
 
-class BlockedBoxController : public QObject, public PeerListBox::Controller, private base::Subscriber {
+class BlockedBoxController : public PeerListBox::Controller, private base::Subscriber, private MTP::Sender {
 public:
 	void prepare() override;
 	void rowClicked(PeerListBox::Row *row) override;

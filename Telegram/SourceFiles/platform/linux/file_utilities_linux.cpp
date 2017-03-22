@@ -62,7 +62,10 @@ QByteArray EscapeShell(const QByteArray &content) {
 
 void UnsafeShowInFolder(const QString &filepath) {
 	Ui::hideLayer(true);
-	system(("xdg-open " + internal::EscapeShell(QFile::encodeName(QFileInfo(filepath).absoluteDir().absolutePath()))).constData());
+	auto result = system(("xdg-open " + internal::EscapeShell(QFile::encodeName(QFileInfo(filepath).absoluteDir().absolutePath()))).constData());
+	if (result) {
+		LOG(("Failed to launch xdg-open"));
+	}
 }
 
 } // namespace File

@@ -354,6 +354,9 @@ public:
         to.push_back(bareT::type());
 		bareT::write(to);
 	}
+
+	using Unboxed = bareT;
+
 };
 template <typename T>
 class MTPBoxed<MTPBoxed<T> > {

@@ -69,7 +69,7 @@ void SessionData::clear(Instance *instance) {
 	instance->clearCallbacksDelayed(clearCallbacks);
 }
 
-Session::Session(Instance *instance, ShiftedDcId shiftedDcId) : QObject()
+Session::Session(gsl::not_null<Instance*> instance, ShiftedDcId shiftedDcId) : QObject()
 , _instance(instance)
 , data(this)
 , dcWithShift(shiftedDcId) {

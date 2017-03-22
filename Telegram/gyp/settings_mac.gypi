@@ -46,6 +46,7 @@
           '-pipe',
           '-g',
           '-Wall',
+          '-Werror',
           '-W',
           '-fPIE',
           '-Wno-unused-variable',
@@ -71,7 +72,7 @@
         'MACOSX_DEPLOYMENT_TARGET': '<(mac_target)',
         'COMBINE_HIDPI_IMAGES': 'YES',
         'COPY_PHASE_STRIP': 'NO',
-        'CLANG_CXX_LANGUAGE_STANDARD': 'c++14',
+        'CLANG_CXX_LANGUAGE_STANDARD': 'c++1z',
       },
       'configurations': {
         'Debug': {
@@ -91,6 +92,9 @@
       'xcode_settings': {
         'OTHER_CPLUSPLUSFLAGS': [
           '-Wno-inconsistent-missing-override',
+        ],
+        'OTHER_LDFLAGS': [
+          '-w', # Suppress 'libstdc++ is deprecated' warning.
         ],
       },
     }, {
