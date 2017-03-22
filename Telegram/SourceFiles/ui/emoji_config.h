@@ -53,8 +53,20 @@ void Init();
 constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
 
 class One {
+	struct CreationTag {
+	};
+
 public:
 	One(One &&other) = default;
+	One(const QString &id, uint16 x, uint16 y, bool hasPostfix, bool colorizable, EmojiPtr original, CreationTag)
+	: _id(id)
+	, _x(x)
+	, _y(y)
+	, _hasPostfix(hasPostfix)
+	, _colorizable(colorizable)
+	, _original(original) {
+		Expects(!_colorizable || !colored());
+	}
 
 	QString id() const {
 		return _id;
@@ -97,16 +109,6 @@ public:
 	}
 
 private:
-	One(const QString &id, uint16 x, uint16 y, bool hasPostfix, bool colorizable, EmojiPtr original)
-	: _id(id)
-	, _x(x)
-	, _y(y)
-	, _hasPostfix(hasPostfix)
-	, _colorizable(colorizable)
-	, _original(original) {
-		t_assert(!_colorizable || !colored());
-	}
-
 	const QString _id;
 	const uint16 _x = 0;
 	const uint16 _y = 0;

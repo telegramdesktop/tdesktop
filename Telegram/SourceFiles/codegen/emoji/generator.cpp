@@ -363,7 +363,7 @@ void Init() {\n\
 	auto coloredCount = 0;
 	for (auto &item : data_.list) {
 		source_->stream() << "\
-	Items.push_back({ " << computeId(item.id) << ", " << column << ", " << row << ", " << (item.postfixed ? "true" : "false") << ", " << (item.variated ? "true" : "false") << ", " << (item.colored ? "&Items[" + QString::number(variated) + "]" : "nullptr") << " });\n";
+	Items.emplace_back(" << computeId(item.id) << ", " << column << ", " << row << ", " << (item.postfixed ? "true" : "false") << ", " << (item.variated ? "true" : "false") << ", " << (item.colored ? "&Items[" + QString::number(variated) + "]" : "nullptr") << ", One::CreationTag());\n";
 		if (coloredCount > 0 && (item.variated || !item.colored)) {
 			if (!colorsCount_) {
 				colorsCount_ = coloredCount;
