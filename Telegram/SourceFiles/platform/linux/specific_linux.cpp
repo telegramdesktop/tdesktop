@@ -467,16 +467,16 @@ void psRegisterCustomScheme() {
 			QTextStream s(&f);
 			s.setCodec("UTF-8");
 			s << "[Desktop Entry]\n";
-			s << "Encoding=UTF-8\n";
 			s << "Version=1.0\n";
 			s << "Name=Telegram Desktop\n";
 			s << "Comment=Official desktop version of Telegram messaging app\n";
+			s << "TryExec=" << EscapeShell(QFile::encodeName(cExeDir() + cExeName())) << "\n";
 			s << "Exec=" << EscapeShell(QFile::encodeName(cExeDir() + cExeName())) << " -- %u\n";
 			s << "Icon=telegram\n";
 			s << "Terminal=false\n";
-			s << "StartupWMClass=Telegram\n";
+			s << "StartupWMClass=TelegramDesktop\n";
 			s << "Type=Application\n";
-			s << "Categories=Network;\n";
+			s << "Categories=Network;InstantMessaging;Qt;\n";
 			s << "MimeType=x-scheme-handler/tg;\n";
 			f.close();
 
@@ -541,7 +541,7 @@ bool _execUpdater(bool update = true, const QString &crashreport = QString()) {
 	static const int MaxLen = 65536, MaxArgsCount = 128;
 
 	char path[MaxLen] = {0};
-	QByteArray data(QFile::encodeName(cExeDir() + "Updater"));
+	QByteArray data(QFile::encodeName(cExeDir() + (update ? "Updater" : gExeName)));
 	memcpy(path, data.constData(), data.size());
 
 	char *args[MaxArgsCount] = {0}, p_noupdate[] = "-noupdate", p_autostart[] = "-autostart", p_debug[] = "-debug", p_tosettings[] = "-tosettings", p_key[] = "-key", p_path[] = "-workpath", p_startintray[] = "-startintray", p_testmode[] = "-testmode", p_crashreport[] = "-crashreport";
