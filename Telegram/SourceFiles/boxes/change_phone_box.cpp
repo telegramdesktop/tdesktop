@@ -304,8 +304,10 @@ bool ChangePhoneBox::EnterCode::sendCodeFail(const RPCError &error) {
 
 void ChangePhoneBox::prepare() {
 	setTitle(lang(lng_change_phone_title));
-	addButton(lang(lng_change_phone_button), [this] {
-		Ui::show(Box<EnterPhone>());
+	addButton(lang(lng_change_phone_button), [] {
+		Ui::show(Box<ConfirmBox>(lang(lng_change_phone_warning), [] {
+			Ui::show(Box<EnterPhone>());
+		}));
 	});
 	addButton(lang(lng_cancel), [this] {
 		closeBox();
