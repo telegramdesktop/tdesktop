@@ -58,7 +58,7 @@ class One {
 
 public:
 	One(One &&other) = default;
-	One(const QString &id, uint16 x, uint16 y, bool hasPostfix, bool colorizable, EmojiPtr original, CreationTag)
+	One(const QString &id, uint16 x, uint16 y, bool hasPostfix, bool colorizable, EmojiPtr original, const CreationTag &)
 	: _id(id)
 	, _x(x)
 	, _y(y)

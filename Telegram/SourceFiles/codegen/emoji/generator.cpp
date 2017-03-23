@@ -275,20 +275,14 @@ EmojiPtr ByIndex(int index) {\n\
 	return (index >= 0 && index < Items.size()) ? &Items[index] : nullptr;\n\
 }\n\
 \n\
-inline void AppendChars(QString &result) {\n\
-}\n\
-\n\
-template <typename ...Args>\n\
-inline void AppendChars(QString &result, ushort unicode, Args... args) {\n\
-	result.append(QChar(unicode));\n\
-	AppendChars(result, args...);\n\
-}\n\
-\n\
 template <typename ...Args>\n\
 inline QString ComputeId(Args... args) {\n\
+	auto utf16 = { args... };\n\
 	auto result = QString();\n\
-	result.reserve(sizeof...(args));\n\
-	AppendChars(result, args...);\n\
+	result.reserve(utf16.size());\n\
+	for (auto ch : utf16) {\n\
+		result.append(QChar(ch));\n\
+	}\n\
 	return result;\n\
 }\n";
 	if (!writeFindReplace()) {
@@ -342,6 +336,7 @@ bool Generator::writeInitCode() {
 	source_->stream() << "\
 \n\
 void Init() {\n\
+	auto tag = One::CreationTag();\n\
 	auto scaleForEmoji = cRetina() ? dbisTwo : cScale();\n\
 \n\
 	switch (scaleForEmoji) {\n";
@@ -363,7 +358,7 @@ void Init() {\n\
 	auto coloredCount = 0;
 	for (auto &item : data_.list) {
 		source_->stream() << "\
-	Items.emplace_back(" << computeId(item.id) << ", " << column << ", " << row << ", " << (item.postfixed ? "true" : "false") << ", " << (item.variated ? "true" : "false") << ", " << (item.colored ? "&Items[" + QString::number(variated) + "]" : "nullptr") << ", One::CreationTag());\n";
+	Items.emplace_back(" << computeId(item.id) << ", " << column << ", " << row << ", " << (item.postfixed ? "true" : "false") << ", " << (item.variated ? "true" : "false") << ", " << (item.colored ? "&Items[" + QString::number(variated) + "]" : "nullptr") << ", tag);\n";
 		if (coloredCount > 0 && (item.variated || !item.colored)) {
 			if (!colorsCount_) {
 				colorsCount_ = coloredCount;
