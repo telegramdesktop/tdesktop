@@ -46,8 +46,6 @@ enum {
 	MTPTcpConnectionWaitTimeout = 2000, // 2 seconds waiting for tcp, until we accept http
 	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
 
-	MTPUploadSessionsCount = 2, // max 2 upload sessions is created
-	MTPDownloadSessionsCount = 2, // max 2 download sessions is created
 	MTPKillFileSessionTimeout = 5000, // how much time without upload / download causes additional session kill
 
 	MTPDebugBufferSize = 1024 * 1024, // 1 mb start size
@@ -320,8 +318,6 @@ enum {
 	FileLoaderQueueStopTimeout = 5000,
 
     UseBigFilesFrom = 10 * 1024 * 1024, // mtp big files methods used for files greater than 10mb
-	MaxFileQueries = 16, // max 16 file parts downloaded at the same time
-	MaxWebFileQueries = 8, // max 8 http[s] files downloaded at the same time
 
 	UploadPartSize = 32 * 1024, // 32kb for photo
     DocumentMaxPartsCount = 3000, // no more than 3000 parts
@@ -330,7 +326,6 @@ enum {
     DocumentUploadPartSize2 = 128 * 1024, // 128kb for small document ( <= 375mb )
     DocumentUploadPartSize3 = 256 * 1024, // 256kb for medium document ( <= 750mb )
     DocumentUploadPartSize4 = 512 * 1024, // 512kb for large document ( <= 1500mb )
-    MaxUploadFileParallelSize = MTPUploadSessionsCount * 512 * 1024, // max 512kb uploaded at the same time in each session
     UploadRequestInterval = 500, // one part each half second, if not uploaded faster
 
 	MaxPhotosInMemory = 50, // try to clear some memory after 50 photos are created

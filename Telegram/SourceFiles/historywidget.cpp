@@ -89,7 +89,7 @@ MTPVector<MTPDocumentAttribute> composeDocumentAttributes(DocumentData *document
 	if (document->dimensions.width() > 0 && document->dimensions.height() > 0) {
 		int32 duration = document->duration();
 		if (duration >= 0) {
-			attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
+			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(0), MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
 		}

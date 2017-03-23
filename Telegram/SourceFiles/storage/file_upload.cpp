@@ -20,6 +20,12 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "storage/file_upload.h"
 
+namespace {
+
+constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024; // max 512kb uploaded at the same time in each session
+
+} // namespace
+
 FileUploader::FileUploader() : sentSize(0) {
 	memset(sentSizes, 0, sizeof(sentSizes));
 	nextTimer.setSingleShot(true);
@@ -88,7 +94,7 @@ void FileUploader::currentFailed() {
 	dcMap.clear();
 	uploading = FullMsgId();
 	sentSize = 0;
-	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
+	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		sentSizes[i] = 0;
 	}
 
@@ -96,13 +102,13 @@ void FileUploader::currentFailed() {
 }
 
 void FileUploader::killSessions() {
-	for (int i = 0; i < MTPUploadSessionsCount; ++i) {
+	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		MTP::stopSession(MTP::uploadDcId(i));
 	}
 }
 
 void FileUploader::sendNext() {
-	if (sentSize >= MaxUploadFileParallelSize || _paused.msg) return;
+	if (sentSize >= kMaxUploadFileParallelSize || _paused.msg) return;
 
 	bool killing = killSessionsTimer.isActive();
 	if (queue.isEmpty()) {
@@ -123,7 +129,7 @@ void FileUploader::sendNext() {
 		uploading = i.key();
 	}
 	int todc = 0;
-	for (int dc = 1; dc < MTPUploadSessionsCount; ++dc) {
+	for (int dc = 1; dc < MTP::kUploadSessionsCount; ++dc) {
 		if (sentSizes[dc] < sentSizes[todc]) {
 			todc = dc;
 		}
@@ -246,7 +252,7 @@ void FileUploader::clear() {
 	docRequestsSent.clear();
 	dcMap.clear();
 	sentSize = 0;
-	for (int32 i = 0; i < MTPUploadSessionsCount; ++i) {
+	for (int i = 0; i < MTP::kUploadSessionsCount; ++i) {
 		MTP::stopSession(MTP::uploadDcId(i));
 		sentSizes[i] = 0;
 	}

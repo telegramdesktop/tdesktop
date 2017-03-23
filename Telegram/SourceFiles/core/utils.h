@@ -219,7 +219,7 @@ inline void copy_bytes(byte_span destination, const_byte_span source) {
 #define for_const(range_declaration, range_expression) for (range_declaration : std::as_const(range_expression))
 
 template <typename Enum>
-inline QFlags<Enum> qFlags(Enum v) {
+inline constexpr QFlags<Enum> qFlags(Enum v) {
 	return QFlags<Enum>(v);
 }
 

@@ -108,8 +108,8 @@ public:
 
 	void writeUserConfigIn(TimeMs ms);
 
-	void killDownloadSessionsStart(int32 dc);
-	void killDownloadSessionsStop(int32 dc);
+	void killDownloadSessionsStart(MTP::DcId dcId);
+	void killDownloadSessionsStop(MTP::DcId dcId);
 
 	void checkLocalTime();
 	void checkMapVersion();
@@ -145,7 +145,7 @@ private:
 
 	QMap<FullMsgId, PeerId> photoUpdates;
 
-	QMap<int32, TimeMs> killDownloadSessionTimes;
+	QMap<MTP::DcId, TimeMs> killDownloadSessionTimes;
 	SingleTimer killDownloadSessionsTimer;
 
 	// Some fields are just moved from the declaration.

@@ -78,7 +78,7 @@ void ConfigLoader::load() {
 		sendRequest(_instance->mainDcId());
 		_enumDCTimer.start(kEnumerateDcTimeout);
 	} else {
-		auto ids = _instance->dcOptions()->sortedDcIds();
+		auto ids = _instance->dcOptions()->configEnumDcIds();
 		t_assert(!ids.empty());
 		_enumCurrent = ids.front();
 		enumDC();
@@ -108,7 +108,7 @@ void ConfigLoader::enumDC() {
 	} else {
 		_instance->killSession(MTP::configDcId(_enumCurrent));
 	}
-	auto ids = _instance->dcOptions()->sortedDcIds();
+	auto ids = _instance->dcOptions()->configEnumDcIds();
 	t_assert(!ids.empty());
 
 	auto i = std::find(ids.cbegin(), ids.cend(), _enumCurrent);

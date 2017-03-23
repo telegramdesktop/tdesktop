@@ -481,17 +481,17 @@ void Messenger::peerClearPhoto(PeerId id) {
 	}
 }
 
-void Messenger::killDownloadSessionsStart(int32 dc) {
-	if (killDownloadSessionTimes.constFind(dc) == killDownloadSessionTimes.cend()) {
-		killDownloadSessionTimes.insert(dc, getms() + MTPAckSendWaiting + MTPKillFileSessionTimeout);
+void Messenger::killDownloadSessionsStart(MTP::DcId dcId) {
+	if (killDownloadSessionTimes.constFind(dcId) == killDownloadSessionTimes.cend()) {
+		killDownloadSessionTimes.insert(dcId, getms() + MTPAckSendWaiting + MTPKillFileSessionTimeout);
 	}
 	if (!killDownloadSessionsTimer.isActive()) {
 		killDownloadSessionsTimer.start(MTPAckSendWaiting + MTPKillFileSessionTimeout + 5);
 	}
 }
 
-void Messenger::killDownloadSessionsStop(int32 dc) {
-	killDownloadSessionTimes.remove(dc);
+void Messenger::killDownloadSessionsStop(MTP::DcId dcId) {
+	killDownloadSessionTimes.remove(dcId);
 	if (killDownloadSessionTimes.isEmpty() && killDownloadSessionsTimer.isActive()) {
 		killDownloadSessionsTimer.stop();
 	}
@@ -543,7 +543,7 @@ void Messenger::killDownloadSessions() {
 	auto ms = getms(), left = static_cast<TimeMs>(MTPAckSendWaiting) + MTPKillFileSessionTimeout;
 	for (auto i = killDownloadSessionTimes.begin(); i != killDownloadSessionTimes.end(); ) {
 		if (i.value() <= ms) {
-			for (int j = 0; j < MTPDownloadSessionsCount; ++j) {
+			for (int j = 0; j < MTP::kDownloadSessionsCount; ++j) {
 				MTP::stopSession(MTP::downloadDcId(i.key(), j));
 			}
 			i = killDownloadSessionTimes.erase(i);

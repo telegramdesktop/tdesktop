@@ -26,21 +26,26 @@ namespace internal {
 // this class holds an RSA public key and can encrypt fixed-size messages with it
 class RSAPublicKey final {
 public:
-
 	// key in RSAPublicKey "-----BEGIN RSA PUBLIC KEY----- ..." format
-	RSAPublicKey(const char *key);
+	RSAPublicKey() = default;
+	RSAPublicKey(base::const_byte_span key);
+	RSAPublicKey(const QByteArray &n, const QByteArray &e);
+	RSAPublicKey(RSAPublicKey &&other) = default;
+	RSAPublicKey(const RSAPublicKey &other) = default;
+	RSAPublicKey &operator=(RSAPublicKey &&other) = default;
+	RSAPublicKey &operator=(const RSAPublicKey &other) = default;
 
 	bool isValid() const;
 	uint64 getFingerPrint() const;
+	QByteArray getN() const;
+	QByteArray getE() const;
 
 	// data has exactly 256 chars to be encrypted
 	bool encrypt(const void *data, std::string &result) const;
 
 private:
-
-	struct Impl;
-	typedef QSharedPointer<Impl> ImplPtr;
-	ImplPtr impl_;
+	class Private;
+	std::shared_ptr<Private> _private;
 
 };
 

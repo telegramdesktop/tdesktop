@@ -118,7 +118,8 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 	}
 	if (width > 0 && height > 0) {
 		if (duration >= 0) {
-			attributes.push_back(MTP_documentAttributeVideo(MTP_int(duration), MTP_int(width), MTP_int(height)));
+			auto flags = MTPDdocumentAttributeVideo::Flags(0);
+			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(width), MTP_int(height)));
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(width), MTP_int(height)));
 		}

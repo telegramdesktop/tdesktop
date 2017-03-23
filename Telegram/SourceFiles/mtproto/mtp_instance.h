@@ -119,14 +119,18 @@ public:
 	bool isKeysDestroyer() const;
 	void scheduleKeyDestroy(ShiftedDcId shiftedDcId);
 
+	void configLoadRequest();
+
+	void cdnConfigLoadRequest();
+
 	~Instance();
 
 public slots:
-	void configLoadRequest();
 	void connectionFinished(internal::Connection *connection);
 
 signals:
 	void configLoaded();
+	void cdnConfigLoaded();
 	void keyDestroyed(qint32 shiftedDcId);
 	void allKeysDestroyed();
 

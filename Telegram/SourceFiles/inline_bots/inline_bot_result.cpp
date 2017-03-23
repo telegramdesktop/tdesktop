@@ -335,14 +335,16 @@ void Result::createDocument() {
 	QString mime = _content_type;
 
 	QVector<MTPDocumentAttribute> attributes;
-	QSize dimensions(_width, _height);
+	auto dimensions = QSize(_width, _height);
 	if (_type == Type::Gif) {
-		const char *filename = (mime == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif");
+		auto filename = (mime == qstr("video/mp4") ? "animation.gif.mp4" : "animation.gif");
 		attributes.push_back(MTP_documentAttributeFilename(MTP_string(filename)));
 		attributes.push_back(MTP_documentAttributeAnimated());
-		attributes.push_back(MTP_documentAttributeVideo(MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
+		auto flags = MTPDdocumentAttributeVideo::Flags(0);
+		attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
 	} else if (_type == Type::Video) {
-		attributes.push_back(MTP_documentAttributeVideo(MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
+		auto flags = MTPDdocumentAttributeVideo::Flags(0);
+		attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
 	} else if (_type == Type::Audio) {
 		auto flags = MTPDdocumentAttributeAudio::Flags(0);
 		if (mime == qstr("audio/ogg")) {

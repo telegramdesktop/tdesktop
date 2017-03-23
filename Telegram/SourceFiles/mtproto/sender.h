@@ -290,6 +290,11 @@ public:
 	void requestSendDelayed() {
 		MTP::sendAnything();
 	}
+	void requestCancellingDiscard() {
+		for (auto &request : _requests) {
+			request.handled();
+		}
+	}
 
 private:
 	class RequestWrap {

@@ -853,8 +853,8 @@ struct ReadSettingsContext {
 	MTP::DcOptions dcOptions;
 };
 
-void applyReadContext(const ReadSettingsContext &context) {
-	Messenger::Instance().dcOptions()->addFromOther(context.dcOptions);
+void applyReadContext(ReadSettingsContext &&context) {
+	Messenger::Instance().dcOptions()->addFromOther(std::move(context.dcOptions));
 }
 
 bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSettingsContext &context) {
@@ -1799,7 +1799,7 @@ void _readUserSettings() {
 		LOG(("App Info: could not read encrypted user settings..."));
 
 		_readOldUserSettings(true, context);
-		applyReadContext(context);
+		applyReadContext(std::move(context));
 
 		return _writeUserSettings();
 	}
@@ -1822,7 +1822,7 @@ void _readUserSettings() {
 	_readingUserSettings = false;
 	LOG(("App Info: encrypted user settings read."));
 
-	applyReadContext(context);
+	applyReadContext(std::move(context));
 }
 
 void _writeMtpData() {
@@ -1847,7 +1847,7 @@ void _readMtpData() {
 	if (!readEncryptedFile(mtp, toFilePart(_dataNameKey), FileOption::Safe)) {
 		if (LocalKey) {
 			_readOldMtpData(true, context);
-			applyReadContext(context);
+			applyReadContext(std::move(context));
 
 			_writeMtpData();
 		}
@@ -1866,7 +1866,7 @@ void _readMtpData() {
 			return _writeMtpData();
 		}
 	}
-	applyReadContext(context);
+	applyReadContext(std::move(context));
 }
 
 ReadMapState _readMap(const QByteArray &pass) {
@@ -2229,7 +2229,7 @@ void start() {
 		_readOldSettings(true, context);
 		_readOldUserSettings(false, context); // needed further in _readUserSettings
 		_readOldMtpData(false, context); // needed further in _readMtpData
-		applyReadContext(context);
+		applyReadContext(std::move(context));
 
 		return writeSettings();
 	}
@@ -2271,7 +2271,7 @@ void start() {
 
 	readTheme();
 
-	applyReadContext(context);
+	applyReadContext(std::move(context));
 }
 
 void writeSettings() {

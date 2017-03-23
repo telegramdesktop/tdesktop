@@ -21,12 +21,18 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "base/observer.h"
+#include "mtproto/rsa_public_key.h"
 #include <string>
 #include <vector>
 #include <map>
 
 namespace MTP {
 
+enum class DcType {
+	Regular,
+	MediaDownload,
+	Cdn,
+};
 class DcOptions {
 public:
 	// construct methods don't notify "changed" subscribers.
@@ -41,10 +47,9 @@ public:
 	}
 	void setFromList(const MTPVector<MTPDcOption> &options);
 	void addFromList(const MTPVector<MTPDcOption> &options);
-	void addFromOther(const DcOptions &options);
+	void addFromOther(DcOptions &&options);
 
-	Ids sortedDcIds() const;
-	DcId getDefaultDcId() const;
+	Ids configEnumDcIds() const;
 
 	struct Endpoint {
 		std::string ip;
@@ -64,11 +69,12 @@ public:
 		};
 		Endpoint data[AddressTypeCount][ProtocolCount];
 	};
-	enum class DcType {
-		Regular,
-		MediaDownload,
-	};
 	Variants lookup(DcId dcId, DcType type) const;
+	DcType dcType(ShiftedDcId shiftedDcId) const;
+
+	void setCDNConfig(const MTPDcdnConfig &config);
+	bool hasCDNKeysForDc(DcId dcId) const;
+	bool getDcRSAKey(DcId dcId, const QVector<MTPlong> &fingerprints, internal::RSAPublicKey *result) const;
 
 	// Debug feature for now.
 	bool loadFromFile(const QString &path);
@@ -87,9 +93,21 @@ private:
 	bool applyOneGuarded(DcId dcId, MTPDdcOption::Flags flags, const std::string &ip, int port);
 
 	void processFromList(const QVector<MTPDcOption> &options, bool overwrite);
+	void computeCdnDcIds();
 
-	std::map<int, Option> _data;
-	mutable QReadWriteLock _mutex;
+	void readBuiltInPublicKeys();
+
+	class WriteLocker;
+	friend class WriteLocker;
+
+	class ReadLocker;
+	friend class ReadLocker;
+
+	std::map<ShiftedDcId, Option> _data;
+	std::set<DcId> _cdnDcIds;
+	std::map<uint64, internal::RSAPublicKey> _publicKeys;
+	std::map<DcId, std::map<uint64, internal::RSAPublicKey>> _cdnPublicKeys;
+	mutable QReadWriteLock _useThroughLockers;
 
 	mutable base::Observable<Ids> _changed;
 

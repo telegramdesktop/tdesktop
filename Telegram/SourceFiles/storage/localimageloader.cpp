@@ -458,7 +458,8 @@ void FileLoadTask::process() {
 			if (video->isGifv) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			}
-			attributes.push_back(MTP_documentAttributeVideo(MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
+			auto flags = MTPDdocumentAttributeVideo::Flags(0);
+			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(video->duration), MTP_int(coverWidth), MTP_int(coverHeight)));
 
 			auto cover = (coverWidth > 90 || coverHeight > 90)
 				? video->thumbnail.scaled(90, 90, Qt::KeepAspectRatio, Qt::SmoothTransformation)

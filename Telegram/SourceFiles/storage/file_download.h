@@ -40,12 +40,18 @@ public:
 		return _taskFinishedObservable;
 	}
 
+	void requestedAmountIncrement(MTP::DcId dcId, int index, int amount);
+	int chooseDcIndexForRequest(MTP::DcId dcId) const;
+
 private:
 	base::Observable<void> _taskFinishedObservable;
 	int _priority = 1;
 
 	SingleQueuedInvokation _delayedLoadersDestroyer;
 	std::vector<std::unique_ptr<FileLoader>> _delayedDestroyedLoaders;
+
+	using RequestedInDc = std::array<int64, MTP::kDownloadSessionsCount>;
+	std::map<MTP::DcId, RequestedInDc> _requestedBytesAmount;
 
 };
 
@@ -134,11 +140,11 @@ signals:
 protected:
 	void readImage(const QSize &shrinkBox) const;
 
-	Storage::Downloader *_downloader = nullptr;
+	gsl::not_null<Storage::Downloader*> _downloader;
 	FileLoader *_prev = nullptr;
 	FileLoader *_next = nullptr;
 	int _priority = 0;
-	FileLoaderQueue *_queue;
+	FileLoaderQueue *_queue = nullptr;
 
 	bool _paused = false;
 	bool _autoLoading = false;
@@ -198,26 +204,41 @@ public:
 	~mtpFileLoader();
 
 private:
+	struct RequestData {
+		MTP::DcId dcId = 0;
+		int dcIndex = 0;
+		int offset = 0;
+	};
+
 	bool tryLoadLocal() override;
 	void cancelRequests() override;
 
 	int partSize() const;
-	mtpRequestId makeRequest(int offset, int dcIndex);
-
-	QMap<mtpRequestId, int> _dcIndexByRequest;
+	RequestData prepareRequest(int offset) const;
+	void makeRequest(int offset);
 
 	bool loadPart() override;
-	void normalPartLoaded(int offset, const MTPupload_File &result, mtpRequestId req);
-	void webPartLoaded(int offset, const MTPupload_WebFile &result, mtpRequestId req);
+	void normalPartLoaded(const MTPupload_File &result, mtpRequestId requestId);
+	void webPartLoaded(const MTPupload_WebFile &result, mtpRequestId requestId);
+	void cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequestId requestId);
+	void reuploadDone(const MTPBool &result, mtpRequestId requestId);
 
-	void partLoaded(int offset, base::const_byte_span bytes, mtpRequestId req);
+	void partLoaded(int offset, base::const_byte_span bytes);
 	bool partFailed(const RPCError &error);
+	bool cdnPartFailed(const RPCError &error, mtpRequestId requestId);
+
+	void placeSentRequest(mtpRequestId requestId, const RequestData &requestData);
+	int finishSentRequestGetOffset(mtpRequestId requestId);
+	void switchToCDN(int offset, const MTPDupload_fileCdnRedirect &redirect);
+	void changeCDNParams(int offset, MTP::DcId dcId, const QByteArray &token, const QByteArray &encryptionKey, const QByteArray &encryptionIV);
+
+	std::map<mtpRequestId, RequestData> _sentRequests;
 
 	bool _lastComplete = false;
 	int32 _skippedBytes = 0;
 	int32 _nextRequestOffset = 0;
 
-	int32 _dc; // for photo locations
+	MTP::DcId _dcId = 0; // for photo locations
 	const StorageImageLocation *_location = nullptr;
 
 	uint64 _id = 0; // for document locations
@@ -225,6 +246,11 @@ private:
 	int32 _version = 0;
 
 	const WebFileImageLocation *_urlLocation = nullptr; // for webdocument locations
+
+	MTP::DcId _cdnDcId = 0;
+	QByteArray _cdnToken;
+	QByteArray _cdnEncryptionKey;
+	QByteArray _cdnEncryptionIV;
 
 };
 

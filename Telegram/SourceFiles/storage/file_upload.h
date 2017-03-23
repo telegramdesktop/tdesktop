@@ -130,7 +130,7 @@ private:
 	QMap<mtpRequestId, int32> docRequestsSent;
 	QMap<mtpRequestId, int32> dcMap;
 	uint32 sentSize;
-	uint32 sentSizes[MTPUploadSessionsCount];
+	uint32 sentSizes[MTP::kUploadSessionsCount];
 
 	FullMsgId uploading, _paused;
 	Queue queue;
