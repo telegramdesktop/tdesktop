@@ -809,6 +809,9 @@ void MainWindow::toggleDisplayNotifyFromTray() {
 		Ui::show(Box<InformBox>(lang(lng_passcode_need_unblock)));
 		return;
 	}
+	if (!AuthSession::Exists()) {
+		return;
+	}
 
 	bool soundNotifyChanged = false;
 	Global::SetDesktopNotify(!Global::DesktopNotify());
