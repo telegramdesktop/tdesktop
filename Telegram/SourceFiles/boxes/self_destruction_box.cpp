@@ -44,7 +44,7 @@ void SelfDestructionBox::prepare() {
 
 	addButton(lang(lng_cancel), [this] { closeBox(); });
 
-	MTP::send(MTPaccount_GetAccountTTL(), rpcDone(base::lambda_guarded(this, [this, loading = std::move(loading)](const MTPAccountDaysTTL &result) mutable {
+	request(MTPaccount_GetAccountTTL()).done([this, loading = std::move(loading)](const MTPAccountDaysTTL &result) mutable {
 		Expects(result.type() == mtpc_accountDaysTTL);
 		Expects(!_ttlValues.empty());
 
@@ -77,5 +77,5 @@ void SelfDestructionBox::prepare() {
 			closeBox();
 		});
 		addButton(lang(lng_cancel), [this] { closeBox(); });
-	})));
+	}).send();
 }

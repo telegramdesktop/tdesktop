@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "boxes/abstractbox.h"
+#include "mtproto/sender.h"
 
 namespace Ui {
 class RadiobuttonGroup;
@@ -28,7 +29,7 @@ class Radiobutton;
 class FlatLabel;
 } // namespace Ui
 
-class SelfDestructionBox : public BoxContent {
+class SelfDestructionBox : public BoxContent, private MTP::Sender {
 	Q_OBJECT
 
 public:
