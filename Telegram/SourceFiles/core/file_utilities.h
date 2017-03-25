@@ -25,7 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 // legacy
 bool filedialogGetSaveFile(QString &file, const QString &caption, const QString &filter, const QString &initialPath);
 
-QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString(), bool skipExistance = false);
+QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path = QString(), bool skipExistance = false, int fileTime = 0);
 QString filedialogNextFilename(const QString &name, const QString &cur, const QString &path = QString());
 
 namespace File {

@@ -785,7 +785,7 @@ void MediaView::onSaveAs() {
 
 		psBringToBack(this);
 		auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
-		FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg")), base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
+		FileDialog::GetWritePath(lang(lng_save_photo), filter, filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), false, _photo->date), base::lambda_guarded(this, [this, photo = _photo](const QString &result) {
 			if (!result.isEmpty() && _photo == photo && photo->loaded()) {
 				photo->full->pix().toImage().save(result, "JPG");
 			}
