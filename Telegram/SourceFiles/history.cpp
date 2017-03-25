@@ -393,8 +393,8 @@ void ChannelHistory::getRangeDifferenceNext(int32 pts) {
 
 	int limit = _rangeDifferenceToId + 1 - _rangeDifferenceFromId;
 
-	auto filter = MTP_channelMessagesFilter(MTP_flags(MTPDchannelMessagesFilter::Flags(0)), MTP_vector<MTPMessageRange>(1, MTP_messageRange(MTP_int(_rangeDifferenceFromId), MTP_int(_rangeDifferenceToId))));
-	MTPupdates_GetChannelDifference::Flags flags = MTPupdates_GetChannelDifference::Flag::f_force;
+	auto filter = MTP_channelMessagesFilter(MTP_flags(0), MTP_vector<MTPMessageRange>(1, MTP_messageRange(MTP_int(_rangeDifferenceFromId), MTP_int(_rangeDifferenceToId))));
+	auto flags = MTPupdates_GetChannelDifference::Flag::f_force;
 	_rangeDifferenceRequestId = MTP::send(MTPupdates_GetChannelDifference(MTP_flags(flags), peer->asChannel()->inputChannel, filter, MTP_int(pts), MTP_int(limit)), App::main()->rpcDone(&MainWidget::gotRangeDifference, peer->asChannel()));
 }
 
@@ -728,7 +728,7 @@ void Histories::savePinnedToServer() const {
 		peers.push_back(history->peer->input);
 	}
 	auto flags = MTPmessages_ReorderPinnedDialogs::Flag::f_force;
-	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(qFlags(flags)), MTP_vector(peers)));
+	MTP::send(MTPmessages_ReorderPinnedDialogs(MTP_flags(flags), MTP_vector(peers)));
 }
 
 HistoryItem *History::createItem(const MTPMessage &msg, bool applyServiceAction, bool detachExistingItem) {

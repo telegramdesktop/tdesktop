@@ -503,8 +503,7 @@ void FileLoadTask::process() {
 					full.save(&buffer, "JPG", 87);
 				}
 
-				MTPDphoto::Flags photoFlags = 0;
-				photo = MTP_photo(MTP_flags(photoFlags), MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
+				photo = MTP_photo(MTP_flags(0), MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_vector<MTPPhotoSize>(photoSizes));
 
 				if (filesize < 0) {
 					filesize = _result->filesize = filedata.size();
@@ -514,8 +513,7 @@ void FileLoadTask::process() {
 			QByteArray thumbFormat = "JPG";
 			int32 thumbQuality = 87;
 			if (!isAnimation && filemime == stickerMime && w > 0 && h > 0 && w <= StickerMaxSize && h <= StickerMaxSize && filesize < StickerInMemory) {
-				MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
-				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(""), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(""), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 				thumbFormat = "webp";
 				thumbname = qsl("thumb.webp");
 			}
@@ -535,7 +533,8 @@ void FileLoadTask::process() {
 	}
 
 	if (isVoice) {
-		attributes[0] = MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
+		auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
+		attributes[0] = MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(_duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(_waveform)));
 		attributes.resize(1);
 		document = MTP_document(MTP_long(_id), MTP_long(0), MTP_int(unixtime()), MTP_string(filemime), MTP_int(filesize), thumbSize, MTP_int(MTP::maindc()), MTP_int(0), MTP_vector<MTPDocumentAttribute>(attributes));
 	} else if (_type != SendMediaType::Photo) {

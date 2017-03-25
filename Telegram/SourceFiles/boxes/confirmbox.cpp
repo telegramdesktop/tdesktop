@@ -390,7 +390,7 @@ void PinMessageBox::keyPressEvent(QKeyEvent *e) {
 void PinMessageBox::pinMessage() {
 	if (_requestId) return;
 
-	MTPchannels_UpdatePinnedMessage::Flags flags = 0;
+	auto flags = MTPchannels_UpdatePinnedMessage::Flags(0);
 	if (!_notify->checked()) {
 		flags |= MTPchannels_UpdatePinnedMessage::Flag::f_silent;
 	}

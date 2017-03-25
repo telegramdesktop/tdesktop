@@ -335,7 +335,7 @@ void PasscodeBox::onSave(bool force) {
 			if (!_oldPasscode->isHidden()) {
 				hashSha256(oldPasswordData.constData(), oldPasswordData.size(), oldPasswordHash.data());
 			}
-			MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
+			auto flags = MTPDaccount_passwordInputSettings::Flag::f_new_salt | MTPDaccount_passwordInputSettings::Flag::f_new_password_hash | MTPDaccount_passwordInputSettings::Flag::f_hint;
 			if (_oldPasscode->isHidden() || _newPasscode->isHidden()) {
 				flags |= MTPDaccount_passwordInputSettings::Flag::f_email;
 			}

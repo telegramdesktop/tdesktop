@@ -708,12 +708,10 @@ void ContactsBox::Inner::onPeerNameChanged(PeerData *peer, const PeerData::Names
 void ContactsBox::Inner::addBot() {
 	if (auto &info = _bot->botInfo) {
 		if (!info->shareGameShortName.isEmpty()) {
-			MTPmessages_SendMedia::Flags sendFlags = 0;
-
 			auto history = App::historyLoaded(_addToPeer);
 			auto afterRequestId = history ? history->sendRequestId : 0;
 			auto randomId = rand_value<uint64>();
-			auto requestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), _addToPeer->input, MTP_int(0), MTP_inputMediaGame(MTP_inputGameShortName(_bot->inputUser, MTP_string(info->shareGameShortName))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, afterRequestId);
+			auto requestId = MTP::send(MTPmessages_SendMedia(MTP_flags(0), _addToPeer->input, MTP_int(0), MTP_inputMediaGame(MTP_inputGameShortName(_bot->inputUser, MTP_string(info->shareGameShortName))), MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, afterRequestId);
 			if (history) {
 				history->sendRequestId = requestId;
 			}

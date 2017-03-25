@@ -344,7 +344,7 @@ void Result::createDocument() {
 	} else if (_type == Type::Video) {
 		attributes.push_back(MTP_documentAttributeVideo(MTP_int(_duration), MTP_int(_width), MTP_int(_height)));
 	} else if (_type == Type::Audio) {
-		MTPDdocumentAttributeAudio::Flags flags = 0;
+		auto flags = MTPDdocumentAttributeAudio::Flags(0);
 		if (mime == qstr("audio/ogg")) {
 			flags |= MTPDdocumentAttributeAudio::Flag::f_voice;
 		} else {

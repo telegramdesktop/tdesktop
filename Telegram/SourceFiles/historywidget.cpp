@@ -3701,8 +3701,7 @@ void HistoryWidget::updateStickers() {
 	}
 	if (!Global::LastRecentStickersUpdate() || now >= Global::LastRecentStickersUpdate() + StickersUpdateTimeout) {
 		if (!_recentStickersUpdateRequest) {
-			MTPmessages_GetRecentStickers::Flags flags = 0;
-			_recentStickersUpdateRequest = MTP::send(MTPmessages_GetRecentStickers(MTP_flags(flags), MTP_int(Local::countRecentStickersHash())), rpcDone(&HistoryWidget::recentStickersGot), rpcFail(&HistoryWidget::recentStickersFailed));
+			_recentStickersUpdateRequest = MTP::send(MTPmessages_GetRecentStickers(MTP_flags(0), MTP_int(Local::countRecentStickersHash())), rpcDone(&HistoryWidget::recentStickersGot), rpcFail(&HistoryWidget::recentStickersFailed));
 		}
 	}
 	if (!Global::LastFeaturedStickersUpdate() || now >= Global::LastFeaturedStickersUpdate() + StickersUpdateTimeout) {
@@ -5317,7 +5316,7 @@ void HistoryWidget::saveEditMsg() {
 		return;
 	}
 
-	MTPmessages_EditMessage::Flags sendFlags = MTPmessages_EditMessage::Flag::f_message;
+	auto sendFlags = qFlags(MTPmessages_EditMessage::Flag::f_message);
 	if (webPageId == CancelledWebPageId) {
 		sendFlags |= MTPmessages_EditMessage::Flag::f_no_webpage;
 	}
@@ -5524,11 +5523,11 @@ void HistoryWidget::shareContact(const PeerId &peer, const QString &phone, const
 	fastShowAtEnd(history);
 
 	PeerData *p = App::peer(peer);
-	MTPDmessage::Flags flags = newMessageFlags(p) | MTPDmessage::Flag::f_media; // unread, out
+	auto flags = newMessageFlags(p) | MTPDmessage::Flag::f_media; // unread, out
 
 	bool lastKeyboardUsed = lastForceReplyReplied(FullMsgId(peerToChannel(peer), replyTo));
 
-	MTPmessages_SendMedia::Flags sendFlags = 0;
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (replyTo) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
@@ -5890,12 +5889,12 @@ void HistoryWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button 
 
 	using ButtonType = HistoryMessageReplyMarkup::Button::Type;
 	BotCallbackInfo info = { bot, msg->fullId(), row, col, (button->type == ButtonType::Game) };
-	MTPmessages_GetBotCallbackAnswer::Flags flags = 0;
+	auto flags = MTPmessages_GetBotCallbackAnswer::Flags(0);
 	QByteArray sendData;
 	if (info.game) {
-		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_game;
+		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_game;
 	} else if (button->type == ButtonType::Callback) {
-		flags = MTPmessages_GetBotCallbackAnswer::Flag::f_data;
+		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_data;
 		sendData = button->data;
 	}
 	button->requestId = MTP::send(MTPmessages_GetBotCallbackAnswer(MTP_flags(flags), _peer->input, MTP_int(msg->id), MTP_bytes(sendData)), rpcDone(&HistoryWidget::botCallbackDone, info), rpcFail(&HistoryWidget::botCallbackFail, info));
@@ -6838,7 +6837,7 @@ void HistoryWidget::sendFileConfirmed(const FileLoadResultPtr &file) {
 
 	fastShowAtEnd(h);
 
-	MTPDmessage::Flags flags = newMessageFlags(h->peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto flags = newMessageFlags(h->peer) | MTPDmessage::Flag::f_media; // unread, out
 	if (file->to.replyTo) flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 	bool channelPost = h->peer->isChannel() && !h->peer->isMegagroup();
 	bool showFromName = !channelPost || h->peer->asChannel()->addsSignature();
@@ -6880,7 +6879,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 		App::historyRegRandom(randomId, newId);
 		History *hist = item->history();
 		MsgId replyTo = item->replyToId();
-		MTPmessages_SendMedia::Flags sendFlags = 0;
+		auto sendFlags = MTPmessages_SendMedia::Flags(0);
 		if (replyTo) {
 			sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 		}
@@ -6891,8 +6890,7 @@ void HistoryWidget::onPhotoUploaded(const FullMsgId &newId, bool silent, const M
 			sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 		}
 		auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-		MTPDinputMediaUploadedPhoto::Flags mediaFlags = 0;
-		auto media = MTP_inputMediaUploadedPhoto(MTP_flags(mediaFlags), file, MTP_string(caption.text), MTPVector<MTPInputDocument>());
+		auto media = MTP_inputMediaUploadedPhoto(MTP_flags(0), file, MTP_string(caption.text), MTPVector<MTPInputDocument>());
 		hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 	}
 }
@@ -6911,12 +6909,13 @@ namespace {
 		if (document->type == AnimatedDocument) {
 			attributes.push_back(MTP_documentAttributeAnimated());
 		} else if (document->type == StickerDocument && document->sticker()) {
-			MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
-			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(document->sticker()->alt), document->sticker()->set, MTPMaskCoords()));
+			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(document->sticker()->alt), document->sticker()->set, MTPMaskCoords()));
 		} else if (document->type == SongDocument && document->song()) {
-			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer), MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer), MTPstring()));
+			auto flags = MTPDdocumentAttributeAudio::Flag::f_title | MTPDdocumentAttributeAudio::Flag::f_performer;
+			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(document->song()->duration), MTP_string(document->song()->title), MTP_string(document->song()->performer), MTPstring()));
 		} else if (document->type == VoiceDocument && document->voice()) {
-			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform), MTP_int(document->voice()->duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(document->voice()->waveform))));
+			auto flags = MTPDdocumentAttributeAudio::Flag::f_voice | MTPDdocumentAttributeAudio::Flag::f_waveform;
+			attributes.push_back(MTP_documentAttributeAudio(MTP_flags(flags), MTP_int(document->voice()->duration), MTPstring(), MTPstring(), MTP_bytes(documentWaveformEncode5bit(document->voice()->waveform))));
 		}
 		return MTP_vector<MTPDocumentAttribute>(attributes);
 	}
@@ -6926,11 +6925,11 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 	if (auto item = dynamic_cast<HistoryMessage*>(App::histItemById(newId))) {
 		auto media = item->getMedia();
 		if (auto document = media ? media->getDocument() : nullptr) {
-			uint64 randomId = rand_value<uint64>();
+			auto randomId = rand_value<uint64>();
 			App::historyRegRandom(randomId, newId);
-			History *hist = item->history();
-			MsgId replyTo = item->replyToId();
-			MTPmessages_SendMedia::Flags sendFlags = 0;
+			auto hist = item->history();
+			auto replyTo = item->replyToId();
+			auto sendFlags = MTPmessages_SendMedia::Flags(0);
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 			}
@@ -6941,8 +6940,7 @@ void HistoryWidget::onDocumentUploaded(const FullMsgId &newId, bool silent, cons
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = item->getMedia() ? item->getMedia()->getCaption() : TextWithEntities();
-			MTPDinputMediaUploadedDocument::Flags mediaFlags = 0;
-			auto media = MTP_inputMediaUploadedDocument(MTP_flags(mediaFlags), file, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
+			auto media = MTP_inputMediaUploadedDocument(MTP_flags(0), file, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
@@ -6952,11 +6950,11 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 	if (auto item = dynamic_cast<HistoryMessage*>(App::histItemById(newId))) {
 		auto media = item->getMedia();
 		if (auto document = media ? media->getDocument() : nullptr) {
-			uint64 randomId = rand_value<uint64>();
+			auto randomId = rand_value<uint64>();
 			App::historyRegRandom(randomId, newId);
-			History *hist = item->history();
-			MsgId replyTo = item->replyToId();
-			MTPmessages_SendMedia::Flags sendFlags = 0;
+			auto hist = item->history();
+			auto replyTo = item->replyToId();
+			auto sendFlags = MTPmessages_SendMedia::Flags(0);
 			if (replyTo) {
 				sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
 			}
@@ -6967,8 +6965,7 @@ void HistoryWidget::onThumbDocumentUploaded(const FullMsgId &newId, bool silent,
 				sendFlags |= MTPmessages_SendMedia::Flag::f_silent;
 			}
 			auto caption = media ? media->getCaption() : TextWithEntities();
-			MTPDinputMediaUploadedThumbDocument::Flags mediaFlags = 0;
-			auto media = MTP_inputMediaUploadedThumbDocument(MTP_flags(mediaFlags), file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
+			auto media = MTP_inputMediaUploadedThumbDocument(MTP_flags(0), file, thumb, MTP_string(document->mime), _composeDocumentAttributes(document), MTP_string(caption.text), MTPVector<MTPInputDocument>());
 			hist->sendRequestId = MTP::send(MTPmessages_SendMedia(MTP_flags(sendFlags), item->history()->peer->input, MTP_int(replyTo), media, MTP_long(randomId), MTPnullMarkup), App::main()->rpcDone(&MainWidget::sentUpdatesReceived), App::main()->rpcFail(&MainWidget::sendMessageFail), 0, 0, hist->sendRequestId);
 		}
 	}
@@ -7666,8 +7663,8 @@ void HistoryWidget::onInlineResultSend(InlineBots::Result *result, UserData *bot
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
-	MTPDmessage::Flags flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
-	MTPmessages_SendInlineBotResult::Flags sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft;
+	auto flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto sendFlags = qFlags(MTPmessages_SendInlineBotResult::Flag::f_clear_draft);
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
@@ -7846,8 +7843,8 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
-	MTPDmessage::Flags flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
-	MTPmessages_SendMedia::Flags sendFlags = 0;
+	auto flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
@@ -7902,8 +7899,8 @@ void HistoryWidget::sendExistingPhoto(PhotoData *photo, const QString &caption) 
 	bool lastKeyboardUsed = lastForceReplyReplied();
 
 	bool out = !_peer->isSelf(), unread = !_peer->isSelf();
-	MTPDmessage::Flags flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
-	MTPmessages_SendMedia::Flags sendFlags = 0;
+	auto flags = newMessageFlags(_peer) | MTPDmessage::Flag::f_media; // unread, out
+	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (replyToId()) {
 		flags |= MTPDmessage::Flag::f_reply_to_msg_id;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
@@ -8078,8 +8075,7 @@ void HistoryWidget::onUnpinMessage() {
 		}
 
 		Ui::hideLayer();
-		MTPchannels_UpdatePinnedMessage::Flags flags = 0;
-		MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(flags), _peer->asChannel()->inputChannel, MTP_int(0)), rpcDone(&HistoryWidget::unpinDone));
+		MTP::send(MTPchannels_UpdatePinnedMessage(MTP_flags(0), _peer->asChannel()->inputChannel, MTP_int(0)), rpcDone(&HistoryWidget::unpinDone));
 	})));
 }
 

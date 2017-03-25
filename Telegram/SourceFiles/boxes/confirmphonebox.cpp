@@ -154,8 +154,7 @@ void ConfirmPhoneBox::checkPhoneAndHash() {
 	if (_sendCodeRequestId) {
 		return;
 	}
-	MTPaccount_SendConfirmPhoneCode::Flags flags = 0;
-	_sendCodeRequestId = MTP::send(MTPaccount_SendConfirmPhoneCode(MTP_flags(flags), MTP_string(_hash), MTPBool()), rpcDone(&ConfirmPhoneBox::sendCodeDone), rpcFail(&ConfirmPhoneBox::sendCodeFail));
+	_sendCodeRequestId = MTP::send(MTPaccount_SendConfirmPhoneCode(MTP_flags(0), MTP_string(_hash), MTPBool()), rpcDone(&ConfirmPhoneBox::sendCodeDone), rpcFail(&ConfirmPhoneBox::sendCodeFail));
 }
 
 void ConfirmPhoneBox::sendCodeDone(const MTPauth_SentCode &result) {

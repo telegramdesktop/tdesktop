@@ -90,7 +90,7 @@ void CloudPasswordState::onTurnOff() {
 	if (_curPasswordSalt.isEmpty()) {
 		_turnOff->hide();
 
-		MTPDaccount_passwordInputSettings::Flags flags = MTPDaccount_passwordInputSettings::Flag::f_email;
+		auto flags = MTPDaccount_passwordInputSettings::Flag::f_email;
 		MTPaccount_PasswordInputSettings settings(MTP_account_passwordInputSettings(MTP_flags(flags), MTP_bytes(QByteArray()), MTP_bytes(QByteArray()), MTP_string(QString()), MTP_string(QString())));
 		MTP::send(MTPaccount_UpdatePasswordSettings(MTP_bytes(QByteArray()), settings), rpcDone(&CloudPasswordState::offPasswordDone), rpcFail(&CloudPasswordState::offPasswordFail));
 	} else {

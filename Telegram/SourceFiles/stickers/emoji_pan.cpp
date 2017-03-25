@@ -3887,8 +3887,7 @@ void EmojiPan::onInlineRequest() {
 		if (nextOffset.isEmpty()) return;
 	}
 	Notify::inlineBotRequesting(true);
-	MTPmessages_GetInlineBotResults::Flags flags = 0;
-	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(flags), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
+	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
 }
 
 void EmojiPan::onEmptyInlineRows() {

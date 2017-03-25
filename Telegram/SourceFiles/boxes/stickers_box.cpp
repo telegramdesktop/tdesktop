@@ -320,8 +320,7 @@ void StickersBox::loadMoreArchived() {
 			}
 		}
 	}
-	MTPmessages_GetArchivedStickers::Flags flags = 0;
-	_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(flags), MTP_long(lastId), MTP_int(kArchivedLimitPerPage)), rpcDone(&StickersBox::getArchivedDone, lastId));
+	_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(0), MTP_long(lastId), MTP_int(kArchivedLimitPerPage)), rpcDone(&StickersBox::getArchivedDone, lastId));
 }
 
 void StickersBox::paintEvent(QPaintEvent *e) {
@@ -471,8 +470,7 @@ bool StickersBox::installFail(uint64 setId, const RPCError &error) {
 
 void StickersBox::preloadArchivedSets() {
 	if (!_archivedRequestId) {
-		MTPmessages_GetArchivedStickers::Flags flags = 0;
-		_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(flags), MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
+		_archivedRequestId = MTP::send(MTPmessages_GetArchivedStickers(MTP_flags(0), MTP_long(0), MTP_int(kArchivedLimitFirstRequest)), rpcDone(&StickersBox::getArchivedDone, 0ULL));
 	}
 }
 

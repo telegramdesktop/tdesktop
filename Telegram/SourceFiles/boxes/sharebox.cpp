@@ -895,7 +895,7 @@ void shareGameScoreFromItem(HistoryItem *item) {
 			}
 		};
 
-		MTPmessages_ForwardMessages::Flags sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
+		auto sendFlags = MTPmessages_ForwardMessages::Flag::f_with_my_score;
 		MTPVector<MTPint> msgIds = MTP_vector<MTPint>(1, MTP_int(data->msgId.msg));
 		if (auto main = App::main()) {
 			if (auto item = App::histItemById(data->msgId)) {

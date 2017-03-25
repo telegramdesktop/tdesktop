@@ -160,8 +160,7 @@ void PhoneWidget::phoneCheckDone(const MTPauth_CheckedPhone &result) {
 
 		_checkRequest->start(1000);
 
-		MTPauth_SendCode::Flags flags = 0;
-		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+		_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 	} else {
 		showSignup();
 		_sentRequest = 0;
@@ -197,8 +196,7 @@ void PhoneWidget::toSignUp() {
 
 	_checkRequest->start(1000);
 
-	MTPauth_SendCode::Flags flags = 0;
-	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(flags), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
+	_sentRequest = MTP::send(MTPauth_SendCode(MTP_flags(0), MTP_string(_sentPhone), MTPBool(), MTP_int(ApiId), MTP_string(ApiHash)), rpcDone(&PhoneWidget::phoneSubmitDone), rpcFail(&PhoneWidget::phoneSubmitFail));
 }
 
 bool PhoneWidget::phoneSubmitFail(const RPCError &error) {

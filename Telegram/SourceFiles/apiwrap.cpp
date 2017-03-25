@@ -719,8 +719,7 @@ void ApiWrap::saveStickerSets(const Stickers::Order &localOrder, const Stickers:
 				writeRecent = true;
 			}
 
-			MTPmessages_ClearRecentStickers::Flags flags = 0;
-			_stickersClearRecentRequestId = MTP::send(MTPmessages_ClearRecentStickers(MTP_flags(flags)), rpcDone(&ApiWrap::stickersClearRecentDone), rpcFail(&ApiWrap::stickersClearRecentFail));
+			_stickersClearRecentRequestId = MTP::send(MTPmessages_ClearRecentStickers(MTP_flags(0)), rpcDone(&ApiWrap::stickersClearRecentDone), rpcFail(&ApiWrap::stickersClearRecentFail));
 			continue;
 		}
 
@@ -1069,7 +1068,7 @@ void ApiWrap::saveDraftsToCloud() {
 		}
 		cloudDraft = history->createCloudDraft(localDraft);
 
-		MTPmessages_SaveDraft::Flags flags = 0;
+		auto flags = MTPmessages_SaveDraft::Flags(0);
 		auto &textWithTags = cloudDraft->textWithTags;
 		if (cloudDraft->previewCancelled) {
 			flags |= MTPmessages_SaveDraft::Flag::f_no_webpage;
@@ -1445,8 +1444,7 @@ void ApiWrap::stickersSaveOrder() {
 			mtpOrder.push_back(MTP_long(setId));
 		}
 
-		MTPmessages_ReorderStickerSets::Flags flags = 0;
-		_stickersReorderRequestId = MTP::send(MTPmessages_ReorderStickerSets(MTP_flags(flags), MTP_vector<MTPlong>(mtpOrder)), rpcDone(&ApiWrap::stickersReorderDone), rpcFail(&ApiWrap::stickersReorderFail));
+		_stickersReorderRequestId = MTP::send(MTPmessages_ReorderStickerSets(MTP_flags(0), MTP_vector<MTPlong>(mtpOrder)), rpcDone(&ApiWrap::stickersReorderDone), rpcFail(&ApiWrap::stickersReorderFail));
 	} else {
 		stickersReorderDone(MTP_boolTrue());
 	}

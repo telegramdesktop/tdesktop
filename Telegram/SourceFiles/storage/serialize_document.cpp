@@ -89,9 +89,8 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 
 		thumb = readStorageImageLocation(stream);
 
-		MTPDdocumentAttributeSticker::Flags stickerFlags = 0;
 		if (typeOfSet == StickerSetTypeEmpty) {
-			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
+			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
 			if (info->setId == Stickers::DefaultSetId || info->setId == Stickers::CloudRecentSetId || info->setId == Stickers::CustomSetId) {
 				typeOfSet = StickerSetTypeEmpty;
@@ -99,14 +98,14 @@ DocumentData *Document::readFromStreamHelper(int streamAppVersion, QDataStream &
 
 			switch (typeOfSet) {
 			case StickerSetTypeID: {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(alt), MTP_inputStickerSetID(MTP_long(info->setId), MTP_long(info->accessHash)), MTPMaskCoords()));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetID(MTP_long(info->setId), MTP_long(info->accessHash)), MTPMaskCoords()));
 			} break;
 			case StickerSetTypeShortName: {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(alt), MTP_inputStickerSetShortName(MTP_string(info->shortName)), MTPMaskCoords()));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetShortName(MTP_string(info->shortName)), MTPMaskCoords()));
 			} break;
 			case StickerSetTypeEmpty:
 			default: {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(stickerFlags), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 			} break;
 			}
 		}

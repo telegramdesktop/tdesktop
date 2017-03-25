@@ -395,6 +395,13 @@ inline MTPint MTP_int(int32 v) {
 }
 using MTPInt = MTPBoxed<MTPint>;
 
+namespace internal {
+
+struct ZeroFlagsHelper {
+};
+
+} // namespace internal
+
 template <typename Flags>
 class MTPflags {
 public:
@@ -402,6 +409,8 @@ public:
 	static_assert(sizeof(Flags) == sizeof(int32), "MTPflags are allowed only wrapping int32 flag types!");
 
 	MTPflags() = default;
+	MTPflags(internal::ZeroFlagsHelper helper) {
+	}
 
 	uint32 innerLength() const {
 		return sizeof(Flags);
@@ -423,12 +432,25 @@ private:
 	}
 
 	template <typename T>
-	friend MTPflags<T> MTP_flags(T v);
+	friend MTPflags<QFlags<T>> MTP_flags(QFlags<T> v);
+
+	template <typename T, typename>
+	friend MTPflags<QFlags<T>> MTP_flags(T v);
+
 };
 
 template <typename T>
-inline MTPflags<T> MTP_flags(T v) {
-	return MTPflags<T>(v);
+inline MTPflags<QFlags<T>> MTP_flags(QFlags<T> v) {
+	return MTPflags<QFlags<T>>(v);
+}
+
+template <typename T, typename = std::enable_if_t<!std::is_same<T, int>::value>>
+inline MTPflags<QFlags<T>> MTP_flags(T v) {
+	return MTPflags<QFlags<T>>(v);
+}
+
+inline internal::ZeroFlagsHelper MTP_flags(void(internal::ZeroFlagsHelper::*)()) {
+	return internal::ZeroFlagsHelper();
 }
 
 template <typename Flags>
