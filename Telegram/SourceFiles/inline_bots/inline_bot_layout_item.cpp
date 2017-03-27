@@ -95,31 +95,37 @@ void ItemBase::preload() const {
 
 void ItemBase::update() {
 	if (_position >= 0) {
-		Ui::repaintInlineItem(this);
+		context()->inlineItemRepaint(this);
 	}
 }
 
-std::unique_ptr<ItemBase> ItemBase::createLayout(Result *result, bool forceThumb) {
+void ItemBase::layoutChanged() {
+	if (_position >= 0) {
+		context()->inlineItemLayoutChanged(this);
+	}
+}
+
+std::unique_ptr<ItemBase> ItemBase::createLayout(gsl::not_null<Context*> context, Result *result, bool forceThumb) {
 	using Type = Result::Type;
 
 	switch (result->_type) {
-	case Type::Photo: return std::make_unique<internal::Photo>(result); break;
+	case Type::Photo: return std::make_unique<internal::Photo>(context, result); break;
 	case Type::Audio:
-	case Type::File: return std::make_unique<internal::File>(result); break;
-	case Type::Video: return std::make_unique<internal::Video>(result); break;
-	case Type::Sticker: return std::make_unique<internal::Sticker>(result); break;
-	case Type::Gif: return std::make_unique<internal::Gif>(result); break;
+	case Type::File: return std::make_unique<internal::File>(context, result); break;
+	case Type::Video: return std::make_unique<internal::Video>(context, result); break;
+	case Type::Sticker: return std::make_unique<internal::Sticker>(context, result); break;
+	case Type::Gif: return std::make_unique<internal::Gif>(context, result); break;
 	case Type::Article:
 	case Type::Geo:
-	case Type::Venue: return std::make_unique<internal::Article>(result, forceThumb); break;
-	case Type::Game: return std::make_unique<internal::Game>(result); break;
-	case Type::Contact: return std::make_unique<internal::Contact>(result); break;
+	case Type::Venue: return std::make_unique<internal::Article>(context, result, forceThumb); break;
+	case Type::Game: return std::make_unique<internal::Game>(context, result); break;
+	case Type::Contact: return std::make_unique<internal::Contact>(context, result); break;
 	}
 	return std::unique_ptr<ItemBase>();
 }
 
-std::unique_ptr<ItemBase> ItemBase::createLayoutGif(DocumentData *document) {
-	return std::make_unique<internal::Gif>(document, true);
+std::unique_ptr<ItemBase> ItemBase::createLayoutGif(gsl::not_null<Context*> context, DocumentData *document) {
+	return std::make_unique<internal::Gif>(context, document, true);
 }
 
 DocumentData *ItemBase::getResultDocument() const {

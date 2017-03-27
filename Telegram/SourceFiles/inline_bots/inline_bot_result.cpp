@@ -121,13 +121,13 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 		auto &r = message->c_botInlineMessageMediaAuto();
 		if (result->_type == Type::Photo) {
 			result->createPhoto();
-			result->sendData.reset(new internal::SendPhoto(result->_photo, qs(r.vcaption)));
+			result->sendData = std::make_unique<internal::SendPhoto>(result->_photo, qs(r.vcaption));
 		} else if (result->_type == Type::Game) {
 			result->createGame();
-			result->sendData.reset(new internal::SendGame(result->_game));
+			result->sendData = std::make_unique<internal::SendGame>(result->_game);
 		} else {
 			result->createDocument();
-			result->sendData.reset(new internal::SendFile(result->_document, qs(r.vcaption)));
+			result->sendData = std::make_unique<internal::SendFile>(result->_document, qs(r.vcaption));
 		}
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
@@ -137,7 +137,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	case mtpc_botInlineMessageText: {
 		auto &r = message->c_botInlineMessageText();
 		auto entities = r.has_entities() ? entitiesFromMTP(r.ventities.v) : EntitiesInText();
-		result->sendData.reset(new internal::SendText(qs(r.vmessage), entities, r.is_no_webpage()));
+		result->sendData = std::make_unique<internal::SendText>(qs(r.vmessage), entities, r.is_no_webpage());
 		if (result->_type == Type::Photo) {
 			result->createPhoto();
 		} else if (result->_type == Type::Audio || result->_type == Type::File || result->_type == Type::Video || result->_type == Type::Sticker || result->_type == Type::Gif) {
@@ -151,7 +151,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	case mtpc_botInlineMessageMediaGeo: {
 		auto &r = message->c_botInlineMessageMediaGeo();
 		if (r.vgeo.type() == mtpc_geoPoint) {
-			result->sendData.reset(new internal::SendGeo(r.vgeo.c_geoPoint()));
+			result->sendData = std::make_unique<internal::SendGeo>(r.vgeo.c_geoPoint());
 		} else {
 			badAttachment = true;
 		}
@@ -163,7 +163,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 	case mtpc_botInlineMessageMediaVenue: {
 		auto &r = message->c_botInlineMessageMediaVenue();
 		if (r.vgeo.type() == mtpc_geoPoint) {
-			result->sendData.reset(new internal::SendVenue(r.vgeo.c_geoPoint(), qs(r.vvenue_id), qs(r.vprovider), qs(r.vtitle), qs(r.vaddress)));
+			result->sendData = std::make_unique<internal::SendVenue>(r.vgeo.c_geoPoint(), qs(r.vvenue_id), qs(r.vprovider), qs(r.vtitle), qs(r.vaddress));
 		} else {
 			badAttachment = true;
 		}
@@ -174,7 +174,7 @@ std::unique_ptr<Result> Result::create(uint64 queryId, const MTPBotInlineResult 
 
 	case mtpc_botInlineMessageMediaContact: {
 		auto &r = message->c_botInlineMessageMediaContact();
-		result->sendData.reset(new internal::SendContact(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number)));
+		result->sendData = std::make_unique<internal::SendContact>(qs(r.vfirst_name), qs(r.vlast_name), qs(r.vphone_number));
 		if (r.has_reply_markup()) {
 			result->_mtpKeyboard = std::make_unique<MTPReplyMarkup>(r.vreply_markup);
 		}

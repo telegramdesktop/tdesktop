@@ -125,6 +125,8 @@
 <(src_loc)/inline_bots/inline_bot_result.h
 <(src_loc)/inline_bots/inline_bot_send_data.cpp
 <(src_loc)/inline_bots/inline_bot_send_data.h
+<(src_loc)/inline_bots/inline_results_widget.cpp
+<(src_loc)/inline_bots/inline_results_widget.h
 <(src_loc)/intro/introwidget.cpp
 <(src_loc)/intro/introwidget.h
 <(src_loc)/intro/introcode.cpp

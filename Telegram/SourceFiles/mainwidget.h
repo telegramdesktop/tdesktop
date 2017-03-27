@@ -306,7 +306,7 @@ public:
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
-	bool insertBotCommand(const QString &cmd, bool specialGif);
+	bool insertBotCommand(const QString &cmd);
 
 	void jumpToDate(PeerData *peer, const QDate &date);
 	void searchMessages(const QString &query, PeerData *inPeer);
@@ -383,8 +383,6 @@ public:
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
-	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, Ui::ShowWay way);
 	PeerData *ui_getPeerForMouseAction();
@@ -399,7 +397,6 @@ public:
 	void notify_migrateUpdated(PeerData *peer);
 	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
-	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 	void notify_historyMuteUpdated(History *history);
 	void notify_handlePendingHistoryUpdate();
 

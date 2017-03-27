@@ -206,3 +206,8 @@ hashtagClose: IconButton {
 
 stickersToastMaxWidth: 340px;
 stickersToastPadding: margins(16px, 13px, 16px, 12px);
+
+inlineBotsScroll: ScrollArea(defaultSolidScroll) {
+	deltat: stickerPanPadding;
+	deltab: stickerPanPadding;
+}

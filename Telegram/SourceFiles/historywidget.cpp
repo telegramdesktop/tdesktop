@@ -63,6 +63,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "window/window_controller.h"
+#include "inline_bots/inline_results_widget.h"
 
 namespace {
 
@@ -3427,17 +3428,35 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 			_inlineBot = bot;
 			inlineBotChanged();
 		}
-		if (_inlineBot->username == cInlineGifBotUsername() && query.isEmpty()) {
-			_emojiPan->clearInlineBot();
-		} else {
-			_emojiPan->queryInlineBot(_inlineBot, _peer, query);
+		if (!_inlineResults) {
+			_inlineResults.create(this);
+			_inlineResults->setResultSelectedCallback([this](InlineBots::Result *result, UserData *bot) {
+				onInlineResultSend(result, bot);
+			});
+			updateControlsGeometry();
+			orderWidgets();
 		}
+		_inlineResults->queryInlineBot(_inlineBot, _peer, query);
 		if (!_fieldAutocomplete->isHidden()) {
 			_fieldAutocomplete->hideAnimated();
 		}
 	} else {
 		clearInlineBot();
 	}
+}
+
+void HistoryWidget::orderWidgets() {
+	_reportSpamPanel->raise();
+	_topShadow->raise();
+	if (_membersDropdown) {
+		_membersDropdown->raise();
+	}
+	if (_inlineResults) {
+		_inlineResults->raise();
+	}
+	_emojiPan->raise();
+	_attachDragDocument->raise();
+	_attachDragPhoto->raise();
 }
 
 void HistoryWidget::updateStickersByEmoji() {
@@ -4557,10 +4576,11 @@ void HistoryWidget::updateNotifySettings() {
 }
 
 bool HistoryWidget::contentOverlapped(const QRect &globalRect) {
-	return (_attachDragDocument->overlaps(globalRect) ||
-			_attachDragPhoto->overlaps(globalRect) ||
-			_fieldAutocomplete->overlaps(globalRect) ||
-			_emojiPan->overlaps(globalRect));
+	return (_attachDragDocument->overlaps(globalRect)
+			|| _attachDragPhoto->overlaps(globalRect)
+			|| _fieldAutocomplete->overlaps(globalRect)
+			|| _emojiPan->overlaps(globalRect)
+			|| (_inlineResults && _inlineResults->overlaps(globalRect)));
 }
 
 void HistoryWidget::updateReportSpamStatus() {
@@ -4692,6 +4712,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
 		_emojiPan->hide();
+		if (_inlineResults) {
+			_inlineResults->hide();
+		}
 		if (_pinnedBar) {
 			_pinnedBar->cancel->hide();
 			_pinnedBar->shadow->hide();
@@ -4750,6 +4773,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
 		_emojiPan->hide();
+		if (_inlineResults) {
+			_inlineResults->hide();
+		}
 		if (!_field->isHidden()) {
 			_field->hide();
 			resizeEvent(0);
@@ -4861,6 +4887,9 @@ void HistoryWidget::updateControlsVisibility() {
 		_botKeyboardHide->hide();
 		_botCommandStart->hide();
 		_emojiPan->hide();
+		if (_inlineResults) {
+			_inlineResults->hide();
+		}
 		_kbScroll->hide();
 		if (!_field->isHidden()) {
 			_field->hide();
@@ -5379,6 +5408,9 @@ bool HistoryWidget::saveEditMsgFail(History *history, const RPCError &error, mtp
 void HistoryWidget::hideSelectorControlsAnimated() {
 	_fieldAutocomplete->hideAnimated();
 	_emojiPan->hideAnimated();
+	if (_inlineResults) {
+		_inlineResults->hideAnimated();
+	}
 }
 
 void HistoryWidget::onSend(bool ctrlShiftEnter, MsgId replyTo) {
@@ -5971,7 +6003,7 @@ bool HistoryWidget::botCallbackFail(BotCallbackInfo info, const RPCError &error,
 	return true;
 }
 
-bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
+bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	if (!canWriteMessage()) return false;
 
 	bool insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
@@ -5989,34 +6021,26 @@ bool HistoryWidget::insertBotCommand(const QString &cmd, bool specialGif) {
 
 	if (!insertingInlineBot) {
 		auto &textWithTags = _field->getTextWithTags();
-		if (specialGif) {
-			if (textWithTags.text.trimmed() == '@' + cInlineGifBotUsername() && textWithTags.text.at(0) == '@') {
-				clearFieldText(TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
-			}
+		TextWithTags textWithTagsToSet;
+		QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(textWithTags.text);
+		if (m.hasMatch()) {
+			textWithTagsToSet = _field->getTextWithTagsPart(m.capturedLength());
 		} else {
-			TextWithTags textWithTagsToSet;
-			QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(textWithTags.text);
-			if (m.hasMatch()) {
-				textWithTagsToSet = _field->getTextWithTagsPart(m.capturedLength());
-			} else {
-				textWithTagsToSet = textWithTags;
-			}
-			textWithTagsToSet.text = toInsert + textWithTagsToSet.text;
-			for (auto &tag : textWithTagsToSet.tags) {
-				tag.offset += toInsert.size();
-			}
-			_field->setTextWithTags(textWithTagsToSet);
+			textWithTagsToSet = textWithTags;
+		}
+		textWithTagsToSet.text = toInsert + textWithTagsToSet.text;
+		for (auto &tag : textWithTagsToSet.tags) {
+			tag.offset += toInsert.size();
+		}
+		_field->setTextWithTags(textWithTagsToSet);
 
-			QTextCursor cur(_field->textCursor());
-			cur.movePosition(QTextCursor::End);
-			_field->setTextCursor(cur);
-		}
+		QTextCursor cur(_field->textCursor());
+		cur.movePosition(QTextCursor::End);
+		_field->setTextCursor(cur);
 	} else {
-		if (!specialGif || _field->isEmpty()) {
-			setFieldText({ toInsert, TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
-			_field->setFocus();
-			return true;
-		}
+		setFieldText({ toInsert, TextWithTags::Tags() }, TextUpdateEvent::SaveDraft, Ui::FlatTextarea::AddToUndoHistory);
+		_field->setFocus();
+		return true;
 	}
 	return false;
 }
@@ -6498,7 +6522,7 @@ void HistoryWidget::moveFieldControls() {
 		_kbScroll->setGeometry(0, bottom, width(), keyboardHeight);
 	}
 
-// _attachToggle --------------------------------------------------------- _emojiPan --------- _fieldBarCancel
+// _attachToggle -------- _inlineResults ---------------------------------- _emojiPan -------- _fieldBarCancel
 // (_attachDocument|_attachPhoto) _field (_silent|_cmdStart|_kbShow) (_kbHide|_attachEmoji) [_broadcast] _send
 // (_botStart|_unblock|_joinChannel|_muteUnmute)
 
@@ -6515,6 +6539,9 @@ void HistoryWidget::moveFieldControls() {
 	_silent->moveToRight(right, buttonsBottom);
 
 	_fieldBarCancel->moveToRight(0, _field->y() - st::historySendPadding - _fieldBarCancel->height());
+	if (_inlineResults) {
+		_inlineResults->moveBottom(_field->y() - st::historySendPadding);
+	}
 	_emojiPan->moveBottom(_field->y() - st::historySendPadding);
 
 	auto fullWidthButtonRect = QRect(0, bottom - _botStart->height(), width(), _botStart->height());
@@ -6546,7 +6573,9 @@ void HistoryWidget::clearInlineBot() {
 		inlineBotChanged();
 		_field->finishPlaceholder();
 	}
-	_emojiPan->clearInlineBot();
+	if (_inlineResults) {
+		_inlineResults->clearInlineBot();
+	}
 	onCheckFieldAutocomplete();
 }
 
@@ -7132,16 +7161,9 @@ void HistoryWidget::onUpdateHistoryItems() {
 	}
 }
 
-void HistoryWidget::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
-	_emojiPan->ui_repaintInlineItem(layout);
-}
-
-bool HistoryWidget::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
-	return _emojiPan->ui_isInlineItemVisible(layout);
-}
-
 bool HistoryWidget::ui_isInlineItemBeingChosen() {
-	return _emojiPan->ui_isInlineItemBeingChosen();
+	return _emojiPan->ui_isInlineItemBeingChosen()
+		|| (_inlineResults && _inlineResults->ui_isInlineItemBeingChosen());
 }
 
 PeerData *HistoryWidget::ui_getPeerForMouseAction() {
@@ -7152,10 +7174,6 @@ void HistoryWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	if (_peer && _list && (item == App::mousedItem() || item == App::hoveredItem() || item == App::hoveredLinkItem())) {
 		_list->onUpdateSelected();
 	}
-}
-
-void HistoryWidget::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
-	_emojiPan->notify_inlineItemLayoutChanged(layout);
 }
 
 void HistoryWidget::notify_handlePendingHistoryUpdate() {
@@ -7200,6 +7218,10 @@ void HistoryWidget::updateControlsGeometry() {
 
 	_emojiPan->setMinTop(0);
 	_emojiPan->setMinBottom(_attachEmoji->height());
+	if (_inlineResults) {
+		_inlineResults->setMinTop(0);
+		_inlineResults->setMinBottom(_attachEmoji->height());
+	}
 	if (_membersDropdown) {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
 	}
@@ -7776,14 +7798,7 @@ bool HistoryWidget::pinnedMsgVisibilityUpdated() {
 				_pinnedBar->shadow->show();
 			}
 			connect(_pinnedBar->cancel, SIGNAL(clicked()), this, SLOT(onPinnedHide()));
-			_reportSpamPanel->raise();
-			_topShadow->raise();
-			if (_membersDropdown) {
-				_membersDropdown->raise();
-			}
-			_emojiPan->raise();
-			_attachDragDocument->raise();
-			_attachDragPhoto->raise();
+			orderWidgets();
 
 			updatePinnedBar();
 			result = true;

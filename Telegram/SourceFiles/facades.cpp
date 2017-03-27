@@ -54,9 +54,9 @@ void hideSingleUseKeyboard(const HistoryItem *msg) {
 	}
 }
 
-bool insertBotCommand(const QString &cmd, bool specialGif) {
+bool insertBotCommand(const QString &cmd) {
 	if (auto m = main()) {
-		return m->insertBotCommand(cmd, specialGif);
+		return m->insertBotCommand(cmd);
 	}
 	return false;
 }
@@ -264,20 +264,6 @@ void repaintHistoryItem(const HistoryItem *item) {
 	}
 }
 
-void repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
-	if (!layout) return;
-	if (auto main = App::main()) {
-		main->ui_repaintInlineItem(layout);
-	}
-}
-
-bool isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
-	if (auto main = App::main()) {
-		return main->ui_isInlineItemVisible(layout);
-	}
-	return false;
-}
-
 void autoplayMediaInlineAsync(const FullMsgId &msgId) {
 	if (auto main = App::main()) {
 		QMetaObject::invokeMethod(main, "ui_autoplayMediaInlineAsync", Qt::QueuedConnection, Q_ARG(qint32, msgId.channel), Q_ARG(qint32, msgId.msg));
@@ -384,10 +370,6 @@ void clipStopperHidden(ClipStopperType type) {
 
 void historyItemLayoutChanged(const HistoryItem *item) {
 	if (MainWidget *m = App::main()) m->notify_historyItemLayoutChanged(item);
-}
-
-void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
-	if (MainWidget *m = App::main()) m->notify_inlineItemLayoutChanged(layout);
 }
 
 void historyMuteUpdated(History *history) {

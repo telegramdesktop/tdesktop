@@ -554,14 +554,6 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	if (_overview) _overview->ui_repaintHistoryItem(item);
 }
 
-void MainWidget::ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout) {
-	_history->ui_repaintInlineItem(layout);
-}
-
-bool MainWidget::ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
-	return _history->ui_isInlineItemVisible(layout);
-}
-
 bool MainWidget::ui_isInlineItemBeingChosen() {
 	return _history->ui_isInlineItemBeingChosen();
 }
@@ -569,10 +561,6 @@ bool MainWidget::ui_isInlineItemBeingChosen() {
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
 	_history->notify_historyItemLayoutChanged(item);
 	if (_overview) _overview->notify_historyItemLayoutChanged(item);
-}
-
-void MainWidget::notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
-	_history->notify_inlineItemLayoutChanged(layout);
 }
 
 void MainWidget::notify_historyMuteUpdated(History *history) {
@@ -1339,8 +1327,8 @@ void MainWidget::app_sendBotCallback(const HistoryMessageReplyMarkup::Button *bu
 	_history->app_sendBotCallback(button, msg, row, col);
 }
 
-bool MainWidget::insertBotCommand(const QString &cmd, bool specialGif) {
-	return _history->insertBotCommand(cmd, specialGif);
+bool MainWidget::insertBotCommand(const QString &cmd) {
+	return _history->insertBotCommand(cmd);
 }
 
 void MainWidget::searchMessages(const QString &query, PeerData *inPeer) {
@@ -1564,7 +1552,7 @@ void MainWidget::handleAudioUpdate(const AudioMsgId &audioId) {
 	}
 	if (auto items = InlineBots::Layout::documentItems()) {
 		for (auto item : items->value(audioId.audio())) {
-			Ui::repaintInlineItem(item);
+			item->update();
 		}
 	}
 }

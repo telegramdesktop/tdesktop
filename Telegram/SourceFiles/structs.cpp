@@ -1641,7 +1641,7 @@ void DocumentData::notifyLayoutChanged() const {
 
 	if (auto items = InlineBots::Layout::documentItems()) {
 		for (auto item : items->value(const_cast<DocumentData*>(this))) {
-			Notify::inlineItemLayoutChanged(item);
+			item->layoutChanged();
 		}
 	}
 }

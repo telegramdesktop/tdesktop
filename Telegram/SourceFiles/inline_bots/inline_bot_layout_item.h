@@ -47,15 +47,21 @@ public:
 	}
 };
 
+class Context {
+public:
+	virtual void inlineItemLayoutChanged(const ItemBase *layout) = 0;
+	virtual bool inlineItemVisible(const ItemBase *item) = 0;
+	virtual void inlineItemRepaint(const ItemBase *item) = 0;
+};
+
 class ItemBase : public LayoutItemBase {
 public:
-
-	ItemBase(Result *result) : _result(result) {
+	ItemBase(gsl::not_null<Context*> context, Result *result) : _context(context), _result(result) {
 	}
-	ItemBase(DocumentData *doc) : _doc(doc) {
+	ItemBase(gsl::not_null<Context*> context, DocumentData *doc) : _context(context), _doc(doc) {
 	}
 	// Not used anywhere currently.
-	//ItemBase(PhotoData *photo) : _photo(photo) {
+	//ItemBase(gsl::not_null<Context*> context, PhotoData *photo) : _context(context), _photo(photo) {
 	//}
 
 	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;
@@ -82,6 +88,7 @@ public:
 	virtual void preload() const;
 
 	void update();
+	void layoutChanged();
 
 	// ClickHandlerHost interface
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override {
@@ -91,8 +98,8 @@ public:
 		update();
 	}
 
-	static std::unique_ptr<ItemBase> createLayout(Result *result, bool forceThumb);
-	static std::unique_ptr<ItemBase> createLayoutGif(DocumentData *document);
+	static std::unique_ptr<ItemBase> createLayout(gsl::not_null<Context*> context, Result *result, bool forceThumb);
+	static std::unique_ptr<ItemBase> createLayoutGif(gsl::not_null<Context*> context, DocumentData *document);
 
 protected:
 	DocumentData *getResultDocument() const;
@@ -105,6 +112,10 @@ protected:
 	ClickHandlerPtr getResultContentUrlHandler() const;
 	QString getResultThumbLetter() const;
 
+	gsl::not_null<Context*> context() const {
+		return _context;
+	}
+
 	Result *_result = nullptr;
 	DocumentData *_doc = nullptr;
 	PhotoData *_photo = nullptr;
@@ -112,6 +123,9 @@ protected:
 	ClickHandlerPtr _send = ClickHandlerPtr{ new SendClickHandler() };
 
 	int _position = 0; // < 0 means removed from layout
+
+private:
+	gsl::not_null<Context*> _context;
 
 };
 

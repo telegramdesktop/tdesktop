@@ -32,6 +32,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace InlineBots {
 namespace Layout {
 class ItemBase;
+class Widget;
 } // namespace Layout
 class Result;
 } // namespace InlineBots
@@ -661,7 +662,7 @@ public:
 
 	void sendBotCommand(PeerData *peer, UserData *bot, const QString &cmd, MsgId replyTo);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
-	bool insertBotCommand(const QString &cmd, bool specialGif);
+	bool insertBotCommand(const QString &cmd);
 
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
@@ -712,13 +713,10 @@ public:
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *gif);
-	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
-	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
 	void notify_botCommandsChanged(UserData *user);
 	void notify_inlineBotRequesting(bool requesting);
 	void notify_replyMarkupUpdated(const HistoryItem *item);
@@ -848,6 +846,15 @@ private slots:
 	void updateField();
 
 private:
+	struct SendingFilesLists {
+		QList<QUrl> nonLocalUrls;
+		QStringList directories;
+		QStringList emptyFiles;
+		QStringList tooLargeFiles;
+		QStringList filesToSend;
+		bool allFilesForCompress = true;
+	};
+
 	void topBarClick();
 
 	void animationCallback();
@@ -858,14 +865,6 @@ private:
 	void chooseAttach();
 	void historyDownAnimationFinish();
 	void sendButtonClicked();
-	struct SendingFilesLists {
-		QList<QUrl> nonLocalUrls;
-		QStringList directories;
-		QStringList emptyFiles;
-		QStringList tooLargeFiles;
-		QStringList filesToSend;
-		bool allFilesForCompress = true;
-	};
 	SendingFilesLists getSendingFilesLists(const QList<QUrl> &files);
 	SendingFilesLists getSendingFilesLists(const QStringList &files);
 	void getSendingLocalFileInfo(SendingFilesLists &result, const QString &filepath);
@@ -887,6 +886,7 @@ private:
 
 	bool historyHasNotFreezedUnreadBar(History *history) const;
 	bool canWriteMessage() const;
+	void orderWidgets();
 
 	void clearInlineBot();
 	void inlineBotChanged();
@@ -1159,6 +1159,7 @@ private:
 	object_ptr<Ui::InnerDropdown> _membersDropdown = { nullptr };
 	QTimer _membersDropdownShowTimer;
 
+	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
 	object_ptr<EmojiPan> _emojiPan;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;

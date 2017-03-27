@@ -24,6 +24,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/abstract_button.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
+#include "inline_bots/inline_bot_layout_item.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -199,7 +200,7 @@ struct StickerIcon {
 	int pixh = 0;
 };
 
-class StickerPanInner : public TWidget, private base::Subscriber {
+class StickerPanInner : public TWidget, public InlineBots::Layout::Context, private base::Subscriber {
 	Q_OBJECT
 
 public:
@@ -208,7 +209,6 @@ public:
 	void setMaxHeight(int maxHeight);
 
 	void hideFinish(bool completely);
-	void showFinish();
 	void showStickerSet(uint64 setId);
 	void updateShowingSavedGifs();
 
@@ -233,9 +233,9 @@ public:
 
 	uint64 currentSet(int yOffset) const;
 
-	void notify_inlineItemLayoutChanged(const InlineItem *layout);
-	void ui_repaintInlineItem(const InlineItem *layout);
-	bool ui_isInlineItemVisible(const InlineItem *layout);
+	void inlineItemLayoutChanged(const InlineItem *layout) override;
+	void inlineItemRepaint(const InlineItem *layout) override;
+	bool inlineItemVisible(const InlineItem *layout) override;
 	bool ui_isInlineItemBeingChosen();
 
 	bool inlineResultsShown() const {
@@ -353,7 +353,6 @@ private:
 		Stickers,
 	};
 	Section _section = Section::Stickers;
-	bool _setGifCommand = false;
 	UserData *_inlineBot;
 	QString _inlineBotTitle;
 	TimeMs _lastScrolled = 0;
@@ -487,13 +486,9 @@ public:
 
 	bool overlaps(const QRect &globalRect) const;
 
-	void notify_inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout);
-	void ui_repaintInlineItem(const InlineBots::Layout::ItemBase *layout);
-	bool ui_isInlineItemVisible(const InlineBots::Layout::ItemBase *layout);
 	bool ui_isInlineItemBeingChosen();
 
-	void setOrigin(Ui::PanelAnimation::Origin origin);
-	void showAnimated(Ui::PanelAnimation::Origin origin);
+	void showAnimated();
 	void hideAnimated();
 
 	~EmojiPan();
@@ -614,7 +609,6 @@ private:
 	int _height = 0;
 	int _bottom = 0;
 
-	Ui::PanelAnimation::Origin _origin = Ui::PanelAnimation::Origin::BottomRight;
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;
 
@@ -675,7 +669,6 @@ private:
 
 	void inlineBotChanged();
 	int32 showInlineRows(bool newResults);
-	bool hideOnNoInlineResults();
 	void recountContentMaxHeight();
 	bool refreshInlineRows(int32 *added = 0);
 	UserData *_inlineBot = nullptr;

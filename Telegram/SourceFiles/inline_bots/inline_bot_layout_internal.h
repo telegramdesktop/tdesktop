@@ -30,9 +30,9 @@ namespace internal {
 
 class FileBase : public ItemBase {
 public:
-	FileBase(Result *result);
+	FileBase(gsl::not_null<Context*> context, Result *result);
 	// for saved gif layouts
-	FileBase(DocumentData *doc);
+	FileBase(gsl::not_null<Context*> context, DocumentData *doc);
 
 protected:
 	DocumentData *getShownDocument() const;
@@ -58,8 +58,8 @@ private:
 
 class Gif : public FileBase {
 public:
-	Gif(Result *result);
-	Gif(DocumentData *doc, bool hasDeleteButton);
+	Gif(gsl::not_null<Context*> context, Result *result);
+	Gif(gsl::not_null<Context*> context, DocumentData *doc, bool hasDeleteButton);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
@@ -117,9 +117,9 @@ private:
 
 class Photo : public ItemBase {
 public:
-	Photo(Result *result);
+	Photo(gsl::not_null<Context*> context, Result *result);
 	// Not used anywhere currently.
-	//LayoutInlinePhoto(PhotoData *photo);
+	//Photo(gsl::not_null<Context*> context, PhotoData *photo);
 
 	void initDimensions() override;
 
@@ -146,9 +146,9 @@ private:
 
 class Sticker : public FileBase {
 public:
-	Sticker(Result *result);
+	Sticker(gsl::not_null<Context*> context, Result *result);
 	// Not used anywhere currently.
-	//LayoutInlineSticker(DocumentData *document);
+	//Sticker(gsl::not_null<Context*> context, DocumentData *document);
 
 	void initDimensions() override;
 
@@ -167,7 +167,6 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
 private:
-
 	QSize getThumbSize() const;
 
 	mutable Animation _a_over;
@@ -181,7 +180,7 @@ private:
 
 class Video : public FileBase {
 public:
-	Video(Result *result);
+	Video(gsl::not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
 
@@ -189,7 +188,6 @@ public:
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
-
 	ClickHandlerPtr _link;
 
 	mutable QPixmap _thumb;
@@ -229,7 +227,7 @@ private:
 
 class File : public FileBase {
 public:
-	File(Result *result);
+	File(gsl::not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
 
@@ -291,7 +289,7 @@ private:
 
 class Contact : public ItemBase {
 public:
-	Contact(Result *result);
+	Contact(gsl::not_null<Context*> context, Result *result);
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
@@ -300,7 +298,6 @@ public:
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
-
 	mutable QPixmap _thumb;
 	Text _title, _description;
 
@@ -310,7 +307,7 @@ private:
 
 class Article : public ItemBase {
 public:
-	Article(Result *result, bool withThumb);
+	Article(gsl::not_null<Context*> context, Result *result, bool withThumb);
 
 	void initDimensions() override;
 	int resizeGetHeight(int width) override;
@@ -319,7 +316,6 @@ public:
 	void getState(ClickHandlerPtr &link, HistoryCursorState &cursor, int x, int y) const override;
 
 private:
-
 	ClickHandlerPtr _url, _link;
 
 	bool _withThumb;
@@ -334,7 +330,7 @@ private:
 
 class Game : public ItemBase {
 public:
-	Game(Result *result);
+	Game(gsl::not_null<Context*> context, Result *result);
 
 	void setPosition(int32 position) override;
 	void initDimensions() override;
