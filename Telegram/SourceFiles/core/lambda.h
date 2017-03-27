@@ -606,8 +606,8 @@ public:
 	lambda_slot_once_wrap(QObject *parent, lambda_once<void()> lambda) : QObject(parent), _lambda(std::move(lambda)) {
 	}
 
-	public slots :
-		void action() {
+public slots :
+	void action() {
 		_lambda();
 		delete this;
 	}

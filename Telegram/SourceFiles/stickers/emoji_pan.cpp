@@ -676,13 +676,6 @@ void EmojiPanInner::setSelected(int newSelected) {
 	}
 }
 
-void InlineCacheEntry::clearResults() {
-	for_const (const InlineBots::Result *result, results) {
-		delete result;
-	}
-	results.clear();
-}
-
 void EmojiPanInner::showEmojiPack(DBIEmojiTab packIndex) {
 	clearSelection();
 
@@ -1291,7 +1284,7 @@ void StickerPanInner::clearSelection() {
 
 void StickerPanInner::hideFinish(bool completely) {
 	if (completely) {
-		auto itemForget = [](const InlineItem *item) {
+		auto itemForget = [](auto &item) {
 			if (auto document = item->getDocument()) {
 				document->forget();
 			}
@@ -1303,11 +1296,11 @@ void StickerPanInner::hideFinish(bool completely) {
 			}
 		};
 		clearInlineRows(false);
-		for_const (auto item, _gifLayouts) {
-			itemForget(item);
+		for_const (auto &item, _gifLayouts) {
+			itemForget(item.second);
 		}
-		for_const (auto item, _inlineLayouts) {
-			itemForget(item);
+		for_const (auto &item, _inlineLayouts) {
+			itemForget(item.second);
 		}
 		clearInstalledLocally();
 	}
@@ -1383,12 +1376,12 @@ bool StickerPanInner::inlineRowsAddItem(DocumentData *savedGif, InlineResult *re
 bool StickerPanInner::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force) {
 	if (row.items.isEmpty()) return false;
 
-	bool full = (row.items.size() >= InlineItemsMaxPerRow);
-	bool big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
+	auto full = (row.items.size() >= kInlineItemsMaxPerRow);
+	auto big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
 	if (full || big || force) {
 		_inlineRows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
 		row = InlineRow();
-		row.items.reserve(InlineItemsMaxPerRow);
+		row.items.reserve(kInlineItemsMaxPerRow);
 		sumWidth = 0;
 		return true;
 	}
@@ -1406,9 +1399,9 @@ void StickerPanInner::refreshSavedGifs() {
 			return;
 		} else {
 			_inlineRows.reserve(saved.size());
-			InlineRow row;
-			row.items.reserve(InlineItemsMaxPerRow);
-			int sumWidth = 0;
+			auto row = InlineRow();
+			row.items.reserve(kInlineItemsMaxPerRow);
+			auto sumWidth = 0;
 			for_const (auto &gif, saved) {
 				inlineRowsAddItem(gif, 0, row, sumWidth);
 			}
@@ -1450,47 +1443,43 @@ void StickerPanInner::clearInlineRows(bool resultsDeleted) {
 }
 
 InlineItem *StickerPanInner::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
-	auto i = _gifLayouts.constFind(doc);
-	if (i == _gifLayouts.cend()) {
+	auto it = _gifLayouts.find(doc);
+	if (it == _gifLayouts.cend()) {
 		if (auto layout = InlineItem::createLayoutGif(doc)) {
-			i = _gifLayouts.insert(doc, layout.release());
-			i.value()->initDimensions();
+			it = _gifLayouts.emplace(doc, std::move(layout)).first;
+			it->second->initDimensions();
 		} else {
 			return nullptr;
 		}
 	}
-	if (!i.value()->maxWidth()) return nullptr;
+	if (!it->second->maxWidth()) return nullptr;
 
-	i.value()->setPosition(position);
-	return i.value();
+	it->second->setPosition(position);
+	return it->second.get();
 }
 
 InlineItem *StickerPanInner::layoutPrepareInlineResult(InlineResult *result, int32 position) {
-	auto i = _inlineLayouts.constFind(result);
-	if (i == _inlineLayouts.cend()) {
+	auto it = _inlineLayouts.find(result);
+	if (it == _inlineLayouts.cend()) {
 		if (auto layout = InlineItem::createLayout(result, _inlineWithThumb)) {
-			i = _inlineLayouts.insert(result, layout.release());
-			i.value()->initDimensions();
+			it = _inlineLayouts.emplace(result, std::move(layout)).first;
+			it->second->initDimensions();
 		} else {
 			return nullptr;
 		}
 	}
-	if (!i.value()->maxWidth()) return nullptr;
+	if (!it->second->maxWidth()) return nullptr;
 
-	i.value()->setPosition(position);
-	return i.value();
+	it->second->setPosition(position);
+	return it->second.get();
 }
 
 void StickerPanInner::deleteUnusedGifLayouts() {
 	if (_inlineRows.isEmpty() || _section != Section::Gifs) { // delete all
-		for_const (auto item, _gifLayouts) {
-			delete item;
-		}
 		_gifLayouts.clear();
 	} else {
 		for (auto i = _gifLayouts.begin(); i != _gifLayouts.cend();) {
-			if (i.value()->position() < 0) {
-				delete i.value();
+			if (i->second->position() < 0) {
 				i = _gifLayouts.erase(i);
 			} else {
 				++i;
@@ -1501,14 +1490,10 @@ void StickerPanInner::deleteUnusedGifLayouts() {
 
 void StickerPanInner::deleteUnusedInlineLayouts() {
 	if (_inlineRows.isEmpty() || _section == Section::Gifs) { // delete all
-		for_const (auto item, _inlineLayouts) {
-			delete item;
-		}
 		_inlineLayouts.clear();
 	} else {
 		for (auto i = _inlineLayouts.begin(); i != _inlineLayouts.cend();) {
-			if (i.value()->position() < 0) {
-				delete i.value();
+			if (i->second->position() < 0) {
 				i = _inlineLayouts.erase(i);
 			} else {
 				++i;
@@ -1518,13 +1503,13 @@ void StickerPanInner::deleteUnusedInlineLayouts() {
 }
 
 StickerPanInner::InlineRow &StickerPanInner::layoutInlineRow(InlineRow &row, int32 sumWidth) {
-	int32 count = row.items.size();
-	t_assert(count <= InlineItemsMaxPerRow);
+	auto count = int(row.items.size());
+	t_assert(count <= kInlineItemsMaxPerRow);
 
 	// enumerate items in the order of growing maxWidth()
 	// for that sort item indices by maxWidth()
-	int indices[InlineItemsMaxPerRow];
-	for (int i = 0; i < count; ++i) {
+	int indices[kInlineItemsMaxPerRow];
+	for (auto i = 0; i != count; ++i) {
 		indices[i] = i;
 	}
 	std::sort(indices, indices + count, [&row](int a, int b) -> bool {
@@ -1633,7 +1618,7 @@ void StickerPanInner::refreshSwitchPmButton(const InlineCacheEntry *entry) {
 		}
 		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
 		_switchPmStartToken = entry->switchPmStartToken;
-		auto buttonTop = entry->results.isEmpty() ? (2 * st::emojiPanHeader) : st::emojiPanHeader;
+		auto buttonTop = entry->results.empty() ? (2 * st::emojiPanHeader) : st::emojiPanHeader;
 		_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, buttonTop);
 	}
 	update();
@@ -1646,7 +1631,7 @@ int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *en
 		if (!entry) {
 			return true;
 		}
-		if (entry->results.isEmpty() && entry->switchPmText.isEmpty()) {
+		if (entry->results.empty() && entry->switchPmText.isEmpty()) {
 			if (!_inlineBot || _inlineBot->username != cInlineGifBotUsername()) {
 				return true;
 			}
@@ -1671,15 +1656,17 @@ int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *en
 	_section = Section::Inlines;
 	_settings->hide();
 
-	int32 count = entry->results.size(), from = validateExistingInlineRows(entry->results), added = 0;
+	auto count = int(entry->results.size());
+	auto from = validateExistingInlineRows(entry->results);
+	auto added = 0;
 
 	if (count) {
 		_inlineRows.reserve(count);
-		InlineRow row;
-		row.items.reserve(InlineItemsMaxPerRow);
-		int32 sumWidth = 0;
-		for (int32 i = from; i < count; ++i) {
-			if (inlineRowsAddItem(0, entry->results.at(i), row, sumWidth)) {
+		auto row = InlineRow();
+		row.items.reserve(kInlineItemsMaxPerRow);
+		auto sumWidth = 0;
+		for (auto i = from; i != count; ++i) {
+			if (inlineRowsAddItem(0, entry->results[i].get(), row, sumWidth)) {
 				++added;
 			}
 		}
@@ -1701,11 +1688,11 @@ int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *en
 int StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
 	int count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	for (; until < count;) {
-		if (untilrow >= _inlineRows.size() || _inlineRows.at(untilrow).items.at(untilcol)->getResult() != results.at(until)) {
+		if (untilrow >= _inlineRows.size() || _inlineRows[untilrow].items[untilcol]->getResult() != results[until].get()) {
 			break;
 		}
 		++until;
-		if (++untilcol == _inlineRows.at(untilrow).items.size()) {
+		if (++untilcol == _inlineRows[untilrow].items.size()) {
 			++untilrow;
 			untilcol = 0;
 		}
@@ -1716,11 +1703,11 @@ int StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
 		}
 
 		for (int i = untilrow, l = _inlineRows.size(), skip = untilcol; i < l; ++i) {
-			for (int j = 0, s = _inlineRows.at(i).items.size(); j < s; ++j) {
+			for (int j = 0, s = _inlineRows[i].items.size(); j < s; ++j) {
 				if (skip) {
 					--skip;
 				} else {
-					_inlineRows.at(i).items.at(j)->setPosition(-1);
+					_inlineRows[i].items[j]->setPosition(-1);
 				}
 			}
 		}
@@ -1735,13 +1722,13 @@ int StickerPanInner::validateExistingInlineRows(const InlineResults &results) {
 	}
 	if (untilrow && !untilcol) { // remove last row, maybe it is not full
 		--untilrow;
-		untilcol = _inlineRows.at(untilrow).items.size();
+		untilcol = _inlineRows[untilrow].items.size();
 	}
 	until -= untilcol;
 
 	for (int i = untilrow, l = _inlineRows.size(); i < l; ++i) {
-		for (int j = 0, s = _inlineRows.at(i).items.size(); j < s; ++j) {
-			_inlineRows.at(i).items.at(j)->setPosition(-1);
+		for (int j = 0, s = _inlineRows[i].items.size(); j < s; ++j) {
+			_inlineRows[i].items[j]->setPosition(-1);
 		}
 	}
 	_inlineRows.resize(untilrow);
@@ -3677,25 +3664,18 @@ void EmojiPan::onInstallSet(quint64 setId) {
 	auto &sets = Global::StickerSets();
 	auto it = sets.constFind(setId);
 	if (it != sets.cend()) {
-		MTP::send(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_bool(false)), rpcDone(&EmojiPan::installSetDone), rpcFail(&EmojiPan::installSetFail, setId));
+		request(MTPmessages_InstallStickerSet(Stickers::inputSetId(*it), MTP_bool(false))).done([this](const MTPmessages_StickerSetInstallResult &result) {
+			if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
+				Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
+			}
+		}).fail([this, setId](const RPCError &error) {
+			s_inner->notInstalledLocally(setId);
+			Stickers::undoInstallLocally(setId);
+		}).send();
+
 		s_inner->installedLocally(setId);
 		Stickers::installLocally(setId);
 	}
-}
-
-void EmojiPan::installSetDone(const MTPmessages_StickerSetInstallResult &result) {
-	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
-		Stickers::applyArchivedResult(result.c_messages_stickerSetInstallResultArchive());
-	}
-}
-
-bool EmojiPan::installSetFail(uint64 setId, const RPCError &error) {
-	if (MTP::isDefaultHandledError(error)) {
-		return false;
-	}
-	s_inner->notInstalledLocally(setId);
-	Stickers::undoInstallLocally(setId);
-	return true;
 }
 
 void EmojiPan::onRemoveSet(quint64 setId) {
@@ -3710,9 +3690,9 @@ void EmojiPan::onRemoveSet(quint64 setId) {
 			auto it = sets.find(_removingSetId);
 			if (it != sets.cend() && !(it->flags & MTPDstickerSet::Flag::f_official)) {
 				if (it->id && it->access) {
-					MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access))));
+					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetID(MTP_long(it->id), MTP_long(it->access)))).send();
 				} else if (!it->shortName.isEmpty()) {
-					MTP::send(MTPmessages_UninstallStickerSet(MTP_inputStickerSetShortName(MTP_string(it->shortName))));
+					request(MTPmessages_UninstallStickerSet(MTP_inputStickerSetShortName(MTP_string(it->shortName)))).send();
 				}
 				bool writeRecent = false;
 				RecentStickerPack &recent(cGetRecentStickers());
@@ -3782,9 +3762,6 @@ void EmojiPan::inlineBotChanged() {
 	_inlineRequestId = 0;
 	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
 	_inlineBot = nullptr;
-	for (InlineCache::const_iterator i = _inlineCache.cbegin(), e = _inlineCache.cend(); i != e; ++i) {
-		delete i.value();
-	}
 	_inlineCache.clear();
 	s_inner->inlineBotChanged();
 	s_inner->hideInlineRowsPanel();
@@ -3797,52 +3774,45 @@ void EmojiPan::inlineResultsDone(const MTPmessages_BotResults &result) {
 	Notify::inlineBotRequesting(false);
 
 	auto it = _inlineCache.find(_inlineQuery);
-
-	bool adding = (it != _inlineCache.cend());
+	auto adding = (it != _inlineCache.cend());
 	if (result.type() == mtpc_messages_botResults) {
 		auto &d = result.c_messages_botResults();
 		auto &v = d.vresults.v;
 		auto queryId = d.vquery_id.v;
 
-		if (!adding) {
-			it = _inlineCache.insert(_inlineQuery, new internal::InlineCacheEntry());
+		if (it == _inlineCache.cend()) {
+			it = _inlineCache.emplace(_inlineQuery, std::make_unique<internal::InlineCacheEntry>()).first;
 		}
-		it.value()->nextOffset = qs(d.vnext_offset);
+		auto entry = it->second.get();
+		entry->nextOffset = qs(d.vnext_offset);
 		if (d.has_switch_pm() && d.vswitch_pm.type() == mtpc_inlineBotSwitchPM) {
-			const auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
-			it.value()->switchPmText = qs(switchPm.vtext);
-			it.value()->switchPmStartToken = qs(switchPm.vstart_param);
+			auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
+			entry->switchPmText = qs(switchPm.vtext);
+			entry->switchPmStartToken = qs(switchPm.vstart_param);
 		}
 
-		if (int count = v.size()) {
-			it.value()->results.reserve(it.value()->results.size() + count);
+		if (auto count = v.size()) {
+			entry->results.reserve(entry->results.size() + count);
 		}
-		int added = 0;
+		auto added = 0;
 		for_const (const auto &res, v) {
 			if (auto result = InlineBots::Result::create(queryId, res)) {
 				++added;
-				it.value()->results.push_back(result.release());
+				entry->results.push_back(std::move(result));
 			}
 		}
 
 		if (!added) {
-			it.value()->nextOffset = QString();
+			entry->nextOffset = QString();
 		}
 	} else if (adding) {
-		it.value()->nextOffset = QString();
+		it->second->nextOffset = QString();
 	}
 
 	if (!showInlineRows(!adding)) {
-		it.value()->nextOffset = QString();
+		it->second->nextOffset = QString();
 	}
 	onScrollStickers();
-}
-
-bool EmojiPan::inlineResultsFail(const RPCError &error) {
-	// show error?
-	Notify::inlineBotRequesting(false);
-	_inlineRequestId = 0;
-	return true;
 }
 
 void EmojiPan::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
@@ -3866,7 +3836,7 @@ void EmojiPan::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 			_inlineRequestId = 0;
 			Notify::inlineBotRequesting(false);
 		}
-		if (_inlineCache.contains(query)) {
+		if (_inlineCache.find(query) != _inlineCache.cend()) {
 			_inlineRequestTimer.stop();
 			_inlineQuery = _inlineNextQuery = query;
 			showInlineRows(true);
@@ -3882,13 +3852,19 @@ void EmojiPan::onInlineRequest() {
 	_inlineQuery = _inlineNextQuery;
 
 	QString nextOffset;
-	InlineCache::const_iterator i = _inlineCache.constFind(_inlineQuery);
-	if (i != _inlineCache.cend()) {
-		nextOffset = i.value()->nextOffset;
+	auto it = _inlineCache.find(_inlineQuery);
+	if (it != _inlineCache.cend()) {
+		nextOffset = it->second->nextOffset;
 		if (nextOffset.isEmpty()) return;
 	}
 	Notify::inlineBotRequesting(true);
-	_inlineRequestId = MTP::send(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset)), rpcDone(&EmojiPan::inlineResultsDone), rpcFail(&EmojiPan::inlineResultsFail));
+	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
+		inlineResultsDone(result);
+	}).fail([this](const RPCError &error) {
+		// show error?
+		Notify::inlineBotRequesting(false);
+		_inlineRequestId = 0;
+	}).handleAllErrors().send();
 }
 
 void EmojiPan::onEmptyInlineRows() {
@@ -3903,16 +3879,16 @@ void EmojiPan::onEmptyInlineRows() {
 }
 
 bool EmojiPan::refreshInlineRows(int32 *added) {
-	auto i = _inlineCache.constFind(_inlineQuery);
+	auto it = _inlineCache.find(_inlineQuery);
 	const internal::InlineCacheEntry *entry = nullptr;
-	if (i != _inlineCache.cend()) {
-		if (!i.value()->results.isEmpty() || !i.value()->switchPmText.isEmpty()) {
-			entry = i.value();
+	if (it != _inlineCache.cend()) {
+		if (!it->second->results.empty() || !it->second->switchPmText.isEmpty()) {
+			entry = it->second.get();
 		}
-		_inlineNextOffset = i.value()->nextOffset;
+		_inlineNextOffset = it->second->nextOffset;
 	}
 	if (!entry) prepareCache();
-	int32 result = s_inner->refreshInlineRows(_inlineBot, entry, false);
+	auto result = s_inner->refreshInlineRows(_inlineBot, entry, false);
 	if (added) *added = result;
 	return (entry != nullptr);
 }

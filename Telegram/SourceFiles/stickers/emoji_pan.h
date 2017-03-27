@@ -23,6 +23,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/twidget.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/panel_animation.h"
+#include "mtproto/sender.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -41,20 +42,16 @@ class RippleAnimation;
 
 namespace internal {
 
-constexpr int InlineItemsMaxPerRow = 5;
+constexpr int kInlineItemsMaxPerRow = 5;
 
 using InlineResult = InlineBots::Result;
-using InlineResults = QList<InlineBots::Result*>;
+using InlineResults = std::vector<std::unique_ptr<InlineResult>>;
 using InlineItem = InlineBots::Layout::ItemBase;
 
 struct InlineCacheEntry {
-	~InlineCacheEntry() {
-		clearResults();
-	}
 	QString nextOffset;
 	QString switchPmText, switchPmStartToken;
-	InlineResults results; // owns this results list
-	void clearResults();
+	InlineResults results;
 };
 
 class EmojiColorPicker : public TWidget {
@@ -375,12 +372,10 @@ private:
 	InlineRows _inlineRows;
 	void clearInlineRows(bool resultsDeleted);
 
-	using GifLayouts = QMap<DocumentData*, InlineItem*>;
-	GifLayouts _gifLayouts;
+	std::map<DocumentData*, std::unique_ptr<InlineItem>> _gifLayouts;
 	InlineItem *layoutPrepareSavedGif(DocumentData *doc, int32 position);
 
-	using InlineLayouts = QMap<InlineResult*, InlineItem*>;
-	InlineLayouts _inlineLayouts;
+	std::map<InlineResult*, std::unique_ptr<InlineItem>> _inlineLayouts;
 	InlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
 
 	bool inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
@@ -466,7 +461,7 @@ private:
 
 } // namespace internal
 
-class EmojiPan : public TWidget, public RPCSender {
+class EmojiPan : public TWidget, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -584,8 +579,6 @@ private:
 	void showStarted();
 
 	bool preventAutoHide() const;
-	void installSetDone(const MTPmessages_StickerSetInstallResult &result);
-	bool installSetFail(uint64 setId, const RPCError &error);
 	void setActiveTab(DBIEmojiTab tab);
 	void setCurrentTabIcon(DBIEmojiTab tab);
 
@@ -677,8 +670,7 @@ private:
 	QTimer _saveConfigTimer;
 
 	// inline bots
-	typedef QMap<QString, internal::InlineCacheEntry*> InlineCache;
-	InlineCache _inlineCache;
+	std::map<QString, std::unique_ptr<internal::InlineCacheEntry>> _inlineCache;
 	QTimer _inlineRequestTimer;
 
 	void inlineBotChanged();
@@ -691,6 +683,5 @@ private:
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId = 0;
 	void inlineResultsDone(const MTPmessages_BotResults &result);
-	bool inlineResultsFail(const RPCError &error);
 
 };
