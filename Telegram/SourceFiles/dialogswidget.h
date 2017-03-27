@@ -41,6 +41,10 @@ template <typename Widget>
 class WidgetScaledFadeWrap;
 } // namespace Ui
 
+namespace Window {
+class Controller;
+} // namespace Window
+
 enum DialogsSearchRequestType {
 	DialogsSearchFromStart,
 	DialogsSearchFromOffset,
@@ -303,7 +307,7 @@ class DialogsWidget : public TWidget, public RPCSender, private base::Subscriber
 	Q_OBJECT
 
 public:
-	DialogsWidget(QWidget *parent);
+	DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void updateDragInScroll(bool inScroll);
 
@@ -402,15 +406,17 @@ private:
 	void updateControlsGeometry();
 	void updateForwardBar();
 
-	bool _dragInScroll = false;
-	bool _dragForward = false;
-	QTimer _chooseByDragTimer;
-
 	void unreadCountsReceived(const QVector<MTPDialog> &dialogs);
 	bool dialogsFailed(const RPCError &error, mtpRequestId req);
 	bool contactsFailed(const RPCError &error);
 	bool searchFailed(DialogsSearchRequestType type, const RPCError &error, mtpRequestId req);
 	bool peopleFailed(const RPCError &error, mtpRequestId req);
+
+	gsl::not_null<Window::Controller*> _controller;
+
+	bool _dragInScroll = false;
+	bool _dragForward = false;
+	QTimer _chooseByDragTimer;
 
 	bool _dialogsFull = false;
 	int32 _dialogsOffsetDate = 0;

@@ -52,6 +52,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "window/window_main_menu.h"
 #include "core/task_queue.h"
 #include "auth_session.h"
+#include "window/window_controller.h"
 
 ConnectingWidget::ConnectingWidget(QWidget *parent, const QString &text, const QString &reconnect) : TWidget(parent)
 , _reconnect(this, QString()) {
@@ -350,7 +351,7 @@ void MainWindow::setupMain(const MTPUser *self) {
 
 	t_assert(AuthSession::Exists());
 
-	_main.create(bodyWidget());
+	_main.create(bodyWidget(), std::make_unique<Window::Controller>(this));
 	_main->show();
 	updateControlsGeometry();
 

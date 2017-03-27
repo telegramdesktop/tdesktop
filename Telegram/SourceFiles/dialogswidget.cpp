@@ -47,6 +47,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "auth_session.h"
 #include "window/notifications_manager.h"
 #include "ui/effects/widget_fade_wrap.h"
+#include "window/window_controller.h"
 
 namespace {
 
@@ -2265,7 +2266,8 @@ void DialogsWidget::UpdateButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-DialogsWidget::DialogsWidget(QWidget *parent) : TWidget(parent)
+DialogsWidget::DialogsWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller) : TWidget(parent)
+, _controller(controller)
 , _mainMenuToggle(this, st::dialogsMenuToggle)
 , _filter(this, st::dialogsFilter, lang(lng_dlg_filter))
 , _jumpToDate(this, object_ptr<Ui::IconButton>(this, st::dialogsCalendar))
@@ -2984,7 +2986,7 @@ void DialogsWidget::setSearchInPeer(PeerData *peer) {
 	_searchInMigrated = newSearchInPeer ? newSearchInPeer->migrateFrom() : nullptr;
 	if (newSearchInPeer != _searchInPeer) {
 		_searchInPeer = newSearchInPeer;
-		App::main()->searchInPeerChanged().notify(_searchInPeer, true);
+		_controller->searchInPeerChanged().notify(_searchInPeer, true);
 		updateJumpToDateVisibility();
 	}
 	_inner->searchInPeer(_searchInPeer);

@@ -426,6 +426,8 @@
 <(src_loc)/ui/special_buttons.h
 <(src_loc)/ui/twidget.cpp
 <(src_loc)/ui/twidget.h
+<(src_loc)/window/window_controller.cpp
+<(src_loc)/window/window_controller.h
 <(src_loc)/window/main_window.cpp
 <(src_loc)/window/main_window.h
 <(src_loc)/window/notifications_manager.cpp
@@ -439,12 +441,13 @@
 <(src_loc)/window/section_memento.h
 <(src_loc)/window/section_widget.cpp
 <(src_loc)/window/section_widget.h
-<(src_loc)/window/window_slide_animation.cpp
-<(src_loc)/window/window_slide_animation.h
 <(src_loc)/window/top_bar_widget.cpp
 <(src_loc)/window/top_bar_widget.h
 <(src_loc)/window/window_main_menu.cpp
 <(src_loc)/window/window_main_menu.h
+<(src_loc)/window/window_slide_animation.cpp
+<(src_loc)/window/window_slide_animation.h
+<(src_loc)/window/window_title.h
 <(src_loc)/window/themes/window_theme.cpp
 <(src_loc)/window/themes/window_theme.h
 <(src_loc)/window/themes/window_theme_editor.cpp
@@ -455,7 +458,6 @@
 <(src_loc)/window/themes/window_theme_preview.h
 <(src_loc)/window/themes/window_theme_warning.cpp
 <(src_loc)/window/themes/window_theme_warning.h
-<(src_loc)/window/window_title.h
 <(src_loc)/apiwrap.cpp
 <(src_loc)/apiwrap.h
 <(src_loc)/app.cpp

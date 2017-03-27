@@ -33,16 +33,23 @@ class Date;
 } // namespace Overview
 
 namespace Ui {
+class AbstractButton;
 class PlainShadow;
 class PopupMenu;
 class IconButton;
 class FlatInput;
 class CrossButton;
+class DropdownMenu;
 } // namespace Ui
 
 namespace Notify {
 struct PeerUpdate;
 } // namespace Notify
+
+namespace Window {
+class Controller;
+class TopBarWidget;
+} // namespace Window
 
 class OverviewWidget;
 class OverviewInner : public TWidget, public Ui::AbstractTooltipShower, public RPCSender, private base::Subscriber {
@@ -280,7 +287,7 @@ class OverviewWidget : public TWidget, public RPCSender {
 	Q_OBJECT
 
 public:
-	OverviewWidget(QWidget *parent, PeerData *peer, MediaOverviewType type);
+	OverviewWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller, PeerData *peer, MediaOverviewType type);
 
 	void clear();
 
@@ -288,13 +295,14 @@ public:
 	void scrollReset();
 
 	bool paintTopBar(Painter &p, int decreaseWidth);
-	void topBarClick();
 
 	PeerData *peer() const;
 	PeerData *migratePeer() const;
 	MediaOverviewType type() const;
 	void switchType(MediaOverviewType type);
+	bool showMediaTypeSwitch() const;
 	void updateTopBarSelection();
+	bool contentOverlapped(const QRect &globalRect);
 
 	int32 lastWidth() const;
 	int32 lastScrollTop() const;
@@ -361,11 +369,19 @@ public slots:
 	void onClearSelected();
 
 private:
+	void topBarClick();
 	void animationCallback();
 
+	gsl::not_null<Window::Controller*> _controller;
+
+	object_ptr<Ui::AbstractButton> _backAnimationButton = { nullptr };
+	object_ptr<Window::TopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<OverviewInner> _inner;
 	bool _noDropResizeIndex = false;
+
+	object_ptr<Ui::DropdownMenu> _mediaType;
+	int32 _mediaTypeMask = 0;
 
 	QString _header;
 

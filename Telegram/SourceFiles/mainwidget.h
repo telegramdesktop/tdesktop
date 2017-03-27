@@ -46,6 +46,7 @@ class DropdownMenu;
 } // namespace Ui
 
 namespace Window {
+class Controller;
 class PlayerWrapWidget;
 class TopBarWidget;
 class SectionMemento;
@@ -142,7 +143,7 @@ class MainWidget : public TWidget, public RPCSender, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	MainWidget(QWidget *parent);
+	MainWidget(QWidget *parent, std::unique_ptr<Window::Controller> controller);
 
 	bool needBackButton();
 
@@ -150,8 +151,6 @@ public:
 	bool paintTopBar(Painter &, int decreaseWidth, TimeMs ms);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
-	Window::TopBarWidget *topBar();
-	int backgroundFromY() const;
 
 	int contentScrollAddToY() const;
 
@@ -204,8 +203,9 @@ public:
 	PeerData *activePeer();
 	MsgId activeMsgId();
 
+	int backgroundFromY() const;
 	PeerData *overviewPeer();
-	bool mediaTypeSwitch();
+	bool showMediaTypeSwitch() const;
 	void showWideSection(const Window::SectionMemento &memento);
 	void showMediaOverview(PeerData *peer, MediaOverviewType type, bool back = false, int32 lastScrollTop = -1);
 	bool stackIsEmpty() const;
@@ -374,13 +374,6 @@ public:
 
 	bool contentOverlapped(const QRect &globalRect);
 
-	base::Observable<PeerData*> &searchInPeerChanged() {
-		return _searchInPeerChanged;
-	}
-	base::Observable<PeerData*> &historyPeerChanged() {
-		return _historyPeerChanged;
-	}
-
 	void rpcClear() override;
 
 	bool isItemVisible(HistoryItem *item);
@@ -444,19 +437,11 @@ public slots:
 	void checkIdleFinish();
 	void updateOnlineDisplay();
 
-	void onTopBarClick();
 	void onHistoryShown(History *history, MsgId atMsgId);
 
 	void searchInPeer(PeerData *peer);
 
 	void onUpdateNotifySettings();
-
-	void onPhotosSelect();
-	void onVideosSelect();
-	void onSongsSelect();
-	void onDocumentsSelect();
-	void onAudiosSelect();
-	void onLinksSelect();
 
 	void onCacheBackground();
 
@@ -522,6 +507,7 @@ private:
 
 	void saveSectionInStack();
 
+	std::unique_ptr<Window::Controller> _controller;
 	bool _started = false;
 
 	SelectedItemSet _toForward;
@@ -584,9 +570,6 @@ private:
 
 	void clearCachedBackground();
 
-	base::Observable<PeerData*> _searchInPeerChanged;
-	base::Observable<PeerData*> _historyPeerChanged;
-
 	Animation _a_show;
 	bool _showBack = false;
 	QPixmap _cacheUnder, _cacheOver;
@@ -600,7 +583,6 @@ private:
 	object_ptr<HistoryWidget> _history;
 	object_ptr<Window::SectionWidget> _wideSection = { nullptr };
 	object_ptr<OverviewWidget> _overview = { nullptr };
-	object_ptr<Window::TopBarWidget> _topBar;
 
 	object_ptr<Window::PlayerWrapWidget> _player = { nullptr };
 	object_ptr<Media::Player::VolumeWidget> _playerVolume = { nullptr };
@@ -616,9 +598,6 @@ private:
 
 	int _playerHeight = 0;
 	int _contentScrollAddToY = 0;
-
-	object_ptr<Ui::DropdownMenu> _mediaType;
-	int32 _mediaTypeMask = 0;
 
 	int32 updDate = 0;
 	int32 updQts = -1;

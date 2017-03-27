@@ -31,17 +31,17 @@ class DropdownMenu;
 
 namespace Window {
 
+class Controller;
+
 class TopBarWidget : public TWidget, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	TopBarWidget(MainWidget *w);
+	TopBarWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
-	void startAnim();
-	void stopAnim();
 	void showAll();
 	void showSelected(int selectedCount, bool canDelete = false);
-
+	void animationFinished();
 	void updateMembersShowArea();
 
 	Ui::RoundButton *mediaTypeButton();
@@ -71,13 +71,11 @@ private:
 	void updateAdaptiveLayout();
 	int countSelectedButtonsTop(float64 selectedShown);
 
-	MainWidget *main();
+	gsl::not_null<Window::Controller*> _controller;
 
 	PeerData *_searchInPeer = nullptr;
 	int _selectedCount = 0;
 	bool _canDelete = false;
-
-	bool _animating = false;
 
 	Animation _selectedShown;
 

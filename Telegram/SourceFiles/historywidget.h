@@ -37,6 +37,7 @@ class Result;
 } // namespace InlineBots
 
 namespace Ui {
+class AbstractButton;
 class InnerDropdown;
 class DropdownMenu;
 class PlainShadow;
@@ -49,6 +50,11 @@ class FlatButton;
 class LinkButton;
 class RoundButton;
 } // namespace Ui
+
+namespace Window {
+class Controller;
+class TopBarWidget;
+} // namespace Window
 
 class DragArea;
 class EmojiPan;
@@ -534,7 +540,7 @@ class HistoryWidget : public TWidget, public RPCSender, private base::Subscriber
 	Q_OBJECT
 
 public:
-	HistoryWidget(QWidget *parent);
+	HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*> controller);
 
 	void start();
 
@@ -554,7 +560,6 @@ public:
 	bool paintTopBar(Painter &p, int decreaseWidth, TimeMs ms);
 	QRect getMembersShowAreaGeometry() const;
 	void setMembersShowAreaActive(bool active);
-	void topBarClick();
 
 	void loadMessages();
 	void loadMessagesDown();
@@ -843,6 +848,8 @@ private slots:
 	void updateField();
 
 private:
+	void topBarClick();
+
 	void animationCallback();
 	void updateOverStates(QPoint pos);
 	void recordStartCallback();
@@ -894,6 +901,8 @@ private:
 
 	void hideSelectorControlsAnimated();
 	int countMembersDropdownHeightMax() const;
+
+	gsl::not_null<Window::Controller*> _controller;
 
 	MsgId _replyToId = 0;
 	Text _replyToName;
@@ -1075,6 +1084,8 @@ private:
 
 	MsgId _activeAnimMsgId = 0;
 
+	object_ptr<Ui::AbstractButton> _backAnimationButton = { nullptr };
+	object_ptr<Window::TopBarWidget> _topBar;
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<HistoryInner> _list;
 	History *_migrated = nullptr;
