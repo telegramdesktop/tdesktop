@@ -244,14 +244,14 @@ public:
 		bool animated = false;
 	};
 	struct Song {
-		int duration = 0;
+		int duration = -1;
 		QString title;
 		QString performer;
 		QImage cover;
 	};
 	struct Video {
 		bool isGifv = false;
-		int duration = 0;
+		int duration = -1;
 		QImage thumbnail;
 	};
 	struct MediaInformation {

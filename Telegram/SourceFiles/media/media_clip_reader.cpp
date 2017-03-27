@@ -849,26 +849,28 @@ FileLoadTask::Video PrepareForSending(const QString &fname, const QByteArray &da
 	auto reader = std::make_unique<internal::FFMpegReaderImplementation>(&localLocation, &localData, playId);
 	if (reader->start(internal::ReaderImplementation::Mode::Inspecting, seekPositionMs)) {
 		auto durationMs = reader->durationMs();
-		result.isGifv = reader->isGifv();
-		if (!result.isGifv) {
-			auto middleMs = durationMs / 2;
-			if (!reader->inspectAt(middleMs)) {
-				return result;
+		if (durationMs > 0) {
+			result.isGifv = reader->isGifv();
+			if (!result.isGifv) {
+				auto middleMs = durationMs / 2;
+				if (!reader->inspectAt(middleMs)) {
+					return result;
+				}
 			}
-		}
-		auto hasAlpha = false;
-		auto readResult = reader->readFramesTill(-1, getms());
-		auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
-		if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
-			if (hasAlpha) {
-				auto cacheForResize = QImage();
-				auto request = FrameRequest();
-				request.framew = request.outerw = result.thumbnail.width();
-				request.frameh = request.outerh = result.thumbnail.height();
-				request.factor = 1;
-				result.thumbnail = PrepareFrameImage(request, result.thumbnail, hasAlpha, cacheForResize);
+			auto hasAlpha = false;
+			auto readResult = reader->readFramesTill(-1, getms());
+			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
+			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
+				if (hasAlpha) {
+					auto cacheForResize = QImage();
+					auto request = FrameRequest();
+					request.framew = request.outerw = result.thumbnail.width();
+					request.frameh = request.outerh = result.thumbnail.height();
+					request.factor = 1;
+					result.thumbnail = PrepareFrameImage(request, result.thumbnail, hasAlpha, cacheForResize);
+				}
+				result.duration = static_cast<int>(durationMs / 1000);
 			}
-			result.duration = static_cast<int>(durationMs / 1000);
 		}
 	}
 	return result;

@@ -251,7 +251,7 @@ bool FileLoadTask::CheckForSong(const QString &filepath, const QByteArray &conte
 	}
 
 	auto media = Media::Player::PrepareForSending(filepath, content);
-	if (media.duration <= 0) {
+	if (media.duration < 0) {
 		return false;
 	}
 	if (!ValidateThumbDimensions(media.cover.width(), media.cover.height())) {
@@ -275,7 +275,7 @@ bool FileLoadTask::CheckForVideo(const QString &filepath, const QByteArray &cont
 	}
 
 	auto media = Media::Clip::PrepareForSending(filepath, content);
-	if (media.duration <= 0) {
+	if (media.duration < 0) {
 		return false;
 	}
 
