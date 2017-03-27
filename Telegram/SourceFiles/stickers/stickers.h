@@ -20,6 +20,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #pragma once
 
+#include "mtproto/sender.h"
+
 namespace Stickers {
 
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
@@ -30,18 +32,15 @@ void markFeaturedAsRead(uint64 setId);
 
 namespace internal {
 
-class FeaturedReader : public QObject {
-	Q_OBJECT
-
+class FeaturedReader : public QObject, private MTP::Sender {
 public:
 	FeaturedReader(QObject *parent);
 	void scheduleRead(uint64 setId);
 
-private slots:
-	void onReadSets();
-
 private:
-	QTimer *_timer;
+	void readSets();
+
+	object_ptr<SingleTimer> _timer;
 	OrderedSet<uint64> _setIds;
 
 };

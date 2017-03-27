@@ -34,7 +34,7 @@ namespace Stickers {
 namespace {
 
 constexpr int kReadFeaturedSetsTimeoutMs = 1000;
-internal::FeaturedReader *FeaturedReaderInstance = nullptr;
+QPointer<internal::FeaturedReader> FeaturedReaderInstance;
 
 } // namespace
 
@@ -175,7 +175,7 @@ void undoInstallLocally(uint64 setId) {
 void markFeaturedAsRead(uint64 setId) {
 	if (!FeaturedReaderInstance) {
 		if (auto main = App::main()) {
-			FeaturedReaderInstance = new internal::FeaturedReader(main);
+			FeaturedReaderInstance = object_ptr<internal::FeaturedReader>(main);
 		} else {
 			return;
 		}
@@ -185,17 +185,9 @@ void markFeaturedAsRead(uint64 setId) {
 
 namespace internal {
 
-void readFeaturedDone() {
-	Local::writeFeaturedStickers();
-	if (App::main()) {
-		emit App::main()->stickersUpdated();
-	}
-}
-
 FeaturedReader::FeaturedReader(QObject *parent) : QObject(parent)
-, _timer(new QTimer(this)) {
-	_timer->setSingleShot(true);
-	connect(_timer, SIGNAL(timeout()), this, SLOT(onReadSets()));
+, _timer(this) {
+	_timer->setTimeoutHandler([this] { readSets(); });
 }
 
 void FeaturedReader::scheduleRead(uint64 setId) {
@@ -205,7 +197,7 @@ void FeaturedReader::scheduleRead(uint64 setId) {
 	}
 }
 
-void FeaturedReader::onReadSets() {
+void FeaturedReader::readSets() {
 	auto &sets = Global::RefStickerSets();
 	auto count = Global::FeaturedStickerSetsUnreadCount();
 	QVector<MTPlong> wrappedIds;
@@ -223,7 +215,13 @@ void FeaturedReader::onReadSets() {
 	_setIds.clear();
 
 	if (!wrappedIds.empty()) {
-		MTP::send(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds)), rpcDone(&readFeaturedDone));
+		request(MTPmessages_ReadFeaturedStickers(MTP_vector<MTPlong>(wrappedIds))).done([](const MTPBool &result) {
+			Local::writeFeaturedStickers();
+			if (auto main = App::main()) {
+				emit main->stickersUpdated();
+			}
+		}).send();
+
 		if (Global::FeaturedStickerSetsUnreadCount() != count) {
 			Global::SetFeaturedStickerSetsUnreadCount(count);
 			Global::RefFeaturedStickerSetsUnreadCountChanged().notify();
