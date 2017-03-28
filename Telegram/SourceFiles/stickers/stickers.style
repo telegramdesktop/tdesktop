@@ -109,9 +109,11 @@ stickersSettingsUnreadPosition: point(4px, 5px);
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-emojiScroll: ScrollArea(defaultSolidScroll) {
-	deltat: 48px;
+
+emojiTabs: SettingsSlider(defaultTabsSlider) {
+	rippleRoundRadius: buttonRadius;
 }
+emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji_recent", emojiIconFg }};
 emojiRecentActive: icon {{ "emoji_recent", emojiIconFgActive }};
 emojiPeople: icon {{ "emoji_people", emojiIconFg }};
@@ -128,8 +130,6 @@ emojiObjects: icon {{ "emoji_objects", emojiIconFg }};
 emojiObjectsActive: icon {{ "emoji_objects", emojiIconFgActive }};
 emojiSymbols: icon {{ "emoji_symbols", emojiIconFg }};
 emojiSymbolsActive: icon {{ "emoji_symbols", emojiIconFgActive }};
-emojiSavedGifs: icon {{ "emoji_gif", emojiIconFg }};
-emojiSavedGifsActive: icon {{ "emoji_gif", emojiIconFgActive }};
 
 emojiCategory: IconButton {
 	width: 42px;
@@ -152,12 +152,11 @@ emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 emojiPanPadding: 12px;
 emojiPanSize: size(45px, 41px);
 emojiPanWidth: 345px;
-emojiPanMinHeight: 206px;
 emojiPanMaxHeight: 366px;
-emojiPanShowDuration: 200;
-emojiPanDuration: 200;
+emojiPanShowDuration: 2000;
+emojiPanDuration: 2000;
 emojiPanHover: windowBgOver;
-emojiPanSlideDuration: 200;
+emojiPanSlideDuration: 2000;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;

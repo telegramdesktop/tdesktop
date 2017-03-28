@@ -24,6 +24,8 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Stickers {
 
+constexpr auto kPanPerRow = 5;
+
 void applyArchivedResult(const MTPDmessages_stickerSetInstallResultArchive &d);
 bool applyArchivedResultFake(); // For testing.
 void installLocally(uint64 setId);

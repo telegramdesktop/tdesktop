@@ -223,6 +223,12 @@ inline QFlags<Enum> qFlags(Enum v) {
 	return QFlags<Enum>(v);
 }
 
+template <typename Lambda>
+inline void InvokeQueued(QObject *context, Lambda &&lambda) {
+	QObject proxy;
+	QObject::connect(&proxy, &QObject::destroyed, context, std::forward<Lambda>(lambda), Qt::QueuedConnection);
+}
+
 static const int32 ScrollMax = INT_MAX;
 
 extern uint64 _SharedMemoryLocation[];
@@ -521,21 +527,17 @@ enum DBIScale {
 
 static const int MatrixRowShift = 40000;
 
-enum DBIEmojiTab {
-	dbietRecent = -1,
-	dbietPeople = 0,
-	dbietNature = 1,
-	dbietFood = 2,
-	dbietActivity = 3,
-	dbietTravel = 4,
-	dbietObjects = 5,
-	dbietSymbols = 6,
-	dbietStickers = 666,
+enum DBIEmojiSection {
+	dbiesRecent = -1,
+	dbiesPeople = 0,
+	dbiesNature = 1,
+	dbiesFood = 2,
+	dbiesActivity = 3,
+	dbiesTravel = 4,
+	dbiesObjects = 5,
+	dbiesSymbols = 6,
+	dbiesStickers = 666,
 };
-static const int emojiTabCount = 8;
-inline DBIEmojiTab emojiTabAtIndex(int index) {
-	return (index < 0 || index >= emojiTabCount) ? dbietRecent : DBIEmojiTab(index - 1);
-}
 
 enum DBIPlatform {
 	dbipWindows = 0,

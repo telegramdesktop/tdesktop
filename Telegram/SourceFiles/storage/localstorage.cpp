@@ -48,8 +48,6 @@ using FileKey = quint64;
 constexpr char tdfMagic[] = { 'T', 'D', 'F', '$' };
 constexpr int tdfMagicLen = sizeof(tdfMagic);
 
-bool _cacheLastSeenWarningSeen = false;
-
 QString toFilePart(FileKey val) {
 	QString result;
 	result.reserve(0x10);
@@ -556,7 +554,7 @@ enum {
 	dbiDownloadPath = 0x33,
 	dbiAutoDownload = 0x34,
 	dbiSavedGifsLimit = 0x35,
-	dbiShowingSavedGifs = 0x36,
+	dbiShowingSavedGifsOld = 0x36,
 	dbiAutoPlay = 0x37,
 	dbiAdaptiveForWide = 0x38,
 	dbiHiddenPinnedMessages = 0x39,
@@ -574,7 +572,8 @@ enum {
 	dbiUseExternalVideoPlayer = 0x49,
 	dbiDcOptions = 0x4a,
 	dbiMtpAuthorization = 0x4b,
-	dbiLastSeenWarningSeen = 0x4c,
+	dbiLastSeenWarningSeenOld = 0x4c,
+	dbiAuthSessionData = 0x4d,
 
 	dbiEncryptedWithSalt = 333,
 	dbiEncrypted = 444,
@@ -633,17 +632,25 @@ int32 _storageImagesSize = 0, _storageStickersSize = 0, _storageAudiosSize = 0;
 bool _mapChanged = false;
 int32 _oldMapVersion = 0, _oldSettingsVersion = 0;
 
-enum WriteMapWhen {
-	WriteMapNow,
-	WriteMapFast,
-	WriteMapSoon,
+enum class WriteMapWhen {
+	Now,
+	Fast,
+	Soon,
 };
 
-void _writeMap(WriteMapWhen when = WriteMapSoon);
+std::unique_ptr<AuthSessionData> AuthSessionDataCache;
+AuthSessionData &GetAuthSessionDataCache() {
+	if (!AuthSessionDataCache) {
+		AuthSessionDataCache = std::make_unique<AuthSessionData>();
+	}
+	return *AuthSessionDataCache;
+}
 
-void _writeLocations(WriteMapWhen when = WriteMapSoon) {
-	if (when != WriteMapNow) {
-		_manager->writeLocations(when == WriteMapFast);
+void _writeMap(WriteMapWhen when = WriteMapWhen::Soon);
+
+void _writeLocations(WriteMapWhen when = WriteMapWhen::Soon) {
+	if (when != WriteMapWhen::Now) {
+		_manager->writeLocations(when == WriteMapWhen::Fast);
 		return;
 	}
 	if (!_working()) return;
@@ -660,7 +667,7 @@ void _writeLocations(WriteMapWhen when = WriteMapSoon) {
 		if (!_locationsKey) {
 			_locationsKey = genKey();
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 		quint32 size = 0;
 		for (FileLocations::const_iterator i = _fileLocations.cbegin(), e = _fileLocations.cend(); i != e; ++i) {
@@ -798,7 +805,7 @@ void _writeReportSpamStatuses() {
 		if (!_reportSpamStatusesKey) {
 			_reportSpamStatusesKey = genKey();
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 		const ReportSpamStatuses &statuses(cReportSpamStatuses());
 
@@ -920,7 +927,6 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Messenger::Instance().setMtpMainDcId(dcId);
 		if (userId) {
 			Messenger::Instance().authSessionCreate(UserId(userId));
-			AuthSession::Current().data().setLastSeenWarningSeen(_cacheLastSeenWarningSeen);
 		}
 	} break;
 
@@ -940,9 +946,6 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		if (!_checkStreamStatus(stream)) return false;
 
 		Messenger::Instance().setMtpAuthorization(serialized);
-		if (AuthSession::Exists()) {
-			AuthSession::Current().data().setLastSeenWarningSeen(_cacheLastSeenWarningSeen);
-		}
 	} break;
 
 	case dbiAutoStart: {
@@ -1035,12 +1038,10 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetIncludeMuted(v == 1);
 	} break;
 
-	case dbiShowingSavedGifs: {
+	case dbiShowingSavedGifsOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
-
-		cSetShowingSavedGifs(v == 1);
 	} break;
 
 	case dbiDesktopNotify: {
@@ -1090,16 +1091,20 @@ bool _readSetting(quint32 blockId, QDataStream &stream, int version, ReadSetting
 		Global::SetDialogsWidthRatio(v / 1000000.);
 	} break;
 
-	case dbiLastSeenWarningSeen: {
+	case dbiLastSeenWarningSeenOld: {
 		qint32 v;
 		stream >> v;
 		if (!_checkStreamStatus(stream)) return false;
 
-		if (AuthSession::Exists()) {
-			AuthSession::Current().data().setLastSeenWarningSeen(v == 1);
-		} else {
-			_cacheLastSeenWarningSeen = (v == 1);
-		}
+		GetAuthSessionDataCache().setLastSeenWarningSeen(v == 1);
+	} break;
+
+	case dbiAuthSessionData: {
+		QByteArray v;
+		stream >> v;
+		if (!_checkStreamStatus(stream)) return false;
+
+		GetAuthSessionDataCache().constructFromSerialized(v);
 	} break;
 
 	case dbiWorkMode: {
@@ -1694,16 +1699,18 @@ void _writeUserSettings() {
 	if (!_userSettingsKey) {
 		_userSettingsKey = genKey();
 		_mapChanged = true;
-		_writeMap(WriteMapFast);
+		_writeMap(WriteMapWhen::Fast);
 	}
 
 	auto recentEmojiPreloadData = cRecentEmojiPreload();
 	if (recentEmojiPreloadData.isEmpty()) {
-		recentEmojiPreloadData.reserve(cGetRecentEmoji().size());
-		for (auto &item : cGetRecentEmoji()) {
+		recentEmojiPreloadData.reserve(Ui::Emoji::GetRecent().size());
+		for (auto &item : Ui::Emoji::GetRecent()) {
 			recentEmojiPreloadData.push_back(qMakePair(item.first->id(), item.second));
 		}
 	}
+	auto userDataInstance = AuthSessionDataCache ? AuthSessionDataCache.get() : AuthSession::Exists() ? &AuthSession::Current().data() : nullptr;
+	auto userData = userDataInstance ? userDataInstance->serialize() : QByteArray();
 
 	uint32 size = 21 * (sizeof(quint32) + sizeof(qint32));
 	size += sizeof(quint32) + Serialize::stringSize(Global::AskDownloadPath() ? QString() : Global::DownloadPath()) + Serialize::bytearraySize(Global::AskDownloadPath() ? QByteArray() : Global::DownloadPathBookmark());
@@ -1721,6 +1728,9 @@ void _writeUserSettings() {
 	if (!Global::HiddenPinnedMessages().isEmpty()) {
 		size += sizeof(quint32) + sizeof(qint32) + Global::HiddenPinnedMessages().size() * (sizeof(PeerId) + sizeof(MsgId));
 	}
+	if (!userData.isEmpty()) {
+		size += sizeof(quint32) + Serialize::bytearraySize(userData);
+	}
 
 	EncryptedDescriptor data(size);
 	data.stream << quint32(dbiSendKey) << qint32(cCtrlEnter() ? dbiskCtrlEnter : dbiskEnter);
@@ -1730,7 +1740,6 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiReplaceEmojis) << qint32(cReplaceEmojis() ? 1 : 0);
 	data.stream << quint32(dbiSoundNotify) << qint32(Global::SoundNotify());
 	data.stream << quint32(dbiIncludeMuted) << qint32(Global::IncludeMuted());
-	data.stream << quint32(dbiShowingSavedGifs) << qint32(cShowingSavedGifs());
 	data.stream << quint32(dbiDesktopNotify) << qint32(Global::DesktopNotify());
 	data.stream << quint32(dbiNotifyView) << qint32(Global::NotifyView());
 	data.stream << quint32(dbiNativeNotifications) << qint32(Global::NativeNotifications());
@@ -1747,9 +1756,10 @@ void _writeUserSettings() {
 	data.stream << quint32(dbiModerateMode) << qint32(Global::ModerateModeEnabled() ? 1 : 0);
 	data.stream << quint32(dbiAutoPlay) << qint32(cAutoPlayGif() ? 1 : 0);
 	data.stream << quint32(dbiDialogsWidthRatio) << qint32(snap(qRound(Global::DialogsWidthRatio() * 1000000), 0, 1000000));
-	auto lastSeenWarningSeen = (AuthSession::Exists() ? AuthSession::Current().data().lastSeenWarningSeen() : _cacheLastSeenWarningSeen);
-	data.stream << quint32(dbiLastSeenWarningSeen) << qint32(lastSeenWarningSeen ? 1 : 0);
 	data.stream << quint32(dbiUseExternalVideoPlayer) << qint32(cUseExternalVideoPlayer());
+	if (!userData.isEmpty()) {
+		data.stream << quint32(dbiAuthSessionData) << userData;
+	}
 
 	{
 		data.stream << quint32(dbiRecentEmoji) << recentEmojiPreloadData;
@@ -2055,6 +2065,13 @@ ReadMapState _readMap(const QByteArray &pass) {
 	_readUserSettings();
 	_readMtpData();
 
+	if (AuthSessionDataCache) {
+		if (AuthSession::Exists()) {
+			AuthSession::Current().data().copyFrom(*AuthSessionDataCache);
+		}
+		AuthSessionDataCache.reset();
+	}
+
 	LOG(("Map read time: %1").arg(getms() - ms));
 	if (_oldSettingsVersion < AppVersion) {
 		writeSettings();
@@ -2063,8 +2080,8 @@ ReadMapState _readMap(const QByteArray &pass) {
 }
 
 void _writeMap(WriteMapWhen when) {
-	if (when != WriteMapNow) {
-		_manager->writeMap(when == WriteMapFast);
+	if (when != WriteMapWhen::Now) {
+		_manager->writeMap(when == WriteMapWhen::Fast);
 		return;
 	}
 	_manager->writingMap();
@@ -2183,7 +2200,7 @@ void _writeMap(WriteMapWhen when) {
 
 void finish() {
 	if (_manager) {
-		_writeMap(WriteMapNow);
+		_writeMap(WriteMapWhen::Now);
 		_manager->finish();
 		_manager->deleteLater();
 		_manager = 0;
@@ -2350,9 +2367,9 @@ void reset() {
 	_savedGifsKey = 0;
 	_backgroundKey = _userSettingsKey = _recentHashtagsAndBotsKey = _savedPeersKey = 0;
 	_oldMapVersion = _oldSettingsVersion = 0;
-	_cacheLastSeenWarningSeen = false;
+	AuthSessionDataCache.reset();
 	_mapChanged = true;
-	_writeMap(WriteMapNow);
+	_writeMap(WriteMapWhen::Now);
 
 	_writeMtpData();
 }
@@ -2371,7 +2388,7 @@ void setPasscode(const QByteArray &passcode) {
 	_passKeyEncrypted = FileWriteDescriptor::prepareEncrypted(passKeyData, PassKey);
 
 	_mapChanged = true;
-	_writeMap(WriteMapNow);
+	_writeMap(WriteMapWhen::Now);
 
 	Global::SetLocalPasscode(!passcode.isEmpty());
 	Global::RefLocalPasscodeChanged().notify();
@@ -2381,7 +2398,7 @@ ReadMapState readMap(const QByteArray &pass) {
 	ReadMapState result = _readMap(pass);
 	if (result == ReadMapFailed) {
 		_mapChanged = true;
-		_writeMap(WriteMapNow);
+		_writeMap(WriteMapWhen::Now);
 	}
 	return result;
 }
@@ -2412,7 +2429,7 @@ void writeDrafts(const PeerId &peer, const MessageDraft &localDraft, const Messa
 		if (i == _draftsMap.cend()) {
 			i = _draftsMap.insert(peer, genKey());
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 
 		auto msgTags = Ui::FlatTextarea::serializeTagsList(localDraft.textWithTags.tags);
@@ -2552,7 +2569,7 @@ void writeDraftCursors(const PeerId &peer, const MessageCursor &msgCursor, const
 		if (i == _draftCursorsMap.cend()) {
 			i = _draftCursorsMap.insert(peer, genKey());
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 
 		EncryptedDescriptor data(sizeof(quint64) + sizeof(qint32) * 3);
@@ -2585,7 +2602,7 @@ void writeFileLocation(MediaKey location, const FileLocation &local) {
 		if (i.value().second == local) {
 			if (i.value().first != location) {
 				_fileLocationAliases.insert(location, i.value().first);
-				_writeLocations(WriteMapFast);
+				_writeLocations(WriteMapWhen::Fast);
 			}
 			return;
 		}
@@ -2601,7 +2618,7 @@ void writeFileLocation(MediaKey location, const FileLocation &local) {
 	}
 	_fileLocations.insert(location, local);
 	_fileLocationPairs.insert(local.fname, FileLocationPair(location, local));
-	_writeLocations(WriteMapFast);
+	_writeLocations(WriteMapWhen::Fast);
 }
 
 FileLocation readFileLocation(MediaKey location, bool check) {
@@ -3192,7 +3209,7 @@ void _writeStickerSets(FileKey &stickersKey, CheckSet checkSet, const Stickers::
 	if (!stickersKey) {
 		stickersKey = genKey();
 		_mapChanged = true;
-		_writeMap(WriteMapFast);
+		_writeMap(WriteMapWhen::Fast);
 	}
 	EncryptedDescriptor data(size);
 	data.stream << quint32(setsCount) << hashToWrite;
@@ -3610,7 +3627,7 @@ void writeSavedGifs() {
 		if (!_savedGifsKey) {
 			_savedGifsKey = genKey();
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 		EncryptedDescriptor data(size);
 		data.stream << quint32(saved.size());
@@ -3667,7 +3684,7 @@ void writeBackground(int32 id, const QImage &img) {
 	if (!_backgroundKey) {
 		_backgroundKey = genKey();
 		_mapChanged = true;
-		_writeMap(WriteMapFast);
+		_writeMap(WriteMapWhen::Fast);
 	}
 	quint32 size = sizeof(qint32) + sizeof(quint32) + (bmp.isEmpty() ? 0 : (sizeof(quint32) + bmp.size()));
 	EncryptedDescriptor data(size);
@@ -4028,7 +4045,7 @@ void writeRecentHashtagsAndBots() {
 		if (!_recentHashtagsAndBotsKey) {
 			_recentHashtagsAndBotsKey = genKey();
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 		quint32 size = sizeof(quint32) * 3, writeCnt = 0, searchCnt = 0, botsCnt = cRecentInlineBots().size();
 		for (RecentHashtagPack::const_iterator i = write.cbegin(), e = write.cend(); i != e;  ++i) {
@@ -4133,7 +4150,7 @@ void writeSavedPeers() {
 		if (!_savedPeersKey) {
 			_savedPeersKey = genKey();
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 		quint32 size = sizeof(quint32);
 		for (SavedPeers::const_iterator i = saved.cbegin(); i != saved.cend(); ++i) {
@@ -4234,7 +4251,7 @@ void writeTrustedBots() {
 		if (!_trustedBotsKey) {
 			_trustedBotsKey = genKey();
 			_mapChanged = true;
-			_writeMap(WriteMapFast);
+			_writeMap(WriteMapWhen::Fast);
 		}
 		quint32 size = sizeof(qint32) + _trustedBots.size() * sizeof(quint64);
 		EncryptedDescriptor data(size);
@@ -4586,11 +4603,11 @@ void Manager::writingLocations() {
 }
 
 void Manager::mapWriteTimeout() {
-	_writeMap(WriteMapNow);
+	_writeMap(WriteMapWhen::Now);
 }
 
 void Manager::locationsWriteTimeout() {
-	_writeLocations(WriteMapNow);
+	_writeLocations(WriteMapWhen::Now);
 }
 
 void Manager::finish() {

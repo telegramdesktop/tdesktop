@@ -74,6 +74,7 @@
     ],
 
     'dependencies': [
+      'codegen.gyp:codegen_emoji',
       'codegen.gyp:codegen_style',
       'codegen.gyp:codegen_numbers',
       'codegen.gyp:MetaLang',

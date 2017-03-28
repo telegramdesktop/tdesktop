@@ -25,6 +25,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
+#include "auth_session.h"
 
 namespace InlineBots {
 namespace Layout {
@@ -34,16 +35,23 @@ class Result;
 } // namespace InlineBots
 
 namespace Ui {
+class PlainShadow;
 class ScrollArea;
 class IconButton;
 class LinkButton;
 class RoundButton;
 class RippleAnimation;
+class SettingsSlider;
 } // namesapce Ui
 
 namespace internal {
 
-constexpr int kInlineItemsMaxPerRow = 5;
+constexpr auto kInlineItemsMaxPerRow = 5;
+
+constexpr auto kEmojiSectionCount = 8;
+inline DBIEmojiSection EmojiSectionAtIndex(int index) {
+	return (index < 0 || index >= kEmojiSectionCount) ? dbiesRecent : DBIEmojiSection(index - 1);
+}
 
 using InlineResult = InlineBots::Result;
 using InlineResults = std::vector<std::unique_ptr<InlineResult>>;
@@ -109,38 +117,56 @@ private:
 
 };
 
-class EmojiPanel;
-class EmojiPanInner : public TWidget {
+class BasicPanInner : public TWidget {
+	Q_OBJECT
+
+public:
+	BasicPanInner(QWidget *parent);
+
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+
+	int getVisibleTop() const {
+		return _visibleTop;
+	}
+	int getVisibleBottom() const {
+		return _visibleBottom;
+	}
+
+	virtual void refreshRecent() = 0;
+	virtual void preloadImages() {
+	}
+	virtual void hideFinish(bool completely) = 0;
+	virtual void clearSelection() = 0;
+
+	virtual object_ptr<TWidget> createController() = 0;
+
+signals:
+	void scrollToY(int y);
+	void disableScroll(bool disabled);
+	void saveConfigDelayed(int delay);
+
+protected:
+	virtual int countHeight() = 0;
+
+private:
+	int _visibleTop = 0;
+	int _visibleBottom = 0;
+
+};
+
+class EmojiPanInner : public BasicPanInner {
 	Q_OBJECT
 
 public:
 	EmojiPanInner(QWidget *parent);
 
-	void setMaxHeight(int maxHeight);
+	void refreshRecent() override;
+	void hideFinish(bool completely) override;
+	void clearSelection() override;
+	object_ptr<TWidget> createController() override;
 
-	void hideFinish();
-
-	void showEmojiPack(DBIEmojiTab packIndex);
-
-	void clearSelection();
-
-	DBIEmojiTab currentTab(int yOffset) const;
-
-	void refreshRecent();
-
-	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-
-	void fillPanels(QVector<EmojiPanel*> &panels);
-	void refreshPanels(QVector<EmojiPanel*> &panels);
-
-protected:
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void paintEvent(QPaintEvent *e) override;
-	void leaveEventHook(QEvent *e) override;
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
-	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+	void showEmojiSection(DBIEmojiSection section);
+	DBIEmojiSection currentSection(int yOffset) const;
 
 public slots:
 	void onShowPicker();
@@ -151,31 +177,46 @@ public slots:
 
 signals:
 	void selected(EmojiPtr emoji);
-
 	void switchToStickers();
 
-	void scrollToY(int y);
-	void disableScroll(bool dis);
-
-	void needRefreshPanels();
-	void saveConfigDelayed(int32 delay);
+protected:
+	void mousePressEvent(QMouseEvent *e) override;
+	void mouseReleaseEvent(QMouseEvent *e) override;
+	void mouseMoveEvent(QMouseEvent *e) override;
+	void paintEvent(QPaintEvent *e) override;
+	void leaveEventHook(QEvent *e) override;
+	void leaveToChildEvent(QEvent *e, QWidget *child) override;
+	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+	bool event(QEvent *e) override;
+	int countHeight() override;
 
 private:
+	class Controller;
+
+	struct SectionInfo {
+		int section = 0;
+		int count = 0;
+		int top = 0;
+		int rowsCount = 0;
+		int rowsTop = 0;
+		int rowsBottom = 0;
+	};
+	template <typename Callback>
+	bool enumerateSections(Callback callback) const;
+	SectionInfo sectionInfo(int section) const;
+	SectionInfo sectionInfoByOffset(int yOffset) const;
+
+	void ensureLoaded(int section);
+	int countSectionTop(int section) const;
 	void updateSelected();
 	void setSelected(int newSelected);
 
-	int32 _maxHeight;
-
-	int countHeight();
 	void selectEmoji(EmojiPtr emoji);
 
-	QRect emojiRect(int tab, int sel);
+	QRect emojiRect(int section, int sel);
 
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
-	int _counts[emojiTabCount];
-
-	QVector<EmojiPtr> _emojis[emojiTabCount];
+	int _counts[kEmojiSectionCount];
+	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 
 	int32 _esize;
 
@@ -194,54 +235,44 @@ struct StickerIcon {
 	}
 	StickerIcon(uint64 setId, DocumentData *sticker, int32 pixw, int32 pixh) : setId(setId), sticker(sticker), pixw(pixw), pixh(pixh) {
 	}
-	uint64 setId;
+	uint64 setId = 0;
 	DocumentData *sticker = nullptr;
 	int pixw = 0;
 	int pixh = 0;
+
 };
 
-class StickerPanInner : public TWidget, public InlineBots::Layout::Context, private base::Subscriber {
+class StickerPanInner : public BasicPanInner, public InlineBots::Layout::Context, private base::Subscriber {
 	Q_OBJECT
 
 public:
-	StickerPanInner(QWidget *parent);
+	StickerPanInner(QWidget *parent, bool gifs);
 
-	void setMaxHeight(int maxHeight);
+	void refreshRecent() override;
+	void preloadImages() override;
+	void hideFinish(bool completely) override;
+	void clearSelection() override;
+	object_ptr<TWidget> createController() override;
 
-	void hideFinish(bool completely);
 	void showStickerSet(uint64 setId);
-	void updateShowingSavedGifs();
-
-	bool showSectionIcons() const;
-	void clearSelection();
 
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
 	void refreshSavedGifs();
 	int refreshInlineRows(UserData *bot, const InlineCacheEntry *results, bool resultsDeleted);
-	void refreshRecent();
 	void inlineBotChanged();
 	void hideInlineRowsPanel();
 	void clearInlineRowsPanel();
 
 	void fillIcons(QList<StickerIcon> &icons);
-	void fillPanels(QVector<EmojiPanel*> &panels);
-	void refreshPanels(QVector<EmojiPanel*> &panels);
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
-	void preloadImages();
 
 	uint64 currentSet(int yOffset) const;
 
 	void inlineItemLayoutChanged(const InlineItem *layout) override;
 	void inlineItemRepaint(const InlineItem *layout) override;
 	bool inlineItemVisible(const InlineItem *layout) override;
-	bool ui_isInlineItemBeingChosen();
-
-	bool inlineResultsShown() const {
-		return (_section == Section::Inlines);
-	}
-	int countHeight(bool plain = false);
 
 	void installedLocally(uint64 setId);
 	void notInstalledLocally(uint64 setId);
@@ -253,10 +284,12 @@ protected:
 	void mousePressEvent(QMouseEvent *e) override;
 	void mouseReleaseEvent(QMouseEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+	int countHeight() override;
 
 private slots:
 	void onSettings();
@@ -275,19 +308,32 @@ signals:
 
 	void refreshIcons(bool scrollAnimation);
 	void emptyInlineRows();
-
-	void switchToEmoji();
-
-	void scrollToY(int y);
 	void scrollUpdated();
-	void disableScroll(bool dis);
-	void needRefreshPanels();
-
-	void saveConfigDelayed(int32 delay);
 
 private:
-	static constexpr bool kRefreshIconsScrollAnimation = true;
-	static constexpr bool kRefreshIconsNoAnimation = false;
+	enum class Section {
+		Inlines,
+		Gifs,
+		Featured,
+		Stickers,
+	};
+	class Controller;
+
+	static constexpr auto kRefreshIconsScrollAnimation = true;
+	static constexpr auto kRefreshIconsNoAnimation = false;
+
+	struct SectionInfo {
+		int section = 0;
+		int count = 0;
+		int top = 0;
+		int rowsCount = 0;
+		int rowsTop = 0;
+		int rowsBottom = 0;
+	};
+	template <typename Callback>
+	bool enumerateSections(Callback callback) const;
+	SectionInfo sectionInfo(int section) const;
+	SectionInfo sectionInfoByOffset(int yOffset) const;
 
 	void updateSelected();
 	void setSelected(int newSelected, int newSelectedFeaturedSet, int newSelectedFeaturedSetAdd);
@@ -317,8 +363,9 @@ private:
 		return (_section == Section::Inlines) || (_section == Section::Gifs);
 	}
 
-	void paintInlineItems(Painter &p, const QRect &r);
-	void paintStickers(Painter &p, const QRect &r);
+	void paintInlineItems(Painter &p, QRect clip);
+	void paintFeaturedStickers(Painter &p, QRect clip);
+	void paintStickers(Painter &p, QRect clip);
 	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
 	bool featuredHasAddButton(int index) const;
 	int featuredContentWidth() const;
@@ -334,24 +381,13 @@ private:
 
 	void selectEmoji(EmojiPtr emoji);
 	int stickersLeft() const;
-	QRect stickerRect(int tab, int sel);
-
-	int32 _maxHeight;
-
-	int _visibleTop = 0;
-	int _visibleBottom = 0;
+	QRect stickerRect(int section, int sel);
 
 	Sets _mySets;
 	Sets _featuredSets;
 	OrderedSet<uint64> _installedLocallySets;
 	QList<bool> _custom;
 
-	enum class Section {
-		Inlines,
-		Gifs,
-		Featured,
-		Stickers,
-	};
 	Section _section = Section::Stickers;
 	UserData *_inlineBot;
 	QString _inlineBotTitle;
@@ -387,7 +423,7 @@ private:
 
 	int validateExistingInlineRows(const InlineResults &results);
 	void selectInlineResult(int row, int column);
-	void removeRecentSticker(int tab, int index);
+	void removeRecentSticker(int section, int index);
 
 	int _selected = -1;
 	int _pressed = -1;
@@ -404,57 +440,6 @@ private:
 
 	QTimer _previewTimer;
 	bool _previewShown = false;
-};
-
-class EmojiPanel : public TWidget {
-	Q_OBJECT
-
-public:
-	EmojiPanel(QWidget *parent, const QString &text, uint64 setId, bool special, int32 wantedY); // Stickers::NoneSetId if in emoji
-	void setText(const QString &text);
-	void setDeleteVisible(bool isVisible);
-
-	int wantedY() const {
-		return _wantedY;
-	}
-	void setWantedY(int32 y) {
-		_wantedY = y;
-	}
-
-signals:
-	void deleteClicked(quint64 setId);
-	void mousePressed();
-
-public slots:
-	void onDelete();
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-	void mousePressEvent(QMouseEvent *e) override;
-
-private:
-	void updateText();
-
-	int32 _wantedY;
-	QString _text, _fullText;
-	uint64 _setId;
-	bool _special, _deleteVisible;
-	Ui::IconButton *_delete = nullptr;
-
-};
-
-class EmojiSwitchButton : public Ui::AbstractButton {
-public:
-	EmojiSwitchButton(QWidget *parent, bool toStickers); // otherwise toEmoji
-	void updateText(const QString &inlineBotUsername = QString());
-
-protected:
-	void paintEvent(QPaintEvent *e) override;
-
-private:
-	bool _toStickers = false;
-	QString _text;
-	int _textWidth = 0;
 
 };
 
@@ -515,10 +500,7 @@ private slots:
 	void refreshSavedGifs();
 
 	void onWndActiveChanged();
-
-	void onScrollEmoji();
-	void onScrollStickers();
-	void onSwitch();
+	void onScroll();
 
 	void onDisplaySet(quint64 setId);
 	void onInstallSet(quint64 setId);
@@ -526,10 +508,9 @@ private slots:
 	void onDelayedHide();
 
 	void onRefreshIcons(bool scrollAnimation);
-	void onRefreshPanels();
 
 	void onSaveConfig();
-	void onSaveConfigDelayed(int32 delay);
+	void onSaveConfigDelayed(int delay);
 
 	void onInlineRequest();
 	void onEmptyInlineRows();
@@ -543,11 +524,45 @@ signals:
 	void updateStickers();
 
 private:
-	bool inlineResultsShown() const;
+	using TabType = EmojiPanTabType;
+	class Tab {
+	public:
+		static constexpr auto kCount = 3;
+
+		Tab(TabType type, object_ptr<internal::BasicPanInner> widget);
+
+		object_ptr<internal::BasicPanInner> takeWidget();
+		void returnWidget(object_ptr<internal::BasicPanInner> widget);
+
+		TabType type() const {
+			return _type;
+		}
+		gsl::not_null<internal::BasicPanInner*> widget() const {
+			return _weak;
+		}
+
+		void saveScrollTop();
+		void saveScrollTop(int scrollTop) {
+			_scrollTop = scrollTop;
+		}
+		int getScrollTop() const {
+			return _scrollTop;
+		}
+
+	private:
+		TabType _type = TabType::Emoji;
+		object_ptr<internal::BasicPanInner> _widget = { nullptr };
+		QPointer<internal::BasicPanInner> _weak;
+		int _scrollTop = 0;
+
+	};
+
+	int marginTop() const;
+	int marginBottom() const;
 	int countBottom() const;
 	void moveByBottom();
+	void paintSlideFrame(Painter &p, TimeMs ms);
 	void paintContent(Painter &p);
-	void performSwitch();
 
 	style::margins innerPadding() const;
 
@@ -562,20 +577,23 @@ private:
 	// This one is allowed to be not rounded.
 	QRect verticalRect() const;
 
-	QImage grabForPanelAnimation();
+	enum class GrabType {
+		Panel,
+		Slide,
+	};
+	QImage grabForComplexAnimation(GrabType type);
 	void startShowAnimation();
 	void startOpacityAnimation(bool hiding);
 	void prepareCache();
 
-	class Container;
 	void opacityAnimationCallback();
 
 	void hideFinished();
 	void showStarted();
 
 	bool preventAutoHide() const;
-	void setActiveTab(DBIEmojiTab tab);
-	void setCurrentTabIcon(DBIEmojiTab tab);
+	void setActiveSection(DBIEmojiSection section);
+	void setCurrentSectionIcon(DBIEmojiSection section);
 
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
@@ -591,18 +609,40 @@ private:
 	void updateSelected();
 	void updateIcons();
 
-	void prepareTab(int &left, int top, int _width, Ui::IconButton *tab, DBIEmojiTab value);
-	void updatePanelsPositions(const QVector<internal::EmojiPanel*> &panels, int st);
+	void prepareSection(int &left, int top, int _width, Ui::IconButton *sectionIcon, DBIEmojiSection section);
 
 	void showAll();
-	void hideAll();
+	void hideForSliding();
+
+	void setWidgetToScrollArea();
+	void createTabsSlider();
+	void switchTab();
+	gsl::not_null<Tab*> getTab(TabType type) {
+		return &_tabs[static_cast<int>(type)];
+	}
+	gsl::not_null<const Tab*> getTab(TabType type) const {
+		return &_tabs[static_cast<int>(type)];
+	}
+	gsl::not_null<Tab*> currentTab() {
+		return getTab(_currentTabType);
+	}
+	gsl::not_null<const Tab*> currentTab() const {
+		return getTab(_currentTabType);
+	}
+	gsl::not_null<internal::EmojiPanInner*> emoji() const {
+		return static_cast<internal::EmojiPanInner*>(getTab(TabType::Emoji)->widget().get());
+	}
+	gsl::not_null<internal::StickerPanInner*> stickers() const {
+		return static_cast<internal::StickerPanInner*>(getTab(TabType::Stickers)->widget().get());
+	}
+	gsl::not_null<internal::StickerPanInner*> gifs() const {
+		return static_cast<internal::StickerPanInner*>(getTab(TabType::Gifs)->widget().get());
+	}
 
 	int _minTop = 0;
 	int _minBottom = 0;
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
-	int _contentHeightEmoji = 0;
-	int _contentHeightStickers = 0;
 	bool _horizontal = false;
 
 	int _width = 0;
@@ -613,10 +653,11 @@ private:
 	Animation _a_show;
 
 	bool _hiding = false;
+	bool _hideAfterSlide = false;
 	QPixmap _cache;
 	Animation _a_opacity;
 	QTimer _hideTimer;
-	bool _inPanelGrab = false;
+	bool _inComplrexGrab = false;
 
 	class SlideAnimation;
 	std::unique_ptr<SlideAnimation> _slideAnimation;
@@ -646,17 +687,12 @@ private:
 	anim::value _iconSelX;
 	TimeMs _iconsStartAnim = 0;
 
-	bool _emojiShown = true;
-	bool _shownFromInlineQuery = false;
-
-	object_ptr<Ui::ScrollArea> e_scroll;
-	QPointer<internal::EmojiPanInner> e_inner;
-	QVector<internal::EmojiPanel*> e_panels;
-	object_ptr<internal::EmojiSwitchButton> e_switch;
-	object_ptr<Ui::ScrollArea> s_scroll;
-	QPointer<internal::StickerPanInner> s_inner;
-	QVector<internal::EmojiPanel*> s_panels;
-	object_ptr<internal::EmojiSwitchButton> s_switch;
+	object_ptr<Ui::SettingsSlider> _tabsSlider = { nullptr };
+	object_ptr<Ui::PlainShadow> _topShadow;
+	object_ptr<Ui::PlainShadow> _bottomShadow;
+	object_ptr<Ui::ScrollArea> _scroll;
+	std::array<Tab, Tab::kCount> _tabs;
+	TabType _currentTabType = TabType::Emoji;
 
 	uint64 _displayingSetId = 0;
 	uint64 _removingSetId = 0;
@@ -669,7 +705,6 @@ private:
 
 	void inlineBotChanged();
 	int32 showInlineRows(bool newResults);
-	void recountContentMaxHeight();
 	bool refreshInlineRows(int32 *added = 0);
 	UserData *_inlineBot = nullptr;
 	PeerData *_inlineQueryPeer = nullptr;

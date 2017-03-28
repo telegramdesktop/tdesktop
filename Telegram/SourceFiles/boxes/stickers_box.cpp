@@ -386,38 +386,40 @@ void StickersBox::switchTab() {
 		newTab = &_archived;
 		requestArchivedSets();
 	}
-	if (_tab != newTab) {
-		if (_tab == &_installed) {
-			_localOrder = _tab->widget()->getFullOrder();
-			_localRemoved = _tab->widget()->getRemovedSets();
-		}
-		auto wasCache = grabContentCache();
-		auto wasIndex = _tab->index();
-		_tab->saveScrollTop();
-		auto widget = takeInnerWidget<Inner>();
-		widget->setParent(this);
-		widget->hide();
-		_tab->returnWidget(std::move(widget));
-		_tab = newTab;
-		_section = newSection;
-		setInnerWidget(_tab->takeWidget(), getTopSkip());
-		_tabs->raise();
-		_unreadBadge->raise();
-		_tab->widget()->show();
-		rebuildList();
-		onScrollToY(_tab->getScrollTop());
-		auto nowCache = grabContentCache();
-		auto nowIndex = _tab->index();
-
-		_slideAnimation = std::make_unique<Ui::SlideAnimation>();
-		_slideAnimation->setSnapshots(std::move(wasCache), std::move(nowCache));
-		auto slideLeft = wasIndex > nowIndex;
-		_slideAnimation->start(slideLeft, [this] { update(); }, st::slideDuration);
-		setInnerVisible(false);
-
-		setFocus();
-		update();
+	if (_tab == newTab) {
+		return;
 	}
+
+	if (_tab == &_installed) {
+		_localOrder = _tab->widget()->getFullOrder();
+		_localRemoved = _tab->widget()->getRemovedSets();
+	}
+	auto wasCache = grabContentCache();
+	auto wasIndex = _tab->index();
+	_tab->saveScrollTop();
+	auto widget = takeInnerWidget<Inner>();
+	widget->setParent(this);
+	widget->hide();
+	_tab->returnWidget(std::move(widget));
+	_tab = newTab;
+	_section = newSection;
+	setInnerWidget(_tab->takeWidget(), getTopSkip());
+	_tabs->raise();
+	_unreadBadge->raise();
+	_tab->widget()->show();
+	rebuildList();
+	onScrollToY(_tab->getScrollTop());
+	auto nowCache = grabContentCache();
+	auto nowIndex = _tab->index();
+
+	_slideAnimation = std::make_unique<Ui::SlideAnimation>();
+	_slideAnimation->setSnapshots(std::move(wasCache), std::move(nowCache));
+	auto slideLeft = wasIndex > nowIndex;
+	_slideAnimation->start(slideLeft, [this] { update(); }, st::slideDuration);
+	setInnerVisible(false);
+
+	setFocus();
+	update();
 }
 
 QPixmap StickersBox::grabContentCache() {

@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "settings.h"
 
 #include "platform/platform_specific.h"
+#include "stickers/emoji_pan.h"
 #include "lang.h"
 
 bool gRtl = false;
@@ -82,7 +83,6 @@ RecentStickerPack gRecentStickers;
 
 SavedGifs gSavedGifs;
 TimeMs gLastSavedGifsUpdate = 0;
-bool gShowingSavedGifs = false;
 
 RecentHashtagPack gRecentWriteHashtags, gRecentSearchHashtags;
 
@@ -210,79 +210,6 @@ void settingsParseArgs(int argc, char *argv[]) {
 			gStartUrl = fromUtf8Safe(argv[++i]).mid(0, 8192);
 		}
 	}
-}
-
-RecentEmojiPack &cGetRecentEmoji() {
-	if (cRecentEmoji().isEmpty()) {
-		RecentEmojiPack result;
-		auto haveAlready = [&result](EmojiPtr emoji) {
-			for (auto &row : result) {
-				if (row.first->id() == emoji->id()) {
-					return true;
-				}
-			}
-			return false;
-		};
-		if (!cRecentEmojiPreload().isEmpty()) {
-			auto preload = cRecentEmojiPreload();
-			cSetRecentEmojiPreload(RecentEmojiPreload());
-			result.reserve(preload.size());
-			for (auto i = preload.cbegin(), e = preload.cend(); i != e; ++i) {
-				if (auto emoji = Ui::Emoji::Find(i->first)) {
-					if (!haveAlready(emoji)) {
-						result.push_back(qMakePair(emoji, i->second));
-					}
-				}
-			}
-		}
-		uint64 defaultRecent[] = {
-			0xD83DDE02LLU,
-			0xD83DDE18LLU,
-			0x2764LLU,
-			0xD83DDE0DLLU,
-			0xD83DDE0ALLU,
-			0xD83DDE01LLU,
-			0xD83DDC4DLLU,
-			0x263ALLU,
-			0xD83DDE14LLU,
-			0xD83DDE04LLU,
-			0xD83DDE2DLLU,
-			0xD83DDC8BLLU,
-			0xD83DDE12LLU,
-			0xD83DDE33LLU,
-			0xD83DDE1CLLU,
-			0xD83DDE48LLU,
-			0xD83DDE09LLU,
-			0xD83DDE03LLU,
-			0xD83DDE22LLU,
-			0xD83DDE1DLLU,
-			0xD83DDE31LLU,
-			0xD83DDE21LLU,
-			0xD83DDE0FLLU,
-			0xD83DDE1ELLU,
-			0xD83DDE05LLU,
-			0xD83DDE1ALLU,
-			0xD83DDE4ALLU,
-			0xD83DDE0CLLU,
-			0xD83DDE00LLU,
-			0xD83DDE0BLLU,
-			0xD83DDE06LLU,
-			0xD83DDC4CLLU,
-			0xD83DDE10LLU,
-			0xD83DDE15LLU,
-		};
-		for (auto oldKey : defaultRecent) {
-			if (result.size() >= EmojiPanPerRow * EmojiPanRowsPerPage) break;
-
-			if (auto emoji = Ui::Emoji::FromOldKey(oldKey)) {
-				if (!haveAlready(emoji)) {
-					result.push_back(qMakePair(emoji, 1));
-				}
-			}
-		}
-		cSetRecentEmoji(result);
-	}
-	return cRefRecentEmoji();
 }
 
 RecentStickerPack &cGetRecentStickers() {

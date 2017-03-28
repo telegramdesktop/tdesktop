@@ -236,11 +236,12 @@ QImage SettingsSlider::prepareRippleMask(int sectionIndex, const Section &sectio
 void SettingsSlider::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	auto clip = e->rect();
 	auto ms = getms();
 	auto activeLeft = getCurrentActiveLeft(ms);
 
 	p.setFont(_st.labelFont);
-	enumerateSections([this, &p, activeLeft, ms](Section &section) {
+	enumerateSections([this, &p, activeLeft, ms, clip](Section &section) {
 		auto active = 1. - snap(qAbs(activeLeft - section.left) / float64(section.width), 0., 1.);
 		if (section.ripple) {
 			auto color = anim::color(_st.rippleBg, _st.rippleBgActive, active);
@@ -266,8 +267,10 @@ void SettingsSlider::paintEvent(QPaintEvent *e) {
 		if (tofill) {
 			p.fillRect(myrtlrect(from, _st.barTop, tofill, _st.barStroke), _st.barFg);
 		}
-		p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
-		p.drawTextLeft(section.left + (section.width - section.labelWidth) / 2, _st.labelTop, width(), section.label, section.labelWidth);
+		if (myrtlrect(section.left, _st.labelTop, section.width, _st.labelFont->height).intersects(clip)) {
+			p.setPen(anim::pen(_st.labelFg, _st.labelFgActive, active));
+			p.drawTextLeft(section.left + (section.width - section.labelWidth) / 2, _st.labelTop, width(), section.label, section.labelWidth);
+		}
 		return true;
 	});
 }

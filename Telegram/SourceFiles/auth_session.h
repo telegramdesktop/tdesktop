@@ -30,6 +30,56 @@ class System;
 } // namespace Notifications
 } // namespace Window
 
+enum class EmojiPanTabType {
+	Emoji,
+	Stickers,
+	Gifs,
+};
+
+class AuthSessionData final {
+public:
+	base::Variable<bool> &contactsLoaded() {
+		return _contactsLoaded;
+	}
+	base::Variable<bool> &allChatsLoaded() {
+		return _allChatsLoaded;
+	}
+	base::Observable<void> &moreChatsLoaded() {
+		return _moreChatsLoaded;
+	}
+
+	void copyFrom(const AuthSessionData &other) {
+		_variables = other._variables;
+	}
+	QByteArray serialize() const;
+	void constructFromSerialized(const QByteArray &serialized);
+
+	bool lastSeenWarningSeen() const {
+		return _variables.lastSeenWarningSeen;
+	}
+	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
+		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
+	}
+	EmojiPanTabType emojiPanTab() const {
+		return _variables.emojiPanTab;
+	}
+	void setEmojiPanTab(EmojiPanTabType tab) {
+		_variables.emojiPanTab = tab;
+	}
+
+private:
+	struct Variables {
+		bool lastSeenWarningSeen = false;
+		EmojiPanTabType emojiPanTab = EmojiPanTabType::Emoji;
+	};
+
+	base::Variable<bool> _contactsLoaded = { false };
+	base::Variable<bool> _allChatsLoaded = { false };
+	base::Observable<void> _moreChatsLoaded;
+	Variables _variables;
+
+};
+
 class AuthSession final {
 public:
 	AuthSession(UserId userId);
@@ -63,33 +113,7 @@ public:
 		return *_notifications;
 	}
 
-	class Data {
-	public:
-		base::Variable<bool> &contactsLoaded() {
-			return _contactsLoaded;
-		}
-		base::Variable<bool> &allChatsLoaded() {
-			return _allChatsLoaded;
-		}
-		base::Observable<void> &moreChatsLoaded() {
-			return _moreChatsLoaded;
-		}
-
-		bool lastSeenWarningSeen() const {
-			return _lastSeenWarningSeen;
-		}
-		void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
-			_lastSeenWarningSeen = lastSeenWarningSeen;
-		}
-
-	private:
-		base::Variable<bool> _contactsLoaded = { false } ;
-		base::Variable<bool> _allChatsLoaded = { false };
-		base::Observable<void> _moreChatsLoaded;
-		bool _lastSeenWarningSeen = false;
-
-	};
-	Data &data() {
+	AuthSessionData &data() {
 		return _data;
 	}
 
@@ -97,7 +121,7 @@ public:
 
 private:
 	UserId _userId = 0;
-	Data _data;
+	AuthSessionData _data;
 
 	const std::unique_ptr<Storage::Downloader> _downloader;
 	const std::unique_ptr<Window::Notifications::System> _notifications;

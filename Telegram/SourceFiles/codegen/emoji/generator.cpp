@@ -393,18 +393,18 @@ void Init() {\n\
 
 bool Generator::writePacks() {
 	constexpr const char *packNames[] = {
-		"dbietPeople",
-		"dbietNature",
-		"dbietFood",
-		"dbietActivity",
-		"dbietTravel",
-		"dbietObjects",
-		"dbietSymbols",
+		"dbiesPeople",
+		"dbiesNature",
+		"dbiesFood",
+		"dbiesActivity",
+		"dbiesTravel",
+		"dbiesObjects",
+		"dbiesSymbols",
 	};
 	source_->stream() << "\
 \n\
-int GetPackCount(DBIEmojiTab tab) {\n\
-	switch (tab) {\n";
+int GetPackCount(DBIEmojiSection section) {\n\
+	switch (section) {\n";
 	auto countIndex = 0;
 	for (auto name : packNames) {
 		if (countIndex >= int(data_.categories.size())) {
@@ -415,13 +415,13 @@ int GetPackCount(DBIEmojiTab tab) {\n\
 	case " << name << ": return " << data_.categories[countIndex++].size() << ";\n";
 	}
 	source_->stream() << "\
-	case dbietRecent: return cGetRecentEmoji().size();\n\
+	case dbiesRecent: return GetRecent().size();\n\
 	}\n\
 	return 0;\n\
 }\n\
 \n\
-EmojiPack GetPack(DBIEmojiTab tab) {\n\
-	switch (tab) {\n";
+EmojiPack GetPack(DBIEmojiSection section) {\n\
+	switch (section) {\n";
 	auto index = 0;
 	for (auto name : packNames) {
 		if (index >= int(data_.categories.size())) {
@@ -444,10 +444,10 @@ EmojiPack GetPack(DBIEmojiTab tab) {\n\
 	} break;\n\n";
 	}
 	source_->stream() << "\
-	case dbietRecent: {\n\
+	case dbiesRecent: {\n\
 		auto result = EmojiPack();\n\
-		result.reserve(cGetRecentEmoji().size());\n\
-		for (auto &item : cGetRecentEmoji()) {\n\
+		result.reserve(GetRecent().size());\n\
+		for (auto &item : GetRecent()) {\n\
 			result.push_back(item.first);\n\
 		}\n\
 		return result;\n\

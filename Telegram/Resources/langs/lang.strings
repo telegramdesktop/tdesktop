@@ -776,6 +776,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 "lng_switch_stickers" = "Stickers";
 "lng_switch_stickers_gifs" = "GIFs & Stickers";
 "lng_switch_emoji" = "Emoji";
+"lng_switch_gifs" = "GIFs";
 "lng_stickers_featured_add" = "Add";
 
 "lng_saved_gifs" = "Saved GIFs";

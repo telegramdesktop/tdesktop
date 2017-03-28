@@ -10,6 +10,10 @@ if "%Command%" == "header" (
 ) else if "%Command%" == "source" (
   call :write_source %2
   exit /b %errorlevel%
+) else if "%Command%" == "" (
+  echo This is an utility for fast blank module creation.
+  echo Please provide module path.
+  exit /b
 )
 
 call :write_module %Command%

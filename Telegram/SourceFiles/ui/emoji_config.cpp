@@ -15239,23 +15239,23 @@ void Init() {
 	Items.emplace_back(internal::ComputeId(0xd83c, 0xddff, 0xd83c, 0xddfc), 6, 54, false, false, nullptr, tag);
 }
 
-int GetPackCount(DBIEmojiTab tab) {
+int GetPackCount(DBIEmojiSection tab) {
 	switch (tab) {
-	case dbietPeople: return 291;
-	case dbietNature: return 159;
-	case dbietFood: return 86;
-	case dbietActivity: return 80;
-	case dbietTravel: return 119;
-	case dbietObjects: return 173;
-	case dbietSymbols: return 524;
-	case dbietRecent: return cGetRecentEmoji().size();
+	case dbiesPeople: return 291;
+	case dbiesNature: return 159;
+	case dbiesFood: return 86;
+	case dbiesActivity: return 80;
+	case dbiesTravel: return 119;
+	case dbiesObjects: return 173;
+	case dbiesSymbols: return 524;
+	case dbiesRecent: return GetRecent().size();
 	}
 	return 0;
 }
 
-EmojiPack GetPack(DBIEmojiTab tab) {
+EmojiPack GetPack(DBIEmojiSection tab) {
 	switch (tab) {
-	case dbietPeople: {
+	case dbiesPeople: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(291);
@@ -15554,7 +15554,7 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietNature: {
+	case dbiesNature: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(159);
@@ -15721,7 +15721,7 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietFood: {
+	case dbiesFood: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(86);
@@ -15815,7 +15815,7 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietActivity: {
+	case dbiesActivity: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(80);
@@ -15903,7 +15903,7 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietTravel: {
+	case dbiesTravel: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(119);
@@ -16030,7 +16030,7 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietObjects: {
+	case dbiesObjects: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(173);
@@ -16211,7 +16211,7 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietSymbols: {
+	case dbiesSymbols: {
 		static auto result = EmojiPack();
 		if (result.isEmpty()) {
 			result.reserve(524);
@@ -16743,10 +16743,10 @@ EmojiPack GetPack(DBIEmojiTab tab) {
 		return result;
 	} break;
 
-	case dbietRecent: {
+	case dbiesRecent: {
 		auto result = EmojiPack();
-		result.reserve(cGetRecentEmoji().size());
-		for (auto &item : cGetRecentEmoji()) {
+		result.reserve(GetRecent().size());
+		for (auto &item : GetRecent()) {
 			result.push_back(item.first);
 		}
 		return result;

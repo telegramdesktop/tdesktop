@@ -156,8 +156,6 @@ DeclareRefSetting(RecentEmojiPack, RecentEmoji);
 DeclareSetting(RecentEmojiPreload, RecentEmojiPreload);
 DeclareRefSetting(EmojiColorVariants, EmojiVariants);
 
-RecentEmojiPack &cGetRecentEmoji();
-
 class DocumentData;
 typedef QVector<DocumentData*> StickerPack;
 
@@ -174,7 +172,6 @@ typedef QMap<EmojiPtr, StickerPack> StickersByEmojiMap;
 typedef QVector<DocumentData*> SavedGifs;
 DeclareRefSetting(SavedGifs, SavedGifs);
 DeclareSetting(TimeMs, LastSavedGifsUpdate);
-DeclareSetting(bool, ShowingSavedGifs);
 
 typedef QList<QPair<QString, ushort> > RecentHashtagPack;
 DeclareRefSetting(RecentHashtagPack, RecentWriteHashtags);
