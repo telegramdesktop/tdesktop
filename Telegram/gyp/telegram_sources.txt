@@ -332,8 +332,14 @@
 <(src_loc)/settings/settings_widget.h
 <(src_loc)/stickers/emoji_panel.cpp
 <(src_loc)/stickers/emoji_panel.h
+<(src_loc)/stickers/emoji_list_widget.cpp
+<(src_loc)/stickers/emoji_list_widget.h
+<(src_loc)/stickers/gifs_list_widget.cpp
+<(src_loc)/stickers/gifs_list_widget.h
 <(src_loc)/stickers/stickers.cpp
 <(src_loc)/stickers/stickers.h
+<(src_loc)/stickers/stickers_list_widget.cpp
+<(src_loc)/stickers/stickers_list_widget.h
 <(src_loc)/storage/file_download.cpp
 <(src_loc)/storage/file_download.h
 <(src_loc)/storage/file_upload.cpp
