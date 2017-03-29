@@ -21,7 +21,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/twidget.h"
-#include "ui/abstract_button.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
 #include "inline_bots/inline_bot_layout_item.h"
@@ -37,9 +36,6 @@ class Result;
 namespace Ui {
 class PlainShadow;
 class ScrollArea;
-class IconButton;
-class LinkButton;
-class RoundButton;
 class RippleAnimation;
 class SettingsSlider;
 } // namesapce Ui
@@ -60,18 +56,6 @@ struct InlineCacheEntry {
 	InlineResults results;
 };
 
-struct StickerIcon {
-	StickerIcon(uint64 setId) : setId(setId) {
-	}
-	StickerIcon(uint64 setId, DocumentData *sticker, int32 pixw, int32 pixh) : setId(setId), sticker(sticker), pixw(pixw), pixh(pixh) {
-	}
-	uint64 setId = 0;
-	DocumentData *sticker = nullptr;
-	int pixw = 0;
-	int pixh = 0;
-
-};
-
 class EmojiPanel : public TWidget, private MTP::Sender {
 	Q_OBJECT
 
@@ -86,10 +70,6 @@ public:
 	bool hiding() const {
 		return _hiding || _hideTimer.isActive();
 	}
-
-	void step_icons(TimeMs ms, bool timer);
-
-	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 
 	void stickersInstalled(uint64 setId);
 
@@ -106,6 +86,7 @@ public:
 	~EmojiPanel();
 
 	class Inner;
+	class InnerFooter;
 
 protected:
 	void enterEventHook(QEvent *e) override;
@@ -113,30 +94,20 @@ protected:
 	void otherEnter();
 	void otherLeave();
 
-	void mousePressEvent(QMouseEvent *e) override;
-	void mouseMoveEvent(QMouseEvent *e) override;
-	void mouseReleaseEvent(QMouseEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
-
-	bool event(QEvent *e) override;
 	bool eventFilter(QObject *obj, QEvent *e) override;
 
 public slots:
 	void refreshStickers();
 
-	private slots:
+private slots:
 	void hideByTimerOrLeave();
 	void refreshSavedGifs();
 
 	void onWndActiveChanged();
 	void onScroll();
 
-	void onDisplaySet(quint64 setId);
-	void onInstallSet(quint64 setId);
-	void onRemoveSet(quint64 setId);
-	void onDelayedHide();
-
-	void onRefreshIcons(bool scrollAnimation);
+	void onCheckForHide();
 
 	void onSaveConfig();
 	void onSaveConfigDelayed(int delay);
@@ -169,6 +140,9 @@ private:
 		gsl::not_null<Inner*> widget() const {
 			return _weak;
 		}
+		gsl::not_null<InnerFooter*> footer() const {
+			return _footer;
+		}
 
 		void saveScrollTop();
 		void saveScrollTop(int scrollTop) {
@@ -182,6 +156,7 @@ private:
 		TabType _type = TabType::Emoji;
 		object_ptr<Inner> _widget = { nullptr };
 		QPointer<Inner> _weak;
+		object_ptr<InnerFooter> _footer;
 		int _scrollTop = 0;
 
 	};
@@ -215,30 +190,15 @@ private:
 	void startOpacityAnimation(bool hiding);
 	void prepareCache();
 
+	void scrollToY(int y);
+
 	void opacityAnimationCallback();
 
 	void hideFinished();
 	void showStarted();
 
 	bool preventAutoHide() const;
-	void setActiveSection(DBIEmojiSection section);
-	void setCurrentSectionIcon(DBIEmojiSection section);
-
-	void paintStickerSettingsIcon(Painter &p) const;
-	void paintFeaturedStickerSetsBadge(Painter &p, int iconLeft) const;
-
-	enum class ValidateIconAnimations {
-		Full,
-		Scroll,
-		None,
-	};
-	void validateSelectedIcon(ValidateIconAnimations animations);
 	void updateContentHeight();
-
-	void updateSelected();
-	void updateIcons();
-
-	void prepareSection(int &left, int top, int _width, Ui::IconButton *sectionIcon, DBIEmojiSection section);
 
 	void showAll();
 	void hideForSliding();
@@ -266,11 +226,11 @@ private:
 	int _minBottom = 0;
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
-	bool _horizontal = false;
 
 	int _width = 0;
 	int _height = 0;
 	int _bottom = 0;
+	int _footerTop = 0;
 
 	std::unique_ptr<Ui::PanelAnimation> _showAnimation;
 	Animation _a_show;
@@ -286,39 +246,12 @@ private:
 	std::unique_ptr<SlideAnimation> _slideAnimation;
 	Animation _a_slide;
 
-	object_ptr<Ui::IconButton> _recent;
-	object_ptr<Ui::IconButton> _people;
-	object_ptr<Ui::IconButton> _nature;
-	object_ptr<Ui::IconButton> _food;
-	object_ptr<Ui::IconButton> _activity;
-	object_ptr<Ui::IconButton> _travel;
-	object_ptr<Ui::IconButton> _objects;
-	object_ptr<Ui::IconButton> _symbols;
-
-	QList<StickerIcon> _icons;
-	int _iconOver = -1;
-	int _iconSel = 0;
-	int _iconDown = -1;
-	bool _iconsDragging = false;
-	BasicAnimation _a_icons;
-	QPoint _iconsMousePos, _iconsMouseDown;
-	int _iconsLeft = 0;
-	int _iconsTop = 0;
-	int _iconsStartX = 0;
-	int _iconsMax = 0;
-	anim::value _iconsX;
-	anim::value _iconSelX;
-	TimeMs _iconsStartAnim = 0;
-
 	object_ptr<Ui::SettingsSlider> _tabsSlider = { nullptr };
 	object_ptr<Ui::PlainShadow> _topShadow;
 	object_ptr<Ui::PlainShadow> _bottomShadow;
 	object_ptr<Ui::ScrollArea> _scroll;
 	std::array<Tab, Tab::kCount> _tabs;
 	TabType _currentTabType = TabType::Emoji;
-
-	uint64 _displayingSetId = 0;
-	uint64 _removingSetId = 0;
 
 	QTimer _saveConfigTimer;
 
@@ -355,10 +288,11 @@ public:
 	virtual void refreshRecent() = 0;
 	virtual void preloadImages() {
 	}
-	virtual void hideFinish(bool completely) = 0;
+	void hideFinished();
+	void panelHideFinished();
 	virtual void clearSelection() = 0;
 
-	virtual object_ptr<TWidget> createController() = 0;
+	virtual object_ptr<InnerFooter> createFooter() = 0;
 
 signals:
 	void scrollToY(int y);
@@ -367,10 +301,28 @@ signals:
 
 protected:
 	virtual int countHeight() = 0;
+	virtual InnerFooter *getFooter() const = 0;
+	virtual void processHideFinished() {
+	}
+	virtual void processPanelHideFinished() {
+	}
 
 private:
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
+
+};
+
+class EmojiPanel::InnerFooter : public TWidget {
+public:
+	InnerFooter(QWidget *parent);
+
+protected:
+	virtual void processHideFinished() {
+	}
+	virtual void processPanelHideFinished() {
+	}
+	friend class Inner;
 
 };
 

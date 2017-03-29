@@ -153,10 +153,10 @@ emojiPanPadding: 12px;
 emojiPanSize: size(45px, 41px);
 emojiPanWidth: 345px;
 emojiPanMaxHeight: 366px;
-emojiPanShowDuration: 2000;
-emojiPanDuration: 2000;
+emojiPanShowDuration: 200;
+emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
-emojiPanSlideDuration: 2000;
+emojiPanSlideDuration: 200;
 
 emojiPanHeader: 42px;
 emojiPanHeaderFont: semiboldFont;
@@ -173,21 +173,6 @@ emojiSwitchColor: windowActiveTextFg;
 emojiSwitchStickers: icon {{ "emoji_switch", emojiSwitchColor }};
 emojiSwitchEmoji: icon {{ "emoji_switch-flip_horizontal", emojiSwitchColor }};
 
-stickerPanSize: size(64px, 64px);
-stickerPanPadding: 11px;
-stickerPanDelete: icon {
-	{ "emoji_delete_bg", stickerPanDeleteBg },
-	{ "emoji_delete", stickerPanDeleteFg },
-};
-stickerPanDeleteOpacity: 0.5;
-stickerIconPadding: 5px;
-stickerIconOpacity: 0.7;
-stickerIconSel: 2px;
-stickerIconSelColor: emojiIconFgActive;
-stickerIconMove: 400;
-stickerPreviewDuration: 150;
-stickerPreviewMin: 0.1;
-
 hashtagClose: IconButton {
 	width: 30px;
 	height: 30px;
@@ -202,6 +187,22 @@ hashtagClose: IconButton {
 		color: windowBgOver;
 	}
 }
+
+stickerPanSize: size(64px, 64px);
+stickerPanPadding: 11px;
+stickerPanDelete: icon {
+	{ "emoji_delete_bg", stickerPanDeleteBg },
+	{ "emoji_delete", stickerPanDeleteFg },
+};
+stickerPanDeleteOpacity: 0.5;
+stickerPanRemoveSet: hashtagClose;
+stickerIconPadding: 5px;
+stickerIconOpacity: 0.7;
+stickerIconSel: 2px;
+stickerIconSelColor: emojiIconFgActive;
+stickerIconMove: 400;
+stickerPreviewDuration: 150;
+stickerPreviewMin: 0.1;
 
 stickersToastMaxWidth: 340px;
 stickersToastPadding: margins(16px, 13px, 16px, 12px);

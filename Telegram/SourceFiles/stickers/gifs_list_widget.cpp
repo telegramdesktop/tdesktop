@@ -39,17 +39,24 @@ constexpr auto kInlineItemsMaxPerRow = 5;
 
 } // namespace
 
-class GifsListWidget::Controller : public TWidget {
+class GifsListWidget::Footer : public EmojiPanel::InnerFooter {
 public:
-	Controller(gsl::not_null<GifsListWidget*> parent);
+	Footer(gsl::not_null<GifsListWidget*> parent);
+
+protected:
+	void processPanelHideFinished() override;
 
 private:
 	gsl::not_null<GifsListWidget*> _pan;
 
 };
 
-GifsListWidget::Controller::Controller(gsl::not_null<GifsListWidget*> parent) : TWidget(parent)
+GifsListWidget::Footer::Footer(gsl::not_null<GifsListWidget*> parent) : InnerFooter(parent)
 , _pan(parent) {
+}
+
+void GifsListWidget::Footer::processPanelHideFinished() {
+	// TODO Clear search
 }
 
 GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
@@ -70,8 +77,11 @@ GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
 	});
 }
 
-object_ptr<TWidget> GifsListWidget::createController() {
-	return object_ptr<Controller>(this);
+object_ptr<EmojiPanel::InnerFooter> GifsListWidget::createFooter() {
+	Expects(_footer == nullptr);
+	auto result = object_ptr<Footer>(this);
+	_footer = result;
+	return std::move(result);
 }
 
 void GifsListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -79,6 +89,10 @@ void GifsListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	Inner::setVisibleTopBottom(visibleTop, visibleBottom);
 	if (top != getVisibleTop()) {
 		_lastScrolled = getms();
+	}
+	auto visibleHeight = (visibleBottom - visibleTop);
+	if (visibleBottom + visibleHeight > height()) {
+//		onInlineRequest(); // TODO
 	}
 }
 
@@ -252,27 +266,32 @@ void GifsListWidget::clearSelection() {
 	update();
 }
 
-void GifsListWidget::hideFinish(bool completely) {
+EmojiPanel::InnerFooter *GifsListWidget::getFooter() const {
+	return _footer;
+}
+
+void GifsListWidget::processHideFinished() {
 	clearSelection();
-	if (completely) {
-		auto itemForget = [](auto &item) {
-			if (auto document = item->getDocument()) {
-				document->forget();
-			}
-			if (auto photo = item->getPhoto()) {
-				photo->forget();
-			}
-			if (auto result = item->getResult()) {
-				result->forget();
-			}
-		};
-		clearInlineRows(false);
-		for_const (auto &item, _gifLayouts) {
-			itemForget(item.second);
+}
+
+void GifsListWidget::processPanelHideFinished() {
+	auto itemForget = [](auto &item) {
+		if (auto document = item->getDocument()) {
+			document->forget();
 		}
-		for_const (auto &item, _inlineLayouts) {
-			itemForget(item.second);
+		if (auto photo = item->getPhoto()) {
+			photo->forget();
 		}
+		if (auto result = item->getResult()) {
+			result->forget();
+		}
+	};
+	clearInlineRows(false);
+	for_const (auto &item, _gifLayouts) {
+		itemForget(item.second);
+	}
+	for_const (auto &item, _inlineLayouts) {
+		itemForget(item.second);
 	}
 }
 
@@ -503,7 +522,8 @@ int GifsListWidget::refreshInlineRows(UserData *bot, const InlineCacheEntry *ent
 		}
 		return false;
 	};
-	if (clearResults()) {
+	auto clearResultsResult = clearResults();
+	if (clearResultsResult) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 			deleteUnusedInlineLayouts();

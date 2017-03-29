@@ -24,6 +24,22 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace Ui {
 namespace Emoji {
+
+constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
+constexpr auto kPanelPerRow = 7;
+constexpr auto kPanelRowsPerPage = 6;
+
+enum class Section {
+	Recent,
+	People,
+	Nature,
+	Food,
+	Activity,
+	Travel,
+	Objects,
+	Symbols,
+};
+
 namespace internal {
 
 EmojiPtr ByIndex(int index);
@@ -49,10 +65,6 @@ EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr
 } // namespace internal
 
 void Init();
-
-constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
-constexpr auto kPanelPerRow = 7;
-constexpr auto kPanelRowsPerPage = 6;
 
 class One {
 	struct CreationTag {
@@ -221,8 +233,8 @@ inline QString Filename(int index = Index()) {
 	return QString::fromLatin1(EmojiNames[index]);
 }
 
-int GetPackCount(DBIEmojiSection tab);
-EmojiPack GetPack(DBIEmojiSection tab);
+int GetSectionCount(Section section);
+EmojiPack GetSection(Section section);
 
 inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText *inOutEntities) {
 	if (to > from) {

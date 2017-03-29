@@ -527,18 +527,6 @@ enum DBIScale {
 
 static const int MatrixRowShift = 40000;
 
-enum DBIEmojiSection {
-	dbiesRecent = -1,
-	dbiesPeople = 0,
-	dbiesNature = 1,
-	dbiesFood = 2,
-	dbiesActivity = 3,
-	dbiesTravel = 4,
-	dbiesObjects = 5,
-	dbiesSymbols = 6,
-	dbiesStickers = 666,
-};
-
 enum DBIPlatform {
 	dbipWindows = 0,
 	dbipMac = 1,

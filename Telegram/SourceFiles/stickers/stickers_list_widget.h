@@ -21,10 +21,17 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "stickers/emoji_panel.h"
+#include "core/variant.h"
+
+namespace Ui {
+class LinkButton;
+} // namespace Ui
 
 namespace ChatHelpers {
 
-class StickersListWidget : public EmojiPanel::Inner, private base::Subscriber {
+struct StickerIcon;
+
+class StickersListWidget : public EmojiPanel::Inner, private base::Subscriber, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -32,9 +39,8 @@ public:
 
 	void refreshRecent() override;
 	void preloadImages() override;
-	void hideFinish(bool completely) override;
 	void clearSelection() override;
-	object_ptr<TWidget> createController() override;
+	object_ptr<EmojiPanel::InnerFooter> createFooter() override;
 
 	void showStickerSet(uint64 setId);
 
@@ -42,6 +48,7 @@ public:
 	void refreshRecentStickers(bool resize = true);
 
 	void fillIcons(QList<StickerIcon> &icons);
+	bool preventAutoHide();
 
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
@@ -60,6 +67,10 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+
+	EmojiPanel::InnerFooter *getFooter() const override;
+	void processHideFinished() override;
+	void processPanelHideFinished() override;
 	int countHeight() override;
 
 private slots:
@@ -68,23 +79,38 @@ private slots:
 
 signals:
 	void selected(DocumentData *sticker);
-
-	void displaySet(quint64 setId);
-	void installSet(quint64 setId);
-	void removeSet(quint64 setId);
-
-	void refreshIcons(bool scrollAnimation);
 	void scrollUpdated();
+	void checkForHide();
 
 private:
+	class Footer;
+
 	enum class Section {
 		Featured,
 		Stickers,
 	};
-	class Controller;
 
-	static constexpr auto kRefreshIconsScrollAnimation = true;
-	static constexpr auto kRefreshIconsNoAnimation = false;
+	struct OverSticker {
+		int section;
+		int index;
+		bool overDelete;
+	};
+	struct OverSet {
+		int section;
+	};
+	struct OverButton {
+		int section;
+	};
+	friend inline bool operator==(OverSticker a, OverSticker b) {
+		return (a.section == b.section) && (a.index == b.index) && (a.overDelete == b.overDelete);
+	}
+	friend inline bool operator==(OverSet a, OverSet b) {
+		return (a.section == b.section);
+	}
+	friend inline bool operator==(OverButton a, OverButton b) {
+		return (a.section == b.section);
+	}
+	using OverState = base::optional_variant<OverSticker, OverSet, OverButton>;
 
 	struct SectionInfo {
 		int section = 0;
@@ -99,10 +125,22 @@ private:
 	SectionInfo sectionInfo(int section) const;
 	SectionInfo sectionInfoByOffset(int yOffset) const;
 
-	void updateSelected();
-	void setSelected(int newSelected, int newSelectedFeaturedSet, int newSelectedFeaturedSetAdd);
+	void displaySet(quint64 setId);
+	void installSet(quint64 setId);
+	void removeSet(quint64 setId);
 
-	void setPressedFeaturedSetAdd(int newPressedFeaturedSetAdd);
+	void updateSelected();
+	void setSelected(OverState newSelected);
+	void setPressed(OverState newPressed);
+	QSharedPointer<Ui::RippleAnimation> createButtonRipple(int section);
+	QPoint buttonRippleTopLeft(int section) const;
+
+	enum class ValidateIconAnimations {
+		Full,
+		Scroll,
+		None,
+	};
+	void validateSelectedIcon(ValidateIconAnimations animations);
 
 	struct Set {
 		Set(uint64 id, MTPDstickerSet::Flags flags, const QString &title, int32 hoversSize, const StickerPack &pack = StickerPack()) : id(id), flags(flags), title(title), pack(pack) {
@@ -126,9 +164,12 @@ private:
 	void paintFeaturedStickers(Painter &p, QRect clip);
 	void paintStickers(Painter &p, QRect clip);
 	void paintSticker(Painter &p, Set &set, int y, int index, bool selected, bool deleteSelected);
+
+	int stickersRight() const;
 	bool featuredHasAddButton(int index) const;
-	int featuredContentWidth() const;
-	QRect featuredAddRect(int y) const;
+	QRect featuredAddRect(int index) const;
+	bool hasRemoveButton(int index) const;
+	QRect removeButtonRect(int index) const;
 
 	enum class AppendSkip {
 		Archived,
@@ -140,6 +181,8 @@ private:
 	int stickersLeft() const;
 	QRect stickerRect(int section, int sel);
 
+	void removeRecentSticker(int section, int index);
+
 	Sets _mySets;
 	Sets _featuredSets;
 	OrderedSet<uint64> _installedLocallySets;
@@ -147,15 +190,14 @@ private:
 
 	Section _section = Section::Stickers;
 
-	void removeRecentSticker(int section, int index);
+	uint64 _displayingSetId = 0;
+	uint64 _removingSetId = 0;
 
-	int _selected = -1;
-	int _pressed = -1;
-	int _selectedFeaturedSet = -1;
-	int _pressedFeaturedSet = -1;
-	int _selectedFeaturedSetAdd = -1;
-	int _pressedFeaturedSetAdd = -1;
-	QPoint _lastMousePos;
+	Footer *_footer = nullptr;
+
+	OverState _selected = nullptr;
+	OverState _pressed = nullptr;
+	QPoint _lastMousePosition;
 
 	QString _addText;
 	int _addWidth;

@@ -28,9 +28,22 @@ namespace base {
 template <typename... Types>
 using variant = mapbox::util::variant<Types...>;
 
+template <typename... Types>
+using optional_variant = variant<std::nullptr_t, Types...>;
+
 template <typename T, typename... Types>
 inline T *get_if(variant<Types...> *v) {
 	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
+}
+
+template <typename T, typename... Types>
+inline const T *get_if(const variant<Types...> *v) {
+	return (v && v->template is<T>()) ? &v->template get_unchecked<T>() : nullptr;
+}
+
+template <typename... Types>
+inline bool is_null_variant(const optional_variant<Types...> &variant) {
+	return get_if<std::nullptr_t>(&variant) != nullptr;
 }
 
 } // namespace base

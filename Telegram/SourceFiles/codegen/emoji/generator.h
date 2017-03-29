@@ -44,7 +44,7 @@ private:
 	bool writeSource();
 
 	bool writeInitCode();
-	bool writePacks();
+	bool writeSections();
 	bool writeFindReplace();
 	bool writeFind();
 	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes = false);

@@ -296,7 +296,7 @@ inline QString ComputeId(Args... args) {\n\
 	if (!writeInitCode()) {
 		return false;
 	}
-	if (!writePacks()) {
+	if (!writeSections()) {
 		return false;
 	}
 	source_->stream() << "\
@@ -391,22 +391,23 @@ void Init() {\n\
 	return true;
 }
 
-bool Generator::writePacks() {
-	constexpr const char *packNames[] = {
-		"dbiesPeople",
-		"dbiesNature",
-		"dbiesFood",
-		"dbiesActivity",
-		"dbiesTravel",
-		"dbiesObjects",
-		"dbiesSymbols",
+bool Generator::writeSections() {
+	constexpr const char *sectionNames[] = {
+		"Section::People",
+		"Section::Nature",
+		"Section::Food",
+		"Section::Activity",
+		"Section::Travel",
+		"Section::Objects",
+		"Section::Symbols",
 	};
 	source_->stream() << "\
 \n\
-int GetPackCount(DBIEmojiSection section) {\n\
-	switch (section) {\n";
+int GetSectionCount(Section section) {\n\
+	switch (section) {\n\
+	case Section::Recent: return GetRecent().size();\n";
 	auto countIndex = 0;
-	for (auto name : packNames) {
+	for (auto name : sectionNames) {
 		if (countIndex >= int(data_.categories.size())) {
 			logDataError() << "category " << countIndex << " not found.";
 			return false;
@@ -415,21 +416,29 @@ int GetPackCount(DBIEmojiSection section) {\n\
 	case " << name << ": return " << data_.categories[countIndex++].size() << ";\n";
 	}
 	source_->stream() << "\
-	case dbiesRecent: return GetRecent().size();\n\
 	}\n\
 	return 0;\n\
 }\n\
 \n\
-EmojiPack GetPack(DBIEmojiSection section) {\n\
-	switch (section) {\n";
+EmojiPack GetSection(Section section) {\n\
+	switch (section) {\n\
+	case Section::Recent: {\n\
+		auto result = EmojiPack();\n\
+		result.reserve(GetRecent().size());\n\
+		for (auto &item : GetRecent()) {\n\
+			result.push_back(item.first);\n\
+		}\n\
+		return result;\n\
+	} break;\n";
 	auto index = 0;
-	for (auto name : packNames) {
+	for (auto name : sectionNames) {
 		if (index >= int(data_.categories.size())) {
 			logDataError() << "category " << index << " not found.";
 			return false;
 		}
 		auto &category = data_.categories[index++];
 		source_->stream() << "\
+\n\
 	case " << name << ": {\n\
 		static auto result = EmojiPack();\n\
 		if (result.isEmpty()) {\n\
@@ -441,17 +450,9 @@ EmojiPack GetPack(DBIEmojiSection section) {\n\
 		source_->stream() << "\
 		}\n\
 		return result;\n\
-	} break;\n\n";
+	} break;\n";
 	}
 	source_->stream() << "\
-	case dbiesRecent: {\n\
-		auto result = EmojiPack();\n\
-		result.reserve(GetRecent().size());\n\
-		for (auto &item : GetRecent()) {\n\
-			result.push_back(item.first);\n\
-		}\n\
-		return result;\n\
-	} break;\n\
 	}\n\
 	return EmojiPack();\n\
 }\n";

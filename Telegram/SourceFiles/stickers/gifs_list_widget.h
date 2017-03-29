@@ -22,6 +22,10 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "stickers/emoji_panel.h"
 
+namespace Ui {
+class RoundButton;
+} // namespace Ui
+
 namespace ChatHelpers {
 
 class GifsListWidget : public EmojiPanel::Inner, public InlineBots::Layout::Context, private base::Subscriber {
@@ -32,9 +36,8 @@ public:
 
 	void refreshRecent() override;
 	void preloadImages() override;
-	void hideFinish(bool completely) override;
 	void clearSelection() override;
-	object_ptr<TWidget> createController() override;
+	object_ptr<EmojiPanel::InnerFooter> createFooter() override;
 
 	void refreshSavedGifs();
 	int refreshInlineRows(UserData *bot, const InlineCacheEntry *results, bool resultsDeleted);
@@ -58,6 +61,10 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
+
+	EmojiPanel::InnerFooter *getFooter() const override;
+	void processHideFinished() override;
+	void processPanelHideFinished() override;
 	int countHeight() override;
 
 private slots:
@@ -78,7 +85,7 @@ private:
 		Inlines,
 		Gifs,
 	};
-	class Controller;
+	class Footer;
 
 	void updateSelected();
 	void paintInlineItems(Painter &p, QRect clip);
@@ -119,6 +126,8 @@ private:
 
 	int validateExistingInlineRows(const InlineResults &results);
 	void selectInlineResult(int row, int column);
+
+	Footer *_footer = nullptr;
 
 	int _selected = -1;
 	int _pressed = -1;

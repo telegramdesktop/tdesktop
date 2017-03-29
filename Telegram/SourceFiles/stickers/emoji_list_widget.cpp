@@ -20,6 +20,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 */
 #include "stickers/emoji_list_widget.h"
 
+#include "ui/widgets/buttons.h"
 #include "styles/style_stickers.h"
 #include "ui/widgets/shadow.h"
 #include "lang.h"
@@ -32,6 +33,70 @@ constexpr auto kEmojiPanelRowsPerPage = Ui::Emoji::kPanelRowsPerPage;
 constexpr auto kSaveRecentEmojiTimeout = 3000;
 
 } // namespace
+
+class EmojiListWidget::Footer : public EmojiPanel::InnerFooter {
+public:
+	Footer(gsl::not_null<EmojiListWidget*> parent);
+
+	void setCurrentSectionIcon(Section section);
+
+protected:
+	void processPanelHideFinished() override;
+
+private:
+	void prepareSection(int &left, int top, int _width, Ui::IconButton *sectionIcon, Section section);
+	void setActiveSection(Section section);
+
+	gsl::not_null<EmojiListWidget*> _pan;
+	std::array<object_ptr<Ui::IconButton>, kEmojiSectionCount> _sections;
+
+};
+
+EmojiListWidget::Footer::Footer(gsl::not_null<EmojiListWidget*> parent) : InnerFooter(parent)
+, _pan(parent)
+, _sections {
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryRecent),
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryPeople),
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryNature),
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryFood),
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryActivity),
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryTravel),
+	object_ptr<Ui::IconButton>(this, st::emojiCategoryObjects),
+	object_ptr<Ui::IconButton>(this, st::emojiCategorySymbols),
+} {
+	auto left = (st::emojiPanWidth - _sections.size() * st::emojiCategory.width) / 2;
+	for (auto i = 0; i != _sections.size(); ++i) {
+		auto &button = _sections[i];
+		button->moveToLeft(left, 0);
+		left += button->width();
+		button->setClickedCallback([this, value = static_cast<Section>(i)] { setActiveSection(value); });
+	}
+	setCurrentSectionIcon(Section::Recent);
+}
+
+void EmojiListWidget::Footer::processPanelHideFinished() {
+	setCurrentSectionIcon(Section::Recent);
+}
+
+void EmojiListWidget::Footer::setCurrentSectionIcon(Section section) {
+	std::array<const style::icon *, kEmojiSectionCount> overrides = {
+		&st::emojiRecentActive,
+		&st::emojiPeopleActive,
+		&st::emojiNatureActive,
+		&st::emojiFoodActive,
+		&st::emojiActivityActive,
+		&st::emojiTravelActive,
+		&st::emojiObjectsActive,
+		&st::emojiSymbolsActive,
+	};
+	for (auto i = 0; i != _sections.size(); ++i) {
+		_sections[i]->setIconOverride((section == static_cast<Section>(i)) ? overrides[i] : nullptr);
+	}
+}
+
+void EmojiListWidget::Footer::setActiveSection(Ui::Emoji::Section section) {
+	_pan->showEmojiSection(section);
+}
 
 EmojiColorPicker::EmojiColorPicker(QWidget *parent) : TWidget(parent) {
 	setMouseTracking(true);
@@ -237,19 +302,6 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 	p.drawPixmapLeft(w.x() + (st::emojiPanSize.width() - (esize / cIntRetinaFactor())) / 2, w.y() + (st::emojiPanSize.height() - (esize / cIntRetinaFactor())) / 2, width(), App::emojiLarge(), QRect(_variants[variant]->x() * esize, _variants[variant]->y() * esize, esize, esize));
 }
 
-class EmojiListWidget::Controller : public TWidget {
-public:
-	Controller(gsl::not_null<EmojiListWidget*> parent);
-
-private:
-	gsl::not_null<EmojiListWidget*> _pan;
-
-};
-
-EmojiListWidget::Controller::Controller(gsl::not_null<EmojiListWidget*> parent) : TWidget(parent)
-, _pan(parent) {
-}
-
 EmojiListWidget::EmojiListWidget(QWidget *parent) : Inner(parent)
 , _picker(this) {
 	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
@@ -262,7 +314,7 @@ EmojiListWidget::EmojiListWidget(QWidget *parent) : Inner(parent)
 	_esize = Ui::Emoji::Size(Ui::Emoji::Index() + 1);
 
 	for (auto i = 0; i != kEmojiSectionCount; ++i) {
-		_counts[i] = Ui::Emoji::GetPackCount(EmojiSectionAtIndex(i));
+		_counts[i] = Ui::Emoji::GetSectionCount(static_cast<Section>(i));
 	}
 
 	_showPickerTimer.setSingleShot(true);
@@ -271,8 +323,18 @@ EmojiListWidget::EmojiListWidget(QWidget *parent) : Inner(parent)
 	connect(_picker, SIGNAL(hidden()), this, SLOT(onPickerHidden()));
 }
 
-object_ptr<TWidget> EmojiListWidget::createController() {
-	return object_ptr<Controller>(this);
+void EmojiListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
+	Inner::setVisibleTopBottom(visibleTop, visibleBottom);
+	if (_footer) {
+		_footer->setCurrentSectionIcon(currentSection(visibleTop));
+	}
+}
+
+object_ptr<EmojiPanel::InnerFooter> EmojiListWidget::createFooter() {
+	Expects(_footer == nullptr);
+	auto result = object_ptr<Footer>(this);
+	_footer = result;
+	return std::move(result);
 }
 
 template <typename Callback>
@@ -280,7 +342,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 	auto info = SectionInfo();
 	for (auto i = 0; i != kEmojiSectionCount; ++i) {
 		info.section = i;
-		info.count = Ui::Emoji::GetPackCount(EmojiSectionAtIndex(i));
+		info.count = Ui::Emoji::GetSectionCount(static_cast<Section>(i));
 		info.rowsCount = (info.count / kEmojiPanelPerRow) + ((info.count % kEmojiPanelPerRow) ? 1 : 0);
 		info.rowsTop = info.top + (i == 0 ? st::emojiPanPadding : st::emojiPanHeader);
 		info.rowsBottom = info.rowsTop + info.rowsCount * st::emojiPanSize.height();
@@ -318,15 +380,16 @@ EmojiListWidget::SectionInfo EmojiListWidget::sectionInfoByOffset(int yOffset) c
 }
 
 int EmojiListWidget::countHeight() {
-	return sectionInfo(kEmojiSectionCount - 1).top + st::emojiPanPadding;
+	return sectionInfo(kEmojiSectionCount - 1).rowsBottom + st::emojiPanPadding;
 }
 
 void EmojiListWidget::ensureLoaded(int section) {
+	Expects(section >= 0 && section < kEmojiSectionCount);
 	if (!_emoji[section].isEmpty()) {
 		return;
 	}
-	_emoji[section] = Ui::Emoji::GetPack(EmojiSectionAtIndex(section));
-	if (EmojiSectionAtIndex(section) == dbiesRecent) {
+	_emoji[section] = Ui::Emoji::GetSection(static_cast<Section>(section));
+	if (static_cast<Section>(section) == Section::Recent) {
 		return;
 	}
 	for (auto &emoji : _emoji[section]) {
@@ -477,7 +540,7 @@ void EmojiListWidget::selectEmoji(EmojiPtr emoji) {
 		if (i->first == emoji) {
 			++i->second;
 			if (i->second > 0x8000) {
-				for (RecentEmojiPack::iterator j = recent.begin(); j != e; ++j) {
+				for (auto j = recent.begin(); j != e; ++j) {
 					if (j->second > 1) {
 						j->second /= 2;
 					} else {
@@ -596,11 +659,15 @@ void EmojiListWidget::clearSelection() {
 	setSelected(-1);
 }
 
-DBIEmojiSection EmojiListWidget::currentSection(int yOffset) const {
-	return EmojiSectionAtIndex(sectionInfoByOffset(yOffset).section);
+Ui::Emoji::Section EmojiListWidget::currentSection(int yOffset) const {
+	return static_cast<Section>(sectionInfoByOffset(yOffset).section);
 }
 
-void EmojiListWidget::hideFinish(bool completely) {
+EmojiPanel::InnerFooter *EmojiListWidget::getFooter() const {
+	return _footer;
+}
+
+void EmojiListWidget::processHideFinished() {
 	if (!_picker->isHidden()) {
 		_picker->hideFast();
 		_pickerSel = -1;
@@ -610,8 +677,8 @@ void EmojiListWidget::hideFinish(bool completely) {
 
 void EmojiListWidget::refreshRecent() {
 	clearSelection();
-	_counts[0] = Ui::Emoji::GetPackCount(dbiesRecent);
-	_emoji[0] = Ui::Emoji::GetPack(dbiesRecent);
+	_counts[0] = Ui::Emoji::GetSectionCount(Section::Recent);
+	_emoji[0] = Ui::Emoji::GetSection(Section::Recent);
 	auto h = countHeight();
 	if (h != height()) {
 		resize(width(), h);
@@ -672,14 +739,14 @@ void EmojiListWidget::setSelected(int newSelected) {
 	}
 }
 
-void EmojiListWidget::showEmojiSection(DBIEmojiSection section) {
+void EmojiListWidget::showEmojiSection(Section section) {
 	clearSelection();
 
 	refreshRecent();
 
 	auto y = 0;
 	enumerateSections([&y, sectionForSearch = section](const SectionInfo &info) {
-		if (EmojiSectionAtIndex(info.section) == sectionForSearch) {
+		if (static_cast<Section>(info.section) == sectionForSearch) {
 			y = info.top;
 			return false;
 		}

@@ -25,9 +25,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace ChatHelpers {
 
 constexpr auto kEmojiSectionCount = 8;
-inline DBIEmojiSection EmojiSectionAtIndex(int index) {
-	return (index < 0 || index >= kEmojiSectionCount) ? dbiesRecent : DBIEmojiSection(index - 1);
-}
 
 class EmojiColorPicker : public TWidget {
 	Q_OBJECT
@@ -89,13 +86,15 @@ class EmojiListWidget : public EmojiPanel::Inner {
 public:
 	EmojiListWidget(QWidget *parent);
 
-	void refreshRecent() override;
-	void hideFinish(bool completely) override;
-	void clearSelection() override;
-	object_ptr<TWidget> createController() override;
+	using Section = Ui::Emoji::Section;
 
-	void showEmojiSection(DBIEmojiSection section);
-	DBIEmojiSection currentSection(int yOffset) const;
+	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
+	void refreshRecent() override;
+	void clearSelection() override;
+	object_ptr<EmojiPanel::InnerFooter> createFooter() override;
+
+	void showEmojiSection(Section section);
+	Section currentSection(int yOffset) const;
 
 public slots:
 	void onShowPicker();
@@ -117,10 +116,13 @@ protected:
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 	void enterFromChildEvent(QEvent *e, QWidget *child) override;
 	bool event(QEvent *e) override;
+
+	EmojiPanel::InnerFooter *getFooter() const override;
+	void processHideFinished() override;
 	int countHeight() override;
 
 private:
-	class Controller;
+	class Footer;
 
 	struct SectionInfo {
 		int section = 0;
@@ -143,6 +145,8 @@ private:
 	void selectEmoji(EmojiPtr emoji);
 
 	QRect emojiRect(int section, int sel);
+
+	Footer *_footer = nullptr;
 
 	int _counts[kEmojiSectionCount];
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
