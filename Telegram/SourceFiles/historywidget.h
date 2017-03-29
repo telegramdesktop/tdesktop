@@ -58,7 +58,7 @@ class TopBarWidget;
 } // namespace Window
 
 class DragArea;
-class EmojiPan;
+class EmojiPanel;
 class SilentToggle;
 class SendFilesBox;
 
@@ -1160,7 +1160,7 @@ private:
 	QTimer _membersDropdownShowTimer;
 
 	object_ptr<InlineBots::Layout::Widget> _inlineResults = { nullptr };
-	object_ptr<EmojiPan> _emojiPan;
+	object_ptr<EmojiPanel> _emojiPanel;
 	DragState _attachDrag = DragStateNone;
 	object_ptr<DragArea> _attachDragDocument, _attachDragPhoto;
 

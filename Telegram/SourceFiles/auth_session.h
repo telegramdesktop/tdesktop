@@ -30,7 +30,7 @@ class System;
 } // namespace Notifications
 } // namespace Window
 
-enum class EmojiPanTabType {
+enum class EmojiPanelTab {
 	Emoji,
 	Stickers,
 	Gifs,
@@ -60,17 +60,17 @@ public:
 	void setLastSeenWarningSeen(bool lastSeenWarningSeen) {
 		_variables.lastSeenWarningSeen = lastSeenWarningSeen;
 	}
-	EmojiPanTabType emojiPanTab() const {
-		return _variables.emojiPanTab;
+	EmojiPanelTab emojiPanelTab() const {
+		return _variables.emojiPanelTab;
 	}
-	void setEmojiPanTab(EmojiPanTabType tab) {
-		_variables.emojiPanTab = tab;
+	void setEmojiPanelTab(EmojiPanelTab tab) {
+		_variables.emojiPanelTab = tab;
 	}
 
 private:
 	struct Variables {
 		bool lastSeenWarningSeen = false;
-		EmojiPanTabType emojiPanTab = EmojiPanTabType::Emoji;
+		EmojiPanelTab emojiPanelTab = EmojiPanelTab::Emoji;
 	};
 
 	base::Variable<bool> _contactsLoaded = { false };

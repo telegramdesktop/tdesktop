@@ -51,8 +51,8 @@ EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr
 void Init();
 
 constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
-constexpr auto kPanPerRow = 7;
-constexpr auto kPanRowsPerPage = 6;
+constexpr auto kPanelPerRow = 7;
+constexpr auto kPanelRowsPerPage = 6;
 
 class One {
 	struct CreationTag {
@@ -314,7 +314,7 @@ inline RecentEmojiPack &GetRecent() {
 				}
 			}
 		}
-		uint64 defaultRecent[] = {
+		auto defaultRecent = {
 			0xD83DDE02LLU,
 			0xD83DDE18LLU,
 			0x2764LLU,
@@ -351,7 +351,7 @@ inline RecentEmojiPack &GetRecent() {
 			0xD83DDE15LLU,
 		};
 		for (auto oldKey : defaultRecent) {
-			if (result.size() >= kPanPerRow * kPanRowsPerPage) break;
+			if (result.size() >= kPanelPerRow * kPanelRowsPerPage) break;
 
 			if (auto emoji = Ui::Emoji::FromOldKey(oldKey)) {
 				if (!haveAlready(emoji)) {

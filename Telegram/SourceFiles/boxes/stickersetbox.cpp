@@ -37,7 +37,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 namespace {
 
-constexpr auto kStickerPanPerRow = Stickers::kPanPerRow;
+constexpr auto kStickersPanelPerRow = Stickers::kPanelPerRow;
 
 } // namespace
 
@@ -187,8 +187,8 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	if (_pack.isEmpty()) {
 		Ui::show(Box<InformBox>(lang(lng_stickers_not_found)));
 	} else {
-		int32 rows = _pack.size() / kStickerPanPerRow + ((_pack.size() % kStickerPanPerRow) ? 1 : 0);
-		resize(st::stickersPadding.left() + kStickerPanPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
+		int32 rows = _pack.size() / kStickersPanelPerRow + ((_pack.size() % kStickersPanelPerRow) ? 1 : 0);
+		resize(st::stickersPadding.left() + kStickersPanelPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
 	}
 	_loaded = true;
 
@@ -325,8 +325,8 @@ void StickerSetBox::Inner::setSelected(int selected) {
 void StickerSetBox::Inner::startOverAnimation(int index, float64 from, float64 to) {
 	if (index >= 0 && index < _packOvers.size()) {
 		_packOvers[index].start([this, index] {
-			int row = index / kStickerPanPerRow;
-			int column = index % kStickerPanPerRow;
+			int row = index / kStickersPanelPerRow;
+			int column = index % kStickersPanelPerRow;
 			int left = st::stickersPadding.left() + column * st::stickersSize.width();
 			int top = st::stickersPadding.top() + row * st::stickersSize.height();
 			rtlupdate(left, top, st::stickersSize.width(), st::stickersSize.height());
@@ -347,8 +347,8 @@ int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 	if (rtl()) l.setX(width() - l.x());
 	int32 row = (l.y() >= st::stickersPadding.top()) ? qFloor((l.y() - st::stickersPadding.top()) / st::stickersSize.height()) : -1;
 	int32 col = (l.x() >= st::stickersPadding.left()) ? qFloor((l.x() - st::stickersPadding.left()) / st::stickersSize.width()) : -1;
-	if (row >= 0 && col >= 0 && col < kStickerPanPerRow) {
-		int32 result = row * kStickerPanPerRow + col;
+	if (row >= 0 && col >= 0 && col < kStickersPanelPerRow) {
+		int32 result = row * kStickersPanelPerRow + col;
 		return (result < _pack.size()) ? result : -1;
 	}
 	return -1;
@@ -361,12 +361,12 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	if (_pack.isEmpty()) return;
 
 	auto ms = getms();
-	int32 rows = _pack.size() / kStickerPanPerRow + ((_pack.size() % kStickerPanPerRow) ? 1 : 0);
+	int32 rows = _pack.size() / kStickersPanelPerRow + ((_pack.size() % kStickersPanelPerRow) ? 1 : 0);
 	int32 from = qFloor(e->rect().top() / st::stickersSize.height()), to = qFloor(e->rect().bottom() / st::stickersSize.height()) + 1;
 
 	for (int32 i = from; i < to; ++i) {
-		for (int32 j = 0; j < kStickerPanPerRow; ++j) {
-			int32 index = i * kStickerPanPerRow + j;
+		for (int32 j = 0; j < kStickersPanelPerRow; ++j) {
+			int32 index = i * kStickersPanelPerRow + j;
 			if (index >= _pack.size()) break;
 			t_assert(index < _packOvers.size());
 

@@ -445,11 +445,11 @@ private:
 
 } // namespace internal
 
-class EmojiPan : public TWidget, private MTP::Sender {
+class EmojiPanel : public TWidget, private MTP::Sender {
 	Q_OBJECT
 
 public:
-	EmojiPan(QWidget *parent);
+	EmojiPanel(QWidget *parent);
 
 	void setMinTop(int minTop);
 	void setMinBottom(int minBottom);
@@ -476,7 +476,7 @@ public:
 	void showAnimated();
 	void hideAnimated();
 
-	~EmojiPan();
+	~EmojiPanel();
 
 protected:
 	void enterEventHook(QEvent *e) override;
@@ -524,7 +524,7 @@ signals:
 	void updateStickers();
 
 private:
-	using TabType = EmojiPanTabType;
+	using TabType = EmojiPanelTab;
 	class Tab {
 	public:
 		static constexpr auto kCount = 3;

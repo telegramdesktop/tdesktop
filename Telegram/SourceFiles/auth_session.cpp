@@ -37,7 +37,7 @@ QByteArray AuthSessionData::serialize() const {
 
 		QDataStream stream(&buffer);
 		stream.setVersion(QDataStream::Qt_5_1);
-		stream << static_cast<qint32>(_variables.emojiPanTab);
+		stream << static_cast<qint32>(_variables.emojiPanelTab);
 		stream << qint32(_variables.lastSeenWarningSeen ? 1 : 0);
 	}
 	return result;
@@ -55,7 +55,7 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 	}
 	QDataStream stream(&buffer);
 	stream.setVersion(QDataStream::Qt_5_1);
-	qint32 emojiPanTab = static_cast<qint32>(EmojiPanTabType::Emoji);
+	qint32 emojiPanTab = static_cast<qint32>(EmojiPanelTab::Emoji);
 	qint32 lastSeenWarningSeen = 0;
 	stream >> emojiPanTab;
 	stream >> lastSeenWarningSeen;
@@ -64,11 +64,11 @@ void AuthSessionData::constructFromSerialized(const QByteArray &serialized) {
 		return;
 	}
 
-	auto uncheckedTab = static_cast<EmojiPanTabType>(emojiPanTab);
+	auto uncheckedTab = static_cast<EmojiPanelTab>(emojiPanTab);
 	switch (uncheckedTab) {
-	case EmojiPanTabType::Emoji:
-	case EmojiPanTabType::Stickers:
-	case EmojiPanTabType::Gifs: _variables.emojiPanTab = uncheckedTab; break;
+	case EmojiPanelTab::Emoji:
+	case EmojiPanelTab::Stickers:
+	case EmojiPanelTab::Gifs: _variables.emojiPanelTab = uncheckedTab; break;
 	}
 	_variables.lastSeenWarningSeen = (lastSeenWarningSeen == 1);
 }
