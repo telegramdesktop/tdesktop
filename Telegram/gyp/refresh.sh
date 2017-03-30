@@ -20,7 +20,7 @@ else
   #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode-ninja
   #gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp --format=xcode
   # use patched gyp with Xcode project generator
-  ../../../Libraries/gyp/gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp -Gxcode_upgrade_check_project_version=820 --format=xcode
+  ../../../Libraries/gyp/gyp --depth=. --generator-output=../.. -Goutput_dir=out Telegram.gyp -Gxcode_upgrade_check_project_version=830 --format=xcode
 fi
 
 cd ../..

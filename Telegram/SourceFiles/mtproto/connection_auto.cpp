@@ -307,7 +307,7 @@ bool AutoConnection::needHttpWait() {
 }
 
 int32 AutoConnection::debugState() const {
-	return (status == UsingHttp) ? -1 : (UsingTcp ? sock.state() : -777);
+	return (status == UsingHttp) ? -1 : ((status == UsingTcp) ? sock.state() : -777);
 }
 
 QString AutoConnection::transport() const {
