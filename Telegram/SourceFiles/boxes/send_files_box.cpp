@@ -576,7 +576,8 @@ void EditCaptionBox::prepareGifPreview(DocumentData *document) {
 	auto createGifPreview = [document] {
 		return (document && document->isAnimation());
 	};
-	if (createGifPreview()) {
+	auto createGifPreviewResult = createGifPreview(); // Clang freeze workaround.
+	if (createGifPreviewResult) {
 		_gifPreview = Media::Clip::MakeReader(document->location(), document->data(), [this](Media::Clip::Notification notification) {
 			clipCallback(notification);
 		});

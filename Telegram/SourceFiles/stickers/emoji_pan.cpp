@@ -1653,7 +1653,8 @@ int StickerPanInner::refreshInlineRows(UserData *bot, const InlineCacheEntry *en
 		}
 		return false;
 	};
-	if (clearResults()) {
+	auto clearResultsResult = clearResults(); // Clang segfault workaround.
+	if (clearResultsResult) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 			deleteUnusedInlineLayouts();

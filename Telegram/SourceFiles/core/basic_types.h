@@ -27,6 +27,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "core/build_config.h"
 
+// Custom libc++ build used for old OS X versions already has this.
+#ifndef OS_MAC_OLD
+
 #if defined COMPILER_CLANG || defined COMPILER_GCC
 namespace std {
 
@@ -40,6 +43,8 @@ void as_const(const T&&) = delete;
 
 } // namespace std
 #endif // COMPILER_CLANG || COMPILER_GCC
+
+#endif // OS_MAC_OLD
 
 #include "core/ordered_set.h"
 
