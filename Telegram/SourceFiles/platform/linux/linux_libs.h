@@ -44,12 +44,12 @@ bool load(QLibrary &lib, const char *name, Function &func) {
 		return false;
 	}
 
-    func = reinterpret_cast<Function>(lib.resolve(name));
-    if (func) {
-        return true;
-    }
+	func = reinterpret_cast<Function>(lib.resolve(name));
+	if (func) {
+		return true;
+	}
 	LOG(("Error: failed to load '%1' function!").arg(name));
-    return false;
+	return false;
 }
 
 typedef gboolean (*f_gtk_init_check)(int *argc, char ***argv);
@@ -180,6 +180,9 @@ extern f_gtk_image_new gtk_image_new;
 
 typedef void (*f_gtk_image_set_from_pixbuf)(GtkImage *image, GdkPixbuf *pixbuf);
 extern f_gtk_image_set_from_pixbuf gtk_image_set_from_pixbuf;
+
+typedef void (*f_gdk_set_allowed_backends)(const gchar *backends);
+extern f_gdk_set_allowed_backends gdk_set_allowed_backends;
 
 typedef void (*f_gdk_window_set_modal_hint)(GdkWindow *window, gboolean modal);
 extern f_gdk_window_set_modal_hint gdk_window_set_modal_hint;

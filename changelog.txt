@@ -1,3 +1,8 @@
+1.0.27 (31.03.17)
+
+- Fix launch in Ubuntu 17.04.
+- Update API scheme.
+
 1.0.26 (30.03.17)
 
 — Send MP4/MOV files as videos that will play right inside Telegram.

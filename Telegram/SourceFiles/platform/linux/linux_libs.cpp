@@ -112,6 +112,17 @@ bool setupGtkBase(QLibrary &lib_gtk) {
 	if (!load(lib_gtk, "g_slist_free", g_slist_free)) return false;
 
 	DEBUG_LOG(("Library gtk functions loaded!"));
+
+	if (load(lib_gtk, "gdk_set_allowed_backends", gdk_set_allowed_backends)) {
+		// We work only with X11 GDK backend.
+		// Otherwise we get segfault in Ubuntu 17.04 in gtk_init_check() call.
+		// See https://github.com/telegramdesktop/tdesktop/issues/3176
+		// See https://github.com/telegramdesktop/tdesktop/issues/3162
+		DEBUG_LOG(("Limit allowed GDK backends to x11"));
+		gdk_set_allowed_backends("x11");
+	}
+
+	DEBUG_LOG(("Library gtk functions loaded!"));
 	if (!gtk_init_check(0, 0)) {
 		gtk_init_check = nullptr;
 		DEBUG_LOG(("Failed to gtk_init_check(0, 0)!"));
@@ -181,6 +192,7 @@ f_gtk_image_set_from_pixbuf gtk_image_set_from_pixbuf = nullptr;
 f_gtk_dialog_get_widget_for_response gtk_dialog_get_widget_for_response = nullptr;
 f_gtk_button_set_label gtk_button_set_label = nullptr;
 f_gtk_button_get_type gtk_button_get_type = nullptr;
+f_gdk_set_allowed_backends gdk_set_allowed_backends = nullptr;
 f_gdk_window_set_modal_hint gdk_window_set_modal_hint = nullptr;
 f_gdk_window_focus gdk_window_focus = nullptr;
 f_gtk_dialog_get_type gtk_dialog_get_type = nullptr;
