@@ -47,6 +47,9 @@ public:
 	base::Observable<void> &moreChatsLoaded() {
 		return _moreChatsLoaded;
 	}
+	base::Observable<void> &savedGifsUpdated() {
+		return _savedGifsUpdated;
+	}
 
 	void copyFrom(const AuthSessionData &other) {
 		_variables = other._variables;
@@ -76,6 +79,7 @@ private:
 	base::Variable<bool> _contactsLoaded = { false };
 	base::Variable<bool> _allChatsLoaded = { false };
 	base::Observable<void> _moreChatsLoaded;
+	base::Observable<void> _savedGifsUpdated;
 	Variables _variables;
 
 };

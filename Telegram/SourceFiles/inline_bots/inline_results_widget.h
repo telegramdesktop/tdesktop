@@ -120,7 +120,6 @@ private:
 	int _visibleBottom = 0;
 
 	UserData *_inlineBot;
-	QString _inlineBotTitle;
 	TimeMs _lastScrolled = 0;
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;

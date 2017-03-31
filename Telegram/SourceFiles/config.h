@@ -79,7 +79,6 @@ enum {
 	ClipThreadsCount = 8,
 	AverageGifSize = 320 * 240,
 	WaitBeforeGifPause = 200, // wait 200ms for gif draw before pausing it
-	InlineBotRequestDelay = 400, // wait 400ms before context bot realtime request
 	RecentInlineBotsLimit = 10,
 
 	AVBlockSize = 4096, // 4Kb for ffmpeg blocksize

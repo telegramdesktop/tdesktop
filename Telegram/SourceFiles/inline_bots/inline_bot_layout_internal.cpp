@@ -30,7 +30,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "media/player/media_player_instance.h"
 #include "history/history_location_manager.h"
 #include "storage/localstorage.h"
-#include "mainwidget.h"
+#include "auth_session.h"
 #include "lang.h"
 
 namespace InlineBots {
@@ -122,14 +122,14 @@ void Gif::setPosition(int32 position) {
 }
 
 void DeleteSavedGifClickHandler::onClickImpl() const {
-	int32 index = cSavedGifs().indexOf(_data);
+	auto index = cSavedGifs().indexOf(_data);
 	if (index >= 0) {
 		cRefSavedGifs().remove(index);
 		Local::writeSavedGifs();
 
 		MTP::send(MTPmessages_SaveGif(_data->mtpInput(), MTP_bool(true)));
 	}
-	if (App::main()) emit App::main()->savedGifsUpdated();
+	AuthSession::Current().data().savedGifsUpdated().notify();
 }
 
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {

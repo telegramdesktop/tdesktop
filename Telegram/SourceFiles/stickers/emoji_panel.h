@@ -23,13 +23,9 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/twidget.h"
 #include "ui/effects/panel_animation.h"
 #include "mtproto/sender.h"
-#include "inline_bots/inline_bot_layout_item.h"
 #include "auth_session.h"
 
 namespace InlineBots {
-namespace Layout {
-class ItemBase;
-} // namespace Layout
 class Result;
 } // namespace InlineBots
 
@@ -46,17 +42,7 @@ class EmojiListWidget;
 class StickersListWidget;
 class GifsListWidget;
 
-using InlineResult = InlineBots::Result;
-using InlineResults = std::vector<std::unique_ptr<InlineResult>>;
-using InlineItem = InlineBots::Layout::ItemBase;
-
-struct InlineCacheEntry {
-	QString nextOffset;
-	QString switchPmText, switchPmStartToken;
-	InlineResults results;
-};
-
-class EmojiPanel : public TWidget, private MTP::Sender {
+class EmojiPanel : public TWidget {
 	Q_OBJECT
 
 public:
@@ -73,10 +59,8 @@ public:
 
 	void stickersInstalled(uint64 setId);
 
-	void queryInlineBot(UserData *bot, PeerData *peer, QString query);
-	void clearInlineBot();
-
 	bool overlaps(const QRect &globalRect) const;
+	void setInlineQueryPeer(PeerData *peer);
 
 	bool ui_isInlineItemBeingChosen();
 
@@ -102,7 +86,6 @@ public slots:
 
 private slots:
 	void hideByTimerOrLeave();
-	void refreshSavedGifs();
 
 	void onWndActiveChanged();
 	void onScroll();
@@ -111,9 +94,6 @@ private slots:
 
 	void onSaveConfig();
 	void onSaveConfigDelayed(int delay);
-
-	void onInlineRequest();
-	void onEmptyInlineRows();
 
 signals:
 	void emojiSelected(EmojiPtr emoji);
@@ -255,19 +235,6 @@ private:
 
 	QTimer _saveConfigTimer;
 
-	// inline bots
-	std::map<QString, std::unique_ptr<InlineCacheEntry>> _inlineCache;
-	QTimer _inlineRequestTimer;
-
-	void inlineBotChanged();
-	int32 showInlineRows(bool newResults);
-	bool refreshInlineRows(int32 *added = 0);
-	UserData *_inlineBot = nullptr;
-	PeerData *_inlineQueryPeer = nullptr;
-	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
-	mtpRequestId _inlineRequestId = 0;
-	void inlineResultsDone(const MTPmessages_BotResults &result);
-
 };
 
 class EmojiPanel::Inner : public TWidget {
@@ -291,6 +258,11 @@ public:
 	void hideFinished();
 	void panelHideFinished();
 	virtual void clearSelection() = 0;
+
+	virtual void afterShown() {
+	}
+	virtual void beforeHiding() {
+	}
 
 	virtual object_ptr<InnerFooter> createFooter() = 0;
 

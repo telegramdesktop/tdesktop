@@ -22,6 +22,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 
 #include "styles/style_stickers.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
 #include "boxes/stickers_box.h"
 #include "inline_bots/inline_bot_result.h"
@@ -34,8 +35,10 @@ namespace ChatHelpers {
 namespace {
 
 constexpr auto kSaveChosenTabTimeout = 1000;
+constexpr auto kSearchRequestDelay = 400;
 constexpr auto kStickersPanelPerRow = Stickers::kPanelPerRow;
 constexpr auto kInlineItemsMaxPerRow = 5;
+constexpr auto kSearchBotUsername = "gif";
 
 } // namespace
 
@@ -43,20 +46,67 @@ class GifsListWidget::Footer : public EmojiPanel::InnerFooter {
 public:
 	Footer(gsl::not_null<GifsListWidget*> parent);
 
+	void stealFocus();
+	void returnFocus();
+
 protected:
+	void paintEvent(QPaintEvent *e) override;
+
 	void processPanelHideFinished() override;
 
 private:
 	gsl::not_null<GifsListWidget*> _pan;
 
+	object_ptr<Ui::InputField> _field;
+	object_ptr<Ui::CrossButton> _cancel;
+
+	QPointer<QWidget> _focusTakenFrom;
+
 };
 
 GifsListWidget::Footer::Footer(gsl::not_null<GifsListWidget*> parent) : InnerFooter(parent)
-, _pan(parent) {
+, _pan(parent)
+, _field(this, st::gifsSearchField, lang(lng_gifs_search))
+, _cancel(this, st::gifsSearchCancel) {
+	_field->resize(width() - st::gifsSearchFieldPosition.x() - st::gifsSearchCancelPosition.x() - st::gifsSearchCancel.width, _field->height());
+	_field->moveToLeft(st::gifsSearchFieldPosition.x(), st::gifsSearchFieldPosition.y());
+	connect(_field, &Ui::InputField::submitted, this, [this](bool ctrlShiftEnter) {
+		_pan->sendInlineRequest();
+	});
+	connect(_field, &Ui::InputField::cancelled, this, [this] {
+		if (_field->getLastText().isEmpty()) {
+			emit _pan->cancelled();
+		} else {
+			_field->setText(QString());
+		}
+	});
+	connect(_field, &Ui::InputField::changed, this, [this] {
+		_cancel->toggleAnimated(!_field->getLastText().isEmpty());
+		_pan->searchForGifs(_field->getLastText());
+	});
+	_cancel->moveToRight(st::gifsSearchCancelPosition.x(), st::gifsSearchCancelPosition.y());
+}
+
+void GifsListWidget::Footer::stealFocus() {
+	if (!_focusTakenFrom) {
+		_focusTakenFrom = QApplication::focusWidget();
+	}
+	_field->setFocus();
+}
+
+void GifsListWidget::Footer::returnFocus() {
+	if (_focusTakenFrom) {
+		_focusTakenFrom->setFocus();
+	}
+}
+
+void GifsListWidget::Footer::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+	st::gifsSearchIcon.paint(p, st::gifsSearchIconPosition.x(), st::gifsSearchIconPosition.y(), width());
 }
 
 void GifsListWidget::Footer::processPanelHideFinished() {
-	// TODO Clear search
+	_field->setText(QString());
 }
 
 GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
@@ -72,6 +122,12 @@ GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
 	_updateInlineItems.setSingleShot(true);
 	connect(&_updateInlineItems, SIGNAL(timeout()), this, SLOT(onUpdateInlineItems()));
 
+	_inlineRequestTimer.setSingleShot(true);
+	connect(&_inlineRequestTimer, &QTimer::timeout, this, [this] { sendInlineRequest(); });
+
+	subscribe(AuthSession::Current().data().savedGifsUpdated(), [this] {
+		refreshSavedGifs();
+	});
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 	});
@@ -90,9 +146,13 @@ void GifsListWidget::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	if (top != getVisibleTop()) {
 		_lastScrolled = getms();
 	}
-	auto visibleHeight = (visibleBottom - visibleTop);
-	if (visibleBottom + visibleHeight > height()) {
-//		onInlineRequest(); // TODO
+	checkLoadMore();
+}
+
+void GifsListWidget::checkLoadMore() {
+	auto visibleHeight = (getVisibleBottom() - getVisibleTop());
+	if (getVisibleBottom() + visibleHeight > height()) {
+		sendInlineRequest();
 	}
 }
 
@@ -103,11 +163,8 @@ int GifsListWidget::countHeight() {
 	}
 	auto minimalLastHeight = (visibleHeight - st::stickerPanPadding);
 	auto result = st::stickerPanPadding;
-	if (_switchPmButton) {
-		result += _switchPmButton->height() + st::inlineResultsSkip;
-	}
-	for (int i = 0, l = _inlineRows.count(); i < l; ++i) {
-		result += _inlineRows[i].height;
+	for (int i = 0, l = _rows.count(); i < l; ++i) {
+		result += _rows[i].height;
 	}
 	return qMax(minimalLastHeight, result) + st::stickerPanPadding;
 }
@@ -116,6 +173,56 @@ GifsListWidget::~GifsListWidget() {
 	clearInlineRows(true);
 	deleteUnusedGifLayouts();
 	deleteUnusedInlineLayouts();
+}
+
+void GifsListWidget::cancelGifsSearch() {
+	if (_inlineRequestId) {
+		request(_inlineRequestId).cancel();
+		_inlineRequestId = 0;
+	}
+	_inlineRequestTimer.stop();
+	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
+	_inlineCache.clear();
+	refreshInlineRows(nullptr, true);
+}
+
+void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
+	_inlineRequestId = 0;
+
+	auto it = _inlineCache.find(_inlineQuery);
+	auto adding = (it != _inlineCache.cend());
+	if (result.type() == mtpc_messages_botResults) {
+		auto &d = result.c_messages_botResults();
+		auto &v = d.vresults.v;
+		auto queryId = d.vquery_id.v;
+
+		if (it == _inlineCache.cend()) {
+			it = _inlineCache.emplace(_inlineQuery, std::make_unique<InlineCacheEntry>()).first;
+		}
+		auto entry = it->second.get();
+		entry->nextOffset = qs(d.vnext_offset);
+		if (auto count = v.size()) {
+			entry->results.reserve(entry->results.size() + count);
+		}
+		auto added = 0;
+		for_const (const auto &res, v) {
+			if (auto result = InlineBots::Result::create(queryId, res)) {
+				++added;
+				entry->results.push_back(std::move(result));
+			}
+		}
+
+		if (!added) {
+			entry->nextOffset = QString();
+		}
+	} else if (adding) {
+		it->second->nextOffset = QString();
+	}
+
+	if (!showInlineRows(!adding)) {
+		it->second->nextOffset = QString();
+	}
+	checkLoadMore();
 }
 
 void GifsListWidget::paintEvent(QPaintEvent *e) {
@@ -127,7 +234,7 @@ void GifsListWidget::paintEvent(QPaintEvent *e) {
 }
 
 void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
-	if (_inlineRows.isEmpty() && !_switchPmButton) {
+	if (_rows.isEmpty()) {
 		p.setFont(st::normalFont);
 		p.setPen(st::noContactsColor);
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
@@ -137,14 +244,10 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
 	auto top = st::stickerPanPadding;
-	if (_switchPmButton) {
-		top += _switchPmButton->height() + st::inlineResultsSkip;
-	}
-
 	auto fromx = rtl() ? (width() - clip.x() - clip.width()) : clip.x();
 	auto tox = rtl() ? (width() - clip.x()) : (clip.x() + clip.width());
-	for (auto row = 0, rows = _inlineRows.size(); row != rows; ++row) {
-		auto &inlineRow = _inlineRows[row];
+	for (auto row = 0, rows = _rows.size(); row != rows; ++row) {
+		auto &inlineRow = _rows[row];
 		if (top >= clip.top() + clip.height()) {
 			break;
 		}
@@ -210,11 +313,11 @@ void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void GifsListWidget::selectInlineResult(int row, int column) {
-	if (row >= _inlineRows.size() || column >= _inlineRows.at(row).items.size()) {
+	if (row >= _rows.size() || column >= _rows[row].items.size()) {
 		return;
 	}
 
-	auto item = _inlineRows[row].items[column];
+	auto item = _rows[row].items[column];
 	if (auto photo = item->getPhoto()) {
 		if (photo->medium->loaded() || photo->thumb->loaded()) {
 			emit selected(photo);
@@ -232,7 +335,7 @@ void GifsListWidget::selectInlineResult(int row, int column) {
 		}
 	} else if (auto inlineResult = item->getResult()) {
 		if (inlineResult->onChoose(item)) {
-			emit selected(inlineResult, _inlineBot);
+			emit selected(inlineResult, _searchBot);
 		}
 	}
 }
@@ -258,8 +361,8 @@ void GifsListWidget::enterFromChildEvent(QEvent *e, QWidget *child) {
 void GifsListWidget::clearSelection() {
 	if (_selected >= 0) {
 		int srow = _selected / MatrixRowShift, scol = _selected % MatrixRowShift;
-		t_assert(srow >= 0 && srow < _inlineRows.size() && scol >= 0 && scol < _inlineRows.at(srow).items.size());
-		ClickHandler::clearActive(_inlineRows.at(srow).items.at(scol));
+		t_assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows[srow].items.size());
+		ClickHandler::clearActive(_rows[srow].items[scol]);
 		setCursor(style::cur_default);
 	}
 	_selected = _pressed = -1;
@@ -295,18 +398,18 @@ void GifsListWidget::processPanelHideFinished() {
 	}
 }
 
-bool GifsListWidget::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth) {
-	InlineItem *layout = nullptr;
+bool GifsListWidget::inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, Row &row, int32 &sumWidth) {
+	LayoutItem *layout = nullptr;
 	if (savedGif) {
-		layout = layoutPrepareSavedGif(savedGif, (_inlineRows.size() * MatrixRowShift) + row.items.size());
+		layout = layoutPrepareSavedGif(savedGif, (_rows.size() * MatrixRowShift) + row.items.size());
 	} else if (result) {
-		layout = layoutPrepareInlineResult(result, (_inlineRows.size() * MatrixRowShift) + row.items.size());
+		layout = layoutPrepareInlineResult(result, (_rows.size() * MatrixRowShift) + row.items.size());
 	}
 	if (!layout) return false;
 
 	layout->preload();
 	if (inlineRowFinalize(row, sumWidth, layout->isFullLine())) {
-		layout->setPosition(_inlineRows.size() * MatrixRowShift);
+		layout->setPosition(_rows.size() * MatrixRowShift);
 	}
 
 	sumWidth += layout->maxWidth();
@@ -318,14 +421,14 @@ bool GifsListWidget::inlineRowsAddItem(DocumentData *savedGif, InlineResult *res
 	return true;
 }
 
-bool GifsListWidget::inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force) {
+bool GifsListWidget::inlineRowFinalize(Row &row, int32 &sumWidth, bool force) {
 	if (row.items.isEmpty()) return false;
 
 	auto full = (row.items.size() >= kInlineItemsMaxPerRow);
 	auto big = (sumWidth >= st::emojiPanWidth - st::emojiScroll.width - st::inlineResultsLeft);
 	if (full || big || force) {
-		_inlineRows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
-		row = InlineRow();
+		_rows.push_back(layoutInlineRow(row, (full || big) ? sumWidth : 0));
+		row = Row();
 		row.items.reserve(kInlineItemsMaxPerRow);
 		sumWidth = 0;
 		return true;
@@ -339,8 +442,8 @@ void GifsListWidget::refreshSavedGifs() {
 
 		auto &saved = cSavedGifs();
 		if (!saved.isEmpty()) {
-			_inlineRows.reserve(saved.size());
-			auto row = InlineRow();
+			_rows.reserve(saved.size());
+			auto row = Row();
 			row.items.reserve(kInlineItemsMaxPerRow);
 			auto sumWidth = 0;
 			for_const (auto &gif, saved) {
@@ -350,16 +453,19 @@ void GifsListWidget::refreshSavedGifs() {
 		}
 		deleteUnusedGifLayouts();
 
-		int32 h = countHeight();
-		if (h != height()) resize(width(), h);
+		auto newHeight = countHeight();
+		if (newHeight != height()) {
+			resize(width(), newHeight);
+		}
 
 		update();
 	}
-	updateSelected();
-}
 
-void GifsListWidget::inlineBotChanged() {
-	refreshInlineRows(nullptr, nullptr, true);
+	if (isVisible()) {
+		updateSelected();
+	} else {
+		preloadImages();
+	}
 }
 
 void GifsListWidget::clearInlineRows(bool resultsDeleted) {
@@ -367,19 +473,19 @@ void GifsListWidget::clearInlineRows(bool resultsDeleted) {
 		_selected = _pressed = -1;
 	} else {
 		clearSelection();
-		for_const (auto &row, _inlineRows) {
+		for_const (auto &row, _rows) {
 			for_const (auto &item, row.items) {
 				item->setPosition(-1);
 			}
 		}
 	}
-	_inlineRows.clear();
+	_rows.clear();
 }
 
-InlineItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
+GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *doc, int32 position) {
 	auto it = _gifLayouts.find(doc);
 	if (it == _gifLayouts.cend()) {
-		if (auto layout = InlineItem::createLayoutGif(this, doc)) {
+		if (auto layout = LayoutItem::createLayoutGif(this, doc)) {
 			it = _gifLayouts.emplace(doc, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
@@ -392,10 +498,10 @@ InlineItem *GifsListWidget::layoutPrepareSavedGif(DocumentData *doc, int32 posit
 	return it->second.get();
 }
 
-InlineItem *GifsListWidget::layoutPrepareInlineResult(InlineResult *result, int32 position) {
+GifsListWidget::LayoutItem *GifsListWidget::layoutPrepareInlineResult(InlineResult *result, int32 position) {
 	auto it = _inlineLayouts.find(result);
 	if (it == _inlineLayouts.cend()) {
-		if (auto layout = InlineItem::createLayout(this, result, _inlineWithThumb)) {
+		if (auto layout = LayoutItem::createLayout(this, result, _inlineWithThumb)) {
 			it = _inlineLayouts.emplace(result, std::move(layout)).first;
 			it->second->initDimensions();
 		} else {
@@ -409,7 +515,7 @@ InlineItem *GifsListWidget::layoutPrepareInlineResult(InlineResult *result, int3
 }
 
 void GifsListWidget::deleteUnusedGifLayouts() {
-	if (_inlineRows.isEmpty() || _section != Section::Gifs) { // delete all
+	if (_rows.isEmpty() || _section != Section::Gifs) { // delete all
 		_gifLayouts.clear();
 	} else {
 		for (auto i = _gifLayouts.begin(); i != _gifLayouts.cend();) {
@@ -423,7 +529,7 @@ void GifsListWidget::deleteUnusedGifLayouts() {
 }
 
 void GifsListWidget::deleteUnusedInlineLayouts() {
-	if (_inlineRows.isEmpty() || _section == Section::Gifs) { // delete all
+	if (_rows.isEmpty() || _section == Section::Gifs) { // delete all
 		_inlineLayouts.clear();
 	} else {
 		for (auto i = _inlineLayouts.begin(); i != _inlineLayouts.cend();) {
@@ -436,7 +542,7 @@ void GifsListWidget::deleteUnusedInlineLayouts() {
 	}
 }
 
-GifsListWidget::InlineRow &GifsListWidget::layoutInlineRow(InlineRow &row, int32 sumWidth) {
+GifsListWidget::Row &GifsListWidget::layoutInlineRow(Row &row, int32 sumWidth) {
 	auto count = int(row.items.size());
 	t_assert(count <= kInlineItemsMaxPerRow);
 
@@ -456,7 +562,7 @@ GifsListWidget::InlineRow &GifsListWidget::layoutInlineRow(InlineRow &row, int32
 		int index = indices[i];
 		int w = sumWidth ? (row.items.at(index)->maxWidth() * availw / sumWidth) : row.items.at(index)->maxWidth();
 		int actualw = qMax(w, int(st::inlineResultsMinWidth));
-		row.height = qMax(row.height, row.items.at(index)->resizeGetHeight(actualw));
+		row.height = qMax(row.height, row.items[index]->resizeGetHeight(actualw));
 		if (sumWidth) {
 			availw -= actualw;
 			sumWidth -= row.items.at(index)->maxWidth();
@@ -470,14 +576,14 @@ GifsListWidget::InlineRow &GifsListWidget::layoutInlineRow(InlineRow &row, int32
 }
 
 void GifsListWidget::preloadImages() {
-	for (auto row = 0, rows = _inlineRows.size(); row != rows; ++row) {
-		for (auto col = 0, cols = _inlineRows[row].items.size(); col != cols; ++col) {
-			_inlineRows[row].items[col]->preload();
+	for (auto row = 0, rows = _rows.size(); row != rows; ++row) {
+		for (auto col = 0, cols = _rows[row].items.size(); col != cols; ++col) {
+			_rows[row].items[col]->preload();
 		}
 	}
 }
 
-void GifsListWidget::hideInlineRowsPanel() {
+void GifsListWidget::switchToSavedGifs() {
 	clearInlineRows(false);
 	_section = Section::Gifs;
 	refreshSavedGifs();
@@ -485,66 +591,25 @@ void GifsListWidget::hideInlineRowsPanel() {
 	emit scrollUpdated();
 }
 
-void GifsListWidget::clearInlineRowsPanel() {
-	clearInlineRows(false);
-}
-
-void GifsListWidget::refreshSwitchPmButton(const InlineCacheEntry *entry) {
-	if (!entry || entry->switchPmText.isEmpty()) {
-		_switchPmButton.destroy();
-		_switchPmStartToken.clear();
-	} else {
-		if (!_switchPmButton) {
-			_switchPmButton.create(this, QString(), st::switchPmButton);
-			_switchPmButton->show();
-			_switchPmButton->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
-			connect(_switchPmButton, SIGNAL(clicked()), this, SLOT(onSwitchPm()));
-		}
-		_switchPmButton->setText(entry->switchPmText); // doesn't perform text.toUpper()
-		_switchPmStartToken = entry->switchPmStartToken;
-		auto buttonTop = st::stickerPanPadding;
-		_switchPmButton->move(st::inlineResultsLeft - st::buttonRadius, buttonTop);
-	}
-	update();
-}
-
-int GifsListWidget::refreshInlineRows(UserData *bot, const InlineCacheEntry *entry, bool resultsDeleted) {
-	_inlineBot = bot;
-	refreshSwitchPmButton(entry);
-	auto clearResults = [this, entry]() {
-		if (!entry) {
-			return true;
-		}
-		if (entry->results.empty() && entry->switchPmText.isEmpty()) {
-			if (!_inlineBot) {
-				return true;
-			}
-		}
-		return false;
-	};
-	auto clearResultsResult = clearResults();
-	if (clearResultsResult) {
+int GifsListWidget::refreshInlineRows(const InlineCacheEntry *entry, bool resultsDeleted) {
+	if (!entry) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 			deleteUnusedInlineLayouts();
 		}
-		emit emptyInlineRows();
+		switchToSavedGifs();
 		return 0;
 	}
 
 	clearSelection();
 
-	t_assert(_inlineBot != 0);
-	_inlineBotTitle = lng_inline_bot_results(lt_inline_bot, _inlineBot->username.isEmpty() ? _inlineBot->name : ('@' + _inlineBot->username));
-
 	_section = Section::Inlines;
 	auto count = int(entry->results.size());
 	auto from = validateExistingInlineRows(entry->results);
 	auto added = 0;
-
 	if (count) {
-		_inlineRows.reserve(count);
-		auto row = InlineRow();
+		_rows.reserve(count);
+		auto row = Row();
 		row.items.reserve(kInlineItemsMaxPerRow);
 		auto sumWidth = 0;
 		for (auto i = from; i != count; ++i) {
@@ -568,52 +633,52 @@ int GifsListWidget::refreshInlineRows(UserData *bot, const InlineCacheEntry *ent
 int GifsListWidget::validateExistingInlineRows(const InlineResults &results) {
 	int count = results.size(), until = 0, untilrow = 0, untilcol = 0;
 	for (; until < count;) {
-		if (untilrow >= _inlineRows.size() || _inlineRows[untilrow].items[untilcol]->getResult() != results[until].get()) {
+		if (untilrow >= _rows.size() || _rows[untilrow].items[untilcol]->getResult() != results[until].get()) {
 			break;
 		}
 		++until;
-		if (++untilcol == _inlineRows[untilrow].items.size()) {
+		if (++untilcol == _rows[untilrow].items.size()) {
 			++untilrow;
 			untilcol = 0;
 		}
 	}
 	if (until == count) { // all items are layed out
-		if (untilrow == _inlineRows.size()) { // nothing changed
+		if (untilrow == _rows.size()) { // nothing changed
 			return until;
 		}
 
-		for (int i = untilrow, l = _inlineRows.size(), skip = untilcol; i < l; ++i) {
-			for (int j = 0, s = _inlineRows[i].items.size(); j < s; ++j) {
+		for (int i = untilrow, l = _rows.size(), skip = untilcol; i < l; ++i) {
+			for (int j = 0, s = _rows[i].items.size(); j < s; ++j) {
 				if (skip) {
 					--skip;
 				} else {
-					_inlineRows[i].items[j]->setPosition(-1);
+					_rows[i].items[j]->setPosition(-1);
 				}
 			}
 		}
 		if (!untilcol) { // all good rows are filled
-			_inlineRows.resize(untilrow);
+			_rows.resize(untilrow);
 			return until;
 		}
-		_inlineRows.resize(untilrow + 1);
-		_inlineRows[untilrow].items.resize(untilcol);
-		_inlineRows[untilrow] = layoutInlineRow(_inlineRows[untilrow]);
+		_rows.resize(untilrow + 1);
+		_rows[untilrow].items.resize(untilcol);
+		_rows[untilrow] = layoutInlineRow(_rows[untilrow]);
 		return until;
 	}
 	if (untilrow && !untilcol) { // remove last row, maybe it is not full
 		--untilrow;
-		untilcol = _inlineRows[untilrow].items.size();
+		untilcol = _rows[untilrow].items.size();
 	}
 	until -= untilcol;
 
-	for (int i = untilrow, l = _inlineRows.size(); i < l; ++i) {
-		for (int j = 0, s = _inlineRows[i].items.size(); j < s; ++j) {
-			_inlineRows[i].items[j]->setPosition(-1);
+	for (int i = untilrow, l = _rows.size(); i < l; ++i) {
+		for (int j = 0, s = _rows[i].items.size(); j < s; ++j) {
+			_rows[i].items[j]->setPosition(-1);
 		}
 	}
-	_inlineRows.resize(untilrow);
+	_rows.resize(untilrow);
 
-	if (_inlineRows.isEmpty()) {
+	if (_rows.isEmpty()) {
 		_inlineWithThumb = false;
 		for (int i = until; i < count; ++i) {
 			if (results.at(i)->hasThumbDisplay()) {
@@ -625,20 +690,20 @@ int GifsListWidget::validateExistingInlineRows(const InlineResults &results) {
 	return until;
 }
 
-void GifsListWidget::inlineItemLayoutChanged(const InlineItem *layout) {
+void GifsListWidget::inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) {
 	if (_selected < 0 || !isVisible()) {
 		return;
 	}
 
 	int row = _selected / MatrixRowShift, col = _selected % MatrixRowShift;
-	if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
-		if (layout == _inlineRows.at(row).items.at(col)) {
+	if (row < _rows.size() && col < _rows[row].items.size()) {
+		if (layout == _rows[row].items[col]) {
 			updateSelected();
 		}
 	}
 }
 
-void GifsListWidget::inlineItemRepaint(const InlineItem *layout) {
+void GifsListWidget::inlineItemRepaint(const InlineBots::Layout::ItemBase *layout) {
 	auto ms = getms();
 	if (_lastScrolled + 100 <= ms) {
 		update();
@@ -647,7 +712,7 @@ void GifsListWidget::inlineItemRepaint(const InlineItem *layout) {
 	}
 }
 
-bool GifsListWidget::inlineItemVisible(const InlineItem *layout) {
+bool GifsListWidget::inlineItemVisible(const InlineBots::Layout::ItemBase *layout) {
 	auto position = layout->position();
 	if (position < 0 || !isVisible()) {
 		return false;
@@ -655,15 +720,113 @@ bool GifsListWidget::inlineItemVisible(const InlineItem *layout) {
 
 	auto row = position / MatrixRowShift;
 	auto col = position % MatrixRowShift;
-	t_assert((row < _inlineRows.size()) && (col < _inlineRows[row].items.size()));
+	t_assert((row < _rows.size()) && (col < _rows[row].items.size()));
 
-	auto &inlineItems = _inlineRows[row].items;
+	auto &inlineItems = _rows[row].items;
 	auto top = 0;
 	for (auto i = 0; i != row; ++i) {
-		top += _inlineRows[i].height;
+		top += _rows[i].height;
 	}
 
-	return (top < getVisibleBottom()) && (top + _inlineRows[row].items[col]->height() > getVisibleTop());
+	return (top < getVisibleBottom()) && (top + _rows[row].items[col]->height() > getVisibleTop());
+}
+
+void GifsListWidget::afterShown() {
+	if (_footer) {
+		_footer->stealFocus();
+	}
+}
+
+void GifsListWidget::beforeHiding() {
+	if (_footer) {
+		_footer->returnFocus();
+	}
+}
+
+bool GifsListWidget::refreshInlineRows(int32 *added) {
+	auto it = _inlineCache.find(_inlineQuery);
+	const InlineCacheEntry *entry = nullptr;
+	if (it != _inlineCache.cend()) {
+		if (!it->second->results.empty()) {
+			entry = it->second.get();
+		}
+		_inlineNextOffset = it->second->nextOffset;
+	}
+	auto result = refreshInlineRows(entry, false);
+	if (added) *added = result;
+	return (entry != nullptr);
+}
+
+int32 GifsListWidget::showInlineRows(bool newResults) {
+	auto added = 0;
+	auto clear = !refreshInlineRows(&added);
+	if (newResults) {
+		scrollToY(0);
+	}
+	return added;
+}
+
+void GifsListWidget::searchForGifs(const QString &query) {
+	if (query.isEmpty()) {
+		cancelGifsSearch();
+		return;
+	}
+
+	if (_inlineQuery != query) {
+		if (_inlineRequestId) {
+			request(_inlineRequestId).cancel();
+			_inlineRequestId = 0;
+		}
+		if (_inlineCache.find(query) != _inlineCache.cend()) {
+			_inlineRequestTimer.stop();
+			_inlineQuery = _inlineNextQuery = query;
+			showInlineRows(true);
+		} else {
+			_inlineNextQuery = query;
+			_inlineRequestTimer.start(kSearchRequestDelay);
+		}
+	}
+
+	if (!_searchBot && !_searchBotRequestId) {
+		_searchBotRequestId = request(MTPcontacts_ResolveUsername(MTP_string(kSearchBotUsername))).done([this](const MTPcontacts_ResolvedPeer &result) {
+			Expects(result.type() == mtpc_contacts_resolvedPeer);
+			auto &data = result.c_contacts_resolvedPeer();
+			App::feedUsers(data.vusers);
+			App::feedChats(data.vchats);
+			if (auto peer = App::peerLoaded(peerFromMTP(data.vpeer))) {
+				if (auto user = peer->asUser()) {
+					_searchBot = user;
+				}
+			}
+		}).send();
+	}
+}
+
+void GifsListWidget::sendInlineRequest() {
+	if (_inlineRequestId || !_inlineQueryPeer || _inlineNextQuery.isEmpty()) {
+		return;
+	}
+	if (!_searchBot) {
+		// Wait for the bot being resolved.
+		_inlineRequestTimer.start(kSearchRequestDelay);
+		return;
+	}
+	_inlineRequestTimer.stop();
+	_inlineQuery = _inlineNextQuery;
+
+	auto nextOffset = QString();
+	auto it = _inlineCache.find(_inlineQuery);
+	if (it != _inlineCache.cend()) {
+		nextOffset = it->second->nextOffset;
+		if (nextOffset.isEmpty()) return;
+	}
+
+	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _searchBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
+		inlineResultsDone(result);
+	}).fail([this](const RPCError &error) {
+		// show error?
+		_inlineRequestId = 0;
+	}).handleAllErrors().send();
 }
 
 void GifsListWidget::refreshRecent() {
@@ -682,32 +845,29 @@ void GifsListWidget::updateSelected() {
 
 	int sx = (rtl() ? width() - p.x() : p.x()) - (st::inlineResultsLeft - st::buttonRadius);
 	int sy = p.y() - st::stickerPanPadding;
-	if (_switchPmButton) {
-		sy -= _switchPmButton->height() + st::inlineResultsSkip;
-	}
 	int row = -1, col = -1, sel = -1;
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
 	HistoryCursorState cursor = HistoryDefaultCursorState;
 	if (sy >= 0) {
 		row = 0;
-		for (int rows = _inlineRows.size(); row < rows; ++row) {
-			if (sy < _inlineRows.at(row).height) {
+		for (int rows = _rows.size(); row < rows; ++row) {
+			if (sy < _rows[row].height) {
 				break;
 			}
-			sy -= _inlineRows.at(row).height;
+			sy -= _rows[row].height;
 		}
 	}
-	if (sx >= 0 && row >= 0 && row < _inlineRows.size()) {
-		auto &inlineItems = _inlineRows[row].items;
+	if (sx >= 0 && row >= 0 && row < _rows.size()) {
+		auto &inlineItems = _rows[row].items;
 		col = 0;
 		for (int cols = inlineItems.size(); col < cols; ++col) {
-			int width = inlineItems.at(col)->width();
+			int width = inlineItems[col]->width();
 			if (sx < width) {
 				break;
 			}
 			sx -= width;
-			if (inlineItems.at(col)->hasRightSkip()) {
+			if (inlineItems[col]->hasRightSkip()) {
 				sx -= st::inlineResultsSkip;
 			}
 		}
@@ -725,18 +885,18 @@ void GifsListWidget::updateSelected() {
 	int scol = (_selected >= 0) ? (_selected % MatrixRowShift) : -1;
 	if (_selected != sel) {
 		if (srow >= 0 && scol >= 0) {
-			t_assert(srow >= 0 && srow < _inlineRows.size() && scol >= 0 && scol < _inlineRows.at(srow).items.size());
-			_inlineRows[srow].items[scol]->update();
+			t_assert(srow >= 0 && srow < _rows.size() && scol >= 0 && scol < _rows[srow].items.size());
+			_rows[srow].items[scol]->update();
 		}
 		_selected = sel;
 		if (row >= 0 && col >= 0) {
-			t_assert(row >= 0 && row < _inlineRows.size() && col >= 0 && col < _inlineRows.at(row).items.size());
-			_inlineRows[row].items[col]->update();
+			t_assert(row >= 0 && row < _rows.size() && col >= 0 && col < _rows[row].items.size());
+			_rows[row].items[col]->update();
 		}
 		if (_previewShown && _selected >= 0 && _pressed != _selected) {
 			_pressed = _selected;
 			if (row >= 0 && col >= 0) {
-				auto layout = _inlineRows.at(row).items.at(col);
+				auto layout = _rows[row].items[col];
 				if (auto previewDocument = layout->getPreviewDocument()) {
 					Ui::showMediaPreview(previewDocument);
 				} else if (auto previewPhoto = layout->getPreviewPhoto()) {
@@ -753,8 +913,8 @@ void GifsListWidget::updateSelected() {
 void GifsListWidget::onPreview() {
 	if (_pressed < 0) return;
 	int row = _pressed / MatrixRowShift, col = _pressed % MatrixRowShift;
-	if (row < _inlineRows.size() && col < _inlineRows.at(row).items.size()) {
-		auto layout = _inlineRows.at(row).items.at(col);
+	if (row < _rows.size() && col < _rows[row].items.size()) {
+		auto layout = _rows[row].items[col];
 		if (auto previewDocument = layout->getPreviewDocument()) {
 			Ui::showMediaPreview(previewDocument);
 			_previewShown = true;
@@ -771,13 +931,6 @@ void GifsListWidget::onUpdateInlineItems() {
 		update();
 	} else {
 		_updateInlineItems.start(_lastScrolled + 100 - ms);
-	}
-}
-
-void GifsListWidget::onSwitchPm() {
-	if (_inlineBot && _inlineBot->botInfo) {
-		_inlineBot->botInfo->startToken = _switchPmStartToken;
-		Ui::showPeerHistory(_inlineBot, ShowAndStartBotMsgId);
 	}
 }
 

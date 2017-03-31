@@ -21,6 +21,14 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "stickers/emoji_panel.h"
+#include "inline_bots/inline_bot_layout_item.h"
+
+namespace InlineBots {
+namespace Layout {
+class ItemBase;
+} // namespace Layout
+class Result;
+} // namespace InlineBots
 
 namespace Ui {
 class RoundButton;
@@ -28,7 +36,7 @@ class RoundButton;
 
 namespace ChatHelpers {
 
-class GifsListWidget : public EmojiPanel::Inner, public InlineBots::Layout::Context, private base::Subscriber {
+class GifsListWidget : public EmojiPanel::Inner, public InlineBots::Layout::Context, private base::Subscriber, private MTP::Sender {
 	Q_OBJECT
 
 public:
@@ -39,17 +47,20 @@ public:
 	void clearSelection() override;
 	object_ptr<EmojiPanel::InnerFooter> createFooter() override;
 
-	void refreshSavedGifs();
-	int refreshInlineRows(UserData *bot, const InlineCacheEntry *results, bool resultsDeleted);
-	void inlineBotChanged();
-	void hideInlineRowsPanel();
-	void clearInlineRowsPanel();
-
 	void setVisibleTopBottom(int visibleTop, int visibleBottom) override;
 
-	void inlineItemLayoutChanged(const InlineItem *layout) override;
-	void inlineItemRepaint(const InlineItem *layout) override;
-	bool inlineItemVisible(const InlineItem *layout) override;
+	void inlineItemLayoutChanged(const InlineBots::Layout::ItemBase *layout) override;
+	void inlineItemRepaint(const InlineBots::Layout::ItemBase *layout) override;
+	bool inlineItemVisible(const InlineBots::Layout::ItemBase *layout) override;
+
+	void afterShown() override;
+	void beforeHiding() override;
+
+	void setInlineQueryPeer(PeerData *peer) {
+		_inlineQueryPeer = peer;
+	}
+	void searchForGifs(const QString &query);
+	void sendInlineRequest();
 
 	~GifsListWidget();
 
@@ -70,12 +81,12 @@ protected:
 private slots:
 	void onPreview();
 	void onUpdateInlineItems();
-	void onSwitchPm();
 
 signals:
 	void selected(DocumentData *sticker);
 	void selected(PhotoData *photo);
 	void selected(InlineBots::Result *result, UserData *bot);
+	void cancelled();
 
 	void emptyInlineRows();
 	void scrollUpdated();
@@ -87,39 +98,50 @@ private:
 	};
 	class Footer;
 
+	using InlineResult = InlineBots::Result;
+	using InlineResults = std::vector<std::unique_ptr<InlineResult>>;
+	using LayoutItem = InlineBots::Layout::ItemBase;
+
+	struct InlineCacheEntry {
+		QString nextOffset;
+		InlineResults results;
+	};
+
+	void cancelGifsSearch();
+	void switchToSavedGifs();
+	void refreshSavedGifs();
+	int refreshInlineRows(const InlineCacheEntry *results, bool resultsDeleted);
+	void checkLoadMore();
+
+	int32 showInlineRows(bool newResults);
+	bool refreshInlineRows(int32 *added = 0);
+	void inlineResultsDone(const MTPmessages_BotResults &result);
+
 	void updateSelected();
 	void paintInlineItems(Painter &p, QRect clip);
-	void refreshSwitchPmButton(const InlineCacheEntry *entry);
 
 	Section _section = Section::Gifs;
-	UserData *_inlineBot;
-	QString _inlineBotTitle;
 	TimeMs _lastScrolled = 0;
 	QTimer _updateInlineItems;
 	bool _inlineWithThumb = false;
 
-	object_ptr<Ui::RoundButton> _switchPmButton = { nullptr };
-	QString _switchPmStartToken;
-
-	typedef QVector<InlineItem*> InlineItems;
-	struct InlineRow {
+	struct Row {
 		int height = 0;
-		InlineItems items;
+		QVector<LayoutItem*> items;
 	};
-	typedef QVector<InlineRow> InlineRows;
-	InlineRows _inlineRows;
+	QVector<Row> _rows;
 	void clearInlineRows(bool resultsDeleted);
 
-	std::map<DocumentData*, std::unique_ptr<InlineItem>> _gifLayouts;
-	InlineItem *layoutPrepareSavedGif(DocumentData *doc, int32 position);
+	std::map<DocumentData*, std::unique_ptr<LayoutItem>> _gifLayouts;
+	LayoutItem *layoutPrepareSavedGif(DocumentData *doc, int32 position);
 
-	std::map<InlineResult*, std::unique_ptr<InlineItem>> _inlineLayouts;
-	InlineItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
+	std::map<InlineResult*, std::unique_ptr<LayoutItem>> _inlineLayouts;
+	LayoutItem *layoutPrepareInlineResult(InlineResult *result, int32 position);
 
-	bool inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, InlineRow &row, int32 &sumWidth);
-	bool inlineRowFinalize(InlineRow &row, int32 &sumWidth, bool force = false);
+	bool inlineRowsAddItem(DocumentData *savedGif, InlineResult *result, Row &row, int32 &sumWidth);
+	bool inlineRowFinalize(Row &row, int32 &sumWidth, bool force = false);
 
-	InlineRow &layoutInlineRow(InlineRow &row, int32 sumWidth = 0);
+	Row &layoutInlineRow(Row &row, int32 sumWidth = 0);
 	void deleteUnusedGifLayouts();
 
 	void deleteUnusedInlineLayouts();
@@ -135,6 +157,15 @@ private:
 
 	QTimer _previewTimer;
 	bool _previewShown = false;
+
+	std::map<QString, std::unique_ptr<InlineCacheEntry>> _inlineCache;
+	QTimer _inlineRequestTimer;
+
+	UserData *_searchBot = nullptr;
+	mtpRequestId _searchBotRequestId = 0;
+	PeerData *_inlineQueryPeer = nullptr;
+	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
+	mtpRequestId _inlineRequestId = 0;
 
 };
 

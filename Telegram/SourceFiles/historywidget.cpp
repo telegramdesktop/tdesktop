@@ -3360,10 +3360,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 
 void HistoryWidget::start() {
 	connect(App::main(), SIGNAL(stickersUpdated()), this, SLOT(onStickersUpdated()));
-	connect(App::main(), SIGNAL(savedGifsUpdated()), _emojiPanel, SLOT(refreshSavedGifs()));
-
 	updateRecentStickers();
-	if (App::main()) emit App::main()->savedGifsUpdated();
+	AuthSession::Current().data().savedGifsUpdated().notify();
 
 	connect(App::api(), SIGNAL(fullPeerUpdated(PeerData*)), this, SLOT(onFullPeerUpdated(PeerData*)));
 }
@@ -4176,7 +4174,7 @@ void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
 
 	Local::writeSavedGifs();
 
-	if (App::main()) emit App::main()->savedGifsUpdated();
+	AuthSession::Current().data().savedGifsUpdated().notify();
 }
 
 void HistoryWidget::saveGif(DocumentData *doc) {
@@ -4430,6 +4428,7 @@ void HistoryWidget::showHistory(const PeerId &peerId, MsgId showAtMsgId, bool re
 		_peer = App::peer(peerId);
 		_channel = peerToChannel(_peer->id);
 		_canSendMessages = canSendMessages(_peer);
+		_emojiPanel->setInlineQueryPeer(_peer);
 	}
 	updateTopBarSelection();
 

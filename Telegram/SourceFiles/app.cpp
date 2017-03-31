@@ -1138,7 +1138,7 @@ namespace {
 			if (saved.size() > Global::SavedGifsLimit()) saved.pop_back();
 			Local::writeSavedGifs();
 
-			if (App::main()) emit App::main()->savedGifsUpdated();
+			AuthSession::Current().data().savedGifsUpdated().notify();
 			cSetLastSavedGifsUpdate(0);
 			App::main()->updateStickers();
 		}
@@ -1146,8 +1146,8 @@ namespace {
 
 	void checkSavedGif(HistoryItem *item) {
 		if (!item->Has<HistoryMessageForwarded>() && (item->out() || item->history()->peer == App::self())) {
-			if (HistoryMedia *media = item->getMedia()) {
-				if (DocumentData *doc = media->getDocument()) {
+			if (auto media = item->getMedia()) {
+				if (auto doc = media->getDocument()) {
 					if (doc->isGifv()) {
 						addSavedGif(doc);
 					}

@@ -39,6 +39,11 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 namespace InlineBots {
 namespace Layout {
 namespace internal {
+namespace {
+
+constexpr auto kInlineBotRequestDelay = 400;
+
+} // namespace
 
 Inner::Inner(QWidget *parent) : TWidget(parent) {
 	setMaxHeight(st::emojiPanMaxHeight - st::emojiCategory.height);
@@ -413,7 +418,6 @@ int Inner::refreshInlineRows(UserData *bot, const CacheEntry *entry, bool result
 	clearSelection();
 
 	t_assert(_inlineBot != 0);
-	_inlineBotTitle = lng_inline_bot_results(lt_inline_bot, _inlineBot->username.isEmpty() ? _inlineBot->name : ('@' + _inlineBot->username));
 
 	auto count = int(entry->results.size());
 	auto from = validateExistingInlineRows(entry->results);
@@ -1048,7 +1052,7 @@ void Widget::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
 			showInlineRows(true);
 		} else {
 			_inlineNextQuery = query;
-			_inlineRequestTimer.start(InlineBotRequestDelay);
+			_inlineRequestTimer.start(internal::kInlineBotRequestDelay);
 		}
 	}
 }

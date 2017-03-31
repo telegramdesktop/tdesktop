@@ -237,6 +237,43 @@ contactsAboutFg: windowSubTextFgOver;
 contactsAboutTop: 60px;
 contactsAboutBottom: 19px;
 
+contactsSearchField: InputField(defaultInputField) {
+	textBg: transparent;
+	textMargins: margins(2px, 7px, 2px, 0px);
+
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderFont: normalFont;
+
+	border: 0px;
+	borderActive: 0px;
+
+	heightMin: 32px;
+
+	font: normalFont;
+}
+contactsSearchCancel: CrossButton {
+	width: 44px;
+	height: 44px;
+
+	cross: CrossAnimation {
+		size: 36px;
+		skip: 12px;
+		stroke: 2px;
+		minScale: 0.3;
+	}
+	crossFg: boxTitleCloseFg;
+	crossFgOver: boxTitleCloseFgOver;
+	crossPosition: point(4px, 4px);
+
+	duration: 150;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: windowBgOver;
+	}
+}
 contactsMultiSelect: MultiSelect {
 	bg: boxSearchBg;
 	padding: margins(8px, 6px, 8px, 6px);
@@ -271,47 +308,12 @@ contactsMultiSelect: MultiSelect {
 	}
 	itemSkip: 8px;
 
-	field: InputField(defaultInputField) {
-		textBg: transparent;
-		textMargins: margins(2px, 7px, 2px, 0px);
-
-		placeholderFg: placeholderFg;
-		placeholderFgActive: placeholderFgActive;
-		placeholderFgError: placeholderFgActive;
-		placeholderMargins: margins(2px, 0px, 2px, 0px);
-		placeholderScale: 0.;
-		placeholderFont: normalFont;
-
-		border: 0px;
-		borderActive: 0px;
-
-		heightMin: 32px;
-
-		font: normalFont;
-	}
+	field: contactsSearchField;
 	fieldMinWidth: 42px;
 	fieldIcon: boxFieldSearchIcon;
 	fieldIconSkip: 36px;
 
-	fieldCancel: CrossButton {
-		width: 44px;
-		height: 44px;
-
-		cross: CrossAnimation {
-			size: 36px;
-			skip: 12px;
-			stroke: 2px;
-			minScale: 0.3;
-		}
-		crossFg: boxTitleCloseFg;
-		crossFgOver: boxTitleCloseFgOver;
-		crossPosition: point(4px, 4px);
-
-		duration: 150;
-		ripple: RippleAnimation(defaultRippleAnimation) {
-			color: windowBgOver;
-		}
-	}
+	fieldCancel: contactsSearchCancel;
 	fieldCancelSkip: 40px;
 }
 contactsPhotoCheckbox: RoundImageCheckbox {

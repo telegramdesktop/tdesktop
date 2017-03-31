@@ -413,7 +413,6 @@ signals:
 	void dialogRowReplaced(Dialogs::Row *oldRow, Dialogs::Row *newRow);
 	void dialogsUpdated();
 	void stickersUpdated();
-	void savedGifsUpdated();
 
 public slots:
 	void webPagesOrGamesUpdate();

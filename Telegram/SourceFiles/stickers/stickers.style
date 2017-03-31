@@ -211,3 +211,10 @@ inlineBotsScroll: ScrollArea(defaultSolidScroll) {
 	deltat: stickerPanPadding;
 	deltab: stickerPanPadding;
 }
+
+gifsSearchField: contactsSearchField;
+gifsSearchFieldPosition: point(42px, 7px);
+gifsSearchCancel: contactsSearchCancel;
+gifsSearchCancelPosition: point(1px, 1px);
+gifsSearchIcon: boxFieldSearchIcon;
+gifsSearchIconPosition: point(6px, 7px);

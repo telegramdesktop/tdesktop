@@ -212,10 +212,23 @@ class CrossButton : public RippleButton {
 public:
 	CrossButton(QWidget *parent, const style::CrossButton &st);
 
-	void showAnimated();
-	void showFast();
-	void hideAnimated();
-	void hideFast();
+	void showAnimated() {
+		toggleAnimated(true);
+	}
+	void hideAnimated() {
+		toggleAnimated(false);
+	}
+	void toggleAnimated(bool visible);
+	void showFast() {
+		toggleFast(true);
+	}
+	void hideFast() {
+		toggleFast(false);
+	}
+	void toggleFast(bool visible) {
+		toggleAnimated(visible);
+		_a_show.finish();
+	}
 
 	bool isShown() const {
 		return _shown;
@@ -230,7 +243,6 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
-	void startAnimation(bool shown);
 	void animationCallback();
 
 	const style::CrossButton &_st;

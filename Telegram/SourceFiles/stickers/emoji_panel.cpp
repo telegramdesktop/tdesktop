@@ -28,7 +28,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/scroll_area.h"
-#include "inline_bots/inline_bot_result.h"
 #include "stickers/stickers.h"
 #include "storage/localstorage.h"
 #include "lang.h"
@@ -332,15 +331,13 @@ EmojiPanel::EmojiPanel(QWidget *parent) : TWidget(parent)
 	connect(stickers(), SIGNAL(checkForHide()), this, SLOT(onCheckForHide()));
 	connect(gifs(), SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
 	connect(gifs(), SIGNAL(selected(PhotoData*)), this, SIGNAL(photoSelected(PhotoData*)));
-	connect(gifs(), SIGNAL(selected(InlineBots::Result*, UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*, UserData*)));
-	connect(gifs(), SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
+	connect(gifs(), SIGNAL(selected(InlineBots::Result*,UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)));
+	connect(gifs(), &GifsListWidget::cancelled, this, [this] {
+		hideAnimated();
+	});
 
 	_saveConfigTimer.setSingleShot(true);
 	connect(&_saveConfigTimer, SIGNAL(timeout()), this, SLOT(onSaveConfig()));
-
-	// inline bots
-	_inlineRequestTimer.setSingleShot(true);
-	connect(&_inlineRequestTimer, SIGNAL(timeout()), this, SLOT(onInlineRequest()));
 
 	if (cPlatform() == dbipMac || cPlatform() == dbipMacOld) {
 		connect(App::wnd()->windowHandle(), SIGNAL(activeChanged()), this, SLOT(onWndActiveChanged()));
@@ -436,6 +433,7 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 		_showAnimation.reset();
 		if (!switching && !opacityAnimating) {
 			showAll();
+			currentTab()->widget()->afterShown();
 		}
 	}
 
@@ -455,6 +453,7 @@ void EmojiPanel::paintEvent(QPaintEvent *e) {
 			_slideAnimation.reset();
 			if (!opacityAnimating) {
 				showAll();
+				currentTab()->widget()->afterShown();
 			}
 			InvokeQueued(this, [this] {
 				if (_hideAfterSlide && !_a_slide.animating()) {
@@ -567,15 +566,6 @@ void EmojiPanel::refreshStickers() {
 	if (isHidden() || _currentTabType != TabType::Stickers) {
 		stickers()->preloadImages();
 	}
-	update();
-}
-
-void EmojiPanel::refreshSavedGifs() {
-	gifs()->refreshSavedGifs();
-	if (isHidden() || _currentTabType != TabType::Gifs) {
-		gifs()->preloadImages();
-	}
-	update();
 }
 
 void EmojiPanel::opacityAnimationCallback() {
@@ -586,6 +576,7 @@ void EmojiPanel::opacityAnimationCallback() {
 			hideFinished();
 		} else if (!_a_show.animating() && !_a_slide.animating()) {
 			showAll();
+			currentTab()->widget()->afterShown();
 		}
 	}
 }
@@ -613,6 +604,9 @@ void EmojiPanel::prepareCache() {
 }
 
 void EmojiPanel::startOpacityAnimation(bool hiding) {
+	if (!_scroll->isHidden()) {
+		currentTab()->widget()->beforeHiding();
+	}
 	_hiding = false;
 	prepareCache();
 	_hiding = hiding;
@@ -747,6 +741,10 @@ void EmojiPanel::stickersInstalled(uint64 setId) {
 	showAnimated();
 }
 
+void EmojiPanel::setInlineQueryPeer(PeerData *peer) {
+	gifs()->setInlineQueryPeer(peer);
+}
+
 bool EmojiPanel::ui_isInlineItemBeingChosen() {
 	return (_currentTabType == TabType::Gifs && !isHidden());
 }
@@ -816,6 +814,10 @@ void EmojiPanel::switchTab() {
 	auto wasTab = _currentTabType;
 	currentTab()->saveScrollTop();
 
+	if (!_scroll->isHidden()) {
+		currentTab()->widget()->beforeHiding();
+	}
+
 	auto wasCache = grabForComplexAnimation(GrabType::Slide);
 
 	auto widget = _scroll->takeWidget<Inner>();
@@ -828,6 +830,8 @@ void EmojiPanel::switchTab() {
 	if (_currentTabType == TabType::Gifs) {
 		Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 	}
+	currentTab()->widget()->refreshRecent();
+	currentTab()->widget()->preloadImages();
 	setWidgetToScrollArea();
 
 	auto nowCache = grabForComplexAnimation(GrabType::Slide);
@@ -883,10 +887,6 @@ void EmojiPanel::onCheckForHide() {
 	}
 }
 
-void EmojiPanel::clearInlineBot() {
-	inlineBotChanged();
-}
-
 bool EmojiPanel::overlaps(const QRect &globalRect) const {
 	if (isHidden() || !_cache.isNull()) return false;
 
@@ -896,174 +896,11 @@ bool EmojiPanel::overlaps(const QRect &globalRect) const {
 		|| inner.marginsRemoved(QMargins(0, st::buttonRadius, 0, st::buttonRadius)).contains(testRect);
 }
 
-void EmojiPanel::inlineBotChanged() {
-	if (!_inlineBot) return;
-
-	if (!isHidden() && !_hiding) {
-		if (!rect().contains(mapFromGlobal(QCursor::pos()))) {
-			hideAnimated();
-		}
-	}
-
-	if (_inlineRequestId) MTP::cancel(_inlineRequestId);
-	_inlineRequestId = 0;
-	_inlineQuery = _inlineNextQuery = _inlineNextOffset = QString();
-	_inlineBot = nullptr;
-	_inlineCache.clear();
-	gifs()->inlineBotChanged();
-	gifs()->hideInlineRowsPanel();
-
-	Notify::inlineBotRequesting(false);
-}
-
-void EmojiPanel::inlineResultsDone(const MTPmessages_BotResults &result) {
-	_inlineRequestId = 0;
-	Notify::inlineBotRequesting(false);
-
-	auto it = _inlineCache.find(_inlineQuery);
-	auto adding = (it != _inlineCache.cend());
-	if (result.type() == mtpc_messages_botResults) {
-		auto &d = result.c_messages_botResults();
-		auto &v = d.vresults.v;
-		auto queryId = d.vquery_id.v;
-
-		if (it == _inlineCache.cend()) {
-			it = _inlineCache.emplace(_inlineQuery, std::make_unique<InlineCacheEntry>()).first;
-		}
-		auto entry = it->second.get();
-		entry->nextOffset = qs(d.vnext_offset);
-		if (d.has_switch_pm() && d.vswitch_pm.type() == mtpc_inlineBotSwitchPM) {
-			auto &switchPm = d.vswitch_pm.c_inlineBotSwitchPM();
-			entry->switchPmText = qs(switchPm.vtext);
-			entry->switchPmStartToken = qs(switchPm.vstart_param);
-		}
-
-		if (auto count = v.size()) {
-			entry->results.reserve(entry->results.size() + count);
-		}
-		auto added = 0;
-		for_const (const auto &res, v) {
-			if (auto result = InlineBots::Result::create(queryId, res)) {
-				++added;
-				entry->results.push_back(std::move(result));
-			}
-		}
-
-		if (!added) {
-			entry->nextOffset = QString();
-		}
-	} else if (adding) {
-		it->second->nextOffset = QString();
-	}
-
-	if (!showInlineRows(!adding)) {
-		it->second->nextOffset = QString();
-	}
-	onScroll();
-}
-
-void EmojiPanel::queryInlineBot(UserData *bot, PeerData *peer, QString query) {
-	bool force = false;
-	_inlineQueryPeer = peer;
-	if (bot != _inlineBot) {
-		inlineBotChanged();
-		_inlineBot = bot;
-		force = true;
-		//if (_inlineBot->isBotInlineGeo()) {
-		//	Ui::show(Box<InformBox>(lang(lng_bot_inline_geo_unavailable)));
-		//}
-	}
-	//if (_inlineBot && _inlineBot->isBotInlineGeo()) {
-	//	return;
-	//}
-
-	if (_inlineQuery != query || force) {
-		if (_inlineRequestId) {
-			MTP::cancel(_inlineRequestId);
-			_inlineRequestId = 0;
-			Notify::inlineBotRequesting(false);
-		}
-		if (_inlineCache.find(query) != _inlineCache.cend()) {
-			_inlineRequestTimer.stop();
-			_inlineQuery = _inlineNextQuery = query;
-			showInlineRows(true);
-		} else {
-			_inlineNextQuery = query;
-			_inlineRequestTimer.start(InlineBotRequestDelay);
-		}
-	}
-}
-
-void EmojiPanel::onInlineRequest() {
-	if (_inlineRequestId || !_inlineBot || !_inlineQueryPeer) return;
-	_inlineQuery = _inlineNextQuery;
-
-	QString nextOffset;
-	auto it = _inlineCache.find(_inlineQuery);
-	if (it != _inlineCache.cend()) {
-		nextOffset = it->second->nextOffset;
-		if (nextOffset.isEmpty()) return;
-	}
-	Notify::inlineBotRequesting(true);
-	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _inlineBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
-		inlineResultsDone(result);
-	}).fail([this](const RPCError &error) {
-		// show error?
-		Notify::inlineBotRequesting(false);
-		_inlineRequestId = 0;
-	}).handleAllErrors().send();
-}
-
-void EmojiPanel::onEmptyInlineRows() {
-	if (!_inlineBot) {
-		gifs()->hideInlineRowsPanel();
-	} else {
-		gifs()->clearInlineRowsPanel();
-	}
-}
-
-bool EmojiPanel::refreshInlineRows(int32 *added) {
-	auto it = _inlineCache.find(_inlineQuery);
-	const InlineCacheEntry *entry = nullptr;
-	if (it != _inlineCache.cend()) {
-		if (!it->second->results.empty() || !it->second->switchPmText.isEmpty()) {
-			entry = it->second.get();
-		}
-		_inlineNextOffset = it->second->nextOffset;
-	}
-	if (!entry) prepareCache();
-	auto result = gifs()->refreshInlineRows(_inlineBot, entry, false);
-	if (added) *added = result;
-	return (entry != nullptr);
-}
-
 void EmojiPanel::scrollToY(int y) {
 	_scroll->scrollToY(y);
 
 	// Qt render glitch workaround, shadow sometimes disappears if we just scroll to y.
 	_topShadow->update();
-}
-
-int32 EmojiPanel::showInlineRows(bool newResults) {
-	int32 added = 0;
-	bool clear = !refreshInlineRows(&added);
-	if (newResults) {
-		scrollToY(0);
-	}
-
-	auto hidden = isHidden();
-	if (clear) {
-		if (!_hiding) {
-			_cache = QPixmap(); // clear after refreshInlineRows()
-		}
-	} else {
-		if (_currentTabType != TabType::Gifs) {
-			_tabsSlider->setActiveSection(static_cast<int>(TabType::Gifs));
-		}
-		showAnimated();
-	}
-
-	return added;
 }
 
 EmojiPanel::Inner::Inner(QWidget *parent) : TWidget(parent) {
