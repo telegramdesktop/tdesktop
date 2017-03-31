@@ -3356,6 +3356,8 @@ HistoryWidget::HistoryWidget(QWidget *parent, gsl::not_null<Window::Controller*>
 			updateControlsVisibility();
 		}
 	});
+
+	orderWidgets();
 }
 
 void HistoryWidget::start() {

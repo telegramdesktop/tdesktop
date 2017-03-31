@@ -42,15 +42,21 @@ private:
 	QImage generateImage(int variantIndex);
 	bool writeImages();
 	bool writeSource();
+	bool writeHeader();
+
+	template <typename Callback>
+	bool enumerateWholeList(Callback callback);
 
 	bool writeInitCode();
 	bool writeSections();
+	bool writeGetSections();
 	bool writeFindReplace();
 	bool writeFind();
 	bool writeFindFromDictionary(const std::map<QString, int, std::greater<QString>> &dictionary, bool skipPostfixes = false);
 
 	const common::ProjectInfo &project_;
 	int colorsCount_ = 0;
+	bool writeImages_ = false;
 	QString outputPath_;
 	QString spritePath_;
 	std::unique_ptr<common::CppFile> source_;

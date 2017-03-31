@@ -126,6 +126,21 @@
     ],
     'message': 'codegen_scheme-ing scheme.tl..',
     'process_outputs_as_sources': 1,
+  }, {
+    'action_name': 'codegen_emoji',
+    'inputs': [
+      '<(PRODUCT_DIR)/codegen_emoji<(exe_ext)',
+    ],
+    'outputs': [
+      '<(SHARED_INTERMEDIATE_DIR)/emoji.cpp',
+      '<(SHARED_INTERMEDIATE_DIR)/emoji.h',
+    ],
+    'action': [
+      '<(PRODUCT_DIR)/codegen_emoji<(exe_ext)',
+      '-o<(SHARED_INTERMEDIATE_DIR)',
+    ],
+    'message': 'codegen_emoji-ing..',
+    'process_outputs_as_sources': 1,
   }],
   'rules': [{
     'rule_name': 'codegen_style',

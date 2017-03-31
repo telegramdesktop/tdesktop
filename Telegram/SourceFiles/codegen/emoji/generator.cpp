@@ -46,7 +46,7 @@ constexpr int kErrorCantWritePath = 851;
 common::ProjectInfo Project = {
 	"codegen_emoji",
 	"empty",
-	true, // forceReGenerate
+	false, // forceReGenerate
 };
 
 QRect computeSourceRect(const QImage &image) {
@@ -126,14 +126,14 @@ QString computeId(Id id) {
 
 } // namespace
 
-Generator::Generator(const Options &options) : project_(Project), data_(PrepareData()) {
+Generator::Generator(const Options &options) : project_(Project), writeImages_(options.writeImages), data_(PrepareData()) {
 	QDir dir(options.outputPath);
 	if (!dir.mkpath(".")) {
 		common::logError(kErrorCantWritePath, "Command Line") << "can not open path for writing: " << dir.absolutePath().toStdString();
 		data_ = Data();
 	}
 
-	outputPath_ = dir.absolutePath() + "/emoji_config";
+	outputPath_ = dir.absolutePath() + "/emoji";
 	spritePath_ = dir.absolutePath() + "/emoji";
 }
 
@@ -142,13 +142,18 @@ int Generator::generate() {
 		return -1;
 	}
 
+	if (writeImages_) {
 #ifdef Q_OS_MAC
-	if (!writeImages()) {
-		return -1;
-	}
+		return writeImages() ? 0 : -1;
+#else // Q_OS_MAC
+		common::logError(common::kErrorInternal, "Command Line") << "can not generate images in this OS.";
 #endif // Q_OS_MAC
+	}
 
 	if (!writeSource()) {
+		return -1;
+	}
+	if (!writeHeader()) {
 		return -1;
 	}
 
@@ -263,11 +268,20 @@ bool Generator::writeSource() {
 	source_->pushNamespace("Ui").pushNamespace("Emoji").pushNamespace();
 	source_->stream() << "\
 \n\
-constexpr auto kCount = " << data_.list.size() << ";\n\
-auto WorkingIndex = -1;\n\
-\n\
 std::vector<One> Items;\n\
 \n";
+	if (!writeInitCode()) {
+		return false;
+	}
+	if (!writeSections()) {
+		return false;
+	}
+	if (!writeFindReplace()) {
+		return false;
+	}
+	if (!writeFind()) {
+		return false;
+	}
 	source_->popNamespace().newline().pushNamespace("internal");
 	source_->stream() << "\
 \n\
@@ -275,90 +289,100 @@ EmojiPtr ByIndex(int index) {\n\
 	return (index >= 0 && index < Items.size()) ? &Items[index] : nullptr;\n\
 }\n\
 \n\
-template <typename ...Args>\n\
-inline QString ComputeId(Args... args) {\n\
-	auto utf16 = { args... };\n\
+EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {\n\
+	auto index = FindReplaceIndex(start, end, outLength);\n\
+	return index ? &Items[index - 1] : nullptr;\n\
+}\n\
+\n\
+EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {\n\
+	auto index = FindIndex(start, end, outLength);\n\
+	return index ? &Items[index - 1] : nullptr;\n\
+}\n\
+\n\
+inline QString ComputeId(gsl::span<ushort> utf16) {\n\
 	auto result = QString();\n\
 	result.reserve(utf16.size());\n\
 	for (auto ch : utf16) {\n\
 		result.append(QChar(ch));\n\
 	}\n\
 	return result;\n\
-}\n";
-	if (!writeFindReplace()) {
-		return false;
-	}
-	if (!writeFind()) {
-		return false;
-	}
-	source_->popNamespace();
-
-	if (!writeInitCode()) {
-		return false;
-	}
-	if (!writeSections()) {
-		return false;
-	}
-	source_->stream() << "\
-\n\
-int Index() {\n\
-	return WorkingIndex;\n\
 }\n\
 \n\
-int One::variantsCount() const {\n\
-	return hasVariants() ? " << colorsCount_ << " : 0;\n\
-}\n\
-\n\
-int One::variantIndex(EmojiPtr variant) const {\n\
-	return (variant - original());\n\
-}\n\
-\n\
-EmojiPtr One::variant(int index) const {\n\
-	return (index >= 0 && index <= variantsCount()) ? (original() + index) : this;\n\
-}\n\
-\n\
-int One::index() const {\n\
-	return (this - &Items[0]);\n\
+void Init() {\n\
+	auto id = IdData;\n\
+	Items.reserve(base::array_size(Data));\n\
+	for (auto &data : Data) {\n\
+		Items.emplace_back(ComputeId(gsl::make_span(id, data.idSize)), data.column, data.row, data.postfixed, data.variated, data.original ? &Items[data.original - 1] : nullptr, One::CreationTag());\n\
+		id += data.idSize;\n\
+	}\n\
 }\n\
 \n";
+	source_->popNamespace();
+
+	if (!writeGetSections()) {
+		return false;
+	}
 
 	return source_->finalize();
 }
 
-bool Generator::writeInitCode() {
-	constexpr const char *variantNames[] = {
-		"dbisOne",
-		"dbisOneAndQuarter",
-		"dbisOneAndHalf",
-		"dbisTwo"
-	};
-
-	source_->stream() << "\
+bool Generator::writeHeader() {
+	auto header = std::make_unique<common::CppFile>(outputPath_ + ".h", project_);
+	header->pushNamespace("Ui").pushNamespace("Emoji").pushNamespace("internal");
+	header->stream() << "\
 \n\
-void Init() {\n\
-	auto tag = One::CreationTag();\n\
-	auto scaleForEmoji = cRetina() ? dbisTwo : cScale();\n\
+void Init();\n\
 \n\
-	switch (scaleForEmoji) {\n";
-	auto variantIndex = 0;
-	for (auto name : variantNames) {
-		source_->stream() << "\
-	case " << name << ": WorkingIndex = " << variantIndex++ << "; break;\n";
-	}
-	source_->stream() << "\
-	};\n\
+EmojiPtr ByIndex(int index);\n\
 \n\
-	Items.reserve(kCount);\n\
+EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr);\n\
+\n\
+inline bool IsReplaceEdge(const QChar *ch) {\n\
+	return true;\n\
+\n\
+//	switch (ch->unicode()) {\n\
+//	case '.': case ',': case ':': case ';': case '!': case '?': case '#': case '@':\n\
+//	case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':\n\
+//	case '+': case '=': case '-': case '_': case '*': case '/': case '\\\\': case '^': case '$':\n\
+//	case '\"': case '\\'':\n\
+//	case 8212: case 171: case 187: // --, <<, >>\n\
+//		return true;\n\
+//	}\n\
+//	return false;\n\
+}\n\
+\n\
+EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr);\n\
 \n";
+	header->popNamespace().stream() << "\
+\n\
+enum class Section {\n\
+	Recent,\n\
+	People,\n\
+	Nature,\n\
+	Food,\n\
+	Activity,\n\
+	Travel,\n\
+	Objects,\n\
+	Symbols,\n\
+};\n\
+\n\
+int Index();\n\
+\n\
+int GetSectionCount(Section section);\n\
+EmojiPack GetSection(Section section);\n\
+\n";
+	return header->finalize();
+}
 
+template <typename Callback>
+bool Generator::enumerateWholeList(Callback callback) {
 	auto column = 0;
 	auto row = 0;
 	auto index = 0;
 	auto variated = -1;
 	auto coloredCount = 0;
 	for (auto &item : data_.list) {
-		source_->stream() << "\
-	Items.emplace_back(" << computeId(item.id) << ", " << column << ", " << row << ", " << (item.postfixed ? "true" : "false") << ", " << (item.variated ? "true" : "false") << ", " << (item.colored ? "&Items[" + QString::number(variated) + "]" : "nullptr") << ", tag);\n";
+		callback(item.id, column, row, item.postfixed, item.variated, item.colored, variated);
 		if (coloredCount > 0 && (item.variated || !item.colored)) {
 			if (!colorsCount_) {
 				colorsCount_ = coloredCount;
@@ -385,13 +409,93 @@ void Init() {\n\
 		}
 		++index;
 	}
+	return true;
+}
+
+bool Generator::writeInitCode() {
+	source_->stream() << "\
+struct DataStruct {\n\
+	ushort idSize;\n\
+	ushort column;\n\
+	ushort row;\n\
+	ushort original;\n\
+	bool postfixed;\n\
+	bool variated;\n\
+};\n\
+\n\
+ushort IdData[] = {";
+	auto count = 0;
+	auto fulllength = 0;
+	if (!enumerateWholeList([this, &count, &fulllength](Id id, int column, int row, bool isPostfixed, bool isVariated, bool isColored, int original) {
+		for (auto ch : id) {
+			if (fulllength > 0) source_->stream() << ",";
+			if (!count++) {
+				source_->stream() << "\n";
+			} else {
+				if (count == 12) {
+					count = 0;
+				}
+				source_->stream() << " ";
+			}
+			source_->stream() << "0x" << QString::number(ch.unicode(), 16);
+			++fulllength;
+		}
+	})) {
+		return false;
+	}
+	if (fulllength >= std::numeric_limits<ushort>::max()) {
+		logDataError() << "Too many IdData elements.";
+		return false;
+	}
+	source_->stream() << " };\n\
+\n\
+DataStruct Data[] = {\n";
+	if (!enumerateWholeList([this](Id id, int column, int row, bool isPostfixed, bool isVariated, bool isColored, int original) {
+		source_->stream() << "\
+	{ ushort(" << id.size() << "), ushort(" << column << "), ushort(" << row << "), ushort(" << (isColored ? (original + 1) : 0) << "), " << (isPostfixed ? "true" : "false") << ", " << (isVariated ? "true" : "false") << " },\n";
+	})) {
+		return false;
+	}
 
 	source_->stream() << "\
-}\n";
+};\n";
+
 	return true;
 }
 
 bool Generator::writeSections() {
+	source_->stream() << "\
+ushort SectionData[] = {";
+	auto count = 0, fulllength = 0;
+	for (auto &category : data_.categories) {
+		for (auto index : category) {
+			if (fulllength > 0) source_->stream() << ",";
+			if (!count++) {
+				source_->stream() << "\n";
+			} else {
+				if (count == 12) {
+					count = 0;
+				}
+				source_->stream() << " ";
+			}
+			source_->stream() << index;
+			++fulllength;
+		}
+	}
+	source_->stream() << " };\n\
+\n\
+EmojiPack fillSection(int offset, int size) {\n\
+	auto result = EmojiPack();\n\
+	result.reserve(size);\n\
+	for (auto index : gsl::make_span(SectionData + offset, size)) {\n\
+		result.push_back(&Items[index]);\n\
+	}\n\
+	return result;\n\
+}\n\n";
+	return true;
+}
+
+bool Generator::writeGetSections() {
 	constexpr const char *sectionNames[] = {
 		"Section::People",
 		"Section::Nature",
@@ -431,6 +535,7 @@ EmojiPack GetSection(Section section) {\n\
 		return result;\n\
 	} break;\n";
 	auto index = 0;
+	auto offset = 0;
 	for (auto name : sectionNames) {
 		if (index >= int(data_.categories.size())) {
 			logDataError() << "category " << index << " not found.";
@@ -440,29 +545,23 @@ EmojiPack GetSection(Section section) {\n\
 		source_->stream() << "\
 \n\
 	case " << name << ": {\n\
-		static auto result = EmojiPack();\n\
-		if (result.isEmpty()) {\n\
-			result.reserve(" << category.size() << ");\n";
-		for (auto index : category) {
-			source_->stream() << "\
-			result.push_back(&Items[" << index << "]);\n";
-		}
-		source_->stream() << "\
-		}\n\
+		static auto result = fillSection(" << offset << ", " << category.size() << ");\n\
 		return result;\n\
 	} break;\n";
+		offset += category.size();
 	}
 	source_->stream() << "\
 	}\n\
 	return EmojiPack();\n\
-}\n";
+}\n\
+\n";
 	return true;
 }
 
 bool Generator::writeFindReplace() {
 	source_->stream() << "\
 \n\
-EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {\n\
+int FindReplaceIndex(const QChar *start, const QChar *end, int *outLength) {\n\
 	auto ch = start;\n\
 \n";
 
@@ -479,7 +578,7 @@ EmojiPtr FindReplace(const QChar *start, const QChar *end, int *outLength) {\n\
 bool Generator::writeFind() {
 	source_->stream() << "\
 \n\
-EmojiPtr Find(const QChar *start, const QChar *end, int *outLength) {\n\
+int FindIndex(const QChar *start, const QChar *end, int *outLength) {\n\
 	auto ch = start;\n\
 \n";
 
@@ -604,13 +703,13 @@ bool Generator::writeFindFromDictionary(const std::map<QString, int, std::greate
 		//source_->stream() << tabs(1 + chars.size()) << "if (ch + " << chars.size() << " == end || IsReplaceEdge(*(ch + " << chars.size() << ")) || (ch + " << chars.size() << ")->unicode() == ' ') {\n";
 		//source_->stream() << tabs(1 + chars.size()) << "\treturn &Items[" << item.second << "];\n";
 		//source_->stream() << tabs(1 + chars.size()) << "}\n";
-		source_->stream() << tabs(tabsUsed) << "return &Items[" << item.second << "];\n";
+		source_->stream() << tabs(tabsUsed) << "return " << (item.second + 1) << ";\n";
 	}
 	finishChecksTillKey(QString());
 
 	source_->stream() << "\
 \n\
-	return nullptr;\n";
+	return 0;\n";
 	return true;
 }
 

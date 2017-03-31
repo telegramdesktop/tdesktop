@@ -50,6 +50,8 @@ Options parseOptions() {
 			}
 		} else if (arg.startsWith("-o")) {
 			result.outputPath = arg.mid(2);
+		} else if (arg == "--images") {
+			result.writeImages = true;
 		}
 	}
 	if (result.outputPath.isEmpty()) {

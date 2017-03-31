@@ -21,6 +21,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #pragma once
 
 #include "ui/text/text.h"
+#include "emoji.h"
 
 namespace Ui {
 namespace Emoji {
@@ -28,41 +29,6 @@ namespace Emoji {
 constexpr auto kPostfix = static_cast<ushort>(0xFE0F);
 constexpr auto kPanelPerRow = 7;
 constexpr auto kPanelRowsPerPage = 6;
-
-enum class Section {
-	Recent,
-	People,
-	Nature,
-	Food,
-	Activity,
-	Travel,
-	Objects,
-	Symbols,
-};
-
-namespace internal {
-
-EmojiPtr ByIndex(int index);
-
-EmojiPtr Find(const QChar *ch, const QChar *end, int *outLength = nullptr);
-
-inline bool IsReplaceEdge(const QChar *ch) {
-	return true;
-
-//	switch (ch->unicode()) {
-//	case '.': case ',': case ':': case ';': case '!': case '?': case '#': case '@':
-//	case '(': case ')': case '[': case ']': case '{': case '}': case '<': case '>':
-//	case '+': case '=': case '-': case '_': case '*': case '/': case '\\': case '^': case '$':
-//	case '"': case '\'':
-//	case 8212: case 171: case 187: // --, <<, >>
-//		return true;
-//	}
-//	return false;
-}
-
-EmojiPtr FindReplace(const QChar *ch, const QChar *end, int *outLength = nullptr);
-
-} // namespace internal
 
 void Init();
 
@@ -130,7 +96,7 @@ private:
 	const bool _colorizable = false;
 	const EmojiPtr _original = nullptr;
 
-	friend void Init();
+	friend void internal::Init();
 
 };
 
@@ -215,8 +181,6 @@ inline int ColorIndexFromOldKey(uint64 oldKey) {
 	return ColorIndexFromCode(uint32(oldKey & 0xFFFFFFFFLLU));
 }
 
-int Index();
-
 inline int Size(int index = Index()) {
 	int sizes[] = { 18, 22, 27, 36, 45 };
 	return sizes[index];
@@ -232,9 +196,6 @@ inline QString Filename(int index = Index()) {
 	};
 	return QString::fromLatin1(EmojiNames[index]);
 }
-
-int GetSectionCount(Section section);
-EmojiPack GetSection(Section section);
 
 inline void appendPartToResult(QString &result, const QChar *start, const QChar *from, const QChar *to, EntitiesInText *inOutEntities) {
 	if (to > from) {

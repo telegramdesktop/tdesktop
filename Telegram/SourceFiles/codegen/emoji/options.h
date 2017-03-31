@@ -28,6 +28,7 @@ namespace emoji {
 
 struct Options {
 	QString outputPath = ".";
+	bool writeImages = false;
 };
 
 // Parsing failed if inputPath is empty in the result.
