@@ -261,9 +261,9 @@ messageActionChannelMigrateFrom#b055eaee title:string chat_id:int = MessageActio
 messageActionPinMessage#94bd38ed = MessageAction;
 messageActionHistoryClear#9fbab604 = MessageAction;
 messageActionGameScore#92a72876 game_id:long score:int = MessageAction;
-messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = MessageAction;
 messageActionPaymentSentMe#8f31b327 flags:# currency:string total_amount:long payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string charge:PaymentCharge = MessageAction;
 messageActionPaymentSent#40699cd0 currency:string total_amount:long = MessageAction;
+messageActionPhoneCall#80e11a7f flags:# call_id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = MessageAction;
 
 dialog#66ffba14 flags:# pinned:flags.2?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage = Dialog;
 
@@ -311,7 +311,7 @@ inputReportReasonViolence#1e22c78d = ReportReason;
 inputReportReasonPornography#2e59d922 = ReportReason;
 inputReportReasonOther#e1746d0a text:string = ReportReason;
 
-userFull#f220f3f flags:# blocked:flags.0?true phone_calls_available:flags.4?true user:User about:flags.1?string link:contacts.Link profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo common_chats_count:int = UserFull;
+userFull#f220f3f flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true user:User about:flags.1?string link:contacts.Link profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo common_chats_count:int = UserFull;
 
 contact#f911c994 user_id:int mutual:Bool = Contact;
 
@@ -411,13 +411,13 @@ updateRecentStickers#9a422c20 = Update;
 updateConfig#a229dd06 = Update;
 updatePtsChanged#3354678f = Update;
 updateChannelWebPage#40771900 channel_id:int webpage:WebPage pts:int pts_count:int = Update;
-updatePhoneCall#ab0f6b1e phone_call:PhoneCall = Update;
 updateDialogPinned#d711a2cc flags:# pinned:flags.0?true peer:Peer = Update;
 updatePinnedDialogs#d8caf68d flags:# order:flags.0?Vector<Peer> = Update;
 updateBotWebhookJSON#8317c0c3 data:DataJSON = Update;
 updateBotWebhookJSONQuery#9b9240a6 query_id:long data:DataJSON timeout:int = Update;
 updateBotShippingQuery#e0cdc940 query_id:long user_id:int payload:bytes shipping_address:PostAddress = Update;
 updateBotPrecheckoutQuery#5d2f3aa9 flags:# query_id:long user_id:int payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string currency:string total_amount:long = Update;
+updatePhoneCall#ab0f6b1e phone_call:PhoneCall = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -793,20 +793,6 @@ pageBlockSlideshow#130c8963 items:Vector<PageBlock> caption:RichText = PageBlock
 pagePart#8dee6c44 blocks:Vector<PageBlock> photos:Vector<Photo> videos:Vector<Document> = Page;
 pageFull#d7a19d69 blocks:Vector<PageBlock> photos:Vector<Photo> videos:Vector<Document> = Page;
 
-inputPhoneCall#1e36fded id:long access_hash:long = InputPhoneCall;
-
-phoneCallEmpty#5366c915 id:long = PhoneCall;
-phoneCallWaiting#1b8f4ad1 flags:# id:long access_hash:long date:int admin_id:int participant_id:int protocol:PhoneCallProtocol receive_date:flags.0?int = PhoneCall;
-phoneCallRequested#6c448ae8 id:long access_hash:long date:int admin_id:int participant_id:int g_a:bytes protocol:PhoneCallProtocol = PhoneCall;
-phoneCall#ffe6ab67 id:long access_hash:long date:int admin_id:int participant_id:int g_a_or_b:bytes key_fingerprint:long protocol:PhoneCallProtocol connection:PhoneConnection alternative_connections:Vector<PhoneConnection> start_date:int = PhoneCall;
-phoneCallDiscarded#50ca4de1 flags:# need_rating:flags.2?true id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = PhoneCall;
-
-phoneConnection#9d4c17c0 id:long ip:string ipv6:string port:int peer_tag:bytes = PhoneConnection;
-
-phoneCallProtocol#a2bb35cb flags:# udp_p2p:flags.0?true udp_reflector:flags.1?true min_layer:int max_layer:int = PhoneCallProtocol;
-
-phone.phoneCall#ec82e140 phone_call:PhoneCall users:Vector<User> = phone.PhoneCall;
-
 phoneCallDiscardReasonMissed#85e42301 = PhoneCallDiscardReason;
 phoneCallDiscardReasonDisconnect#e095c1a0 = PhoneCallDiscardReason;
 phoneCallDiscardReasonHangup#57adc690 = PhoneCallDiscardReason;
@@ -851,6 +837,21 @@ inputPaymentCredentials#3417d728 flags:# save:flags.0?true data:DataJSON = Input
 account.tmpPassword#db64fd34 tmp_password:bytes valid_until:int = account.TmpPassword;
 
 shippingOption#b6213cdf id:string title:string prices:Vector<LabeledPrice> = ShippingOption;
+
+inputPhoneCall#1e36fded id:long access_hash:long = InputPhoneCall;
+
+phoneCallEmpty#5366c915 id:long = PhoneCall;
+phoneCallWaiting#1b8f4ad1 flags:# id:long access_hash:long date:int admin_id:int participant_id:int protocol:PhoneCallProtocol receive_date:flags.0?int = PhoneCall;
+phoneCallRequested#83761ce4 id:long access_hash:long date:int admin_id:int participant_id:int g_a_hash:bytes protocol:PhoneCallProtocol = PhoneCall;
+phoneCallAccepted#6d003d3f id:long access_hash:long date:int admin_id:int participant_id:int g_b:bytes protocol:PhoneCallProtocol = PhoneCall;
+phoneCall#ffe6ab67 id:long access_hash:long date:int admin_id:int participant_id:int g_a_or_b:bytes key_fingerprint:long protocol:PhoneCallProtocol connection:PhoneConnection alternative_connections:Vector<PhoneConnection> start_date:int = PhoneCall;
+phoneCallDiscarded#50ca4de1 flags:# need_rating:flags.2?true need_debug:flags.3?true id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = PhoneCall;
+
+phoneConnection#9d4c17c0 id:long ip:string ipv6:string port:int peer_tag:bytes = PhoneConnection;
+
+phoneCallProtocol#a2bb35cb flags:# udp_p2p:flags.0?true udp_reflector:flags.1?true min_layer:int max_layer:int = PhoneCallProtocol;
+
+phone.phoneCall#ec82e140 phone_call:PhoneCall users:Vector<User> = phone.PhoneCall;
 
 ---functions---
 
@@ -1062,13 +1063,6 @@ channels.toggleSignatures#1f69b606 channel:InputChannel enabled:Bool = Updates;
 channels.updatePinnedMessage#a72ded52 flags:# silent:flags.0?true channel:InputChannel id:int = Updates;
 channels.getAdminedPublicChannels#8d8d82d7 = messages.Chats;
 
-phone.requestCall#a41aa5e4 user_id:InputUser random_id:int g_a:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
-phone.acceptCall#220f0b20 peer:InputPhoneCall g_b:bytes key_fingerprint:long protocol:PhoneCallProtocol = phone.PhoneCall;
-phone.discardCall#78d413a6 peer:InputPhoneCall duration:int reason:PhoneCallDiscardReason connection_id:long = Updates;
-phone.receivedCall#17d54f61 peer:InputPhoneCall = Bool;
-phone.setCallRating#1c536a34 peer:InputPhoneCall rating:int comment:string = Updates;
-phone.getCallConfig#55451fa9 = DataJSON;
-
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;
 
@@ -1078,5 +1072,14 @@ payments.validateRequestedInfo#770a8e74 flags:# save:flags.0?true msg_id:int inf
 payments.sendPaymentForm#2b8879b3 flags:# msg_id:int requested_info_id:flags.0?string shipping_option_id:flags.1?string credentials:InputPaymentCredentials = payments.PaymentResult;
 payments.getSavedInfo#227d824b = payments.SavedInfo;
 payments.clearSavedInfo#d83d70c1 flags:# credentials:flags.0?true info:flags.1?true = Bool;
+
+phone.getCallConfig#55451fa9 = DataJSON;
+phone.requestCall#5b95b3d4 user_id:InputUser random_id:int g_a_hash:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
+phone.acceptCall#3bd2b4a0 peer:InputPhoneCall g_b:bytes protocol:PhoneCallProtocol = phone.PhoneCall;
+phone.confirmCall#2efe1722 peer:InputPhoneCall g_a:bytes key_fingerprint:long protocol:PhoneCallProtocol = phone.PhoneCall;
+phone.receivedCall#17d54f61 peer:InputPhoneCall = Bool;
+phone.discardCall#78d413a6 peer:InputPhoneCall duration:int reason:PhoneCallDiscardReason connection_id:long = Updates;
+phone.setCallRating#1c536a34 peer:InputPhoneCall rating:int comment:string = Updates;
+phone.saveCallDebug#277add7e peer:InputPhoneCall debug:DataJSON = Bool;
 
 // LAYER 65
