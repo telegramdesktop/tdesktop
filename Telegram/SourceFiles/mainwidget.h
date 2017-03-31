@@ -476,7 +476,6 @@ public slots:
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
-	void keyPressEvent(QKeyEvent *e) override;
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:

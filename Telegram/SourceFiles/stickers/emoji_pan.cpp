@@ -1165,8 +1165,14 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
+	if (_selected == pressed || _selectedFeaturedSet == pressedFeaturedSet || _selectedFeaturedSetAdd == pressedFeaturedSetAdd) {
+		sendSelectedSticker();
+	}
+}
+
+void StickerPanInner::sendSelectedSticker() {
 	auto &sets = shownSets();
-	if (_selected >= 0 && _selected < MatrixRowShift * sets.size() && _selected == pressed) {
+	if (_selected >= 0 && _selected < MatrixRowShift * sets.size()) {
 		int tab = (_selected / MatrixRowShift), sel = _selected % MatrixRowShift;
 		if (sets[tab].id == Stickers::RecentSetId && sel >= sets[tab].pack.size() && sel < sets[tab].pack.size() * 2 && _custom.at(sel - sets[tab].pack.size())) {
 			removeRecentSticker(tab, sel - sets[tab].pack.size());
@@ -1175,9 +1181,9 @@ void StickerPanInner::mouseReleaseEvent(QMouseEvent *e) {
 		if (sel < sets[tab].pack.size()) {
 			emit selected(sets[tab].pack[sel]);
 		}
-	} else if (_selectedFeaturedSet >= 0 && _selectedFeaturedSet < sets.size() && _selectedFeaturedSet == pressedFeaturedSet) {
+	} else if (_selectedFeaturedSet >= 0 && _selectedFeaturedSet < sets.size()) {
 		emit displaySet(sets[_selectedFeaturedSet].id);
-	} else if (_selectedFeaturedSetAdd >= 0 && _selectedFeaturedSetAdd < sets.size() && _selectedFeaturedSetAdd == pressedFeaturedSetAdd) {
+	} else if (_selectedFeaturedSetAdd >= 0 && _selectedFeaturedSetAdd < sets.size()) {
 		emit installSet(sets[_selectedFeaturedSetAdd].id);
 	}
 }
@@ -2146,6 +2152,76 @@ void StickerPanInner::setSelected(int newSelected, int newSelectedFeaturedSet, i
 	}
 }
 
+void StickerPanInner::moveSelection(Qt::Key key) {
+	if (_section != Section::Stickers) return; // so far works only for stickers section
+
+	if (_selected < 0) {
+		_selected = 0;
+		emit scrollToY(0);
+		emit scrollUpdated();
+		update();
+		return;
+	}
+
+	// x_X
+	int tab = _selected / MatrixRowShift, sel = _selected % MatrixRowShift;
+	switch (key) {
+	case Qt::Key_Up:
+		if (sel >= StickerPanPerRow) {
+			_selected -= StickerPanPerRow;
+		} else {
+			while (--tab >= 0) {
+				if (_mySets[tab].pack.size() >= sel) {
+					int remainder = _mySets[tab].pack.size() % StickerPanPerRow;
+					int shift = remainder > sel ? 0 : StickerPanPerRow;
+					_selected = tab * MatrixRowShift + _mySets[tab].pack.size() + sel - remainder - shift;
+					break;
+				}
+			}
+		}
+		break;
+	case Qt::Key_Down:
+		if (sel < _mySets[tab].pack.size() - StickerPanPerRow) {
+			_selected += StickerPanPerRow;
+		} else {
+			while (++tab < _mySets.count()) {
+				if (_mySets[tab].pack.size() > sel % StickerPanPerRow) {
+					_selected = tab * MatrixRowShift + sel % StickerPanPerRow;
+					break;
+				}
+			}
+		}
+		break;
+	case Qt::Key_Left:
+		if (sel > 0) {
+			_selected -= 1;
+		} else if (tab > 0) {
+			_selected = (tab - 1) * MatrixRowShift + _mySets[tab - 1].pack.size() - 1;
+		}
+		break;
+	case Qt::Key_Right:
+		if (sel < _mySets[tab].pack.size() - 1) {
+			_selected += 1;
+		} else if (tab < _mySets.count() - 1) {
+			_selected = (tab + 1) * MatrixRowShift;
+		}
+		break;
+	}
+	tab = _selected / MatrixRowShift, sel = _selected % MatrixRowShift;
+
+	int32 y = st::emojiPanHeader * tab;
+	for (int i = 0; i < tab; i++) {
+		int rows = _mySets[i].pack.size() / StickerPanPerRow;
+		rows += _mySets[i].pack.size() % StickerPanPerRow != 0;
+		y += rows * st::stickerPanSize.height();
+	}
+	y += sel / StickerPanPerRow * st::stickerPanSize.height();
+
+	emit scrollToY(y, y + st::stickerPanSize.height() + 42);  // why 42? idk, TODO: find relevant constant
+	emit scrollUpdated();
+	update();
+}
+
 void StickerPanInner::onSettings() {
 	Ui::show(Box<StickersBox>(StickersBox::Section::Installed));
 }
@@ -2381,6 +2457,7 @@ void EmojiSwitchButton::updateText(const QString &inlineBotUsername) {
 
 	int32 w = st::emojiSwitchSkip + _textWidth + (st::emojiSwitchSkip - st::emojiSwitchImgSkip) - st::buttonRadius;
 	resize(w, st::emojiPanHeader);
+	moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
 }
 
 void EmojiSwitchButton::paintEvent(QPaintEvent *e) {
@@ -2704,7 +2781,7 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	connect(e_inner, SIGNAL(scrollToY(int)), e_scroll, SLOT(scrollToY(int)));
 	connect(e_inner, SIGNAL(disableScroll(bool)), e_scroll, SLOT(disableScroll(bool)));
 
-	connect(s_inner, SIGNAL(scrollToY(int)), s_scroll, SLOT(scrollToY(int)));
+	connect(s_inner, SIGNAL(scrollToY(int, int)), s_scroll, SLOT(scrollToY(int, int)));
 	connect(s_inner, SIGNAL(scrollUpdated()), this, SLOT(onScrollStickers()));
 
 	connect(e_scroll, SIGNAL(scrolled()), this, SLOT(onScrollEmoji()));
@@ -2714,6 +2791,9 @@ EmojiPan::EmojiPan(QWidget *parent) : TWidget(parent)
 	connect(s_inner, SIGNAL(selected(DocumentData*)), this, SIGNAL(stickerSelected(DocumentData*)));
 	connect(s_inner, SIGNAL(selected(PhotoData*)), this, SIGNAL(photoSelected(PhotoData*)));
 	connect(s_inner, SIGNAL(selected(InlineBots::Result*,UserData*)), this, SIGNAL(inlineResultSelected(InlineBots::Result*,UserData*)));
+
+	connect(this, SIGNAL(emojiSelected(EmojiPtr)), this, SLOT(scheduleHiding()));
+	connect(this, SIGNAL(stickerSelected(DocumentData*)), this, SLOT(scheduleHiding()));
 
 	connect(s_inner, SIGNAL(emptyInlineRows()), this, SLOT(onEmptyInlineRows()));
 
@@ -2999,7 +3079,7 @@ void EmojiPan::enterEventHook(QEvent *e) {
 }
 
 bool EmojiPan::preventAutoHide() const {
-	return _removingSetId || _displayingSetId;
+	return _removingSetId || _displayingSetId || !_hidingScheduled;
 }
 
 void EmojiPan::leaveEventHook(QEvent *e) {
@@ -3136,7 +3216,7 @@ void EmojiPan::refreshStickers() {
 
 void EmojiPan::refreshSavedGifs() {
 	e_switch->updateText();
-	e_switch->moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
+	s_switch->show();
 	s_inner->refreshSavedGifs();
 	if (_emojiShown) {
 		s_inner->preloadImages();
@@ -3329,6 +3409,17 @@ void EmojiPan::hideAnimated() {
 	startOpacityAnimation(true);
 }
 
+void EmojiPan::toggleVisibility() {
+	if (isHidden() || _hiding) {
+		_hideTimer.stop();
+		showAnimated(_origin);
+	} else {
+		hideAnimated();
+		e_inner->hideFinish();
+		s_inner->hideFinish(true);
+	}
+}
+
 EmojiPan::~EmojiPan() = default;
 
 void EmojiPan::hideFinished() {
@@ -3375,9 +3466,11 @@ void EmojiPan::showStarted() {
 			_shownFromInlineQuery = true;
 		} else {
 			s_inner->refreshRecent();
-			_emojiShown = true;
+			s_inner->showFinish();
 			_shownFromInlineQuery = false;
+			_hidingScheduled = false;
 			_cache = QPixmap(); // clear after refreshInlineRows()
+			validateSelectedIcon(ValidateIconAnimations::None);
 		}
 		recountContentMaxHeight();
 		s_inner->preloadImages();
@@ -3395,25 +3488,28 @@ void EmojiPan::showStarted() {
 }
 
 bool EmojiPan::eventFilter(QObject *obj, QEvent *e) {
-	if (e->type() == QEvent::Enter) {
-		//if (dynamic_cast<StickerPan*>(obj)) {
-		//	enterEvent(e);
-		//} else {
-			otherEnter();
-		//}
-	} else if (e->type() == QEvent::Leave) {
-		//if (dynamic_cast<StickerPan*>(obj)) {
-		//	leaveEvent(e);
-		//} else {
-			otherLeave();
-		//}
-	} else if (e->type() == QEvent::MouseButtonPress && static_cast<QMouseEvent*>(e)->button() == Qt::LeftButton/* && !dynamic_cast<StickerPan*>(obj)*/) {
-		if (isHidden() || _hiding) {
-			_hideTimer.stop();
-			showAnimated(_origin);
-		} else {
-			hideAnimated();
+	if (isHidden() || e->type() != QEvent::KeyPress) {
+		return false;
+	}
+	int key = static_cast<QKeyEvent*>(e)->key();
+
+	if (key == Qt::Key_Return || key == Qt::Key_Enter) {
+		if (_emojiShown) {
+//			e_inner->sendSelected();
+		} else if (!inlineResultsShown()) {
+			s_inner->sendSelectedSticker();
 		}
+		toggleVisibility();
+		return true;
+	}
+
+	if (key == Qt::Key_Up || key == Qt::Key_Down || key == Qt::Key_Left || key == Qt::Key_Right) {
+		if (_emojiShown) {
+//			e_inner->moveSelection(static_cast<Qt::Key>(key));
+		} else {
+			s_inner->moveSelection(static_cast<Qt::Key>(key));
+		}
+		return true;
 	}
 	return false;
 }
@@ -3639,6 +3735,11 @@ void EmojiPan::onSwitch() {
 
 	_a_slide.start([this] { update(); }, 0., 1., st::emojiPanSlideDuration, anim::linear);
 	update();
+
+	emit updateStickers();
+	e_inner->refreshRecent();
+	s_inner->refreshRecent();
+	_hidingScheduled = false;
 }
 
 void EmojiPan::performSwitch() {
@@ -3753,7 +3854,7 @@ void EmojiPan::onDelayedHide() {
 void EmojiPan::clearInlineBot() {
 	inlineBotChanged();
 	e_switch->updateText();
-	e_switch->moveToRight(st::buttonRadius, 0, st::emojiPanWidth);
+	s_switch->show();
 }
 
 bool EmojiPan::overlaps(const QRect &globalRect) const {
@@ -3921,9 +4022,7 @@ int32 EmojiPan::showInlineRows(bool newResults) {
 	int32 added = 0;
 	bool clear = !refreshInlineRows(&added);
 	if (newResults) s_scroll->scrollToY(0);
-
-	e_switch->updateText(s_inner->inlineResultsShown() ? _inlineBot->username : QString());
-	e_switch->moveToRight(0, 0, st::emojiPanWidth);
+	s_switch->hide();
 
 	bool hidden = isHidden();
 	if (!hidden && !clear) {

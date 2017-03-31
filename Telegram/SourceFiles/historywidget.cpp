@@ -3321,7 +3321,8 @@ HistoryWidget::HistoryWidget(QWidget *parent) : TWidget(parent)
 	_silent->hide();
 	_botCommandStart->hide();
 
-	_attachEmoji->installEventFilter(_emojiPan);
+	connect(_attachEmoji, SIGNAL(clicked()), _emojiPan, SLOT(toggleVisibility()));
+	_field->installEventFilter(_emojiPan);
 
 	connect(_botKeyboardShow, SIGNAL(clicked()), this, SLOT(onKbToggle()));
 	connect(_botKeyboardHide, SIGNAL(clicked()), this, SLOT(onKbToggle()));
@@ -7640,6 +7641,8 @@ void HistoryWidget::keyPressEvent(QKeyEvent *e) {
 void HistoryWidget::onFieldTabbed() {
 	if (!_fieldAutocomplete->isHidden()) {
 		_fieldAutocomplete->chooseSelected(FieldAutocomplete::ChooseMethod::ByTab);
+	} else {
+		_emojiPan->toggleVisibility();
 	}
 }
 
@@ -7881,7 +7884,7 @@ bool HistoryWidget::sendExistingDocument(DocumentData *doc, const QString &capti
 		onCloudDraftSave(); // won't be needed if SendInlineBotResult will clear the cloud draft
 	}
 
-	hideSelectorControlsAnimated();
+	_fieldAutocomplete->hideAnimated();  // temporary here
 
 	_field->setFocus();
 	return true;

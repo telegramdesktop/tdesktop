@@ -217,6 +217,8 @@ public:
 
 	bool showSectionIcons() const;
 	void clearSelection();
+	void moveSelection(Qt::Key);
+	void sendSelectedSticker();
 
 	void refreshStickers();
 	void refreshRecentStickers(bool resize = true);
@@ -281,7 +283,7 @@ signals:
 
 	void switchToEmoji();
 
-	void scrollToY(int y);
+	void scrollToY(int topValue, int bottomValue = -1);
 	void scrollUpdated();
 	void disableScroll(bool dis);
 	void needRefreshPanels();
@@ -519,10 +521,12 @@ protected:
 
 public slots:
 	void refreshStickers();
+	void toggleVisibility();
 
 private slots:
 	void hideByTimerOrLeave();
 	void refreshSavedGifs();
+	void scheduleHiding() { _hidingScheduled = true; }
 
 	void onWndActiveChanged();
 
@@ -661,6 +665,7 @@ private:
 
 	bool _emojiShown = true;
 	bool _shownFromInlineQuery = false;
+	bool _hidingScheduled = false;
 
 	object_ptr<Ui::ScrollArea> e_scroll;
 	QPointer<internal::EmojiPanInner> e_inner;
