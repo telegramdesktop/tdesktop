@@ -342,7 +342,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 	auto info = SectionInfo();
 	for (auto i = 0; i != kEmojiSectionCount; ++i) {
 		info.section = i;
-		info.count = Ui::Emoji::GetSectionCount(static_cast<Section>(i));
+		info.count = _counts[i];
 		info.rowsCount = (info.count / kEmojiPanelPerRow) + ((info.count % kEmojiPanelPerRow) ? 1 : 0);
 		info.rowsTop = info.top + (i == 0 ? st::emojiPanPadding : st::emojiPanHeader);
 		info.rowsBottom = info.rowsTop + info.rowsCount * st::emojiPanSize.height();
@@ -389,6 +389,7 @@ void EmojiListWidget::ensureLoaded(int section) {
 		return;
 	}
 	_emoji[section] = Ui::Emoji::GetSection(static_cast<Section>(section));
+	_counts[section] = _emoji[section].size();
 	if (static_cast<Section>(section) == Section::Recent) {
 		return;
 	}
@@ -677,8 +678,8 @@ void EmojiListWidget::processHideFinished() {
 
 void EmojiListWidget::refreshRecent() {
 	clearSelection();
-	_counts[0] = Ui::Emoji::GetSectionCount(Section::Recent);
 	_emoji[0] = Ui::Emoji::GetSection(Section::Recent);
+	_counts[0] = _emoji[0].size();
 	auto h = countHeight();
 	if (h != height()) {
 		resize(width(), h);
