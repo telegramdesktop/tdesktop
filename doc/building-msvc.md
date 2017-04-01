@@ -208,6 +208,11 @@ If you didn't install Windows SDKs before, you need to install them now. To inst
 If you already have Windows SDKs then find the library folder and correct it at configure's command below (like **C:\Program Files (x86)\Windows Kits\8.0\Lib\win8\um\x86**).
 
 #### Building library
+Go to Libraries directory
+
+    D:
+    cd /tbuild/libraries/qt5_6_0/qtbase
+and run
 
 Go to **D:\\TBuild\\Libraries\\qt5_6_2** and run
 
