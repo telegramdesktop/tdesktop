@@ -106,6 +106,7 @@
               'fontconfig',
               'expat',
               'freetype',
+              'z',
               'xcb-shm',
               'xcb-xfixes',
               'xcb-render',

@@ -56,12 +56,12 @@ public:
 
 class ItemBase : public LayoutItemBase {
 public:
-	ItemBase(gsl::not_null<Context*> context, Result *result) : _context(context), _result(result) {
+	ItemBase(gsl::not_null<Context*> context, Result *result) : _result(result), _context(context) {
 	}
-	ItemBase(gsl::not_null<Context*> context, DocumentData *doc) : _context(context), _doc(doc) {
+	ItemBase(gsl::not_null<Context*> context, DocumentData *doc) : _doc(doc), _context(context) {
 	}
 	// Not used anywhere currently.
-	//ItemBase(gsl::not_null<Context*> context, PhotoData *photo) : _context(context), _photo(photo) {
+	//ItemBase(gsl::not_null<Context*> context, PhotoData *photo) : _photo(photo), _context(context) {
 	//}
 
 	virtual void paint(Painter &p, const QRect &clip, const PaintContext *context) const = 0;

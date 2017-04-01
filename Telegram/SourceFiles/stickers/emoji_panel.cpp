@@ -280,15 +280,15 @@ void EmojiPanel::Tab::saveScrollTop() {
 }
 
 EmojiPanel::EmojiPanel(QWidget *parent) : TWidget(parent)
-, _scroll(this, st::emojiScroll)
 , _tabsSlider(this, st::emojiTabs)
 , _topShadow(this, st::shadowFg)
 , _bottomShadow(this, st::shadowFg)
-, _tabs {
+, _scroll(this, st::emojiScroll)
+, _tabs { {
 	Tab { TabType::Emoji, object_ptr<EmojiListWidget>(this) },
 	Tab { TabType::Stickers, object_ptr<StickersListWidget>(this) },
 	Tab { TabType::Gifs, object_ptr<GifsListWidget>(this) },
-}
+} }
 , _currentTabType(AuthSession::Current().data().emojiPanelTab()) {
 	resize(QRect(0, 0, st::emojiPanWidth, st::emojiPanMaxHeight).marginsAdded(innerPadding()).size());
 	_width = width();

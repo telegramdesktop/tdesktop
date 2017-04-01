@@ -406,7 +406,8 @@ int Inner::refreshInlineRows(UserData *bot, const CacheEntry *entry, bool result
 		}
 		return false;
 	};
-	if (clearResults()) {
+	auto clearResultsResult = clearResults(); // Clang workaround.
+	if (clearResultsResult) {
 		if (resultsDeleted) {
 			clearInlineRows(true);
 			deleteUnusedInlineLayouts();

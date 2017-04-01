@@ -54,7 +54,7 @@ private:
 
 EmojiListWidget::Footer::Footer(gsl::not_null<EmojiListWidget*> parent) : InnerFooter(parent)
 , _pan(parent)
-, _sections {
+, _sections { {
 	object_ptr<Ui::IconButton>(this, st::emojiCategoryRecent),
 	object_ptr<Ui::IconButton>(this, st::emojiCategoryPeople),
 	object_ptr<Ui::IconButton>(this, st::emojiCategoryNature),
@@ -63,7 +63,7 @@ EmojiListWidget::Footer::Footer(gsl::not_null<EmojiListWidget*> parent) : InnerF
 	object_ptr<Ui::IconButton>(this, st::emojiCategoryTravel),
 	object_ptr<Ui::IconButton>(this, st::emojiCategoryObjects),
 	object_ptr<Ui::IconButton>(this, st::emojiCategorySymbols),
-} {
+} } {
 	auto left = (st::emojiPanWidth - _sections.size() * st::emojiCategory.width) / 2;
 	for (auto i = 0; i != _sections.size(); ++i) {
 		auto &button = _sections[i];
@@ -79,7 +79,7 @@ void EmojiListWidget::Footer::processPanelHideFinished() {
 }
 
 void EmojiListWidget::Footer::setCurrentSectionIcon(Section section) {
-	std::array<const style::icon *, kEmojiSectionCount> overrides = {
+	std::array<const style::icon *, kEmojiSectionCount> overrides = { {
 		&st::emojiRecentActive,
 		&st::emojiPeopleActive,
 		&st::emojiNatureActive,
@@ -88,7 +88,7 @@ void EmojiListWidget::Footer::setCurrentSectionIcon(Section section) {
 		&st::emojiTravelActive,
 		&st::emojiObjectsActive,
 		&st::emojiSymbolsActive,
-	};
+	} };
 	for (auto i = 0; i != _sections.size(); ++i) {
 		_sections[i]->setIconOverride((section == static_cast<Section>(i)) ? overrides[i] : nullptr);
 	}
