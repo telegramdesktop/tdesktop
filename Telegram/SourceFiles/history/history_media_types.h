@@ -175,6 +175,9 @@ public:
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
 	}
+	bool canEditCaption() const override {
+		return true;
+	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
 	}
@@ -191,7 +194,7 @@ protected:
 	}
 
 private:
-	PhotoData *_data;
+	gsl::not_null<PhotoData*> _data;
 	int16 _pixw = 1;
 	int16 _pixh = 1;
 	Text _caption;
@@ -266,6 +269,9 @@ public:
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
 	}
+	bool canEditCaption() const override {
+		return true;
+	}
 
 protected:
 	float64 dataProgress() const override {
@@ -279,7 +285,7 @@ protected:
 	}
 
 private:
-	DocumentData *_data;
+	gsl::not_null<DocumentData*> _data;
 	int32 _thumbw;
 	Text _caption;
 
@@ -417,6 +423,9 @@ public:
 	bool hideForwardedFrom() const override {
 		return _data->song();
 	}
+	bool canEditCaption() const override {
+		return true;
+	}
 
 	void step_voiceProgress(float64 ms, bool timer);
 
@@ -445,7 +454,7 @@ private:
 	template <typename Callback>
 	void buildStringRepresentation(Callback callback) const;
 
-	DocumentData *_data;
+	gsl::not_null<DocumentData*> _data;
 
 };
 
@@ -523,6 +532,9 @@ public:
 	bool skipBubbleTail() const override {
 		return isBubbleBottom() && _caption.isEmpty();
 	}
+	bool canEditCaption() const override {
+		return !_data->isRoundVideo();
+	}
 	bool isReadyForOpen() const override {
 		return _data->loaded();
 	}
@@ -535,7 +547,7 @@ protected:
 	bool dataLoaded() const override;
 
 private:
-	DocumentData *_data;
+	gsl::not_null<DocumentData*> _data;
 	int32 _thumbw = 1;
 	int32 _thumbh = 1;
 	Text _caption;
@@ -606,7 +618,7 @@ private:
 	int16 _pixw = 1;
 	int16 _pixh = 1;
 	ClickHandlerPtr _packLink;
-	DocumentData *_data;
+	gsl::not_null<DocumentData*> _data;
 	QString _emoji;
 
 };
@@ -659,8 +671,7 @@ public:
 	}
 
 private:
-
-	int32 _userId;
+	int32 _userId = 0;
 	UserData *_contact = nullptr;
 
 	int _phonew = 0;
@@ -671,6 +682,7 @@ private:
 	ClickHandlerPtr _linkl;
 	int _linkw = 0;
 	QString _link;
+
 };
 
 class HistoryWebPage : public HistoryMedia {
@@ -769,6 +781,7 @@ private:
 
 	int16 _pixw = 0;
 	int16 _pixh = 0;
+
 };
 
 class HistoryGame : public HistoryMedia {

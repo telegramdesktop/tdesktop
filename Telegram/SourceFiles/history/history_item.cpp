@@ -756,20 +756,19 @@ void HistoryItem::setId(MsgId newId) {
 bool HistoryItem::canEdit(const QDateTime &cur) const {
 	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
-	if (id < 0 || messageTooOld) return false;
+	if (id < 0 || messageTooOld) {
+		return false;
+	}
 
 	if (auto msg = toHistoryMessage()) {
-		if (msg->Has<HistoryMessageVia>() || msg->Has<HistoryMessageForwarded>()) return false;
+		if (msg->Has<HistoryMessageVia>() || msg->Has<HistoryMessageForwarded>()) {
+			return false;
+		}
 
 		if (auto media = msg->getMedia()) {
-			auto type = media->type();
-			if (type != MediaTypePhoto &&
-				type != MediaTypeVideo &&
-				type != MediaTypeFile &&
-				type != MediaTypeGif &&
-				type != MediaTypeMusicFile &&
-				type != MediaTypeVoiceFile &&
-				type != MediaTypeWebPage) {
+			if (media->canEditCaption()) {
+				return true;
+			} else if (media->type() != MediaTypeWebPage) {
 				return false;
 			}
 		}
@@ -785,8 +784,12 @@ bool HistoryItem::canEdit(const QDateTime &cur) const {
 bool HistoryItem::canDeleteForEveryone(const QDateTime &cur) const {
 	auto messageToMyself = (_history->peer->id == AuthSession::CurrentUserPeerId());
 	auto messageTooOld = messageToMyself ? false : (date.secsTo(cur) >= Global::EditTimeLimit());
-	if (id < 0 || messageToMyself || messageTooOld) return false;
-	if (history()->peer->isChannel()) return false;
+	if (id < 0 || messageToMyself || messageTooOld) {
+		return false;
+	}
+	if (history()->peer->isChannel()) {
+		return false;
+	}
 
 	if (auto msg = toHistoryMessage()) {
 		return !isPost() && out();
@@ -803,21 +806,31 @@ bool HistoryItem::unread() const {
 
 	if (out()) {
 		// Outgoing messages in converted chats are always read.
-		if (history()->peer->migrateTo()) return false;
+		if (history()->peer->migrateTo()) {
+			return false;
+		}
 
 		if (id > 0) {
-			if (id < history()->outboxReadBefore) return false;
+			if (id < history()->outboxReadBefore) {
+				return false;
+			}
 			if (auto user = history()->peer->asUser()) {
-				if (user->botInfo) return false;
+				if (user->botInfo) {
+					return false;
+				}
 			} else if (auto channel = history()->peer->asChannel()) {
-				if (!channel->isMegagroup()) return false;
+				if (!channel->isMegagroup()) {
+					return false;
+				}
 			}
 		}
 		return true;
 	}
 
 	if (id > 0) {
-		if (id < history()->inboxReadBefore) return false;
+		if (id < history()->inboxReadBefore) {
+			return false;
+		}
 		return true;
 	}
 	return (_flags & MTPDmessage_ClientFlag::f_clientside_unread);
@@ -867,11 +880,15 @@ void HistoryItem::setUnreadBarFreezed() {
 void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 	using namespace Media::Clip;
 
-	HistoryMedia *media = getMedia();
-	if (!media) return;
+	auto media = getMedia();
+	if (!media) {
+		return;
+	}
 
-	Reader *reader = media ? media->getClipReader() : 0;
-	if (!reader) return;
+	auto reader = media ? media->getClipReader() : nullptr;
+	if (!reader) {
+		return;
+	}
 
 	switch (notification) {
 	case NotificationReinit: {
@@ -903,7 +920,9 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 
 void HistoryItem::recountDisplayDate() {
 	bool displayingDate = ([this]() {
-		if (isEmpty()) return false;
+		if (isEmpty()) {
+			return false;
+		}
 
 		if (auto previous = previousItem()) {
 			return previous->isEmpty() || (previous->date.date() != date.date());
@@ -930,7 +949,9 @@ QString HistoryItem::notificationText() const {
 	};
 
 	auto result = getText();
-	if (result.size() > 0xFF) result = result.mid(0, 0xFF) + qsl("...");
+	if (result.size() > 0xFF) {
+		result = result.mid(0, 0xFF) + qsl("...");
+	}
 	return result;
 }
 

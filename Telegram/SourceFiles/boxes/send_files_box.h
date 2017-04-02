@@ -115,8 +115,7 @@ class EditCaptionBox : public BoxContent, public RPCSender {
 	Q_OBJECT
 
 public:
-	EditCaptionBox(QWidget*, HistoryItem *msg);
-	static bool canEdit(HistoryItem *message);
+	EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId);
 
 public slots:
 	void onCaptionResized();

@@ -269,10 +269,9 @@ void AutoDownloadBox::onSave() {
 		bool enabledGroups = ((cAutoDownloadAudio() & dbiadNoGroups) && !(autoDownloadAudio & dbiadNoGroups));
 		cSetAutoDownloadAudio(autoDownloadAudio);
 		if (enabledPrivate || enabledGroups) {
-			const DocumentsData &data(App::documentsData());
-			for (DocumentsData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
-				if (i.value()->voice()) {
-					i.value()->automaticLoadSettingsChanged();
+			for (auto document : App::documentsData()) {
+				if (document->voice()) {
+					document->automaticLoadSettingsChanged();
 				}
 			}
 		}
@@ -284,10 +283,9 @@ void AutoDownloadBox::onSave() {
 		bool enabledGroups = ((cAutoDownloadGif() & dbiadNoGroups) && !(autoDownloadGif & dbiadNoGroups));
 		cSetAutoDownloadGif(autoDownloadGif);
 		if (enabledPrivate || enabledGroups) {
-			const DocumentsData &data(App::documentsData());
-			for (DocumentsData::const_iterator i = data.cbegin(), e = data.cend(); i != e; ++i) {
-				if (i.value()->isAnimation()) {
-					i.value()->automaticLoadSettingsChanged();
+			for (auto document : App::documentsData()) {
+				if (document->isAnimation()) {
+					document->automaticLoadSettingsChanged();
 				}
 			}
 		}

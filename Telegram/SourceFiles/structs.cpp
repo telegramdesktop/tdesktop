@@ -1299,9 +1299,6 @@ VoiceData::~VoiceData() {
 	}
 }
 
-DocumentAdditionalData::~DocumentAdditionalData() {
-}
-
 DocumentData::DocumentData(DocumentId id, int32 dc, uint64 accessHash, int32 version, const QString &url, const QVector<MTPDocumentAttribute> &attributes)
 : id(id)
 , _dc(dc)
@@ -1353,7 +1350,7 @@ void DocumentData::setattributes(const QVector<MTPDocumentAttribute> &attributes
 		case mtpc_documentAttributeVideo: {
 			auto &d = attributes[i].c_documentAttributeVideo();
 			if (type == FileDocument) {
-				type = VideoDocument;
+				type = d.is_round_message() ? RoundVideoDocument : VideoDocument;
 			}
 			_duration = d.vduration.v;
 			dimensions = QSize(d.vw.v, d.vh.v);
@@ -1440,8 +1437,10 @@ void DocumentData::automaticLoad(const HistoryItem *item) {
 }
 
 void DocumentData::automaticLoadSettingsChanged() {
-	if (loaded() || status != FileReady || (!isAnimation() && !voice()) || !saveToCache() || _loader != CancelledMtpFileLoader) return;
-	_loader = 0;
+	if (loaded() || status != FileReady || (!isAnimation() && !voice()) || !saveToCache() || _loader != CancelledMtpFileLoader) {
+		return;
+	}
+	_loader = nullptr;
 }
 
 void DocumentData::performActionOnLoad() {
@@ -1450,10 +1449,10 @@ void DocumentData::performActionOnLoad() {
 	auto loc = location(true);
 	auto already = loc.name();
 	auto item = _actionOnLoadMsgId.msg ? App::histItemById(_actionOnLoadMsgId) : nullptr;
-	bool showImage = !isVideo() && (size < App::kImageSizeLimit);
-	bool playVoice = voice() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
-	bool playMusic = song() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
-	bool playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
+	auto showImage = !isVideo() && (size < App::kImageSizeLimit);
+	auto playVoice = voice() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
+	auto playMusic = song() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen);
+	auto playAnimation = isAnimation() && (_actionOnLoad == ActionOnLoadPlayInline || _actionOnLoad == ActionOnLoadOpen) && showImage && item && item->getMedia();
 	if (auto applyTheme = isTheme()) {
 		if (!loc.isEmpty() && loc.accessEnable()) {
 			App::wnd()->showDocument(this, item);
@@ -1784,7 +1783,9 @@ bool fileIsImage(const QString &name, const QString &mime) {
 }
 
 void DocumentData::recountIsImage() {
-	if (isAnimation() || isVideo()) return;
+	if (isAnimation() || isVideo()) {
+		return;
+	}
 	_duration = fileIsImage(name, mime) ? 1 : -1; // hack
 }
 

@@ -450,46 +450,46 @@ void SendFilesBox::closeHook() {
 	}
 }
 
-EditCaptionBox::EditCaptionBox(QWidget*, HistoryItem *msg)
-: _msgId(msg->fullId()) {
+EditCaptionBox::EditCaptionBox(QWidget*, HistoryMedia *media, FullMsgId msgId) : _msgId(msgId) {
+	Expects(media->canEditCaption());
+
 	QSize dimensions;
 	ImagePtr image;
 	QString caption;
 	DocumentData *doc = nullptr;
-	if (auto media = msg->getMedia()) {
-		auto t = media->type();
-		switch (t) {
-		case MediaTypeGif: {
-			_animated = true;
-			doc = static_cast<HistoryGif*>(media)->getDocument();
-			dimensions = doc->dimensions;
-			image = doc->thumb;
-		} break;
 
-		case MediaTypePhoto: {
-			_photo = true;
-			PhotoData *photo = static_cast<HistoryPhoto*>(media)->photo();
-			dimensions = QSize(photo->full->width(), photo->full->height());
-			image = photo->full;
-		} break;
+	switch (media->type()) {
+	case MediaTypeGif: {
+		_animated = true;
+		doc = static_cast<HistoryGif*>(media)->getDocument();
+		dimensions = doc->dimensions;
+		image = doc->thumb;
+	} break;
 
-		case MediaTypeVideo: {
-			_animated = true;
-			doc = static_cast<HistoryVideo*>(media)->getDocument();
-			dimensions = doc->dimensions;
-			image = doc->thumb;
-		} break;
+	case MediaTypePhoto: {
+		_photo = true;
+		auto photo = static_cast<HistoryPhoto*>(media)->photo();
+		dimensions = QSize(photo->full->width(), photo->full->height());
+		image = photo->full;
+	} break;
 
-		case MediaTypeFile:
-		case MediaTypeMusicFile:
-		case MediaTypeVoiceFile: {
-			_doc = true;
-			doc = static_cast<HistoryDocument*>(media)->getDocument();
-			image = doc->thumb;
-		} break;
-		}
-		caption = media->getCaption().text;
+	case MediaTypeVideo: {
+		_animated = true;
+		doc = static_cast<HistoryVideo*>(media)->getDocument();
+		dimensions = doc->dimensions;
+		image = doc->thumb;
+	} break;
+
+	case MediaTypeFile:
+	case MediaTypeMusicFile:
+	case MediaTypeVoiceFile: {
+		_doc = true;
+		doc = static_cast<HistoryDocument*>(media)->getDocument();
+		image = doc->thumb;
+	} break;
 	}
+	caption = media->getCaption().text;
+
 	if ((!_animated && (dimensions.isEmpty() || doc)) || image->isNull()) {
 		_animated = false;
 		if (image->isNull()) {
@@ -563,17 +563,11 @@ EditCaptionBox::EditCaptionBox(QWidget*, HistoryItem *msg)
 		_thumb = App::pixmapFromImageInPlace(_thumb.toImage().scaled(_thumbw * cIntRetinaFactor(), _thumbh * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation));
 		_thumb.setDevicePixelRatio(cRetinaFactor());
 	}
-	if (_animated || _photo || _doc) {
-		_field.create(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
-		_field->setMaxLength(MaxPhotoCaption);
-		_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
-	} else {
-		auto original = msg->originalText();
-		auto text = textApplyEntities(original.text, original.entities);
-		_field.create(this, st::editTextArea, lang(lng_photo_caption), text);
-//		_field->setMaxLength(MaxMessageSize); // entities can make text in input field larger but still valid
-		_field->setCtrlEnterSubmit(cCtrlEnter() ? Ui::CtrlEnterSubmit::CtrlEnter : Ui::CtrlEnterSubmit::Enter);
-	}
+	t_assert(_animated || _photo || _doc);
+
+	_field.create(this, st::confirmCaptionArea, lang(lng_photo_caption), caption);
+	_field->setMaxLength(MaxPhotoCaption);
+	_field->setCtrlEnterSubmit(Ui::CtrlEnterSubmit::Both);
 }
 
 void EditCaptionBox::prepareGifPreview(DocumentData *document) {
@@ -611,20 +605,6 @@ void EditCaptionBox::clipCallback(Media::Clip::Notification notification) {
 		}
 	} break;
 	}
-}
-
-bool EditCaptionBox::canEdit(HistoryItem *message) {
-	if (auto media = message->getMedia()) {
-		switch (media->type()) {
-		case MediaTypeGif:
-		case MediaTypePhoto:
-		case MediaTypeVideo:
-		case MediaTypeFile:
-		case MediaTypeMusicFile:
-		case MediaTypeVoiceFile: return true;
-		}
-	}
-	return false;
 }
 
 void EditCaptionBox::prepare() {

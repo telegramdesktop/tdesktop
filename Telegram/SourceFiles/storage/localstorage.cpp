@@ -3662,8 +3662,8 @@ void readSavedGifs() {
 	saved.reserve(cnt);
 	OrderedSet<DocumentId> read;
 	for (uint32 i = 0; i < cnt; ++i) {
-		DocumentData *document = Serialize::Document::readFromStream(gifs.version, gifs.stream);
-		if (!document || !document->isAnimation()) continue;
+		auto document = Serialize::Document::readFromStream(gifs.version, gifs.stream);
+		if (!document || !document->isGifv()) continue;
 
 		if (read.contains(document->id)) continue;
 		read.insert(document->id);

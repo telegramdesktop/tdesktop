@@ -764,7 +764,7 @@ void MediaPreviewWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void MediaPreviewWidget::showPreview(DocumentData *document) {
-	if (!document || (!document->isAnimation() && !document->sticker())) {
+	if (!document || (!document->isAnimation() && !document->sticker()) || document->isRoundVideo()) {
 		hidePreview();
 		return;
 	}

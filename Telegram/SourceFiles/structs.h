@@ -1074,17 +1074,20 @@ enum FileStatus {
 	FileReady = 1,
 };
 
+// Don't change the values. This type is used for serialization.
 enum DocumentType {
-	FileDocument     = 0,
-	VideoDocument    = 1,
-	SongDocument     = 2,
-	StickerDocument  = 3,
-	AnimatedDocument = 4,
-	VoiceDocument    = 5,
+	FileDocument       = 0,
+	VideoDocument      = 1,
+	SongDocument       = 2,
+	StickerDocument    = 3,
+	AnimatedDocument   = 4,
+	VoiceDocument      = 5,
+	RoundVideoDocument = 6,
 };
 
 struct DocumentAdditionalData {
-	virtual ~DocumentAdditionalData();
+	virtual ~DocumentAdditionalData() = default;
+
 };
 
 struct StickerData : public DocumentAdditionalData {
@@ -1099,9 +1102,7 @@ struct StickerData : public DocumentAdditionalData {
 };
 
 struct SongData : public DocumentAdditionalData {
-	SongData() : duration(0) {
-	}
-	int32 duration;
+	int32 duration = 0;
 	QString title, performer;
 
 };
@@ -1193,8 +1194,11 @@ public:
 	const VoiceData *voice() const {
 		return const_cast<DocumentData*>(this)->voice();
 	}
+	bool isRoundVideo() const {
+		return (type == RoundVideoDocument);
+	}
 	bool isAnimation() const {
-		return (type == AnimatedDocument) || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
+		return (type == AnimatedDocument) || isRoundVideo() || !mime.compare(qstr("image/gif"), Qt::CaseInsensitive);
 	}
 	bool isGifv() const {
 		return (type == AnimatedDocument) && !mime.compare(qstr("video/mp4"), Qt::CaseInsensitive);
@@ -1246,11 +1250,12 @@ public:
 
 	~DocumentData();
 
-	DocumentId id;
+	DocumentId id = 0;
 	DocumentType type = FileDocument;
 	QSize dimensions;
 	int32 date = 0;
-	QString name, mime;
+	QString name;
+	QString mime;
 	ImagePtr thumb, replyPreview;
 	int32 size = 0;
 

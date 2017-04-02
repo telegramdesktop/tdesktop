@@ -89,7 +89,11 @@ MTPVector<MTPDocumentAttribute> composeDocumentAttributes(DocumentData *document
 	if (document->dimensions.width() > 0 && document->dimensions.height() > 0) {
 		int32 duration = document->duration();
 		if (duration >= 0) {
-			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(0), MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
+			auto flags = MTPDdocumentAttributeVideo::Flags(0);
+			if (document->isRoundVideo()) {
+				flags |= MTPDdocumentAttributeVideo::Flag::f_round_message;
+			}
+			attributes.push_back(MTP_documentAttributeVideo(MTP_flags(flags), MTP_int(duration), MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
 		} else {
 			attributes.push_back(MTP_documentAttributeImageSize(MTP_int(document->dimensions.width()), MTP_int(document->dimensions.height())));
 		}
@@ -1449,20 +1453,20 @@ void HistoryWidget::savedGifsGot(const MTPmessages_SavedGifs &gifs) {
 	if (gifs.type() != mtpc_messages_savedGifs) return;
 	auto &d = gifs.c_messages_savedGifs();
 
-	auto &d_gifs = d.vgifs.v;
+	auto &gifsList = d.vgifs.v;
 
-	SavedGifs &saved(cRefSavedGifs());
+	auto &saved = cRefSavedGifs();
 	saved.clear();
 
-	saved.reserve(d_gifs.size());
-	for (int32 i = 0, l = d_gifs.size(); i != l; ++i) {
-		DocumentData *doc = App::feedDocument(d_gifs.at(i));
-		if (!doc || !doc->isAnimation()) {
+	saved.reserve(gifsList.size());
+	for (auto &gif : gifsList) {
+		auto document = App::feedDocument(gif);
+		if (!document || !document->isGifv()) {
 			LOG(("API Error: bad document returned in HistoryWidget::savedGifsGot!"));
 			continue;
 		}
 
-		saved.push_back(doc);
+		saved.push_back(document);
 	}
 	if (Local::countSavedGifsHash() != d.vhash.v) {
 		LOG(("API Error: received saved gifs hash %1 while counted hash is %2").arg(d.vhash.v).arg(Local::countSavedGifsHash()));
@@ -5315,55 +5319,58 @@ void HistoryWidget::onEditMessage() {
 	auto to = App::contextItem();
 	if (!to) return;
 
-	if (EditCaptionBox::canEdit(to)) {
-		Ui::show(Box<EditCaptionBox>(to));
-	} else {
-		if (_recording) {
-			// Just fix some strange inconsistency.
-			_send->clearState();
+	if (auto media = to->getMedia()) {
+		if (media->canEditCaption()) {
+			Ui::show(Box<EditCaptionBox>(media, to->fullId()));
+			return;
 		}
-		if (!_editMsgId) {
-			if (_replyToId || !_field->isEmpty()) {
-				_history->setLocalDraft(std::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
-			} else {
-				_history->clearLocalDraft();
-			}
-		}
-
-		auto original = to->originalText();
-		auto editText = textApplyEntities(original.text, original.entities);
-		auto editTags = ConvertEntitiesToTextTags(original.entities);
-		TextWithTags editData = { editText, editTags };
-		MessageCursor cursor = { editText.size(), editText.size(), QFIXED_MAX };
-		_history->setEditDraft(std::make_unique<Data::Draft>(editData, to->id, cursor, false));
-		applyDraft(false);
-
-		_previewData = nullptr;
-		if (auto media = to->getMedia()) {
-			if (media->type() == MediaTypeWebPage) {
-				_previewData = static_cast<HistoryWebPage*>(media)->webpage();
-				updatePreview();
-			}
-		}
-		if (!_previewData) {
-			onPreviewParse();
-		}
-
-		updateBotKeyboard();
-
-		if (!_field->isHidden()) _fieldBarCancel->show();
-		updateFieldPlaceholder();
-		updateMouseTracking();
-		updateReplyToName();
-		updateControlsGeometry();
-		updateField();
-
-		_saveDraftText = true;
-		_saveDraftStart = getms();
-		onDraftSave();
-
-		_field->setFocus();
 	}
+
+	if (_recording) {
+		// Just fix some strange inconsistency.
+		_send->clearState();
+	}
+	if (!_editMsgId) {
+		if (_replyToId || !_field->isEmpty()) {
+			_history->setLocalDraft(std::make_unique<Data::Draft>(_field, _replyToId, _previewCancelled));
+		} else {
+			_history->clearLocalDraft();
+		}
+	}
+
+	auto original = to->originalText();
+	auto editText = textApplyEntities(original.text, original.entities);
+	auto editTags = ConvertEntitiesToTextTags(original.entities);
+	TextWithTags editData = { editText, editTags };
+	MessageCursor cursor = { editText.size(), editText.size(), QFIXED_MAX };
+	_history->setEditDraft(std::make_unique<Data::Draft>(editData, to->id, cursor, false));
+	applyDraft(false);
+
+	_previewData = nullptr;
+	if (auto media = to->getMedia()) {
+		if (media->type() == MediaTypeWebPage) {
+			_previewData = static_cast<HistoryWebPage*>(media)->webpage();
+			updatePreview();
+		}
+	}
+	if (!_previewData) {
+		onPreviewParse();
+	}
+
+	updateBotKeyboard();
+
+	if (!_field->isHidden()) _fieldBarCancel->show();
+	updateFieldPlaceholder();
+	updateMouseTracking();
+	updateReplyToName();
+	updateControlsGeometry();
+	updateField();
+
+	_saveDraftText = true;
+	_saveDraftStart = getms();
+	onDraftSave();
+
+	_field->setFocus();
 }
 
 void HistoryWidget::onPinMessage() {

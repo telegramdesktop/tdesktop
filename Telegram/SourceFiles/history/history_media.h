@@ -171,6 +171,10 @@ public:
 		return false;
 	}
 
+	virtual bool canEditCaption() const {
+		return false;
+	}
+
 	// Sometimes click on media in message is overloaded by the messsage:
 	// (for example it can open a link or a game instead of opening media)
 	// But the overloading click handler should be used only when media

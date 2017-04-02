@@ -434,8 +434,8 @@ MTPDmessage::Flags newForwardedFlags(PeerData *p, int32 from, HistoryMessage *fw
 		if (HistoryMedia *media = fwd->getMedia()) {
 			if (media->type() == MediaTypeVoiceFile) {
 				result |= MTPDmessage::Flag::f_media_unread;
-				//			} else if (media->type() == MediaTypeVideo) {
-				//				result |= MTPDmessage::flag_media_unread;
+//			} else if (media->type() == MediaTypeVideo) {
+//				result |= MTPDmessage::flag_media_unread;
 			}
 		}
 	}

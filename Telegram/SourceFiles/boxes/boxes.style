@@ -484,11 +484,6 @@ autoDownloadTopDelta: 10px;
 autoDownloadTitlePosition: point(23px, 18px);
 autoDownloadTitleFont: font(15px semibold);
 
-editTextArea: InputField(defaultInputField) {
-	textMargins: margins(1px, 26px, 1px, 4px);
-	heightMax: 276px;
-}
-
 confirmCaptionArea: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
 	heightMax: 78px;

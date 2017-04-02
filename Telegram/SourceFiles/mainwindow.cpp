@@ -487,7 +487,9 @@ bool MainWindow::ui_isLayerShown() {
 }
 
 void MainWindow::ui_showMediaPreview(DocumentData *document) {
-	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) return;
+	if (!document || ((!document->isAnimation() || !document->loaded()) && !document->sticker())) {
+		return;
+	}
 	if (!_mediaPreview) {
 		_mediaPreview.create(bodyWidget(), controller());
 		updateControlsGeometry();

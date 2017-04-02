@@ -528,7 +528,7 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
 			displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
 		} else {
-			const FileLocation &location(_doc->location(true));
+			auto &location = _doc->location(true);
 			if (location.accessEnable()) {
 				if (_doc->isAnimation() || _doc->isVideo() || _doc->isTheme() || QImageReader(location.name()).canRead()) {
 					displayDocument(_doc, App::histItemById(_msgmigrated ? 0 : _channel, _msgid));
@@ -1384,8 +1384,8 @@ void MediaView::displayFinished() {
 }
 
 void MediaView::initAnimation() {
-	t_assert(_doc != nullptr);
-	t_assert(_doc->isAnimation() || _doc->isVideo());
+	Expects(_doc != nullptr);
+	Expects(_doc->isAnimation() || _doc->isVideo());
 
 	auto &location = _doc->location(true);
 	if (!_doc->data().isEmpty()) {
@@ -1406,8 +1406,8 @@ void MediaView::initAnimation() {
 void MediaView::createClipReader() {
 	if (_gif) return;
 
-	t_assert(_doc != nullptr);
-	t_assert(_doc->isAnimation() || _doc->isVideo());
+	Expects(_doc != nullptr);
+	Expects(_doc->isAnimation() || _doc->isVideo());
 
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
