@@ -515,6 +515,9 @@ public:
 		return _caption.originalTextWithEntities();
 	}
 	bool needsBubble() const override {
+		if (_data->isRoundVideo()) {
+			return false;
+		}
 		if (!_caption.isEmpty()) {
 			return true;
 		}
@@ -545,6 +548,11 @@ protected:
 	float64 dataProgress() const override;
 	bool dataFinished() const override;
 	bool dataLoaded() const override;
+
+	void setClipReader(Media::Clip::ReaderPointer gif);
+	void clearClipReader() {
+		setClipReader(Media::Clip::ReaderPointer());
+	}
 
 private:
 	gsl::not_null<DocumentData*> _data;

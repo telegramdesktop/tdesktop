@@ -68,6 +68,11 @@ public:
 	explicit operator bool() const {
 		return valid();
 	}
+	static inline ReaderPointer Bad() {
+		ReaderPointer result;
+		result.setBad();
+		return result;
+	}
 	~ReaderPointer();
 
 private:

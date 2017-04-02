@@ -892,17 +892,20 @@ void HistoryItem::clipCallback(Media::Clip::Notification notification) {
 
 	switch (notification) {
 	case NotificationReinit: {
-		bool stopped = false;
+		auto stopped = false;
 		if (reader->autoPausedGif()) {
-			if (MainWidget *m = App::main()) {
+			if (auto m = App::main()) {
 				if (!m->isItemVisible(this)) { // stop animation if it is not visible
 					media->stopInline();
-					if (DocumentData *document = media->getDocument()) { // forget data from memory
+					if (auto document = media->getDocument()) { // forget data from memory
 						document->forget();
 					}
 					stopped = true;
 				}
 			}
+		} else if (reader->mode() == Media::Clip::Reader::Mode::Video && reader->state() == Media::Clip::State::Finished) {
+			// Stop finished video message.
+			media->stopInline();
 		}
 		if (!stopped) {
 			setPendingInitDimensions();

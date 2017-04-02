@@ -222,11 +222,12 @@ bool MediaView::fileBubbleShown() const {
 bool MediaView::gifShown() const {
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
-			if (_doc->isVideo() && _autoplayVideoDocument != _doc && !_gif->videoPaused()) {
+			if ((_doc->isVideo() || _doc->isRoundVideo()) && _autoplayVideoDocument != _doc && !_gif->videoPaused()) {
 				_gif->pauseResumeVideo();
 				const_cast<MediaView*>(this)->_videoPaused = _gif->videoPaused();
 			}
-			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), ImageRoundRadius::None, ImageRoundCorner::None);
+			auto rounding = _doc->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
+			_gif->start(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All);
 			const_cast<MediaView*>(this)->_current = QPixmap();
 		}
 		return true;// _gif->state() != Media::Clip::State::Error;
@@ -522,7 +523,7 @@ void MediaView::step_radial(TimeMs ms, bool timer) {
 		update(radialRect());
 	}
 	if (_doc && _doc->loaded() && _doc->size < App::kImageSizeLimit && (!_radial.animating() || _doc->isAnimation() || _doc->isVideo())) {
-		if (_doc->isVideo()) {
+		if (_doc->isVideo() || _doc->isRoundVideo()) {
 			_autoplayVideoDocument = _doc;
 		}
 		if (!_doc->data().isEmpty() && (_doc->isAnimation() || _doc->isVideo())) {
@@ -828,7 +829,7 @@ void MediaView::clipCallback(Media::Clip::Notification notification) {
 				_videoStopped = true;
 				updateSilentVideoPlaybackState();
 			} else {
-				_videoIsSilent = _doc->isVideo() && !_gif->hasAudio();
+				_videoIsSilent = (_doc->isVideo() || _doc->isRoundVideo()) && !_gif->hasAudio();
 				_videoDurationMs = _gif->getDurationMs();
 				_videoPositionMs = _gif->getPositionMs();
 				if (_videoIsSilent) {
@@ -1140,7 +1141,7 @@ void MediaView::showDocument(DocumentData *doc, HistoryItem *context) {
 		_overview = doc->isVideo() ? OverviewVideos : OverviewFiles;
 		findCurrent();
 	}
-	if (doc->isVideo()) {
+	if (doc->isVideo() || doc->isRoundVideo()) {
 		_autoplayVideoDocument = doc;
 	}
 	displayDocument(doc, context);
@@ -1383,6 +1384,14 @@ void MediaView::displayFinished() {
 	}
 }
 
+Images::Options MediaView::videoThumbOptions() const {
+	auto options = Images::Option::Smooth | Images::Option::Blurred;
+	if (_doc->isRoundVideo()) {
+		options |= Images::Option::Circled;
+	}
+	return options;
+}
+
 void MediaView::initAnimation() {
 	Expects(_doc != nullptr);
 	Expects(_doc->isAnimation() || _doc->isVideo());
@@ -1394,12 +1403,12 @@ void MediaView::initAnimation() {
 		createClipReader();
 		location.accessDisable();
 	} else if (_doc->dimensions.width() && _doc->dimensions.height()) {
-		int w = _doc->dimensions.width();
-		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		auto w = _doc->dimensions.width();
+		auto h = _doc->dimensions.height();
+		_current = _doc->thumb->pixNoCache(w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), Images::Option::Smooth | Images::Option::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
 }
 
@@ -1412,12 +1421,12 @@ void MediaView::createClipReader() {
 	if (_doc->dimensions.width() && _doc->dimensions.height()) {
 		int w = _doc->dimensions.width();
 		int h = _doc->dimensions.height();
-		_current = _doc->thumb->pixNoCache(w, h, Images::Option::Smooth | Images::Option::Blurred, w / cIntRetinaFactor(), h / cIntRetinaFactor());
+		_current = _doc->thumb->pixNoCache(w, h, videoThumbOptions(), w / cIntRetinaFactor(), h / cIntRetinaFactor());
 		if (cRetina()) _current.setDevicePixelRatio(cRetinaFactor());
 	} else {
-		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), Images::Option::Smooth | Images::Option::Blurred, st::mediaviewFileIconSize, st::mediaviewFileIconSize);
+		_current = _doc->thumb->pixNoCache(_doc->thumb->width(), _doc->thumb->height(), videoThumbOptions(), st::mediaviewFileIconSize, st::mediaviewFileIconSize);
 	}
-	auto mode = _doc->isVideo() ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
+	auto mode = (_doc->isVideo() || _doc->isRoundVideo()) ? Media::Clip::Reader::Mode::Video : Media::Clip::Reader::Mode::Gif;
 	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
 	}, mode);
@@ -1475,7 +1484,7 @@ void MediaView::initThemePreview() {
 }
 
 void MediaView::createClipController() {
-	if (!_doc->isVideo()) return;
+	if (!_doc->isVideo() && !_doc->isRoundVideo()) return;
 
 	_clipController.create(this);
 	setClipControllerGeometry();
@@ -1530,7 +1539,8 @@ void MediaView::restartVideoAtSeekPosition(TimeMs positionMs) {
 	_autoplayVideoDocument = _doc;
 
 	if (_current.isNull()) {
-		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), ImageRoundRadius::None, ImageRoundCorner::None, getms());
+		auto rounding = _doc->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
+		_current = _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::All, getms());
 	}
 	_gif = std::make_unique<Media::Clip::Reader>(_doc->location(), _doc->data(), [this](Media::Clip::Notification notification) {
 		clipCallback(notification);
@@ -1638,6 +1648,9 @@ void MediaView::paintEvent(QPaintEvent *e) {
 		for (int i = 0, l = region.rectCount(); i < l; ++i) {
 			p.fillRect(rs.at(i), st::mediaviewVideoBg);
 		}
+		if (_doc->isRoundVideo()) {
+			p.setCompositionMode(m);
+		}
 	} else {
 		for (int i = 0, l = region.rectCount(); i < l; ++i) {
 			p.fillRect(rs.at(i), st::mediaviewBg);
@@ -1670,7 +1683,8 @@ void MediaView::paintEvent(QPaintEvent *e) {
 	if (_photo || fileShown()) {
 		QRect imgRect(_x, _y, _w, _h);
 		if (imgRect.intersects(r)) {
-			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), ImageRoundRadius::None, ImageRoundCorner::None, ms) : _current;
+			auto rounding = _doc->isRoundVideo() ? ImageRoundRadius::Ellipse : ImageRoundRadius::None;
+			auto toDraw = _current.isNull() ? _gif->current(_gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), _gif->width() / cIntRetinaFactor(), _gif->height() / cIntRetinaFactor(), rounding, ImageRoundCorner::None, ms) : _current;
 			if (!_gif && (!_doc || !_doc->sticker() || _doc->sticker()->img->isNull()) && toDraw.hasAlpha()) {
 				p.fillRect(imgRect, _transparentBrush);
 			}
@@ -2011,7 +2025,7 @@ void MediaView::keyPressEvent(QKeyEvent *e) {
 	} else if (e->key() == Qt::Key_Enter || e->key() == Qt::Key_Return || e->key() == Qt::Key_Space) {
 		if (_doc && !_doc->loading() && (fileBubbleShown() || !_doc->loaded())) {
 			onDocClick();
-		} else if (_doc && _doc->isVideo()) {
+		} else if (_doc && (_doc->isVideo() || _doc->isRoundVideo())) {
 			onVideoPauseResume();
 		}
 	} else if (e->key() == Qt::Key_Left) {
@@ -2463,7 +2477,7 @@ void MediaView::updateOver(QPoint pos) {
 	} else if (_closeNav.contains(pos)) {
 		updateOverState(OverClose);
 	} else if (_doc && fileShown() && QRect(_x, _y, _w, _h).contains(pos)) {
-		if (_doc->isVideo() && _gif) {
+		if ((_doc->isVideo() || _doc->isRoundVideo()) && _gif) {
 			updateOverState(OverVideo);
 		} else if (!_doc->loaded()) {
 			updateOverState(OverIcon);

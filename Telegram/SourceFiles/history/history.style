@@ -418,3 +418,7 @@ msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
 msgWaveformMin: 2px;
 msgWaveformMax: 20px;
+
+historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
+historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};
+historyVideoMessageMuteSize: 25px;

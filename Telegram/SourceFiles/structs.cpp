@@ -1205,14 +1205,14 @@ void DocumentOpenClickHandler::doOpen(DocumentData *data, HistoryItem *context, 
 		} else if (data->size < App::kImageSizeLimit) {
 			if (!data->data().isEmpty() && playAnimation) {
 				if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
-					context->getMedia()->playInline(context);
+					context->getMedia()->playInline();
 				} else {
 					App::wnd()->showDocument(data, context);
 				}
 			} else if (location.accessEnable()) {
 				if (data->isAnimation() || QImageReader(location.name()).canRead()) {
 					if (action == ActionOnLoadPlayInline && context && context->getMedia()) {
-						context->getMedia()->playInline(context);
+						context->getMedia()->playInline();
 					} else {
 						App::wnd()->showDocument(data, context);
 					}
@@ -1485,7 +1485,7 @@ void DocumentData::performActionOnLoad() {
 	} else if (playAnimation) {
 		if (loaded()) {
 			if (_actionOnLoad == ActionOnLoadPlayInline && item->getMedia()) {
-				item->getMedia()->playInline(item);
+				item->getMedia()->playInline();
 			} else {
 				App::wnd()->showDocument(this, item);
 			}
@@ -1504,7 +1504,7 @@ void DocumentData::performActionOnLoad() {
 			} else if (loc.accessEnable()) {
 				if (showImage && QImageReader(loc.name()).canRead()) {
 					if (_actionOnLoad == ActionOnLoadPlayInline && item && item->getMedia()) {
-						item->getMedia()->playInline(item);
+						item->getMedia()->playInline();
 					} else {
 						App::wnd()->showDocument(this, item);
 					}

@@ -54,7 +54,10 @@ MediaOverviewType messageMediaToOverviewType(HistoryMedia *media) {
 	case MediaTypeFile: return OverviewFiles;
 	case MediaTypeMusicFile: return media->getDocument()->isMusic() ? OverviewMusicFiles : OverviewCount;
 	case MediaTypeVoiceFile: return OverviewVoiceFiles;
-	case MediaTypeGif: return media->getDocument()->isGifv() ? OverviewCount : OverviewFiles;
+	case MediaTypeGif: {
+		auto document = media->getDocument();
+		return (document->isGifv() || document->isRoundVideo()) ? OverviewCount : OverviewFiles;
+	} break;
 	default: break;
 	}
 	return OverviewCount;

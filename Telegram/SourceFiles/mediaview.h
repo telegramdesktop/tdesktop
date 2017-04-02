@@ -178,6 +178,7 @@ private:
 
 	void initAnimation();
 	void createClipReader();
+	Images::Options videoThumbOptions() const;
 
 	void initThemePreview();
 	void destroyThemePreview();
