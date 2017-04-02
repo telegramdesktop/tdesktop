@@ -191,6 +191,9 @@ void prepareCircle(QImage &img) {
 void prepareRound(QImage &image, ImageRoundRadius radius, ImageRoundCorners corners) {
 	if (!static_cast<int>(corners)) {
 		return;
+	} else if (radius == ImageRoundRadius::Ellipse) {
+		t_assert(corners == ImageRoundCorners(ImageRoundCorner::All));
+		prepareCircle(image);
 	}
 	t_assert(!image.isNull());
 
@@ -468,6 +471,8 @@ const QPixmap &Image::pixRounded(int32 w, int32 h, ImageRoundRadius radius, Imag
 		options |= Images::Option::RoundedLarge | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Small) {
 		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+	} else if (radius == ImageRoundRadius::Ellipse) {
+		options |= Images::Option::Circled | cornerOptions(corners);
 	}
 	auto k = PixKey(w, h, options);
 	auto i = _sizesCache.constFind(k);
@@ -618,6 +623,8 @@ const QPixmap &Image::pixSingle(int32 w, int32 h, int32 outerw, int32 outerh, Im
 		options |= Images::Option::RoundedLarge | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Small) {
 		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+	} else if (radius == ImageRoundRadius::Ellipse) {
+		options |= Images::Option::Circled | cornerOptions(corners);
 	}
 
 	auto k = SinglePixKey(options);
@@ -657,6 +664,8 @@ const QPixmap &Image::pixBlurredSingle(int w, int h, int32 outerw, int32 outerh,
 		options |= Images::Option::RoundedLarge | cornerOptions(corners);
 	} else if (radius == ImageRoundRadius::Small) {
 		options |= Images::Option::RoundedSmall | cornerOptions(corners);
+	} else if (radius == ImageRoundRadius::Ellipse) {
+		options |= Images::Option::Circled | cornerOptions(corners);
 	}
 
 	auto k = SinglePixKey(options);

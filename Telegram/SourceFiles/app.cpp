@@ -2761,12 +2761,19 @@ namespace {
 	}
 
 	void complexOverlayRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {
-		auto overlayCorners = (radius == ImageRoundRadius::Small) ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
-		auto overlayParts = RectPart::Full | RectPart::None;
-		if (radius == ImageRoundRadius::Large) {
-			complexAdjustRect(corners, rect, overlayParts);
+		if (radius == ImageRoundRadius::Ellipse) {
+			PainterHighQualityEnabler hq(p);
+			p.setPen(Qt::NoPen);
+			p.setBrush(p.textPalette().selectOverlay);
+			p.drawEllipse(rect);
+		} else {
+			auto overlayCorners = (radius == ImageRoundRadius::Small) ? SelectedOverlaySmallCorners : SelectedOverlayLargeCorners;
+			auto overlayParts = RectPart::Full | RectPart::None;
+			if (radius == ImageRoundRadius::Large) {
+				complexAdjustRect(corners, rect, overlayParts);
+			}
+			roundRect(p, rect, p.textPalette().selectOverlay, overlayCorners, nullptr, overlayParts);
 		}
-		roundRect(p, rect, p.textPalette().selectOverlay, overlayCorners, nullptr, overlayParts);
 	}
 
 	void complexLocationRect(Painter &p, QRect rect, ImageRoundRadius radius, ImageRoundCorners corners) {

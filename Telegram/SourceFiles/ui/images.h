@@ -37,6 +37,7 @@ enum class ImageRoundRadius {
 	None,
 	Large,
 	Small,
+	Ellipse,
 };
 enum class ImageRoundCorner {
 	None        = 0x00,

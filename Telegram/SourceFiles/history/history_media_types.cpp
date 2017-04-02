@@ -1044,7 +1044,7 @@ void HistoryDocument::initDimensions() {
 	} else {
 		tleft = st::msgFilePadding.left() + st::msgFileSize + st::msgFilePadding.right();
 		tright = st::msgFileThumbPadding.left();
-		int32 unread = _data->voice() ? (st::mediaUnreadSkip + st::mediaUnreadSize) : 0;
+		auto unread = _data->voice() ? (st::mediaUnreadSkip + st::mediaUnreadSize) : 0;
 		_maxw = qMax(_maxw, tleft + documentMaxStatusWidth(_data) + unread + _parent->skipBlockWidth() + st::msgPadding.right());
 	}
 
@@ -1768,9 +1768,10 @@ int HistoryGif::resizeGetHeight(int width) {
 	_width = qMax(_width, _parent->infoWidth() + 2 * int32(st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	if (_gif && _gif->ready()) {
 		if (!_gif->started()) {
+			auto isRound = _data->isRoundVideo();
 			auto inWebPage = (_parent->getMedia() != this);
-			auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-			auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+			auto roundRadius = isRound ? ImageRoundRadius::Ellipse : inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+			auto roundCorners = (isRound || inWebPage) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
 				| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 			_gif->start(_thumbw, _thumbh, _width, _height, roundRadius, roundCorners);
 		}
@@ -1807,9 +1808,10 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 	bool bubble = _parent->hasBubble();
 	bool out = _parent->out(), isPost = _parent->isPost(), outbg = out && !isPost;
 
-	int32 captionw = width - st::msgPadding.left() - st::msgPadding.right();
+	auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
 
-	bool animating = (_gif && _gif->started());
+	auto isRound = _data->isRoundVideo();
+	auto animating = (_gif && _gif->started());
 
 	if (!animating || _parent->id < 0) {
 		if (displayLoading) {
@@ -1820,7 +1822,7 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		}
 		updateStatusText();
 	}
-	bool radial = isRadialAnimation(ms);
+	auto radial = isRadialAnimation(ms);
 
 	if (bubble) {
 		skipx = st::mediaPadding.left();
@@ -1834,15 +1836,15 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 				height -= st::msgPadding.bottom();
 			}
 		}
-	} else {
+	} else if (!isRound) {
 		App::roundShadow(p, 0, 0, width, _height, selected ? st::msgInShadowSelected : st::msgInShadow, selected ? InSelectedShadowCorners : InShadowCorners);
 	}
 
 	QRect rthumb(rtlrect(skipx, skipy, width, height, _width));
 
 	auto inWebPage = (_parent->getMedia() != this);
-	auto roundRadius = inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
-	auto roundCorners = inWebPage ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
+	auto roundRadius = isRound ? ImageRoundRadius::Ellipse : inWebPage ? ImageRoundRadius::Small : ImageRoundRadius::Large;
+	auto roundCorners = (isRound || inWebPage) ? ImageRoundCorner::All : ((isBubbleTop() ? (ImageRoundCorner::TopLeft | ImageRoundCorner::TopRight) : ImageRoundCorner::None)
 		| ((isBubbleBottom() && _caption.isEmpty()) ? (ImageRoundCorner::BottomLeft | ImageRoundCorner::BottomRight) : ImageRoundCorner::None));
 	if (animating) {
 		auto paused = App::wnd()->controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
@@ -1895,10 +1897,11 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 			_animation->radial.draw(p, rinner, st::msgFileRadialLine, selected ? st::historyFileThumbRadialFgSelected : st::historyFileThumbRadialFg);
 		}
 
-		if (!animating || _parent->id < 0) {
-			int32 statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x(), statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
-			int32 statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
-			int32 statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+		if (!isRound && (!animating || _parent->id < 0)) {
+			auto statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x();
+			auto statusY = skipy + st::msgDateImgDelta + st::msgDateImgPadding.y();
+			auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+			auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
 			App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgDateImgBgSelected : st::msgDateImgBg, selected ? DateSelectedCorners : DateCorners);
 			p.setFont(st::normalFont);
 			p.setPen(st::msgDateImgFg);
@@ -1906,12 +1909,36 @@ void HistoryGif::draw(Painter &p, const QRect &r, TextSelection selection, TimeM
 		}
 	}
 
+	if (isRound) {
+		auto mediaUnread = _parent->isMediaUnread();
+		auto statusW = st::normalFont->width(_statusText) + 2 * st::msgDateImgPadding.x();
+		auto statusH = st::normalFont->height + 2 * st::msgDateImgPadding.y();
+		auto statusX = skipx + st::msgDateImgDelta + st::msgDateImgPadding.x();
+		auto statusY = skipy + height - st::msgDateImgDelta - statusH;
+		if (_parent->isMediaUnread()) {
+			statusW += st::mediaUnreadSkip + st::mediaUnreadSize;
+		}
+		App::roundRect(p, rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, _width), selected ? st::msgServiceBgSelected : st::msgServiceBg, selected ? StickerSelectedCorners : StickerCorners);
+		p.setFont(st::normalFont);
+		p.setPen(st::msgServiceFg);
+		p.drawTextLeft(statusX, statusY, _width, _statusText, statusW - 2 * st::msgDateImgPadding.x());
+		if (mediaUnread) {
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::msgServiceFg);
+
+			{
+				PainterHighQualityEnabler hq(p);
+				p.drawEllipse(rtlrect(statusX - st::msgDateImgPadding.x() + statusW - st::msgDateImgPadding.x() - st::mediaUnreadSize, statusY + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, _width));
+			}
+		}
+	}
 	if (!_caption.isEmpty()) {
 		p.setPen(outbg ? (selected ? st::historyTextOutFgSelected : st::historyTextOutFg) : (selected ? st::historyTextInFgSelected : st::historyTextInFg));
 		_caption.draw(p, st::msgPadding.left(), skipy + height + st::mediaPadding.bottom() + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, selection);
-	} else if (_parent->getMedia() == this && (_data->uploading() || App::hoveredItem() == _parent)) {
-		int32 fullRight = skipx + width, fullBottom = skipy + height;
-		_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, InfoDisplayOverImage);
+	} else if (_parent->getMedia() == this && (isRound || _data->uploading() || App::hoveredItem() == _parent)) {
+		auto fullRight = skipx + width;
+		auto fullBottom = skipy + height;
+		_parent->drawInfo(p, fullRight, fullBottom, 2 * skipx + width, selected, isRound ? InfoDisplayOverBackground : InfoDisplayOverImage);
 	}
 }
 
@@ -1971,7 +1998,11 @@ TextWithEntities HistoryGif::selectedText(TextSelection selection) const {
 }
 
 void HistoryGif::setStatusSize(int32 newSize) const {
-	HistoryFileMedia::setStatusSize(newSize, _data->size, -2, 0);
+	if (_data->isRoundVideo()) {
+		_statusText = formatDurationText(_data->duration());
+	} else {
+		HistoryFileMedia::setStatusSize(newSize, _data->size, -2, 0);
+	}
 }
 
 void HistoryGif::updateStatusText() const {
