@@ -34,8 +34,6 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "mtproto/dc_options.h"
 #include "mtproto/connection_abstract.h"
 
-using std::string;
-
 namespace MTP {
 namespace internal {
 namespace {
