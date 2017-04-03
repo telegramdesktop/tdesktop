@@ -195,9 +195,12 @@ QByteArray Messenger::serializeMtpAuthorization() const {
 			QDataStream stream(&buffer);
 			stream.setVersion(QDataStream::Qt_5_1);
 
-			stream << qint32(AuthSession::Exists() ? AuthSession::CurrentUserId() : 0) << qint32(mainDcId);
+			auto currentUserId = AuthSession::Exists() ? AuthSession::CurrentUserId() : 0;
+			stream << qint32(currentUserId) << qint32(mainDcId);
 			writeKeys(stream, keys);
 			writeKeys(stream, keysToDestroy);
+
+			DEBUG_LOG(("MTP Info: Keys written, userId: %1, dcId: %2").arg(currentUserId).arg(mainDcId));
 		}
 		return result;
 	};

@@ -424,7 +424,7 @@ void Widget::Step::finish(const MTPUser &user, QImage photo) {
 	}
 
 	Messenger::Instance().authSessionCreate(user.c_user().vid.v);
-
+	Local::writeMtpData();
 	App::wnd()->setupMain(&user);
 
 	// "this" is already deleted here by creating the main widget.
