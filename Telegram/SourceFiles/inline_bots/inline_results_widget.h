@@ -77,7 +77,6 @@ public:
 	void inlineItemLayoutChanged(const ItemBase *layout) override;
 	void inlineItemRepaint(const ItemBase *layout) override;
 	bool inlineItemVisible(const ItemBase *layout) override;
-	bool ui_isInlineItemBeingChosen();
 
 	int countHeight(bool plain = false);
 
@@ -178,8 +177,6 @@ public:
 	void clearInlineBot();
 
 	bool overlaps(const QRect &globalRect) const;
-
-	bool ui_isInlineItemBeingChosen();
 
 	void showAnimated();
 	void hideAnimated();

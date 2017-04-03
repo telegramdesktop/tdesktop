@@ -688,8 +688,6 @@ void EmojiPanel::hideFinished() {
 	_hiding = false;
 
 	scrollToY(0);
-
-	Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 }
 
 void EmojiPanel::showAnimated() {
@@ -743,10 +741,6 @@ void EmojiPanel::stickersInstalled(uint64 setId) {
 
 void EmojiPanel::setInlineQueryPeer(PeerData *peer) {
 	gifs()->setInlineQueryPeer(peer);
-}
-
-bool EmojiPanel::ui_isInlineItemBeingChosen() {
-	return (_currentTabType == TabType::Gifs && !isHidden());
 }
 
 void EmojiPanel::showAll() {
@@ -827,9 +821,6 @@ void EmojiPanel::switchTab() {
 	currentTab()->returnWidget(std::move(widget));
 
 	_currentTabType = newTabType;
-	if (_currentTabType == TabType::Gifs) {
-		Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
-	}
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();
 	setWidgetToScrollArea();

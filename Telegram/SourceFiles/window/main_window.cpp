@@ -372,6 +372,32 @@ PeerData *MainWindow::ui_getPeerForMouseAction() {
 	return nullptr;
 }
 
+void MainWindow::enableGifPauseReason(GifPauseReason reason) {
+	if (!(_gifPauseReasons & reason)) {
+		auto notify = (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason));
+		_gifPauseReasons |= reason;
+		if (notify) {
+			_gifPauseLevelChanged.notify();
+		}
+	}
+}
+
+void MainWindow::disableGifPauseReason(GifPauseReason reason) {
+	if (_gifPauseReasons & reason) {
+		_gifPauseReasons &= ~qFlags(reason);
+		if (static_cast<int>(_gifPauseReasons) < static_cast<int>(reason)) {
+			_gifPauseLevelChanged.notify();
+		}
+	}
+}
+
+bool MainWindow::isGifPausedAtLeastFor(GifPauseReason reason) const {
+	if (reason == GifPauseReason::Any) {
+		return (_gifPauseReasons != 0) || !isActive();
+	}
+	return (static_cast<int>(_gifPauseReasons) >= 2 * static_cast<int>(reason)) || !isActive();
+}
+
 MainWindow::~MainWindow() = default;
 
 } // namespace Window

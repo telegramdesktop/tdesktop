@@ -131,6 +131,11 @@ GifsListWidget::GifsListWidget(QWidget *parent) : Inner(parent)
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 	});
+	subscribe(App::wnd()->gifPauseLevelChanged(), [this] {
+		if (!App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs)) {
+			update();
+		}
+	});
 }
 
 object_ptr<EmojiPanel::InnerFooter> GifsListWidget::createFooter() {
@@ -240,7 +245,7 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	auto gifPaused = Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown || !App::wnd()->isActive();
+	auto gifPaused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::SavedGifs);
 	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
 	auto top = st::stickerPanPadding;
@@ -375,6 +380,7 @@ EmojiPanel::InnerFooter *GifsListWidget::getFooter() const {
 
 void GifsListWidget::processHideFinished() {
 	clearSelection();
+	App::wnd()->disableGifPauseReason(Window::GifPauseReason::SavedGifs);
 }
 
 void GifsListWidget::processPanelHideFinished() {
@@ -735,6 +741,7 @@ void GifsListWidget::afterShown() {
 	if (_footer) {
 		_footer->stealFocus();
 	}
+	App::wnd()->enableGifPauseReason(Window::GifPauseReason::SavedGifs);
 }
 
 void GifsListWidget::beforeHiding() {

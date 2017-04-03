@@ -62,8 +62,6 @@ public:
 	bool overlaps(const QRect &globalRect) const;
 	void setInlineQueryPeer(PeerData *peer);
 
-	bool ui_isInlineItemBeingChosen();
-
 	void showAnimated();
 	void hideAnimated();
 

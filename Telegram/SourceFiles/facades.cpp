@@ -251,13 +251,6 @@ bool isMediaViewShown() {
 	return false;
 }
 
-bool isInlineItemBeingChosen() {
-	if (auto main = App::main()) {
-		return main->ui_isInlineItemBeingChosen();
-	}
-	return false;
-}
-
 void repaintHistoryItem(const HistoryItem *item) {
 	if (auto main = App::main()) {
 		main->ui_repaintHistoryItem(item);
@@ -362,10 +355,6 @@ bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, 
 
 void migrateUpdated(PeerData *peer) {
 	if (MainWidget *m = App::main()) m->notify_migrateUpdated(peer);
-}
-
-void clipStopperHidden(ClipStopperType type) {
-	if (MainWidget *m = App::main()) m->notify_clipStopperHidden(type);
 }
 
 void historyItemLayoutChanged(const HistoryItem *item) {

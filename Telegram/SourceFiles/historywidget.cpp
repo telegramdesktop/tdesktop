@@ -169,6 +169,11 @@ HistoryInner::HistoryInner(HistoryWidget *historyWidget, Ui::ScrollArea *scroll,
 	subscribe(Global::RefItemRemoved(), [this](HistoryItem *item) {
 		itemRemoved(item);
 	});
+	subscribe(App::wnd()->gifPauseLevelChanged(), [this] {
+		if (!App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::Any)) {
+			update();
+		}
+	});
 }
 
 void HistoryInner::messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages) {
@@ -3828,10 +3833,6 @@ void HistoryWidget::notify_migrateUpdated(PeerData *peer) {
 	}
 }
 
-void HistoryWidget::notify_clipStopperHidden(ClipStopperType type) {
-	if (_list) _list->update();
-}
-
 bool HistoryWidget::cmd_search() {
 	if (!inFocusChain() || !_peer) return false;
 
@@ -7162,11 +7163,6 @@ void HistoryWidget::onUpdateHistoryItems() {
 	} else {
 		_updateHistoryItems.start(_lastScrolled + 100 - ms);
 	}
-}
-
-bool HistoryWidget::ui_isInlineItemBeingChosen() {
-	return _emojiPanel->ui_isInlineItemBeingChosen()
-		|| (_inlineResults && _inlineResults->ui_isInlineItemBeingChosen());
 }
 
 PeerData *HistoryWidget::ui_getPeerForMouseAction() {

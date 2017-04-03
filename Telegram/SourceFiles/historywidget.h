@@ -716,7 +716,6 @@ public:
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	bool ui_isInlineItemBeingChosen();
 	PeerData *ui_getPeerForMouseAction();
 
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
@@ -727,7 +726,6 @@ public:
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 	void notify_userIsBotChanged(UserData *user);
 	void notify_migrateUpdated(PeerData *peer);
-	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_handlePendingHistoryUpdate();
 
 	bool cmd_search();

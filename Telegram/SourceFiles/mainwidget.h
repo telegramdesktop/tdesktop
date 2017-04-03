@@ -383,7 +383,6 @@ public:
 	void app_sendBotCallback(const HistoryMessageReplyMarkup::Button *button, const HistoryItem *msg, int row, int col);
 
 	void ui_repaintHistoryItem(const HistoryItem *item);
-	bool ui_isInlineItemBeingChosen();
 	void ui_showPeerHistory(quint64 peer, qint32 msgId, Ui::ShowWay way);
 	PeerData *ui_getPeerForMouseAction();
 
@@ -395,7 +394,6 @@ public:
 	void notify_userIsBotChanged(UserData *bot);
 	void notify_userIsContactChanged(UserData *user, bool fromThisApp);
 	void notify_migrateUpdated(PeerData *peer);
-	void notify_clipStopperHidden(ClipStopperType type);
 	void notify_historyItemLayoutChanged(const HistoryItem *item);
 	void notify_historyMuteUpdated(History *history);
 	void notify_handlePendingHistoryUpdate();

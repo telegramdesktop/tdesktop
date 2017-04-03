@@ -2662,7 +2662,6 @@ void MediaView::setVisible(bool visible) {
 		stopGif();
 		destroyThemePreview();
 		_radial.stop();
-		Notify::clipStopperHidden(ClipStopperMediaview);
 	}
 }
 
@@ -2903,6 +2902,6 @@ void MediaView::updateHeader() {
 }
 
 float64 MediaView::overLevel(OverState control) const {
-	ShowingOpacities::const_iterator i = _animOpacities.constFind(control);
+	auto i = _animOpacities.constFind(control);
 	return (i == _animOpacities.cend()) ? (_over == control ? 1 : 0) : i->current();
 }

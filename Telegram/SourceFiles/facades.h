@@ -106,7 +106,6 @@ void hideLayer(bool fast = false);
 void hideSettingsAndLayer(bool fast = false);
 bool isLayerShown();
 bool isMediaViewShown();
-bool isInlineItemBeingChosen();
 
 void repaintHistoryItem(const HistoryItem *item);
 void autoplayMediaInlineAsync(const FullMsgId &msgId);
@@ -174,8 +173,6 @@ void inlineKeyboardMoved(const HistoryItem *item, int oldKeyboardTop, int newKey
 bool switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot = nullptr, MsgId samePeerReplyTo = 0);
 
 void migrateUpdated(PeerData *peer);
-
-void clipStopperHidden(ClipStopperType type);
 
 void historyItemLayoutChanged(const HistoryItem *item);
 void historyMuteUpdated(History *history);

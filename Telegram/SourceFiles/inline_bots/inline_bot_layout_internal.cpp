@@ -160,7 +160,8 @@ void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) cons
 	QRect r(0, 0, _width, height);
 	if (animating) {
 		if (!_thumb.isNull()) _thumb = QPixmap();
-		p.drawPixmap(r.topLeft(), _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, ImageRoundCorner::None, context->paused ? 0 : context->ms));
+		auto pixmap = _gif->current(frame.width(), frame.height(), _width, height, ImageRoundRadius::None, ImageRoundCorner::None, context->paused ? 0 : context->ms);
+		p.drawPixmap(r.topLeft(), pixmap);
 	} else {
 		prepareThumb(_width, height, frame);
 		if (_thumb.isNull()) {

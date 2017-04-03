@@ -60,11 +60,11 @@ Inner::Inner(QWidget *parent) : TWidget(parent) {
 	subscribe(AuthSession::CurrentDownloaderTaskFinished(), [this] {
 		update();
 	});
-}
-
-void Inner::setMaxHeight(int maxHeight) {
-	_maxHeight = maxHeight;
-	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, countHeight());
+	subscribe(App::wnd()->gifPauseLevelChanged(), [this] {
+		if (!App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults)) {
+			update();
+		}
+	});
 }
 
 void Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
@@ -107,7 +107,7 @@ void Inner::paintInlineItems(Painter &p, const QRect &r) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), lang(lng_inline_bot_no_results), style::al_center);
 		return;
 	}
-	auto gifPaused = Ui::isLayerShown() || Ui::isMediaViewShown() || _previewShown || !App::wnd()->isActive();
+	auto gifPaused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::InlineResults);
 	InlineBots::Layout::PaintContext context(getms(), false, gifPaused, false);
 
 	auto top = st::stickerPanPadding;
@@ -547,10 +547,6 @@ bool Inner::inlineItemVisible(const ItemBase *layout) {
 	return (top < _visibleTop + _maxHeight) && (top + _rows[row].items[col]->height() > _visibleTop);
 }
 
-bool Inner::ui_isInlineItemBeingChosen() {
-	return true;
-}
-
 void Inner::updateSelected() {
 	if (_pressed >= 0 && !_previewShown) {
 		return;
@@ -890,6 +886,8 @@ Widget::~Widget() = default;
 
 void Widget::hideFinished() {
 	hide();
+	App::wnd()->disableGifPauseReason(Window::GifPauseReason::InlineResults);
+
 	_inner->hideFinish(true);
 	_a_show.finish();
 	_showAnimation.reset();
@@ -898,8 +896,6 @@ void Widget::hideFinished() {
 	_hiding = false;
 
 	_scroll->scrollToY(0);
-
-	Notify::clipStopperHidden(ClipStopperSavedGifsPanel);
 }
 
 void Widget::showAnimated() {
@@ -912,17 +908,11 @@ void Widget::showStarted() {
 		_inner->preloadImages();
 		moveByBottom();
 		show();
+		App::wnd()->enableGifPauseReason(Window::GifPauseReason::InlineResults);
 		startShowAnimation();
 	} else if (_hiding) {
 		startOpacityAnimation(false);
 	}
-}
-
-bool Widget::ui_isInlineItemBeingChosen() {
-	if (!isHidden()) {
-		return _inner->ui_isInlineItemBeingChosen();
-	}
-	return false;
 }
 
 void Widget::onScroll() {

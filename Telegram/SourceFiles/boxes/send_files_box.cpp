@@ -31,6 +31,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include "styles/style_history.h"
 #include "styles/style_boxes.h"
 #include "media/media_clip_reader.h"
+#include "mainwindow.h"
 
 namespace {
 
@@ -330,7 +331,8 @@ void SendFilesBox::paintEvent(QPaintEvent *e) {
 		}
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_previewWidth, _previewHeight);
-			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, getms());
+			auto paused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
 			p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), frame);
 		} else {
 			p.drawPixmap(_previewLeft, st::boxPhotoPadding.top(), _preview);
@@ -671,7 +673,8 @@ void EditCaptionBox::paintEvent(QPaintEvent *e) {
 		}
 		if (_gifPreview && _gifPreview->started()) {
 			auto s = QSize(_thumbw, _thumbh);
-			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, getms());
+			auto paused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::Layer);
+			auto frame = _gifPreview->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), frame);
 		} else {
 			p.drawPixmap(_thumbx, st::boxPhotoPadding.top(), _thumb);

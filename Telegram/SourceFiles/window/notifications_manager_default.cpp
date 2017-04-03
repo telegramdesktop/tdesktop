@@ -353,7 +353,7 @@ Widget::Widget(Manager *manager, QPoint startPosition, int shift, Direction shif
 , _a_shift(animation(this, &Widget::step_shift)) {
 	setWindowOpacity(0.);
 
-	setWindowFlags(Qt::Tool | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
+	setWindowFlags(qFlags(Qt::Tool) | Qt::WindowStaysOnTopHint | Qt::FramelessWindowHint | Qt::BypassWindowManagerHint | Qt::NoDropShadowWindowHint);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 	setAttribute(Qt::WA_MacAlwaysShowToolWindow);
 

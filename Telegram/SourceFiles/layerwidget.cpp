@@ -537,6 +537,7 @@ void LayerStackWidget::showBox(object_ptr<BoxContent> box) {
 void LayerStackWidget::prepareForAnimation() {
 	if (isHidden()) {
 		show();
+		App::wnd()->enableGifPauseReason(Window::GifPauseReason::Layer);
 	}
 	if (_mainMenu) {
 		_mainMenu->hide();
@@ -565,6 +566,7 @@ void LayerStackWidget::animationDone() {
 	}
 	if (hidden) {
 		App::wnd()->layerFinishedHide(this);
+		App::wnd()->disableGifPauseReason(Window::GifPauseReason::Layer);
 	} else {
 		showFinished();
 	}
@@ -734,6 +736,7 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 	if (!_a_shown.animating()) {
 		if (_hiding) {
 			hide();
+			App::wnd()->disableGifPauseReason(Window::GifPauseReason::MediaPreview);
 			return;
 		}
 	} else {
@@ -788,7 +791,10 @@ void MediaPreviewWidget::showPreview(PhotoData *photo) {
 void MediaPreviewWidget::startShow() {
 	_cache = QPixmap();
 	if (isHidden() || _a_shown.animating()) {
-		if (isHidden()) show();
+		if (isHidden()) {
+			show();
+			App::wnd()->enableGifPauseReason(Window::GifPauseReason::MediaPreview);
+		}
 		_hiding = false;
 		_a_shown.start([this] { update(); }, 0., 1., st::stickerPreviewDuration);
 	} else {
@@ -920,8 +926,9 @@ QPixmap MediaPreviewWidget::currentImage() const {
 				}
 			}
 			if (_gif && _gif->started()) {
-				QSize s = currentDimensions();
-				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, getms());
+				auto s = currentDimensions();
+				auto paused = App::wnd()->isGifPausedAtLeastFor(Window::GifPauseReason::MediaPreview);
+				return _gif->current(s.width(), s.height(), s.width(), s.height(), ImageRoundRadius::None, ImageRoundCorner::None, paused ? 0 : getms());
 			}
 			if (_cacheStatus != CacheThumbLoaded && _document->thumb->loaded()) {
 				QSize s = currentDimensions();

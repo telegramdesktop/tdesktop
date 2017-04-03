@@ -540,10 +540,6 @@ void MainWidget::notify_migrateUpdated(PeerData *peer) {
 	_history->notify_migrateUpdated(peer);
 }
 
-void MainWidget::notify_clipStopperHidden(ClipStopperType type) {
-	_history->notify_clipStopperHidden(type);
-}
-
 void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	_history->ui_repaintHistoryItem(item);
 	if (item->history()->lastMsg == item) {
@@ -552,10 +548,6 @@ void MainWidget::ui_repaintHistoryItem(const HistoryItem *item) {
 	_playerPlaylist->ui_repaintHistoryItem(item);
 	_playerPanel->ui_repaintHistoryItem(item);
 	if (_overview) _overview->ui_repaintHistoryItem(item);
-}
-
-bool MainWidget::ui_isInlineItemBeingChosen() {
-	return _history->ui_isInlineItemBeingChosen();
 }
 
 void MainWidget::notify_historyItemLayoutChanged(const HistoryItem *item) {
