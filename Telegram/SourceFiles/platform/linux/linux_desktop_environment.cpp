@@ -26,7 +26,9 @@ namespace {
 
 QString GetEnv(const char *name) {
 	auto result = getenv(name);
-	return result ? QString::fromLatin1(result) : QString();
+	auto value = result ? QString::fromLatin1(result) : QString();
+	LOG(("Getting DE, %1: '%2'").arg(name).arg(value));
+	return value;
 }
 
 Type Compute() {
@@ -34,7 +36,6 @@ Type Compute() {
 	auto list = xdgCurrentDesktop.split(':', QString::SkipEmptyParts);
 	auto desktopSession = GetEnv("DESKTOP_SESSION").toLower();
 	auto kdeSession = GetEnv("KDE_SESSION_VERSION");
-
 	if (!list.isEmpty()) {
 		if (list.contains("unity")) {
 			// gnome-fallback sessions set XDG_CURRENT_DESKTOP to Unity
@@ -87,16 +88,35 @@ Type Compute() {
 	return Type::Other;
 }
 
+Type ComputeAndLog() {
+	auto result = Compute();
+	auto name = [result]() -> QString {
+		switch (result) {
+		case Type::Other: return "Other";
+		case Type::Gnome: return "Gnome";
+		case Type::KDE3: return "KDE3";
+		case Type::KDE4: return "KDE4";
+		case Type::KDE5: return "KDE5";
+		case Type::Unity: return "Unity";
+		case Type::XFCE: return "XFCE";
+		case Type::Pantheon: return "Pantheon";
+		}
+		return QString::number(static_cast<int>(result));
+	};
+	LOG(("DE: %1").arg(name()));
+	return result;
+}
+
 } // namespace
 
 // Thanks Chromium.
 Type Get() {
-	static const auto result = Compute();
+	static const auto result = ComputeAndLog();
 	return result;
 }
 
 bool TryQtTrayIcon() {
-	return !IsPantheon() && !IsGnome();
+	return !IsPantheon();
 }
 
 bool PreferAppIndicatorTrayIcon() {
