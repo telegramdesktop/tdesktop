@@ -50,8 +50,10 @@ Options parseOptions() {
 			}
 		} else if (arg.startsWith("-o")) {
 			result.outputPath = arg.mid(2);
+#ifdef SUPPORT_IMAGE_GENERATION
 		} else if (arg == "--images") {
 			result.writeImages = true;
+#endif // SUPPORT_IMAGE_GENERATION
 		}
 	}
 	if (result.outputPath.isEmpty()) {

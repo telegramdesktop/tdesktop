@@ -28,6 +28,7 @@ Copyright (c) 2014-2017 John Preston, https://desktop.telegram.org
 #include <QtGui/QPainter>
 #include <QtCore/QDir>
 
+#ifdef SUPPORT_IMAGE_GENERATION
 Q_IMPORT_PLUGIN(QWebpPlugin)
 #ifdef Q_OS_MAC
 Q_IMPORT_PLUGIN(QCocoaIntegrationPlugin)
@@ -36,6 +37,7 @@ Q_IMPORT_PLUGIN(QWindowsIntegrationPlugin)
 #else // !Q_OS_MAC && !Q_OS_WIN
 Q_IMPORT_PLUGIN(QXcbIntegrationPlugin)
 #endif // !Q_OS_MAC && !Q_OS_WIN
+#endif // SUPPORT_IMAGE_GENERATION
 
 namespace codegen {
 namespace emoji {
@@ -126,7 +128,11 @@ QString computeId(Id id) {
 
 } // namespace
 
-Generator::Generator(const Options &options) : project_(Project), writeImages_(options.writeImages), data_(PrepareData()) {
+Generator::Generator(const Options &options) : project_(Project)
+#ifdef SUPPORT_IMAGE_GENERATION
+, writeImages_(options.writeImages)
+#endif // SUPPORT_IMAGE_GENERATION
+, data_(PrepareData()) {
 	QDir dir(options.outputPath);
 	if (!dir.mkpath(".")) {
 		common::logError(kErrorCantWritePath, "Command Line") << "can not open path for writing: " << dir.absolutePath().toStdString();
@@ -142,13 +148,11 @@ int Generator::generate() {
 		return -1;
 	}
 
+#ifdef SUPPORT_IMAGE_GENERATION
 	if (writeImages_) {
-#ifdef Q_OS_MAC
 		return writeImages() ? 0 : -1;
-#else // Q_OS_MAC
-		common::logError(common::kErrorInternal, "Command Line") << "can not generate images in this OS.";
-#endif // Q_OS_MAC
 	}
+#endif // SUPPORT_IMAGE_GENERATION
 
 	if (!writeSource()) {
 		return -1;
@@ -163,6 +167,7 @@ int Generator::generate() {
 constexpr auto kVariantsCount = 5;
 constexpr auto kEmojiInRow = 40;
 
+#ifdef SUPPORT_IMAGE_GENERATION
 QImage Generator::generateImage(int variantIndex) {
 	constexpr int kEmojiSizes[kVariantsCount + 1] = { 18, 22, 27, 36, 45, 180 };
 	constexpr bool kBadSizes[kVariantsCount] = { true, true, false, false, false };
@@ -261,6 +266,7 @@ bool Generator::writeImages() {
 	}
 	return true;
 }
+#endif // SUPPORT_IMAGE_GENERATION
 
 bool Generator::writeSource() {
 	source_ = std::make_unique<common::CppFile>(outputPath_ + ".cpp", project_);
