@@ -48,8 +48,6 @@ class EmojiPanel : public TWidget {
 public:
 	EmojiPanel(QWidget *parent);
 
-	void setMinTop(int minTop);
-	void setMinBottom(int minBottom);
 	void moveBottom(int bottom);
 
 	void hideFast();
@@ -141,7 +139,6 @@ private:
 
 	int marginTop() const;
 	int marginBottom() const;
-	int countBottom() const;
 	void moveByBottom();
 	void paintSlideFrame(Painter &p, TimeMs ms);
 	void paintContent(Painter &p);
@@ -200,8 +197,6 @@ private:
 	gsl::not_null<StickersListWidget*> stickers() const;
 	gsl::not_null<GifsListWidget*> gifs() const;
 
-	int _minTop = 0;
-	int _minBottom = 0;
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
 

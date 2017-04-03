@@ -46,7 +46,7 @@ constexpr auto kInlineBotRequestDelay = 400;
 } // namespace
 
 Inner::Inner(QWidget *parent) : TWidget(parent) {
-	setMaxHeight(st::emojiPanMaxHeight - st::emojiCategory.height);
+	resize(st::emojiPanWidth - st::emojiScroll.width - st::buttonRadius, st::emojiPanMinHeight);
 
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -75,16 +75,15 @@ void Inner::setVisibleTopBottom(int visibleTop, int visibleBottom) {
 	}
 }
 
-int Inner::countHeight(bool plain) {
+int Inner::countHeight() {
 	auto result = st::stickerPanPadding;
-	auto minLastH = plain ? 0 : (_maxHeight - st::stickerPanPadding);
 	if (_switchPmButton) {
 		result += _switchPmButton->height() + st::inlineResultsSkip;
 	}
 	for (int i = 0, l = _rows.count(); i < l; ++i) {
 		result += _rows[i].height;
 	}
-	return qMax(minLastH, result) + st::stickerPanPadding;
+	return result + st::stickerPanPadding;
 }
 
 Inner::~Inner() = default;
@@ -437,7 +436,7 @@ int Inner::refreshInlineRows(UserData *bot, const CacheEntry *entry, bool result
 		inlineRowFinalize(row, sumWidth, true);
 	}
 
-	int32 h = countHeight();
+	auto h = countHeight();
 	if (h != height()) resize(width(), h);
 	update();
 
@@ -544,7 +543,7 @@ bool Inner::inlineItemVisible(const ItemBase *layout) {
 		top += _rows.at(i).height;
 	}
 
-	return (top < _visibleTop + _maxHeight) && (top + _rows[row].items[col]->height() > _visibleTop);
+	return (top < _visibleBottom) && (top + _rows[row].items[col]->height() > _visibleTop);
 }
 
 void Inner::updateSelected() {
@@ -698,28 +697,18 @@ Widget::Widget(QWidget *parent) : TWidget(parent)
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 }
 
-void Widget::setMinTop(int minTop) {
-	_minTop = minTop;
-	updateContentHeight();
-}
-
-void Widget::setMinBottom(int minBottom) {
-	_minBottom = minBottom;
-	updateContentHeight();
-}
-
 void Widget::moveBottom(int bottom) {
 	_bottom = bottom;
 	updateContentHeight();
 }
 
 void Widget::updateContentHeight() {
-	auto wantedBottom = countBottom();
-	auto maxContentHeight = wantedBottom - st::emojiPanMargins.top() - st::emojiPanMargins.bottom();
-	auto contentHeight = qMin(_contentMaxHeight, maxContentHeight);
-	auto resultTop = wantedBottom - st::emojiPanMargins.bottom() - contentHeight - st::emojiPanMargins.top();
-	accumulate_max(resultTop, _minTop);
-	auto hs = contentHeight;
+	auto addedHeight = innerPadding().top() + innerPadding().bottom();
+	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
+	auto contentHeight = snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	accumulate_min(contentHeight, _bottom - addedHeight);
+	accumulate_min(contentHeight, _contentMaxHeight);
+	auto resultTop = _bottom - addedHeight - contentHeight;
 	if (contentHeight == _contentHeight) {
 		move(x(), resultTop);
 		return;
@@ -730,13 +719,15 @@ void Widget::updateContentHeight() {
 
 	resize(QRect(0, 0, innerRect().width(), _contentHeight).marginsAdded(innerPadding()).size());
 	_height = height();
-	move(x(), resultTop);
+	moveToLeft(0, resultTop);
 
 	if (was > _contentHeight) {
 		_scroll->resize(_scroll->width(), _contentHeight);
-		_inner->setMaxHeight(_contentHeight);
+		auto scrollTop = _scroll->scrollTop();
+		_inner->setVisibleTopBottom(scrollTop, scrollTop + _contentHeight);
 	} else {
-		_inner->setMaxHeight(_contentHeight);
+		auto scrollTop = _scroll->scrollTop();
+		_inner->setVisibleTopBottom(scrollTop, scrollTop + _contentHeight);
 		_scroll->resize(_scroll->width(), _contentHeight);
 	}
 
@@ -793,12 +784,7 @@ void Widget::paintContent(Painter &p) {
 	p.fillRect(myrtlrect(inner.x(), sidesTop, st::buttonRadius, sidesHeight), st::emojiPanBg);
 }
 
-int Widget::countBottom() const {
-	return _bottom;
-}
-
 void Widget::moveByBottom() {
-	moveToLeft(0, y());
 	updateContentHeight();
 }
 
@@ -906,7 +892,6 @@ void Widget::showStarted() {
 	if (isHidden()) {
 		recountContentMaxHeight();
 		_inner->preloadImages();
-		moveByBottom();
 		show();
 		App::wnd()->enableGifPauseReason(Window::GifPauseReason::InlineResults);
 		startShowAnimation();
@@ -1095,7 +1080,7 @@ int Widget::showInlineRows(bool newResults) {
 		_scroll->scrollToY(0);
 	}
 
-	bool hidden = isHidden();
+	auto hidden = isHidden();
 	if (!hidden && !clear) {
 		recountContentMaxHeight();
 	}
@@ -1115,7 +1100,7 @@ int Widget::showInlineRows(bool newResults) {
 }
 
 void Widget::recountContentMaxHeight() {
-	_contentMaxHeight = qMin(_inner->countHeight(true), st::emojiPanMaxHeight);
+	_contentMaxHeight = _inner->countHeight();
 	updateContentHeight();
 }
 

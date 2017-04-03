@@ -109,7 +109,6 @@ stickersSettingsUnreadPosition: point(4px, 5px);
 
 emojiPanMargins: margins(10px, 10px, 10px, 10px);
 
-
 emojiTabs: SettingsSlider(defaultTabsSlider) {
 	rippleRoundRadius: buttonRadius;
 }
@@ -152,7 +151,9 @@ emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 emojiPanPadding: 12px;
 emojiPanSize: size(45px, 41px);
 emojiPanWidth: 345px;
-emojiPanMaxHeight: 720px;
+emojiPanMinHeight: 278px;
+emojiPanMaxHeight: 640px;
+emojiPanHeightRatio: 0.75;
 emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: windowBgOver;

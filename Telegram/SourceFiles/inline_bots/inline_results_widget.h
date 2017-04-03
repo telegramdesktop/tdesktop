@@ -60,8 +60,6 @@ class Inner : public TWidget, public Context, private base::Subscriber {
 public:
 	Inner(QWidget *parent);
 
-	void setMaxHeight(int maxHeight);
-
 	void hideFinish(bool completely);
 
 	void clearSelection();
@@ -78,7 +76,7 @@ public:
 	void inlineItemRepaint(const ItemBase *layout) override;
 	bool inlineItemVisible(const ItemBase *layout) override;
 
-	int countHeight(bool plain = false);
+	int countHeight();
 
 	void setResultSelectedCallback(base::lambda<void(Result *result, UserData *bot)> callback) {
 		_resultSelectedCallback = std::move(callback);
@@ -112,8 +110,6 @@ private:
 	void paintInlineItems(Painter &p, const QRect &r);
 
 	void refreshSwitchPmButton(const CacheEntry *entry);
-
-	int32 _maxHeight;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -164,8 +160,6 @@ class Widget : public TWidget, private MTP::Sender {
 public:
 	Widget(QWidget *parent);
 
-	void setMinTop(int minTop);
-	void setMinBottom(int minBottom);
 	void moveBottom(int bottom);
 
 	void hideFast();
@@ -199,7 +193,6 @@ private slots:
 	void onEmptyInlineRows();
 
 private:
-	int countBottom() const;
 	void moveByBottom();
 	void paintContent(Painter &p);
 
@@ -235,8 +228,6 @@ private:
 	bool refreshInlineRows(int *added = nullptr);
 	void inlineResultsDone(const MTPmessages_BotResults &result);
 
-	int _minTop = 0;
-	int _minBottom = 0;
 	int _contentMaxHeight = 0;
 	int _contentHeight = 0;
 	bool _horizontal = false;

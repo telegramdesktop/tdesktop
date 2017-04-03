@@ -353,27 +353,16 @@ EmojiPanel::EmojiPanel(QWidget *parent) : TWidget(parent)
 	hideChildren();
 }
 
-void EmojiPanel::setMinTop(int minTop) {
-	_minTop = minTop;
-	updateContentHeight();
-}
-
-void EmojiPanel::setMinBottom(int minBottom) {
-	_minBottom = minBottom;
-	updateContentHeight();
-}
-
 void EmojiPanel::moveBottom(int bottom) {
 	_bottom = bottom;
 	updateContentHeight();
 }
 
 void EmojiPanel::updateContentHeight() {
-	auto wantedBottom = countBottom();
-	auto maxContentHeight = wantedBottom - st::emojiPanMargins.top() - st::emojiPanMargins.bottom() - marginTop() - marginBottom();
-	auto contentHeight = qMin(_contentMaxHeight, maxContentHeight);
-	auto resultTop = wantedBottom - st::emojiPanMargins.bottom() - marginBottom() - contentHeight - marginTop() - st::emojiPanMargins.top();
-	accumulate_max(resultTop, _minTop);
+	auto addedHeight = innerPadding().top() + marginTop() + marginBottom() + innerPadding().bottom();
+	auto wantedContentHeight = qRound(st::emojiPanHeightRatio * _bottom) - addedHeight;
+	auto contentHeight = snap(wantedContentHeight, st::emojiPanMinHeight, st::emojiPanMaxHeight);
+	auto resultTop = _bottom - addedHeight - contentHeight;
 	if (contentHeight == _contentHeight) {
 		move(x(), resultTop);
 		return;
@@ -503,10 +492,6 @@ int EmojiPanel::marginTop() const {
 
 int EmojiPanel::marginBottom() const {
 	return st::emojiCategory.height;
-}
-
-int EmojiPanel::countBottom() const {
-	return (parentWidget()->height() - _minBottom);
 }
 
 void EmojiPanel::moveByBottom() {
