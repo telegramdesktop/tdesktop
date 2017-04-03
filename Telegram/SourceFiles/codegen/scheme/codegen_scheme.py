@@ -437,7 +437,7 @@ def addTextSerialize(lst, dct, dataLetter):
       conditions = data[6];
       trivialConditions = data[7];
 
-      result += 'void _serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
+      result += 'void Serialize_' + name + '(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag) {\n';
       if (len(conditions)):
         result += '\tMTP' + dataLetter + name + '::Flags flag(iflag);\n\n';
       if (len(prms)):
@@ -524,7 +524,7 @@ def addTextSerializeInit(lst, dct):
     v = dct[restype];
     for data in v:
       name = data[0];
-      result += '\t_serializers.insert(mtpc_' + name + ', _serialize_' + name + ');\n';
+      result += '\tresult.insert(mtpc_' + name + ', Serialize_' + name + ');\n';
   return result;
 
 textSerializeMethods += addTextSerialize(typesList, typesDict, 'D');
@@ -869,9 +869,9 @@ void _serialize_core_message(MTPStringLogger &to, int32 stage, int32 lev, Types 
 \n';
 
 textSerializeInit += '\
-	_serializers.insert(mtpc_rpc_result, _serialize_rpc_result);\n\
-	_serializers.insert(mtpc_msg_container, _serialize_msg_container);\n\
-	_serializers.insert(mtpc_core_message, _serialize_core_message);\n';
+	result.insert(mtpc_rpc_result, _serialize_rpc_result);\n\
+	result.insert(mtpc_msg_container, _serialize_msg_container);\n\
+	result.insert(mtpc_core_message, _serialize_core_message);\n';
 
 # module itself
 
@@ -969,26 +969,27 @@ Copyright (c) 2014 John Preston, https://desktop.telegram.org\n\
 */\n\
 #include "scheme.h"\n\
 \n\
-typedef QVector<mtpTypeId> Types;\ntypedef QVector<int32> StagesFlags;\n\
+using Types = QVector<mtpTypeId>;\n\
+using StagesFlags = QVector<int32>;\n\
 \n\
 ' + textSerializeMethods + '\n\
 namespace {\n\
 \n\
-using mtpTextSerializer = void (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag);\n\
-using TextSerializers = QMap<mtpTypeId, mtpTextSerializer>;\n\
+using TextSerializer = void (*)(MTPStringLogger &to, int32 stage, int32 lev, Types &types, Types &vtypes, StagesFlags &stages, StagesFlags &flags, const mtpPrime *start, const mtpPrime *end, int32 iflag);\n\
+using TextSerializers = QMap<mtpTypeId, TextSerializer>;\n\
 \n\
-TextSerializers _serializers;\n\
+QMap<mtpTypeId, TextSerializer> createTextSerializers() {\n\
+	auto result = QMap<mtpTypeId, TextSerializer>();\n\
 \n\
-void initTextSerializers() {\n\
 ' + textSerializeInit + '\n\
+\n\
+	return result;\n\
 }\n\
 \n\
 } // namespace\n\
 \n\
 void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpPrime *end, mtpPrime cons, uint32 level, mtpPrime vcons) {\n\
-	if (_serializers.isEmpty()) {\n\
-		initTextSerializers();\n\
-	}\n\
+	static auto serializers = createTextSerializers();\n\
 \n\
 	QVector<mtpTypeId> types, vtypes;\n\
 	QVector<int32> stages, flags;\n\
@@ -1015,8 +1016,8 @@ void mtpTextSerializeType(MTPStringLogger &to, const mtpPrime *&from, const mtpP
 		}\n\
 \n\
 		int32 lev = level + types.size() - 1;\n\
-		TextSerializers::const_iterator it = _serializers.constFind(type);\n\
-		if (it != _serializers.cend()) {\n\
+		auto it = serializers.constFind(type);\n\
+		if (it != serializers.cend()) {\n\
 			(*it.value())(to, stage, lev, types, vtypes, stages, flags, start, end, flag);\n\
 		} else {\n\
 			mtpTextSerializeCore(to, from, end, type, lev, vtype);\n\

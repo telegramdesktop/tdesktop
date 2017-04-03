@@ -108,6 +108,24 @@ bool parsePQ(const QByteArray &pqStr, QByteArray &pStr, QByteArray &qStr) {
 
 class BigNumCounter {
 public:
+	BigNumCounter() : ctx(BN_CTX_new()) {
+		BN_init(&bnPower);
+		BN_init(&bnModul);
+		BN_init(&bn_g);
+		BN_init(&bn_g_a);
+		BN_init(&bnResult);
+		BN_init(&bnTemp);
+	}
+	~BigNumCounter() {
+		BN_CTX_free(ctx);
+		BN_clear_free(&bnPower);
+		BN_clear_free(&bnModul);
+		BN_clear_free(&bn_g);
+		BN_clear_free(&bn_g_a);
+		BN_clear_free(&bnResult);
+		BN_clear_free(&bnTemp);
+	}
+
 	bool count(const void *power, const void *modul, uint32 g, void *gResult, const void *g_a, void *g_aResult) {
 		DEBUG_LOG(("BigNum Info: counting g_b = g ^ b % dh_prime and auth_key = g_a ^ b % dh_prime"));
 		uint32 g_be = qToBigEndian(g);
@@ -200,24 +218,6 @@ public:
 		return true;
 	}
 
-	BigNumCounter() : ctx(BN_CTX_new()) {
-		BN_init(&bnPower);
-		BN_init(&bnModul);
-		BN_init(&bn_g);
-		BN_init(&bn_g_a);
-		BN_init(&bnResult);
-		BN_init(&bnTemp);
-	}
-	~BigNumCounter() {
-		BN_CTX_free(ctx);
-		BN_clear_free(&bnPower);
-		BN_clear_free(&bnModul);
-		BN_clear_free(&bn_g);
-		BN_clear_free(&bn_g_a);
-		BN_clear_free(&bnResult);
-		BN_clear_free(&bnTemp);
-	}
-
 private:
 	BIGNUM bnPower, bnModul, bn_g, bn_g_a, bnResult, bnTemp;
 	BN_CTX *ctx;
@@ -227,42 +227,70 @@ private:
 // Miller-Rabin primality test
 class BigNumPrimeTest {
 public:
+	BigNumPrimeTest() : _context(BN_CTX_new()) {
+		BN_init(&_prime);
+	}
+	~BigNumPrimeTest() {
+		BN_clear_free(&_prime);
+		BN_CTX_free(_context);
+	}
 
-	bool isPrimeAndGood(const void *pData, uint32 iterCount, int32 g) {
-		if (!memcmp(pData, "\xC7\x1C\xAE\xB9\xC6\xB1\xC9\x04\x8E\x6C\x52\x2F\x70\xF1\x3F\x73\x98\x0D\x40\x23\x8E\x3E\x21\xC1\x49\x34\xD0\x37\x56\x3D\x93\x0F\x48\x19\x8A\x0A\xA7\xC1\x40\x58\x22\x94\x93\xD2\x25\x30\xF4\xDB\xFA\x33\x6F\x6E\x0A\xC9\x25\x13\x95\x43\xAE\xD4\x4C\xCE\x7C\x37\x20\xFD\x51\xF6\x94\x58\x70\x5A\xC6\x8C\xD4\xFE\x6B\x6B\x13\xAB\xDC\x97\x46\x51\x29\x69\x32\x84\x54\xF1\x8F\xAF\x8C\x59\x5F\x64\x24\x77\xFE\x96\xBB\x2A\x94\x1D\x5B\xCD\x1D\x4A\xC8\xCC\x49\x88\x07\x08\xFA\x9B\x37\x8E\x3C\x4F\x3A\x90\x60\xBE\xE6\x7C\xF9\xA4\xA4\xA6\x95\x81\x10\x51\x90\x7E\x16\x27\x53\xB5\x6B\x0F\x6B\x41\x0D\xBA\x74\xD8\xA8\x4B\x2A\x14\xB3\x14\x4E\x0E\xF1\x28\x47\x54\xFD\x17\xED\x95\x0D\x59\x65\xB4\xB9\xDD\x46\x58\x2D\xB1\x17\x8D\x16\x9C\x6B\xC4\x65\xB0\xD6\xFF\x9C\xA3\x92\x8F\xEF\x5B\x9A\xE4\xE4\x18\xFC\x15\xE8\x3E\xBE\xA0\xF8\x7F\xA9\xFF\x5E\xED\x70\x05\x0D\xED\x28\x49\xF4\x7B\xF9\x59\xD9\x56\x85\x0C\xE9\x29\x85\x1F\x0D\x81\x15\xF6\x35\xB1\x05\xEE\x2E\x4E\x15\xD0\x4B\x24\x54\xBF\x6F\x4F\xAD\xF0\x34\xB1\x04\x03\x11\x9C\xD8\xE3\xB9\x2F\xCC\x5B", 256)) {
+	bool isPrimeAndGood(const QByteArray &data, int g) {
+		constexpr auto kMillerRabinIterationCount = 30;
+		constexpr auto kGoodPrimeSize = 256;
+
+		if (data.size() != kGoodPrimeSize) {
+			LOG(("BigNum PT Error: data size %1").arg(data.size()));
+			return false;
+		}
+		if (!memcmp(data.constData(), "\
+\xC7\x1C\xAE\xB9\xC6\xB1\xC9\x04\x8E\x6C\x52\x2F\x70\xF1\x3F\x73\
+\x98\x0D\x40\x23\x8E\x3E\x21\xC1\x49\x34\xD0\x37\x56\x3D\x93\x0F\
+\x48\x19\x8A\x0A\xA7\xC1\x40\x58\x22\x94\x93\xD2\x25\x30\xF4\xDB\
+\xFA\x33\x6F\x6E\x0A\xC9\x25\x13\x95\x43\xAE\xD4\x4C\xCE\x7C\x37\
+\x20\xFD\x51\xF6\x94\x58\x70\x5A\xC6\x8C\xD4\xFE\x6B\x6B\x13\xAB\
+\xDC\x97\x46\x51\x29\x69\x32\x84\x54\xF1\x8F\xAF\x8C\x59\x5F\x64\
+\x24\x77\xFE\x96\xBB\x2A\x94\x1D\x5B\xCD\x1D\x4A\xC8\xCC\x49\x88\
+\x07\x08\xFA\x9B\x37\x8E\x3C\x4F\x3A\x90\x60\xBE\xE6\x7C\xF9\xA4\
+\xA4\xA6\x95\x81\x10\x51\x90\x7E\x16\x27\x53\xB5\x6B\x0F\x6B\x41\
+\x0D\xBA\x74\xD8\xA8\x4B\x2A\x14\xB3\x14\x4E\x0E\xF1\x28\x47\x54\
+\xFD\x17\xED\x95\x0D\x59\x65\xB4\xB9\xDD\x46\x58\x2D\xB1\x17\x8D\
+\x16\x9C\x6B\xC4\x65\xB0\xD6\xFF\x9C\xA3\x92\x8F\xEF\x5B\x9A\xE4\
+\xE4\x18\xFC\x15\xE8\x3E\xBE\xA0\xF8\x7F\xA9\xFF\x5E\xED\x70\x05\
+\x0D\xED\x28\x49\xF4\x7B\xF9\x59\xD9\x56\x85\x0C\xE9\x29\x85\x1F\
+\x0D\x81\x15\xF6\x35\xB1\x05\xEE\x2E\x4E\x15\xD0\x4B\x24\x54\xBF\
+\x6F\x4F\xAD\xF0\x34\xB1\x04\x03\x11\x9C\xD8\xE3\xB9\x2F\xCC\x5B", kGoodPrimeSize)) {
 			if (g == 3 || g == 4 || g == 5 || g == 7) {
 				return true;
 			}
 		}
-		if (
-			!BN_bin2bn((const uchar*)pData, 64 * sizeof(uint32), &bnPrime)
-			) {
+		if (!BN_bin2bn((const uchar*)data.constData(), kGoodPrimeSize, &_prime)) {
 			ERR_load_crypto_strings();
 			LOG(("BigNum PT Error: BN_bin2bn failed, error: %1").arg(ERR_error_string(ERR_get_error(), 0)));
-			DEBUG_LOG(("BigNum PT Error: prime %1").arg(Logs::mb(pData, 64 * sizeof(uint32)).str()));
+			DEBUG_LOG(("BigNum PT Error: prime %1").arg(Logs::mb(data.constData(), kGoodPrimeSize).str()));
 			return false;
 		}
 
-		int32 numBits = BN_num_bits(&bnPrime);
+		auto numBits = BN_num_bits(&_prime);
 		if (numBits != 2048) {
 			LOG(("BigNum PT Error: BN_bin2bn failed, bad dh_prime num bits: %1").arg(numBits));
 			return false;
 		}
 
-		if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
+		if (BN_is_prime_ex(&_prime, kMillerRabinIterationCount, _context, NULL) == 0) {
 			return false;
 		}
 
 		switch (g) {
 		case 2: {
-			int32 mod8 = BN_mod_word(&bnPrime, 8);
+			auto mod8 = BN_mod_word(&_prime, 8);
 			if (mod8 != 7) {
 				LOG(("BigNum PT Error: bad g value: %1, mod8: %2").arg(g).arg(mod8));
 				return false;
 			}
 		} break;
 		case 3: {
-			int32 mod3 = BN_mod_word(&bnPrime, 3);
+			auto mod3 = BN_mod_word(&_prime, 3);
 			if (mod3 != 2) {
 				LOG(("BigNum PT Error: bad g value: %1, mod3: %2").arg(g).arg(mod3));
 				return false;
@@ -270,53 +298,46 @@ public:
 		} break;
 		case 4: break;
 		case 5: {
-			int32 mod5 = BN_mod_word(&bnPrime, 5);
+			auto mod5 = BN_mod_word(&_prime, 5);
 			if (mod5 != 1 && mod5 != 4) {
 				LOG(("BigNum PT Error: bad g value: %1, mod5: %2").arg(g).arg(mod5));
 				return false;
 			}
 		} break;
 		case 6: {
-			int32 mod24 = BN_mod_word(&bnPrime, 24);
+			auto mod24 = BN_mod_word(&_prime, 24);
 			if (mod24 != 19 && mod24 != 23) {
 				LOG(("BigNum PT Error: bad g value: %1, mod24: %2").arg(g).arg(mod24));
 				return false;
 			}
 		} break;
 		case 7: {
-			int32 mod7 = BN_mod_word(&bnPrime, 7);
+			auto mod7 = BN_mod_word(&_prime, 7);
 			if (mod7 != 3 && mod7 != 5 && mod7 != 6) {
 				LOG(("BigNum PT Error: bad g value: %1, mod7: %2").arg(g).arg(mod7));
 				return false;
 			}
 		} break;
-		default:
-		LOG(("BigNum PT Error: bad g value: %1").arg(g));
-		return false;
-		break;
+		default: {
+			LOG(("BigNum PT Error: bad g value: %1").arg(g));
+			return false;
+		} break;
 		}
 
-		BN_sub_word(&bnPrime, 1); // (p - 1) / 2
-		BN_div_word(&bnPrime, 2);
+		BN_sub_word(&_prime, 1); // (p - 1) / 2
+		BN_div_word(&_prime, 2);
 
-		if (BN_is_prime_ex(&bnPrime, MTPMillerRabinIterCount, ctx, NULL) == 0) {
+		if (BN_is_prime_ex(&_prime, kMillerRabinIterationCount, _context, NULL) == 0) {
 			return false;
 		}
 
 		return true;
 	}
 
-	BigNumPrimeTest() : ctx(BN_CTX_new()) {
-		BN_init(&bnPrime);
-	}
-	~BigNumPrimeTest() {
-		BN_CTX_free(ctx);
-		BN_clear_free(&bnPrime);
-	}
-
 private:
-	BIGNUM bnPrime;
-	BN_CTX *ctx;
+	BIGNUM _prime;
+	BN_CTX *_context;
+
 };
 
 typedef QMap<uint64, RSAPublicKey> RSAPublicKeys;
@@ -2577,8 +2598,7 @@ void ConnectionPrivate::dhParamsAnswered() {
 		}
 
 		// check that dhPrime and (dhPrime - 1) / 2 are really prime using openssl BIGNUM methods
-		MTP::internal::BigNumPrimeTest bnPrimeTest;
-		if (!bnPrimeTest.isPrimeAndGood(dhPrime.constData(), MTPMillerRabinIterCount, dh_inner_data.vg.v)) {
+		if (!IsPrimeAndGood(dhPrime, dh_inner_data.vg.v)) {
 			LOG(("AuthKey Error: bad dh_prime primality!").arg(dhPrime.length()).arg(g_a.length()));
 			DEBUG_LOG(("AuthKey Error: dh_prime %1").arg(Logs::mb(dhPrime.constData(), dhPrime.length()).str()));
 			return restart();
@@ -3074,4 +3094,9 @@ void ConnectionPrivate::stop() {
 }
 
 } // namespace internal
+
+bool IsPrimeAndGood(const QByteArray &data, int g) {
+	return MTP::internal::BigNumPrimeTest().isPrimeAndGood(data, g);
+}
+
 } // namespace MTP

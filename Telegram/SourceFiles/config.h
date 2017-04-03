@@ -45,7 +45,6 @@ enum {
 	MTPConnectionOldTimeout = 192000, // 192 seconds
 	MTPTcpConnectionWaitTimeout = 2000, // 2 seconds waiting for tcp, until we accept http
 	MTPIPv4ConnectionWaitTimeout = 1000, // 1 seconds waiting for ipv4, until we accept ipv6
-	MTPMillerRabinIterCount = 30, // 30 Miller-Rabin iterations for dh_prime primality check
 
 	MTPUploadSessionsCount = 2, // max 2 upload sessions is created
 	MTPDownloadSessionsCount = 2, // max 2 download sessions is created

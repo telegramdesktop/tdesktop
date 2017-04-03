@@ -28,6 +28,8 @@ namespace MTP {
 
 class Instance;
 
+bool IsPrimeAndGood(const QByteArray &data, int g);
+
 namespace internal {
 
 class AbstractConnection;
