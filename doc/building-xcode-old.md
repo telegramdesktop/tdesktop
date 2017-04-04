@@ -1,12 +1,12 @@
-##Build instructions for Xcode 7.2.1
+## Build instructions for Xcode 7.2.1
 
 **NB** These are outdated, please refer to [Building using Xcode][xcode] instructions.
 
-###Prepare folder
+### Prepare folder
 
 Choose a folder for the future build, for example **/Users/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-###Clone source code
+### Clone source code
 
 By git – in Terminal go to **/Users/user/TBuild** and run
 
@@ -16,7 +16,7 @@ then go to **/Users/user/TBuild/tdesktop** and run
 
     git checkout dev
 
-####Prepare latest cmake
+#### Prepare latest cmake
 
 Download the [latest sources](https://cmake.org/download/) and unpack to **/Users/user/TBuild/Libraries/macold**
 
@@ -24,7 +24,7 @@ Download the [latest sources](https://cmake.org/download/) and unpack to **/User
     make -j4
     sudo make install
 
-###Prepare libraries
+### Prepare libraries
 
 In your build Terminal run
 
@@ -32,7 +32,7 @@ In your build Terminal run
 
 to set minimal supported OS version to 10.6 for future console builds.
 
-####custom build of libc++
+#### custom build of libc++
 
 From **/Users/user/TBuild/Libraries/macold** run
 
@@ -57,13 +57,13 @@ From **/Users/user/TBuild/Libraries/macold** run
     make -j4
     sudo make install
 
-####zlib 1.2.8
+#### zlib 1.2.8
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8**](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries/macold**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
 
@@ -71,7 +71,7 @@ In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
     make
     sudo make install
 
-####OpenSSL 1.0.1g
+#### OpenSSL 1.0.1g
 
 http://www.openssl.org/source/ > Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1h.tar.gz) (4.3 Mb)
 
@@ -80,13 +80,13 @@ Extract openssl-1.0.1h.tar.gz to **/Users/user/TBuild/Libraries/macold/openssl-1
     ./Configure --install_prefix=/usr/local/macold darwin64-x86_64-cc -static -mmacosx-version-min=10.6
     make build_crypto build_ssl -j4
 
-####liblzma
+#### liblzma
 
 http://tukaani.org/xz/ > Download [**xz-5.0.5.tar.gz**](http://tukaani.org/xz/xz-5.0.5.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run
 
@@ -94,13 +94,13 @@ In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run
     make
     sudo make install
 
-####libexif 0.6.20
+#### libexif 0.6.20
 
 Get sources from https://github.com/telegramdesktop/libexif-0.6.20, by git – in Terminal go to **/Users/user/TBuild/Libraries/macold** and run
 
     git clone https://github.com/telegramdesktop/libexif-0.6.20.git
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/macold/libexif-0.6.20** and there run
 
@@ -108,7 +108,7 @@ In Terminal go to **/Users/user/TBuild/Libraries/macold/libexif-0.6.20** and the
     make -j4
     sudo make install
 
-####OpenAL Soft
+#### OpenAL Soft
 
 Get sources by git – in Terminal go to **/Users/user/TBuild/Libraries/macold** and run
 
@@ -116,7 +116,7 @@ Get sources by git – in Terminal go to **/Users/user/TBuild/Libraries/macold**
 
 to have **/Users/user/TBuild/Libraries/macold/openal-soft/CMakeLists.txt**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
 
@@ -124,11 +124,11 @@ In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there r
     make
     sudo make install
 
-####Opus codec
+#### Opus codec
 
 Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/, extract to **/Users/user/TBuild/Libraries** and rename to have **/Users/user/TBuild/Libraries/opus/configure**
 
-#####Building libraries
+##### Building libraries
 
 Download [pkg-config 0.28](http://pkgconfig.freedesktop.org/releases/pkg-config-0.28.tar.gz) from http://pkg-config.freedesktop.org, extract it to **/Users/user/TBuild/Libraries**
 
@@ -144,7 +144,7 @@ then go to **/Users/user/TBuild/Libraries/opus** and there run
     make
     sudo make install
 
-####FFmpeg
+#### FFmpeg
 
 In Terminal go to **/Users/user/TBuild/Libraries/macold** and run:
 
@@ -152,7 +152,7 @@ In Terminal go to **/Users/user/TBuild/Libraries/macold** and run:
     cd ffmpeg
     git checkout release/3.2
 
-#####Building libraries
+##### Building libraries
 
 Download [libiconv-1.14](http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz) from http://www.gnu.org/software/libiconv/#downloading, extract it to **/Users/user/TBuild/Libraries/macold**
 
@@ -177,8 +177,8 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/macold/ffmpeg** and run
     make
     sudo make install
 
-####Qt 5.3.2, slightly patched
-#####Get the source code
+#### Qt 5.3.2, slightly patched
+##### Get the source code
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
@@ -190,7 +190,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     cd qtimageformats && git checkout v5.3.2 && cd ..
     cd qtbase && git checkout v5.3.2 && cd ..
 
-#####Apply the patch
+##### Apply the patch
 
 From **/Users/user/TBuild/Libraries/macold/qt5_3_2/qtbase**, run:
 
@@ -200,7 +200,7 @@ From **/Users/user/TBuild/Libraries/macold/qt5_3_2/qtimageformats**, run:
 
     git apply ../../../../tdesktop/Telegram/Patches/macold/qtimageformats_5_3_2.diff
 
-#####Building library
+##### Building library
 
 Go to **/Users/user/TBuild/Libraries/macold/qt5_3_2** and run:
 
@@ -210,13 +210,13 @@ Go to **/Users/user/TBuild/Libraries/macold/qt5_3_2** and run:
 
 building (**make** command) will take really long time.
 
-####Google Crashpad
+#### Google Crashpad
 
-#####Install gyp
+##### Install gyp
 
 .. the same as modern ..
 
-#####Build crashpad
+##### Build crashpad
 
 In Terminal go to **/Users/user/TBuild/Libraries/macold** and run:
 
@@ -238,11 +238,11 @@ In Terminal go to **/Users/user/TBuild/Libraries/macold** and run:
     ninja -C out/Debug
     ninja -C out/Release
 
-####Prepare GYP
+#### Prepare GYP
 
 .. the same as modern ..
 
-###Building Telegram Desktop
+### Building Telegram Desktop
 
 * Launch Xcode, all projects will be taken from **/Users/user/TBuild/tdesktop/Telegram**
 * Open MetaEmoji.xcodeproj and build for Debug (Release optionally)

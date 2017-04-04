@@ -1,6 +1,6 @@
-##Build instructions for Xcode 8.0
+## Build instructions for Xcode 8.0
 
-###Prepare folder
+### Prepare folder
 
 Choose a folder for the future build, for example **/Users/user/TBuild**
 
@@ -8,13 +8,13 @@ There you will have two folders, **Libraries** for third-party libs and **tdeskt
 
 **You will need this hierarchy to be able to follow this README !**
 
-###Clone source code
+### Clone source code
 
 By git – in Terminal go to **/Users/user/TBuild** and run:
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
-###Prepare libraries
+### Prepare libraries
 
 In your build Terminal run:
 
@@ -22,13 +22,13 @@ In your build Terminal run:
 
 to set minimal supported OS version to 10.8 for future console builds.
 
-####zlib 1.2.8
+#### zlib 1.2.8
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8**](http://www.zlib.net/fossils/zlib-1.2.8.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
 
@@ -36,9 +36,9 @@ In Terminal go to **/Users/user/TBuild/Libraries/zlib-1.2.8** and run:
     make
     sudo make install
 
-####OpenSSL 1.0.1g
+#### OpenSSL 1.0.1g
 
-#####Get openssl-xcode project file
+##### Get openssl-xcode project file
 
 From https://github.com/telegramdesktop/openssl-xcode with git in Terminal:
 
@@ -49,7 +49,7 @@ From https://github.com/telegramdesktop/openssl-xcode with git in Terminal:
 
 The path to openssl.xcodeproj should now be: **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj**
 
-#####Get the source code:
+##### Get the source code:
 
 Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1h.tar.gz) (4.3 Mb)
 
@@ -59,19 +59,19 @@ Download [**openssl-1.0.1h.tar.gz**](http://www.openssl.org/source/openssl-1.0.1
 The folder include of openssl should be:
 **/Users/user/TBuild/Libraries/openssl-xcode/include**
 
-#####Building library
+##### Building library
 
 * Open **/Users/user/TBuild/Libraries/openssl-xcode/openssl.xcodeproj** with Xcode
 * Product > Build
 
-####liblzma
-#####Get the source code
+#### liblzma
+##### Get the source code
 
 Download [**xz-5.0.5.tar.gz**](http://tukaani.org/xz/xz-5.0.5.tar.gz)
 
 Extract to **/Users/user/TBuild/Libraries**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run:
 
@@ -79,8 +79,8 @@ In Terminal go to **/Users/user/TBuild/Libraries/xz-5.0.5** and there run:
     make
     sudo make install
 
-####libexif 0.6.20
-#####Get the source code
+#### libexif 0.6.20
+##### Get the source code
 
 From https://github.com/telegramdesktop/libexif-0.6.20 with git in Terminal:
 
@@ -92,7 +92,7 @@ From https://github.com/telegramdesktop/libexif-0.6.20 with git in Terminal:
 The folder configure should have this path:
 **/Users/user/TBuild/Libraries/libexif-0.6.20/configure**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20** and there run
 
@@ -100,7 +100,7 @@ In Terminal go to **/Users/user/TBuild/Libraries/libexif-0.6.20** and there run
     make
     sudo make install
 
-####OpenAL Soft
+#### OpenAL Soft
 
 Get sources by git – in Terminal go to **/Users/user/TBuild/Libraries** and run
 
@@ -108,7 +108,7 @@ Get sources by git – in Terminal go to **/Users/user/TBuild/Libraries** and ru
 
 to have **/Users/user/TBuild/Libraries/openal-soft/CMakeLists.txt**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there run
 
@@ -116,14 +116,14 @@ In Terminal go to **/Users/user/TBuild/Libraries/openal-soft/build** and there r
     make
     sudo make install
 
-####Opus codec
-#####Get the source code
+#### Opus codec
+##### Get the source code
 
 * Download sources [opus-1.1.tar.gz](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads/
 * Extract them to **/Users/user/TBuild/Libraries**
 * Rename opus-1.1 to opus to have **/Users/user/TBuild/Libraries/opus/configure**
 
-#####Building library
+##### Building library
 
 * Download [pkg-config 0.28](http://pkgconfig.freedesktop.org/releases/pkg-config-0.28.tar.gz) from http://pkg-config.freedesktop.org
 * Extract it to **/Users/user/TBuild/Libraries**
@@ -140,8 +140,8 @@ then go to **/Users/user/TBuild/Libraries/opus** and run:
     make
     sudo make install
 
-####FFmpeg and Libiconv
-#####Get the source code
+#### FFmpeg and Libiconv
+##### Get the source code
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
@@ -152,7 +152,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
 * Download [libiconv-1.14](http://ftp.gnu.org/pub/gnu/libiconv/libiconv-1.14.tar.gz) from http://www.gnu.org/software/libiconv/#downloading
 * Extract to **/Users/user/TBuild/Libraries** to have **/Users/user/TBuild/Libraries/ibiconv-1.14**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/Users/user/TBuild/Libraries/libiconv-1.14** and run:
 
@@ -175,8 +175,8 @@ Then in Terminal go to **/Users/user/TBuild/Libraries/ffmpeg** and run:
     make
     sudo make install
 
-####Qt 5.6.2, slightly patched
-#####Get the source code
+#### Qt 5.6.2, slightly patched
+##### Get the source code
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
@@ -188,13 +188,13 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     cd qtimageformats && git checkout v5.6.2 && cd ..
     cd qtbase && git checkout v5.6.2 && cd ..
 
-#####Apply the patch
+##### Apply the patch
 
 From **/Users/user/TBuild/Libraries/qt5_6_2/qtbase**, run:
 
     git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff
 
-#####Building library
+##### Building library
 
 Go to **/Users/user/TBuild/Libraries/qt5_6_2** and run:
 
@@ -204,9 +204,9 @@ Go to **/Users/user/TBuild/Libraries/qt5_6_2** and run:
 
 Building (**make** command) will take a really long time.
 
-####Google Crashpad
+#### Google Crashpad
 
-#####Install gyp
+##### Install gyp
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
@@ -217,7 +217,7 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     sudo ./setup.py install
     cd ..
 
-#####Build crashpad
+##### Build crashpad
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run:
 
@@ -231,14 +231,14 @@ In Terminal go to **/Users/user/TBuild/Libraries** and run:
     build/gyp_crashpad.py -Dmac_deployment_target=10.8
     ninja -C out/Release
 
-####Prepare GYP
+#### Prepare GYP
 
 In Terminal go to **/Users/user/TBuild/Libraries** and run
 
     cd gyp
     git apply ../../tdesktop/Telegram/Patches/gyp.diff
 
-###Building Telegram Desktop
+### Building Telegram Desktop
 
 In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
 

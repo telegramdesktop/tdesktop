@@ -1,6 +1,6 @@
-##Build instructions for GYP/CMake under Ubuntu 12.04
+## Build instructions for GYP/CMake under Ubuntu 12.04
 
-###Prepare
+### Prepare
 
 * Install git by command **sudo apt-get install git** in Terminal
 * Install g++ by command **sudo apt-get install g++** in Terminal
@@ -13,29 +13,29 @@ You need to install g++ version 6 manually by such commands
 * sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-6 60
 * sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-6 60
 
-###Prepare folder
+### Prepare folder
 
 Choose a folder for the future build, for example **/home/user/TBuild** There you will have two folders, **Libraries** for third-party libs and **tdesktop** (or **tdesktop-master**) for the app.
 
-###Clone source code
+### Clone source code
 
 By git – in Terminal go to **/home/user/TBuild** and run
 
     git clone --recursive https://github.com/telegramdesktop/tdesktop.git
 
-###Prepare libraries
+### Prepare libraries
 
 Install dev libraries
 
     sudo apt-get install libexif-dev liblzma-dev libz-dev libssl-dev libappindicator-dev libunity-dev libicu-dev libdee-dev
 
-####zlib 1.2.8
+#### zlib 1.2.8
 
 http://www.zlib.net/ > Download [**zlib source code, version 1.2.8, tarball format**](http://zlib.net/fossils/zlib-1.2.8.tar.gz)
 
 Extract to **/home/user/TBuild/Libraries**
 
-#####Building library
+##### Building library
 
 In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
 
@@ -45,7 +45,7 @@ In Terminal go to **/home/user/TBuild/Libraries/zlib-1.2.8** and run:
 
 Install audio libraries
 
-####Opus codec 1.1
+#### Opus codec 1.1
 
 Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar.gz) from http://www.opus-codec.org/downloads, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/opus-1.1** and run
 
@@ -53,7 +53,7 @@ Download [opus-1.1 sources](http://downloads.xiph.org/releases/opus/opus-1.1.tar
     make
     sudo make install
 
-####FFmpeg
+#### FFmpeg
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -84,7 +84,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####PortAudio 19
+#### PortAudio 19
 
 [Download portaudio sources](http://www.portaudio.com/archives/pa_stable_v19_20140130.tgz) from **http://www.portaudio.com/download.html**, extract to **/home/user/TBuild/Libraries**, go to **/home/user/TBuild/Libraries/portaudio** and run
 
@@ -92,7 +92,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####OpenAL Soft
+#### OpenAL Soft
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -105,7 +105,7 @@ then go to **/home/user/TBuild/Libraries/openal-soft/build** and run
     make
     sudo make install
 
-####OpenSSL
+#### OpenSSL
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -116,7 +116,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####libxkbcommon (required for Fcitx Qt plugin)
+#### libxkbcommon (required for Fcitx Qt plugin)
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -127,7 +127,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     sudo make install
 
-####Qt 5.6.2, slightly patched
+#### Qt 5.6.2, slightly patched
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -139,11 +139,11 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     cd qtimageformats && git checkout v5.6.2 && cd ..
     cd qtbase && git checkout v5.6.2 && cd ..
 
-#####Apply the patch
+##### Apply the patch
 
     cd qtbase && git apply ../../../tdesktop/Telegram/Patches/qtbase_5_6_2.diff && cd ..
 
-#####Building library
+##### Building library
 
 Install some packages for Qt (see **/home/user/TBuild/Libraries/qt5_6_2/qtbase/src/plugins/platforms/xcb/README**)
 
@@ -157,7 +157,7 @@ In Terminal go to **/home/user/TBuild/Libraries/qt5_6_2** and there run
 
 building (**make** command) will take really long time.
 
-####Google Breakpad
+#### Google Breakpad
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -168,7 +168,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     make
     make install
 
-####GYP and CMake
+#### GYP and CMake
 
 In Terminal go to **/home/user/TBuild/Libraries** and run
 
@@ -181,7 +181,7 @@ In Terminal go to **/home/user/TBuild/Libraries** and run
     ./configure
     make
 
-###Building Telegram Desktop
+### Building Telegram Desktop
 
 In Terminal go to **/home/user/TBuild/tdesktop/Telegram** and run
 
