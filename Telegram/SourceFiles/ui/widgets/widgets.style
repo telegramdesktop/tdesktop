@@ -315,6 +315,7 @@ CrossButton {
 	crossFgOver:color;
 	crossPosition: point;
 	duration: int;
+	loadingPeriod: int;
 
 	ripple: RippleAnimation;
 }

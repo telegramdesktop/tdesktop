@@ -233,6 +233,7 @@ public:
 	bool isShown() const {
 		return _shown;
 	}
+	void setLoadingAnimation(bool enabled);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -243,12 +244,18 @@ protected:
 	QPoint prepareRippleStartPosition() const override;
 
 private:
+	void step_loading(TimeMs ms, bool timer);
+	bool stopLoadingAnimation(TimeMs ms);
 	void animationCallback();
 
 	const style::CrossButton &_st;
 
 	bool _shown = false;
 	Animation _a_show;
+
+	TimeMs _loadingStartMs = 0;
+	TimeMs _loadingStopMs = 0;
+	BasicAnimation _a_loading;
 
 };
 

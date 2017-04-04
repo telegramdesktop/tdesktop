@@ -625,10 +625,20 @@ void LeftOutlineButton::paintEvent(QPaintEvent *e) {
 }
 
 CrossButton::CrossButton(QWidget *parent, const style::CrossButton &st) : RippleButton(parent, st.ripple)
-, _st(st) {
+, _st(st)
+, _a_loading(animation(this, &CrossButton::step_loading)) {
 	resize(_st.width, _st.height);
 	setCursor(style::cur_pointer);
 	hide();
+}
+
+void CrossButton::step_loading(TimeMs ms, bool timer) {
+	if (stopLoadingAnimation(ms)) {
+		_a_loading.stop();
+	}
+	if (timer) {
+		update();
+	}
 }
 
 void CrossButton::toggleAnimated(bool visible) {
@@ -659,7 +669,43 @@ void CrossButton::paintEvent(QPaintEvent *e) {
 
 	paintRipple(p, _st.crossPosition.x(), _st.crossPosition.y(), ms);
 
-	CrossAnimation::paint(p, _st.cross, over ? _st.crossFgOver : _st.crossFg, _st.crossPosition.x(), _st.crossPosition.y(), width(), shown);
+	auto loading = 0.;
+	if (_a_loading.animating()) {
+		if (stopLoadingAnimation(ms)) {
+			_a_loading.stop();
+		} else {
+			loading = ((ms - _loadingStartMs) % _st.loadingPeriod) / float64(_st.loadingPeriod);
+		}
+	}
+	CrossAnimation::paint(p, _st.cross, over ? _st.crossFgOver : _st.crossFg, _st.crossPosition.x(), _st.crossPosition.y(), width(), shown, loading);
+}
+
+bool CrossButton::stopLoadingAnimation(TimeMs ms) {
+	if (!_loadingStopMs) {
+		return false;
+	}
+	auto stopPeriod = (_loadingStopMs - _loadingStartMs) / _st.loadingPeriod;
+	auto currentPeriod = (ms - _loadingStartMs) / _st.loadingPeriod;
+	if (currentPeriod != stopPeriod) {
+		t_assert(currentPeriod > stopPeriod);
+		return true;
+	}
+	return false;
+}
+
+void CrossButton::setLoadingAnimation(bool enabled) {
+	if (enabled) {
+		_loadingStopMs = 0;
+		if (!_a_loading.animating()) {
+			_loadingStartMs = getms();
+			_a_loading.start();
+		}
+	} else if (_a_loading.animating()) {
+		_loadingStopMs = getms();
+		if (!((_loadingStopMs - _loadingStartMs) % _st.loadingPeriod)) {
+			_a_loading.stop();
+		}
+	}
 }
 
 void CrossButton::onStateChanged(State was, StateChangeSource source) {

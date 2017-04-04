@@ -270,6 +270,7 @@ contactsSearchCancel: CrossButton {
 	crossPosition: point(4px, 4px);
 
 	duration: 150;
+	loadingPeriod: 1000;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: windowBgOver;
 	}

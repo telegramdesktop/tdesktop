@@ -48,6 +48,9 @@ public:
 
 	void stealFocus();
 	void returnFocus();
+	void setLoading(bool loading) {
+		_cancel->setLoadingAnimation(loading);
+	}
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -181,6 +184,7 @@ GifsListWidget::~GifsListWidget() {
 }
 
 void GifsListWidget::cancelGifsSearch() {
+	_footer->setLoading(false);
 	if (_inlineRequestId) {
 		request(_inlineRequestId).cancel();
 		_inlineRequestId = 0;
@@ -192,6 +196,7 @@ void GifsListWidget::cancelGifsSearch() {
 }
 
 void GifsListWidget::inlineResultsDone(const MTPmessages_BotResults &result) {
+	_footer->setLoading(false);
 	_inlineRequestId = 0;
 
 	auto it = _inlineCache.find(_inlineQuery);
@@ -754,9 +759,7 @@ bool GifsListWidget::refreshInlineRows(int32 *added) {
 	auto it = _inlineCache.find(_inlineQuery);
 	const InlineCacheEntry *entry = nullptr;
 	if (it != _inlineCache.cend()) {
-		if (!it->second->results.empty()) {
-			entry = it->second.get();
-		}
+		entry = it->second.get();
 		_inlineNextOffset = it->second->nextOffset;
 	}
 	auto result = refreshInlineRows(entry, false);
@@ -780,6 +783,7 @@ void GifsListWidget::searchForGifs(const QString &query) {
 	}
 
 	if (_inlineQuery != query) {
+		_footer->setLoading(false);
 		if (_inlineRequestId) {
 			request(_inlineRequestId).cancel();
 			_inlineRequestId = 0;
@@ -813,8 +817,10 @@ void GifsListWidget::sendInlineRequest() {
 	if (_inlineRequestId || !_inlineQueryPeer || _inlineNextQuery.isEmpty()) {
 		return;
 	}
+
 	if (!_searchBot) {
 		// Wait for the bot being resolved.
+		_footer->setLoading(true);
 		_inlineRequestTimer.start(kSearchRequestDelay);
 		return;
 	}
@@ -825,13 +831,18 @@ void GifsListWidget::sendInlineRequest() {
 	auto it = _inlineCache.find(_inlineQuery);
 	if (it != _inlineCache.cend()) {
 		nextOffset = it->second->nextOffset;
-		if (nextOffset.isEmpty()) return;
+		if (nextOffset.isEmpty()) {
+			_footer->setLoading(false);
+			return;
+		}
 	}
 
+	_footer->setLoading(true);
 	_inlineRequestId = request(MTPmessages_GetInlineBotResults(MTP_flags(0), _searchBot->inputUser, _inlineQueryPeer->input, MTPInputGeoPoint(), MTP_string(_inlineQuery), MTP_string(nextOffset))).done([this](const MTPmessages_BotResults &result, mtpRequestId requestId) {
 		inlineResultsDone(result);
 	}).fail([this](const RPCError &error) {
 		// show error?
+		_footer->setLoading(false);
 		_inlineRequestId = 0;
 	}).handleAllErrors().send();
 }
