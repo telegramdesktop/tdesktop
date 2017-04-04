@@ -2,13 +2,13 @@
 <component type="desktop">
     <id>org.telegram.TelegramDesktop.desktop</id>
     <metadata_license>CC0-1.0</metadata_license>
-    <project_license>GPL-2.0+</project_license>
-    <name>Telegram desktop</name>
+    <project_license>GPL-3.0</project_license>
+    <name>Telegram Desktop</name>
     <summary>Telegram Desktop messenger</summary>
     <description>
        <p>Fast and secure desktop app, perfectly synced with your mobile phone.</p>
     </description>
-    <url type="homepage">https://github.com/telegramdesktop/tdesktop</url>
+    <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
     <screenshots>
       <screenshot type="default">
