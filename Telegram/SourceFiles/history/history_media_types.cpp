@@ -2087,6 +2087,7 @@ bool HistoryGif::playInline(bool autoplay) {
 			if (App::main()) {
 				App::main()->mediaMarkRead(_data);
 			}
+			App::wnd()->controller()->enableGifPauseReason(Window::GifPauseReason::RoundPlaying);
 		}
 		if (_gif && autoplay) {
 			_gif->setAutoplay();
@@ -2096,6 +2097,9 @@ bool HistoryGif::playInline(bool autoplay) {
 }
 
 void HistoryGif::stopInline() {
+	if (_gif && _gif->mode() == Media::Clip::Reader::Mode::Video) {
+		App::wnd()->controller()->disableGifPauseReason(Window::GifPauseReason::RoundPlaying);
+	}
 	clearClipReader();
 
 	_parent->setPendingInitDimensions();

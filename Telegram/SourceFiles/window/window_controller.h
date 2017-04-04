@@ -27,7 +27,8 @@ enum class GifPauseReason {
 	InlineResults = (1 << 0),
 	SavedGifs = (1 << 1),
 	Layer = (1 << 2),
-	MediaPreview = (1 << 3),
+	RoundPlaying = (1 << 3),
+	MediaPreview = (1 << 4),
 };
 Q_DECLARE_FLAGS(GifPauseReasons, GifPauseReason);
 Q_DECLARE_OPERATORS_FOR_FLAGS(GifPauseReasons);
