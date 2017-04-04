@@ -33,7 +33,7 @@ bool filedialogGetSaveFile(QString &file, const QString &caption, const QString 
 	return result;
 }
 
-QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path, bool skipExistance) {
+QString filedialogDefaultName(const QString &prefix, const QString &extension, const QString &path, bool skipExistance, int fileTime) {
 	auto directoryPath = path;
 	if (directoryPath.isEmpty()) {
 		if (cDialogLastPath().isEmpty()) {
@@ -42,14 +42,19 @@ QString filedialogDefaultName(const QString &prefix, const QString &extension, c
 		directoryPath = cDialogLastPath();
 	}
 
-	time_t t = time(NULL);
-	struct tm tm;
-    mylocaltime(&tm, &t);
+	QString base;
+	if (fileTime) {
+		base = prefix + ::date(fileTime).toString("_yyyy-MM-dd_HH-mm-ss");
+	} else {
+		struct tm tm;
+		time_t t = time(NULL);
+		mylocaltime(&tm, &t);
 
-	QChar zero('0');
+		QChar zero('0');
+		base = prefix + qsl("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
+	}
 
 	QString name;
-	QString base = prefix + qsl("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
 	if (skipExistance) {
 		name = base + extension;
 	} else {
