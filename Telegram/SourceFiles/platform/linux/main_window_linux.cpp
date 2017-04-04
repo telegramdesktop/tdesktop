@@ -376,7 +376,7 @@ void MainWindow::updateIconCounters() {
 
 void MainWindow::LibsLoaded() {
 	noQtTrayIcon = !DesktopEnvironment::TryQtTrayIcon();
-	tryAppIndicator = !DesktopEnvironment::PreferAppIndicatorTrayIcon();
+	tryAppIndicator = DesktopEnvironment::PreferAppIndicatorTrayIcon();
 
 	LOG(("Tray Icon: Try Qt = %1, Prefer appindicator = %2").arg(Logs::b(!noQtTrayIcon)).arg(Logs::b(tryAppIndicator)));
 
